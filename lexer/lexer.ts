@@ -185,16 +185,8 @@ class Lexer {
   parseLogicalOperator(char: string): Token {
     switch (char) {
       case "&":
-        if (this.input[0] === "&") {
-          this.getChar();
-          return new Token(TokenType.AND, "&&", this.line);
-        }
         return new Token(TokenType.AMPERSAND, "&", this.line);
       case "|":
-        if (this.input[0] === "|") {
-          this.getChar();
-          return new Token(TokenType.OR, "||", this.line);
-        }
         return new Token(TokenType.PIPE, "|", this.line);
       default:
         throw new Error(

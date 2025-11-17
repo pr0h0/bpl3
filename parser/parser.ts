@@ -48,7 +48,7 @@ export class Parser {
 
   parseExpression(): Expression {
     const expr = this.parseAssignment();
-    expr.log();
+    // expr.log();
     if (expr.requiresSemicolon) {
       this.consume(TokenType.SEMICOLON, "Expected ';' after expression.");
     }
@@ -80,7 +80,7 @@ export class Parser {
   }
 
   parseTernary(): Expression {
-    const expr = this.parseLogicalAndOr();
+    const expr = this.parseLogicalOr();
     const nextToken = this.peek();
     if (!nextToken) return expr;
 
@@ -101,47 +101,95 @@ export class Parser {
     return expr;
   }
 
-  parseLogicalAndOr(): Expression {
-    const expr = this.parseBitwiseAndOr();
+  parseLogicalOr(): Expression {
+    const expr = this.parseLogicalAnd();
     const nextToken = this.peek();
-    if (!nextToken) return expr;
+    const secondNextToken = this.peek(1);
+    if (!nextToken || !secondNextToken) return expr;
 
     if (
-      nextToken.type === TokenType.AMPERSAND &&
-      this.peek(1)?.type === TokenType.AMPERSAND
-    ) {
-      this.consume(TokenType.AMPERSAND);
-      this.consume(TokenType.AMPERSAND);
-      const right = this.parseBitwiseAndOr();
-
-      return new BinaryExpr(expr, nextToken, right);
-    } else if (
       nextToken.type === TokenType.PIPE &&
-      this.peek(1)?.type === TokenType.PIPE
+      secondNextToken.type === TokenType.PIPE
     ) {
       this.consume(TokenType.PIPE);
       this.consume(TokenType.PIPE);
-      const right = this.parseBitwiseAndOr();
+      const right = this.parseLogicalOr();
 
-      return new BinaryExpr(expr, nextToken, right);
+      const newNextToken = { ...nextToken, value: "||" };
+      return new BinaryExpr(expr, newNextToken, right);
     }
 
     return expr;
   }
 
-  parseBitwiseAndOr(): Expression {
-    const expr = this.parseEquality();
+  parseLogicalAnd(): Expression {
+    const expr = this.parseBitwiseOr();
+    const nextToken = this.peek();
+    const secondNextToken = this.peek(1);
+    if (!nextToken || !secondNextToken) return expr;
+
+    if (
+      nextToken.type === TokenType.AMPERSAND &&
+      secondNextToken.type === TokenType.AMPERSAND
+    ) {
+      this.consume(TokenType.AMPERSAND);
+      this.consume(TokenType.AMPERSAND);
+      const right = this.parseLogicalAnd();
+
+      const newNextToken = { ...nextToken, value: "&&" };
+      return new BinaryExpr(expr, newNextToken, right);
+    }
+    return expr;
+  }
+
+  parseBitwiseOr(): Expression {
+    const expr = this.parseBitwiseXor();
+    const nextToken = this.peek();
+    const secondNextToken = this.peek(1);
+    if (!nextToken || !secondNextToken) return expr;
+
+    if (
+      nextToken.type === TokenType.PIPE &&
+      secondNextToken.type !== TokenType.PIPE
+    ) {
+      const operator = this.consume(nextToken.type);
+
+      const right = this.parseBitwiseOr();
+
+      return new BinaryExpr(expr, operator, right);
+    }
+
+    return expr;
+  }
+
+  parseBitwiseXor(): Expression {
+    const expr = this.parseBitwiseAnd();
     const nextToken = this.peek();
     if (!nextToken) return expr;
 
+    if (nextToken.type === TokenType.CARET) {
+      const operator = this.consume(nextToken.type);
+
+      const right = this.parseBitwiseXor();
+
+      return new BinaryExpr(expr, operator, right);
+    }
+
+    return expr;
+  }
+  parseBitwiseAnd(): Expression {
+    const expr = this.parseEquality();
+    const nextToken = this.peek();
+    const secondNextToken = this.peek(1);
+    if (!nextToken || !secondNextToken) return expr;
+
     if (
-      (nextToken.type === TokenType.AMPERSAND &&
-        this.peek(1)?.type !== TokenType.AMPERSAND) ||
-      (nextToken.type === TokenType.PIPE &&
-        this.peek(1)?.type !== TokenType.PIPE)
+      nextToken.type === TokenType.AMPERSAND &&
+      secondNextToken.type !== TokenType.AMPERSAND
     ) {
       const operator = this.consume(nextToken.type);
-      const right = this.parseEquality();
+
+      const right = this.parseBitwiseAnd();
 
       return new BinaryExpr(expr, operator, right);
     }
@@ -203,7 +251,11 @@ export class Parser {
       this.consume(secondNextToken.type);
       const right = this.parseAddition();
 
-      return new BinaryExpr(expr, operator, right);
+      const newOperator = {
+        ...operator,
+        value: operator.value + operator.value,
+      };
+      return new BinaryExpr(expr, newOperator, right);
     }
 
     return expr;
@@ -219,7 +271,7 @@ export class Parser {
       nextToken.type === TokenType.MINUS
     ) {
       const operator = this.consume(nextToken.type);
-      const right = this.parseMultiplication();
+      const right = this.parseAddition();
 
       return new BinaryExpr(expr, operator, right);
     }
@@ -238,7 +290,7 @@ export class Parser {
       nextToken.type === TokenType.PERCENT
     ) {
       const operator = this.consume(nextToken.type);
-      const right = this.parseUnary();
+      const right = this.parseMultiplication();
 
       return new BinaryExpr(expr, operator, right);
     }
@@ -352,6 +404,7 @@ export class Parser {
       return new EOFExpr();
     }
 
+    console.log(this.tokens.slice(this.current - 3, this.current + 3));
     throw new Error(`Unexpected token: ${token.type} @${token.line}`);
   }
 
@@ -691,6 +744,8 @@ export class Parser {
       this.current++;
       return token;
     }
+
+    console.log(this.tokens.slice(this.current - 3, this.current + 3));
     throw new Error(
       errorMessage
         ? errorMessage + `@${token ? token.line : "EOF"}`
