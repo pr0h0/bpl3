@@ -113,4 +113,4 @@ frame control_test(a: i32, b: i32) ret i32 {
 
 a.b[c+d].e.f[g-h].i[j+k];
 a && b || c || d && e && f || g && h && i || j && k;
-a + b * c - d / e & f | g ^ h;# << 2 >> 1;
+a + b * c - d / e & f | g ^ ~h << 2 >> 1;

@@ -1,19 +1,12 @@
-import type Token from "../../lexer/token";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
-
-export type FunctionArgument = {
-  name: string;
-  type: Token;
-  isArray: number; // number of dimensions, 0 means not an array
-  isPointer: number; // number of pointer levels, 0 means not a pointer
-};
+import type { VariableType } from "./variableDeclarationExpr";
 
 export default class FunctionDeclarationExpr extends Expression {
   constructor(
     public name: string,
-    public args: FunctionArgument[],
-    public returnType: FunctionArgument | null,
+    public args: { type: VariableType; name: string }[],
+    public returnType: VariableType | null,
     public body: Expression,
   ) {
     super(ExpressionType.FunctionDeclaration);
@@ -30,14 +23,12 @@ export default class FunctionDeclarationExpr extends Expression {
     this.depth++;
     for (const arg of this.args) {
       output +=
-        this.getDepth() +
-        `Name: ${arg.name}, Type: ${arg.type.value}, IsArray: ${arg.isArray}, IsPointer: ${arg.isPointer}\n`;
+        this.getDepth() + `Name: ${arg.name}, ${this.printType(arg.type)}\n`;
     }
     this.depth--;
     if (this.returnType) {
-      // TODO: improve return type representation
       output +=
-        this.getDepth() + `Return Type: ${this.returnType.type.value}\n`;
+        this.getDepth() + `Return Type: ${this.printType(this.returnType)}\n`;
     } else {
       output += this.getDepth() + `Return Type: void\n`;
     }
@@ -57,20 +48,12 @@ export default class FunctionDeclarationExpr extends Expression {
     let output = `function ${this.name}(`;
     const argsOutput: string[] = [];
     for (const arg of this.args) {
-      let argStr = arg.name + ": " + arg.type.value;
-      for (let i = 0; i < arg.isPointer; i++) {
-        argStr = "Pointer<" + argStr + ">";
-      }
-      for (let i = 0; i < arg.isArray; i++) {
-        argStr += "[]";
-      }
-      argsOutput.push(argStr);
+      argsOutput.push(arg.name + ": " + this.printType(arg.type));
     }
     output += argsOutput.join(", ");
     output += ")";
     if (this.returnType) {
-      // TODO: improve return type representation
-      output += ": " + this.returnType.type.value;
+      output += ": " + this.printType(this.returnType);
     }
     output += " {\n";
     output += this.body.transpile() + "\n";

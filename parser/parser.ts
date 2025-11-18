@@ -1,6 +1,5 @@
 import type Token from "../lexer/token";
 import TokenType from "../lexer/tokenType";
-import ExpressionType from "./expressionType";
 import BinaryExpr from "./expression/binaryExpr";
 import Expression from "./expression/expr";
 import ProgramExpr from "./expression/programExpr";
@@ -20,7 +19,6 @@ import StructDeclarationExpr, {
 import NullLiteral from "./expression/nullLiteralExpr";
 import IfExpr from "./expression/ifExpr";
 import BlockExpr from "./expression/blockExpr";
-import type { FunctionArgument } from "./expression/functionDeclaration";
 import FunctionDeclarationExpr from "./expression/functionDeclaration";
 import FunctionCallExpr from "./expression/functionCallExpr";
 import ReturnExpr from "./expression/returnExpr";
@@ -58,18 +56,17 @@ export class Parser {
   parseAssignment(): Expression {
     const expr = this.parseTernary();
     const nextToken = this.peek();
-    if (!nextToken) return expr;
 
     if (
-      nextToken.type === TokenType.ASSIGN ||
-      nextToken.type === TokenType.PLUS_ASSIGN ||
-      nextToken.type === TokenType.MINUS_ASSIGN ||
-      nextToken.type === TokenType.STAR_ASSIGN ||
-      nextToken.type === TokenType.SLASH_ASSIGN ||
-      nextToken.type === TokenType.PERCENT_ASSIGN ||
-      nextToken.type === TokenType.AMPERSAND_ASSIGN ||
-      nextToken.type === TokenType.PIPE_ASSIGN ||
-      nextToken.type === TokenType.CARET_ASSIGN
+      nextToken?.type === TokenType.ASSIGN ||
+      nextToken?.type === TokenType.PLUS_ASSIGN ||
+      nextToken?.type === TokenType.MINUS_ASSIGN ||
+      nextToken?.type === TokenType.STAR_ASSIGN ||
+      nextToken?.type === TokenType.SLASH_ASSIGN ||
+      nextToken?.type === TokenType.PERCENT_ASSIGN ||
+      nextToken?.type === TokenType.AMPERSAND_ASSIGN ||
+      nextToken?.type === TokenType.PIPE_ASSIGN ||
+      nextToken?.type === TokenType.CARET_ASSIGN
     ) {
       const operator = this.consume(nextToken.type);
       const right = this.parseTernary();
@@ -82,16 +79,10 @@ export class Parser {
   parseTernary(): Expression {
     const expr = this.parseLogicalOr();
     const nextToken = this.peek();
-    if (!nextToken) return expr;
 
-    if (nextToken.type === TokenType.QUESTION) {
+    if (nextToken?.type === TokenType.QUESTION) {
       this.consume(TokenType.QUESTION);
-      let middle: Expression | null;
-      if (this.peek()?.type === TokenType.COLON) {
-        middle = null;
-      } else {
-        middle = this.parseTernary();
-      }
+      const middle = this.parseTernary();
       this.consume(TokenType.COLON);
       const right = this.parseTernary();
 
@@ -102,150 +93,157 @@ export class Parser {
   }
 
   parseLogicalOr(): Expression {
-    const expr = this.parseLogicalAnd();
-    const nextToken = this.peek();
-    const secondNextToken = this.peek(1);
-    if (!nextToken || !secondNextToken) return expr;
+    let expr = this.parseLogicalAnd();
+    let nextToken = this.peek();
+    let secondNextToken = this.peek(1);
 
-    if (
-      nextToken.type === TokenType.PIPE &&
-      secondNextToken.type === TokenType.PIPE
+    while (
+      nextToken?.type === TokenType.PIPE &&
+      secondNextToken?.type === TokenType.PIPE
     ) {
       this.consume(TokenType.PIPE);
       this.consume(TokenType.PIPE);
-      const right = this.parseLogicalOr();
+      const right = this.parseLogicalAnd();
 
       const newNextToken = { ...nextToken, value: "||" };
-      return new BinaryExpr(expr, newNextToken, right);
+      expr = new BinaryExpr(expr, newNextToken, right);
+
+      nextToken = this.peek();
+      secondNextToken = this.peek(1);
     }
 
     return expr;
   }
 
   parseLogicalAnd(): Expression {
-    const expr = this.parseBitwiseOr();
-    const nextToken = this.peek();
-    const secondNextToken = this.peek(1);
-    if (!nextToken || !secondNextToken) return expr;
+    let expr = this.parseBitwiseOr();
+    let nextToken = this.peek();
+    let secondNextToken = this.peek(1);
 
-    if (
-      nextToken.type === TokenType.AMPERSAND &&
-      secondNextToken.type === TokenType.AMPERSAND
+    while (
+      nextToken?.type === TokenType.AMPERSAND &&
+      secondNextToken?.type === TokenType.AMPERSAND
     ) {
       this.consume(TokenType.AMPERSAND);
       this.consume(TokenType.AMPERSAND);
-      const right = this.parseLogicalAnd();
+      const right = this.parseBitwiseOr();
 
       const newNextToken = { ...nextToken, value: "&&" };
-      return new BinaryExpr(expr, newNextToken, right);
+      expr = new BinaryExpr(expr, newNextToken, right);
+
+      nextToken = this.peek();
+      secondNextToken = this.peek(1);
     }
     return expr;
   }
 
   parseBitwiseOr(): Expression {
-    const expr = this.parseBitwiseXor();
-    const nextToken = this.peek();
-    const secondNextToken = this.peek(1);
-    if (!nextToken || !secondNextToken) return expr;
+    let expr = this.parseBitwiseXor();
+    let nextToken = this.peek();
+    let secondNextToken = this.peek(1);
 
-    if (
-      nextToken.type === TokenType.PIPE &&
-      secondNextToken.type !== TokenType.PIPE
+    while (
+      nextToken?.type === TokenType.PIPE &&
+      secondNextToken?.type !== TokenType.PIPE
     ) {
       const operator = this.consume(nextToken.type);
 
-      const right = this.parseBitwiseOr();
+      const right = this.parseBitwiseXor();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+
+      nextToken = this.peek();
+      secondNextToken = this.peek(1);
     }
 
     return expr;
   }
 
   parseBitwiseXor(): Expression {
-    const expr = this.parseBitwiseAnd();
-    const nextToken = this.peek();
-    if (!nextToken) return expr;
+    let expr = this.parseBitwiseAnd();
+    let nextToken = this.peek();
 
-    if (nextToken.type === TokenType.CARET) {
+    while (nextToken?.type === TokenType.CARET) {
       const operator = this.consume(nextToken.type);
 
-      const right = this.parseBitwiseXor();
+      const right = this.parseBitwiseAnd();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+      nextToken = this.peek();
     }
 
     return expr;
   }
   parseBitwiseAnd(): Expression {
-    const expr = this.parseEquality();
-    const nextToken = this.peek();
-    const secondNextToken = this.peek(1);
-    if (!nextToken || !secondNextToken) return expr;
+    let expr = this.parseEquality();
+    let nextToken = this.peek();
+    let secondNextToken = this.peek(1);
 
-    if (
-      nextToken.type === TokenType.AMPERSAND &&
-      secondNextToken.type !== TokenType.AMPERSAND
+    while (
+      nextToken?.type === TokenType.AMPERSAND &&
+      secondNextToken?.type !== TokenType.AMPERSAND
     ) {
       const operator = this.consume(nextToken.type);
 
-      const right = this.parseBitwiseAnd();
+      const right = this.parseEquality();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+
+      nextToken = this.peek();
+      secondNextToken = this.peek(1);
     }
 
     return expr;
   }
 
   parseEquality(): Expression {
-    const expr = this.parseComparison();
-    const nextToken = this.peek();
-    if (!nextToken) return expr;
+    let expr = this.parseComparison();
+    let nextToken = this.peek();
 
-    if (
-      nextToken.type === TokenType.EQUAL ||
-      nextToken.type === TokenType.NOT_EQUAL
+    while (
+      nextToken?.type === TokenType.EQUAL ||
+      nextToken?.type === TokenType.NOT_EQUAL
     ) {
       const operator = this.consume(nextToken.type);
       const right = this.parseComparison();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+      nextToken = this.peek();
     }
 
     return expr;
   }
 
   parseComparison(): Expression {
-    const expr = this.parseBitwiseShift();
-    const nextToken = this.peek();
-    if (!nextToken) return expr;
+    let expr = this.parseBitwiseShift();
+    let nextToken = this.peek();
 
-    if (
-      nextToken.type === TokenType.GREATER_THAN ||
-      nextToken.type === TokenType.LESS_THAN ||
-      nextToken.type === TokenType.GREATER_EQUAL ||
-      nextToken.type === TokenType.LESS_EQUAL
+    while (
+      nextToken?.type === TokenType.GREATER_THAN ||
+      nextToken?.type === TokenType.LESS_THAN ||
+      nextToken?.type === TokenType.GREATER_EQUAL ||
+      nextToken?.type === TokenType.LESS_EQUAL
     ) {
       const operator = this.consume(nextToken.type);
       const right = this.parseBitwiseShift();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+      nextToken = this.peek();
     }
 
     return expr;
   }
 
   parseBitwiseShift(): Expression {
-    const expr = this.parseAddition();
-    const nextToken = this.peek();
-    const secondNextToken = this.peek(1);
-    if (!nextToken || !secondNextToken) return expr;
+    let expr = this.parseAddition();
+    let nextToken = this.peek();
+    let secondNextToken = this.peek(1);
 
-    if (
-      (nextToken.type === TokenType.LESS_THAN &&
-        secondNextToken.type === TokenType.LESS_THAN) ||
-      (nextToken.type === TokenType.GREATER_THAN &&
-        secondNextToken.type === TokenType.GREATER_THAN)
+    while (
+      (nextToken?.type === TokenType.LESS_THAN &&
+        secondNextToken?.type === TokenType.LESS_THAN) ||
+      (nextToken?.type === TokenType.GREATER_THAN &&
+        secondNextToken?.type === TokenType.GREATER_THAN)
     ) {
       const operator = this.consume(nextToken.type);
       this.consume(secondNextToken.type);
@@ -255,44 +253,47 @@ export class Parser {
         ...operator,
         value: operator.value + operator.value,
       };
-      return new BinaryExpr(expr, newOperator, right);
+      expr = new BinaryExpr(expr, newOperator, right);
+
+      nextToken = this.peek();
+      secondNextToken = this.peek(1);
     }
 
     return expr;
   }
 
   parseAddition(): Expression {
-    const expr = this.parseMultiplication();
-    const nextToken = this.peek();
-    if (!nextToken) return expr;
+    let expr = this.parseMultiplication();
+    let nextToken = this.peek();
 
-    if (
-      nextToken.type === TokenType.PLUS ||
-      nextToken.type === TokenType.MINUS
+    while (
+      nextToken?.type === TokenType.PLUS ||
+      nextToken?.type === TokenType.MINUS
     ) {
       const operator = this.consume(nextToken.type);
-      const right = this.parseAddition();
+      const right = this.parseMultiplication();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+      nextToken = this.peek();
     }
 
     return expr;
   }
 
   parseMultiplication(): Expression {
-    const expr = this.parseUnary();
-    const nextToken = this.peek();
-    if (!nextToken) return expr;
+    let expr = this.parseUnary();
+    let nextToken = this.peek();
 
-    if (
-      nextToken.type === TokenType.STAR ||
-      nextToken.type === TokenType.SLASH ||
-      nextToken.type === TokenType.PERCENT
+    while (
+      nextToken?.type === TokenType.STAR ||
+      nextToken?.type === TokenType.SLASH ||
+      nextToken?.type === TokenType.PERCENT
     ) {
       const operator = this.consume(nextToken.type);
-      const right = this.parseMultiplication();
+      const right = this.parseUnary();
 
-      return new BinaryExpr(expr, operator, right);
+      expr = new BinaryExpr(expr, operator, right);
+      nextToken = this.peek();
     }
 
     return expr;
@@ -300,7 +301,11 @@ export class Parser {
 
   parseUnary(): Expression {
     const nextToken = this.peek();
-    if (!nextToken) throw new Error("Unexpected end of input");
+    if (!nextToken)
+      throw new Error(
+        "Unexpected end of input on unary parse @" +
+          this.tokens[this.current]?.line,
+      );
 
     if (
       nextToken.type === TokenType.MINUS ||
@@ -409,65 +414,58 @@ export class Parser {
   }
 
   parseIdentifierWithAccess(prevExpr: Expression | null = null): Expression {
-    // start parsing the identifier and its accesses
-    // circulary parse until no more accesses are found
-    // use MemberAccessExpr for both since both will be base addr + offset
-    // for .property and index access [expr]
-    // if prevExpr is null that means we are starting fresh,
-    // if we have prevExpr, we use it as the base object and continue parsing accesses
     let objectExpr: Expression;
-    let accessExpr: Expression;
 
+    // 1. Determine the starting point (Base Expression)
     if (prevExpr === null) {
-      const identifierToken = this.consume(TokenType.IDENTIFIER);
+      // If no previous expression, the base MUST be an identifier (e.g., 'a' in 'a.b')
+      const identifierToken = this.consume(
+        TokenType.IDENTIFIER,
+        "Expected identifier for base access.",
+      );
+      objectExpr = new IdentifierExpr(identifierToken.value);
+    } else {
+      // If prevExpr is provided (e.g., result of parseGrouping), use it as the base
+      objectExpr = prevExpr;
+    }
+
+    // 2. Iteratively parse accessors (Left-to-Right Associativity)
+    while (
+      this.peek()?.type === TokenType.DOT ||
+      this.peek()?.type === TokenType.OPEN_BRACKET
+    ) {
       if (this.peek()?.type === TokenType.DOT) {
+        // Handle .property access
         this.consume(TokenType.DOT);
-        const propertyToken = this.consume(TokenType.IDENTIFIER);
-        accessExpr = new IdentifierExpr(propertyToken.value);
-        objectExpr = new IdentifierExpr(identifierToken.value);
-        const memberAccess = new MemberAccessExpr(
-          objectExpr,
-          accessExpr,
-          false,
+
+        // The property name must be an identifier
+        const propertyToken = this.consume(
+          TokenType.IDENTIFIER,
+          "Expected property name after '.'.",
         );
-        return this.parseIdentifierWithAccess(memberAccess);
-      } else if (this.peek()?.type === TokenType.OPEN_BRACKET) {
+        const accessExpr = new IdentifierExpr(propertyToken.value);
+
+        // Chain the new MemberAccessExpr onto the previous objectExpr
+        objectExpr = new MemberAccessExpr(objectExpr, accessExpr, false);
+      } else {
+        // Must be OPEN_BRACKET
+        // Handle [index] access
         this.consume(TokenType.OPEN_BRACKET);
+
+        // The index expression can be any valid expression (parsed by parseTernary)
         const indexExpr = this.parseTernary();
+
         this.consume(
           TokenType.CLOSE_BRACKET,
           "Expected ']' after index expression.",
         );
-        accessExpr = indexExpr;
-        objectExpr = new IdentifierExpr(identifierToken.value);
-        const memberAccess = new MemberAccessExpr(objectExpr, accessExpr, true);
-        return this.parseIdentifierWithAccess(memberAccess);
+
+        // Chain the new MemberAccessExpr onto the previous objectExpr
+        objectExpr = new MemberAccessExpr(objectExpr, indexExpr, true);
       }
-      throw new Error(
-        `Expected '.' or '[' after identifier @${identifierToken.line}`,
-      );
     }
 
-    objectExpr = prevExpr;
-
-    if (this.peek()?.type === TokenType.DOT) {
-      this.consume(TokenType.DOT);
-      const propertyToken = this.consume(TokenType.IDENTIFIER);
-      accessExpr = new IdentifierExpr(propertyToken.value);
-      const memberAccess = new MemberAccessExpr(objectExpr, accessExpr, false);
-      return this.parseIdentifierWithAccess(memberAccess);
-    } else if (this.peek()?.type === TokenType.OPEN_BRACKET) {
-      this.consume(TokenType.OPEN_BRACKET);
-      const indexExpr = this.parseTernary();
-      this.consume(
-        TokenType.CLOSE_BRACKET,
-        "Expected ']' after index expression.",
-      );
-      accessExpr = indexExpr;
-      const memberAccess = new MemberAccessExpr(objectExpr, accessExpr, true);
-      return this.parseIdentifierWithAccess(memberAccess);
-    }
-
+    // 3. Return the fully chained expression
     return objectExpr;
   }
 
@@ -530,18 +528,8 @@ export class Parser {
     while (this.peek() && this.peek()!.type !== TokenType.CLOSE_BRACE) {
       const fieldNameToken = this.consume(TokenType.IDENTIFIER);
       this.consume(TokenType.COLON, "Expected ':' after field name.");
-      let isPointer = 0;
-      let isArray = 0;
-      while (this.peek() && this.peek()!.type === TokenType.STAR) {
-        this.consume(TokenType.STAR);
-        isPointer++;
-      }
-      const fieldTypeToken = this.consume(TokenType.IDENTIFIER);
-      while (this.peek() && this.peek()!.type === TokenType.OPEN_BRACKET) {
-        this.consume(TokenType.OPEN_BRACKET);
-        this.consume(TokenType.CLOSE_BRACKET);
-        isArray++;
-      }
+
+      const fieldTypeToken = this.parseType();
 
       if (this.peek() && this.peek()!.type === TokenType.COMMA) {
         this.consume(TokenType.COMMA);
@@ -550,8 +538,6 @@ export class Parser {
       fields.push({
         name: fieldNameToken.value,
         type: fieldTypeToken,
-        isPointer,
-        isArray,
       });
     }
 
@@ -563,7 +549,7 @@ export class Parser {
   parseFunctionDeclaration(): FunctionDeclarationExpr {
     this.consume(TokenType.IDENTIFIER); // consume 'frame' token
     const funcNameToken = this.consume(TokenType.IDENTIFIER);
-    const args: FunctionArgument[] = [];
+    const args: { type: VariableType; name: string }[] = [];
     this.consume(
       TokenType.OPEN_PAREN,
       "Expected '(' after 'frame' function name.",
@@ -572,24 +558,12 @@ export class Parser {
     while (this.peek() && this.peek()!.type !== TokenType.CLOSE_PAREN) {
       const argNameToken = this.consume(TokenType.IDENTIFIER);
       this.consume(TokenType.COLON, "Expected ':' after argument name.");
-      let isPointer = 0;
-      let isArray = 0;
-      while (this.peek() && this.peek()!.type === TokenType.STAR) {
-        this.consume(TokenType.STAR);
-        isPointer++;
-      }
-      const argTypeToken = this.consume(TokenType.IDENTIFIER);
-      while (this.peek() && this.peek()!.type === TokenType.OPEN_BRACKET) {
-        this.consume(TokenType.OPEN_BRACKET);
-        this.consume(TokenType.CLOSE_BRACKET);
-        isArray++;
-      }
+
+      const argType: VariableType = this.parseType();
 
       args.push({
         name: argNameToken.value,
-        type: argTypeToken,
-        isPointer,
-        isArray,
+        type: argType,
       });
 
       if (this.peek() && this.peek()!.type === TokenType.COMMA) {
@@ -602,29 +576,13 @@ export class Parser {
       "Expected ')' after function arguments.",
     );
 
-    let returnType: FunctionArgument | null = null;
+    let returnType: VariableType | null = null;
     if (this.peek() && this.peek()!.type !== TokenType.OPEN_BRACE) {
       this.consume(
         TokenType.IDENTIFIER,
         "Expected ret keyword after function arguments.",
       );
-      returnType = {
-        name: "",
-        type: null as any,
-        isPointer: 0,
-        isArray: 0,
-      };
-      while (this.peek() && this.peek()!.type === TokenType.STAR) {
-        this.consume(TokenType.STAR);
-        returnType.isPointer++;
-      }
-      const returnTypeToken = this.consume(TokenType.IDENTIFIER);
-      returnType.type = returnTypeToken;
-      while (this.peek() && this.peek()!.type === TokenType.OPEN_BRACKET) {
-        this.consume(TokenType.OPEN_BRACKET);
-        this.consume(TokenType.CLOSE_BRACKET);
-        returnType.isArray++;
-      }
+      returnType = this.parseType();
     }
 
     const body = this.parseCodeBlock();
@@ -669,25 +627,7 @@ export class Parser {
     const varNameToken = this.consume(TokenType.IDENTIFIER);
     this.consume(TokenType.COLON, "Expected ':' after variable name.");
 
-    const typeToken: VariableType = {
-      name: "",
-      isPointer: 0,
-      isArray: 0,
-    };
-
-    while (this.peek() && this.peek()!.type === TokenType.STAR) {
-      this.consume(TokenType.STAR);
-      typeToken.isPointer++;
-    }
-
-    const typeNameToken = this.consume(TokenType.IDENTIFIER);
-    typeToken.name = typeNameToken.value;
-
-    while (this.peek() && this.peek()!.type === TokenType.OPEN_BRACKET) {
-      this.consume(TokenType.OPEN_BRACKET);
-      this.consume(TokenType.CLOSE_BRACKET);
-      typeToken.isArray++;
-    }
+    const typeToken = this.parseType();
 
     if (this.peek() && this.peek()!.type !== TokenType.ASSIGN) {
       if (isConst) {
@@ -732,6 +672,36 @@ export class Parser {
       "Expected '}' at the end of a code block.",
     );
     return new BlockExpr(expressions);
+  }
+
+  parseType(): VariableType {
+    const typeInfo: VariableType = {
+      name: "",
+      isPointer: 0,
+      isArray: 0,
+    };
+
+    // 1. Parse Pointers (Prefix)
+    while (this.peek()?.type === TokenType.STAR) {
+      this.consume(TokenType.STAR);
+      typeInfo.isPointer++;
+    }
+
+    // 2. Parse Type Name
+    const typeName = this.consume(TokenType.IDENTIFIER, "Expected type name.");
+    typeInfo.name = typeName.value;
+
+    // 3. Parse Arrays (Suffix)
+    while (this.peek()?.type === TokenType.OPEN_BRACKET) {
+      this.consume(TokenType.OPEN_BRACKET);
+      this.consume(
+        TokenType.CLOSE_BRACKET,
+        "Expected ']' after array brackets.",
+      );
+      typeInfo.isArray++;
+    }
+
+    return typeInfo;
   }
 
   peek(offset: number = 0): Token | null {

@@ -1,12 +1,11 @@
 import type Token from "../../lexer/token";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import type { VariableType } from "./variableDeclarationExpr";
 
 export type StructField = {
   name: string;
-  type: Token;
-  isArray: number; // number of dimensions, 0 means not an array
-  isPointer: number; // number of pointer levels, 0 means not a pointer
+  type: VariableType;
 };
 
 export default class StructDeclarationExpr extends Expression {
@@ -30,7 +29,7 @@ export default class StructDeclarationExpr extends Expression {
     this.depth++;
     for (const field of this.fields) {
       output += this.getDepth();
-      output += `- Name: ${field.name}, Type: ${field.type.value}, IsArray: ${field.isArray === 1 ? "true" : field.isArray || "false"}, IsPointer: ${field.isPointer === 1 ? "true" : field.isPointer || "false"}\n`;
+      output += `- Name: ${field.name}, ${this.printType(field.type)}\n`;
     }
     this.depth--;
     this.depth--;
@@ -46,14 +45,7 @@ export default class StructDeclarationExpr extends Expression {
   transpile(): string {
     let output = `struct ${this.name} {\n`;
     for (const field of this.fields) {
-      output += `  ${field.type.value} `;
-      output += field.name;
-      for (let i = 0; i < field.isPointer; i++) {
-        output += "*";
-      }
-      for (let i = 0; i < field.isArray; i++) {
-        output += "[]";
-      }
+      output += `  ${field.name}: ${this.printType(field.type)}`;
       output += ";\n";
     }
     output += `};\n`;

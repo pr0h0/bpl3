@@ -1,4 +1,5 @@
 import ExpressionType from "../expressionType";
+import type { VariableType } from "./variableDeclarationExpr";
 
 export default class Expression {
   constructor(type: ExpressionType) {
@@ -22,5 +23,16 @@ export default class Expression {
 
   getDepth(): string {
     return " ".repeat(this.depth * 2);
+  }
+
+  printType(type: VariableType): string {
+    let output = "";
+    output += "Type: " + type.name;
+    output +=
+      ", IsPointer: " +
+      (type.isPointer === 1 ? "true" : type.isPointer || "false");
+    output +=
+      ", IsArray: " + (type.isArray === 1 ? "true" : type.isArray || "false");
+    return output;
   }
 }
