@@ -58,6 +58,7 @@ enum TokenType {
 
   AND = "AND",
   OR = "OR",
+
   BITSHIFT_LEFT = "BITSHIFT_LEFT",
   BITSHIFT_RIGHT = "BITSHIFT_RIGHT",
 

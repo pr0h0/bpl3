@@ -122,6 +122,10 @@ class Lexer {
       ) {
         str += this.consume();
       } else if (char === startToken) {
+        str = str.replaceAll("\\\\n", "\n");
+        str = str.replaceAll("\\\\t", "\t");
+        str = str.replaceAll("\\\\r", "\r");
+        str = str.replaceAll(`\\${startToken}`, startToken);
         return new Token(TokenType.STRING_LITERAL, str, this.line);
       } else if (char === "\n") {
         throw new Error(

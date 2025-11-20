@@ -1,4 +1,6 @@
 import type Token from "../../lexer/token";
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import type { VariableType } from "./variableDeclarationExpr";
@@ -42,13 +44,7 @@ export default class StructDeclarationExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = `struct ${this.name} {\n`;
-    for (const field of this.fields) {
-      output += `  ${field.name}: ${this.printType(field.type)}`;
-      output += ";\n";
-    }
-    output += `};\n`;
-    return output;
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; not yet implemented", " Struct Declaration " + this.name);
   }
 }

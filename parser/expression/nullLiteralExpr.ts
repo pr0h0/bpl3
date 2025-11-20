@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -15,7 +17,7 @@ export default class NullLiteral extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    return "0";
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("mov rax, 0", "Load null literal into rax");
   }
 }

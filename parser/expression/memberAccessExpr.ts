@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -28,15 +30,10 @@ export default class MemberAccessExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    // parse object and then append .property or [property]
-    let output = "";
-    output += this.object.transpile();
-    if (this.isIndexAccess) {
-      output += `[${this.property.transpile()}]`;
-    } else {
-      output += `.${this.property.transpile()}`;
-    }
-    return output;
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; not yet implemented", "Member access expression");
+    this.object.transpile(gen, scope);
+    this.property.transpile(gen, scope);
+    gen.emit("; end not yet implemented", "Member access expression");
   }
 }

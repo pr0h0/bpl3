@@ -414,7 +414,6 @@ export class Parser {
       const argExpr = this.parseTernary();
       args.push(argExpr);
 
-      console.log(this.peek(), this.peek(1)); // DEBUG
       if (
         this.peek()?.type !== TokenType.CLOSE_PAREN &&
         this.peek()?.type !== TokenType.COMMA

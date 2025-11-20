@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type BlockExpr from "./blockExpr";
 import Expression from "./expr";
@@ -22,10 +24,9 @@ export default class LoopExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = `while (true) {\n`;
-    output += this.body.transpile();
-    output += `}\n`;
-    return output;
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; Loop expression not yet implemented", "Loop expression");
+    this.body.transpile(gen, scope);
+    gen.emit("; End of loop expression", "Loop expression");
   }
 }

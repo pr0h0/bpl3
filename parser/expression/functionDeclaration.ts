@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import type { VariableType } from "./variableDeclarationExpr";
@@ -44,20 +46,15 @@ export default class FunctionDeclarationExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = `function ${this.name}(`;
-    const argsOutput: string[] = [];
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit(`; begin function ${this.name}`, "func_begin");
     for (const arg of this.args) {
-      argsOutput.push(arg.name + ": " + this.printType(arg.type));
+      gen.emit(
+        `; param ${arg.name} : ${this.printType(arg.type)}`,
+        "func_param",
+      );
     }
-    output += argsOutput.join(", ");
-    output += ")";
-    if (this.returnType) {
-      output += ": " + this.printType(this.returnType);
-    }
-    output += " {\n";
-    output += this.body.transpile() + "\n";
-    output += "}";
-    return output;
+    this.body.transpile(gen, scope);
+    gen.emit(`; end function ${this.name}`, "func_end");
   }
 }

@@ -1,6 +1,8 @@
 import type Token from "../../lexer/token";
 import Expression from "./expr";
 import ExpressionType from "../expressionType";
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 
 export default class NumberLiteralExpr extends Expression {
   constructor(
@@ -27,7 +29,7 @@ export default class NumberLiteralExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    return this.value.toString();
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit(`mov rax, ${this.value}`, `Load literal ${this.value}`);
   }
 }

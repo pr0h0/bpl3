@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -20,12 +22,11 @@ export default class BlockExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = `{\n`;
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; begin block", "block_begin");
     for (const expr of this.expressions) {
-      output += expr.transpile() + "\n";
+      expr.transpile(gen, scope);
     }
-    output += `}`;
-    return output;
+    gen.emit("; end block", "block_end");
   }
 }

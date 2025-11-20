@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type { VariableType } from "./variableDeclarationExpr";
 
@@ -17,7 +19,7 @@ export default class Expression {
     throw new Error("Method not implemented.");
   }
 
-  transpile(): string {
+  transpile(gen: AsmGenerator, scope: Scope): void {
     throw new Error("Method not implemented.");
   }
 

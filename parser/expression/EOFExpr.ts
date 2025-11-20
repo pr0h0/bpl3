@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -16,7 +18,7 @@ export default class EOFExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    return "";
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; EOF reached", " EOFExpr ");
   }
 }

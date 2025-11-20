@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type BlockExpr from "./blockExpr";
 import Expression from "./expr";
@@ -34,15 +36,13 @@ export default class IfExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = `if (${this.condition.transpile()}) {\n`;
-    output += this.thenBranch.transpile();
-    output += `\n}`;
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; not yet implemented", " IfExpr ");
+    this.condition.transpile(gen, scope);
+    this.thenBranch.transpile(gen, scope);
     if (this.elseBranch) {
-      output += ` else {\n`;
-      output += this.elseBranch.transpile();
-      output += `\n}`;
+      this.elseBranch.transpile(gen, scope);
     }
-    return output;
+    gen.emit("; end not yet implemented", " IfExpr ");
   }
 }

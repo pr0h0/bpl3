@@ -1,10 +1,12 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
 export default class TernaryExpr extends Expression {
   constructor(
     public condition: Expression,
-    public trueExpr: Expression | null,
+    public trueExpr: Expression,
     public falseExpr: Expression,
   ) {
     super(ExpressionType.TernaryExpression);
@@ -28,7 +30,11 @@ export default class TernaryExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    return `${this.condition.transpile()} ? ${this.trueExpr?.transpile() ?? "null"} : ${this.falseExpr.transpile()}`;
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; not yet implemented", " Ternary Expression ");
+    this.condition.transpile(gen, scope);
+    this.trueExpr.transpile(gen, scope);
+    this.falseExpr.transpile(gen, scope);
+    gen.emit("; end not yet implemented", " Ternary Expression ");
   }
 }

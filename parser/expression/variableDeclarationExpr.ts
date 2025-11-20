@@ -1,4 +1,6 @@
 import type Token from "../../lexer/token";
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -50,19 +52,38 @@ export default class VariableDeclarationExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = "";
+  transpile(gen: AsmGenerator, scope: Scope): void {
     if (this.scope === "global") {
-      output += "var ";
+      const label = gen.generateLabel(
+        "global_" + (this.isConst ? "const_" : "") + this.name,
+      );
+      gen.emitData(label, 0);
+      if (this.value) {
+        gen.startPrecomputeBlock();
+        this.value.transpile(gen, scope);
+        gen.emit(
+          `mov [${label}], rax`,
+          "initialize global variable " + this.name,
+        );
+        gen.endPrecomputeBlock();
+        scope.define(this.name, {
+          type: "global",
+          label: label,
+        });
+      } else {
+        gen.startPrecomputeBlock();
+        gen.emit(
+          `mov qword [${label}], 0`,
+          "initialize global variable " + this.name + " to 0",
+        );
+        gen.endPrecomputeBlock();
+        scope.define(this.name, {
+          type: "global",
+          label: label,
+        });
+      }
     } else {
-      output += this.isConst ? "const " : "let ";
+      throw new Error("Local variable declarations not implemented yet.");
     }
-    output += `${this.name}`;
-    output += `: ${this.varType.name}`;
-    if (this.value) {
-      output += ` = ${this.value.transpile()}`;
-    }
-    output += `;\n`;
-    return output;
   }
 }

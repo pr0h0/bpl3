@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -25,14 +27,24 @@ export default class FunctionCallExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    let output = `${this.functionName}(`;
-    const argOutputs: string[] = [];
-    for (const arg of this.args) {
-      argOutputs.push(arg.transpile());
-    }
-    output += argOutputs.join(", ");
-    output += `)`;
-    return output;
+  argOrders: string[] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit(`; call function ${this.functionName}`, "func_call");
+    this.args.forEach((arg, index) => {
+      if (index < this.argOrders.length) {
+        arg.transpile(gen, scope);
+        gen.emit(
+          `mov ${this.argOrders[index]}, rax`,
+          `Move argument ${index + 1} into ${this.argOrders[index]}`,
+        );
+      } else {
+        throw new Error(
+          `Function calls with more than ${this.argOrders.length} arguments are not supported.`,
+        );
+      }
+    });
+
+    gen.emit(`call ${this.functionName}`, "call_instr");
   }
 }

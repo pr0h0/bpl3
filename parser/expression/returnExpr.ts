@@ -1,3 +1,5 @@
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -29,11 +31,10 @@ export default class ReturnExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
+  transpile(gen: AsmGenerator, scope: Scope): void {
     if (this.value) {
-      return `return ${this.value.transpile()};\n`;
-    } else {
-      return `return;\n`;
+      this.value.transpile(gen, scope);
     }
+    gen.emit("ret", "Return without value");
   }
 }

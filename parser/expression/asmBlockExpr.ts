@@ -1,4 +1,6 @@
 import Token from "../../lexer/token";
+import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -28,7 +30,7 @@ export class AsmBlockExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  transpile(): string {
-    return this.code.map((token) => token.value).join("\n");
+  transpile(gen: AsmGenerator, scope: Scope): void {
+    gen.emit("; missing asm block", "asm_block");
   }
 }
