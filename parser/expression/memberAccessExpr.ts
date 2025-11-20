@@ -24,8 +24,8 @@ export default class MemberAccessExpr extends Expression {
     return output;
   }
 
-  log(): void {
-    console.log(this.toString());
+  log(depth: number = 0): void {
+    console.log(this.toString(depth));
   }
 
   transpile(): string {

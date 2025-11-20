@@ -56,6 +56,11 @@ enum TokenType {
   PIPE = "PIPE",
   PIPE_ASSIGN = "PIPE_ASSIGN",
 
+  AND = "AND",
+  OR = "OR",
+  BITSHIFT_LEFT = "BITSHIFT_LEFT",
+  BITSHIFT_RIGHT = "BITSHIFT_RIGHT",
+
   UNKNOWN = "UNKNOWN",
   NOOP = "NOOP",
   EOF = "EOF",

@@ -19,10 +19,6 @@ const content = readFileSync(fileName, { encoding: "utf-8" });
 const lexer = new Lexer(content);
 const tokens = lexer.tokenize();
 
-for (const token of tokens) {
-  console.log(token.toString());
-}
-
 const parser = new Parser(tokens);
 const ast = parser.parse();
 
