@@ -53,13 +53,12 @@ export default class BinaryExpr extends Expression {
       this.operator.type,
     );
 
-    let previousContext = scope.currentContext;
     if (isAssignmentOp) {
       scope.setCurrentContext({ type: "LHS" });
     }
     this.left.transpile(gen, scope);
     if (isAssignmentOp) {
-      scope.setCurrentContext(previousContext);
+      scope.removeCurrentContext("LHS");
     }
 
     gen.emit("pop rbx", "load right operand");

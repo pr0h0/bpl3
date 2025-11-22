@@ -31,16 +31,15 @@ export default class LoopExpr extends Expression {
 
     gen.emitLabel(loopStartLabel);
 
-    const localScope = new Scope(scope);
-    localScope.setCurrentContext({
+    scope.setCurrentContext({
       type: "loop",
       breakLabel: loopEndLabel,
       continueLabel: loopStartLabel,
     });
 
-    this.body.transpile(gen, localScope);
+    this.body.transpile(gen, scope);
 
-    localScope.setCurrentContext(null);
+    scope.removeCurrentContext("loop");
 
     gen.emit(`jmp ${loopStartLabel}`, "jump to the beginning of the loop");
     gen.emitLabel(loopEndLabel);

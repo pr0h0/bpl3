@@ -88,7 +88,7 @@ export default class FunctionDeclarationExpr extends Expression {
       endLabel: endLabel,
     });
     this.body.transpile(gen, localScope);
-    localScope.setCurrentContext(null);
+    localScope.removeCurrentContext("function");
 
     gen.emitLabel(endLabel);
     gen.emit("mov rsp, rbp", "Function epilogue");

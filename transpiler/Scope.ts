@@ -12,17 +12,25 @@ export default class Scope {
   private vars = new Map<string, VarInfo>();
   private functions = new Map<string, any>();
   public stackOffset = 0; // Tracks stack usage for this function
-  public currentContext: ContextType = null;
+  public currentContext: ContextType[] = [];
 
   constructor(private parent: Scope | null = null) {}
 
-  setCurrentContext(context: ContextType) {
-    this.currentContext = context;
+  removeCurrentContext(type: "loop" | "function" | "LHS") {
+    const index = this.currentContext.findIndex((ctx) => ctx?.type === type);
+    if (index !== -1) {
+      this.currentContext.splice(index, 1);
+    }
+  }
+
+  setCurrentContext(context: Exclude<ContextType, null>) {
+    this.currentContext.push(context);
   }
 
   getCurrentContext(type: "loop" | "function" | "LHS"): ContextType {
-    if (this.currentContext?.type === type) {
-      return this.currentContext;
+    const current = this.currentContext.find((ctx) => ctx?.type === type);
+    if (current) {
+      return current;
     } else if (this.parent) {
       return this.parent.getCurrentContext(type);
     } else {

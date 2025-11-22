@@ -49,12 +49,12 @@ export default class IfExpr extends Expression {
     gen.emit(`je ${this.elseBranch ? elseLabel : endLabel}`);
 
     gen.emitLabel(thenLabel);
-    this.thenBranch.transpile(gen, new Scope(scope));
+    this.thenBranch.transpile(gen, scope);
     gen.emit(`jmp ${endLabel}`);
 
     if (this.elseBranch) {
       gen.emitLabel(elseLabel);
-      this.elseBranch.transpile(gen, new Scope(scope));
+      this.elseBranch.transpile(gen, scope);
     }
 
     gen.emitLabel(endLabel);

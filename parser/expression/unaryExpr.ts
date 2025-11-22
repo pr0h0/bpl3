@@ -29,14 +29,13 @@ export default class UnaryExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
-    const prevContext = scope.currentContext;
     const shouldSetLHS = this.operator.type === TokenType.AMPERSAND;
     if (shouldSetLHS) {
       scope.setCurrentContext({ type: "LHS" });
     }
     this.right.transpile(gen, scope);
     if (shouldSetLHS) {
-      scope.setCurrentContext(prevContext);
+      scope.removeCurrentContext("LHS");
     }
     switch (this.operator.type) {
       case TokenType.MINUS:

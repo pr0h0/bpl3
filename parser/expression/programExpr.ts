@@ -46,7 +46,10 @@ export default class ProgramExpr extends Expression {
     gen.emit("push rbp");
     gen.emit("mov rbp, rsp");
     gen.emit("call main", "call main function");
-    gen.emit("mov rdi, 0", "status: 0");
+    gen.emit(
+      "mov rdi, rax",
+      "status: move return value of main to rdi for exit",
+    );
     gen.emit("call exit", "call exit function");
 
     // 3. Transpile all children
