@@ -66,7 +66,6 @@ export default class AsmGenerator {
       "section .bss",
       ...this.bss,
       "section .text",
-      "global _start",
       ...this.globalDefinitions,
       "_precompute:",
       ...this.precompute,

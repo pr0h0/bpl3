@@ -1,47 +1,165 @@
 #!/bin/bash
 
-fileName="${1%%.*}" # remove .s extension
-outputFile="$(basename "$1" .x)"
+# --- Configuration Defaults ---
+# Default to dynamic linking (requires dynamic linker path)
+LINK_MODE="dynamic"
+QUIET_TRANSPILE=""
+PRINT_ASM=""
+DYNAMIC_LINKER="/lib64/ld-linux-x86-64.so.2"
+SHOULD_RUN="false"
+SHOULD_GDB="false"
+SHOULD_CLEANUP_ASM="true"
+SHOULD_CLEANUP_O="true"
+SHOULD_CLEANUP_EXE="false"
 
-echo "Compiling and running TypeScript file: $1"
-bun index.ts $1 # > /dev/null
-if [ $? -ne 0 ]; then
-    echo "TypeScript compilation failed. Exiting."
+# --- 1. Parse Command Line Arguments (Flags) ---
+
+# Shift loop to handle flags before the main positional arguments
+while :; do
+    case "$1" in
+        -s|--static)
+            LINK_MODE="static"
+            ;;
+        -d|--dynamic)
+            LINK_MODE="dynamic"
+            ;;
+        -q|--quiet)
+            QUIET_TRANSPILE="> /dev/null"
+            ;;
+        -p|--print-asm)
+            PRINT_ASM="true"
+            SHOULD_CLEANUP_ASM="false"
+            ;;
+        -r|--run)
+            SHOULD_RUN="true"
+            ;;
+        -g|--gdb)
+            SHOULD_GDB="true"
+            ;;
+        -l|--lib)
+            SHOULD_CLEANUP_O="fals"
+            SHOULD_CLEANUP_EXE="true"
+            ;;
+        --) # End of all options
+            shift
+            break
+            ;;
+        -?*) # Handle invalid options
+            echo "Warning: Unknown option (ignored): $1" >&2
+            ;;
+        *) # End of flags
+            break
+    esac
+    shift
+done
+
+# --- 2. Extract Files ---
+
+# $1 should now be the source file (e.g., source.x)
+SOURCE_FILE="$1"
+
+if [ -z "$SOURCE_FILE" ]; then
+    echo "Error: No source file provided."
+    echo "Usage: ./compiler.sh [-s|-d] [-q] [-p] <source.x> [lib1.o lib2.o ...]"
     exit 1
 fi
 
-echo "Generated assembly file: ${fileName}.asm"
-echo;
+# Remove the source file from the arguments list, leaving only the libraries.
+shift
 
-cat "${fileName}.asm"
-echo;
-echo;
+# $@ now contains all the remaining object files and libraries to pass to ld.
+LIBRARY_FILES="$@"
 
-echo "Assembling and linking assembly file: ${fileName}.asm"
-nasm -f elf64 ${fileName}".asm"
-# if there was an error during assembly, exit the script
+# Derived file names
+fileName="${SOURCE_FILE%%.*}" # e.g., source
+outputFile="$(basename "$SOURCE_FILE" .x)" # e.g., source
+
+# --- 3. Transpile (.x -> .asm) ---
+
+echo "--- 1. Transpiling $SOURCE_FILE ---"
+# We use eval to allow the QUIET_TRANSPILE variable to be applied dynamically
+eval bun index.ts "$SOURCE_FILE" $QUIET_TRANSPILE
+if [ $? -ne 0 ]; then
+    echo "TypeScript transpilation failed. Exiting."
+    exit 1
+fi
+
+# --- 4. Print Assembly (Optional) ---
+
+if [ "$PRINT_ASM" == "true" ]; then
+    echo "--- 2. Generated Assembly: ${fileName}.asm ---"
+    cat "${fileName}.asm"
+    echo "-----------------------------------"
+else
+    echo "--- 2. Skipping assembly printout ---"
+fi
+
+# --- 5. Assemble (.asm -> .o) ---
+
+echo "--- 3. Assembling ${fileName}.asm ---"
+nasm -f elf64 "${fileName}.asm"
 if [ $? -ne 0 ]; then
     echo "Assembly failed. Exiting."
     exit 1
 fi
 
-echo "Linking object file: ${fileName}.o to create executable: ${outputFile}"
-ld "${fileName}.o" -o ${outputFile} -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2
-# if there was an error during linking, exit the script
+# --- 6. Link (.o + libs -> executable) ---
+
+echo "--- 4. Linking to create executable: ${outputFile} (Mode: $LINK_MODE) ---"
+
+# Start the linker command with the main object file
+LD_COMMAND="ld ${fileName}.o ${LIBRARY_FILES} -o ${outputFile} -lc"
+
+if [ "$LINK_MODE" == "static" ]; then
+    # For static linking, we change the first flag and remove the dynamic linker path
+    LD_COMMAND="ld -static ${fileName}.o ${LIBRARY_FILES} -o ${outputFile}"
+else
+    # For dynamic linking, we must include the dynamic linker path
+    LD_COMMAND="${LD_COMMAND} --dynamic-linker ${DYNAMIC_LINKER}"
+fi
+
+# Execute the final linker command
+echo "Executing: $LD_COMMAND"
+$LD_COMMAND
+
 if [ $? -ne 0 ]; then
     echo "Linking failed. Exiting."
     exit 1
 fi
-rm "${fileName}.o"
 
+# --- 7. Cleanup Intermediate Files ---
+if [ "$SHOULD_CLEANUP_ASM" == "true" ]; then
+    echo "--- Cleaning up assembly file ---"
+    rm -f "${fileName}.asm"
+fi
+
+if [ "$SHOULD_CLEANUP_O" == "true" ]; then
+    echo "--- Cleaning up object file ---"
+    rm -f "${fileName}.o"
+fi
+
+if [ "$SHOULD_CLEANUP_EXE" == "true" ]; then
+    echo "--- Cleaning up executable file ---"
+    rm -f "./${outputFile}"
+    exit 0;
+fi
+
+
+# --- 8. Run Executable ---
+
+if [ "$SHOULD_RUN" == "false" ] && [ "$SHOULD_GDB" == "false" ]; then
+    exit 0;
+fi
 
 echo;
-echo "Running the output file: ${outputFile}"
-echo "-----------------------------------";
+echo "--- 5. Running ${outputFile} ---"
+if [ "$SHOULD_GDB" == "true" ]; then
+    gdb -q ./${outputFile};
+else
+    echo "-----------------------------------";
+    ./${outputFile}; 
+    EXIT_CODE="$?";
+    echo "-----------------------------------";
 
-EXIT_CODE='AAA';
-[ "$2" == "-g" ] && gdb -q ${outputFile}; 
-[ "$2" == "-g" ] || { ./${outputFile}; EXIT_CODE="$?"; };
-echo "-----------------------------------";
-
-[ "$EXIT_CODE" != "AAA" ] && echo "Program exited with code: $EXIT_CODE";
+    echo "Program exited with code: $EXIT_CODE";
+fi

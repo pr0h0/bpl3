@@ -27,6 +27,7 @@ import MemberAccessExpr from "./expression/memberAccessExpr";
 import BreakExpr from "./expression/breakExpr";
 import ContinueExpr from "./expression/continueExpr";
 import ImportExpr from "./expression/importExpr";
+import ExportExpr from "./expression/exportExpr";
 
 export class Parser {
   constructor(tokens: Token[]) {
@@ -445,7 +446,9 @@ export class Parser {
   }
 
   parseExportExpression(): Expression {
-    throw new Error("Export functionality not implemented.");
+    this.consume(TokenType.IDENTIFIER);
+    const name = this.consume(TokenType.IDENTIFIER);
+    return new ExportExpr(name.value);
   }
 
   parseFunctionReturn(): Expression {
