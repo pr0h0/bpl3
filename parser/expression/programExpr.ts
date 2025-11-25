@@ -37,18 +37,26 @@ export default class ProgramExpr extends Expression {
     HelperGenerator.generateBaseTypes(gen, scope);
     HelperGenerator.generateHelperFunctions(gen, scope);
     if (!weHaveExportStmt) {
-      gen.emitGlobalDefinition("global _start");
-      gen.emitLabel("_start");
-      gen.emit("call _precompute", "call precompute function");
+      gen.emitGlobalDefinition("global main");
+      gen.emitLabel("main");
       gen.emit("push rbp", "standard function prologue");
       gen.emit("mov rbp, rsp", "standard function prologue");
-      gen.emit("sub rsp, 8", "align stack to 16 bytes");
-      gen.emit("call main", "call main function");
-      gen.emit("add rsp, 8", "realign stack");
+
+      // Save argc and argv
+      gen.emit("push rdi", "save argc");
+      gen.emit("push rsi", "save argv");
+
+      gen.emit("call _precompute", "call precompute function");
+
+      // Restore argc and argv
+      gen.emit("pop rsi", "restore argv");
+      gen.emit("pop rdi", "restore argc");
+
+      gen.emit("call _user_main", "call main function");
       gen.emit("pop rbp", "standard function epilogue");
       gen.emit("mov rdi, rax", "move return value into rdi for exit");
       gen.emit("call exit", "call exit function");
-      gen.emit("", "end of _start");
+      gen.emit("", "end of main");
     } else {
       gen.emit("call _precompute", "call precompute function");
     }

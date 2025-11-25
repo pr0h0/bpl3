@@ -60,7 +60,7 @@ export default class FunctionDeclarationExpr extends Expression {
     });
 
     if (this.name === "main") {
-      gen.emitGlobalDefinition(`main equ ${label}`);
+      gen.emitGlobalDefinition(`_user_main equ ${label}`);
     }
     gen.emitLabel(label);
     const funcScope = new Scope(scope);

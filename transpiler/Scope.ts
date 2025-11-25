@@ -37,6 +37,7 @@ export type FunctionInfo = {
   endLabel: string;
   args: { type: VariableType; name: string }[];
   returnType: VariableType | null;
+  isExternal?: boolean;
 };
 
 export default class Scope {

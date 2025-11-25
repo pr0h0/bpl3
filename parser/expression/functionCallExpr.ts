@@ -67,7 +67,14 @@ export default class FunctionCallExpr extends Expression {
       "xor rbx, rbx",
       `Clear rbx before calling function ${this.functionName}`,
     );
-    gen.emit(`call ${func.startLabel}`, `Call function ${this.functionName}`);
+    if (func.isExternal) {
+      gen.emit(
+        `call ${func.startLabel} WRT ..plt`,
+        `Call external function ${this.functionName}`,
+      );
+    } else {
+      gen.emit(`call ${func.startLabel}`, `Call function ${this.functionName}`);
+    }
 
     if (stackOffset !== 0) {
       gen.emit(

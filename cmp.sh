@@ -11,6 +11,7 @@ SHOULD_GDB="false"
 SHOULD_CLEANUP_ASM="true"
 SHOULD_CLEANUP_O="true"
 SHOULD_CLEANUP_EXE="false"
+SKIP_LINKING="false"
 
 # --- 1. Parse Command Line Arguments (Flags) ---
 
@@ -39,6 +40,7 @@ while :; do
         -l|--lib)
             SHOULD_CLEANUP_O="false"
             SHOULD_CLEANUP_EXE="true"
+            SKIP_LINKING="true"
             ;;
         --) # End of all options
             shift
@@ -107,17 +109,20 @@ fi
 
 # --- 6. Link (.o + libs -> executable) ---
 
+if [ "$SKIP_LINKING" == "true" ]; then
+    [ "$QUIET_TRANSPILE" == "" ] && echo "--- 4. Skipping linking (Library Mode) ---"
+    exit 0
+fi
+
 [ "$QUIET_TRANSPILE" == "" ] && echo "--- 4. Linking to create executable: ${outputFile} (Mode: $LINK_MODE) ---"
 
 # Start the linker command with the main object file
-LD_COMMAND="ld ${fileName}.o ${LIBRARY_FILES} -o ${outputFile} -lc"
+# We use gcc instead of ld to handle standard libraries and startup files automatically
+LD_COMMAND="gcc ${fileName}.o ${LIBRARY_FILES} -o ${outputFile}"
 
 if [ "$LINK_MODE" == "static" ]; then
-    # For static linking, we change the first flag and remove the dynamic linker path
-    LD_COMMAND="ld -static ${fileName}.o ${LIBRARY_FILES} -o ${outputFile}"
-else
-    # For dynamic linking, we must include the dynamic linker path
-    LD_COMMAND="${LD_COMMAND} --dynamic-linker ${DYNAMIC_LINKER}"
+    # For static linking, we add the -static flag
+    LD_COMMAND="gcc -static ${fileName}.o ${LIBRARY_FILES} -o ${outputFile}"
 fi
 
 # Execute the final linker command

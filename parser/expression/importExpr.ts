@@ -38,6 +38,7 @@ export default class ImportExpr extends Expression {
         returnType: null,
         startLabel: name,
         endLabel: name,
+        isExternal: true,
       });
     });
   }

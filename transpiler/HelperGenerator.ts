@@ -119,14 +119,14 @@ export default class HelperGenerator {
 
     gen.emit("mov [rbp-8], rdi", "save command");
     gen.emit("lea rsi, [rel " + modeLabel + "]");
-    gen.emit("call popen");
+    gen.emit("call popen WRT ..plt");
     gen.emit("mov [rbp-16], rax", "save FILE*");
 
     gen.emit("cmp rax, 0");
     gen.emit("je exec_fail");
 
     gen.emit("mov rdi, 4096");
-    gen.emit("call malloc");
+    gen.emit("call malloc WRT ..plt");
     gen.emit("mov [rbp-24], rax", "save buffer");
 
     gen.emit("cmp rax, 0");
@@ -136,20 +136,20 @@ export default class HelperGenerator {
     gen.emit("mov rsi, 1");
     gen.emit("mov rdx, 4095");
     gen.emit("mov rcx, [rbp-16]");
-    gen.emit("call fread");
+    gen.emit("call fread WRT ..plt");
 
     gen.emit("mov rcx, [rbp-24]");
     gen.emit("mov byte [rcx + rax], 0");
 
     gen.emit("mov rdi, [rbp-16]");
-    gen.emit("call pclose");
+    gen.emit("call pclose WRT ..plt");
 
     gen.emit("mov rax, [rbp-24]");
     gen.emit("jmp exec_end");
 
     gen.emitLabel("exec_fail_close");
     gen.emit("mov rdi, [rbp-16]");
-    gen.emit("call pclose");
+    gen.emit("call pclose WRT ..plt");
 
     gen.emitLabel("exec_fail");
     gen.emit("xor rax, rax");

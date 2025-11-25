@@ -663,7 +663,17 @@ export class Parser {
       this.peek()!.value === "else"
     ) {
       this.consume(TokenType.IDENTIFIER);
-      elseBranch = this.parseCodeBlock();
+
+      if (
+        this.peek() &&
+        this.peek()!.type === TokenType.IDENTIFIER &&
+        this.peek()!.value === "if"
+      ) {
+        const ifExpr = this.parseIfExpression();
+        elseBranch = new BlockExpr([ifExpr]);
+      } else {
+        elseBranch = this.parseCodeBlock();
+      }
     }
 
     return new IfExpr(condition, thenBranch, elseBranch);

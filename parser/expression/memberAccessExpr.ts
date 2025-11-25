@@ -199,7 +199,9 @@ export default class MemberAccessExpr extends Expression {
         } else {
           const typeInfo = scope.resolveType(resultType.name);
           if (typeInfo) {
-            if (typeInfo.size === 1) {
+            if (resultType.isPointer > 0) {
+              gen.emit("mov rax, [rax]", "Dereference pointer (64-bit)");
+            } else if (typeInfo.size === 1) {
               gen.emit("movzx rax, byte [rax]", "Dereference 8-bit");
             } else if (typeInfo.size === 2) {
               gen.emit("movzx rax, word [rax]", "Dereference 16-bit");

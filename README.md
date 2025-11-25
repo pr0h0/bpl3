@@ -31,7 +31,7 @@ More examples can be found in the `example` directory.
 - Import/Export: Supports modular programming through import and export statements.
 - Inline Assembly: Allows embedding raw assembly code within BPL code for low-level operations with interpolation of BPL variables.
 - Structures and Arrays: Supports user-defined structures and arrays for complex data management.
-- Standard Library: Provides built-in functions for `print` and `exit`
+- Standard Library: Provides built-in functions for `print`, `exit`, `exec`, `str_len`.
 - Simple Syntax: Designed to be easy to read and write, with a syntax similar to C, Go, and Python.
 
 ## Example
@@ -64,6 +64,15 @@ There are several options you can pass to the compiler:
 - `-r|--run`: Automatically run the compiled program after successful compilation.
 - `-g|--gdb`: Run the compiled program inside GDB for debugging.
 - `-l|--lib`: Compile as a shared library instead of an executable, preserve .o file.
+- `-d|--dynamic`: Compile as a dynamically linked executable (default).
+- `-s|--static`: Compile as a static executable (no dynamic linking).
+
+### Linking Modes
+
+BPL supports both static and dynamic linking.
+
+- **Dynamic Linking (Default)**: Uses shared libraries (`libc`, etc.). Resulting binaries are smaller but require system libraries to be present.
+- **Static Linking (`-s`)**: Bundles all dependencies into the executable. Resulting binaries are larger but portable across Linux systems without dependency issues.
 
 You can add cmp.sh to your PATH for easier access by adding the following line to your shell configuration file (e.g., `.bashrc`, `.zshrc`):
 
@@ -146,6 +155,24 @@ frame function_name() ret return_type {}
 frame function_name() {} // for void return type
 ```
 
+### Command Line Arguments
+
+The `main` function can optionally accept command line arguments. It supports the standard `argc` (argument count) and `argv` (argument vector) parameters.
+
+```bpl
+frame main(argc: u32, argv: **u8) ret u8 {
+    local i: u32 = 0;
+    loop {
+        if i >= argc {
+            break;
+        }
+        call printf("Arg %d: %s\n", i, argv[i]);
+        i = i + 1;
+    }
+    return 0;
+}
+```
+
 ### Variables
 
 Variables in BPL are declared using the `global` and `local` keyword. Here is an example of declaring local and global variables:
@@ -173,7 +200,7 @@ local var_name: type; // uninitialized local variable
 
 ### Loops and Control Flow
 
-BPL supports standard control flow constructs such as `if`, `else`, `loop`, `break`, and `continue`. Loops by default are infinite and can be exited using `break` statement. if-else statements allow conditional execution of code blocks. if statement can be optionally followed by else block. Condition in if statements are not required to be in parentheses, and should evaluate to a boolean value but not explicitly required.
+BPL supports standard control flow constructs such as `if`, `else`, `else if`, `loop`, `break`, and `continue`. Loops by default are infinite and can be exited using `break` statement. if-else statements allow conditional execution of code blocks. if statement can be optionally followed by else block. Condition in if statements are not required to be in parentheses, and should evaluate to a boolean value but not explicitly required.
 Here is an example of a loop that prints numbers from 0 to 9:
 
 ```bpl
@@ -195,6 +222,8 @@ frame main() ret u8 {
 ```bpl
 if condition {
     // code to execute if condition is true
+} else if condition2 {
+    // code to execute if condition2 is true
 } else { # else block is optional
     // code to execute if condition is false
 }
@@ -254,6 +283,23 @@ frame main() ret u8 {
 }
 ```
 
+### Strings
+
+BPL supports string literals and string manipulation. Strings are null-terminated byte arrays (`*u8` or `u8[]`).
+
+```bpl
+# Read-only string literal (stored in .rodata)
+local str_ro: *u8 = "Hello, World!";
+
+# Mutable stack string (initialized from literal)
+local str_stack: u8[64] = "Hello, Stack!";
+str_stack[0] = 'h'; # Modify character
+
+# Heap string (dynamic)
+local str_heap: *u8 = call malloc(128);
+call strcpy(str_heap, "Hello, Heap!");
+```
+
 ### Arithmetic and Logical Operations
 
 BPL supports standard arithmetic operations such as addition arithemetic, comparison, logical, assignment, and bitwise operations. Here are some examples:
@@ -298,6 +344,8 @@ assignValue ~= 0xFF; // Bitwise NOT Assignment
 # Dereference and Address-of Operations ----------------
 local ptr: u64 = &a; // Address-of Operation
 local derefValue: u8 = *(ptr); // Dereference Operation
+# Ternary Operator -------------------------------------
+local max: u8 = a > b ? a : b;
 ```
 
 ### Standard Library
@@ -306,6 +354,8 @@ BPL provides a simple standard library with built-in functions for common tasks.
 
 - `print(string)`: Prints a string to the console.
 - `exit(code: u8)`: Exits the program with the given exit code.
+- `exec(command: *u8)`: Executes a shell command and returns the output as a string.
+- `str_len(str: *u8)`: Returns the length of a null-terminated string.
 
 ## More Examples
 
@@ -320,6 +370,12 @@ The `example` directory contains several programs demonstrating various features
 - `asm_demo.x`: Demonstrates inline assembly and variable interpolation.
 - `operators.x`: Comprehensive test of arithmetic, bitwise, and logical operators.
 - `library.x`: A complex example using structs, pointers, and global variables.
+- `enterprise_app.x`: A comprehensive example demonstrating almost all language features.
+- `sort_input.x`: Reads numbers from stdin and sorts them.
+- `exec_demo.x`: Demonstrates executing shell commands.
+- `strings_demo.x`: Demonstrates string manipulation capabilities.
+- `else_if_demo.x`: Demonstrates `else if` control flow.
+- `args_demo.x`: Demonstrates command line arguments handling.
 
 ## Contributing
 
