@@ -45,6 +45,106 @@ export default class StructDeclarationExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
-    gen.emit("", "STRUCT DECLARATION EXPR");
+    const structTypeInfo: TypeInfo = {
+      name: this.name,
+      isArray: [],
+      isPointer: 0,
+      members: new Map(),
+      size: 0,
+      alignment: 1,
+      isPrimitive: false,
+      info: {
+        description: `Structure ${this.name}`,
+      },
+    };
+
+    const toAddLater: string[] = [];
+    let currentOffset = 0;
+    let maxAlignment = 1;
+
+    this.fields.forEach((field, index) => {
+      const fieldTypeInfo = scope.resolveType(field.type.name);
+
+      if (
+        field.type.name === this.name &&
+        (field.type.isPointer > 0 || field.type.isArray.length > 0)
+      ) {
+        toAddLater.push(field.name);
+        return;
+      } else if (field.type.name === this.name) {
+        throw new Error(
+          `Direct recursive struct '${this.name}' field '${field.name}' is not allowed without pointer or array.`,
+        );
+      } else if (!fieldTypeInfo) {
+        throw new Error(
+          `Unknown type '${field.type.name}' for field '${field.name}' in struct '${this.name}'`,
+        );
+      }
+
+      let fieldSize = fieldTypeInfo.size;
+      let fieldAlignment = fieldTypeInfo.alignment || 1;
+
+      if (field.type.isPointer > 0) {
+        fieldSize = 8;
+        fieldAlignment = 8;
+      } else if (field.type.isArray.length > 0) {
+        fieldSize =
+          fieldTypeInfo.size * field.type.isArray.reduce((a, b) => a * b, 1);
+        fieldAlignment = fieldTypeInfo.alignment || 1;
+      }
+
+      // Calculate padding
+      const padding =
+        (fieldAlignment - (currentOffset % fieldAlignment)) % fieldAlignment;
+      currentOffset += padding;
+
+      structTypeInfo.members.set(field.name, {
+        info: { description: `Field ${field.name} of type ${field.type.name}` },
+        name: field.type.name,
+        isArray: field.type.isArray,
+        isPointer: field.type.isPointer,
+        size: fieldSize,
+        offset: currentOffset,
+        alignment: fieldAlignment,
+        isPrimitive: fieldTypeInfo.isPrimitive,
+        members: fieldTypeInfo.members,
+      });
+
+      currentOffset += fieldSize;
+      maxAlignment = Math.max(maxAlignment, fieldAlignment);
+    });
+
+    toAddLater.forEach((fieldName) => {
+      const memberInfo = this.fields.find((f) => f.name === fieldName);
+      const fieldSize = 8;
+      const fieldAlignment = 8;
+
+      const padding =
+        (fieldAlignment - (currentOffset % fieldAlignment)) % fieldAlignment;
+      currentOffset += padding;
+
+      structTypeInfo.members.set(fieldName, {
+        info: { description: `Field ${fieldName} of type ${this.name}` },
+        name: memberInfo!.type.name,
+        isArray: memberInfo?.type.isArray || [],
+        isPointer: memberInfo?.type.isPointer || 0,
+        size: fieldSize,
+        offset: currentOffset,
+        alignment: fieldAlignment,
+        isPrimitive: false,
+        members: structTypeInfo.members,
+      });
+
+      currentOffset += fieldSize;
+      maxAlignment = Math.max(maxAlignment, fieldAlignment);
+    });
+
+    // Align struct size
+    const structPadding =
+      (maxAlignment - (currentOffset % maxAlignment)) % maxAlignment;
+    structTypeInfo.size = currentOffset + structPadding;
+    structTypeInfo.alignment = maxAlignment;
+
+    scope.defineType(this.name, structTypeInfo);
   }
 }

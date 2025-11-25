@@ -31,10 +31,10 @@ export class AsmBlockExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
-    // TODO: Add asm block transpilation to interpolate local variables into asm block
     let lastLine = -1;
     let line = "";
-    for (const token of this.code) {
+    for (let i = 0; i < this.code.length; i++) {
+      const token = this.code[i]!;
       if (token.line !== lastLine) {
         if (line.length > 0) {
           gen.emit(line.trim(), "inline assembly");
@@ -42,10 +42,50 @@ export class AsmBlockExpr extends Expression {
         line = "";
         lastLine = token.line;
       }
-      line += token.value + " ";
+      if (token.value === ";") {
+        // skip until new line
+        while (
+          i + 1 < this.code.length &&
+          this.code[i + 1]!.line === token.line
+        ) {
+          i++;
+        }
+        continue;
+      }
+      if (token.value === "(") {
+        let nextToken = this.code[++i]!;
+        if (this.code[i + 1]?.value !== ")") {
+          // TODO: Allow more complex expressions inside inline assembly once stucts and arrays are supported
+          console.error(
+            "Currently only single variable interpolation is supported in inline assembly.",
+          );
+          throw new Error(
+            `Expected ')' after '(' in inline assembly @${token.line}`,
+          );
+        }
+        line += this.interpolateVariables(gen, scope, nextToken);
+        i++; // Skip closing ')'
+      } else {
+        line += token.value;
+      }
+      line += " ";
     }
     if (line.length > 0) {
       gen.emit(line.trim(), "inline assembly");
     }
+  }
+
+  interpolateVariables(gen: AsmGenerator, scope: Scope, token: Token): string {
+    const varName = token.value;
+    const variable = scope.resolve(varName!);
+    if (!variable) {
+      throw new Error(
+        `Undefined variable '${varName}' in inline assembly @${token.line}`,
+      );
+    }
+    if (variable.type === "global") {
+      return `[rel ${variable.offset}]`;
+    }
+    return `[rbp - ${variable.offset}]`;
   }
 }

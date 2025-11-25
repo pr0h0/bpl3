@@ -7,6 +7,7 @@ export default class HelperGenerator {
     HelperGenerator.generateGetStringLengthFunction(gen, scope);
     HelperGenerator.generatePrintFunction(gen, scope);
     HelperGenerator.generateExitFunction(gen, scope);
+    HelperGenerator.generateExecFunction(gen, scope);
   }
 
   public static generatePrintFunction(gen: AsmGenerator, scope: Scope) {
@@ -27,7 +28,7 @@ export default class HelperGenerator {
 
     // Assuming the value to print is passed in rdi
     gen.emit("push rdi", "save value to print");
-    gen.emit("mov rdi, rdi", "value to print");
+    // gen.emit("mov rdi, rdi", "value to print");
     gen.emit("call str_len", "get string length");
 
     gen.emit("pop rsi", "restore value to print");
@@ -57,8 +58,8 @@ export default class HelperGenerator {
     gen.emitLabel("exit");
 
     // Assuming the exit status is passed in rdi
+    // gen.emit("mov rdi, rdi", "status: exit code");
     gen.emit("mov rax, 60", "syscall: exit");
-    gen.emit("mov rdi, rdi", "status: exit code");
     gen.emit("syscall");
   }
 
@@ -90,12 +91,80 @@ export default class HelperGenerator {
     gen.emit("mov rax, rcx", "return length in rax");
     gen.emit("ret");
   }
+
+  public static generateExecFunction(gen: AsmGenerator, scope: Scope) {
+    scope.defineFunction("exec", {
+      label: "exec",
+      startLabel: "exec",
+      endLabel: "exec_end",
+      name: "exec",
+      args: [
+        { type: { name: "u8", isPointer: 1, isArray: [] }, name: "command" },
+      ],
+      returnType: { name: "u8", isPointer: 1, isArray: [] },
+    });
+
+    gen.emitImportStatement("extern popen");
+    gen.emitImportStatement("extern pclose");
+    gen.emitImportStatement("extern fread");
+    gen.emitImportStatement("extern malloc");
+
+    const modeLabel = gen.generateLabel("mode_r");
+    gen.emitRoData(modeLabel, "db", '"r", 0');
+
+    gen.emitLabel("exec");
+    gen.emit("push rbp");
+    gen.emit("mov rbp, rsp");
+    gen.emit("sub rsp, 32"); // Allocate stack space (aligned to 16 bytes)
+
+    gen.emit("mov [rbp-8], rdi", "save command");
+    gen.emit("lea rsi, [rel " + modeLabel + "]");
+    gen.emit("call popen");
+    gen.emit("mov [rbp-16], rax", "save FILE*");
+
+    gen.emit("cmp rax, 0");
+    gen.emit("je exec_fail");
+
+    gen.emit("mov rdi, 4096");
+    gen.emit("call malloc");
+    gen.emit("mov [rbp-24], rax", "save buffer");
+
+    gen.emit("cmp rax, 0");
+    gen.emit("je exec_fail_close");
+
+    gen.emit("mov rdi, [rbp-24]");
+    gen.emit("mov rsi, 1");
+    gen.emit("mov rdx, 4095");
+    gen.emit("mov rcx, [rbp-16]");
+    gen.emit("call fread");
+
+    gen.emit("mov rcx, [rbp-24]");
+    gen.emit("mov byte [rcx + rax], 0");
+
+    gen.emit("mov rdi, [rbp-16]");
+    gen.emit("call pclose");
+
+    gen.emit("mov rax, [rbp-24]");
+    gen.emit("jmp exec_end");
+
+    gen.emitLabel("exec_fail_close");
+    gen.emit("mov rdi, [rbp-16]");
+    gen.emit("call pclose");
+
+    gen.emitLabel("exec_fail");
+    gen.emit("xor rax, rax");
+
+    gen.emitLabel("exec_end");
+    gen.emit("leave");
+    gen.emit("ret");
+  }
   // #endregion
 
   // #region Base Types
   static generateBaseTypes(gen: AsmGenerator, scope: Scope): void {
     scope.defineType("u8", {
       size: 1,
+      alignment: 1,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -110,6 +179,7 @@ export default class HelperGenerator {
 
     scope.defineType("u16", {
       size: 2,
+      alignment: 2,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -124,6 +194,7 @@ export default class HelperGenerator {
 
     scope.defineType("u32", {
       size: 4,
+      alignment: 4,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -138,6 +209,7 @@ export default class HelperGenerator {
 
     scope.defineType("u64", {
       size: 8,
+      alignment: 8,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -152,6 +224,7 @@ export default class HelperGenerator {
 
     scope.defineType("i8", {
       size: 1,
+      alignment: 1,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -166,6 +239,7 @@ export default class HelperGenerator {
 
     scope.defineType("i16", {
       size: 2,
+      alignment: 2,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -180,6 +254,7 @@ export default class HelperGenerator {
 
     scope.defineType("i32", {
       size: 4,
+      alignment: 4,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,
@@ -194,6 +269,7 @@ export default class HelperGenerator {
 
     scope.defineType("i64", {
       size: 8,
+      alignment: 8,
       isArray: [],
       isPointer: 0,
       isPrimitive: true,

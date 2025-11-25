@@ -21,7 +21,7 @@ frame fib() {
     a = b;
     b = temp;
 
-    call printf("[%d]: %d\n", c, b);
+    call printf("[%d]: %llu\n", c, b);
 
     if c < n {
       c += 1;

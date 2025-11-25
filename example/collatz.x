@@ -1,9 +1,9 @@
-import scanf, printf from 'c';
+import scanf, printf from "c";
 
 global d: u64 = 0;
 
-frame get_input() ret u8 {
-  local n: u8;
+frame get_input() ret u64 {
+  local n: u64;
   call print("Enter the number: ");
   call scanf("%d", &n);
   return n;
@@ -27,7 +27,7 @@ frame collatz() {
     }
 
     c += 1;
-    call printf("[%d]: %d\n", c, n);
+    call printf("[%d]: %llu\n", c, n);
   }
 
   call printf("Found solution in %d steps\n", c);

@@ -37,7 +37,7 @@ while :; do
             SHOULD_GDB="true"
             ;;
         -l|--lib)
-            SHOULD_CLEANUP_O="fals"
+            SHOULD_CLEANUP_O="false"
             SHOULD_CLEANUP_EXE="true"
             ;;
         --) # End of all options
@@ -71,7 +71,7 @@ shift
 LIBRARY_FILES="$@"
 
 # Derived file names
-fileName="${SOURCE_FILE%%.*}" # e.g., source
+fileName="${SOURCE_FILE%.*}" # e.g., source
 outputFile="${fileName}" # e.g., source
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P )"

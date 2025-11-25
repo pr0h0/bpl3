@@ -3,6 +3,7 @@ import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import ArrayLiteralExpr from "./arrayLiteralExpr";
 import Expression from "./expr";
+import StringLiteralExpr from "./stringLiteralExpr";
 
 export type VariableType = {
   name: string;
@@ -66,9 +67,17 @@ export default class VariableDeclarationExpr extends Expression {
       throw new Error("Const local variable must be initialized");
     }
 
+    let baseSize = 8;
+    if (!this.varType.isPointer) {
+      const typeInfo = scope.resolveType(this.varType.name);
+      if (typeInfo) {
+        baseSize = typeInfo.size;
+      }
+    }
+
     const totalBytes = this.varType.isArray.length
-      ? 8 * this.varType.isArray.reduce((a, b) => a * b, 1)
-      : 8;
+      ? baseSize * this.varType.isArray.reduce((a, b) => a * b, 1)
+      : baseSize;
     const offset = scope.allocLocal(totalBytes);
     gen.emit("sub rsp, " + totalBytes, "Allocate space for local variable");
 
@@ -79,27 +88,59 @@ export default class VariableDeclarationExpr extends Expression {
     });
 
     if (this.value && this.varType.isArray.length) {
-      if (!(this.value instanceof ArrayLiteralExpr)) {
-        throw new Error(
-          "Local array variable must be initialized with an array literal",
-        );
-      }
-
-      this.value.transpile(gen, scope);
-      (this.value as ArrayLiteralExpr).elements.forEach((_, index) => {
-        gen.emit("pop rbx", "Load array element");
-        scope.stackOffset -= 8;
+      if (this.value instanceof StringLiteralExpr) {
+        // Handle string literal initialization for arrays
+        this.value.transpile(gen, scope);
+        // rax now contains the address of the string in .rodata
+        gen.emit("mov rsi, rax", "Source address (string literal)");
         gen.emit(
-          `mov [ rbp - ${offset} + ${index} * 8 ], rbx`,
-          `Initialize local array variable ${this.name}[${index}]`,
+          `lea rdi, [ rbp - ${offset} ]`,
+          "Destination address (local array)",
         );
-      });
+
+        // We need to copy the string. We can use the length of the string literal.
+        // +1 for null terminator
+        const strLen = (this.value as StringLiteralExpr).value.length + 1;
+        gen.emit(`mov rcx, ${strLen}`, "String length + null terminator");
+        gen.emit("rep movsb", "Copy string to stack");
+      } else if (!(this.value instanceof ArrayLiteralExpr)) {
+        throw new Error(
+          "Local array variable must be initialized with an array literal or string literal",
+        );
+      } else {
+        this.value.transpile(gen, scope);
+        (this.value as ArrayLiteralExpr).elements.forEach((_, index) => {
+          gen.emit("pop rbx", "Load array element");
+          scope.stackOffset -= 8;
+          gen.emit(
+            `mov [ rbp - ${offset} + ${index} * 8 ], rbx`,
+            `Initialize local array variable ${this.name}[${index}]`,
+          );
+        });
+      }
     } else if (this.value) {
       this.value.transpile(gen, scope);
-      gen.emit(
-        `mov [ rbp - ${offset} ], rax`,
-        "Initialize local variable " + this.name,
-      );
+      if (baseSize === 1) {
+        gen.emit(
+          `mov [ rbp - ${offset} ], al`,
+          "Initialize local variable " + this.name,
+        );
+      } else if (baseSize === 2) {
+        gen.emit(
+          `mov [ rbp - ${offset} ], ax`,
+          "Initialize local variable " + this.name,
+        );
+      } else if (baseSize === 4) {
+        gen.emit(
+          `mov [ rbp - ${offset} ], eax`,
+          "Initialize local variable " + this.name,
+        );
+      } else {
+        gen.emit(
+          `mov [ rbp - ${offset} ], rax`,
+          "Initialize local variable " + this.name,
+        );
+      }
     } else if (!this.value && !this.varType.isArray.length) {
       gen.emit(
         `mov qword [ rbp - ${offset} ], 0`,
@@ -109,7 +150,7 @@ export default class VariableDeclarationExpr extends Expression {
       gen.emit("xor rax, rax", "Zero value for array initialization");
       gen.emit(`mov rcx, ${totalBytes}`, "Array initialization loop counter");
       gen.emit(`lea rdi, [ rbp - ${offset} ]`, "Array start address");
-      gen.emit("rep stosq", "Initialize local array variable to zero");
+      gen.emit("rep stosb", "Initialize local array variable to zero");
     }
   }
 

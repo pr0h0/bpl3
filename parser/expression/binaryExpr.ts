@@ -4,6 +4,7 @@ import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import type { VariableType } from "./variableDeclarationExpr";
 
 export default class BinaryExpr extends Expression {
   constructor(
@@ -169,6 +170,97 @@ export default class BinaryExpr extends Expression {
     }
   }
 
+  private resolveExpressionType(
+    expr: Expression,
+    scope: Scope,
+  ): VariableType | null {
+    if (expr.type === ExpressionType.IdentifierExpr) {
+      const ident = expr as any;
+      const resolved = scope.resolve(ident.name);
+      return resolved ? resolved.varType : null;
+    } else if (expr.type === ExpressionType.MemberAccessExpression) {
+      const memberExpr = expr as any;
+      const objectType = this.resolveExpressionType(memberExpr.object, scope);
+      if (!objectType) return null;
+
+      if (memberExpr.isIndexAccess) {
+        if (objectType.isArray.length > 0) {
+          return {
+            name: objectType.name,
+            isPointer: objectType.isPointer,
+            isArray: objectType.isArray.slice(1),
+          };
+        } else if (objectType.isPointer > 0) {
+          return {
+            name: objectType.name,
+            isPointer: objectType.isPointer - 1,
+            isArray: [],
+          };
+        }
+        return null;
+      } else {
+        const typeInfo = scope.resolveType(objectType.name);
+        if (!typeInfo) return null;
+
+        const propertyName = (memberExpr.property as any).name;
+        const member = typeInfo.members.get(propertyName);
+        if (!member) return null;
+
+        return {
+          name: member.name,
+          isPointer: member.isPointer,
+          isArray: member.isArray,
+        };
+      }
+    } else if (expr.type === ExpressionType.BinaryExpression) {
+      const binExpr = expr as any;
+      const leftType = this.resolveExpressionType(binExpr.left, scope);
+      const rightType = this.resolveExpressionType(binExpr.right, scope);
+
+      if (leftType && leftType.isPointer > 0) return leftType;
+      if (rightType && rightType.isPointer > 0) return rightType;
+      return null;
+    } else if (expr.type === ExpressionType.UnaryExpression) {
+      const unaryExpr = expr as any;
+      if (unaryExpr.operator.value === "*") {
+        const opType = this.resolveExpressionType(unaryExpr.right, scope);
+        if (opType && opType.isPointer > 0) {
+          return {
+            name: opType.name,
+            isPointer: opType.isPointer - 1,
+            isArray: opType.isArray,
+          };
+        }
+      } else if (unaryExpr.operator.value === "&") {
+        const opType = this.resolveExpressionType(unaryExpr.right, scope);
+        if (opType) {
+          return {
+            name: opType.name,
+            isPointer: opType.isPointer + 1,
+            isArray: opType.isArray,
+          };
+        }
+      }
+      return null;
+    }
+    return null;
+  }
+
+  private emitStructCopy(gen: AsmGenerator, size: number) {
+    gen.emit("push rsi", "Save rsi");
+    gen.emit("push rdi", "Save rdi");
+    gen.emit("push rcx", "Save rcx");
+
+    gen.emit("mov rsi, rbx", "Source address");
+    gen.emit("mov rdi, rax", "Destination address");
+    gen.emit(`mov rcx, ${size}`, "Size to copy");
+    gen.emit("rep movsb", "Copy bytes");
+
+    gen.emit("pop rcx", "Restore rcx");
+    gen.emit("pop rdi", "Restore rdi");
+    gen.emit("pop rsi", "Restore rsi");
+  }
+
   handleAssignment(gen: AsmGenerator, scope: Scope): void {
     this.right.transpile(gen, scope); // Evaluate right-hand side
     gen.emit("push rax", "Push right-hand side value onto stack");
@@ -183,6 +275,27 @@ export default class BinaryExpr extends Expression {
 
     switch (this.operator.type) {
       case TokenType.ASSIGN:
+        const leftType = this.resolveExpressionType(this.left, scope);
+        if (leftType && !leftType.isPointer && !leftType.isArray.length) {
+          const typeInfo = scope.resolveType(leftType.name);
+          if (typeInfo && !typeInfo.isPrimitive) {
+            this.emitStructCopy(gen, typeInfo.size);
+            break;
+          }
+          // Primitive assignment - check size
+          if (typeInfo) {
+            if (typeInfo.size === 1) {
+              gen.emit("mov [rax], bl", "Simple assignment (8-bit)");
+              break;
+            } else if (typeInfo.size === 2) {
+              gen.emit("mov [rax], bx", "Simple assignment (16-bit)");
+              break;
+            } else if (typeInfo.size === 4) {
+              gen.emit("mov [rax], ebx", "Simple assignment (32-bit)");
+              break;
+            }
+          }
+        }
         gen.emit("mov [rax], rbx", "Simple assignment");
         break;
       case TokenType.PLUS_ASSIGN:

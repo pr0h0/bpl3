@@ -29,14 +29,48 @@ export default class IdentifierExpr extends Expression {
       throw new Error(`Undefined identifier: ${this.name}`);
     }
     const context = scope.getCurrentContext("LHS");
-    if (context) {
+
+    let isStruct = false;
+    if (!symbol.varType.isPointer && !symbol.varType.isArray.length) {
+      const typeInfo = scope.resolveType(symbol.varType.name);
+      if (typeInfo && !typeInfo.isPrimitive) {
+        isStruct = true;
+      }
+    }
+
+    const isArray = symbol.varType.isArray.length > 0;
+
+    if (context || isStruct || isArray) {
       gen.emit(
         `lea rax, [${symbol.type === "global" ? "rel " + symbol.offset : "rbp - " + symbol.offset}]`,
       );
     } else {
-      gen.emit(
-        `mov rax, [${symbol.type === "global" ? "rel " + symbol.offset : "rbp - " + symbol.offset}]`,
-      );
+      let size = 8;
+      let isSigned = false;
+      if (symbol.varType.isPointer > 0 || symbol.varType.isArray.length > 0) {
+        size = 8;
+      } else {
+        const typeInfo = scope.resolveType(symbol.varType.name);
+        if (typeInfo) {
+          size = typeInfo.size;
+          isSigned = typeInfo.info.signed || false;
+        }
+      }
+
+      const operand = `${symbol.type === "global" ? "rel " + symbol.offset : "rbp - " + symbol.offset}`;
+      if (size === 1) {
+        gen.emit(`movzx rax, byte [${operand}]`);
+      } else if (size === 2) {
+        gen.emit(`movzx rax, word [${operand}]`);
+      } else if (size === 4) {
+        if (isSigned) {
+          gen.emit(`movsxd rax, dword [${operand}]`);
+        } else {
+          gen.emit(`mov eax, dword [${operand}]`);
+        }
+      } else {
+        gen.emit(`mov rax, [${operand}]`);
+      }
     }
   }
 }

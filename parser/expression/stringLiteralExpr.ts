@@ -30,7 +30,10 @@ export default class StringLiteralExpr extends Expression {
   }
 
   formatString(): string {
-    return this.value.replace("\\n", '", 0x0A, "').replace("\\t", '", 0x09, "');
+    return this.value
+      .replaceAll('"', '", 0x22, "')
+      .replaceAll("\\n", '", 0x0A, "')
+      .replaceAll("\\t", '", 0x09, "');
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {

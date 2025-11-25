@@ -17,6 +17,8 @@ export type TypeInfo = {
   isPointer: number;
   isArray: number[];
   size: number;
+  offset?: number;
+  alignment?: number;
   isPrimitive: boolean;
   members: Map<string, TypeInfo>;
   info: InfoType;
@@ -120,12 +122,17 @@ export default class Scope {
     if (this.types.has(name)) {
       throw new Error(`Type ${name} is already defined.`);
     }
-    const size = this.calculateSizeOfType(info);
-    info.size = size;
+    if (info.size === 0) {
+      const size = this.calculateSizeOfType(info);
+      info.size = size;
+    }
     this.types.set(name, info);
   }
   resolveType(name: string): TypeInfo | null {
-    return this.types.get(name) || this.parent?.resolveType(name) || null;
+    if (this.parent) {
+      return this.parent?.resolveType(name) || null;
+    }
+    return this.types.get(name) || null;
   }
   calculateSizeOfType(type: TypeInfo): number {
     if (type.isPrimitive) {
@@ -149,10 +156,10 @@ export default class Scope {
 
     let totalSize = 0;
     for (let member of type.members.values()) {
-      if (!this.types.has(member.name)) {
+      if (!this.resolveType(member.name)) {
         throw new Error(`Type ${member.name} not defined.`);
       }
-      totalSize += this.types.get(member.name)!.size;
+      totalSize += this.resolveType(member.name)!.size;
     }
     return totalSize;
   }

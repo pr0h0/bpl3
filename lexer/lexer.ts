@@ -126,6 +126,15 @@ class Lexer {
         str = str.replaceAll("\\\\t", "\t");
         str = str.replaceAll("\\\\r", "\r");
         str = str.replaceAll(`\\${startToken}`, startToken);
+
+        if (startToken === "'" && str.length === 1) {
+          return new Token(
+            TokenType.NUMBER_LITERAL,
+            str.charCodeAt(0).toString(),
+            this.line,
+          );
+        }
+
         return new Token(TokenType.STRING_LITERAL, str, this.line);
       } else if (char === "\n") {
         throw new Error(

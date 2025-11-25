@@ -447,6 +447,11 @@ export class Parser {
       importNames.push(importNameToken.value);
       if (this.peek()?.type === TokenType.COMMA) {
         this.consume(TokenType.COMMA);
+      } else if (
+        this.peek()?.type === TokenType.IDENTIFIER &&
+        this.peek()?.value !== "from"
+      ) {
+        throw new Error(`Expected ',' between imports @${this.peek()?.line}`);
       }
     }
 
@@ -624,10 +629,15 @@ export class Parser {
 
     let returnType: VariableType | null = null;
     if (this.peek() && this.peek()!.type !== TokenType.OPEN_BRACE) {
-      this.consume(
+      const retToken = this.consume(
         TokenType.IDENTIFIER,
         "Expected ret keyword after function arguments.",
       );
+      if (retToken.value !== "ret") {
+        throw new Error(
+          `Expected 'ret' keyword, but got '${retToken.value}' @${retToken.line}`,
+        );
+      }
       returnType = this.parseType();
     }
 
