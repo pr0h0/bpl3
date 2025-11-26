@@ -6,7 +6,7 @@ BPL is a simple programming language that compiles to x86-64 assembly. It is des
 
 ## Installation
 
-To install BPL, you need to have `Bun`, `nasm` and `ld` installed on your system.
+To install BPL, you need to have `Bun`, `nasm` and `gcc` installed on your system.
 
 - Clone the repository
 - Install the dependencies
