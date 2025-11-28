@@ -35,5 +35,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # example build artifacts
 example/**
+!example/*.sh
 !example/**/
 !example/**/*.x
+!example/**/test.sh

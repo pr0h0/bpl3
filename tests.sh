@@ -76,49 +76,42 @@ run_test() {
 
 echo "Starting tests..."
 
-# 1. Special handling for library tests
+# 1. Run modular tests
 echo "---------------------------------------------------"
-echo "Building library lib.x..."
-# Use -l to keep object file and remove executable (since it's a lib)
-bun index.ts -q -l example/lib.x
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to build lib.x"
-    FAILED_TESTS+=("example/lib.x (Build)")
-else
-    echo "✅ Built lib.x"
-
-    # Run test_lib.x which depends on lib.x
-    # We pass example/lib.o as a library dependency
-    run_test "example/test_lib.x"
-
-    # Cleanup lib.o
-    rm -f example/lib.o
-fi
-
-# 1. Special handling for library tests
-echo "---------------------------------------------------"
-echo "Building library test lib_example/main.x..."
-run_test "example/lib_example/main.x"
-# Use -l to keep object file and remove executable (since it's a lib)
-bun index.ts -q example/lib_example/main.x
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to build lib_example/main.x"
-    FAILED_TESTS+=("example/lib_example/main.x (Build)")
-else
-    echo "✅ Built lib_example/main.x"
-
-    # Run test_lib.x which depends on lib.x
-    # We pass example/lib.o as a library dependency
-
-    # Cleanup lib.o
-    rm -f example/lib_example/main.o
-fi
+echo "Running modular tests..."
+TEST_SCRIPTS=$(find ./example -name "test.sh" -type f | sort)
+for TEST_SCRIPT in $TEST_SCRIPTS; do
+    DIR_NAME=$(dirname "$TEST_SCRIPT")
+    TEST_NAME=$(basename "$DIR_NAME")
+    
+    echo "---------------------------------------------------"
+    echo "Running test for $TEST_NAME..."
+    
+    pushd "$DIR_NAME" > /dev/null
+    ./test.sh
+    TEST_RES=$?
+    popd > /dev/null
+    
+    if [ $TEST_RES -ne 0 ]; then
+        echo "❌ Test failed for $TEST_NAME"
+        FAILED_TESTS+=("$TEST_NAME (Modular Test)")
+    else
+        echo "✅ Test passed for $TEST_NAME"
+    fi
+done
 
 # 2. Run all other standalone tests
 FILES=$(find ./example -name "*.x" -type f | sort)
 for FILE in $FILES; do
     # Skip files we've already handled or that shouldn't be run directly
     if [[ "$FILE" == *"lib.x" ]] || [[ "$FILE" == *"test_lib.x" ]] || [[ "$FILE" == *"lib_example/"* ]]; then
+        continue
+    fi
+
+    # Check if this file is in a directory that has a test.sh
+    DIR_NAME=$(dirname "$FILE")
+    if [ -f "$DIR_NAME/test.sh" ]; then
+        # Already handled by modular tests
         continue
     fi
 
