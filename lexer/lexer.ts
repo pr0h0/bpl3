@@ -14,7 +14,7 @@ class Lexer {
   tokens = [] as Token[];
 
   public static readonly PARENTHESIS_REGEX = /^[\(\)\[\]\{\}]$/;
-  public static readonly PUNCTUATION_REGEX = /^[\.:;,_?]$/;
+  public static readonly PUNCTUATION_REGEX = /^[\.:;,?]$/;
   public static readonly OPERATOR_REGEX = /^[+\-*/%^~]$/;
   public static readonly EQUALITY_OPERATOR_REGEX = /^[=!<>]$/;
   public static readonly LOGICAL_OPERATOR_REGEX = /^[&|]$/;
@@ -201,11 +201,19 @@ class Lexer {
           this.consume();
           return new Token(TokenType.AND, "&&", this.line);
         }
+        if (this.peek(0) === "=") {
+          this.consume();
+          return new Token(TokenType.AMPERSAND_ASSIGN, "&=", this.line);
+        }
         return new Token(TokenType.AMPERSAND, "&", this.line);
       case "|":
         if (this.peek(0) === "|") {
           this.consume();
           return new Token(TokenType.OR, "||", this.line);
+        }
+        if (this.peek(0) === "=") {
+          this.consume();
+          return new Token(TokenType.PIPE_ASSIGN, "|=", this.line);
         }
         return new Token(TokenType.PIPE, "|", this.line);
       default:
