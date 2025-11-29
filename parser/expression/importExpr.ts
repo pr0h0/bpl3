@@ -29,12 +29,13 @@ export default class ImportExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    const finalImports = [];
     for (const importItem of this.importName) {
       if (importItem.type === "type") {
-        return;
+        continue;
       }
       const name = importItem.name;
-      gen.emitImportStatement(`extern ${name}`);
+      finalImports.push(name);
 
       scope.defineFunction(name, {
         name: name,
@@ -45,6 +46,9 @@ export default class ImportExpr extends Expression {
         endLabel: name,
         isExternal: true,
       });
+    }
+    if (finalImports.length) {
+      gen.emitImportStatement(`extern ${finalImports.join(", ")}`);
     }
   }
 }

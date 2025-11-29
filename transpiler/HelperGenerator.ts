@@ -104,10 +104,7 @@ export default class HelperGenerator {
       returnType: { name: "u8", isPointer: 1, isArray: [] },
     });
 
-    gen.emitImportStatement("extern popen");
-    gen.emitImportStatement("extern pclose");
-    gen.emitImportStatement("extern fread");
-    gen.emitImportStatement("extern malloc");
+    gen.emitImportStatement("extern popen, pclose, fread, malloc");
 
     const modeLabel = gen.generateLabel("mode_r");
     gen.emitRoData(modeLabel, "db", '"r", 0');

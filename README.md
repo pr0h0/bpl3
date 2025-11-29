@@ -28,6 +28,7 @@ More examples can be found in the `example` directory.
 BPL includes a VS Code extension for syntax highlighting.
 
 To install it:
+
 1. Navigate to `vs-code-ext/highlight`.
 2. Install dependencies: `bun install`.
 3. Build the extension: `bun run build-vsix`.
