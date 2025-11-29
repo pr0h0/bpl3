@@ -1,4 +1,5 @@
 import Token from "../../lexer/token";
+import TokenType from "../../lexer/tokenType";
 import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
@@ -65,10 +66,18 @@ export class AsmBlockExpr extends Expression {
         }
         line += this.interpolateVariables(gen, scope, nextToken);
         i++; // Skip closing ')'
+        line += " ";
       } else {
-        line += token.value;
+        if (token.type === TokenType.STRING_LITERAL) {
+          line += `"${token.value}"`;
+        } else {
+          line += token.value;
+        }
+
+        if (token.type !== TokenType.DOT) {
+          line += " ";
+        }
       }
-      line += " ";
     }
     if (line.length > 0) {
       gen.emit(line.trim(), "inline assembly");

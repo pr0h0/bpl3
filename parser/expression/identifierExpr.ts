@@ -70,7 +70,9 @@ export default class IdentifierExpr extends Expression {
       } else if (size === 2) {
         gen.emit(`movzx rax, word [${operand}]`);
       } else if (size === 4) {
-        if (isSigned) {
+        if (symbol.varType.name === "f32") {
+          gen.emit(`mov eax, dword [${operand}]`, "Load f32 bits");
+        } else if (isSigned) {
           gen.emit(`movsxd rax, dword [${operand}]`);
         } else {
           gen.emit(`mov eax, dword [${operand}]`);

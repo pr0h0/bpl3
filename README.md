@@ -131,6 +131,26 @@ The compiler recursively resolves imports, compiles the dependencies, and links 
 - `import functionName1, functionName2 from "./path/to/file.x";` - Import functions from a local file.
 - `import [Type1], [Type2] from "./path/to/file.x";` - Import types from a local file.
 
+### External Functions (`extern`)
+
+When importing functions from external libraries (like `libc`) or compiled object files (`.o`), the BPL compiler doesn't have access to the function signatures (argument types and return types). By default, it assumes they take no arguments or generic arguments.
+
+To specify the signature of an imported function, use the `extern` keyword. This allows the compiler to perform type checking and correctly handle return values.
+
+```bpl
+import printf from "libc";
+
+# Redeclare printf with specific signature
+extern printf(fmt: *u8, ...);
+
+frame main() ret u64 {
+    call printf("Value: %d\n", 42);
+    return 0;
+}
+```
+
+**Recommendation:** Use `extern` primarily when importing from `libc` or `*.o` files. When importing from other `.x` (BPL source) files, the compiler can automatically infer signatures, so `extern` is usually not necessary unless you need to override them.
+
 ### Functions/Frames
 
 Functions in BPL are defined using the `frame` keyword. Frame keyword is used because functions in BPL create stack frames and variable scopes are tied to stack frames.

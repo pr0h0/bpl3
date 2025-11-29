@@ -29,6 +29,7 @@ import ContinueExpr from "./expression/continueExpr";
 import ImportExpr from "./expression/importExpr";
 import ExportExpr from "./expression/exportExpr";
 import ArrayLiteralExpr from "./expression/arrayLiteralExpr";
+import ExternDeclarationExpr from "./expression/externDeclarationExpr";
 import { CompilerError } from "../errors";
 
 export class Parser {
@@ -334,6 +335,28 @@ export class Parser {
     return expr;
   }
 
+  parseArguments(): Expression[] {
+    const args: Expression[] = [];
+    while (this.peek() && this.peek()!.type !== TokenType.CLOSE_PAREN) {
+      const argExpr = this.parseTernary();
+      args.push(argExpr);
+
+      if (
+        this.peek()?.type !== TokenType.CLOSE_PAREN &&
+        this.peek()?.type !== TokenType.COMMA
+      ) {
+        throw new CompilerError(
+          "Expected ',' or ')' after function argument",
+          this.peek()?.line || 0,
+        );
+      }
+      if (this.peek() && this.peek()!.type === TokenType.COMMA) {
+        this.consume(TokenType.COMMA);
+      }
+    }
+    return args;
+  }
+
   parseGrouping(): Expression {
     const nextToken = this.peek();
     if (!nextToken)
@@ -436,6 +459,8 @@ export class Parser {
         return this.parseImportExpression();
       case "export":
         return this.parseExportExpression();
+      case "extern":
+        return this.parseExternDeclaration();
       case "NULL":
         this.consume(TokenType.IDENTIFIER);
         return new NullLiteral();
@@ -443,6 +468,65 @@ export class Parser {
         const identifierToken = this.consume(TokenType.IDENTIFIER);
         return new IdentifierExpr(identifierToken.value);
     }
+  }
+
+  parseExternDeclaration(): ExternDeclarationExpr {
+    this.consume(TokenType.IDENTIFIER); // consume 'extern'
+    const funcNameToken = this.consume(TokenType.IDENTIFIER);
+    const args: { type: VariableType; name: string }[] = [];
+    this.consume(
+      TokenType.OPEN_PAREN,
+      "Expected '(' after 'extern' function name.",
+    );
+
+    while (this.peek() && this.peek()!.type !== TokenType.CLOSE_PAREN) {
+      const argNameToken = this.consume(TokenType.IDENTIFIER);
+      this.consume(TokenType.COLON, "Expected ':' after argument name.");
+
+      const argType: VariableType = this.parseType();
+
+      args.push({
+        name: argNameToken.value,
+        type: argType,
+      });
+
+      if (
+        this.peek()?.type !== TokenType.CLOSE_PAREN &&
+        this.peek()?.type !== TokenType.COMMA
+      ) {
+        throw new CompilerError(
+          "Expected ',' or ')' after function argument",
+          this.peek()?.line || 0,
+        );
+      }
+
+      if (this.peek() && this.peek()!.type === TokenType.COMMA) {
+        this.consume(TokenType.COMMA);
+      }
+    }
+
+    this.consume(
+      TokenType.CLOSE_PAREN,
+      "Expected ')' after function arguments.",
+    );
+
+    let returnType: VariableType | null = null;
+    if (this.peek() && this.peek()!.type !== TokenType.SEMICOLON) {
+      const retToken = this.consume(
+        TokenType.IDENTIFIER,
+        "Expected ret keyword or semicolon after function arguments.",
+      );
+      if (retToken.value === "ret") {
+        returnType = this.parseType();
+      } else {
+        throw new CompilerError(
+          "Expected 'ret' keyword, but got '" + retToken.value + "'",
+          retToken.line,
+        );
+      }
+    }
+
+    return new ExternDeclarationExpr(funcNameToken.value, args, returnType);
   }
 
   parseImportExpression(): Expression {
@@ -535,24 +619,7 @@ export class Parser {
       "Expected '(' after 'call' function name.",
     );
 
-    const args: Expression[] = [];
-    while (this.peek() && this.peek()!.type !== TokenType.CLOSE_PAREN) {
-      const argExpr = this.parseTernary();
-      args.push(argExpr);
-
-      if (
-        this.peek()?.type !== TokenType.CLOSE_PAREN &&
-        this.peek()?.type !== TokenType.COMMA
-      ) {
-        throw new CompilerError(
-          "Expected ',' or ')' after function argument",
-          this.peek()?.line || 0,
-        );
-      }
-      if (this.peek() && this.peek()!.type === TokenType.COMMA) {
-        this.consume(TokenType.COMMA);
-      }
-    }
+    const args = this.parseArguments();
 
     this.consume(
       TokenType.CLOSE_PAREN,

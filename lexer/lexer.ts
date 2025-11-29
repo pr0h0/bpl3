@@ -158,12 +158,28 @@ class Lexer {
 
   parseNumberLiteral(firstChar: string): Token {
     let numberStr = firstChar;
+    let hasDot = false;
 
-    while (
-      !this.isEof() &&
-      Lexer.NUMBER_LITERAL_ALL_BASES_REGEX.test(this.peek())
-    ) {
-      numberStr += this.consume();
+    while (!this.isEof()) {
+      const char = this.peek();
+      if (Lexer.NUMBER_LITERAL_ALL_BASES_REGEX.test(char)) {
+        numberStr += this.consume();
+      } else if (char === "." && !hasDot) {
+        // Only allow dot if it's a decimal number (not hex/bin/oct)
+        // and followed by a digit to avoid capturing method calls like 1.toString()
+        const isBase =
+          numberStr.startsWith("0x") ||
+          numberStr.startsWith("0b") ||
+          numberStr.startsWith("0o");
+        if (!isBase && Lexer.NUMBER_LITERAL_REGEX.test(this.peek(1))) {
+          hasDot = true;
+          numberStr += this.consume();
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
     }
 
     const value: number = Number(numberStr);
@@ -190,7 +206,7 @@ class Lexer {
         this.line,
       );
     } else {
-      return new Token(TokenType.NUMBER_LITERAL, value.toString(), this.line);
+      return new Token(TokenType.NUMBER_LITERAL, numberStr, this.line);
     }
   }
 

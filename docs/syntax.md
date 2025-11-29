@@ -77,6 +77,17 @@ call log_message("Hello");
 local result: u64 = call add(10, 20);
 ```
 
+## Extern Keyword
+
+The `extern` keyword is used to declare the signature of functions that are imported from external sources (like C libraries or object files) where the source code is not available to the BPL compiler.
+
+```bpl
+import printf from "libc";
+extern printf(fmt: *u8); # Define argument types
+```
+
+This ensures correct type checking and calling convention usage.
+
 ## Control Flow
 
 ### If-Else

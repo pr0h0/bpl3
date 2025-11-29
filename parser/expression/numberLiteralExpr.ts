@@ -30,6 +30,16 @@ export default class NumberLiteralExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
-    gen.emit(`mov rax, ${this.value}`, `Number Literal ${this.value}`);
+    if (this.value.includes(".")) {
+      const label = gen.generateLabel("float_");
+      gen.emitRoData(label, "dq", this.value);
+      gen.emit(
+        `movsd xmm0, [rel ${label}]`,
+        `Load float literal ${this.value}`,
+      );
+      gen.emit(`movq rax, xmm0`, `Move float to RAX for transport`);
+    } else {
+      gen.emit(`mov rax, ${this.value}`, `Number Literal ${this.value}`);
+    }
   }
 }

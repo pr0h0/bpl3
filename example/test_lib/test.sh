@@ -8,10 +8,6 @@ ARGS=""
 ENV_VARS=""
 EXPECTED=("12")
 
-# Special compilation for library test
-# Note: test_lib.x imports lib.x, so the transpiler should handle it.
-# We don't need to explicitly compile lib.x here.
-
 compile "$SOURCE_FILE"
 if [ $? -ne 0 ]; then
     exit 1

@@ -278,6 +278,34 @@ export default class HelperGenerator {
       },
       members: new Map(),
     });
+
+    scope.defineType("f32", {
+      size: 4,
+      alignment: 4,
+      isArray: [],
+      isPointer: 0,
+      isPrimitive: true,
+      name: "f32",
+      info: {
+        description: "32-bit floating point number",
+        signed: true,
+      },
+      members: new Map(),
+    });
+
+    scope.defineType("f64", {
+      size: 8,
+      alignment: 8,
+      isArray: [],
+      isPointer: 0,
+      isPrimitive: true,
+      name: "f64",
+      info: {
+        description: "64-bit floating point number",
+        signed: true,
+      },
+      members: new Map(),
+    });
   }
   // #endregion
 }

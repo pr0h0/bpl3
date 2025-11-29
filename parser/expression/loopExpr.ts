@@ -33,6 +33,7 @@ export default class LoopExpr extends Expression {
       type: "loop",
       continueLabel: startLabel,
       breakLabel: endLabel,
+      stackOffset: scope.stackOffset,
     });
 
     gen.emitLabel(startLabel);

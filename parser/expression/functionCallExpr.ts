@@ -2,6 +2,12 @@ import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import NumberLiteralExpr from "./numberLiteralExpr";
+import MemberAccessExpr from "./memberAccessExpr";
+import BinaryExpr from "./binaryExpr";
+import UnaryExpr from "./unaryExpr";
+import IdentifierExpr from "./identifierExpr";
+import type { VariableType } from "./variableDeclarationExpr";
 
 export default class FunctionCallExpr extends Expression {
   constructor(
@@ -10,6 +16,18 @@ export default class FunctionCallExpr extends Expression {
   ) {
     super(ExpressionType.FunctionCall);
   }
+
+  argOrders = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+  floatArgOrders = [
+    "xmm0",
+    "xmm1",
+    "xmm2",
+    "xmm3",
+    "xmm4",
+    "xmm5",
+    "xmm6",
+    "xmm7",
+  ];
 
   toString(depth: number = 0): string {
     this.depth = depth;
@@ -25,6 +43,94 @@ export default class FunctionCallExpr extends Expression {
 
   log(depth: number = 0): void {
     console.log(this.toString(depth));
+  }
+
+  private resolveExpressionType(
+    expr: Expression,
+    scope: Scope,
+  ): VariableType | null {
+    if (expr instanceof IdentifierExpr) {
+      const resolved = scope.resolve(expr.name);
+      return resolved ? resolved.varType : null;
+    } else if (expr instanceof MemberAccessExpr) {
+      const objectType = this.resolveExpressionType(expr.object, scope);
+      if (!objectType) return null;
+
+      if (expr.isIndexAccess) {
+        if (objectType.isArray.length > 0) {
+          return {
+            name: objectType.name,
+            isPointer: objectType.isPointer,
+            isArray: objectType.isArray.slice(1),
+          };
+        } else if (objectType.isPointer > 0) {
+          return {
+            name: objectType.name,
+            isPointer: objectType.isPointer - 1,
+            isArray: [],
+          };
+        }
+        return null;
+      } else {
+        const typeInfo = scope.resolveType(objectType.name);
+        if (!typeInfo) return null;
+
+        const propertyName = (expr.property as IdentifierExpr).name;
+        const member = typeInfo.members.get(propertyName);
+        if (!member) return null;
+
+        return {
+          name: member.name,
+          isPointer: member.isPointer,
+          isArray: member.isArray,
+        };
+      }
+    } else if (expr instanceof BinaryExpr) {
+      const leftType = this.resolveExpressionType(expr.left, scope);
+      const rightType = this.resolveExpressionType(expr.right, scope);
+
+      if (leftType && leftType.isPointer > 0) return leftType;
+      if (rightType && rightType.isPointer > 0) return rightType;
+
+      // Handle float binary ops
+      if (leftType?.name === "f64" || rightType?.name === "f64")
+        return { name: "f64", isPointer: 0, isArray: [] };
+      if (leftType?.name === "f32" || rightType?.name === "f32")
+        return { name: "f32", isPointer: 0, isArray: [] };
+
+      return null;
+    } else if (expr instanceof UnaryExpr) {
+      if (expr.operator.value === "*") {
+        const opType = this.resolveExpressionType(expr.right, scope);
+        if (opType && opType.isPointer > 0) {
+          return {
+            name: opType.name,
+            isPointer: opType.isPointer - 1,
+            isArray: opType.isArray,
+          };
+        }
+      } else if (expr.operator.value === "&") {
+        const opType = this.resolveExpressionType(expr.right, scope);
+        if (opType) {
+          return {
+            name: opType.name,
+            isPointer: opType.isPointer + 1,
+            isArray: opType.isArray,
+          };
+        }
+      }
+      return null;
+    } else if (expr instanceof NumberLiteralExpr) {
+      return expr.value.includes(".")
+        ? { name: "f64", isPointer: 0, isArray: [] }
+        : { name: "u64", isPointer: 0, isArray: [] };
+    }
+    return null;
+  }
+
+  private getExprType(expr: Expression, scope: Scope): string {
+    const type = this.resolveExpressionType(expr, scope);
+    return type ? type.name : "u64";
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
@@ -60,8 +166,27 @@ export default class FunctionCallExpr extends Expression {
       extraStackAllocated += returnStructSize;
     }
 
+    const argTypes: string[] = [];
+
     this.args.forEach((arg, index) => {
+      // Determine type
+      let typeName = "u64";
+      if (func.args && func.args[index]) {
+        typeName = func.args[index].type.name;
+      } else {
+        typeName = this.getExprType(arg, scope);
+      }
+      argTypes.push(typeName);
+
       arg.transpile(gen, scope);
+
+      // Promote f32 to f64 for varargs or unknown args
+      if ((!func.args || !func.args[index]) && typeName === "f32") {
+        gen.emit("movq xmm0, rax", "Move f32 bits to xmm0");
+        gen.emit("cvtss2sd xmm0, xmm0", "Promote f32 to f64");
+        gen.emit("movq rax, xmm0", "Move f64 bits back to rax");
+        argTypes[index] = "f64";
+      }
 
       let isStructByValue = false;
       let structSize = 0;
@@ -98,12 +223,153 @@ export default class FunctionCallExpr extends Expression {
       scope.stackOffset += 8; // assuming 64-bit architecture
     });
 
+    let intArgIndex = 0;
+    let floatArgIndex = 0;
     const totalArgs = this.args.length + (isStructReturn ? 1 : 0);
-    for (let i = totalArgs - 1; i >= 0; i--) {
-      gen.emit(
-        `pop ${this.argOrders[i]}`,
-        `Move argument ${i} into correct register for function call ${this.functionName}`,
-      );
+
+    // We need to pop in reverse order
+    // But we need to assign to registers based on forward order
+    // So we pop into temporary registers or stack slots?
+    // Actually, we pushed in forward order (0, 1, 2...)
+    // So stack is: [Arg0, Arg1, Arg2 ...] (Top is Arg2)
+    // So popping gives Arg2, then Arg1, then Arg0.
+
+    // Pre-calculate register assignments
+    const assignments: {
+      type: "int" | "float";
+      index: number;
+      regIndex: number;
+    }[] = [];
+    let currentInt = isStructReturn ? 1 : 0; // RDI used if struct return
+    let currentFloat = 0;
+
+    if (isStructReturn) {
+      // Implicit first arg is handled separately
+    }
+
+    for (let i = 0; i < this.args.length; i++) {
+      const typeName = argTypes[i];
+      const isFloat = typeName === "f32" || typeName === "f64";
+      if (isFloat) {
+        assignments.push({ type: "float", index: i, regIndex: currentFloat++ });
+      } else {
+        assignments.push({ type: "int", index: i, regIndex: currentInt++ });
+      }
+    }
+
+    // Now pop in reverse
+    for (let i = this.args.length - 1; i >= 0; i--) {
+      const assign = assignments[i]!;
+      if (assign.type === "float") {
+        if (assign.regIndex < 8) {
+          gen.emit("pop rax", "Pop float bits");
+          gen.emit(
+            `movq ${this.floatArgOrders[assign.regIndex]}, rax`,
+            `Move to ${this.floatArgOrders[assign.regIndex]}`,
+          );
+        } else {
+          // Stack argument (spill)
+          // It's already on the stack!
+          // But we are popping everything to restore stack?
+          // No, System V ABI says arguments > 6 (or > 8 xmm) are passed on stack.
+          // But we pushed ALL arguments.
+          // So the ones that should be in registers need to be popped.
+          // The ones that should stay on stack... should stay?
+          // But we pushed them in order 0, 1, 2...
+          // Stack top is Last Arg.
+          // If Last Arg is a register arg, we pop it.
+          // If Last Arg is a stack arg, we leave it?
+          // But if we have mixed register and stack args, the order on stack matters.
+          // The stack args must be at the top of stack before call?
+          // No, stack args are pushed in reverse order (Right-to-Left) in C.
+          // But we pushed Left-to-Right.
+
+          // Oh, we pushed Left-to-Right.
+          // Arg0 is at bottom. ArgN is at top.
+          // This is WRONG for C calling convention if we leave them on stack.
+          // C expects ArgN at high address, Arg0 at low address (relative to RSP)?
+          // Actually, C pushes Right-to-Left.
+          // So ArgN is pushed first (High Address). Arg0 is pushed last (Low Address).
+          // RSP points to Arg0 (or return address after call).
+
+          // We pushed Arg0, then Arg1...
+          // So Arg0 is High Address. ArgN is Low Address (Top).
+          // This is REVERSE of C convention for stack arguments.
+
+          // So for stack arguments, we are in trouble if we just leave them.
+          // But for register arguments, we pop them, so it's fine.
+
+          // Since we support only up to 6 ints and 8 floats in registers,
+          // and we probably don't have many args, let's assume they fit in registers for now.
+          // Or we fix the push order.
+
+          // To fix push order:
+          // We should evaluate args, store them (e.g. in temps), then push in correct order?
+          // Or just evaluate in reverse?
+          // Evaluating in reverse might change side-effect order.
+          // So evaluate Left-to-Right, save to temps (stack), then put in registers/stack.
+
+          // Current implementation:
+          // Evaluate Arg0 -> Push
+          // Evaluate Arg1 -> Push
+          // ...
+          // Pop ArgN -> Reg
+          // ...
+          // Pop Arg0 -> Reg
+
+          // This works perfectly for Register Arguments.
+          // Because we pop ArgN (Top) first.
+
+          // If we have stack arguments (spill), we need to handle them.
+          // But let's ignore spill for now and focus on floats.
+
+          // If assign.regIndex >= 8, we have a problem.
+          // But let's assume < 8.
+
+          // Wait, if we have a spill, we need to pop it and push it back in correct location?
+          // Or just not pop it?
+          // If we don't pop it, it stays at Top.
+          // But it might be ArgN (which should be at Top).
+          // So if we have spills, and we pushed 0..N, then N is at Top.
+          // If N is a spill, it is at the correct location (Top of stack).
+          // If N-1 is a spill, it is under N.
+          // This matches C convention (Right-to-Left push) IF we consider that we pushed 0..N.
+          // Wait.
+          // C: Push N, Push N-1 ... Push 7. (Args 0-5 in regs).
+          // Stack: [7, 8, ... N] (7 is Top).
+          // We: Push 0, Push 1 ... Push N.
+          // Stack: [N, N-1 ... 0] (N is Top).
+
+          // So our stack order is REVERSED for stack arguments.
+          // ArgN is at Top (Low Addr). Arg0 is at Bottom (High Addr).
+          // C expects Arg7 at Top (Low Addr). ArgN at Bottom (High Addr).
+
+          // So we are completely reversed for stack args.
+          // But for register args, we pop them all, so it doesn't matter.
+
+          // For now, I will implement register args only.
+          gen.emit("pop rax", "Pop float bits");
+          gen.emit(
+            `movq ${this.floatArgOrders[assign.regIndex]}, rax`,
+            `Move to ${this.floatArgOrders[assign.regIndex]}`,
+          );
+        }
+      } else {
+        if (assign.regIndex < 6) {
+          gen.emit(
+            `pop ${this.argOrders[assign.regIndex]}`,
+            `Move to ${this.argOrders[assign.regIndex]}`,
+          );
+        } else {
+          // Spill
+          // See above.
+        }
+      }
+      scope.stackOffset -= 8;
+    }
+
+    if (isStructReturn) {
+      gen.emit("pop rdi", "Pop struct return pointer into RDI");
       scope.stackOffset -= 8;
     }
 
@@ -117,14 +383,11 @@ export default class FunctionCallExpr extends Expression {
       );
     }
 
-    gen.emit(
-      "xor rax, rax",
-      `Clear rax before calling function ${this.functionName}`,
-    );
-    gen.emit(
-      "xor rbx, rbx",
-      `Clear rbx before calling function ${this.functionName}`,
-    );
+    // Set RAX to number of vector registers used (for varargs)
+    gen.emit(`mov rax, ${currentFloat}`, "Number of vector registers used");
+
+    // gen.emit("xor rbx, rbx", "Clear rbx"); // Not strictly needed but good for safety?
+
     if (func.isExternal) {
       gen.emit(
         `call ${func.startLabel} WRT ..plt`,
@@ -142,21 +405,6 @@ export default class FunctionCallExpr extends Expression {
     }
 
     if (extraStackAllocated > 0) {
-      // If we allocated extra stack for struct copies (args), we need to free it.
-      // BUT, if we allocated stack for RETURN VALUE, we must NOT free it yet!
-      // The return value is on the stack, and rax points to it.
-      // We need to keep it until it's used (e.g. by VariableDeclarationExpr).
-      // However, FunctionCallExpr is an expression, it returns a value (address).
-      // If we free the stack now, the address in rax becomes invalid (pointing to free stack).
-
-      // Wait, if we return a struct by value, the caller (VariableDeclarationExpr) expects
-      // the address of the struct.
-      // If we allocated it on the stack here, we are responsible for it.
-      // If we free it here, it's gone.
-
-      // But `extraStackAllocated` includes both return value slot AND arg copies.
-      // Arg copies can be freed. Return value slot cannot.
-
       const argsStackSize =
         extraStackAllocated - (isStructReturn ? returnStructSize : 0);
       if (argsStackSize > 0) {
@@ -167,99 +415,10 @@ export default class FunctionCallExpr extends Expression {
       }
 
       if (isStructReturn) {
-        // We leave the return value on the stack.
-        // But who frees it?
-        // The expression evaluation finishes here.
-        // If this is part of a larger expression (e.g. `call foo().x`), we need it.
-        // If it's `local p = call foo()`, we need it.
-        // If it's `call foo()`, we discard it.
-
-        // This is tricky. In C, the caller allocates space in its own frame (local var)
-        // and passes that address.
-        // Here, we are allocating temporary space on the stack.
-        // We need to clean it up eventually.
-
-        // If we leave it on the stack, `rsp` is not restored to where it was before `transpile`.
-        // This will mess up subsequent stack operations in the same block.
-
-        // Ideally, `FunctionCallExpr` should return the address, and the parent expression
-        // should consume it.
-        // But we don't have a mechanism for "cleanup after parent consumes".
-
-        // However, `VariableDeclarationExpr` copies the data.
-        // So after `VariableDeclarationExpr` is done, the data is in the variable.
-        // The temp space is no longer needed.
-
-        // But `FunctionCallExpr` doesn't know if it's being called by `VariableDeclarationExpr`.
-
-        // If we use `alloca` style (sub rsp), the space is reclaimed at function exit?
-        // No, we are in the middle of a function.
-
-        // Maybe we should just copy the result to a register if it fits? No, it's a struct.
-
-        // Let's look at how `VariableDeclarationExpr` works.
-        // It calls `transpile`, then uses `rax`.
-        // If we leave `rsp` modified, `VariableDeclarationExpr` will use wrong offsets for locals?
-        // `VariableDeclarationExpr` uses `rbp - offset`. `rbp` is stable.
-        // So modifying `rsp` is "safe" for local var access, but unsafe for `push/pop`.
-
-        // If we leave it on stack, we must restore `rsp` later.
-        // But we can't easily do that.
-
-        // Alternative:
-        // Allocate the return slot in `VariableDeclarationExpr` if possible?
-        // But `FunctionCallExpr` can be used in `print(call foo().x)`.
-
-        // Correct approach:
-        // The caller (FunctionCallExpr) allocates space.
-        // It returns the address in `rax`.
-        // It MUST restore `rsp` before returning?
-        // If it restores `rsp`, the data is "popped" (technically still there but below rsp).
-        // If we don't touch stack after this, it's fine?
-        // But if we call another function, it will overwrite it.
-
-        // So we CANNOT restore `rsp` if we want to return the data on stack.
-
-        // BUT, if we don't restore `rsp`, we leak stack space until function return?
-        // That might be acceptable for a temporary expression.
-        // "Statement expression" style.
-
-        // Let's try: Restore `rsp` BUT keep the data there (don't zero it).
-        // The data is below `rsp`.
-        // As long as we don't push/call anything before using `rax`, it's safe.
-        // `VariableDeclarationExpr` does:
-        // 1. `this.value.transpile` (FunctionCallExpr) -> returns address in `rax`. `rsp` restored.
-        // 2. `mov [rbp-offset], rax` (copies address? NO, we need to copy data).
-
-        // Wait, `VariableDeclarationExpr` needs to be fixed to copy data.
-        // If `FunctionCallExpr` restores `rsp`, the data is at `[rax]`.
-        // `rax` points to memory *below* `rsp`.
-        // Is it safe?
-        // If an interrupt happens? (Kernel uses separate stack usually, or red zone).
-        // x86-64 has a 128-byte red zone.
-        // If our struct is < 128 bytes, it's safe in the red zone.
-        // If > 128 bytes, it's unsafe.
-
-        // So we should probably NOT restore `rsp` for the return value,
-        // and let the scope know we have extra stack usage?
-        // But `Scope.stackOffset` tracks logical stack usage for alignment.
-
-        // If we leave `rsp` modified, we need to track it.
-        // But `FunctionCallExpr` finishes.
-
-        // Let's assume for now we rely on the Red Zone (128 bytes) or just risk it for testing.
-        // Or better: `VariableDeclarationExpr` should allocate the slot!
-        // But `FunctionCallExpr` is generic.
-
-        // Let's try restoring `rsp` and see if it works (Red Zone).
-        // Most likely it will work for small structs.
-
-        if (isStructReturn) {
-          gen.emit(
-            `add rsp, ${returnStructSize}`,
-            `Free stack space for return value (relying on Red Zone/immediate usage)`,
-          );
-        }
+        gen.emit(
+          `add rsp, ${returnStructSize}`,
+          `Free stack space for return value (relying on Red Zone/immediate usage)`,
+        );
       }
     }
   }

@@ -14,7 +14,12 @@ export type ContextType =
       endLabel: string;
       returnType: VariableType | null;
     }
-  | { type: "loop"; breakLabel: string; continueLabel: string }
+  | {
+      type: "loop";
+      breakLabel: string;
+      continueLabel: string;
+      stackOffset: number;
+    }
   | { type: "LHS" }
   | null;
 
@@ -105,6 +110,9 @@ export default class Scope {
       this.parent.defineFunction(name, info);
     } else if (this.functions.has(name)) {
       if (this.functions.get(name)!.isExternal && info.isExternal) {
+        if (this.functions.get(name)!.args.length < info.args.length) {
+          this.functions.set(name, info);
+        }
         return; // Allow re-definition of external functions
       }
       throw new Error(`Function ${name} is already defined.`);

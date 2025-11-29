@@ -2,6 +2,7 @@ import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import ArrayLiteralExpr from "./arrayLiteralExpr";
+import BinaryExpr from "./binaryExpr";
 import Expression from "./expr";
 import NullLiteralExpr from "./nullLiteralExpr";
 import NumberLiteralExpr from "./numberLiteralExpr";
@@ -60,6 +61,31 @@ export default class VariableDeclarationExpr extends Expression {
       this.value = this.value.optimize();
     }
     return this;
+  }
+
+  private resolveExprType(expr: Expression, scope: Scope): string | null {
+    if (expr.type === ExpressionType.NumberLiteralExpr) {
+      return (expr as NumberLiteralExpr).value.includes(".") ? "f64" : "u64";
+    }
+    if (expr.type === ExpressionType.IdentifierExpr) {
+      const sym = scope.resolve((expr as any).name);
+      return sym ? sym.varType.name : null;
+    }
+    if (expr.type === ExpressionType.BinaryExpression) {
+      const binExpr = expr as BinaryExpr;
+      const leftType = this.resolveExprType(binExpr.left, scope);
+      const rightType = this.resolveExprType(binExpr.right, scope);
+      if (
+        leftType === "f64" ||
+        leftType === "f32" ||
+        rightType === "f64" ||
+        rightType === "f32"
+      ) {
+        return "f64";
+      }
+      return null;
+    }
+    return null;
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
@@ -129,6 +155,44 @@ export default class VariableDeclarationExpr extends Expression {
       }
     } else if (this.value) {
       this.value.transpile(gen, scope);
+
+      // Handle float initialization
+      const sourceType = this.resolveExprType(this.value, scope);
+      if (this.varType.name === "f32") {
+        if (sourceType === "f32") {
+          gen.emit(`mov [ rbp - ${offset} ], eax`, "Init f32 from f32");
+        } else {
+          // Assume f64 (from literal or binary op)
+          gen.emit("movq xmm0, rax", "Move f64 bits");
+          gen.emit("cvtsd2ss xmm0, xmm0", "Convert f64 to f32");
+          gen.emit("movd eax, xmm0", "Move f32 bits");
+          gen.emit(`mov [ rbp - ${offset} ], eax`, "Init f32 from f64");
+        }
+        return;
+      } else if (this.varType.name === "f64") {
+        if (sourceType === "f32") {
+          gen.emit("movd xmm0, eax", "Move f32 bits");
+          gen.emit("cvtss2sd xmm0, xmm0", "Convert f32 to f64");
+          gen.emit("movq rax, xmm0", "Move f64 bits");
+        }
+        gen.emit(
+          `mov [ rbp - ${offset} ], rax`,
+          "Initialize f64 local variable",
+        );
+        return;
+      } else {
+        // Target is int/struct
+        if (sourceType === "f64" || sourceType === "f32") {
+          // Convert float to int
+          if (sourceType === "f32") {
+            gen.emit("movd xmm0, eax", "Move f32 bits");
+            gen.emit("cvtss2sd xmm0, xmm0", "Convert f32 to f64");
+          } else {
+            gen.emit("movq xmm0, rax", "Move f64 bits");
+          }
+          gen.emit("cvttsd2si rax, xmm0", "Convert float to int");
+        }
+      }
 
       let isStruct = false;
       if (!this.varType.isPointer && !this.varType.isArray.length) {

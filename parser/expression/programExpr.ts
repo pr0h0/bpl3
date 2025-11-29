@@ -43,6 +43,7 @@ export default class ProgramExpr extends Expression {
       ExpressionType.ImportExpression,
       ExpressionType.ExportExpression,
       ExpressionType.StructureDeclaration,
+      ExpressionType.ExternDeclaration,
       ExpressionType.EOF,
     ]);
 

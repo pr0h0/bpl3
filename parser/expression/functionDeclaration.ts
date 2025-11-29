@@ -108,13 +108,37 @@ export default class FunctionDeclarationExpr extends Expression {
       });
     }
 
+    let intArgIndex = isStructReturn ? 1 : 0;
+    let floatArgIndex = 0;
+
     this.args.forEach((arg, index) => {
       const offset = funcScope.allocLocal(8);
-      const regIndex = index + (isStructReturn ? 1 : 0);
-      const reg = this.argOrders[regIndex];
+      let reg = "";
+      const isFloat = arg.type.name === "f32" || arg.type.name === "f64";
+
+      if (isFloat) {
+        if (floatArgIndex < 8) {
+          reg = `xmm${floatArgIndex++}`;
+        }
+      } else {
+        if (intArgIndex < this.argOrders.length) {
+          reg = this.argOrders[intArgIndex++]!;
+        }
+      }
 
       if (reg) {
-        gen.emit(`mov [rbp - ${offset}], ${reg}`, `store argument ${arg.name}`);
+        if (isFloat) {
+          gen.emit(`movq rax, ${reg}`, `Move float arg ${arg.name} to rax`);
+          gen.emit(
+            `mov [rbp - ${offset}], rax`,
+            `store argument ${arg.name} (float)`,
+          );
+        } else {
+          gen.emit(
+            `mov [rbp - ${offset}], ${reg}`,
+            `store argument ${arg.name}`,
+          );
+        }
       } else {
         // Handle arguments passed on stack (if > 6 args)
         // For now, assume < 6 args + return pointer

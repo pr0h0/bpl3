@@ -29,6 +29,7 @@ enum ExpressionType {
   AsmBlockExpression = "AsmBlockExpression",
   ImportExpression = "ImportExpression",
   ExportExpression = "ExportExpression",
+  ExternDeclaration = "ExternDeclaration",
 
   Program = "Program",
   EOF = "EOF",

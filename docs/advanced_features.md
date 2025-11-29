@@ -94,6 +94,38 @@ local ptr: *u64 = &x;
 *ptr = 100; # Changes x to 100
 ```
 
+## Interfacing with C and Object Files
+
+BPL allows you to link against standard C libraries (libc) or any compiled object files (`.o`).
+
+### Importing External Functions
+
+Use the `import` statement to bring in functions from `libc` or other object files.
+
+```bpl
+import printf, malloc from "libc";
+import my_c_func from "./legacy_code.o";
+```
+
+### Using `extern` for Type Safety
+
+When importing from `.x` files, BPL knows the function signatures. However, for `libc` or `.o` files, this information is missing. The `extern` keyword allows you to manually provide these signatures.
+
+```bpl
+import printf from "libc";
+
+# Without extern, BPL might not know how to handle arguments or return types correctly
+extern printf(fmt: *u8); 
+
+frame main() {
+    call printf("Hello C!\n");
+}
+```
+
+**Why use `extern`?**
+1.  **Type Checking**: Ensures you pass the correct types to C functions.
+2.  **Return Values**: Tells the compiler what type the function returns (e.g., `ret *u8` for `malloc`), so it can be assigned to variables correctly.
+
 ## Command Line Arguments
 
 The `main` function signature can be expanded to accept arguments.
