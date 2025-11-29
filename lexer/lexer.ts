@@ -533,6 +533,16 @@ class Lexer {
           this.tokenStartColumn,
         );
       case ".":
+        if (this.peek(0) === "." && this.peek(1) === ".") {
+          this.consume();
+          this.consume();
+          return new Token(
+            TokenType.ELLIPSIS,
+            "...",
+            this.line,
+            this.tokenStartColumn,
+          );
+        }
         return new Token(TokenType.DOT, char, this.line, this.tokenStartColumn);
       case ":":
         return new Token(

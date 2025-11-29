@@ -61,7 +61,7 @@ export default class ProgramExpr extends Expression {
     const weHaveExportStmt = this.expressions.find(
       (expr) => expr.type === ExpressionType.ExportExpression,
     );
-    HelperGenerator.generateBaseTypes(gen, scope);
+    // HelperGenerator.generateBaseTypes(gen, scope); // Moved to transpileProgram
     if (!weHaveExportStmt) {
       gen.emitGlobalDefinition("global main");
       gen.emitLabel("main");

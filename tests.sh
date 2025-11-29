@@ -1,9 +1,8 @@
 #!/bin/bash
 
-SKIP_PROMPT=1
-if [ "$1" == "--slow" ]; then
-    SKIP_PROMPT=0
-    shift
+SPECIFIC_TEST=""
+if [ "$1" != "" ]; then
+    SPECIFIC_TEST="/$1/"
 fi
 
 # Initialize failure tracking
@@ -79,7 +78,7 @@ echo "Starting tests..."
 # 1. Run modular tests
 echo "---------------------------------------------------"
 echo "Running modular tests..."
-TEST_SCRIPTS=$(find ./example -name "test.sh" -type f | sort)
+TEST_SCRIPTS=$(find "./example$SPECIFIC_TEST" -name "test.sh" -type f | sort)
 for TEST_SCRIPT in $TEST_SCRIPTS; do
     DIR_NAME=$(dirname "$TEST_SCRIPT")
     TEST_NAME=$(basename "$DIR_NAME")

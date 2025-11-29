@@ -110,6 +110,67 @@ export default class MemberAccessExpr extends Expression {
     const isLHS = scope.getCurrentContext("LHS");
     if (isLHS) scope.removeCurrentContext("LHS");
 
+    // Handle variadic args access: args[i]
+    if (
+      this.object instanceof IdentifierExpr &&
+      this.object.name === "args" &&
+      this.isIndexAccess
+    ) {
+      const variadicStart = scope.resolve("__variadic_start_offset__");
+      const variadicCount = scope.resolve("__variadic_reg_count__");
+
+      if (variadicStart && variadicCount) {
+        // This is a variadic args access
+        // Calculate index
+        this.property.transpile(gen, scope);
+        // RAX has index 'i'
+
+        // We need to check if i < variadicCount (registers) or i >= variadicCount (stack)
+        // But wait, variadicCount is stored as a string offset in scope (hack).
+        // Let's parse it.
+        const numRegs = parseInt(variadicCount.offset);
+        const startOffset = parseInt(variadicStart.offset);
+
+        const labelStack = gen.generateLabel("variadic_stack");
+        const labelDone = gen.generateLabel("variadic_done");
+
+        gen.emit(
+          `cmp rax, ${numRegs}`,
+          "Check if variadic arg is in register spill area",
+        );
+        gen.emit(`jge ${labelStack}`, "If index >= numRegs, go to stack");
+
+        // Register access
+        // Addr = RBP - startOffset - (i * 8)
+        gen.emit("mov rbx, rax", "Copy index");
+        gen.emit("imul rbx, 8", "Scale index");
+        gen.emit("mov rax, rbp", "Base RBP");
+        gen.emit(`sub rax, ${startOffset}`, "Subtract start offset");
+        gen.emit("sub rax, rbx", "Subtract scaled index");
+        gen.emit(`jmp ${labelDone}`, "Done");
+
+        gen.emitLabel(labelStack);
+        // Stack access
+        // Addr = RBP + 16 + (i - numRegs) * 8
+        gen.emit(`sub rax, ${numRegs}`, "Adjust index for stack");
+        gen.emit("imul rax, 8", "Scale index");
+        gen.emit("add rax, 16", "Add return address + saved rbp offset");
+        gen.emit("add rax, rbp", "Add RBP");
+
+        gen.emitLabel(labelDone);
+
+        // Now RAX has the address of the argument.
+        // If !isLHS, dereference it.
+        if (!isLHS) {
+          // Assuming u64 for now as per implementation in FunctionDeclaration
+          gen.emit("mov rax, [rax]", "Dereference variadic arg");
+        } else {
+          scope.setCurrentContext({ type: "LHS" });
+        }
+        return;
+      }
+    }
+
     const objectType = this.resolveExpressionType(this.object, scope);
     if (!objectType) {
       throw new Error("Could not resolve type of object in member access");

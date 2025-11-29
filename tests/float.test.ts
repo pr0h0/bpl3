@@ -7,6 +7,7 @@ import VariableDeclarationExpr from "../parser/expression/variableDeclarationExp
 import BinaryExpr from "../parser/expression/binaryExpr";
 import AsmGenerator from "../transpiler/AsmGenerator";
 import Scope from "../transpiler/Scope";
+import HelperGenerator from "../transpiler/HelperGenerator";
 
 function parse(input: string) {
   const lexer = new Lexer(input);
@@ -20,6 +21,7 @@ function generate(input: string) {
   const program = parser.parse();
   const gen = new AsmGenerator(0);
   const scope = new Scope();
+  HelperGenerator.generateBaseTypes(gen, scope);
   program.transpile(gen, scope);
   return gen.build();
 }

@@ -62,6 +62,8 @@ enum TokenType {
   BITSHIFT_LEFT = "BITSHIFT_LEFT",
   BITSHIFT_RIGHT = "BITSHIFT_RIGHT",
 
+  ELLIPSIS = "ELLIPSIS", // ...
+
   UNKNOWN = "UNKNOWN",
   NOOP = "NOOP",
   EOF = "EOF",

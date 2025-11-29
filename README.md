@@ -186,6 +186,35 @@ frame function_name() ret return_type {}
 frame function_name() {} // for void return type
 ```
 
+### Variadic Functions
+
+BPL supports defining and calling variadic functions (functions that accept a variable number of arguments).
+
+**Defining a Variadic Function:**
+
+Use `...:type` as the last parameter to define a variadic function. The arguments are accessible via the `args` array-like keyword.
+
+```bpl
+frame sum(count: u64, ...:u64) ret u64 {
+    local total: u64 = 0;
+    local i: u64 = 0;
+    loop {
+        if i >= count { break; }
+        total = total + args[i];
+        i = i + 1;
+    }
+    return total;
+}
+```
+
+**External Variadic Functions:**
+
+For external functions like `printf`, use `...` in the `extern` declaration.
+
+```bpl
+extern printf(fmt: string, ...);
+```
+
 ### Command Line Arguments and Environment Variables
 
 The `main` function can optionally accept command line arguments and environment variables. It supports `argc` (argument count), `argv` (argument vector), and `envp` (environment pointer).

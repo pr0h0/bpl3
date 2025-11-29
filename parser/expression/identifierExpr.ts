@@ -25,6 +25,22 @@ export default class IdentifierExpr extends Expression {
 
   transpile(gen: AsmGenerator, scope: Scope): void {
     this.contextScope = scope;
+
+    // Handle 'args' identifier in variadic functions
+    if (this.name === "args") {
+      const variadicStart = scope.resolve("__variadic_start_offset__");
+      if (variadicStart) {
+        // 'args' used as an identifier (e.g. passed to function or assigned)
+        // It represents the "array" of variadic args.
+        // But since it's split between stack and registers, it's not a real array.
+        // We can't easily return a pointer to it.
+        // For now, throw error if used directly without index.
+        throw new Error(
+          "'args' can only be used with index access (args[i]) in variadic functions.",
+        );
+      }
+    }
+
     const symbol = scope.resolve(this.name);
     if (!symbol) {
       throw new Error(`Undefined identifier: ${this.name}`);

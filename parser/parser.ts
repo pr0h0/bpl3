@@ -530,7 +530,22 @@ export class Parser {
         "Expected '(' after 'extern' function name.",
       );
 
+      let isVariadic = false;
+
       while (this.peek() && this.peek()!.type !== TokenType.CLOSE_PAREN) {
+        if (this.peek()?.type === TokenType.ELLIPSIS) {
+          this.consume(TokenType.ELLIPSIS);
+          isVariadic = true;
+          // Ellipsis must be the last argument
+          if (this.peek()?.type === TokenType.COMMA) {
+            throw new CompilerError(
+              "Variadic argument '...' must be the last argument.",
+              this.peek()?.line || 0,
+            );
+          }
+          break;
+        }
+
         const argNameToken = this.consume(TokenType.IDENTIFIER);
         this.consume(TokenType.COLON, "Expected ':' after argument name.");
 
@@ -577,7 +592,12 @@ export class Parser {
         }
       }
 
-      return new ExternDeclarationExpr(funcNameToken.value, args, returnType);
+      return new ExternDeclarationExpr(
+        funcNameToken.value,
+        args,
+        returnType,
+        isVariadic,
+      );
     });
   }
 
@@ -785,7 +805,25 @@ export class Parser {
         "Expected '(' after 'frame' function name.",
       );
 
+      let isVariadic = false;
+      let variadicType: VariableType | null = null;
+
       while (this.peek() && this.peek()!.type !== TokenType.CLOSE_PAREN) {
+        if (this.peek()?.type === TokenType.ELLIPSIS) {
+          this.consume(TokenType.ELLIPSIS);
+          this.consume(TokenType.COLON, "Expected ':' after '...'");
+          variadicType = this.parseType();
+          isVariadic = true;
+
+          if (this.peek()?.type === TokenType.COMMA) {
+            throw new CompilerError(
+              "Variadic argument must be the last argument",
+              this.peek()?.line || 0,
+            );
+          }
+          break;
+        }
+
         const argNameToken = this.consume(TokenType.IDENTIFIER);
         this.consume(TokenType.COLON, "Expected ':' after argument name.");
 
@@ -802,7 +840,9 @@ export class Parser {
           this.peek(1)!.type !== TokenType.CLOSE_PAREN
         ) {
           throw new CompilerError(
-            "Expected ',' or ')' after function argument",
+            "Expected ',' or ')' after function argument but got '" +
+              (this.peek()?.value || "") +
+              "'",
             this.peek()?.line || 0,
           );
         }
@@ -840,6 +880,8 @@ export class Parser {
         returnType,
         body,
         funcNameToken,
+        isVariadic,
+        variadicType,
       );
     });
   }

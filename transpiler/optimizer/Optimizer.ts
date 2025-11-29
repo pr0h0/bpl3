@@ -27,9 +27,9 @@ export class Optimizer {
     }
 
     if (level >= 2) {
+      this.rules.push(new RedundantPushPopRule());
       this.rules.push(new JmpNextLabelRule());
       this.rules.push(new CmpZeroRule());
-      this.rules.push(new RedundantPushPopRule());
       this.rules.push(new DeadCodeRule());
     }
 

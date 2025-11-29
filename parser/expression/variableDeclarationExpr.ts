@@ -14,6 +14,7 @@ export type VariableType = {
   isPointer: number;
   isArray: number[];
   token?: Token;
+  isLiteral?: boolean;
 };
 
 export default class VariableDeclarationExpr extends Expression {

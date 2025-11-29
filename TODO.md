@@ -1,5 +1,5 @@
 [x] - Implement robust lexing with clear token definitions
-[ ] - Add AST validation and semantic analysis layer
+[x] - Add AST validation and semantic analysis layer
 [x] - Improve error reporting with codes and hints
 [x] - Implement constant folding optimization
 [x] - Add dead code elimination pass

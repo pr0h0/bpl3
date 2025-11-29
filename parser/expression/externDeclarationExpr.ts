@@ -9,6 +9,7 @@ export default class ExternDeclarationExpr extends Expression {
     public name: string,
     public args: { type: VariableType; name: string }[],
     public returnType: VariableType | null,
+    public isVariadic: boolean = false,
   ) {
     super(ExpressionType.ExternDeclaration);
     this.requiresSemicolon = true;
@@ -25,6 +26,9 @@ export default class ExternDeclarationExpr extends Expression {
     for (const arg of this.args) {
       output +=
         this.getDepth() + `Name: ${arg.name}, ${this.printType(arg.type)}\n`;
+    }
+    if (this.isVariadic) {
+      output += this.getDepth() + `...\n`;
     }
     this.depth--;
     if (this.returnType) {
@@ -55,6 +59,7 @@ export default class ExternDeclarationExpr extends Expression {
       name: this.name,
       startLabel: this.name,
       isExternal: true,
+      isVariadic: this.isVariadic,
     });
   }
 }

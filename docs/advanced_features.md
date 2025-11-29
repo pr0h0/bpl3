@@ -133,7 +133,7 @@ frame main() {
 
 The `main` function signature can be expanded to accept arguments.
 
-```bpl
+````bpl
 frame main(argc: u32, argv: **u8, envp: **u8) ret u8 {
     # argc: Number of arguments
     # argv: Array of argument strings
@@ -144,4 +144,53 @@ frame main(argc: u32, argv: **u8, envp: **u8) ret u8 {
     }
     return 0;
 }
+
+## User-Defined Variadic Functions
+
+BPL allows you to define your own variadic functions. This is useful when you want to create functions that can handle a flexible number of inputs, similar to `printf` or `sum`.
+
+### Declaration
+
+To declare a variadic function, use `...:Type` as the last parameter. All variadic arguments must be of the specified `Type`.
+
+```bpl
+frame my_variadic_func(fixed_arg: u64, ...:u64) {
+    # ...
+}
+````
+
+### Accessing Arguments
+
+Inside the function, you can access the variadic arguments using the special `args` keyword, which acts like an array. You must use index access `args[i]`.
+
+**Note:** The `args` keyword is not a real array pointer, but a special accessor that retrieves arguments from registers or the stack as needed. Therefore, you cannot pass `args` itself to other functions or assign it to a variable.
+
+### Example: Sum Function
+
+```bpl
+frame sum(count: u64, ...:u64) ret u64 {
+    local total: u64 = 0;
+    local i: u64 = 0;
+
+    loop {
+        if i >= count { break; }
+        total = total + args[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+frame main() ret u64 {
+    local s: u64 = call sum(3, 10, 20, 30);
+    call printf("Sum: %d\n", s);
+    return 0;
+}
+```
+
+### Variadic Arguments and Registers
+
+BPL handles the complexity of the x86-64 calling convention for you. The first few variadic arguments might be passed in registers, while the rest are on the stack. The `args[i]` accessor automatically handles this distinction.
+
+```
+
 ```

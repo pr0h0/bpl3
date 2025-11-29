@@ -1,6 +1,14 @@
 import AsmGenerator from "./transpiler/AsmGenerator";
 import Scope from "./transpiler/Scope";
-import * as util from "./util";
+import {
+  getFileTokens,
+  parseTokens,
+  parseImportExpressions,
+  extractImportStatements,
+} from "./utils/parser";
+import { transpileProgram, parseLibraryFile } from "./utils/transpiler";
+import { getOutputFileName, saveToFile } from "./utils/file";
+import { compileAsmFile, linkObjectFile } from "./utils/compiler";
 import { execSync, spawnSync } from "child_process";
 import { existsSync, unlinkSync, readFileSync } from "fs";
 import { resolve, isAbsolute } from "path";
@@ -126,24 +134,22 @@ let asmFilePath = "";
 let objectsToLink: Set<string> = new Set(extraLibs);
 
 try {
-  const tokens = util.getFileTokens(fileName);
-  const ast = util.parseTokens(tokens);
+  const tokens = getFileTokens(fileName);
+  const ast = parseTokens(tokens);
 
   const gen = new AsmGenerator(optimizationLevel);
   const scope = new Scope();
 
-  const imports = util.parseImportExpressions(
-    util.extractImportStatements(ast),
-  );
+  const imports = parseImportExpressions(extractImportStatements(ast));
   if (imports.length) {
     // We rely on parseLibraryFile to handle recursive compilation and return object files
-    const objectFiles = util.parseLibraryFile(fileName, scope);
+    const objectFiles = parseLibraryFile(fileName, scope);
     objectFiles.forEach((obj) => objectsToLink.add(obj));
   }
 
-  asmContent = util.transpileProgram(ast, gen, scope);
-  asmFilePath = util.getOutputFileName(fileName, ".asm");
-  util.saveToFile(asmFilePath, asmContent);
+  asmContent = transpileProgram(ast, gen, scope);
+  asmFilePath = getOutputFileName(fileName, ".asm");
+  saveToFile(asmFilePath, asmContent);
 } catch (e) {
   ErrorReporter.report(e);
 }
@@ -163,7 +169,7 @@ if (printAsm) {
 debug(`--- 3. Assembling ${asmFilePath} ---`);
 let objFilePath: string;
 try {
-  objFilePath = util.compileAsmFile(asmFilePath);
+  objFilePath = compileAsmFile(asmFilePath);
 } catch (e) {
   console.error("Assembly failed.");
   process.exit(1);
@@ -178,14 +184,14 @@ if (compileLib) {
 
 debug(`--- 4. Linking to create executable (Mode: ${linkMode}) ---`);
 
-const outputExe = util.getOutputFileName(fileName, "");
+const outputExe = getOutputFileName(fileName, "");
 const linkArgs = Array.from(objectsToLink);
 if (linkMode === "static") {
   linkArgs.push("-static");
 }
 
 try {
-  util.linkObjectFile(objFilePath, linkArgs, outputExe);
+  linkObjectFile(objFilePath, linkArgs, outputExe);
 } catch (e) {
   console.error("Linking failed.");
   process.exit(1);

@@ -1,6 +1,6 @@
 import printf, malloc, free from "libc";
 
-frame main() {
+frame main() ret u8 {
     local arr: *u64 = call malloc(5 * 8); # Allocate memory for 5 u64 integers
     call printf("Allocated array address: %p\n", arr);
     if (arr == NULL) {

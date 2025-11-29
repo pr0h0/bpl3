@@ -81,6 +81,7 @@ export default class AsmGenerator {
       : [];
 
     return [
+      "default rel",
       ...this.importDefinitions,
       "section .rodata",
       ...this.rodata,

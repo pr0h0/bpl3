@@ -12,6 +12,8 @@ export default class FunctionDeclarationExpr extends Expression {
     public returnType: VariableType | null,
     public body: Expression,
     public nameToken?: Token,
+    public isVariadic: boolean = false,
+    public variadicType: VariableType | null = null,
   ) {
     super(ExpressionType.FunctionDeclaration);
     this.requiresSemicolon = false;
@@ -28,6 +30,11 @@ export default class FunctionDeclarationExpr extends Expression {
     for (const arg of this.args) {
       output +=
         this.getDepth() + `Name: ${arg.name}, ${this.printType(arg.type)}\n`;
+    }
+    if (this.isVariadic && this.variadicType) {
+      output +=
+        this.getDepth() +
+        `Variadic: ...:${this.printType(this.variadicType)}\n`;
     }
     this.depth--;
     if (this.returnType) {
@@ -57,15 +64,25 @@ export default class FunctionDeclarationExpr extends Expression {
     const label = gen.generateLabel(`func_${this.name}_`);
     const endLabel = label + "_end";
 
-    scope.defineFunction(this.name, {
-      args: this.args,
-      returnType: this.returnType,
-      endLabel: endLabel,
-      label: label,
-      name: this.name,
-      startLabel: label,
-      declaration: this.startToken,
-    });
+    const existingFunc = scope.resolveFunction(this.name);
+    if (existingFunc) {
+      // Update existing function definition (e.g. from SemanticAnalyzer or forward declaration)
+      existingFunc.label = label;
+      existingFunc.startLabel = label;
+      existingFunc.endLabel = endLabel;
+      // We could also verify that args and return type match here
+    } else {
+      scope.defineFunction(this.name, {
+        args: this.args,
+        returnType: this.returnType,
+        endLabel: endLabel,
+        label: label,
+        name: this.name,
+        startLabel: label,
+        declaration: this.startToken,
+        isVariadic: this.isVariadic,
+      });
+    }
 
     if (this.name === "main") {
       gen.emitGlobalDefinition(`_user_main equ ${label}`);
@@ -161,6 +178,119 @@ export default class FunctionDeclarationExpr extends Expression {
         isParameter: true,
       });
     });
+
+    if (this.isVariadic && this.variadicType) {
+      // Spill remaining registers to stack for variadic access
+      // We only support u64 variadic args for now (GP registers)
+      // If variadicType is float, we should spill XMM registers.
+      // Assuming u64 for now as per user request.
+
+      const isFloatVariadic =
+        this.variadicType.name === "f32" || this.variadicType.name === "f64";
+
+      if (isFloatVariadic) {
+        // Spill XMM registers
+        const startReg = floatArgIndex;
+        const numRegs = 8 - startReg;
+        if (numRegs > 0) {
+          const spillSize = numRegs * 8;
+          gen.emit(
+            `sub rsp, ${spillSize}`,
+            `allocate space for variadic float registers`,
+          );
+          const baseOffset = funcScope.stackOffset + spillSize; // Offset from RBP to start of spill area (bottom)
+          // Actually, let's just allocate and store.
+          // We want them contiguous.
+          // [xmm0, xmm1, ...]
+          // If we push, we get reverse order?
+          // Let's use mov.
+          for (let i = 0; i < numRegs; i++) {
+            const regIndex = startReg + i;
+            const offset = funcScope.allocLocal(8);
+            gen.emit(`movq rax, xmm${regIndex}`, `Move variadic arg to rax`);
+            gen.emit(
+              `mov [rbp - ${offset}], rax`,
+              `store variadic arg (xmm${regIndex})`,
+            );
+          }
+          // Define a special variable to know where the register save area starts
+          // The first variadic register is at [rbp - (baseOffset - (numRegs-1)*8)]?
+          // No, we allocated sequentially.
+          // First (startReg) is at [rbp - (stackOffset_before + 8)]
+          // Last is at [rbp - stackOffset_after]
+          // So they are contiguous in memory:
+          // High Addr: [Arg0]
+          // Low Addr: [ArgN]
+          // This is reverse order of array indexing if we want args[0] to be Arg0.
+          // args[0] should be at High Addr.
+          // args[1] should be at Lower Addr.
+          // So args[i] address = Base - i*8.
+          // Base = Address of Arg0.
+          // Address of Arg0 = rbp - (stackOffset_start + 8).
+
+          funcScope.define("__variadic_start_offset__", {
+            offset: (funcScope.stackOffset - numRegs * 8 + 8).toString(), // Offset of the *first* variadic arg (Arg0)
+            type: "local",
+            varType: this.variadicType,
+            isParameter: true, // Mark as parameter-like
+          });
+          funcScope.define("__variadic_reg_count__", {
+            offset: numRegs.toString(), // Store count as offset string (hack)
+            type: "local",
+            varType: { name: "u64", isPointer: 0, isArray: [] },
+            isParameter: true,
+          });
+        }
+      } else {
+        // Spill GP registers
+        const startReg = intArgIndex;
+        const numRegs = 6 - startReg;
+        if (numRegs > 0) {
+          const spillSize = numRegs * 8;
+          gen.emit(
+            `sub rsp, ${spillSize}`,
+            `allocate space for variadic GP registers`,
+          );
+
+          // We want args[0] (startReg) to be at High Address.
+          // args[1] at Lower Address.
+          // So we store startReg at [rbp - (current + 8)]
+          // startReg+1 at [rbp - (current + 16)]
+
+          const startOffset = funcScope.stackOffset + 8;
+
+          for (let i = 0; i < numRegs; i++) {
+            const regIndex = startReg + i;
+            const offset = funcScope.allocLocal(8);
+            gen.emit(
+              `mov [rbp - ${offset}], ${this.argOrders[regIndex]}`,
+              `store variadic arg (${this.argOrders[regIndex]})`,
+            );
+          }
+
+          funcScope.define("__variadic_start_offset__", {
+            offset: startOffset.toString(),
+            type: "local",
+            varType: this.variadicType,
+            isParameter: true,
+          });
+          funcScope.define("__variadic_reg_count__", {
+            offset: numRegs.toString(),
+            type: "local",
+            varType: { name: "u64", isPointer: 0, isArray: [] },
+            isParameter: true,
+          });
+        } else {
+          // No registers used for variadic, all on stack
+          funcScope.define("__variadic_reg_count__", {
+            offset: "0",
+            type: "local",
+            varType: { name: "u64", isPointer: 0, isArray: [] },
+            isParameter: true,
+          });
+        }
+      }
+    }
 
     // body
     this.body.transpile(gen, funcScope);

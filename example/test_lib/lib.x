@@ -1,4 +1,4 @@
-frame multiply(a:u8, b:u8) ret u8{
+frame multiply(a:u32, b:u32) ret u32{
   return a * b;
 }
 

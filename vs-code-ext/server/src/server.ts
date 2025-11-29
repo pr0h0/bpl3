@@ -25,9 +25,9 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import Lexer from "../../../lexer/lexer";
 import { Parser } from "../../../parser/parser";
 import Scope, { TypeInfo } from "../../../transpiler/Scope";
-import AsmGenerator from '../../../transpiler/AsmGenerator';
-import HelperGenerator from '../../../transpiler/HelperGenerator';
-import { CompilerError } from '../../../errors';
+import AsmGenerator from "../../../transpiler/AsmGenerator";
+import HelperGenerator from "../../../transpiler/HelperGenerator";
+import { CompilerError } from "../../../errors";
 
 import ProgramExpr from "../../../parser/expression/programExpr";
 import BlockExpr from "../../../parser/expression/blockExpr";
@@ -37,7 +37,9 @@ import LoopExpr from "../../../parser/expression/loopExpr";
 import BinaryExpr from "../../../parser/expression/binaryExpr";
 import UnaryExpr from "../../../parser/expression/unaryExpr";
 import FunctionCallExpr from "../../../parser/expression/functionCallExpr";
-import VariableDeclarationExpr, { VariableType } from "../../../parser/expression/variableDeclarationExpr";
+import VariableDeclarationExpr, {
+  VariableType,
+} from "../../../parser/expression/variableDeclarationExpr";
 import IdentifierExpr from "../../../parser/expression/identifierExpr";
 import MemberAccessExpr from "../../../parser/expression/memberAccessExpr";
 import ReturnExpr from "../../../parser/expression/returnExpr";
@@ -49,9 +51,9 @@ import ExternDeclarationExpr from "../../../parser/expression/externDeclarationE
 import Expression from "../../../parser/expression/expr";
 import Token from "../../../lexer/token";
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath, pathToFileURL } from "url";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -140,7 +142,7 @@ function processImport(filePath: string): Scope | null {
   }
 
   try {
-    const text = fs.readFileSync(filePath, 'utf-8');
+    const text = fs.readFileSync(filePath, "utf-8");
     const lexer = new Lexer(text);
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
@@ -148,14 +150,14 @@ function processImport(filePath: string): Scope | null {
 
     const gen = new AsmGenerator(0);
     const scope = new Scope();
-    
+
     try {
       HelperGenerator.generateBaseTypes(gen, scope);
     } catch (e) {
       // Ignore
     }
 
-    // Process imports recursively? 
+    // Process imports recursively?
     // For now, let's just process declarations in this file
     for (const expr of program.expressions) {
       try {
@@ -225,13 +227,13 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
     for (const expr of program.expressions) {
       if (expr instanceof ImportExpr) {
-        if (expr.moduleName.endsWith('.x')) {
+        if (expr.moduleName.endsWith(".x")) {
           const importPath = path.resolve(currentDir, expr.moduleName);
           const importScope = processImport(importPath);
-          
+
           if (importScope) {
             for (const importItem of expr.importName) {
-              if (importItem.type === 'function') {
+              if (importItem.type === "function") {
                 const func = importScope.resolveFunction(importItem.name);
                 if (func) {
                   // Define as external in current scope, but with full signature
@@ -249,7 +251,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
                     // Ignore re-definition
                   }
                 }
-              } else if (importItem.type === 'type') {
+              } else if (importItem.type === "type") {
                 const typeInfo = importScope.resolveType(importItem.name);
                 if (typeInfo) {
                   try {
@@ -438,15 +440,18 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
     if (node.moduleNameToken && isTokenAt(node.moduleNameToken, line, column)) {
       const moduleName = node.moduleName;
       // Filter: "if file doesnt start with ./ or / and ends with .x then dont provide that option"
-      if (moduleName.endsWith('.x')) {
-        if (!moduleName.startsWith('./') && !moduleName.startsWith('/')) {
+      if (moduleName.endsWith(".x")) {
+        if (!moduleName.startsWith("./") && !moduleName.startsWith("/")) {
           return null;
         }
       }
 
       const targetPath = path.resolve(currentDir, moduleName);
       if (fs.existsSync(targetPath)) {
-        return Location.create(pathToFileURL(targetPath).toString(), Range.create(0, 0, 0, 0));
+        return Location.create(
+          pathToFileURL(targetPath).toString(),
+          Range.create(0, 0, 0, 0),
+        );
       }
     }
 
@@ -455,8 +460,8 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
       if (importItem.token && isTokenAt(importItem.token, line, column)) {
         const moduleName = node.moduleName;
 
-        if (moduleName.endsWith('.x')) {
-          if (!moduleName.startsWith('./') && !moduleName.startsWith('/')) {
+        if (moduleName.endsWith(".x")) {
+          if (!moduleName.startsWith("./") && !moduleName.startsWith("/")) {
             return null;
           }
         }
@@ -467,12 +472,17 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
 
         const scope = processImport(targetPath);
         if (scope) {
-          if (importItem.type === 'function') {
+          if (importItem.type === "function") {
             const func = scope.resolveFunction(importItem.name);
             if (func && func.declaration) {
               return Location.create(
                 pathToFileURL(targetPath).toString(),
-                Range.create(func.declaration.line - 1, func.declaration.column - 1, func.declaration.line - 1, func.declaration.column - 1 + func.declaration.value.length)
+                Range.create(
+                  func.declaration.line - 1,
+                  func.declaration.column - 1,
+                  func.declaration.line - 1,
+                  func.declaration.column - 1 + func.declaration.value.length,
+                ),
               );
             }
           } else {
@@ -480,13 +490,23 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
             if (typeInfo && typeInfo.declaration) {
               return Location.create(
                 pathToFileURL(targetPath).toString(),
-                Range.create(typeInfo.declaration.line - 1, typeInfo.declaration.column - 1, typeInfo.declaration.line - 1, typeInfo.declaration.column - 1 + typeInfo.declaration.value.length)
+                Range.create(
+                  typeInfo.declaration.line - 1,
+                  typeInfo.declaration.column - 1,
+                  typeInfo.declaration.line - 1,
+                  typeInfo.declaration.column -
+                    1 +
+                    typeInfo.declaration.value.length,
+                ),
               );
             }
           }
         }
         // Fallback to just opening the file
-        return Location.create(pathToFileURL(targetPath).toString(), Range.create(0, 0, 0, 0));
+        return Location.create(
+          pathToFileURL(targetPath).toString(),
+          Range.create(0, 0, 0, 0),
+        );
       }
     }
   }
@@ -494,7 +514,11 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
   return null;
 });
 
-function isTokenAt(token: Token | undefined, line: number, column: number): boolean {
+function isTokenAt(
+  token: Token | undefined,
+  line: number,
+  column: number,
+): boolean {
   if (!token) return false;
   return (
     line === token.line &&
@@ -526,7 +550,8 @@ function findNodeAt(
   // If single line
   if (node.startToken.line === node.endToken.line) {
     if (column < node.startToken.column) return null;
-    if (column >= node.endToken.column + node.endToken.value.length) return null;
+    if (column >= node.endToken.column + node.endToken.value.length)
+      return null;
   } else {
     // Multi-line
     if (line === node.startToken.line && column < node.startToken.column)
@@ -551,7 +576,8 @@ function findNodeAt(
     }
   } else if (node instanceof FunctionDeclarationExpr) {
     if (isTokenAt(node.nameToken, line, column)) return node;
-    if (node.returnType && isTokenAt(node.returnType.token, line, column)) return node;
+    if (node.returnType && isTokenAt(node.returnType.token, line, column))
+      return node;
     for (const arg of node.args) {
       if (isTokenAt(arg.type.token, line, column)) return node;
     }
@@ -613,7 +639,8 @@ function findNodeAt(
   } else if (node instanceof ExportExpr) {
     if (isTokenAt(node.nameToken, line, column)) return node;
   } else if (node instanceof ImportExpr) {
-    if (node.moduleNameToken && isTokenAt(node.moduleNameToken, line, column)) return node;
+    if (node.moduleNameToken && isTokenAt(node.moduleNameToken, line, column))
+      return node;
     for (const imp of node.importName) {
       if (isTokenAt(imp.token, line, column)) return node;
     }
@@ -622,7 +649,8 @@ function findNodeAt(
       if (isTokenAt(field.type.token, line, column)) return node;
     }
   } else if (node instanceof ExternDeclarationExpr) {
-    if (node.returnType && isTokenAt(node.returnType.token, line, column)) return node;
+    if (node.returnType && isTokenAt(node.returnType.token, line, column))
+      return node;
     for (const arg of node.args) {
       if (isTokenAt(arg.type.token, line, column)) return node;
     }
@@ -638,7 +666,7 @@ function findNodeAt(
 function formatType(type: VariableType): string {
   let s = type.name;
   for (let i = 0; i < type.isPointer; i++) {
-    s =  "*" + s;
+    s = "*" + s;
   }
   for (const dim of type.isArray) {
     s += `[${dim}]`;
@@ -646,9 +674,12 @@ function formatType(type: VariableType): string {
   return s;
 }
 
-function getLocationString(symbol: { sourceFile?: string, declaration?: Token }, currentFile: string): string {
+function getLocationString(
+  symbol: { sourceFile?: string; declaration?: Token },
+  currentFile: string,
+): string {
   if (!symbol.declaration) return "";
-  
+
   if (symbol.sourceFile && symbol.sourceFile !== currentFile) {
     return `\n\n*Imported from ${path.basename(symbol.sourceFile)} (Line ${symbol.declaration.line})*`;
   } else {
@@ -661,7 +692,7 @@ function formatTypeInfo(typeInfo: TypeInfo, currentFile: string): string {
   if (typeInfo.info.description) {
     output += `${typeInfo.info.description}\n\n`;
   }
-  
+
   output += "```bpl\n";
   if (typeInfo.isPrimitive) {
     output += `// Primitive Type: ${typeInfo.name}\n`;
@@ -693,7 +724,9 @@ connection.onHover((params: HoverParams): Hover | null => {
   const column = params.position.character + 1;
 
   const node = findNodeAt(ast, line, column);
-  // connection.console.log(`Hover at ${line}:${column} found node: ${node ? node.constructor.name : "null"}`);
+  connection.console.log(
+    `Hover at ${line}:${column} found node: ${node ? node.constructor.name : "null"}`,
+  );
   if (!node) return null;
 
   if (node instanceof IdentifierExpr) {

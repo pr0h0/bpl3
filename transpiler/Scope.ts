@@ -54,6 +54,8 @@ export type FunctionInfo = {
   args: { type: VariableType; name: string }[];
   returnType: VariableType | null;
   isExternal?: boolean;
+  isVariadic?: boolean;
+  variadicType?: VariableType | null;
   declaration?: Token;
   sourceFile?: string;
 };

@@ -77,6 +77,24 @@ call log_message("Hello");
 local result: u64 = call add(10, 20);
 ```
 
+### Variadic Functions
+
+You can define functions that take a variable number of arguments using the `...:Type` syntax as the last parameter.
+
+```bpl
+frame sum(count: u64, ...:u64) ret u64 {
+    local total: u64 = 0;
+    local i: u64 = 0;
+    loop {
+        if i >= count { break; }
+        # Access variadic arguments using 'args[index]'
+        total = total + args[i];
+        i = i + 1;
+    }
+    return total;
+}
+```
+
 ## Extern Keyword
 
 The `extern` keyword is used to declare the signature of functions that are imported from external sources (like C libraries or object files) where the source code is not available to the BPL compiler.
