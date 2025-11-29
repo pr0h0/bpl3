@@ -4,6 +4,7 @@ import init_rooms, list_available_rooms, get_room from "./rooms.x";
 import create_reservation, check_reservation, change_reservation from "./reservations.x";
 import read_string, print_menu, print_user_menu from "./utils.x";
 import printf, scanf from "libc";
+import exit from "std";
 
 frame main() ret u64 {
     call init_rooms();

@@ -4,38 +4,35 @@ import HelperGenerator from "../../transpiler/HelperGenerator";
 import Scope from "../../transpiler/Scope";
 
 describe("HelperGenerator", () => {
-  it("should generate print function", () => {
+  it("should generate base types", () => {
     const gen = new AsmGenerator(0);
     const scope = new Scope();
-    HelperGenerator.generatePrintFunction(gen, scope);
-    const asm = gen.build();
+    HelperGenerator.generateBaseTypes(gen, scope);
 
-    expect(asm).toContain("print:");
-    expect(asm).toContain("call str_len");
-    expect(asm).toContain("syscall");
-    expect(scope.resolveFunction("print")).not.toBeNull();
-  });
+    // Unsigned integers
+    expect(scope.resolveType("u8")).not.toBeNull();
+    expect(scope.resolveType("u8")?.size).toBe(1);
+    expect(scope.resolveType("u16")).not.toBeNull();
+    expect(scope.resolveType("u16")?.size).toBe(2);
+    expect(scope.resolveType("u32")).not.toBeNull();
+    expect(scope.resolveType("u32")?.size).toBe(4);
+    expect(scope.resolveType("u64")).not.toBeNull();
+    expect(scope.resolveType("u64")?.size).toBe(8);
 
-  it("should generate exit function", () => {
-    const gen = new AsmGenerator(0);
-    const scope = new Scope();
-    HelperGenerator.generateExitFunction(gen, scope);
-    const asm = gen.build();
+    // Signed integers
+    expect(scope.resolveType("i8")).not.toBeNull();
+    expect(scope.resolveType("i8")?.size).toBe(1);
+    expect(scope.resolveType("i16")).not.toBeNull();
+    expect(scope.resolveType("i16")?.size).toBe(2);
+    expect(scope.resolveType("i32")).not.toBeNull();
+    expect(scope.resolveType("i32")?.size).toBe(4);
+    expect(scope.resolveType("i64")).not.toBeNull();
+    expect(scope.resolveType("i64")?.size).toBe(8);
 
-    expect(asm).toContain("exit:");
-    expect(asm).toContain("mov rax, 60");
-    expect(asm).toContain("syscall");
-    expect(scope.resolveFunction("exit")).not.toBeNull();
-  });
-
-  it("should generate string length function", () => {
-    const gen = new AsmGenerator(0);
-    const scope = new Scope();
-    HelperGenerator.generateGetStringLengthFunction(gen, scope);
-    const asm = gen.build();
-
-    expect(asm).toContain("str_len:");
-    expect(asm).toContain("cmp byte [rdi + rcx], 0");
-    expect(scope.resolveFunction("str_len")).not.toBeNull();
+    // Floating point
+    expect(scope.resolveType("f32")).not.toBeNull();
+    expect(scope.resolveType("f32")?.size).toBe(4);
+    expect(scope.resolveType("f64")).not.toBeNull();
+    expect(scope.resolveType("f64")?.size).toBe(8);
   });
 });

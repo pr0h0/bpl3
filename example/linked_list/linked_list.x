@@ -1,3 +1,4 @@
+import print, exit from "std";
 import printf, malloc, free from "libc";
 
 struct Node {

@@ -28,7 +28,7 @@ frame initialize_points() {
         if i >= 5 {
             break;
         }
-        points[i].x = call get_rnd_u64(100, 999);
+        points[i].x = call get_rnd_u64(100, 900);
         points[i].y = call get_rnd_u64(points[i].x + 1, 999);
         i = i + 1;
     }

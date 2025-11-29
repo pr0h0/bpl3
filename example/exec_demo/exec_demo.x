@@ -1,3 +1,4 @@
+import exec from "std";
 import printf, sprintf, malloc, free from "libc";
 
 frame main() ret u64 {

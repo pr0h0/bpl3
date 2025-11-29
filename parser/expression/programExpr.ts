@@ -62,7 +62,6 @@ export default class ProgramExpr extends Expression {
       (expr) => expr.type === ExpressionType.ExportExpression,
     );
     HelperGenerator.generateBaseTypes(gen, scope);
-    HelperGenerator.generateHelperFunctions(gen, scope);
     if (!weHaveExportStmt) {
       gen.emitGlobalDefinition("global main");
       gen.emitLabel("main");
@@ -82,7 +81,8 @@ export default class ProgramExpr extends Expression {
       gen.emit("call _user_main", "call main function");
       gen.emit("pop rbp", "standard function epilogue");
       gen.emit("mov rdi, rax", "move return value into rdi for exit");
-      gen.emit("call exit", "call exit function");
+      gen.emit("mov rax, 60", "syscall: exit");
+      gen.emit("syscall");
       gen.emit("", "end of main");
     }
 

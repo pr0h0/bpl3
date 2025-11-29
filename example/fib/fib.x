@@ -1,3 +1,4 @@
+import print from "std";
 import scanf, printf from "c";
 
 frame get_input() ret u64 {

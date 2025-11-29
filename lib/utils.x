@@ -1,4 +1,5 @@
 import printf from "libc";
+import exit from "./std.x";
 
 frame print_u64(n: u64) {
     call printf("%lu", n);

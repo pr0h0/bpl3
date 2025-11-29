@@ -1,3 +1,4 @@
+import print from "std";
 import printf, strcpy from "libc";
 
 # --- Constants (Global/Compile-Time) ---

@@ -13,6 +13,7 @@
 # ==================================================================================
 
 import printf, malloc, free, strcpy from "libc";
+import exit from "std";
 
 #  Enterprise Structures
 

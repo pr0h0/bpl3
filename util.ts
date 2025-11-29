@@ -153,101 +153,103 @@ export function parseLibraryFile(libFilePath: string, scope: Scope): string[] {
   const objectFiles: string[] = [];
 
   for (const importExpr of imports) {
-    const moduleName = importExpr.moduleName;
-    if (moduleName.startsWith(".") || moduleName.startsWith("/")) {
+    let moduleName = importExpr.moduleName;
+    let absolutePath = "";
+
+    if (moduleName === "std") {
+      absolutePath = resolve(__dirname, "lib/std.x");
+    } else if (moduleName.startsWith(".") || moduleName.startsWith("/")) {
       const libDir = dirname(resolve(libFilePath));
-      const absolutePath = resolve(libDir, moduleName);
+      absolutePath = resolve(libDir, moduleName);
+    } else {
+      continue;
+    }
 
-      if (absolutePath.endsWith(".x")) {
-        const importedScope = new Scope();
-        // Recursive call to handle imports of the imported file
-        const nestedLibs = parseLibraryFile(absolutePath, importedScope);
-        objectFiles.push(...nestedLibs);
+    if (absolutePath.endsWith(".x")) {
+      const importedScope = new Scope();
+      // Recursive call to handle imports of the imported file
+      const nestedLibs = parseLibraryFile(absolutePath, importedScope);
+      objectFiles.push(...nestedLibs);
 
-        const importedProgram = parseFile(absolutePath);
+      const importedProgram = parseFile(absolutePath);
 
-        // Transpile the imported file as a library
-        const gen = new AsmGenerator();
-        const asmContent = transpileProgram(
-          importedProgram,
-          gen,
-          importedScope,
+      // Transpile the imported file as a library
+      const gen = new AsmGenerator();
+      const asmContent = transpileProgram(importedProgram, gen, importedScope);
+
+      // Save ASM and compile to Object file
+      const asmFile = absolutePath.replace(/\.x$/, ".asm");
+      saveToFile(asmFile, asmContent);
+      const objFile = compileAsmFile(asmFile);
+      objectFiles.push(objFile);
+
+      const importedExports = extractExportStatements(
+        importedProgram,
+      ) as ExportExpr[];
+
+      // Verify imports match exports
+      for (const imp of importExpr.importName) {
+        const match = importedExports.find(
+          (e) => e.exportName === imp.name && e.exportType === imp.type,
         );
-
-        // Save ASM and compile to Object file
-        const asmFile = absolutePath.replace(/\.x$/, ".asm");
-        saveToFile(asmFile, asmContent);
-        const objFile = compileAsmFile(asmFile);
-        objectFiles.push(objFile);
-
-        const importedExports = extractExportStatements(
-          importedProgram,
-        ) as ExportExpr[];
-
-        // Verify imports match exports
-        for (const imp of importExpr.importName) {
-          const match = importedExports.find(
-            (e) => e.exportName === imp.name && e.exportType === imp.type,
+        if (!match) {
+          throw new Error(
+            `Import ${imp.name} (${imp.type}) not found in ${absolutePath}`,
           );
-          if (!match) {
+        }
+      }
+
+      // Define types
+      for (const imp of importExpr.importName) {
+        if (imp.type === "type") {
+          const typeInfo = importedScope.resolveType(imp.name);
+          if (typeInfo) {
+            scope.defineType(imp.name, typeInfo);
+          } else {
             throw new Error(
-              `Import ${imp.name} (${imp.type}) not found in ${absolutePath}`,
+              `Imported type ${imp.name} not found in ${absolutePath}`,
             );
           }
         }
+      }
 
-        // Define types
-        for (const imp of importExpr.importName) {
-          if (imp.type === "type") {
-            const typeInfo = importedScope.resolveType(imp.name);
-            if (typeInfo) {
-              scope.defineType(imp.name, typeInfo);
-            } else {
-              throw new Error(
-                `Imported type ${imp.name} not found in ${absolutePath}`,
-              );
-            }
-          }
-        }
-
-        // Define functions
-        for (const imp of importExpr.importName) {
-          if (imp.type === "function") {
-            const funcInfo = importedScope.resolveFunction(imp.name);
-            if (funcInfo) {
-              scope.defineFunction(imp.name, {
-                ...funcInfo,
-                label: funcInfo.name,
-                startLabel: funcInfo.name,
-                endLabel: funcInfo.name,
-                isExternal: true,
-              });
-            } else {
-              throw new Error(
-                `Imported function ${imp.name} not found in ${absolutePath}`,
-              );
-            }
-          }
-        }
-      } else {
-        // Object file
-        objectFiles.push(absolutePath);
-        for (const imp of importExpr.importName) {
-          if (imp.type === "type") {
+      // Define functions
+      for (const imp of importExpr.importName) {
+        if (imp.type === "function") {
+          const funcInfo = importedScope.resolveFunction(imp.name);
+          if (funcInfo) {
+            scope.defineFunction(imp.name, {
+              ...funcInfo,
+              label: funcInfo.name,
+              startLabel: funcInfo.name,
+              endLabel: funcInfo.name,
+              isExternal: true,
+            });
+          } else {
             throw new Error(
-              `Cannot import type ${imp.name} from object file ${absolutePath}`,
+              `Imported function ${imp.name} not found in ${absolutePath}`,
             );
           }
-          scope.defineFunction(imp.name, {
-            name: imp.name,
-            label: imp.name,
-            args: [],
-            returnType: null,
-            startLabel: imp.name,
-            endLabel: imp.name,
-            isExternal: true,
-          });
         }
+      }
+    } else {
+      // Object file
+      objectFiles.push(absolutePath);
+      for (const imp of importExpr.importName) {
+        if (imp.type === "type") {
+          throw new Error(
+            `Cannot import type ${imp.name} from object file ${absolutePath}`,
+          );
+        }
+        scope.defineFunction(imp.name, {
+          name: imp.name,
+          label: imp.name,
+          args: [],
+          returnType: null,
+          startLabel: imp.name,
+          endLabel: imp.name,
+          isExternal: true,
+        });
       }
     }
   }
