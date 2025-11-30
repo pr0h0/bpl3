@@ -58,7 +58,7 @@ frame change_reservation(user: *User, res_id: u64, new_nights: u32) {
         }
         if current.id == res_id {
             if current.user_id == user.id {
-                local price_per_night: u32 = current.total_price / current.nights;
+                local price_per_night: u32 = current.total_price // current.nights;
                 current.nights = new_nights;
                 current.total_price = price_per_night * new_nights;
                 call printf("Reservation updated.\n");

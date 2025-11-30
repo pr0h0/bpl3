@@ -8,6 +8,7 @@ export interface VarInfo {
   isParameter?: boolean;
   declaration?: Token;
   sourceFile?: string;
+  usageCount?: number; // Track number of times variable is used
 }
 
 export type ContextType =
@@ -99,12 +100,17 @@ export default class Scope {
 
   // #region Variables
   resolve(name: string): VarInfo | null {
-    return this.vars.get(name) || this.parent?.resolve(name) || null;
+    const variable = this.vars.get(name);
+    if (variable) {
+      variable.usageCount = (variable.usageCount || 0) + 1;
+      return variable;
+    }
+    return this.parent?.resolve(name) || null;
   }
 
   // Define a new variable
   define(name: string, info: VarInfo) {
-    this.vars.set(name, info);
+    this.vars.set(name, { ...info, usageCount: 0 });
   }
 
   // Allocate space on stack (e.g., 8 bytes for 64-bit int)

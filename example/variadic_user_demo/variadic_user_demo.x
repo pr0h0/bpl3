@@ -34,7 +34,7 @@ frame concat_strings(count: u64, dest: *u8, ...:u64) {
                 break;
             }
 
-            dest + offset = ch;
+            *(dest + offset) = ch;
             offset = offset + 1;
             src = src + 0x1;
         }

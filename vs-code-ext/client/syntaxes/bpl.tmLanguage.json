@@ -205,7 +205,7 @@
       ]
     },
     "generic-type": {
-      "begin": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(<)",
+      "begin": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(<)(?=\\w\\d)",
       "beginCaptures": {
         "1": { "name": "entity.name.type.bpl" },
         "2": { "name": "punctuation.definition.generic.begin.bpl" }

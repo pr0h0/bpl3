@@ -21,7 +21,9 @@ fi
 # Run Test
 EXE="${SOURCE_FILE%.x}"
 assert_output "$EXE" "$INPUT" "$ARGS" "$ENV_VARS" "${EXPECTED[@]}"
-RES=$?
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 
 # Cleanup
 rm -f "$EXE"
@@ -29,7 +31,3 @@ rm -f "$EXE"
 rm -f *.o
 # Cleanup any asm files that might have been created
 rm -f *.asm
-
-if [ $RES -ne 0 ]; then
-    exit 1
-fi

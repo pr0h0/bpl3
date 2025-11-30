@@ -1,6 +1,6 @@
 import printf, scanf, malloc, free from "libc";
 
-frame read_string(buffer: *u8, max_len: u32) {
+frame read_string(buffer: *u8, _max_len: u32) {
     call scanf("%s", buffer);
 }
 

@@ -10,7 +10,11 @@ import ReturnExpr from "../../parser/expression/returnExpr";
 import ImportExpr from "../../parser/expression/importExpr";
 import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
 import ExternDeclarationExpr from "../../parser/expression/externDeclarationExpr";
-import { CompilerError } from "../../errors";
+import LoopExpr from "../../parser/expression/loopExpr";
+import IfExpr from "../../parser/expression/ifExpr";
+import SwitchExpr from "../../parser/expression/switchExpr";
+import TernaryExpr from "../../parser/expression/ternaryExpr";
+import { CompilerError, CompilerWarning, ErrorReporter } from "../../errors";
 import type { TypeInfo } from "../Scope";
 import VariableDeclarationExpr, {
   type VariableType,
@@ -19,10 +23,14 @@ import IdentifierExpr from "../../parser/expression/identifierExpr";
 import BinaryExpr from "../../parser/expression/binaryExpr";
 import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
 import TokenType from "../../lexer/tokenType";
+import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
+import UnaryExpr from "../../parser/expression/unaryExpr";
+import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
 
 export class SemanticAnalyzer {
   private currentReturnType: VariableType | null = null;
   private rootScope: Scope | null = null;
+  public warnings: CompilerWarning[] = [];
 
   public analyze(program: ProgramExpr, parentScope?: Scope): Scope {
     // Use a child scope to avoid polluting the parent scope (used for transpilation)
@@ -33,8 +41,47 @@ export class SemanticAnalyzer {
   }
 
   private analyzeBlock(expressions: Expression[], scope: Scope): void {
+    let unreachableDetected = false;
     for (const expr of expressions) {
+      if (unreachableDetected) {
+        this.warnings.push(
+          new CompilerWarning(
+            "Unreachable code detected",
+            expr.startToken?.line || 0,
+          ),
+        );
+        break; // Only warn once per block
+      }
+
       this.analyzeExpression(expr, scope);
+
+      if (expr.type === ExpressionType.ReturnExpression) {
+        unreachableDetected = true;
+      }
+    }
+
+    // Only check for unused variables in local scopes (functions/blocks)
+    // Global variables might be used by other modules
+    // if (scope !== this.rootScope) {
+    //   this.checkUnusedVariables(scope);
+    // }
+  }
+
+  private checkUnusedVariables(scope: Scope): void {
+    for (const [name, info] of scope.vars) {
+      if (
+        (info.usageCount === undefined || info.usageCount === 0) &&
+        !name.startsWith("_") // Allow variables starting with _ to be unused
+      ) {
+        const type = info.isParameter ? "Parameter" : "Variable";
+        this.warnings.push(
+          new CompilerWarning(
+            `${type} '${name}' is declared but never used.`,
+            info.declaration?.line || 0,
+            "Prefix with '_' to suppress this warning.",
+          ),
+        );
+      }
     }
   }
 
@@ -70,8 +117,84 @@ export class SemanticAnalyzer {
       case ExpressionType.StructureDeclaration:
         this.analyzeStructDeclaration(expr as StructDeclarationExpr, scope);
         break;
+      case ExpressionType.LoopExpression:
+        this.analyzeLoopExpr(expr as LoopExpr, scope);
+        break;
+      case ExpressionType.IfExpression:
+        this.analyzeIfExpr(expr as IfExpr, scope);
+        break;
+      case ExpressionType.SwitchExpression:
+        this.analyzeSwitchExpr(expr as SwitchExpr, scope);
+        break;
+      case ExpressionType.TernaryExpression:
+        this.analyzeTernaryExpr(expr as TernaryExpr, scope);
+        break;
+      case ExpressionType.MemberAccessExpression:
+        this.analyzeMemberAccessExpr(expr as MemberAccessExpr, scope);
+        break;
+      case ExpressionType.UnaryExpression:
+        this.analyzeUnaryExpr(expr as UnaryExpr, scope);
+        break;
+        case ExpressionType.AsmBlockExpression:
+          this.analyzeAsmBlockExpr(expr as AsmBlockExpr, scope);
+          break;
+      case ExpressionType.BreakExpression:
+      case ExpressionType.ContinueExpression:
+        break;
       // TODO: Add more cases
     }
+  }
+
+  private analyzeAsmBlockExpr(expr: AsmBlockExpr, scope: Scope): void {
+    for (let i = 0; i < expr.code.length; i++) {
+      const token = expr.code[i];
+      if (token && token.value === "(") {
+        const nextToken = expr.code[i + 1];
+        if (nextToken && expr.code[i + 2]?.value === ")") {
+          const varName = nextToken.value;
+          // Resolve variable to increment usage count
+          scope.resolve(varName);
+          i += 2; // Skip variable and closing ')'
+        }
+      }
+    }
+  }
+
+  private analyzeLoopExpr(expr: LoopExpr, scope: Scope): void {
+    // Loop body creates a new scope?
+    // In transpiler, LoopExpr calls body.transpile(gen, scope).
+    // BlockExpr.transpile creates a new scope if it's not just a list of expressions?
+    // Actually BlockExpr.transpile does NOT create a new scope by default unless we enforce it.
+    // But SemanticAnalyzer.analyzeBlockExpr creates a new scope.
+    // LoopExpr has a body which is a BlockExpr.
+    // So analyzeBlockExpr will be called for the body.
+    // However, we need to call analyzeExpression on the body.
+    this.analyzeExpression(expr.body, scope);
+  }
+
+  private analyzeIfExpr(expr: IfExpr, scope: Scope): void {
+    this.analyzeExpression(expr.condition, scope);
+    this.analyzeExpression(expr.thenBranch, scope);
+    if (expr.elseBranch) {
+      this.analyzeExpression(expr.elseBranch, scope);
+    }
+  }
+
+  private analyzeSwitchExpr(expr: SwitchExpr, scope: Scope): void {
+    this.analyzeExpression(expr.discriminant, scope);
+    for (const caseClause of expr.cases) {
+      this.analyzeExpression(caseClause.value, scope);
+      this.analyzeExpression(caseClause.body, scope);
+    }
+    if (expr.defaultCase) {
+      this.analyzeExpression(expr.defaultCase, scope);
+    }
+  }
+
+  private analyzeTernaryExpr(expr: TernaryExpr, scope: Scope): void {
+    this.analyzeExpression(expr.condition, scope);
+    this.analyzeExpression(expr.trueExpr, scope);
+    this.analyzeExpression(expr.falseExpr, scope);
   }
 
   private inferType(expr: Expression, scope: Scope): VariableType | null {
@@ -579,12 +702,14 @@ export class SemanticAnalyzer {
     const previousReturnType = this.currentReturnType;
     this.currentReturnType = expr.returnType;
     this.analyzeExpression(expr.body, functionScope);
+
+    this.checkUnusedVariables(functionScope);
+
     this.currentReturnType = previousReturnType;
   }
 
   private analyzeBlockExpr(expr: BlockExpr, scope: Scope): void {
-    const blockScope = new Scope(scope);
-    this.analyzeBlock(expr.expressions, blockScope);
+    this.analyzeBlock(expr.expressions, scope);
   }
 
   private analyzeIdentifier(expr: IdentifierExpr, scope: Scope): void {
@@ -939,5 +1064,16 @@ export class SemanticAnalyzer {
     structTypeInfo.declaration = expr.startToken;
 
     scope.defineType(expr.name, structTypeInfo);
+  }
+
+  private analyzeMemberAccessExpr(expr: MemberAccessExpr, scope: Scope): void {
+    this.analyzeExpression(expr.object, scope);
+    if (expr.isIndexAccess) {
+      this.analyzeExpression(expr.property, scope);
+    }
+  }
+
+  private analyzeUnaryExpr(expr: UnaryExpr, scope: Scope): void {
+    this.analyzeExpression(expr.right, scope);
   }
 }

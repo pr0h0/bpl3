@@ -16,7 +16,9 @@ fi
 # Run Test
 EXE="${SOURCE_FILE%.x}"
 assert_output "$EXE" "$INPUT" "$ARGS" "$ENV_VARS" "${EXPECTED[@]}"
-RES=$?
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 
 # Cleanup
 rm -f "$EXE"
@@ -24,7 +26,3 @@ rm -f "$EXE"
 rm -f "lib.o" 
 # Also cleanup the assembly file generated for lib.x
 rm -f "lib.asm"
-
-if [ $RES -ne 0 ]; then
-    exit 1
-fi

@@ -6,9 +6,9 @@ frame main() ret i64 {
     asm {
         mov rbx, rax
     }
-    
+
     local b: i64 = 20;
-    
+
     call printf("a=%d, b=%d\n", a, b);
     return 0;
 }

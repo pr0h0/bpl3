@@ -71,22 +71,22 @@ frame main() ret i32 {
     local program: *i32 = call malloc(prog_size * 4);
 
     # Manual array initialization (since we don't have array literals for pointers yet easily)
-    local p: *i32 = program;
-    *p = 1; # PUSH
-    p = p + 1;
-    *p = 10;
-    p = p + 1;
-    *p = 1; # PUSH
-    p = p + 1;
-    *p = 20;
-    p = p + 1;
-    *p = 3; # ADD
-    p = p + 1;
-    *p = 7; # PRINT
-    p = p + 1;
-    *p = 8; # HALT
-    p = p + 1;
-    *p = 0; # Padding
+    local p_ptr: *i32 = program;
+    *p_ptr = 1; # PUSH
+    p_ptr = p_ptr + 1;
+    *p_ptr = 10;
+    p_ptr = p_ptr + 1;
+    *p_ptr = 1; # PUSH
+    p_ptr = p_ptr + 1;
+    *p_ptr = 20;
+    p_ptr = p_ptr + 1;
+    *p_ptr = 3; # ADD
+    p_ptr = p_ptr + 1;
+    *p_ptr = 7; # PRINT
+    p_ptr = p_ptr + 1;
+    *p_ptr = 8; # HALT
+    p_ptr = p_ptr + 1;
+    *p_ptr = 0; # Padding
 
     local vm: *VM = call vm_create(program, prog_size);
     call vm_run(vm);

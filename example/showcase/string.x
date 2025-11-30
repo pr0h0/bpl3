@@ -59,9 +59,9 @@ frame strcmp(s1: *u8, s2: *u8) ret i32 {
         s1 = s1 + 1;
         s2 = s2 + 1;
     }
-    local v1: i32 = *s1;
-    local v2: i32 = *s2;
-    return v1 - v2;
+    local v1_end: i32 = *s1;
+    local v2_end: i32 = *s2;
+    return v1_end - v2_end;
 }
 
 frame strdup(s: *u8) ret *u8 {

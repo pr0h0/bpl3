@@ -49,9 +49,16 @@ frame vm_run(vm: *VM) {
         instr = *ip_ptr;
         vm.ip = vm.ip + 1;
 
+        local b_ptr: *i32 = 0;
+        local b: i32 = 0;
+        local a_ptr: *i32 = 0;
+        local a: i32 = 0;
+        local val_ptr: *i32 = 0;
+        local val: i32 = 0;
+
         if instr == 1 { # PUSH
-            local val_ptr: *i32 = vm.program + vm.ip;
-            local val: i32 = *val_ptr;
+            val_ptr = vm.program + vm.ip;
+            val = *val_ptr;
             vm.ip = vm.ip + 1;
 
             local stack_ptr: *i32 = vm.stack + vm.sp;
@@ -61,53 +68,53 @@ frame vm_run(vm: *VM) {
             vm.sp = vm.sp - 1;
         } else if instr == 3 { # ADD
             vm.sp = vm.sp - 1;
-            local b_ptr: *i32 = vm.stack + vm.sp;
-            local b: i32 = *b_ptr;
+            b_ptr = vm.stack + vm.sp;
+            b = *b_ptr;
 
             vm.sp = vm.sp - 1;
-            local a_ptr: *i32 = vm.stack + vm.sp;
-            local a: i32 = *a_ptr;
+            a_ptr = vm.stack + vm.sp;
+            a = *a_ptr;
 
             *a_ptr = a + b;
             vm.sp = vm.sp + 1;
         } else if instr == 4 { # SUB
             vm.sp = vm.sp - 1;
-            local b_ptr: *i32 = vm.stack + vm.sp;
-            local b: i32 = *b_ptr;
+            b_ptr = vm.stack + vm.sp;
+            b = *b_ptr;
 
             vm.sp = vm.sp - 1;
-            local a_ptr: *i32 = vm.stack + vm.sp;
-            local a: i32 = *a_ptr;
+            a_ptr = vm.stack + vm.sp;
+            a = *a_ptr;
 
             *a_ptr = a - b;
             vm.sp = vm.sp + 1;
         } else if instr == 5 { # MUL
             vm.sp = vm.sp - 1;
-            local b_ptr: *i32 = vm.stack + vm.sp;
-            local b: i32 = *b_ptr;
+            b_ptr = vm.stack + vm.sp;
+            b = *b_ptr;
 
             vm.sp = vm.sp - 1;
-            local a_ptr: *i32 = vm.stack + vm.sp;
-            local a: i32 = *a_ptr;
+            a_ptr = vm.stack + vm.sp;
+            a = *a_ptr;
 
             *a_ptr = a * b;
             vm.sp = vm.sp + 1;
         } else if instr == 6 { # DIV
             vm.sp = vm.sp - 1;
-            local b_ptr: *i32 = vm.stack + vm.sp;
-            local b: i32 = *b_ptr;
+            b_ptr = vm.stack + vm.sp;
+            b = *b_ptr;
 
             vm.sp = vm.sp - 1;
-            local a_ptr: *i32 = vm.stack + vm.sp;
-            local a: i32 = *a_ptr;
+            a_ptr = vm.stack + vm.sp;
+            a = *a_ptr;
 
             # Integer division
             *a_ptr = (a // b);
             vm.sp = vm.sp + 1;
         } else if instr == 7 { # PRINT
             vm.sp = vm.sp - 1;
-            local val_ptr: *i32 = vm.stack + vm.sp;
-            local val: i32 = *val_ptr;
+            val_ptr = vm.stack + vm.sp;
+            val = *val_ptr;
             call printf("VM Output: %d\n", val);
         } else if instr == 8 { # HALT
             running = 0;

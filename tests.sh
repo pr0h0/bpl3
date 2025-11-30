@@ -115,7 +115,6 @@ for FILE in $FILES; do
     fi
 
     run_test "$FILE" ""
-    [ $SKIP_PROMPT -eq 0 ] && read -p "Press Enter to continue to the next test..."
 done
 
 # 3. Report results

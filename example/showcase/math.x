@@ -53,15 +53,18 @@ frame vec3_normalize(v: *Vector3) {
 
 # Integer math demonstration
 frame gcd(a: i32, b: i32) ret i32 {
+    local temp: i32 = 0;
+    local div: i32 = 0;
+    local rem: i32 = 0;
     loop {
         if b == 0 {
             break;
         }
-        local temp: i32 = b;
+        temp = b;
         # Demonstrate integer division/modulo usage (modulo via assembly or logic)
 
-        local div: i32 = a // b;
-        local rem: i32 = a - b * div;
+        div = (a // b);
+        rem = a - b * div;
 
         b = rem;
         a = temp;

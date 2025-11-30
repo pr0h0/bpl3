@@ -5,6 +5,7 @@ import HelperGenerator from "../transpiler/HelperGenerator";
 import type ProgramExpr from "../parser/expression/programExpr";
 import type ExportExpr from "../parser/expression/exportExpr";
 import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
+import { ErrorReporter } from "../errors";
 import {
   parseFile,
   extractImportStatements,
@@ -36,6 +37,10 @@ export function transpileProgram(
   // We pass the scope so that imports defined in 'scope' are visible.
   // analyzer will create a child scope to avoid polluting 'scope'.
   analyzer.analyze(program, scope);
+
+  for (const warning of analyzer.warnings) {
+    ErrorReporter.warn(warning);
+  }
 
   program.optimize();
   program.transpile(gen, scope);

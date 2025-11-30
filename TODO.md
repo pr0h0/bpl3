@@ -11,7 +11,7 @@
 [ ] - Integrate fuzz testing for parser robustness
 [x] - Add compile-time computation and constant folding
 [ ] - Support cross-compilation to multiple assembly dialects
-[ ] - Add static analysis for undefined behavior detection
+[x] - Add static analysis for undefined behavior detection
 [ ] - Add memory safety verification pass
 [ ] - Implement optimization hints and pragmas
 [ ] - Create interactive tutorial and playground

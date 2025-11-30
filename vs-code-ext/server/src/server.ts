@@ -28,7 +28,8 @@ import { Parser } from "../../../parser/parser";
 import Scope, { TypeInfo } from "../../../transpiler/Scope";
 import AsmGenerator from "../../../transpiler/AsmGenerator";
 import HelperGenerator from "../../../transpiler/HelperGenerator";
-import { CompilerError } from "../../../errors";
+import { SemanticAnalyzer } from "../../../transpiler/analysis/SemanticAnalyzer";
+import { CompilerError, CompilerWarning } from "../../../errors";
 import { Formatter } from "../../../transpiler/formatter/Formatter";
 
 import ProgramExpr from "../../../parser/expression/programExpr";
@@ -272,25 +273,56 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
       }
     }
 
-    // We need to handle imports to populate scope correctly
-    // But imports require file system access which might be tricky in LSP if files are not saved
-    // For now, we'll try to run transpile and catch errors
-    for (const expr of program.expressions) {
-      try {
-        expr.transpile(gen, scope);
-      } catch (e: any) {
-        // Semantic error
-        const diagnostic: Diagnostic = {
-          severity: DiagnosticSeverity.Error,
-          range: {
-            start: { line: (e.line || 1) - 1, character: 0 },
-            end: { line: (e.line || 1) - 1, character: Number.MAX_VALUE },
-          },
-          message: e.message,
-          source: "bpl",
-        };
-        diagnostics.push(diagnostic);
+    // Use SemanticAnalyzer to validate and build scope
+    const analyzer = new SemanticAnalyzer();
+    let analysisScope = scope;
+
+    try {
+      analysisScope = analyzer.analyze(program, scope);
+      documentScopes.set(textDocument.uri, analysisScope);
+    } catch (e: any) {
+      // Semantic error
+      const diagnostic: Diagnostic = {
+        severity: DiagnosticSeverity.Error,
+        range: {
+          start: { line: (e.line || 1) - 1, character: 0 },
+          end: { line: (e.line || 1) - 1, character: Number.MAX_VALUE },
+        },
+        message: e.message,
+        source: "bpl",
+      };
+      diagnostics.push(diagnostic);
+      // If analysis fails, we might still want to use the partial scope or the parent scope
+      // But analyze() returns scope only on success usually.
+      // If it throws, analysisScope remains 'scope' (the parent).
+      // We can try to use that.
+      documentScopes.set(textDocument.uri, scope);
+    }
+
+    // Tag symbols in the analysis scope (which contains local vars)
+    if (analysisScope !== scope) {
+      for (const func of analysisScope.functions.values()) {
+        if (!func.sourceFile) func.sourceFile = currentFilePath;
       }
+      for (const type of analysisScope.types.values()) {
+        if (!type.sourceFile) type.sourceFile = currentFilePath;
+      }
+      for (const variable of analysisScope.vars.values()) {
+        if (!variable.sourceFile) variable.sourceFile = currentFilePath;
+      }
+    }
+
+    // Add warnings
+    for (const warning of analyzer.warnings) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Warning,
+        range: {
+          start: { line: (warning.line || 1) - 1, character: 0 },
+          end: { line: (warning.line || 1) - 1, character: Number.MAX_VALUE },
+        },
+        message: warning.message,
+        source: "bpl",
+      });
     }
   } catch (e: any) {
     // Syntax error
