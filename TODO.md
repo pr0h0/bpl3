@@ -1,6 +1,6 @@
 [ ] - Introduce intermediate representation (IR) for transformations
 [ ] - Add plugin system for custom passes
-[ ] - Create performance benchmarks and profiling scripts
+[x] - Create performance benchmarks and profiling scripts
 [ ] - Implement advanced optimization passes (loop unrolling, inlining)
 [ ] - Add support for custom calling conventions
 [ ] - Integrate with LLVM backend for code generation
