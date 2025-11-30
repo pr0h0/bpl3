@@ -84,6 +84,24 @@ export default class FunctionDeclarationExpr extends Expression {
       });
     }
 
+    // Ensure generic types are instantiated for args and return type
+    this.args.forEach((arg) => {
+      if (arg.type.genericArgs && arg.type.genericArgs.length > 0) {
+        scope.resolveGenericType(arg.type.name, arg.type.genericArgs);
+      }
+    });
+
+    if (
+      this.returnType &&
+      this.returnType.genericArgs &&
+      this.returnType.genericArgs.length > 0
+    ) {
+      scope.resolveGenericType(
+        this.returnType.name,
+        this.returnType.genericArgs,
+      );
+    }
+
     if (this.name === "main") {
       gen.emitGlobalDefinition(`_user_main equ ${label}`);
     }
@@ -97,6 +115,7 @@ export default class FunctionDeclarationExpr extends Expression {
     });
 
     // Function prologue
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     gen.emit("push rbp", "save base pointer");
     gen.emit("mov rbp, rsp", "set new base pointer");
 

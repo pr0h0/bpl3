@@ -96,6 +96,7 @@ export default class BinaryExpr extends Expression {
   ];
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     if (this.assignmentOperators.includes(this.operator.type)) {
       this.handleAssignment(gen, scope);
       return;

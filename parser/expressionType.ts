@@ -16,6 +16,7 @@ enum ExpressionType {
   MemberAccessExpression = "MemberAccessExpression",
 
   IfExpression = "IfExpression",
+  SwitchExpression = "SwitchExpression",
   TernaryExpression = "TernaryExpression",
 
   LoopExpression = "LoopExpression",

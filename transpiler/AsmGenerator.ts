@@ -11,10 +11,21 @@ export default class AsmGenerator {
   private labelCount: number = 0;
   private initLabel: string;
   private optimizer: Optimizer;
+  private sourceFile: string = "";
 
   constructor(optimizationLevel: number = 3) {
     this.initLabel = "_init_" + Math.random().toString(36).substring(2, 15);
     this.optimizer = new Optimizer(optimizationLevel);
+  }
+
+  setSourceFile(filename: string) {
+    this.sourceFile = filename;
+  }
+
+  emitSourceLocation(line: number) {
+    if (this.sourceFile && line > 0) {
+      this.text.push(`%line ${line} "${this.sourceFile}"`);
+    }
   }
 
   isPrecomputeBlock: boolean = false;

@@ -30,6 +30,7 @@ import ImportExpr from "./expression/importExpr";
 import ExportExpr from "./expression/exportExpr";
 import ArrayLiteralExpr from "./expression/arrayLiteralExpr";
 import ExternDeclarationExpr from "./expression/externDeclarationExpr";
+import SwitchExpr, { type SwitchCase } from "./expression/switchExpr";
 import { CompilerError } from "../errors";
 
 export class Parser {
@@ -494,6 +495,8 @@ export class Parser {
           return this.parseAsmBlock();
         case "if":
           return this.parseIfExpression();
+        case "switch":
+          return this.parseSwitchExpression();
         case "struct":
           return this.parseStructDeclaration();
         case "call":
@@ -748,6 +751,26 @@ export class Parser {
     return this.withRange(() => {
       this.consume(TokenType.IDENTIFIER);
       const structNameToken = this.consume(TokenType.IDENTIFIER);
+
+      const genericParams: string[] = [];
+      if (this.peek()?.type === TokenType.LESS_THAN) {
+        this.consume(TokenType.LESS_THAN);
+        while (this.peek() && this.peek()!.type !== TokenType.GREATER_THAN) {
+          const paramName = this.consume(
+            TokenType.IDENTIFIER,
+            "Expected generic parameter name.",
+          );
+          genericParams.push(paramName.value);
+          if (this.peek()?.type === TokenType.COMMA) {
+            this.consume(TokenType.COMMA);
+          }
+        }
+        this.consume(
+          TokenType.GREATER_THAN,
+          "Expected '>' after generic parameters.",
+        );
+      }
+
       this.consume(TokenType.OPEN_BRACE, "Expected '{' after struct name.");
 
       const fields: StructField[] = [];
@@ -770,7 +793,11 @@ export class Parser {
 
       this.consume(TokenType.CLOSE_BRACE, "Expected '}' after struct fields.");
 
-      return new StructDeclarationExpr(structNameToken.value, fields);
+      return new StructDeclarationExpr(
+        structNameToken.value,
+        fields,
+        genericParams,
+      );
     });
   }
 
@@ -917,6 +944,44 @@ export class Parser {
     });
   }
 
+  parseSwitchExpression(): Expression {
+    return this.withRange(() => {
+      this.consume(TokenType.IDENTIFIER); // consume 'switch'
+      const discriminant = this.parseTernary();
+      this.consume(TokenType.OPEN_BRACE, "Expected '{' after switch discriminant.");
+
+      const cases: SwitchCase[] = [];
+      let defaultCase: BlockExpr | null = null;
+
+      while (this.peek() && this.peek()!.type !== TokenType.CLOSE_BRACE) {
+        const token = this.peek()!;
+        if (token.type === TokenType.IDENTIFIER && token.value === "case") {
+          this.consume(TokenType.IDENTIFIER);
+          const valueExpr = this.parsePrimary();
+          if (!(valueExpr instanceof NumberLiteralExpr)) {
+             throw new CompilerError("Switch case value must be a number literal.", token.line);
+          }
+          this.consume(TokenType.COLON, "Expected ':' after case value.");
+          const body = this.parseCodeBlock();
+          cases.push({ value: valueExpr, body });
+        } else if (token.type === TokenType.IDENTIFIER && token.value === "default") {
+          this.consume(TokenType.IDENTIFIER);
+          this.consume(TokenType.COLON, "Expected ':' after default.");
+          if (defaultCase) {
+             throw new CompilerError("Multiple default cases in switch.", token.line);
+          }
+          defaultCase = this.parseCodeBlock();
+        } else {
+           throw new CompilerError("Expected 'case' or 'default' inside switch block.", token.line);
+        }
+      }
+
+      this.consume(TokenType.CLOSE_BRACE, "Expected '}' after switch block.");
+
+      return new SwitchExpr(discriminant, cases, defaultCase);
+    });
+  }
+
   parseVariableDeclaration(): VariableDeclarationExpr {
     return this.withRange(() => {
       const scopeToken = this.consume(TokenType.IDENTIFIER);
@@ -1000,6 +1065,39 @@ export class Parser {
     const typeName = this.consume(TokenType.IDENTIFIER, "Expected type name.");
     typeInfo.name = typeName.value;
     typeInfo.token = typeName;
+
+    if (this.peek()?.type === TokenType.LESS_THAN) {
+      this.consume(TokenType.LESS_THAN);
+      typeInfo.genericArgs = [];
+      while (
+        this.peek() &&
+        this.peek()!.type !== TokenType.GREATER_THAN &&
+        this.peek()!.type !== TokenType.BITSHIFT_RIGHT
+      ) {
+        typeInfo.genericArgs.push(this.parseType());
+        if (this.peek()?.type === TokenType.COMMA) {
+          this.consume(TokenType.COMMA);
+        }
+      }
+
+      if (this.peek()?.type === TokenType.BITSHIFT_RIGHT) {
+        const token = this.tokens[this.current]!;
+        token.type = TokenType.GREATER_THAN;
+        token.value = ">";
+        this.tokens.splice(this.current + 1, 0, {
+          ...token,
+          type: TokenType.GREATER_THAN,
+          value: ">",
+          column: token.column + 1,
+          start: token.start + 1,
+        });
+      }
+
+      this.consume(
+        TokenType.GREATER_THAN,
+        "Expected '>' after generic arguments.",
+      );
+    }
 
     while (this.peek()?.type === TokenType.OPEN_BRACKET) {
       this.consume(TokenType.OPEN_BRACKET);

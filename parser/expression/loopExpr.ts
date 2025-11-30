@@ -25,6 +25,7 @@ export default class LoopExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     const label = gen.generateLabel("loop_");
     const startLabel = `${label}_start`;
     const endLabel = `${label}_end`;

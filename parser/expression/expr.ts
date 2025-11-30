@@ -40,6 +40,9 @@ export default class Expression {
   printType(type: VariableType): string {
     let output = "";
     output += "Type: " + type.name;
+    if (type.genericArgs && type.genericArgs.length > 0) {
+      output += "<" + type.genericArgs.map(t => this.printType(t)).join(", ") + ">";
+    }
     output +=
       ", IsPointer: " +
       (type.isPointer === 1 ? "true" : type.isPointer || "false");

@@ -21,6 +21,7 @@ import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
 import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
 import UnaryExpr from "../../parser/expression/unaryExpr";
 import TernaryExpr from "../../parser/expression/ternaryExpr";
+import SwitchExpr from "../../parser/expression/switchExpr";
 import Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
 
@@ -102,6 +103,8 @@ export class Formatter {
         return this.visitUnaryExpr(expr as UnaryExpr);
       case ExpressionType.TernaryExpression:
         return this.visitTernaryExpr(expr as TernaryExpr);
+      case ExpressionType.SwitchExpression:
+        return this.visitSwitchExpr(expr as SwitchExpr);
       case ExpressionType.BreakExpression:
         return "break";
       case ExpressionType.ContinueExpression:
@@ -411,7 +414,11 @@ export class Formatter {
   }
 
   private visitStructDeclaration(expr: StructDeclarationExpr): string {
-    let output = `struct ${expr.name} {`;
+    let output = `struct ${expr.name}`;
+    if (expr.genericParams.length > 0) {
+      output += `<${expr.genericParams.join(", ")}>`;
+    }
+    output += " {";
     if (expr.startToken) {
         output += this.getTrailingComment(expr.startToken.line);
     }
@@ -571,8 +578,36 @@ export class Formatter {
     return `${this.visit(expr.condition)} ? ${this.visit(expr.trueExpr)} : ${this.visit(expr.falseExpr)}`;
   }
 
+  private visitSwitchExpr(expr: SwitchExpr): string {
+    let output = `switch ${this.visit(expr.discriminant)} {`;
+    if (expr.startToken) {
+        output += this.getTrailingComment(expr.startToken.line);
+    }
+    output += "\n";
+    this.indentLevel++;
+
+    for (const c of expr.cases) {
+        output += this.indent() + `case ${c.value.value}: `;
+        output += this.visitBlockExpr(c.body);
+        output += "\n";
+    }
+
+    if (expr.defaultCase) {
+        output += this.indent() + "default: ";
+        output += this.visitBlockExpr(expr.defaultCase);
+        output += "\n";
+    }
+
+    this.indentLevel--;
+    output += this.indent() + "}";
+    return output;
+  }
+
   private formatType(type: any): string {
     let s = type.name;
+    if (type.genericArgs && type.genericArgs.length > 0) {
+      s += `<${type.genericArgs.map((arg: any) => this.formatType(arg)).join(", ")}>`;
+    }
     for (let i = 0; i < type.isPointer; i++) s = "*" + s;
     for (const dim of type.isArray) s += `[${dim}]`;
     return s;

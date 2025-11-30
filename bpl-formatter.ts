@@ -56,7 +56,7 @@ for (const file of files) {
     // We trim both to avoid issues with trailing newlines if any
     if (originalContent === formattedContent) {
        if (write) {
-           console.log(`${file} - unchanged`);
+           console.log(`\x1b[90m${file} - unchanged\x1b[0m`);
        } else {
            // If not writing, we just output the formatted content
            // But if we have multiple files, concatenating them might be what is expected

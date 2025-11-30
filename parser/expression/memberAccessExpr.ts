@@ -61,7 +61,15 @@ export default class MemberAccessExpr extends Expression {
         }
         return null;
       } else {
-        const typeInfo = scope.resolveType(objectType.name);
+        let typeInfo;
+        if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+          typeInfo = scope.resolveGenericType(
+            objectType.name,
+            objectType.genericArgs,
+          );
+        } else {
+          typeInfo = scope.resolveType(objectType.name);
+        }
         if (!typeInfo) return null;
 
         const propertyName = (expr.property as IdentifierExpr).name;
@@ -198,7 +206,15 @@ export default class MemberAccessExpr extends Expression {
 
       // Calculate element size
       let elementSize = 8;
-      const baseType = scope.resolveType(objectType.name);
+      let baseType;
+      if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+        baseType = scope.resolveGenericType(
+          objectType.name,
+          objectType.genericArgs,
+        );
+      } else {
+        baseType = scope.resolveType(objectType.name);
+      }
 
       if (objectType.isArray.length > 0) {
         if (baseType) {
@@ -224,7 +240,15 @@ export default class MemberAccessExpr extends Expression {
       scope.stackOffset -= 8;
 
       const propertyName = (this.property as IdentifierExpr).name;
-      const typeInfo = scope.resolveType(objectType.name);
+      let typeInfo;
+      if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+        typeInfo = scope.resolveGenericType(
+          objectType.name,
+          objectType.genericArgs,
+        );
+      } else {
+        typeInfo = scope.resolveType(objectType.name);
+      }
 
       if (!typeInfo) {
         throw new Error(`Undefined type '${objectType.name}'`);
@@ -250,15 +274,34 @@ export default class MemberAccessExpr extends Expression {
       // If result is struct (not pointer) or array, keep address (L-value)
       if (resultType) {
         const isArray = resultType.isArray.length > 0;
+        let typeInfoForStructCheck;
+        if (resultType.genericArgs && resultType.genericArgs.length > 0) {
+          typeInfoForStructCheck = scope.resolveGenericType(
+            resultType.name,
+            resultType.genericArgs,
+          );
+        } else {
+          typeInfoForStructCheck = scope.resolveType(resultType.name);
+        }
+
         const isStruct =
           !resultType.isPointer &&
           !isArray &&
-          scope.resolveType(resultType.name)?.isPrimitive === false;
+          typeInfoForStructCheck?.isPrimitive === false;
 
         if (isArray || isStruct) {
           // Do NOT dereference
         } else {
-          const typeInfo = scope.resolveType(resultType.name);
+          let typeInfo;
+          if (resultType.genericArgs && resultType.genericArgs.length > 0) {
+            typeInfo = scope.resolveGenericType(
+              resultType.name,
+              resultType.genericArgs,
+            );
+          } else {
+            typeInfo = scope.resolveType(resultType.name);
+          }
+
           if (typeInfo) {
             if (resultType.isPointer > 0) {
               gen.emit("mov rax, [rax]", "Dereference pointer (64-bit)");

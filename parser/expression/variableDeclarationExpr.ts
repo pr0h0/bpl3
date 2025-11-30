@@ -15,6 +15,7 @@ export type VariableType = {
   isArray: number[];
   token?: Token;
   isLiteral?: boolean;
+  genericArgs?: VariableType[];
 };
 
 export default class VariableDeclarationExpr extends Expression {
@@ -93,6 +94,7 @@ export default class VariableDeclarationExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     this.contextScope = scope;
     if (this.scope === "global") {
       this.parseGlobalVariableDeclaration(gen, scope);
@@ -109,7 +111,16 @@ export default class VariableDeclarationExpr extends Expression {
 
     let baseSize = 8;
     if (!this.varType.isPointer) {
-      const typeInfo = scope.resolveType(this.varType.name);
+      let typeInfo;
+      if (this.varType.genericArgs && this.varType.genericArgs.length > 0) {
+        typeInfo = scope.resolveGenericType(
+          this.varType.name,
+          this.varType.genericArgs,
+        );
+      } else {
+        typeInfo = scope.resolveType(this.varType.name);
+      }
+
       if (typeInfo) {
         baseSize = typeInfo.size;
       }
@@ -202,7 +213,15 @@ export default class VariableDeclarationExpr extends Expression {
 
       let isStruct = false;
       if (!this.varType.isPointer && !this.varType.isArray.length) {
-        const typeInfo = scope.resolveType(this.varType.name);
+        let typeInfo;
+        if (this.varType.genericArgs && this.varType.genericArgs.length > 0) {
+          typeInfo = scope.resolveGenericType(
+            this.varType.name,
+            this.varType.genericArgs,
+          );
+        } else {
+          typeInfo = scope.resolveType(this.varType.name);
+        }
         if (typeInfo && !typeInfo.isPrimitive) {
           isStruct = true;
         }
@@ -264,6 +283,23 @@ export default class VariableDeclarationExpr extends Expression {
       throw new Error("Const global variable must be initialized");
     }
 
+    let baseSize = 8;
+    if (!this.varType.isPointer) {
+      let typeInfo;
+      if (this.varType.genericArgs && this.varType.genericArgs.length > 0) {
+        typeInfo = scope.resolveGenericType(
+          this.varType.name,
+          this.varType.genericArgs,
+        );
+      } else {
+        typeInfo = scope.resolveType(this.varType.name);
+      }
+
+      if (typeInfo) {
+        baseSize = typeInfo.size;
+      }
+    }
+
     const label = gen.generateLabel("global_var_" + this.name);
     scope.define(this.name, {
       offset: label,
@@ -273,19 +309,18 @@ export default class VariableDeclarationExpr extends Expression {
     });
 
     if (!this.value && !this.varType.isArray.length) {
-      gen.emitBss(label, "resq", 1);
+      gen.emitBss(label, "resb", baseSize);
       gen.startPrecomputeBlock();
-      gen.emit(
-        "mov qword [ rel " + label + " ], 0",
-        "Uninitialized global variable",
-      );
+      // Initialize with 0? resb does that.
+      // But if we want to be explicit or if we have a value...
+      // If no value, resb is enough (zero initialized in BSS)
       gen.endPrecomputeBlock();
     } else if (!this.value && this.varType.isArray.length) {
       const arraySize = this.varType.isArray.reduce((a, b) => a * b, 1) || 1;
-      gen.emitBss(label, "resq", arraySize);
+      gen.emitBss(label, "resb", arraySize * baseSize);
     } else if (this.value && this.varType.isArray.length) {
       const arraySize = this.varType.isArray.reduce((a, b) => a * b, 1) || 1;
-      gen.emitBss(label, "resq", arraySize);
+      gen.emitBss(label, "resb", arraySize * baseSize);
       if (!(this.value instanceof ArrayLiteralExpr)) {
         throw new Error(
           "Global array variable must be initialized with an array literal",
@@ -297,21 +332,21 @@ export default class VariableDeclarationExpr extends Expression {
         gen.emit("pop rbx", "Load array element");
         scope.stackOffset -= 8;
         gen.emit(
-          `mov [ rel ${label} + ${index} * 8 ], rbx`,
+          `mov [ rel ${label} + ${index} * 8 ], rbx`, // TODO: Handle non-8-byte array elements
           `Initialize global array variable ${this.name}[${index}]`,
         );
       });
       gen.endPrecomputeBlock();
     } else if (this.value instanceof NumberLiteralExpr) {
-      gen.emitData(label, "dq", this.value.value);
+      gen.emitData(label, "dq", this.value.value); // TODO: Handle size
     } else if (this.value instanceof NullLiteralExpr) {
       gen.emitData(label, "dq", 0);
     } else {
-      gen.emitBss(label, "resq", 1);
+      gen.emitBss(label, "resb", baseSize);
       gen.startPrecomputeBlock();
       this.value!.transpile(gen, scope);
       gen.emit(
-        "mov [ rel " + label + " ], rax",
+        "mov [ rel " + label + " ], rax", // TODO: Handle struct copy
         "Initialize global variable " + this.name,
       );
       gen.endPrecomputeBlock();

@@ -37,6 +37,7 @@ export default class IfExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     const label = gen.generateLabel("if_");
     const conditionLabel = `${label}_condition`;
     const thenLabel = `${label}_then`;

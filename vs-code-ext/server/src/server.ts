@@ -615,10 +615,10 @@ function findNodeAt(
     }
   } else if (node instanceof FunctionDeclarationExpr) {
     if (isTokenAt(node.nameToken, line, column)) return node;
-    if (node.returnType && isTokenAt(node.returnType.token, line, column))
+    if (node.returnType && findTypeNodeAt(node.returnType, line, column))
       return node;
     for (const arg of node.args) {
-      if (isTokenAt(arg.type.token, line, column)) return node;
+      if (findTypeNodeAt(arg.type, line, column)) return node;
     }
     const found = findNodeAt(node.body, line, column);
     if (found) return found;
@@ -650,7 +650,7 @@ function findNodeAt(
     return node;
   } else if (node instanceof VariableDeclarationExpr) {
     if (isTokenAt(node.nameToken, line, column)) return node;
-    if (isTokenAt(node.varType.token, line, column)) return node;
+    if (findTypeNodeAt(node.varType, line, column)) return node;
     if (node.value) {
       const found = findNodeAt(node.value, line, column);
       if (found) return found;
@@ -702,8 +702,30 @@ function findNodeAt(
   return null;
 }
 
+function findTypeNodeAt(
+  typeNode: VariableType,
+  line: number,
+  column: number,
+): VariableType | null {
+  // Check if the cursor is on the main type token
+  if (isTokenAt(typeNode.token, line, column)) {
+    return typeNode;
+  }
+  // Check generic arguments recursively
+  if (typeNode.genericArgs) {
+    for (const arg of typeNode.genericArgs) {
+      const found = findTypeNodeAt(arg, line, column);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function formatType(type: VariableType): string {
   let s = type.name;
+  if (type.genericArgs && type.genericArgs.length > 0) {
+    s += `<${type.genericArgs.map((arg) => formatType(arg)).join(", ")}>`;
+  }
   for (let i = 0; i < type.isPointer; i++) {
     s = "*" + s;
   }
@@ -726,6 +748,16 @@ function getLocationString(
   }
 }
 
+function resolveTypeFromNode(
+  scope: Scope,
+  typeNode: VariableType,
+): TypeInfo | null {
+  if (typeNode.genericArgs && typeNode.genericArgs.length > 0) {
+    return scope.resolveGenericType(typeNode.name, typeNode.genericArgs);
+  }
+  return scope.resolveType(typeNode.name);
+}
+
 function formatTypeInfo(typeInfo: TypeInfo, currentFile: string): string {
   let output = "";
   if (typeInfo.info.description) {
@@ -739,10 +771,25 @@ function formatTypeInfo(typeInfo: TypeInfo, currentFile: string): string {
       output += `// Range: [${typeInfo.info.range[0]}, ${typeInfo.info.range[1]}]\n`;
     }
   } else {
-    output += `struct ${typeInfo.name} {\n`;
+    let name = typeInfo.name;
+    if (typeInfo.genericParams && typeInfo.genericParams.length > 0) {
+      name += `<${typeInfo.genericParams.join(", ")}>`;
+    }
+    output += `struct ${name} {\n`;
     if (typeInfo.members.size > 0) {
       for (const [name, member] of typeInfo.members) {
-        output += `  ${name}: ${member.name}; // offset: ${member.offset}\n`;
+        let memberTypeStr = member.name;
+        for (let i = 0; i < member.isPointer; i++) {
+          memberTypeStr = "*" + memberTypeStr;
+        }
+        for (const dim of member.isArray) {
+          memberTypeStr += `[${dim}]`;
+        }
+        output += `  ${name}: ${memberTypeStr}; // offset: ${member.offset}\n`;
+      }
+    } else if (typeInfo.genericFields && typeInfo.genericFields.length > 0) {
+      for (const field of typeInfo.genericFields) {
+        output += `  ${field.name}: ${formatType(field.type)};\n`;
       }
     }
     output += `}\n`;
@@ -809,8 +856,11 @@ connection.onHover((params: HoverParams): Hover | null => {
         },
       };
     }
-    if (isTokenAt(node.varType.token, line, column)) {
-      const typeInfo = scope.resolveType(node.varType.name);
+    // Try to find the specific type node being hovered
+    const typeNode = findTypeNodeAt(node.varType, line, column);
+    if (typeNode) {
+      const resolutionScope = node.contextScope || scope;
+      const typeInfo = resolveTypeFromNode(resolutionScope, typeNode);
       if (typeInfo) {
         return {
           contents: {
@@ -833,20 +883,26 @@ connection.onHover((params: HoverParams): Hover | null => {
         },
       };
     }
-    if (node.returnType && isTokenAt(node.returnType.token, line, column)) {
-      const typeInfo = scope.resolveType(node.returnType.name);
-      if (typeInfo) {
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: formatTypeInfo(typeInfo, currentFilePath),
-          },
-        };
+    if (node.returnType) {
+      const typeNode = findTypeNodeAt(node.returnType, line, column);
+      if (typeNode) {
+        const resolutionScope = node.contextScope || scope;
+        const typeInfo = resolveTypeFromNode(resolutionScope, typeNode);
+        if (typeInfo) {
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: formatTypeInfo(typeInfo, currentFilePath),
+            },
+          };
+        }
       }
     }
     for (const arg of node.args) {
-      if (isTokenAt(arg.type.token, line, column)) {
-        const typeInfo = scope.resolveType(arg.type.name);
+      const typeNode = findTypeNodeAt(arg.type, line, column);
+      if (typeNode) {
+        const resolutionScope = node.contextScope || scope;
+        const typeInfo = resolveTypeFromNode(resolutionScope, typeNode);
         if (typeInfo) {
           return {
             contents: {
@@ -923,8 +979,10 @@ connection.onHover((params: HoverParams): Hover | null => {
     }
   } else if (node instanceof StructDeclarationExpr) {
     for (const field of node.fields) {
-      if (isTokenAt(field.type.token, line, column)) {
-        const typeInfo = scope.resolveType(field.type.name);
+      const typeNode = findTypeNodeAt(field.type, line, column);
+      if (typeNode) {
+        const resolutionScope = node.contextScope || scope;
+        const typeInfo = resolveTypeFromNode(resolutionScope, typeNode);
         if (typeInfo) {
           return {
             contents: {
@@ -936,20 +994,26 @@ connection.onHover((params: HoverParams): Hover | null => {
       }
     }
   } else if (node instanceof ExternDeclarationExpr) {
-    if (node.returnType && isTokenAt(node.returnType.token, line, column)) {
-      const typeInfo = scope.resolveType(node.returnType.name);
-      if (typeInfo) {
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: formatTypeInfo(typeInfo, currentFilePath),
-          },
-        };
+    if (node.returnType) {
+      const typeNode = findTypeNodeAt(node.returnType, line, column);
+      if (typeNode) {
+        const resolutionScope = node.contextScope || scope;
+        const typeInfo = resolveTypeFromNode(resolutionScope, typeNode);
+        if (typeInfo) {
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: formatTypeInfo(typeInfo, currentFilePath),
+            },
+          };
+        }
       }
     }
     for (const arg of node.args) {
-      if (isTokenAt(arg.type.token, line, column)) {
-        const typeInfo = scope.resolveType(arg.type.name);
+      const typeNode = findTypeNodeAt(arg.type, line, column);
+      if (typeNode) {
+        const resolutionScope = node.contextScope || scope;
+        const typeInfo = resolveTypeFromNode(resolutionScope, typeNode);
         if (typeInfo) {
           return {
             contents: {

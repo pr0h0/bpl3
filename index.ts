@@ -138,6 +138,7 @@ try {
   const ast = parseTokens(tokens);
 
   const gen = new AsmGenerator(optimizationLevel);
+  gen.setSourceFile(fileName);
   const scope = new Scope();
 
   const imports = parseImportExpressions(extractImportStatements(ast));

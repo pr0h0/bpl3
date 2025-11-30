@@ -2,6 +2,7 @@ import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import FunctionCallExpr from "./functionCallExpr";
 
 export default class ReturnExpr extends Expression {
   constructor(public value: Expression | null) {
@@ -34,11 +35,15 @@ export default class ReturnExpr extends Expression {
   optimize(): Expression {
     if (this.value) {
       this.value = this.value.optimize();
+      if (this.value instanceof FunctionCallExpr) {
+        this.value.isTailCall = true;
+      }
     }
     return this;
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     const context = scope.getCurrentContext("function");
     if (!context) {
       throw new Error("Return statement not within a function context");

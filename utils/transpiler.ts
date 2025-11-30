@@ -44,7 +44,9 @@ export function transpileProgram(
 
 export function transpileFile(filePath: string): string {
   const program = parseFile(filePath) as ProgramExpr;
-  return transpileProgram(program);
+  const gen = new AsmGenerator();
+  gen.setSourceFile(filePath);
+  return transpileProgram(program, gen);
 }
 
 export function parseLibraryFile(
@@ -85,6 +87,7 @@ export function parseLibraryFile(
 
       // Transpile the imported file as a library
       const gen = new AsmGenerator();
+      gen.setSourceFile(absolutePath);
       const asmContent = transpileProgram(importedProgram, gen, importedScope);
 
       // Save ASM and compile to Object file

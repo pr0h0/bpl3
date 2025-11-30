@@ -38,6 +38,8 @@ export type TypeInfo = {
   info: InfoType;
   declaration?: Token;
   sourceFile?: string;
+  genericParams?: string[];
+  genericFields?: { name: string; type: VariableType }[];
 };
 
 export type InfoType = {
@@ -142,10 +144,6 @@ export default class Scope {
 
   // #region Types
   defineType(name: string, info: TypeInfo) {
-    if (this.parent) {
-      throw new Error("Types can only be defined in the global scope.");
-    }
-
     if (this.types.has(name)) {
       throw new Error(`Type ${name} is already defined.`);
     }
@@ -156,10 +154,7 @@ export default class Scope {
     this.types.set(name, info);
   }
   resolveType(name: string): TypeInfo | null {
-    if (this.parent) {
-      return this.parent?.resolveType(name) || null;
-    }
-    return this.types.get(name) || null;
+    return this.types.get(name) || this.parent?.resolveType(name) || null;
   }
   calculateSizeOfType(type: TypeInfo): number {
     if (type.isPrimitive) {
@@ -190,5 +185,151 @@ export default class Scope {
     }
     return totalSize;
   }
+
+  resolveGenericType(name: string, args: VariableType[]): TypeInfo | null {
+    const baseType = this.resolveType(name);
+    if (!baseType) return null;
+
+    if (!baseType.genericParams || baseType.genericParams.length === 0) {
+      if (args.length > 0) {
+        throw new Error(`Type '${name}' is not generic.`);
+      }
+      return baseType;
+    }
+
+    if (args.length !== baseType.genericParams.length) {
+      throw new Error(
+        `Type '${name}' expects ${baseType.genericParams.length} generic arguments, but got ${args.length}.`,
+      );
+    }
+
+    const instantiationName = `${name}<${args.map((a) => this.getCanonicalTypeName(a)).join(",")}>`;
+
+    const existing = this.resolveType(instantiationName);
+    if (existing) return existing;
+
+    const newType: TypeInfo = {
+      name: instantiationName,
+      isPointer: 0,
+      isArray: [],
+      size: 0,
+      alignment: 1,
+      isPrimitive: false,
+      members: new Map(),
+      info: { description: `Instantiated ${name}` },
+      declaration: baseType.declaration,
+      sourceFile: baseType.sourceFile,
+    };
+
+    const paramMap = new Map<string, VariableType>();
+    baseType.genericParams.forEach((param, index) => {
+      paramMap.set(param, args[index]!);
+    });
+
+    let currentOffset = 0;
+    let maxAlignment = 1;
+
+    if (!baseType.genericFields) {
+      throw new Error("Generic type missing field definitions.");
+    }
+
+    baseType.genericFields.forEach((field) => {
+      const concreteType = this.substituteType(field.type, paramMap);
+
+      let fieldTypeInfo: TypeInfo | null = null;
+      if (concreteType.genericArgs && concreteType.genericArgs.length > 0) {
+        fieldTypeInfo = this.resolveGenericType(
+          concreteType.name,
+          concreteType.genericArgs,
+        );
+      } else {
+        fieldTypeInfo = this.resolveType(concreteType.name);
+      }
+
+      if (!fieldTypeInfo) {
+        throw new Error(
+          `Could not resolve type '${concreteType.name}' during instantiation of '${instantiationName}'.`,
+        );
+      }
+
+      let fieldSize = fieldTypeInfo.size;
+      let fieldAlignment = fieldTypeInfo.alignment || 1;
+
+      if (concreteType.isPointer > 0) {
+        fieldSize = 8;
+        fieldAlignment = 8;
+      } else if (concreteType.isArray.length > 0) {
+        fieldSize =
+          fieldTypeInfo.size * concreteType.isArray.reduce((a, b) => a * b, 1);
+        fieldAlignment = fieldTypeInfo.alignment || 1;
+      }
+
+      const padding =
+        (fieldAlignment - (currentOffset % fieldAlignment)) % fieldAlignment;
+      currentOffset += padding;
+
+      newType.members.set(field.name, {
+        info: { description: `Field ${field.name}` },
+        name: fieldTypeInfo.name,
+        isArray: concreteType.isArray,
+        isPointer: concreteType.isPointer,
+        size: fieldSize,
+        offset: currentOffset,
+        alignment: fieldAlignment,
+        isPrimitive: fieldTypeInfo.isPrimitive,
+        members: fieldTypeInfo.members,
+      });
+
+      currentOffset += fieldSize;
+      maxAlignment = Math.max(maxAlignment, fieldAlignment);
+    });
+
+    const structPadding =
+      (maxAlignment - (currentOffset % maxAlignment)) % maxAlignment;
+    newType.size = currentOffset + structPadding;
+    newType.alignment = maxAlignment;
+
+    this.getGlobalScope().defineType(instantiationName, newType);
+    return newType;
+  }
+
+  private getCanonicalTypeName(type: VariableType): string {
+    let name = type.name;
+    if (type.genericArgs && type.genericArgs.length > 0) {
+      name += `<${type.genericArgs.map((a) => this.getCanonicalTypeName(a)).join(",")}>`;
+    }
+    if (type.isPointer) name += "*".repeat(type.isPointer);
+    if (type.isArray.length) name += "[]".repeat(type.isArray.length);
+    return name;
+  }
+
+  private substituteType(
+    type: VariableType,
+    paramMap: Map<string, VariableType>,
+  ): VariableType {
+    if (paramMap.has(type.name)) {
+      const replacement = paramMap.get(type.name)!;
+      return {
+        ...replacement,
+        isPointer: replacement.isPointer + type.isPointer,
+        isArray: [...replacement.isArray, ...type.isArray],
+      };
+    }
+
+    if (type.genericArgs && type.genericArgs.length > 0) {
+      return {
+        ...type,
+        genericArgs: type.genericArgs.map((arg) =>
+          this.substituteType(arg, paramMap),
+        ),
+      };
+    }
+
+    return type;
+  }
   // #endregion
+
+  getGlobalScope(): Scope {
+    return this.parent ? this.parent.getGlobalScope() : this;
+  }
 }

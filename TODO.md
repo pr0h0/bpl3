@@ -15,8 +15,7 @@
 [ ] - Provide REPL for rapid iteration/testing
 [ ] - Add target architecture abstraction layer
 [ ] - Integrate fuzz testing for parser robustness
-[ ] - Add switch/Match expression support with jump tables for O(1) dispatch
-[ ] - Implement tail call optimization
-[ ] - Add DWARF debugging information generation
-[ ] - Implement link-time optimization (LTO)
-[ ] - Add support for generics/templates
+[x] - Add switch/Match expression support with jump tables for O(1) dispatch
+[x] - Add support for generics/templates
+[x] - Implement tail call optimization
+[x] - Add DWARF debugging information generation

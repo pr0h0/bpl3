@@ -16,6 +16,7 @@ export default class StructDeclarationExpr extends Expression {
   constructor(
     public name: string,
     public fields: StructField[],
+    public genericParams: string[] = [],
   ) {
     super(ExpressionType.StructureDeclaration);
     this.requiresSemicolon = false;
@@ -27,7 +28,11 @@ export default class StructDeclarationExpr extends Expression {
     output += "[ StructDeclaration ]\n";
     this.depth++;
     output += this.getDepth();
-    output += `Name: ${this.name}\n`;
+    output += `Name: ${this.name}`;
+    if (this.genericParams.length > 0) {
+      output += `<${this.genericParams.join(", ")}>`;
+    }
+    output += "\n";
     output += this.getDepth();
     output += `Fields:\n`;
     this.depth++;
@@ -47,6 +52,29 @@ export default class StructDeclarationExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.genericParams.length > 0) {
+      const structTypeInfo: TypeInfo = {
+        name: this.name,
+        isArray: [],
+        isPointer: 0,
+        members: new Map(),
+        size: 0,
+        alignment: 1,
+        isPrimitive: false,
+        info: {
+          description: `Generic Structure ${this.name}`,
+        },
+        genericParams: this.genericParams,
+        genericFields: this.fields.map((f) => ({
+          name: f.name,
+          type: f.type,
+        })),
+        declaration: this.startToken,
+      };
+      scope.defineType(this.name, structTypeInfo);
+      return;
+    }
+
     const structTypeInfo: TypeInfo = {
       name: this.name,
       isArray: [],

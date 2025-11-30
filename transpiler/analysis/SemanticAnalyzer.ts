@@ -2,30 +2,34 @@ import ProgramExpr from "../../parser/expression/programExpr";
 import Scope from "../Scope";
 import Expression from "../../parser/expression/expr";
 import ExpressionType from "../../parser/expressionType";
+import StructDeclarationExpr from "../../parser/expression/structDeclarationExpr";
+import BlockExpr from "../../parser/expression/blockExpr";
+import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
+import FunctionCallExpr from "../../parser/expression/functionCallExpr";
+import ReturnExpr from "../../parser/expression/returnExpr";
+import ImportExpr from "../../parser/expression/importExpr";
+import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
+import ExternDeclarationExpr from "../../parser/expression/externDeclarationExpr";
+import { CompilerError } from "../../errors";
+import type { TypeInfo } from "../Scope";
 import VariableDeclarationExpr, {
   type VariableType,
 } from "../../parser/expression/variableDeclarationExpr";
-import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
-import BlockExpr from "../../parser/expression/blockExpr";
 import IdentifierExpr from "../../parser/expression/identifierExpr";
 import BinaryExpr from "../../parser/expression/binaryExpr";
-import FunctionCallExpr from "../../parser/expression/functionCallExpr";
-import ImportExpr from "../../parser/expression/importExpr";
-import ExternDeclarationExpr from "../../parser/expression/externDeclarationExpr";
 import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
-import ReturnExpr from "../../parser/expression/returnExpr";
-import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
 import TokenType from "../../lexer/tokenType";
-import { CompilerError } from "../../errors";
 
 export class SemanticAnalyzer {
   private currentReturnType: VariableType | null = null;
+  private rootScope: Scope | null = null;
 
-  public analyze(program: ProgramExpr, parentScope?: Scope): void {
-    // Use the passed scope directly if provided, otherwise create a new one.
-    // This allows the analyzer to populate the scope used for transpilation.
-    const scope = parentScope || new Scope();
+  public analyze(program: ProgramExpr, parentScope?: Scope): Scope {
+    // Use a child scope to avoid polluting the parent scope (used for transpilation)
+    const scope = parentScope ? new Scope(parentScope) : new Scope();
+    this.rootScope = scope;
     this.analyzeBlock(program.expressions, scope);
+    return scope;
   }
 
   private analyzeBlock(expressions: Expression[], scope: Scope): void {
@@ -62,6 +66,9 @@ export class SemanticAnalyzer {
         break;
       case ExpressionType.ReturnExpression:
         this.analyzeReturnExpr(expr as ReturnExpr, scope);
+        break;
+      case ExpressionType.StructureDeclaration:
+        this.analyzeStructDeclaration(expr as StructDeclarationExpr, scope);
         break;
       // TODO: Add more cases
     }
@@ -442,7 +449,7 @@ export class SemanticAnalyzer {
       );
     }
 
-    if (expr.scope === "global" && scope.parent !== null) {
+    if (expr.scope === "global" && scope !== this.rootScope) {
       throw new CompilerError(
         "Global variable declaration should be in the global scope",
         expr.startToken?.line || 0,
@@ -454,6 +461,27 @@ export class SemanticAnalyzer {
         "Const variable must be initialized",
         expr.startToken?.line || 0,
       );
+    }
+
+    // Check generic type instantiation
+    if (expr.varType.genericArgs && expr.varType.genericArgs.length > 0) {
+      try {
+        scope.resolveGenericType(expr.varType.name, expr.varType.genericArgs);
+      } catch (e: any) {
+        throw new CompilerError(e.message, expr.startToken?.line || 0);
+      }
+    } else {
+      const typeInfo = scope.resolveType(expr.varType.name);
+      if (
+        typeInfo &&
+        typeInfo.genericParams &&
+        typeInfo.genericParams.length > 0
+      ) {
+        throw new CompilerError(
+          `Type '${expr.varType.name}' is generic but no arguments were provided.`,
+          expr.startToken?.line || 0,
+        );
+      }
     }
 
     if (expr.value) {
@@ -481,7 +509,7 @@ export class SemanticAnalyzer {
     expr: FunctionDeclarationExpr,
     scope: Scope,
   ): void {
-    if (scope.functions.has(expr.name)) {
+    if (scope.resolveFunction(expr.name)) {
       throw new CompilerError(
         `Function '${expr.name}' is already defined.`,
         expr.startToken?.line || 0,
@@ -734,5 +762,145 @@ export class SemanticAnalyzer {
         );
       }
     }
+  }
+
+  private analyzeStructDeclaration(
+    expr: StructDeclarationExpr,
+    scope: Scope,
+  ): void {
+    if (scope.types.has(expr.name)) {
+      throw new CompilerError(
+        `Type '${expr.name}' is already defined.`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    if (expr.genericParams.length > 0) {
+      const structTypeInfo: TypeInfo = {
+        name: expr.name,
+        isArray: [],
+        isPointer: 0,
+        members: new Map(),
+        size: 0,
+        alignment: 1,
+        isPrimitive: false,
+        info: {
+          description: `Generic Structure ${expr.name}`,
+        },
+        genericParams: expr.genericParams,
+        genericFields: expr.fields.map((f) => ({
+          name: f.name,
+          type: f.type,
+        })),
+        declaration: expr.startToken,
+      };
+      scope.defineType(expr.name, structTypeInfo);
+      return;
+    }
+
+    const structTypeInfo: TypeInfo = {
+      name: expr.name,
+      isArray: [],
+      isPointer: 0,
+      members: new Map(),
+      size: 0,
+      alignment: 1,
+      isPrimitive: false,
+      info: {
+        description: `Structure ${expr.name}`,
+      },
+    };
+
+    const toAddLater: string[] = [];
+    let currentOffset = 0;
+    let maxAlignment = 1;
+
+    expr.fields.forEach((field) => {
+      const fieldTypeInfo = scope.resolveType(field.type.name);
+
+      if (
+        field.type.name === expr.name &&
+        (field.type.isPointer > 0 || field.type.isArray.length > 0)
+      ) {
+        toAddLater.push(field.name);
+        return;
+      } else if (field.type.name === expr.name) {
+        throw new CompilerError(
+          `Direct recursive struct '${expr.name}' field '${field.name}' is not allowed without pointer or array.`,
+          expr.startToken?.line || 0,
+        );
+      } else if (!fieldTypeInfo) {
+        throw new CompilerError(
+          `Unknown type '${field.type.name}' for field '${field.name}' in struct '${expr.name}'`,
+          expr.startToken?.line || 0,
+        );
+      }
+
+      let fieldSize = fieldTypeInfo.size;
+      let fieldAlignment = fieldTypeInfo.alignment || 1;
+
+      if (field.type.isPointer > 0) {
+        fieldSize = 8;
+        fieldAlignment = 8;
+      } else if (field.type.isArray.length > 0) {
+        fieldSize =
+          fieldTypeInfo.size * field.type.isArray.reduce((a, b) => a * b, 1);
+        fieldAlignment = fieldTypeInfo.alignment || 1;
+      }
+
+      // Calculate padding
+      const padding =
+        (fieldAlignment - (currentOffset % fieldAlignment)) % fieldAlignment;
+      currentOffset += padding;
+
+      structTypeInfo.members.set(field.name, {
+        info: { description: `Field ${field.name} of type ${field.type.name}` },
+        name: field.type.name,
+        isArray: field.type.isArray,
+        isPointer: field.type.isPointer,
+        size: fieldSize,
+        offset: currentOffset,
+        alignment: fieldAlignment,
+        isPrimitive: fieldTypeInfo.isPrimitive,
+        members: fieldTypeInfo.members,
+      });
+
+      currentOffset += fieldSize;
+      maxAlignment = Math.max(maxAlignment, fieldAlignment);
+    });
+
+    toAddLater.forEach((fieldName) => {
+      const memberInfo = expr.fields.find((f) => f.name === fieldName);
+      const fieldSize = 8;
+      const fieldAlignment = 8;
+
+      const padding =
+        (fieldAlignment - (currentOffset % fieldAlignment)) % fieldAlignment;
+      currentOffset += padding;
+
+      structTypeInfo.members.set(fieldName, {
+        info: { description: `Field ${fieldName} of type ${expr.name}` },
+        name: memberInfo!.type.name,
+        isArray: memberInfo?.type.isArray || [],
+        isPointer: memberInfo?.type.isPointer || 0,
+        size: fieldSize,
+        offset: currentOffset,
+        alignment: fieldAlignment,
+        isPrimitive: false,
+        members: structTypeInfo.members,
+      });
+
+      currentOffset += fieldSize;
+      maxAlignment = Math.max(maxAlignment, fieldAlignment);
+    });
+
+    // Align struct size
+    const structPadding =
+      (maxAlignment - (currentOffset % maxAlignment)) % maxAlignment;
+    structTypeInfo.size = currentOffset + structPadding;
+    structTypeInfo.alignment = maxAlignment;
+    structTypeInfo.declaration = expr.startToken;
+
+    scope.defineType(expr.name, structTypeInfo);
   }
 }

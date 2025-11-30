@@ -18,6 +18,7 @@ export default class FunctionCallExpr extends Expression {
   }
 
   argOrders = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+  public isTailCall: boolean = false;
   floatArgOrders = [
     "xmm0",
     "xmm1",
@@ -134,6 +135,7 @@ export default class FunctionCallExpr extends Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    if (this.startToken) gen.emitSourceLocation(this.startToken.line);
     this.contextScope = scope;
     const func = scope.resolveFunction(this.functionName);
     if (!func) {
@@ -372,6 +374,34 @@ export default class FunctionCallExpr extends Expression {
     if (isStructReturn) {
       gen.emit("pop rdi", "Pop struct return pointer into RDI");
       scope.stackOffset -= 8;
+    }
+
+    let hasSpill = false;
+    for (const assign of assignments) {
+      if (assign.type === "float" && assign.regIndex >= 8) hasSpill = true;
+      if (assign.type === "int" && assign.regIndex >= 6) hasSpill = true;
+    }
+
+    const doTailCall =
+      this.isTailCall && extraStackAllocated === 0 && !hasSpill;
+
+    if (doTailCall) {
+      // Set RAX to number of vector registers used (for varargs)
+      gen.emit(`mov rax, ${currentFloat}`, "Number of vector registers used");
+
+      // Epilogue for TCO
+      gen.emit("mov rsp, rbp", "reset stack pointer (TCO)");
+      gen.emit("pop rbp", "restore base pointer (TCO)");
+
+      if (func.isExternal) {
+        gen.emit(
+          `jmp ${func.startLabel} WRT ..plt`,
+          `Tail call external ${this.functionName}`,
+        );
+      } else {
+        gen.emit(`jmp ${func.startLabel}`, `Tail call ${this.functionName}`);
+      }
+      return;
     }
 
     const stackAlignment = 16;
