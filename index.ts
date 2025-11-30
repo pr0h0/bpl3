@@ -13,6 +13,7 @@ import { execSync, spawnSync } from "child_process";
 import { existsSync, unlinkSync, readFileSync } from "fs";
 import { resolve, isAbsolute } from "path";
 import { ErrorReporter } from "./errors";
+import { generateDependencyGraph } from "./utils/DependencyGraph";
 
 // --- Configuration Defaults ---
 let linkMode: "dynamic" | "static" = "dynamic";
@@ -24,6 +25,7 @@ let compileLib = false;
 let cleanupAsm = true;
 let cleanupO = true;
 let optimizationLevel = 3;
+let showDeps = false;
 const extraLibs: string[] = [];
 
 function debug(...args: any[]) {
@@ -103,6 +105,10 @@ for (const arg of args) {
       case "-O3":
         optimizationLevel = 3;
         break;
+      case "--deps":
+      case "--graph":
+        showDeps = true;
+        break;
       default:
         console.warn(`Warning: Unknown option (ignored): ${arg}`);
         break;
@@ -125,6 +131,12 @@ if (!sourceFile) {
 }
 
 const fileName = sourceFile;
+
+if (showDeps) {
+  const dot = generateDependencyGraph(fileName);
+  console.log(dot);
+  process.exit(0);
+}
 
 // --- 1. Transpiling ---
 debug(`--- 1. Transpiling ${fileName} ---`);

@@ -6,7 +6,7 @@
 [ ] - Integrate with LLVM backend for code generation
 [ ] - Develop comprehensive test suite with edge cases
 [ ] - Support incremental recompilation caching
-[ ] - Implement dependency graph visualization
+[x] - Implement dependency graph visualization
 [ ] - Add target architecture abstraction layer
 [ ] - Integrate fuzz testing for parser robustness
 [x] - Add compile-time computation and constant folding
