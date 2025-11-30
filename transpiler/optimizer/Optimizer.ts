@@ -12,6 +12,7 @@ import { MulByZeroRule } from "./rules/MulByZeroRule";
 import { IncDecRule } from "./rules/IncDecRule";
 import { PushPopMoveRule } from "./rules/PushPopMoveRule";
 import { DeadCodeRule } from "./rules/DeadCodeRule";
+import { MovConstToMemRule } from "./rules/MovConstToMemRule";
 
 export class Optimizer {
   private rules: IOptimizationRule[] = [];
@@ -30,10 +31,11 @@ export class Optimizer {
       this.rules.push(new RedundantPushPopRule());
       this.rules.push(new JmpNextLabelRule());
       this.rules.push(new CmpZeroRule());
-      this.rules.push(new DeadCodeRule());
+      this.rules.push(new MovConstToMemRule());
     }
 
     if (level >= 3) {
+      this.rules.push(new DeadCodeRule());
       this.rules.push(new MovToPushPopRule());
       this.rules.push(new MovToPushRule());
       this.rules.push(new PushPopMoveRule());

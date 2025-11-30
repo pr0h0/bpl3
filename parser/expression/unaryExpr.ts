@@ -30,6 +30,35 @@ export default class UnaryExpr extends Expression {
     console.log(this.toString(depth));
   }
 
+  optimize(): Expression {
+    this.right = this.right.optimize();
+
+    if (this.right instanceof NumberLiteralExpr) {
+      const val = Number(this.right.value);
+      let result: number | null = null;
+
+      switch (this.operator.type) {
+        case TokenType.MINUS:
+          result = -val;
+          break;
+        case TokenType.PLUS:
+          result = val;
+          break;
+        case TokenType.NOT:
+          result = val === 0 ? 1 : 0;
+          break;
+        case TokenType.TILDE:
+          result = ~val;
+          break;
+      }
+
+      if (result !== null) {
+        return new NumberLiteralExpr(result.toString(), this.operator);
+      }
+    }
+    return this;
+  }
+
   private resolveExpressionType(
     expr: Expression,
     scope: Scope,

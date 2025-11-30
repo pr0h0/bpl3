@@ -35,6 +35,16 @@ export default class BinaryExpr extends Expression {
     this.left = this.left.optimize();
     this.right = this.right.optimize();
 
+    if (this.left instanceof NumberLiteralExpr) {
+      const leftVal = Number(this.left.value);
+      if (this.operator.type === TokenType.AND && leftVal === 0) {
+        return new NumberLiteralExpr("0", this.operator);
+      }
+      if (this.operator.type === TokenType.OR && leftVal !== 0) {
+        return new NumberLiteralExpr("1", this.operator);
+      }
+    }
+
     if (
       this.left instanceof NumberLiteralExpr &&
       this.right instanceof NumberLiteralExpr
@@ -76,6 +86,30 @@ export default class BinaryExpr extends Expression {
           break;
         case TokenType.BITSHIFT_RIGHT:
           result = leftVal >> rightVal;
+          break;
+        case TokenType.EQUAL:
+          result = leftVal === rightVal ? 1 : 0;
+          break;
+        case TokenType.NOT_EQUAL:
+          result = leftVal !== rightVal ? 1 : 0;
+          break;
+        case TokenType.LESS_THAN:
+          result = leftVal < rightVal ? 1 : 0;
+          break;
+        case TokenType.GREATER_THAN:
+          result = leftVal > rightVal ? 1 : 0;
+          break;
+        case TokenType.LESS_EQUAL:
+          result = leftVal <= rightVal ? 1 : 0;
+          break;
+        case TokenType.GREATER_EQUAL:
+          result = leftVal >= rightVal ? 1 : 0;
+          break;
+        case TokenType.AND:
+          result = leftVal !== 0 && rightVal !== 0 ? 1 : 0;
+          break;
+        case TokenType.OR:
+          result = leftVal !== 0 || rightVal !== 0 ? 1 : 0;
           break;
       }
 
