@@ -42,3 +42,4 @@ example/**
 
 lib/*.asm
 lib/*.o
+lib/*.ll

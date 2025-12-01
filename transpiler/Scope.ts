@@ -9,6 +9,7 @@ export interface VarInfo {
   declaration?: Token;
   sourceFile?: string;
   usageCount?: number; // Track number of times variable is used
+  llvmName?: string;
 }
 
 export type ContextType =
@@ -41,6 +42,7 @@ export type TypeInfo = {
   sourceFile?: string;
   genericParams?: string[];
   genericFields?: { name: string; type: VariableType }[];
+  index?: number;
 };
 
 export type InfoType = {
@@ -61,12 +63,14 @@ export type FunctionInfo = {
   variadicType?: VariableType | null;
   declaration?: Token;
   sourceFile?: string;
+  llvmName?: string;
 };
 
 export default class Scope {
   public types = new Map<string, TypeInfo>();
   public vars = new Map<string, VarInfo>();
   public stackOffset = 0; // Tracks stack usage for this function
+  public localsOffset = 0; // Tracks size of locals allocated (used for alignment calculation)
   public functions = new Map<string, FunctionInfo>();
   public currentContext: ContextType[] = [];
 
@@ -116,6 +120,7 @@ export default class Scope {
   // Allocate space on stack (e.g., 8 bytes for 64-bit int)
   allocLocal(size: number = 8): number {
     this.stackOffset += size;
+    this.localsOffset += size;
     return this.stackOffset;
   }
 

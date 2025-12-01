@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type { VariableType } from "./variableDeclarationExpr";
@@ -26,6 +27,10 @@ export default class Expression {
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
+    throw new Error("Method not implemented.");
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
     throw new Error("Method not implemented.");
   }
 

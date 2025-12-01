@@ -3,9 +3,9 @@ source ../test_utils.sh
 
 FILES=("mov_const.x" "mov_const_sizes.x" "mov_const_safety.x")
 EXPECTED_OUTER=(
-  "a=10, b=20, c=30"
-  "a=10, b=20, c=30, d=40"
-  "a=10, b=20"
+    "a=10, b=20, c=30"
+    "a=10, b=20, c=30, d=40"
+    "a=10, b=20"
 )
 # Loop through each test file
 index=0
@@ -34,6 +34,9 @@ for FILE in "${FILES[@]}"; do
 
     # Cleanup
     rm -f "$EXE"
+    rm -f *.o
+    rm -f *.asm
+    rm -f *.ll
 
     echo "Test for $FILE completed."
     index=$((index + 1))

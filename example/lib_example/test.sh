@@ -27,7 +27,6 @@ fi
 
 # Cleanup
 rm -f "$EXE"
-# Cleanup any object files that might have been created
 rm -f *.o
-# Cleanup any asm files that might have been created
 rm -f *.asm
+rm -f *.ll

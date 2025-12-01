@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
@@ -27,5 +28,16 @@ export default class ContinueExpr extends Expression {
     if (context.type === "loop") {
       gen.emit(`jmp ${context.continueLabel}`, "CONTINUE EXPR");
     }
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    const context = scope.getCurrentContext("loop");
+    if (!context) {
+      throw new Error("Continue statement used outside of a loop");
+    }
+    if (context.type === "loop") {
+      gen.emit(`br label %${context.continueLabel}`);
+    }
+    return "";
   }
 }

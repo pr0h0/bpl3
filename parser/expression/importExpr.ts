@@ -1,9 +1,11 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
 import Token from "../../lexer/token";
+import type { VariableType } from "./variableDeclarationExpr";
 
 export default class ImportExpr extends Expression {
   constructor(
@@ -61,5 +63,51 @@ export default class ImportExpr extends Expression {
     if (finalImports.length) {
       gen.emitImportStatement(`extern ${finalImports.join(", ")}`);
     }
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    for (const importItem of this.importName) {
+      if (importItem.type === "type") {
+        continue;
+      }
+      const name = importItem.name;
+
+      const existingFunc = scope.resolveFunction(name);
+      if (existingFunc) {
+        const ret = existingFunc.returnType
+          ? gen.mapType(existingFunc.returnType)
+          : "void";
+        const args = existingFunc.args
+          .map((a) => gen.mapType(a.type))
+          .join(", ");
+        const vararg = existingFunc.isVariadic
+          ? args.length > 0
+            ? ", ..."
+            : "..."
+          : "";
+
+        gen.emitGlobal(`declare ${ret} @${name}(${args}${vararg})`);
+        continue;
+      }
+
+      const returnType: VariableType = {
+        name: "i32",
+        isPointer: 0,
+        isArray: [],
+      };
+
+      scope.defineFunction(name, {
+        name: name,
+        label: name,
+        args: [],
+        returnType: returnType,
+        startLabel: name,
+        endLabel: name,
+        isExternal: true,
+        isVariadic: true,
+        llvmName: `@${name}`,
+      });
+    }
+    return "";
   }
 }

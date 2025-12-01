@@ -1,5 +1,4 @@
 import printf from "libc";
-extern printf(fmt: *u8, ...);
 
 struct Box<T> {
     value: T,

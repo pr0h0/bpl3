@@ -1,6 +1,8 @@
 import [User] from "./types.x";
 import printf, malloc, free, strcmp, strcpy from "libc";
 
+extern malloc(size: u64) ret *u8;
+
 global g_users_head: *User = NULL;
 global g_user_id_counter: u64 = 1;
 

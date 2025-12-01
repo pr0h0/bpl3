@@ -3,8 +3,8 @@
 [x] - Create performance benchmarks and profiling scripts
 [ ] - Implement advanced optimization passes (loop unrolling, inlining)
 [ ] - Add support for custom calling conventions
-[ ] - Integrate with LLVM backend for code generation
-[ ] - Develop comprehensive test suite with edge cases
+[x] - Integrate with LLVM backend for code generation
+[x] - Develop comprehensive test suite with edge cases
 [ ] - Support incremental recompilation caching
 [x] - Implement dependency graph visualization
 [ ] - Add target architecture abstraction layer

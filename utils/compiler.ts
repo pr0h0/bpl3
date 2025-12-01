@@ -8,6 +8,14 @@ export function compileAsmFile(inputFilePath: string): string {
   return outputFilePath;
 }
 
+export function compileLlvmIrToObject(inputFilePath: string): string {
+  const outputFilePath = `${inputFilePath.replace(/\.[^/.]+$/, "")}.o`;
+  execSync(
+    `clang -Wno-override-module -c "${inputFilePath}" -o "${outputFilePath}"`,
+  );
+  return outputFilePath;
+}
+
 export function linkObjectFile(
   objectFilePath: string,
   libsPath: string[],

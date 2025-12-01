@@ -7,6 +7,13 @@ UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Determine the root of the transpiler (one level up from example/)
 TRANSPIER_ROOT="$(dirname "$UTILS_DIR")"
 
+# Parse arguments passed to the sourcing script
+for arg in "$@"; do
+    if [ "$arg" == "--llvm" ] || [ "$arg" == "llvm" ]; then
+        GENERATOR="llvm"
+    fi
+done
+
 compile() {
     local SOURCE_FILE="$1"
     local LIBS="$2"
@@ -25,10 +32,15 @@ compile() {
     # Construct the full path to the source file relative to root
     local FULL_SOURCE_PATH="$REL_PATH/$SOURCE_FILE"
 
+    local GEN_FLAG=""
+    if [ "$GENERATOR" == "llvm" ]; then
+        GEN_FLAG="--llvm"
+    fi
+
     if [ -n "$LIBS" ]; then
-        bun index.ts -q "$FULL_SOURCE_PATH" $LIBS
+        bun index.ts -q $GEN_FLAG "$FULL_SOURCE_PATH" $LIBS
     else
-        bun index.ts -q "$FULL_SOURCE_PATH"
+        bun index.ts -q $GEN_FLAG "$FULL_SOURCE_PATH"
     fi
     COMPILE_RES=$?
     popd > /dev/null

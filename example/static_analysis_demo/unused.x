@@ -8,4 +8,3 @@ frame main() {
     local d: u64 = c + 1;
     # d is unused.
 }
-

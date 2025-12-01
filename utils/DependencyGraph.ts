@@ -40,17 +40,21 @@ export function generateDependencyGraph(entryFile: string): string {
         let toNode = "";
 
         if (isVirtual) {
-            toNode = absolutePath;
+          toNode = absolutePath;
         } else {
-            toNode = relative(rootDir, absolutePath) || absolutePath;
+          toNode = relative(rootDir, absolutePath) || absolutePath;
         }
 
         // Avoid self-loops if any
         if (fromNode !== toNode) {
-            edges.push({ from: fromNode, to: toNode });
+          edges.push({ from: fromNode, to: toNode });
         }
 
-        if (!isVirtual && absolutePath.endsWith(".x") && !visited.has(absolutePath)) {
+        if (
+          !isVirtual &&
+          absolutePath.endsWith(".x") &&
+          !visited.has(absolutePath)
+        ) {
           queue.push(absolutePath);
         }
       }
@@ -60,21 +64,22 @@ export function generateDependencyGraph(entryFile: string): string {
   }
 
   let dot = "digraph Dependencies {\n";
-  dot += '  rankdir=LR;\n';
-  dot += '  node [shape=box, style=filled, fillcolor="#f9f9f9", fontname="Helvetica"];\n';
+  dot += "  rankdir=LR;\n";
+  dot +=
+    '  node [shape=box, style=filled, fillcolor="#f9f9f9", fontname="Helvetica"];\n';
   dot += '  edge [color="#555555"];\n';
 
   // Deduplicate edges
   const uniqueEdges = new Set<string>();
-  
+
   for (const edge of edges) {
-      const edgeStr = `  "${edge.from}" -> "${edge.to}";`;
-      if (!uniqueEdges.has(edgeStr)) {
-          uniqueEdges.add(edgeStr);
-          dot += edgeStr + "\n";
-      }
+    const edgeStr = `  "${edge.from}" -> "${edge.to}";`;
+    if (!uniqueEdges.has(edgeStr)) {
+      uniqueEdges.add(edgeStr);
+      dot += edgeStr + "\n";
+    }
   }
-  
+
   dot += "}\n";
 
   return dot;

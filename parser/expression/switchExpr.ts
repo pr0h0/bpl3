@@ -4,6 +4,7 @@ import ExpressionType from "../expressionType";
 import type BlockExpr from "./blockExpr";
 import Expression from "./expr";
 import NumberLiteralExpr from "./numberLiteralExpr";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 
 export type SwitchCase = {
   value: NumberLiteralExpr;
@@ -145,5 +146,43 @@ export default class SwitchExpr extends Expression {
     }
 
     gen.emitLabel(endLabel);
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    const val = this.discriminant.generateIR(gen, scope);
+
+    const endLabel = gen.generateLabel("switch_end");
+    const defaultLabel = this.defaultCase
+      ? gen.generateLabel("switch_default")
+      : endLabel;
+
+    const cases: { val: number; label: string; block: BlockExpr }[] = [];
+    for (const c of this.cases) {
+      cases.push({
+        val: Number(c.value.value),
+        label: gen.generateLabel(`switch_case_${c.value.value}`),
+        block: c.body,
+      });
+    }
+
+    const caseList = cases
+      .map((c) => `i64 ${c.val}, label %${c.label}`)
+      .join(" ");
+    gen.emit(`switch i64 ${val}, label %${defaultLabel} [ ${caseList} ]`);
+
+    for (const c of cases) {
+      gen.emitLabel(c.label);
+      c.block.generateIR(gen, scope);
+      gen.emit(`br label %${endLabel}`);
+    }
+
+    if (this.defaultCase) {
+      gen.emitLabel(defaultLabel);
+      this.defaultCase.generateIR(gen, scope);
+      gen.emit(`br label %${endLabel}`);
+    }
+
+    gen.emitLabel(endLabel);
+    return "";
   }
 }

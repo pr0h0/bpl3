@@ -21,3 +21,6 @@ fi
 
 # Cleanup
 rm -f "$EXE"
+rm -f *.o
+rm -f *.asm
+rm -f *.ll

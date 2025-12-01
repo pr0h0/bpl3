@@ -1,6 +1,6 @@
 import printf, free, malloc from "libc";
 
-extern printf(fmt: string, ...);
+extern printf(fmt: *u8, ...);
 extern malloc(size: u64) ret *u8;
 extern free(ptr: *u8);
 
@@ -48,7 +48,6 @@ frame main() ret u64 {
     call printf("Sum result: %d\n", sumRes);
 
     local res3: *u8 = call malloc(128);
-    # call printf("Allocated memory for concatenated string at: %p\n", res3);
 
     call concat_strings(4, res3, "Hello, ", "variadic ", "world!", "\n");
     call printf("Final string: %s\n", res3);

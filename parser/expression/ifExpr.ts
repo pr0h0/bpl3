@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type BlockExpr from "./blockExpr";
@@ -59,5 +60,36 @@ export default class IfExpr extends Expression {
     }
 
     gen.emitLabel(endLabel);
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    const cond = this.condition.generateIR(gen, scope);
+    const thenLabel = gen.generateLabel("then");
+    const elseLabel = gen.generateLabel("else");
+    const endLabel = gen.generateLabel("if_end");
+
+    const condReg = gen.generateReg("cond");
+    gen.emit(`${condReg} = icmp ne i64 ${cond}, 0`);
+
+    if (this.elseBranch) {
+      gen.emit(`br i1 ${condReg}, label %${thenLabel}, label %${elseLabel}`);
+
+      gen.emitLabel(thenLabel);
+      this.thenBranch.generateIR(gen, scope);
+      gen.emit(`br label %${endLabel}`);
+
+      gen.emitLabel(elseLabel);
+      this.elseBranch.generateIR(gen, scope);
+      gen.emit(`br label %${endLabel}`);
+    } else {
+      gen.emit(`br i1 ${condReg}, label %${thenLabel}, label %${endLabel}`);
+
+      gen.emitLabel(thenLabel);
+      this.thenBranch.generateIR(gen, scope);
+      gen.emit(`br label %${endLabel}`);
+    }
+
+    gen.emitLabel(endLabel);
+    return "";
   }
 }

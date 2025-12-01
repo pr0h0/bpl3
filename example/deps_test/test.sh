@@ -1,6 +1,8 @@
 #!/bin/bash
 source ../test_utils.sh
 
+
+
 # Configuration
 SOURCE_FILE="main.x"
 INPUT="" # Input for the program if needed
@@ -23,3 +25,6 @@ fi
 
 # Cleanup
 rm -f "$EXE"
+rm -f *.o
+rm -f *.asm
+rm -f *.ll

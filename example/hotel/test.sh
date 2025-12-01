@@ -1,6 +1,8 @@
 #!/bin/bash
 source ../test_utils.sh
 
+
+
 # Configuration
 SOURCE_FILE="hotel.x"
 INPUT="2 alice pass123 1 alice pass123 1 101 3 2 3 1 5 2 4 3"
@@ -35,3 +37,4 @@ fi
 rm -f "$EXE"
 rm -f *.o
 rm -f *.asm
+rm -f *.ll

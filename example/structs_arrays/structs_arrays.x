@@ -1,4 +1,7 @@
-import printf from "libc";
+import printf, rand, srand, time from "libc";
+
+extern srand(seed: u64);
+extern time(t: u64) ret u64;
 
 struct Point {
     x: u64,
@@ -8,15 +11,7 @@ struct Point {
 global points: Point[5];
 
 frame get_rnd_u64(min: u64, max: u64) ret u64 {
-    local rnd: u64 = 0;
-    # Use inline assembly to get a random number from the hardware
-    asm {
-        rdrand rax;
-        mov (rnd), rax;
-    }
-    if rnd < 0 {
-        rnd = -rnd;
-    }
+    local rnd: u64 = call rand();
     return rnd % (max - min) + min;
 }
 
@@ -74,6 +69,8 @@ frame print_points() {
 }
 
 frame main() ret u8 {
+    call srand(call time(0));
+
     call initialize_points();
     call print_points();
     call shuffle_points();

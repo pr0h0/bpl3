@@ -1,5 +1,7 @@
 import printf, scanf, malloc, free from "libc";
 
+extern malloc(size: u64) ret *u8;
+
 frame main() ret u64 {
     local n: u64 = 0;
     call printf("Enter number of elements: ");

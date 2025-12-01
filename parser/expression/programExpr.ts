@@ -3,6 +3,7 @@ import HelperGenerator from "../../transpiler/HelperGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 
 export default class ProgramExpr extends Expression {
   public constructor() {
@@ -89,5 +90,96 @@ export default class ProgramExpr extends Expression {
     for (const expr of this.expressions) {
       expr.transpile(gen, scope);
     }
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    this.validate();
+
+    // Check if we need a main wrapper
+    const weHaveExportStmt = this.expressions.find(
+      (expr) => expr.type === ExpressionType.ExportExpression,
+    );
+
+    for (const expr of this.expressions) {
+      expr.generateIR(gen, scope);
+    }
+
+    if (!weHaveExportStmt) {
+      gen.emit("");
+      gen.emit("define i32 @main(i32 %argc, ptr %argv) {");
+      gen.emit("entry:");
+
+      const mainFunc = scope.resolveFunction("main");
+      if (mainFunc && mainFunc.label === "user_main") {
+        const retType = mainFunc.returnType
+          ? gen.mapType(mainFunc.returnType)
+          : "void";
+        if (retType === "void") {
+          gen.emit("  call void @user_main()");
+          gen.emit("  ret i32 0");
+        } else {
+          const res = gen.generateReg("res");
+          gen.emit(`  ${res} = call ${retType} @user_main()`);
+          // If retType is not i32, we might need to cast or ignore.
+          // Assuming i32 or compatible.
+          if (retType === "i32") {
+            gen.emit(`  ret i32 ${res}`);
+          } else {
+            gen.emit("  ret i32 0");
+          }
+        }
+      } else {
+        // No main function found?
+        // Maybe just return 0.
+        gen.emit("  ret i32 0");
+      }
+      gen.emit("}");
+    }
+
+    // Emit struct definitions
+    for (const [name, typeInfo] of scope.types) {
+      if (
+        !typeInfo.isPrimitive &&
+        typeInfo.members.size > 0 &&
+        (!typeInfo.genericParams || typeInfo.genericParams.length === 0)
+      ) {
+        const sortedMembers = Array.from(typeInfo.members.values()).sort(
+          (a, b) => (a.offset || 0) - (b.offset || 0),
+        );
+
+        const memberTypes = sortedMembers
+          .map((m) => {
+            return gen.mapType({
+              name: m.name,
+              isPointer: m.isPointer,
+              isArray: m.isArray,
+              genericArgs: [], // Members inside instantiated struct are already concrete types
+            });
+          })
+          .join(", ");
+
+        if (name.includes("<")) {
+          gen.emitGlobal(`%"struct.${name}" = type { ${memberTypes} }`);
+        } else {
+          gen.emitGlobal(`%struct.${name} = type { ${memberTypes} }`);
+        }
+      }
+    }
+
+    // Emit external function declarations
+    for (const [name, func] of scope.functions) {
+      if (func.isExternal) {
+        const ret = func.returnType ? gen.mapType(func.returnType) : "void";
+        const args = func.args.map((arg) => gen.mapType(arg.type)).join(", ");
+        const vararg = func.isVariadic
+          ? args.length > 0
+            ? ", ..."
+            : "..."
+          : "";
+        gen.emitGlobal(`declare ${ret} @${name}(${args}${vararg})`);
+      }
+    }
+
+    return "";
   }
 }

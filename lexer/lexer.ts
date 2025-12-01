@@ -254,6 +254,20 @@ class Lexer {
 
     // return all bases as hex, except decimal
     if (Object.keys(error_message_key).includes(numberStr.slice(0, 2))) {
+      // Use BigInt for hex/bin/oct to preserve precision for 64-bit integers
+      try {
+        const bigVal = BigInt(numberStr);
+        return new Token(
+          TokenType.NUMBER_LITERAL,
+          "0x" + bigVal.toString(16),
+          this.line,
+          this.tokenStartColumn,
+          start,
+          numberStr,
+        );
+      } catch (e) {
+        // Fallback to Number if BigInt fails (e.g. floats shouldn't be here anyway for these bases)
+      }
       return new Token(
         TokenType.NUMBER_LITERAL,
         "0x" + value.toString(16),

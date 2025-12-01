@@ -2,6 +2,7 @@ import type Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
 import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import NumberLiteralExpr from "./numberLiteralExpr";
@@ -53,7 +54,12 @@ export default class UnaryExpr extends Expression {
       }
 
       if (result !== null) {
-        return new NumberLiteralExpr(result.toString(), this.operator);
+        let resultStr = result.toString();
+        // Handle negative zero specifically because (-0).toString() is "0"
+        if (result === 0 && 1 / result === -Infinity) {
+          resultStr = "-0.0";
+        }
+        return new NumberLiteralExpr(resultStr, this.operator);
       }
     }
     return this;
@@ -88,7 +94,16 @@ export default class UnaryExpr extends Expression {
         }
         return null;
       } else {
-        const typeInfo = scope.resolveType(objectType.name);
+        let typeInfo;
+        if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+          typeInfo = scope.resolveGenericType(
+            objectType.name,
+            objectType.genericArgs,
+          );
+        } else {
+          typeInfo = scope.resolveType(objectType.name);
+        }
+
         if (!typeInfo) return null;
 
         const propertyName = (memberExpr.property as any).name;
@@ -224,6 +239,68 @@ export default class UnaryExpr extends Expression {
       case TokenType.TILDE:
         gen.emit("not rax", "bitwise NOT");
         break;
+      default:
+        throw new Error(`Unsupported unary operator: ${this.operator.value}`);
+    }
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    if (this.operator.type === TokenType.AMPERSAND) {
+      scope.setCurrentContext({ type: "LHS" });
+      const ptr = this.right.generateIR(gen, scope);
+      scope.removeCurrentContext("LHS");
+      return ptr;
+    }
+
+    if (this.operator.type === TokenType.STAR) {
+      const isLHS = scope.getCurrentContext("LHS");
+      if (isLHS) scope.removeCurrentContext("LHS");
+
+      const ptr = this.right.generateIR(gen, scope);
+
+      if (isLHS) {
+        scope.setCurrentContext({ type: "LHS" });
+        return ptr;
+      } else {
+        const type = this.resolveExpressionType(this, scope);
+        if (!type) throw new Error("Cannot resolve type for dereference");
+        const llvmType = gen.mapType(type);
+        const reg = gen.generateReg("deref");
+        gen.emit(`${reg} = load ${llvmType}, ptr ${ptr}`);
+        return reg;
+      }
+    }
+
+    const val = this.right.generateIR(gen, scope);
+    const type = this.resolveExpressionType(this.right, scope);
+    const isFloat = type?.name === "f64" || type?.name === "f32";
+    const llvmType = type ? gen.mapType(type) : "i64";
+
+    switch (this.operator.type) {
+      case TokenType.MINUS:
+        if (isFloat) {
+          const reg = gen.generateReg("fneg");
+          gen.emit(`${reg} = fneg ${llvmType} ${val}`);
+          return reg;
+        } else {
+          const reg = gen.generateReg("neg");
+          gen.emit(`${reg} = sub ${llvmType} 0, ${val}`);
+          return reg;
+        }
+      case TokenType.PLUS:
+        return val;
+      case TokenType.NOT: {
+        const reg = gen.generateReg("not");
+        gen.emit(`${reg} = icmp eq ${llvmType} ${val}, 0`);
+        const zext = gen.generateReg("zext");
+        gen.emit(`${zext} = zext i1 ${reg} to ${llvmType}`);
+        return zext;
+      }
+      case TokenType.TILDE: {
+        const reg = gen.generateReg("xor");
+        gen.emit(`${reg} = xor ${llvmType} ${val}, -1`);
+        return reg;
+      }
       default:
         throw new Error(`Unsupported unary operator: ${this.operator.value}`);
     }

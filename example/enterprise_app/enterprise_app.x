@@ -15,6 +15,8 @@
 import printf, malloc, free, strcpy from "libc";
 import exit from "std";
 
+extern malloc(size: u64) ret *u8;
+
 #  Enterprise Structures
 
 struct Task {
@@ -42,7 +44,7 @@ frame generate_id() ret u64 {
     # Simulate some "complex" enterprise ID generation
     asm {
         rdrand rax;
-        mov (id), rax;
+        mov [(id)], rax;
     }
     if id < 0 {
         id = -id;
@@ -108,12 +110,12 @@ frame calculate_tax(salary: u64) ret u64 {
     local tax: u64 = 0;
     # Enterprise Tax Logic: 20% flat rate, calculated via ASM for "speed"
     asm {
-        mov rax, (salary);
+        mov rax, [(salary)];
         mov rbx, 20;
         mul rbx;      # rax = salary * 20
         mov rbx, 100;
         div rbx;      # rax = (salary * 20) / 100
-        mov (tax), rax;
+        mov [(tax)], rax;
     }
     return tax;
 }

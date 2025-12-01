@@ -1,6 +1,8 @@
 import exec from "std";
 import printf, sprintf, malloc, free from "libc";
 
+extern malloc(size: u64) ret *u8;
+
 frame main() ret u64 {
     call printf("=== Exec Demo ===\n");
 

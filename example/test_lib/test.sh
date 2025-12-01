@@ -22,7 +22,6 @@ fi
 
 # Cleanup
 rm -f "$EXE"
-# Also cleanup the object file generated for lib.x
-rm -f "lib.o" 
-# Also cleanup the assembly file generated for lib.x
-rm -f "lib.asm"
+rm -f *.o
+rm -f *.asm
+rm -f *.ll

@@ -1,12 +1,18 @@
 import AsmGenerator from "./transpiler/AsmGenerator";
+import LlvmGenerator from "./transpiler/LlvmGenerator";
 import Scope from "./transpiler/Scope";
+import HelperGenerator from "./transpiler/HelperGenerator";
 import {
   getFileTokens,
   parseTokens,
   parseImportExpressions,
   extractImportStatements,
 } from "./utils/parser";
-import { transpileProgram, parseLibraryFile } from "./utils/transpiler";
+import {
+  transpileProgram,
+  parseLibraryFile,
+  parseLibraryFileLlvm,
+} from "./utils/transpiler";
 import { getOutputFileName, saveToFile } from "./utils/file";
 import { compileAsmFile, linkObjectFile } from "./utils/compiler";
 import { execSync, spawnSync } from "child_process";
@@ -26,6 +32,7 @@ let cleanupAsm = true;
 let cleanupO = true;
 let optimizationLevel = 3;
 let showDeps = false;
+let useLlvm = false;
 const extraLibs: string[] = [];
 
 function debug(...args: any[]) {
@@ -109,6 +116,9 @@ for (const arg of args) {
       case "--graph":
         showDeps = true;
         break;
+      case "--llvm":
+        useLlvm = true;
+        break;
       default:
         console.warn(`Warning: Unknown option (ignored): ${arg}`);
         break;
@@ -148,6 +158,75 @@ let objectsToLink: Set<string> = new Set(extraLibs);
 try {
   const tokens = getFileTokens(fileName);
   const ast = parseTokens(tokens);
+
+  if (useLlvm) {
+    const gen = new LlvmGenerator();
+    gen.setSourceFile(fileName);
+    const scope = new Scope();
+
+    // Initialize base types in scope
+    HelperGenerator.generateBaseTypes(gen as any, scope);
+
+    // Handle imports for LLVM
+    const imports = parseImportExpressions(extractImportStatements(ast));
+    if (imports.length) {
+      const objectFiles = parseLibraryFileLlvm(fileName, scope);
+      objectFiles.forEach((obj) => objectsToLink.add(obj));
+    }
+
+    ast.generateIR(gen, scope);
+    asmContent = gen.build();
+    asmFilePath = getOutputFileName(fileName, ".ll");
+    saveToFile(asmFilePath, asmContent);
+
+    debug(`Generated LLVM IR: ${asmFilePath}`);
+
+    if (printAsm) {
+      console.log(asmContent);
+    }
+
+    if (compileLib) {
+      const outputObj = getOutputFileName(fileName, ".o");
+      debug(`Compiling LLVM IR to object file: ${outputObj}`);
+      try {
+        execSync(
+          `clang -Wno-override-module -c -o ${outputObj} ${asmFilePath}`,
+          { stdio: "inherit" },
+        );
+      } catch (e) {
+        console.error("LLVM compilation failed.");
+        process.exit(1);
+      }
+      process.exit(0);
+    }
+
+    // Compile LLVM IR
+    // clang -o output input.ll
+    const outputExe = getOutputFileName(fileName, "");
+    debug(`Compiling LLVM IR to executable: ${outputExe}`);
+
+    const linkArgs = Array.from(objectsToLink).join(" ");
+    try {
+      execSync(
+        `clang -Wno-override-module -o ${outputExe} ${asmFilePath} ${linkArgs} -lm`,
+        { stdio: "inherit" },
+      );
+    } catch (e) {
+      console.error("LLVM compilation failed.");
+      process.exit(1);
+    }
+
+    if (shouldRun) {
+      debug(`--- Running ${outputExe} ---`);
+      try {
+        execSync(`./${outputExe}`, { stdio: "inherit" });
+      } catch (e: any) {
+        debug(`Program exited with code: ${e.status}`);
+      }
+    }
+
+    process.exit(0);
+  }
 
   const gen = new AsmGenerator(optimizationLevel);
   gen.setSourceFile(fileName);

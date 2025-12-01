@@ -39,16 +39,35 @@ export class MovConstToMemRule implements IOptimizationRule {
   }
 
   private getSize(reg: string): string {
-    if (["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp"].includes(reg)) return "qword";
+    if (["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp"].includes(reg))
+      return "qword";
     if (reg.match(/^r\d+$/)) return "qword";
 
-    if (["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp"].includes(reg)) return "dword";
+    if (["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp"].includes(reg))
+      return "dword";
     if (reg.match(/^r\d+d$/)) return "dword";
 
-    if (["ax", "bx", "cx", "dx", "si", "di", "bp", "sp"].includes(reg)) return "word";
+    if (["ax", "bx", "cx", "dx", "si", "di", "bp", "sp"].includes(reg))
+      return "word";
     if (reg.match(/^r\d+w$/)) return "word";
 
-    if (["al", "bl", "cl", "dl", "sil", "dil", "bpl", "spl", "ah", "bh", "ch", "dh"].includes(reg)) return "byte";
+    if (
+      [
+        "al",
+        "bl",
+        "cl",
+        "dl",
+        "sil",
+        "dil",
+        "bpl",
+        "spl",
+        "ah",
+        "bh",
+        "ch",
+        "dh",
+      ].includes(reg)
+    )
+      return "byte";
     if (reg.match(/^r\d+b$/)) return "byte";
 
     return "qword";
@@ -79,7 +98,9 @@ export class MovConstToMemRule implements IOptimizationRule {
     const subRegs = this.getSubRegisters(reg);
     const allRegs = [reg, ...subRegs];
     // Escape all regs
-    const allRegsEscaped = allRegs.map(r => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const allRegsEscaped = allRegs
+      .map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("|");
 
     const match2 = line2.code.match(
       new RegExp(`^mov\\s+(\\[.+\\]),\\s+(${allRegsEscaped})$`),
@@ -97,14 +118,19 @@ export class MovConstToMemRule implements IOptimizationRule {
     let safetyIdx = nextIdx + 1;
     while (safetyIdx < lines.length) {
       const nextLine = parseLine(lines[safetyIdx]!);
-      
+
       if (!nextLine.code || nextLine.code.startsWith("%")) {
         safetyIdx++;
         continue;
       }
 
       // If we hit a label or control flow change, assume unsafe
-      if (nextLine.code.endsWith(":") || nextLine.code.startsWith("j") || nextLine.code.startsWith("call") || nextLine.code.startsWith("ret")) {
+      if (
+        nextLine.code.endsWith(":") ||
+        nextLine.code.startsWith("j") ||
+        nextLine.code.startsWith("call") ||
+        nextLine.code.startsWith("ret")
+      ) {
         return false;
       }
 
@@ -139,12 +165,16 @@ export class MovConstToMemRule implements IOptimizationRule {
 
     const nextIdx = this.getNextInstructionIndex(lines, index + 1);
     const line2 = parseLine(lines[nextIdx]!);
-    
+
     const subRegs = this.getSubRegisters(reg);
     const allRegs = [reg, ...subRegs];
-    const allRegsEscaped = allRegs.map(r => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const allRegsEscaped = allRegs
+      .map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("|");
 
-    const match2 = line2.code.match(new RegExp(`^mov\\s+(\\[.+\\]),\\s+(${allRegsEscaped})$`));
+    const match2 = line2.code.match(
+      new RegExp(`^mov\\s+(\\[.+\\]),\\s+(${allRegsEscaped})$`),
+    );
     const dest = match2![1]!;
     const usedReg = match2![2]!;
     const size = this.getSize(usedReg);

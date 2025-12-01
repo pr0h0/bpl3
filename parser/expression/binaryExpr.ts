@@ -2,6 +2,7 @@ import type Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
 import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import NumberLiteralExpr from "./numberLiteralExpr";
@@ -399,6 +400,508 @@ export default class BinaryExpr extends Expression {
     }
   }
 
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    if (this.assignmentOperators.includes(this.operator.type)) {
+      return this.generateAssignmentIR(gen, scope);
+    }
+
+    // Clear LHS context for operands (they are R-values)
+    const isLHS = scope.getCurrentContext("LHS");
+    if (isLHS) scope.removeCurrentContext("LHS");
+
+    const leftVal = this.left.generateIR(gen, scope);
+    const rightVal = this.right.generateIR(gen, scope);
+
+    if (isLHS) scope.setCurrentContext({ type: "LHS" });
+
+    const leftType = this.resolveExpressionType(this.left, scope);
+    const rightType = this.resolveExpressionType(this.right, scope);
+
+    const isFloat =
+      leftType?.name === "f64" ||
+      leftType?.name === "f32" ||
+      rightType?.name === "f64" ||
+      rightType?.name === "f32" ||
+      this.operator.type === TokenType.SLASH;
+
+    const resultReg = gen.generateReg("binop");
+
+    if (isFloat) {
+      let lVal = leftVal;
+      let rVal = rightVal;
+      let opType = "double";
+
+      if (leftType?.name === "f64" || rightType?.name === "f64") {
+        opType = "double";
+      } else if (this.operator.type === TokenType.SLASH) {
+        // Division defaults to f64 unless operands are small
+        const leftSize = leftType ? this.getIntSize(leftType.name) : 8;
+        const rightSize = rightType ? this.getIntSize(rightType.name) : 8;
+        if (leftSize <= 4 && rightSize <= 4) {
+          opType = "float";
+        } else {
+          opType = "double";
+        }
+      } else {
+        opType = "float";
+      }
+
+      if (opType === "float") {
+        // Ensure both are float
+        if (leftType?.name !== "f32") {
+          // Int to float
+          const conv = gen.generateReg("conv");
+          gen.emit(`${conv} = sitofp i64 ${lVal} to float`);
+          lVal = conv;
+        }
+        if (rightType?.name !== "f32") {
+          // Int to float
+          const conv = gen.generateReg("conv");
+          gen.emit(`${conv} = sitofp i64 ${rVal} to float`);
+          rVal = conv;
+        }
+      } else {
+        // Promote to double
+        if (leftType?.name === "f32") {
+          const ext = gen.generateReg("ext");
+          gen.emit(`${ext} = fpext float ${lVal} to double`);
+          lVal = ext;
+        } else if (leftType?.name !== "f64") {
+          // Int to double
+          const conv = gen.generateReg("conv");
+          gen.emit(`${conv} = sitofp i64 ${lVal} to double`); // Assuming i64
+          lVal = conv;
+        }
+
+        if (rightType?.name === "f32") {
+          const ext = gen.generateReg("ext");
+          gen.emit(`${ext} = fpext float ${rVal} to double`);
+          rVal = ext;
+        } else if (rightType?.name !== "f64") {
+          // Int to double
+          const conv = gen.generateReg("conv");
+          gen.emit(`${conv} = sitofp i64 ${rVal} to double`);
+          rVal = conv;
+        }
+      }
+
+      if (this.operator.type === TokenType.SLASH_SLASH) {
+        const divReg = gen.generateReg("div");
+        gen.emit(`${divReg} = fdiv ${opType} ${lVal}, ${rVal}`);
+        const floorReg = gen.generateReg("floor");
+        const floorFunc =
+          opType === "float" ? "@llvm.floor.f32" : "@llvm.floor.f64";
+        gen.emitGlobal(
+          `declare ${opType} ${floorFunc}(${opType}) memory(none)`,
+        );
+        gen.emit(
+          `${floorReg} = call ${opType} ${floorFunc}(${opType} ${divReg})`,
+        );
+        return floorReg;
+      }
+
+      const op = this.getFloatOp(this.operator.type);
+      // Assuming double for now
+      if (
+        ["fcmp", "fadd", "fsub", "fmul", "fdiv"].some((o) => op.startsWith(o))
+      ) {
+        if (op.startsWith("fcmp")) {
+          gen.emit(`${resultReg} = ${op} ${opType} ${lVal}, ${rVal}`);
+          // fcmp returns i1, we might need to zext to i64 if used as value?
+          // But usually conditions consume i1.
+          // If used as value (e.g. x = a == b), we need zext.
+          const zext = gen.generateReg("zext");
+          gen.emit(`${zext} = zext i1 ${resultReg} to i64`);
+          return zext;
+        }
+        gen.emit(`${resultReg} = ${op} ${opType} ${lVal}, ${rVal}`);
+      }
+    } else {
+      // Check for pointer comparison
+      if (
+        leftType?.isPointer ||
+        rightType?.isPointer ||
+        leftVal === "null" ||
+        rightVal === "null"
+      ) {
+        if (
+          this.operator.type === TokenType.EQUAL ||
+          this.operator.type === TokenType.NOT_EQUAL
+        ) {
+          const pred = this.operator.type === TokenType.EQUAL ? "eq" : "ne";
+          let l = leftVal;
+          let r = rightVal;
+          if (l === "0") l = "null";
+          if (r === "0") r = "null";
+          gen.emit(`${resultReg} = icmp ${pred} ptr ${l}, ${r}`);
+          const zext = gen.generateReg("zext");
+          gen.emit(`${zext} = zext i1 ${resultReg} to i64`);
+          return zext;
+        }
+      }
+
+      // Check for pointer arithmetic
+      if (
+        this.operator.type === TokenType.PLUS ||
+        this.operator.type === TokenType.MINUS
+      ) {
+        if (leftType?.isPointer && !rightType?.isPointer) {
+          // ptr + int
+          const ptr = leftVal;
+          let idx = rightVal;
+
+          // Ensure idx is i64
+          if (rightType && this.getIntSize(rightType.name) < 8) {
+            const isSigned = ["i8", "i16", "i32"].includes(rightType.name);
+            const castOp = isSigned ? "sext" : "zext";
+            const srcType = gen.mapType(rightType);
+            const ext = gen.generateReg("ext");
+            gen.emit(`${ext} = ${castOp} ${srcType} ${idx} to i64`);
+            idx = ext;
+          }
+
+          const pointedType = {
+            ...leftType,
+            isPointer: leftType.isPointer - 1,
+          };
+          const llvmPointedType = gen.mapType(pointedType);
+
+          if (this.operator.type === TokenType.MINUS) {
+            const negIdx = gen.generateReg("neg_idx");
+            gen.emit(`${negIdx} = sub i64 0, ${idx}`);
+            gen.emit(
+              `${resultReg} = getelementptr ${llvmPointedType}, ptr ${ptr}, i64 ${negIdx}`,
+            );
+          } else {
+            gen.emit(
+              `${resultReg} = getelementptr ${llvmPointedType}, ptr ${ptr}, i64 ${idx}`,
+            );
+          }
+          return resultReg;
+        }
+      }
+
+      // Promote operands to i64 if needed
+      let lVal = leftVal;
+      let rVal = rightVal;
+
+      if (
+        leftType &&
+        this.getIntSize(leftType.name) < 8 &&
+        !leftType.isPointer
+      ) {
+        const isSigned = ["i8", "i16", "i32"].includes(leftType.name);
+        const castOp = isSigned ? "sext" : "zext";
+        const srcType = gen.mapType(leftType);
+        const ext = gen.generateReg("ext");
+        gen.emit(`${ext} = ${castOp} ${srcType} ${lVal} to i64`);
+        lVal = ext;
+      }
+
+      if (
+        rightType &&
+        this.getIntSize(rightType.name) < 8 &&
+        !rightType.isPointer
+      ) {
+        const isSigned = ["i8", "i16", "i32"].includes(rightType.name);
+        const castOp = isSigned ? "sext" : "zext";
+        const srcType = gen.mapType(rightType);
+        const ext = gen.generateReg("ext");
+        gen.emit(`${ext} = ${castOp} ${srcType} ${rVal} to i64`);
+        rVal = ext;
+      }
+
+      const op = this.getIntOp(this.operator.type);
+
+      if (op.startsWith("icmp")) {
+        gen.emit(`${resultReg} = ${op} i64 ${lVal}, ${rVal}`);
+        const zext = gen.generateReg("zext");
+        gen.emit(`${zext} = zext i1 ${resultReg} to i64`);
+        return zext;
+      }
+
+      gen.emit(`${resultReg} = ${op} i64 ${lVal}, ${rVal}`);
+    }
+
+    return resultReg;
+  }
+
+  private generateAssignmentIR(gen: LlvmGenerator, scope: Scope): string {
+    let ptr = "";
+    if (this.left.type === ExpressionType.IdentifierExpr) {
+      const ident = this.left as any; // IdentifierExpr
+      const info = scope.resolve(ident.name);
+      if (info && info.llvmName) {
+        ptr = info.llvmName;
+      } else {
+        throw new Error(`Variable ${ident.name} not found or no LLVM info`);
+      }
+    } else if (this.left.type === ExpressionType.MemberAccessExpression) {
+      // MemberAccessExpr generateIR returns pointer if LHS context is set
+      scope.setCurrentContext({ type: "LHS" });
+      ptr = this.left.generateIR(gen, scope);
+      scope.removeCurrentContext("LHS");
+    } else {
+      // Assume LHS evaluates to a pointer (address)
+      // e.g. (ptr + offset) = val
+      // For UnaryExpr (dereference), we need to set LHS context to get address instead of value
+      scope.setCurrentContext({ type: "LHS" });
+      ptr = this.left.generateIR(gen, scope);
+      scope.removeCurrentContext("LHS");
+    }
+
+    const rightVal = this.right.generateIR(gen, scope);
+
+    if (this.operator.type === TokenType.ASSIGN) {
+      let leftType = this.resolveExpressionType(this.left, scope);
+      if (!leftType) throw new Error("Cannot resolve LHS type");
+
+      if (
+        this.left.type !== ExpressionType.IdentifierExpr &&
+        this.left.type !== ExpressionType.MemberAccessExpression
+      ) {
+        if (leftType.isPointer > 0) {
+          leftType = { ...leftType, isPointer: leftType.isPointer - 1 };
+        }
+      }
+
+      const llvmType = gen.mapType(leftType);
+      let valToStore = rightVal;
+      const rightType = this.resolveExpressionType(this.right, scope);
+
+      // Determine if rightVal is i64 (promoted) or native size
+      let rightIsI64 = false;
+      if (
+        (this.right.type === ExpressionType.BinaryExpression ||
+          this.right.type === ExpressionType.NumberLiteralExpr) &&
+        (!rightType ||
+          (rightType.isPointer === 0 && rightType.isArray.length === 0))
+      ) {
+        const isFloat =
+          rightType?.name === "f64" ||
+          rightType?.name === "f32" ||
+          (this.right as any).operator?.type === TokenType.SLASH; // BinaryExpr might be float div
+        if (!isFloat) rightIsI64 = true;
+      }
+
+      if (rightIsI64) {
+        if (leftType.isPointer > 0) {
+          const inttoptr = gen.generateReg("inttoptr");
+          gen.emit(`${inttoptr} = inttoptr i64 ${valToStore} to ptr`);
+          valToStore = inttoptr;
+        } else if (this.getIntSize(leftType.name) < 8 && !leftType.isPointer) {
+          const trunc = gen.generateReg("trunc");
+          gen.emit(`${trunc} = trunc i64 ${valToStore} to ${llvmType}`);
+          valToStore = trunc;
+        }
+      } else if (rightType) {
+        // Right is native size. Check for mismatch.
+        const rightSize = this.getIntSize(rightType.name);
+        const leftSize = this.getIntSize(leftType.name);
+        const rightLLVMType = gen.mapType(rightType);
+
+        if (leftType.name === "f64" && rightType.name === "f32") {
+          const ext = gen.generateReg("ext");
+          gen.emit(`${ext} = fpext float ${valToStore} to double`);
+          valToStore = ext;
+        } else if (leftType.name === "f32" && rightType.name === "f64") {
+          const trunc = gen.generateReg("trunc");
+          gen.emit(`${trunc} = fptrunc double ${valToStore} to float`);
+          valToStore = trunc;
+        } else if (
+          rightSize > leftSize &&
+          !leftType.isPointer &&
+          !rightType.isPointer
+        ) {
+          const trunc = gen.generateReg("trunc");
+          gen.emit(
+            `${trunc} = trunc ${rightLLVMType} ${valToStore} to ${llvmType}`,
+          );
+          valToStore = trunc;
+        } else if (
+          rightSize < leftSize &&
+          !leftType.isPointer &&
+          !rightType.isPointer
+        ) {
+          const ext = gen.generateReg("ext");
+          const isSigned = ["i8", "i16", "i32"].includes(rightType.name);
+          const op = isSigned ? "sext" : "zext";
+          gen.emit(
+            `${ext} = ${op} ${rightLLVMType} ${valToStore} to ${llvmType}`,
+          );
+          valToStore = ext;
+        }
+      }
+
+      gen.emit(`store ${llvmType} ${valToStore}, ptr ${ptr}`);
+    } else {
+      // Compound assignment: load, op, store
+      const leftType = this.resolveExpressionType(this.left, scope);
+      if (!leftType) throw new Error("Cannot resolve LHS type");
+      const llvmType = gen.mapType(leftType);
+
+      const tmp = gen.generateReg("load");
+      gen.emit(`${tmp} = load ${llvmType}, ptr ${ptr}`);
+
+      const isFloat = leftType.name === "f64" || leftType.name === "f32";
+      let op = "";
+      let rVal = rightVal;
+
+      if (isFloat) {
+        op = this.getFloatOp(this.operator.type);
+        // Convert RHS if needed
+        const rightType = this.resolveExpressionType(this.right, scope);
+        if (rightType?.name !== "f64" && rightType?.name !== "f32") {
+          const conv = gen.generateReg("conv");
+          gen.emit(`${conv} = sitofp i64 ${rVal} to ${llvmType}`);
+          rVal = conv;
+        } else if (rightType.name !== leftType.name) {
+          // Convert float types
+          const conv = gen.generateReg("conv");
+          if (leftType.name === "f64") {
+            gen.emit(`${conv} = fpext float ${rVal} to double`);
+          } else {
+            gen.emit(`${conv} = fptrunc double ${rVal} to float`);
+          }
+          rVal = conv;
+        }
+        const res = gen.generateReg("res");
+        gen.emit(`${res} = ${op} ${llvmType} ${tmp}, ${rVal}`);
+        gen.emit(`store ${llvmType} ${res}, ptr ${ptr}`);
+      } else {
+        op = this.getIntOp(this.operator.type);
+
+        let lhsVal = tmp;
+        if (this.getIntSize(leftType.name) < 8 && !leftType.isPointer) {
+          const isSigned = ["i8", "i16", "i32"].includes(leftType.name);
+          const castOp = isSigned ? "sext" : "zext";
+          const ext = gen.generateReg("ext");
+          gen.emit(`${ext} = ${castOp} ${llvmType} ${lhsVal} to i64`);
+          lhsVal = ext;
+        }
+
+        const rightType = this.resolveExpressionType(this.right, scope);
+        if (
+          rightType &&
+          this.getIntSize(rightType.name) < 8 &&
+          !rightType.isPointer
+        ) {
+          const isSigned = ["i8", "i16", "i32"].includes(rightType.name);
+          const castOp = isSigned ? "sext" : "zext";
+          const srcType = gen.mapType(rightType);
+          const ext = gen.generateReg("ext");
+          gen.emit(`${ext} = ${castOp} ${srcType} ${rVal} to i64`);
+          rVal = ext;
+        }
+
+        const res = gen.generateReg("res");
+        gen.emit(`${res} = ${op} i64 ${lhsVal}, ${rVal}`);
+
+        let finalRes = res;
+        if (this.getIntSize(leftType.name) < 8 && !leftType.isPointer) {
+          const trunc = gen.generateReg("trunc");
+          gen.emit(`${trunc} = trunc i64 ${res} to ${llvmType}`);
+          finalRes = trunc;
+        }
+        gen.emit(`store ${llvmType} ${finalRes}, ptr ${ptr}`);
+      }
+    }
+
+    return rightVal; // Return the assigned value
+  }
+
+  private getIntOp(type: TokenType): string {
+    switch (type) {
+      case TokenType.PLUS:
+        return "add";
+      case TokenType.MINUS:
+        return "sub";
+      case TokenType.STAR:
+        return "mul";
+      case TokenType.SLASH:
+        return "sdiv";
+      case TokenType.SLASH_SLASH:
+        return "sdiv";
+      case TokenType.PERCENT:
+        return "srem";
+      case TokenType.PLUS_ASSIGN:
+        return "add";
+      case TokenType.MINUS_ASSIGN:
+        return "sub";
+      case TokenType.STAR_ASSIGN:
+        return "mul";
+      case TokenType.SLASH_ASSIGN:
+        return "sdiv";
+      case TokenType.PERCENT_ASSIGN:
+        return "srem";
+      case TokenType.CARET_ASSIGN:
+        return "xor";
+      case TokenType.AMPERSAND_ASSIGN:
+        return "and";
+      case TokenType.PIPE_ASSIGN:
+        return "or";
+      case TokenType.EQUAL:
+        return "icmp eq";
+      case TokenType.NOT_EQUAL:
+        return "icmp ne";
+      case TokenType.LESS_THAN:
+        return "icmp slt";
+      case TokenType.GREATER_THAN:
+        return "icmp sgt";
+      case TokenType.LESS_EQUAL:
+        return "icmp sle";
+      case TokenType.GREATER_EQUAL:
+        return "icmp sge";
+      case TokenType.AND:
+        return "and";
+      case TokenType.OR:
+        return "or";
+      case TokenType.CARET:
+        return "xor";
+      case TokenType.AMPERSAND:
+        return "and";
+      case TokenType.PIPE:
+        return "or";
+      case TokenType.BITSHIFT_LEFT:
+        return "shl";
+      case TokenType.BITSHIFT_RIGHT:
+        return "ashr"; // Arithmetic shift right (signed)
+      default:
+        throw new Error(`Unsupported int operator: ${type}`);
+    }
+  }
+
+  private getFloatOp(type: TokenType): string {
+    switch (type) {
+      case TokenType.PLUS:
+      case TokenType.PLUS_ASSIGN:
+        return "fadd";
+      case TokenType.MINUS:
+      case TokenType.MINUS_ASSIGN:
+        return "fsub";
+      case TokenType.STAR:
+      case TokenType.STAR_ASSIGN:
+        return "fmul";
+      case TokenType.SLASH:
+      case TokenType.SLASH_ASSIGN:
+        return "fdiv";
+      case TokenType.EQUAL:
+        return "fcmp oeq";
+      case TokenType.NOT_EQUAL:
+        return "fcmp one";
+      case TokenType.LESS_THAN:
+        return "fcmp olt";
+      case TokenType.GREATER_THAN:
+        return "fcmp ogt";
+      case TokenType.LESS_EQUAL:
+        return "fcmp ole";
+      case TokenType.GREATER_EQUAL:
+        return "fcmp oge";
+      default:
+        throw new Error(`Unsupported float operator: ${type}`);
+    }
+  }
+
   private getIntSize(typeName: string): number {
     switch (typeName) {
       case "i8":
@@ -416,6 +919,10 @@ export default class BinaryExpr extends Expression {
       case "u64":
       case "int":
       case "usize":
+        return 8;
+      case "f32":
+        return 4;
+      case "f64":
         return 8;
       default:
         return 8;
@@ -451,7 +958,15 @@ export default class BinaryExpr extends Expression {
         }
         return null;
       } else {
-        const typeInfo = scope.resolveType(objectType.name);
+        let typeInfo;
+        if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+          typeInfo = scope.resolveGenericType(
+            objectType.name,
+            objectType.genericArgs,
+          );
+        } else {
+          typeInfo = scope.resolveType(objectType.name);
+        }
         if (!typeInfo) return null;
 
         const propertyName = (memberExpr.property as any).name;
@@ -522,6 +1037,10 @@ export default class BinaryExpr extends Expression {
         }
       }
       return null;
+    } else if (expr.type === ExpressionType.FunctionCall) {
+      const funcCall = expr as any;
+      const func = scope.resolveFunction(funcCall.functionName);
+      return func ? func.returnType : null;
     } else if (expr.type === ExpressionType.NumberLiteralExpr) {
       const numExpr = expr as NumberLiteralExpr;
       if (numExpr.value.includes(".")) {
@@ -646,8 +1165,10 @@ export default class BinaryExpr extends Expression {
       if (leftType?.name === "f32") {
         gen.emit("cvtsd2ss xmm0, xmm0", "Convert result f64 to f32");
         gen.emit("movss [rax], xmm0", "Store f32");
+        gen.emit("movd eax, xmm0", "Move f32 result to RAX");
       } else if (leftType?.name === "f64") {
         gen.emit("movsd [rax], xmm0", "Store f64");
+        gen.emit("movq rax, xmm0", "Move f64 result to RAX");
       } else {
         // Store into int
         gen.emit("cvttsd2si rbx, xmm0", "Convert result to int");
@@ -656,6 +1177,7 @@ export default class BinaryExpr extends Expression {
         else if (typeInfo?.size === 2) gen.emit("mov [rax], bx");
         else if (typeInfo?.size === 4) gen.emit("mov [rax], ebx");
         else gen.emit("mov [rax], rbx");
+        gen.emit("mov rax, rbx", "Move int result to RAX");
       }
       return;
     }
@@ -722,6 +1244,7 @@ export default class BinaryExpr extends Expression {
         break;
       case TokenType.PIPE_ASSIGN:
         gen.emit("or [rax], rbx", "Bitwise OR assignment");
+        gen.emit("mov rax, rbx", "Restore rax from rbx");
         break;
       default:
         throw new Error(

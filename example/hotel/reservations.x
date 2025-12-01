@@ -1,6 +1,8 @@
 import [Reservation], [User], [Room] from "./types.x";
 import printf, malloc, free from "libc";
 
+extern malloc(size: u64) ret *u8;
+
 global g_res_head: *Reservation = NULL;
 global g_res_id_counter: u64 = 1;
 

@@ -18,6 +18,12 @@ import {
   Hover,
   MarkupKind,
   TextEdit,
+  CodeActionParams,
+  CodeAction,
+  CodeActionKind,
+  WorkspaceEdit,
+  ReferenceParams,
+  RenameParams,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -100,6 +106,12 @@ connection.onInitialize((params: InitializeParams) => {
       hoverProvider: true,
       // Tell the client that this server supports formatting.
       documentFormattingProvider: true,
+      // Tell the client that this server supports code actions.
+      codeActionProvider: true,
+      // Tell the client that this server supports references.
+      referencesProvider: true,
+      // Tell the client that this server supports rename.
+      renameProvider: true,
     },
   };
   if (hasWorkspaceFolderCapability) {
@@ -452,6 +464,55 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
+connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
+  const actions: CodeAction[] = [];
+
+  for (const diagnostic of params.context.diagnostics) {
+    if (
+      diagnostic.message.includes("is declared but never used") &&
+      diagnostic.source === "bpl"
+    ) {
+      // Extract variable name from message: "Variable 'x' is declared..."
+      const match = diagnostic.message.match(/'([^']+)'/);
+      if (match) {
+        const varName = match[1];
+        const newName = `_${varName}`;
+
+        // Let's try to find the token in the line.
+        const document = documents.get(params.textDocument.uri);
+        if (document) {
+          const lineText = document.getText(diagnostic.range);
+          const regex = new RegExp(`[\\s(,)]${varName}\\b`);
+          const match = regex.exec(lineText);
+          if (match) {
+            const varStartIndex = match.index + 1;
+            const range = Range.create(
+              diagnostic.range.start.line,
+              varStartIndex,
+              diagnostic.range.start.line,
+              varStartIndex + varName.length,
+            );
+
+            const action: CodeAction = {
+              title: `Rename to '${newName}' to suppress warning`,
+              kind: CodeActionKind.QuickFix,
+              diagnostics: [diagnostic],
+              edit: {
+                changes: {
+                  [params.textDocument.uri]: [TextEdit.replace(range, newName)],
+                },
+              },
+            };
+            actions.push(action);
+          }
+        }
+      }
+    }
+  }
+
+  return actions;
+});
+
 connection.onDefinition((params: DefinitionParams): Location | null => {
   const ast = documentASTs.get(params.textDocument.uri);
   if (!ast) return null;
@@ -467,8 +528,11 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
     if (node.contextScope) {
       const symbol = node.contextScope.resolve(node.name);
       if (symbol && symbol.declaration) {
+        const uri = symbol.sourceFile
+          ? pathToFileURL(symbol.sourceFile).toString()
+          : params.textDocument.uri;
         return {
-          uri: params.textDocument.uri,
+          uri: uri,
           range: {
             start: {
               line: symbol.declaration.line - 1,
@@ -487,8 +551,11 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
     if (node.contextScope) {
       const func = node.contextScope.resolveFunction(node.functionName);
       if (func && func.declaration) {
+        const uri = func.sourceFile
+          ? pathToFileURL(func.sourceFile).toString()
+          : params.textDocument.uri;
         return {
-          uri: params.textDocument.uri,
+          uri: uri,
           range: {
             start: {
               line: func.declaration.line - 1,
@@ -583,6 +650,295 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
   }
 
   return null;
+});
+
+connection.onReferences((params: ReferenceParams): Location[] => {
+  const ast = documentASTs.get(params.textDocument.uri);
+  const scope = documentScopes.get(params.textDocument.uri);
+  if (!ast || !scope) return [];
+
+  const line = params.position.line + 1;
+  const column = params.position.character + 1;
+
+  const node = findNodeAt(ast, line, column);
+  if (!node) return [];
+
+  let targetName = "";
+  let isFunction = false;
+
+  if (node instanceof IdentifierExpr) {
+    targetName = node.name;
+  } else if (node instanceof FunctionCallExpr) {
+    targetName = node.functionName;
+    isFunction = true;
+  } else if (node instanceof VariableDeclarationExpr) {
+    targetName = node.name;
+  } else if (node instanceof FunctionDeclarationExpr) {
+    targetName = node.name;
+    isFunction = true;
+  } else {
+    return [];
+  }
+
+  const locations: Location[] = [];
+
+  // Helper to traverse AST and find usages
+  function findUsages(expr: Expression) {
+    if (expr instanceof IdentifierExpr) {
+      if (expr.name === targetName && !isFunction) {
+        if (expr.startToken) {
+          locations.push({
+            uri: params.textDocument.uri,
+            range: {
+              start: {
+                line: expr.startToken.line - 1,
+                character: expr.startToken.column - 1,
+              },
+              end: {
+                line: expr.startToken.line - 1,
+                character:
+                  expr.startToken.column - 1 + expr.startToken.value.length,
+              },
+            },
+          });
+        }
+      }
+    } else if (expr instanceof FunctionCallExpr) {
+      if (expr.functionName === targetName && isFunction) {
+        if (expr.startToken) {
+          // FunctionCallExpr startToken is usually the name
+          // But let's be safe and check if we have a name token or if startToken is the name
+          // The parser sets startToken to the first token.
+          // For `foo()`, startToken is `foo`.
+          locations.push({
+            uri: params.textDocument.uri,
+            range: {
+              start: {
+                line: expr.startToken.line - 1,
+                character: expr.startToken.column - 1,
+              },
+              end: {
+                line: expr.startToken.line - 1,
+                character:
+                  expr.startToken.column - 1 + expr.startToken.value.length,
+              },
+            },
+          });
+        }
+      }
+      for (const arg of expr.args) findUsages(arg);
+    } else if (expr instanceof VariableDeclarationExpr) {
+      if (expr.name === targetName && !isFunction) {
+        if (expr.nameToken) {
+          locations.push({
+            uri: params.textDocument.uri,
+            range: {
+              start: {
+                line: expr.nameToken.line - 1,
+                character: expr.nameToken.column - 1,
+              },
+              end: {
+                line: expr.nameToken.line - 1,
+                character:
+                  expr.nameToken.column - 1 + expr.nameToken.value.length,
+              },
+            },
+          });
+        }
+      }
+      if (expr.value) findUsages(expr.value);
+    } else if (expr instanceof FunctionDeclarationExpr) {
+      if (expr.name === targetName && isFunction) {
+        if (expr.nameToken) {
+          locations.push({
+            uri: params.textDocument.uri,
+            range: {
+              start: {
+                line: expr.nameToken.line - 1,
+                character: expr.nameToken.column - 1,
+              },
+              end: {
+                line: expr.nameToken.line - 1,
+                character:
+                  expr.nameToken.column - 1 + expr.nameToken.value.length,
+              },
+            },
+          });
+        }
+      }
+      findUsages(expr.body);
+    } else if (expr instanceof BlockExpr) {
+      for (const e of expr.expressions) findUsages(e);
+    } else if (expr instanceof IfExpr) {
+      findUsages(expr.condition);
+      findUsages(expr.thenBranch);
+      if (expr.elseBranch) findUsages(expr.elseBranch);
+    } else if (expr instanceof LoopExpr) {
+      findUsages(expr.body);
+    } else if (expr instanceof BinaryExpr) {
+      findUsages(expr.left);
+      findUsages(expr.right);
+    } else if (expr instanceof UnaryExpr) {
+      findUsages(expr.right);
+    } else if (expr instanceof ReturnExpr) {
+      if (expr.value) findUsages(expr.value);
+    } else if (expr instanceof MemberAccessExpr) {
+      findUsages(expr.object);
+      if (expr.isIndexAccess) findUsages(expr.property);
+    } else if (expr instanceof ProgramExpr) {
+      for (const e of expr.expressions) findUsages(e);
+    }
+    // Add other expression types as needed
+  }
+
+  findUsages(ast);
+  return locations;
+});
+
+connection.onRenameRequest((params: RenameParams): WorkspaceEdit | null => {
+  const ast = documentASTs.get(params.textDocument.uri);
+  if (!ast) return null;
+
+  const line = params.position.line + 1;
+  const column = params.position.character + 1;
+
+  const node = findNodeAt(ast, line, column);
+  if (!node) return null;
+
+  let targetName = "";
+  let isFunction = false;
+
+  if (node instanceof IdentifierExpr) {
+    targetName = node.name;
+  } else if (node instanceof FunctionCallExpr) {
+    targetName = node.functionName;
+    isFunction = true;
+  } else if (node instanceof VariableDeclarationExpr) {
+    targetName = node.name;
+  } else if (node instanceof FunctionDeclarationExpr) {
+    targetName = node.name;
+    isFunction = true;
+  } else {
+    return null;
+  }
+
+  const changes: { [uri: string]: TextEdit[] } = {};
+  changes[params.textDocument.uri] = [];
+
+  // Reuse findUsages logic but return TextEdits
+  function findUsagesAndRename(expr: Expression) {
+    if (expr instanceof IdentifierExpr) {
+      if (expr.name === targetName && !isFunction) {
+        if (expr.startToken) {
+          changes[params.textDocument.uri].push(
+            TextEdit.replace(
+              {
+                start: {
+                  line: expr.startToken.line - 1,
+                  character: expr.startToken.column - 1,
+                },
+                end: {
+                  line: expr.startToken.line - 1,
+                  character:
+                    expr.startToken.column - 1 + expr.startToken.value.length,
+                },
+              },
+              params.newName,
+            ),
+          );
+        }
+      }
+    } else if (expr instanceof FunctionCallExpr) {
+      if (expr.functionName === targetName && isFunction) {
+        if (expr.startToken) {
+          changes[params.textDocument.uri].push(
+            TextEdit.replace(
+              {
+                start: {
+                  line: expr.startToken.line - 1,
+                  character: expr.startToken.column - 1,
+                },
+                end: {
+                  line: expr.startToken.line - 1,
+                  character:
+                    expr.startToken.column - 1 + expr.startToken.value.length,
+                },
+              },
+              params.newName,
+            ),
+          );
+        }
+      }
+      for (const arg of expr.args) findUsagesAndRename(arg);
+    } else if (expr instanceof VariableDeclarationExpr) {
+      if (expr.name === targetName && !isFunction) {
+        if (expr.nameToken) {
+          changes[params.textDocument.uri].push(
+            TextEdit.replace(
+              {
+                start: {
+                  line: expr.nameToken.line - 1,
+                  character: expr.nameToken.column - 1,
+                },
+                end: {
+                  line: expr.nameToken.line - 1,
+                  character:
+                    expr.nameToken.column - 1 + expr.nameToken.value.length,
+                },
+              },
+              params.newName,
+            ),
+          );
+        }
+      }
+      if (expr.value) findUsagesAndRename(expr.value);
+    } else if (expr instanceof FunctionDeclarationExpr) {
+      if (expr.name === targetName && isFunction) {
+        if (expr.nameToken) {
+          changes[params.textDocument.uri].push(
+            TextEdit.replace(
+              {
+                start: {
+                  line: expr.nameToken.line - 1,
+                  character: expr.nameToken.column - 1,
+                },
+                end: {
+                  line: expr.nameToken.line - 1,
+                  character:
+                    expr.nameToken.column - 1 + expr.nameToken.value.length,
+                },
+              },
+              params.newName,
+            ),
+          );
+        }
+      }
+      findUsagesAndRename(expr.body);
+    } else if (expr instanceof BlockExpr) {
+      for (const e of expr.expressions) findUsagesAndRename(e);
+    } else if (expr instanceof IfExpr) {
+      findUsagesAndRename(expr.condition);
+      findUsagesAndRename(expr.thenBranch);
+      if (expr.elseBranch) findUsagesAndRename(expr.elseBranch);
+    } else if (expr instanceof LoopExpr) {
+      findUsagesAndRename(expr.body);
+    } else if (expr instanceof BinaryExpr) {
+      findUsagesAndRename(expr.left);
+      findUsagesAndRename(expr.right);
+    } else if (expr instanceof UnaryExpr) {
+      findUsagesAndRename(expr.right);
+    } else if (expr instanceof ReturnExpr) {
+      if (expr.value) findUsagesAndRename(expr.value);
+    } else if (expr instanceof MemberAccessExpr) {
+      findUsagesAndRename(expr.object);
+      if (expr.isIndexAccess) findUsagesAndRename(expr.property);
+    } else if (expr instanceof ProgramExpr) {
+      for (const e of expr.expressions) findUsagesAndRename(e);
+    }
+  }
+
+  findUsagesAndRename(ast);
+  return { changes };
 });
 
 function isTokenAt(

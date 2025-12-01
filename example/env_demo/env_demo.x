@@ -1,4 +1,5 @@
 import printf, getenv from "libc";
+extern getenv(name: *u8) ret *u8;
 
 frame main(_argc: u32, _argv: **u8, envp: **u8) ret u8 {
     call printf("--- Environment Variables (from main arg) ---\"\n");

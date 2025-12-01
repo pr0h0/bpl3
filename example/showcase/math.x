@@ -29,9 +29,9 @@ frame vec3_dot(a: *Vector3, b: *Vector3) ret f64 {
 frame sqrt(val: f64) ret f64 {
     local res: f64 = 0.0;
     asm {
-        movsd xmm0, (val)
+        movsd xmm0, [(val)]
         sqrtsd xmm0, xmm0
-        movsd (res), xmm0
+        movsd [(res)], xmm0
     }
     return res;
 }

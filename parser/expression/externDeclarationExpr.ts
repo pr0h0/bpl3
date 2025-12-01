@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
@@ -61,5 +62,22 @@ export default class ExternDeclarationExpr extends Expression {
       isExternal: true,
       isVariadic: this.isVariadic,
     });
+
+    gen.emitImportStatement(`extern ${this.name}`);
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    scope.defineFunction(this.name, {
+      args: this.args,
+      returnType: this.returnType,
+      endLabel: this.name + "_end",
+      label: this.name,
+      name: this.name,
+      startLabel: this.name,
+      isExternal: true,
+      isVariadic: this.isVariadic,
+    });
+
+    return "";
   }
 }

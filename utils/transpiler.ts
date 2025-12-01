@@ -1,5 +1,6 @@
 import { resolve, dirname } from "path";
 import AsmGenerator from "../transpiler/AsmGenerator";
+import LlvmGenerator from "../transpiler/LlvmGenerator";
 import Scope from "../transpiler/Scope";
 import HelperGenerator from "../transpiler/HelperGenerator";
 import type ProgramExpr from "../parser/expression/programExpr";
@@ -12,7 +13,7 @@ import {
   extractExportStatements,
 } from "./parser";
 import { saveToFile } from "./file";
-import { compileAsmFile } from "./compiler";
+import { compileAsmFile, compileLlvmIrToObject } from "./compiler";
 
 export function transpileProgram(
   program: ProgramExpr,
@@ -47,11 +48,146 @@ export function transpileProgram(
   return gen.build();
 }
 
+export function transpileProgramLlvm(
+  program: ProgramExpr,
+  gen?: LlvmGenerator,
+  scope?: Scope,
+) {
+  if (!gen) {
+    gen = new LlvmGenerator();
+  }
+  if (!scope) {
+    scope = new Scope();
+  }
+
+  if (!scope.resolveType("u8")) {
+    HelperGenerator.generateBaseTypes(gen as any, scope);
+  }
+
+  const analyzer = new SemanticAnalyzer();
+  analyzer.analyze(program, scope);
+
+  for (const warning of analyzer.warnings) {
+    ErrorReporter.warn(warning);
+  }
+
+  program.optimize();
+  program.generateIR(gen, scope);
+  return gen.build();
+}
+
 export function transpileFile(filePath: string): string {
   const program = parseFile(filePath) as ProgramExpr;
   const gen = new AsmGenerator();
   gen.setSourceFile(filePath);
   return transpileProgram(program, gen);
+}
+
+export function parseLibraryFileLlvm(
+  libFilePath: string,
+  scope: Scope,
+  visited: Set<string> = new Set(),
+): string[] {
+  const absoluteLibPath = resolve(libFilePath);
+  if (visited.has(absoluteLibPath)) {
+    return [];
+  }
+  visited.add(absoluteLibPath);
+
+  const program = parseFile(libFilePath) as ProgramExpr;
+  const imports = extractImportStatements(program);
+  const objectFiles: string[] = [];
+
+  for (const importExpr of imports) {
+    let moduleName = importExpr.moduleName;
+    let absolutePath = "";
+
+    if (moduleName === "std") {
+      absolutePath = resolve(__dirname, "../lib/std.x");
+    } else if (moduleName.startsWith(".") || moduleName.startsWith("/")) {
+      const libDir = dirname(resolve(libFilePath));
+      absolutePath = resolve(libDir, moduleName);
+    } else {
+      continue;
+    }
+
+    if (absolutePath.endsWith(".x")) {
+      const importedScope = new Scope();
+      const nestedLibs = parseLibraryFileLlvm(
+        absolutePath,
+        importedScope,
+        visited,
+      );
+      objectFiles.push(...nestedLibs);
+
+      const importedProgram = parseFile(absolutePath);
+
+      const gen = new LlvmGenerator();
+      gen.setSourceFile(absolutePath);
+      const asmContent = transpileProgramLlvm(
+        importedProgram,
+        gen,
+        importedScope,
+      );
+
+      const asmFile = absolutePath.replace(/\.x$/, ".ll");
+      saveToFile(asmFile, asmContent);
+      const objFile = compileLlvmIrToObject(asmFile);
+      objectFiles.push(objFile);
+
+      const importedExports = extractExportStatements(
+        importedProgram,
+      ) as ExportExpr[];
+
+      for (const imp of importExpr.importName) {
+        const match = importedExports.find(
+          (e) => e.exportName === imp.name && e.exportType === imp.type,
+        );
+        if (!match) {
+          throw new Error(
+            `Import ${imp.name} (${imp.type}) not found in ${absolutePath}`,
+          );
+        }
+      }
+
+      for (const imp of importExpr.importName) {
+        if (imp.type === "type") {
+          const typeInfo = importedScope.resolveType(imp.name);
+          if (typeInfo) {
+            scope.defineType(imp.name, typeInfo);
+          } else {
+            throw new Error(
+              `Imported type ${imp.name} not found in ${absolutePath}`,
+            );
+          }
+        }
+      }
+
+      for (const imp of importExpr.importName) {
+        if (imp.type === "function") {
+          const funcInfo = importedScope.resolveFunction(imp.name);
+          if (funcInfo) {
+            scope.defineFunction(imp.name, {
+              ...funcInfo,
+              label: funcInfo.name,
+              startLabel: funcInfo.name,
+              endLabel: funcInfo.name,
+              isExternal: true,
+              llvmName: `@${funcInfo.name}`,
+            });
+          } else {
+            throw new Error(
+              `Imported function ${imp.name} not found in ${absolutePath}`,
+            );
+          }
+        }
+      }
+    } else {
+      objectFiles.push(absolutePath);
+      // ... handle object file imports ...
+    }
+  }
+  return objectFiles;
 }
 
 export function parseLibraryFile(

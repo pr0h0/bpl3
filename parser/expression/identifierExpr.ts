@@ -1,5 +1,6 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -98,5 +99,35 @@ export default class IdentifierExpr extends Expression {
         gen.emit(`mov rax, [${operand}]`);
       }
     }
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    const symbol = scope.resolve(this.name);
+    if (!symbol) {
+      throw new Error(`Undefined identifier: ${this.name}`);
+    }
+
+    if (!symbol.llvmName) {
+      const func = scope.resolveFunction(this.name);
+      if (func) {
+        return `@${func.name}`;
+      }
+      throw new Error(`Variable ${this.name} has no LLVM representation`);
+    }
+
+    const context = scope.getCurrentContext("LHS");
+    if (context) {
+      return symbol.llvmName;
+    }
+
+    if (symbol.varType.isArray.length > 0) {
+      // Array decay: return pointer to array
+      return symbol.llvmName;
+    }
+
+    const type = gen.mapType(symbol.varType);
+    const reg = gen.generateReg("load");
+    gen.emit(`${reg} = load ${type}, ptr ${symbol.llvmName}`);
+    return reg;
   }
 }

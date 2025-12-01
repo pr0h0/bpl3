@@ -1,10 +1,9 @@
-import print from "std";
 import scanf, printf from "c";
 
 frame get_input() ret u64 {
-    local num: u64;
-    call print("Enter a number: ");
-    call scanf("%d", &num);
+    local num: u64 = 0;
+    call printf("Enter a number: ");
+    call scanf("%llu", &num);
     return num;
 }
 

@@ -16,3 +16,8 @@ use proper indentation for code blocks within functions, loops, and conditionals
 use "call printf("%s", s)" for printing output to the console.
 use "import printf from 'libc'" to import the printf function for output.
 when writing shell scripts, use "#!/bin/bash" at the top of the file.
+when testing something use ./tests.sh
+also when want to run one test use ./tests.sh example_dir_name  eg ./tests.sh fib
+to run llvm tests use --llvm flag right after script name eg ./tests.sh --llvm or ./tests.sh --llvm fib
+to run some source file use bun index.ts example/fib/fib.x, use --llvm flag to run llvm code, use -r to run the cod
+check README.md for other flags

@@ -138,7 +138,7 @@ frame main() ret u8 {
 
     # Exit the program with a successful exit code (0)
     asm {
-        mov rax, (count)
+        mov rax, [(count)]
         mov rax, 60     # syscall: exit
         mov rdi, 0      # exit code 0
         syscall

@@ -1,6 +1,8 @@
 #!/bin/bash
 source ../test_utils.sh
 
+
+
 # Configuration
 SOURCE_FILE="extern_demo.x"
 INPUT=""
@@ -21,3 +23,6 @@ fi
 
 # Cleanup
 rm -f "$EXE"
+rm -f *.o
+rm -f *.asm
+rm -f *.ll

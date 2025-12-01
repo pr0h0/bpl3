@@ -6,8 +6,8 @@ frame print(s: *u8) {
     asm {
         mov rax, 1
         mov rdi, 1
-        mov rsi, (s)
-        mov rdx, (len)
+        mov rsi, [(s)]
+        mov rdx, [(len)]
         syscall
     }
 }
@@ -15,7 +15,7 @@ frame print(s: *u8) {
 frame exit(code: u64) {
     asm {
         mov rax, 60
-        mov rdi, (code)
+        mov rdi, [(code)]
         syscall
     }
 }

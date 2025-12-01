@@ -1,5 +1,5 @@
 import printf from "libc";
-extern printf(fmt: string, ...);
+extern printf(fmt: *u8, ...);
 
 frame main() ret i64 {
     local a: i64 = 10;

@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
@@ -344,5 +345,150 @@ export default class FunctionDeclarationExpr extends Expression {
     gen.emit("pop rbp", "restore base pointer");
     gen.emit("ret", "return from function");
     // funcScope.allocLocal(-8); // RBP
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    // Ensure generic types are instantiated for args and return type
+    this.args.forEach((arg) => {
+      if (arg.type.genericArgs && arg.type.genericArgs.length > 0) {
+        scope.resolveGenericType(arg.type.name, arg.type.genericArgs);
+      }
+    });
+
+    if (
+      this.returnType &&
+      this.returnType.genericArgs &&
+      this.returnType.genericArgs.length > 0
+    ) {
+      scope.resolveGenericType(
+        this.returnType.name,
+        this.returnType.genericArgs,
+      );
+    }
+
+    const returnType = this.returnType ? gen.mapType(this.returnType) : "void";
+    const name = this.name === "main" ? "user_main" : this.name;
+
+    const existingFunc = scope.resolveFunction(this.name);
+    if (!existingFunc) {
+      scope.defineFunction(this.name, {
+        args: this.args,
+        returnType: this.returnType,
+        endLabel: name + "_end",
+        label: name,
+        name: this.name,
+        startLabel: name,
+        declaration: this.startToken,
+        isVariadic: this.isVariadic,
+      });
+    }
+
+    const argsList = this.args
+      .map((arg) => {
+        const type = gen.mapType(arg.type);
+        return `${type} %${arg.name}_arg`;
+      })
+      .join(", ");
+
+    const signatureArgs = this.isVariadic
+      ? argsList
+        ? argsList + ", ..."
+        : "..."
+      : argsList;
+
+    gen.emit(`define ${returnType} @${name}(${signatureArgs}) {`);
+    gen.emit("entry:");
+
+    const funcScope = new Scope(scope);
+    funcScope.setCurrentContext({
+      type: "function",
+      label: name,
+      endLabel: name + "_end",
+      returnType: this.returnType,
+    });
+
+    if (this.isVariadic) {
+      gen.emitGlobal("declare void @llvm.va_start(ptr)");
+
+      const vaList = gen.generateLocal("va_list");
+      gen.emit(`  %${vaList} = alloca %struct.__va_list_tag`);
+      gen.emit(`  call void @llvm.va_start(ptr %${vaList})`);
+
+      // Extract reg_save_area (index 3) and overflow_arg_area (index 2)
+      const regSaveAreaPtr = gen.generateReg("reg_save_area_ptr");
+      gen.emit(
+        `  ${regSaveAreaPtr} = getelementptr inbounds %struct.__va_list_tag, ptr %${vaList}, i32 0, i32 3`,
+      );
+      const regSaveArea = gen.generateReg("reg_save_area");
+      gen.emit(`  ${regSaveArea} = load ptr, ptr ${regSaveAreaPtr}`);
+
+      const overflowArgAreaPtr = gen.generateReg("overflow_arg_area_ptr");
+      gen.emit(
+        `  ${overflowArgAreaPtr} = getelementptr inbounds %struct.__va_list_tag, ptr %${vaList}, i32 0, i32 2`,
+      );
+      const overflowArgArea = gen.generateReg("overflow_arg_area");
+      gen.emit(`  ${overflowArgArea} = load ptr, ptr ${overflowArgAreaPtr}`);
+
+      // Count fixed GP arguments
+      let gpCount = 0;
+      this.args.forEach((arg) => {
+        const isFloat = arg.type.name === "f32" || arg.type.name === "f64";
+        if (!isFloat) gpCount++;
+      });
+
+      funcScope.define("__va_reg_save_area__", {
+        offset: "0",
+        type: "local",
+        varType: { name: "u64", isPointer: 1, isArray: [] },
+        llvmName: regSaveArea,
+      });
+
+      funcScope.define("__va_overflow_arg_area__", {
+        offset: "0",
+        type: "local",
+        varType: { name: "u64", isPointer: 1, isArray: [] },
+        llvmName: overflowArgArea,
+      });
+
+      funcScope.define("__va_gp_offset__", {
+        offset: gpCount.toString(),
+        type: "local",
+        varType: { name: "u64", isPointer: 0, isArray: [] },
+        llvmName: gpCount.toString(), // Store as constant string if possible, or we can use it directly
+      });
+
+      // Define 'args' to enable detection in MemberAccessExpr
+      funcScope.define("args", {
+        offset: "0",
+        type: "local",
+        varType: { name: "u64", isPointer: 1, isArray: [] }, // Treat as pointer-like for resolution
+        llvmName: "args_marker",
+      });
+    }
+
+    this.args.forEach((arg) => {
+      const type = gen.mapType(arg.type);
+      const ptr = gen.generateLocal(arg.name);
+      gen.emit(`  %${ptr} = alloca ${type}`);
+      gen.emit(`  store ${type} %${arg.name}_arg, ptr %${ptr}`);
+
+      funcScope.define(arg.name, {
+        offset: "0",
+        type: "local",
+        varType: arg.type,
+        llvmName: `%${ptr}`,
+      });
+    });
+
+    this.body.generateIR(gen, funcScope);
+
+    if (returnType === "void") {
+      gen.emit("  ret void");
+    } else {
+      gen.emit("  unreachable");
+    }
+
+    gen.emit("}");
+    return "";
   }
 }

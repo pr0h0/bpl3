@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type BlockExpr from "./blockExpr";
@@ -43,5 +44,28 @@ export default class LoopExpr extends Expression {
     gen.emitLabel(endLabel);
 
     scope.removeCurrentContext("loop");
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    const startLabel = gen.generateLabel("loop_start");
+    const endLabel = gen.generateLabel("loop_end");
+
+    scope.setCurrentContext({
+      type: "loop",
+      breakLabel: endLabel,
+      continueLabel: startLabel,
+      stackOffset: 0,
+    });
+
+    gen.emit(`br label %${startLabel}`);
+    gen.emitLabel(startLabel);
+
+    this.body.generateIR(gen, scope);
+
+    gen.emit(`br label %${startLabel}`);
+    gen.emitLabel(endLabel);
+
+    scope.removeCurrentContext("loop");
+    return "";
   }
 }

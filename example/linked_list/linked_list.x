@@ -1,6 +1,8 @@
 import print, exit from "std";
 import printf, malloc, free from "libc";
 
+extern malloc(size: u64) ret *u8;
+
 struct Node {
     value: u64,
     next: *Node,

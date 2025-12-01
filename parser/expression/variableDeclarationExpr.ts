@@ -1,4 +1,5 @@
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import ArrayLiteralExpr from "./arrayLiteralExpr";
@@ -7,6 +8,7 @@ import Expression from "./expr";
 import NullLiteralExpr from "./nullLiteralExpr";
 import NumberLiteralExpr from "./numberLiteralExpr";
 import StringLiteralExpr from "./stringLiteralExpr";
+import UnaryExpr from "./unaryExpr";
 import Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
 
@@ -69,18 +71,20 @@ export default class VariableDeclarationExpr extends Expression {
     return this;
   }
 
-  private resolveExprType(expr: Expression, scope: Scope): string | null {
+  private resolveExprType(expr: Expression, scope: Scope): VariableType | null {
     if (expr.type === ExpressionType.NumberLiteralExpr) {
-      return (expr as NumberLiteralExpr).value.includes(".") ? "f64" : "u64";
+      return (expr as NumberLiteralExpr).value.includes(".")
+        ? { name: "f64", isPointer: 0, isArray: [] }
+        : { name: "u64", isPointer: 0, isArray: [] };
     }
     if (expr.type === ExpressionType.IdentifierExpr) {
       const sym = scope.resolve((expr as any).name);
-      return sym ? sym.varType.name : null;
+      return sym ? sym.varType : null;
     }
     if (expr.type === ExpressionType.FunctionCall) {
       const call = expr as any;
       const func = scope.resolveFunction(call.functionName);
-      return func && func.returnType ? func.returnType.name : null;
+      return func ? func.returnType : null;
     }
     if (expr.type === ExpressionType.BinaryExpression) {
       const binExpr = expr as BinaryExpr;
@@ -88,46 +92,91 @@ export default class VariableDeclarationExpr extends Expression {
       const rightType = this.resolveExprType(binExpr.right, scope);
 
       if (binExpr.operator.type === TokenType.SLASH) {
-        if (leftType === "f64" || rightType === "f64") return "f64";
-        if (leftType === "f32" && rightType === "f32") return "f32";
-        // Integers -> f64 (unless small ints -> f32, but let's be safe or consistent with SemanticAnalyzer)
-        // SemanticAnalyzer: if leftSize > 4 || rightSize > 4 -> f64, else f32.
-        // Here we don't have sizes easily.
-        // But if we return f64, and it was f32, we might have issues.
-        // However, BinaryExpr logic for SLASH:
-        // if leftSize <= 4 && rightSize <= 4 -> f32
-        // else -> f64
-        // We need to match that.
-        // But we don't have sizes.
-        // Let's assume f64 for now as it's safer? No, if it returns f32 bits in eax, and we think f64, we fail.
-        // We MUST match BinaryExpr logic.
-        // We can try to resolve types fully using scope.
-        // But resolveExprType returns string.
-        // Let's try to get sizes.
-        const getIntSize = (name: string | null) => {
-          if (!name) return 8;
-          if (["u8", "i8", "bool", "char"].includes(name)) return 1;
-          if (["u16", "i16"].includes(name)) return 2;
-          if (["u32", "i32"].includes(name)) return 4;
-          return 8;
+        if (leftType?.name === "f64" || rightType?.name === "f64")
+          return { name: "f64", isPointer: 0, isArray: [] };
+        if (leftType?.name === "f32" && rightType?.name === "f32")
+          return { name: "f32", isPointer: 0, isArray: [] };
+
+        // Default to f64 for division if not f32
+        return { name: "f64", isPointer: 0, isArray: [] };
+      }
+
+      if (leftType?.name === "f64" || rightType?.name === "f64") {
+        return { name: "f64", isPointer: 0, isArray: [] };
+      }
+      if (leftType?.name === "f32" || rightType?.name === "f32") {
+        return { name: "f32", isPointer: 0, isArray: [] };
+      }
+      // Return left type if compatible?
+      return leftType;
+    }
+    if (expr.type === ExpressionType.MemberAccessExpression) {
+      const memberExpr = expr as any;
+      const objectType = this.resolveExprType(memberExpr.object, scope);
+      if (!objectType) return null;
+
+      if (memberExpr.isIndexAccess) {
+        if (objectType.isArray.length > 0) {
+          return {
+            name: objectType.name,
+            isPointer: objectType.isPointer,
+            isArray: objectType.isArray.slice(1),
+          };
+        } else if (objectType.isPointer > 0) {
+          return {
+            name: objectType.name,
+            isPointer: objectType.isPointer - 1,
+            isArray: [],
+          };
+        }
+        return null;
+      } else {
+        let typeInfo;
+        if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+          typeInfo = scope.resolveGenericType(
+            objectType.name,
+            objectType.genericArgs,
+          );
+        } else {
+          typeInfo = scope.resolveType(objectType.name);
+        }
+
+        if (!typeInfo) return null;
+
+        const propertyName = (memberExpr.property as any).name;
+        const member = typeInfo.members.get(propertyName);
+        if (!member) return null;
+
+        return {
+          name: member.name,
+          isPointer: member.isPointer,
+          isArray: member.isArray,
         };
-        const leftSize = getIntSize(leftType);
-        const rightSize = getIntSize(rightType);
-
-        if (leftType === "f64" || rightType === "f64") return "f64";
-        if (leftType === "f32" || rightType === "f32") return "f32"; // f32 / f32 -> f32
-
-        if (leftSize <= 4 && rightSize <= 4) return "f32";
-        return "f64";
       }
-
-      if (leftType === "f64" || rightType === "f64") {
-        return "f64";
+    }
+    if (expr.type === ExpressionType.UnaryExpression) {
+      const unaryExpr = expr as UnaryExpr;
+      if (unaryExpr.operator.type === TokenType.STAR) {
+        const opType = this.resolveExprType(unaryExpr.right, scope);
+        if (opType && opType.isPointer > 0) {
+          return {
+            name: opType.name,
+            isPointer: opType.isPointer - 1,
+            isArray: opType.isArray,
+          };
+        }
+      } else if (unaryExpr.operator.type === TokenType.AMPERSAND) {
+        const opType = this.resolveExprType(unaryExpr.right, scope);
+        if (opType) {
+          return {
+            name: opType.name,
+            isPointer: opType.isPointer + 1,
+            isArray: opType.isArray,
+          };
+        }
       }
-      if (leftType === "f32" || rightType === "f32") {
-        return "f32";
-      }
-      return null;
+      // Handle other unary ops if needed (e.g. MINUS preserves type)
+      return this.resolveExprType(unaryExpr.right, scope);
     }
     return null;
   }
@@ -214,20 +263,29 @@ export default class VariableDeclarationExpr extends Expression {
       // Handle float initialization
       const sourceType = this.resolveExprType(this.value, scope);
       if (this.varType.name === "f32") {
-        if (sourceType === "f32") {
+        if (sourceType?.name === "f32") {
           gen.emit(`mov [ rbp - ${offset} ], eax`, "Init f32 from f32");
-        } else {
+        } else if (sourceType?.name === "f64") {
           // Assume f64 (from literal or binary op)
           gen.emit("movq xmm0, rax", "Move f64 bits");
           gen.emit("cvtsd2ss xmm0, xmm0", "Convert f64 to f32");
           gen.emit("movd eax, xmm0", "Move f32 bits");
           gen.emit(`mov [ rbp - ${offset} ], eax`, "Init f32 from f64");
+        } else {
+          // Assume int -> f32
+          gen.emit("cvtsi2ss xmm0, rax", "Convert int to f32");
+          gen.emit("movd eax, xmm0", "Move f32 bits");
+          gen.emit(`mov [ rbp - ${offset} ], eax`, "Init f32 from int");
         }
         return;
       } else if (this.varType.name === "f64") {
-        if (sourceType === "f32") {
+        if (sourceType?.name === "f32") {
           gen.emit("movd xmm0, eax", "Move f32 bits");
           gen.emit("cvtss2sd xmm0, xmm0", "Convert f32 to f64");
+          gen.emit("movq rax, xmm0", "Move f64 bits");
+        } else if (sourceType?.name !== "f64") {
+          // Assume int -> f64
+          gen.emit("cvtsi2sd xmm0, rax", "Convert int to f64");
           gen.emit("movq rax, xmm0", "Move f64 bits");
         }
         gen.emit(
@@ -237,9 +295,9 @@ export default class VariableDeclarationExpr extends Expression {
         return;
       } else {
         // Target is int/struct
-        if (sourceType === "f64" || sourceType === "f32") {
+        if (sourceType?.name === "f64" || sourceType?.name === "f32") {
           // Convert float to int
-          if (sourceType === "f32") {
+          if (sourceType.name === "f32") {
             gen.emit("movd xmm0, eax", "Move f32 bits");
             gen.emit("cvtss2sd xmm0, xmm0", "Convert f32 to f64");
           } else {
@@ -349,9 +407,6 @@ export default class VariableDeclarationExpr extends Expression {
     if (!this.value && !this.varType.isArray.length) {
       gen.emitBss(label, "resb", baseSize);
       gen.startPrecomputeBlock();
-      // Initialize with 0? resb does that.
-      // But if we want to be explicit or if we have a value...
-      // If no value, resb is enough (zero initialized in BSS)
       gen.endPrecomputeBlock();
     } else if (!this.value && this.varType.isArray.length) {
       const arraySize = this.varType.isArray.reduce((a, b) => a * b, 1) || 1;
@@ -370,13 +425,13 @@ export default class VariableDeclarationExpr extends Expression {
         gen.emit("pop rbx", "Load array element");
         scope.stackOffset -= 8;
         gen.emit(
-          `mov [ rel ${label} + ${index} * 8 ], rbx`, // TODO: Handle non-8-byte array elements
+          `mov [ rel ${label} + ${index} * 8 ], rbx`,
           `Initialize global array variable ${this.name}[${index}]`,
         );
       });
       gen.endPrecomputeBlock();
     } else if (this.value instanceof NumberLiteralExpr) {
-      gen.emitData(label, "dq", this.value.value); // TODO: Handle size
+      gen.emitData(label, "dq", this.value.value);
     } else if (this.value instanceof NullLiteralExpr) {
       gen.emitData(label, "dq", 0);
     } else {
@@ -384,10 +439,185 @@ export default class VariableDeclarationExpr extends Expression {
       gen.startPrecomputeBlock();
       this.value!.transpile(gen, scope);
       gen.emit(
-        "mov [ rel " + label + " ], rax", // TODO: Handle struct copy
+        "mov [ rel " + label + " ], rax",
         "Initialize global variable " + this.name,
       );
       gen.endPrecomputeBlock();
     }
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    if (this.varType.genericArgs && this.varType.genericArgs.length > 0) {
+      scope.resolveGenericType(this.varType.name, this.varType.genericArgs);
+    }
+
+    if (this.scope === "global") {
+      const type = gen.mapType(this.varType);
+      const name = `@${this.name}`;
+
+      let init = "zeroinitializer";
+      if (this.value instanceof NumberLiteralExpr) {
+        init = this.value.value;
+        if (this.value.value.includes(".")) {
+          // Float literal
+        }
+      }
+
+      gen.emitGlobal(`${name} = global ${type} ${init}`);
+
+      scope.define(this.name, {
+        offset: "0",
+        type: "global",
+        varType: this.varType,
+        llvmName: name,
+      });
+      return "";
+    } else {
+      const type = gen.mapType(this.varType);
+      const ptr = gen.generateLocal(this.name);
+      gen.emit(`  %${ptr} = alloca ${type}`);
+
+      if (this.value) {
+        // Initializer for local variable
+        if (
+          this.varType.isArray.length > 0 &&
+          this.value instanceof StringLiteralExpr
+        ) {
+          const srcPtr = this.value.generateIR(gen, scope);
+          const destPtr = `%${ptr}`;
+
+          const unescaped = (this.value as StringLiteralExpr).value
+            .replace(/\\n/g, "\n")
+            .replace(/\\t/g, "\t")
+            .replace(/\\r/g, "\r")
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, "\\");
+          const byteLength = unescaped.length + 1;
+
+          gen.emitGlobal(
+            "declare void @llvm.memcpy.p0.p0.i64(ptr nocapture writeonly, ptr nocapture readonly, i64, i1 immarg)",
+          );
+          gen.emit(
+            `  call void @llvm.memcpy.p0.p0.i64(ptr align 1 ${destPtr}, ptr align 1 ${srcPtr}, i64 ${byteLength}, i1 false)`,
+          );
+        } else {
+          let val = this.value.generateIR(gen, scope);
+          const valType = this.resolveExprType(this.value, scope);
+
+          const getIntSize = (name: string) => {
+            if (["u8", "i8", "bool", "char"].includes(name)) return 1;
+            if (["u16", "i16"].includes(name)) return 2;
+            if (["u32", "i32"].includes(name)) return 4;
+            return 8;
+          };
+
+          // Determine if val is i64 (promoted) or native size
+          let valIsI64 = false;
+          if (
+            (this.value.type === ExpressionType.BinaryExpression ||
+              this.value.type === ExpressionType.NumberLiteralExpr) &&
+            (!valType ||
+              (valType.isPointer === 0 && valType.isArray.length === 0))
+          ) {
+            const isFloat =
+              valType?.name === "f64" ||
+              valType?.name === "f32" ||
+              (this.value as any).operator?.type === TokenType.SLASH;
+            if (!isFloat) valIsI64 = true;
+          }
+
+          if (valIsI64) {
+            // val is i64. If dest is smaller, trunc.
+            const destSize = getIntSize(this.varType.name);
+            if (destSize < 8 && !this.varType.isPointer) {
+              const trunc = gen.generateReg("trunc");
+              gen.emit(`  ${trunc} = trunc i64 ${val} to ${type}`);
+              val = trunc;
+            } else if (this.varType.isPointer > 0) {
+              const inttoptr = gen.generateReg("inttoptr");
+              gen.emit(`  ${inttoptr} = inttoptr i64 ${val} to ptr`);
+              val = inttoptr;
+            }
+          } else if (valType && valType.name !== this.varType.name) {
+            // val is native size. Handle implicit casting.
+            // Check if types are pointers
+            const srcIsPointer =
+              valType.isPointer > 0 || valType.isArray.length > 0;
+            const destIsPointer =
+              this.varType.isPointer > 0 || this.varType.isArray.length > 0;
+
+            if (srcIsPointer && destIsPointer) {
+              // Pointer to pointer assignment. No cast needed for opaque pointers.
+            } else if (!srcIsPointer && destIsPointer) {
+              // Int to Pointer
+              const inttoptr = gen.generateReg("inttoptr");
+              // Assuming val is i64. If not, we might need to extend/trunc first?
+              // Usually literals are i64.
+              gen.emit(`  ${inttoptr} = inttoptr i64 ${val} to ptr`);
+              val = inttoptr;
+            } else if (!srcIsPointer && !destIsPointer) {
+              const srcSize = getIntSize(valType.name);
+              const destSize = getIntSize(this.varType.name);
+              const srcType = gen.mapType({
+                name: valType.name,
+                isPointer: 0,
+                isArray: [],
+              });
+
+              const isSrcFloat =
+                valType.name === "f64" || valType.name === "f32";
+              const isDestFloat =
+                this.varType.name === "f64" || this.varType.name === "f32";
+
+              if (isSrcFloat && !isDestFloat) {
+                // Float to Int
+                const conv = gen.generateReg("fptosi");
+                gen.emit(`  ${conv} = fptosi ${srcType} ${val} to ${type}`);
+                val = conv;
+              } else if (!isSrcFloat && isDestFloat) {
+                // Int to Float
+                const conv = gen.generateReg("sitofp");
+                gen.emit(`  ${conv} = sitofp ${srcType} ${val} to ${type}`);
+                val = conv;
+              } else if (isSrcFloat && isDestFloat) {
+                // Float to Float
+                if (valType.name === "f64" && this.varType.name === "f32") {
+                  const conv = gen.generateReg("fptrunc");
+                  gen.emit(`  ${conv} = fptrunc double ${val} to float`);
+                  val = conv;
+                } else if (
+                  valType.name === "f32" &&
+                  this.varType.name === "f64"
+                ) {
+                  const conv = gen.generateReg("fpext");
+                  gen.emit(`  ${conv} = fpext float ${val} to double`);
+                  val = conv;
+                }
+              } else if (srcSize < destSize) {
+                const isSigned = ["i8", "i16", "i32"].includes(valType.name);
+                const castOp = isSigned ? "sext" : "zext";
+                const ext = gen.generateReg("ext");
+                gen.emit(`  ${ext} = ${castOp} ${srcType} ${val} to ${type}`);
+                val = ext;
+              } else if (srcSize > destSize) {
+                const trunc = gen.generateReg("trunc");
+                gen.emit(`  ${trunc} = trunc ${srcType} ${val} to ${type}`);
+                val = trunc;
+              }
+            }
+          }
+
+          gen.emit(`  store ${type} ${val}, ptr %${ptr}`);
+        }
+      }
+
+      scope.define(this.name, {
+        offset: "0",
+        type: "local",
+        varType: this.varType,
+        llvmName: `%${ptr}`,
+      });
+    }
+    return "";
   }
 }

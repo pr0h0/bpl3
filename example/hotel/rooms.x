@@ -1,6 +1,8 @@
 import [Room] from "./types.x";
 import printf, malloc from "libc";
 
+extern malloc(size: u64) ret *u8;
+
 global g_rooms_head: *Room = NULL;
 
 frame add_room(number: u32, capacity: u8, price: u32) {

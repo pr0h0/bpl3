@@ -1,5 +1,4 @@
 import printf from "libc";
-extern printf(fmt: *u8, ...);
 
 struct Container<T> {
     data: T,

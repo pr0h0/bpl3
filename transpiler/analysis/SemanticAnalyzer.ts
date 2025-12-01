@@ -135,9 +135,9 @@ export class SemanticAnalyzer {
       case ExpressionType.UnaryExpression:
         this.analyzeUnaryExpr(expr as UnaryExpr, scope);
         break;
-        case ExpressionType.AsmBlockExpression:
-          this.analyzeAsmBlockExpr(expr as AsmBlockExpr, scope);
-          break;
+      case ExpressionType.AsmBlockExpression:
+        this.analyzeAsmBlockExpr(expr as AsmBlockExpr, scope);
+        break;
       case ExpressionType.BreakExpression:
       case ExpressionType.ContinueExpression:
         break;
@@ -450,13 +450,19 @@ export class SemanticAnalyzer {
       return true;
     }
 
+    if (isExpectedInt && isActualFloat) {
+      // Allow float -> int (truncation)
+      return true;
+    }
+
     if (isExpectedInt && isActualInt) {
       // Allow int -> int (size check?)
       // BPL treats most ints as compatible for now.
       // Allow smaller int to larger int (promotion)
       const expectedSize = this.getIntSize(expected.name);
       const actualSize = this.getIntSize(actual.name);
-      if (expectedSize >= actualSize) return true;
+      // Allow all integer conversions (promotion and truncation)
+      return true;
 
       // Allow literal int to smaller int (if it fits, but we can't check value here easily)
       // Assuming user knows what they are doing with literals
@@ -813,11 +819,13 @@ export class SemanticAnalyzer {
         continue;
       }
 
+      let returnType: VariableType = { name: "i32", isPointer: 0, isArray: [] };
+
       scope.defineFunction(name, {
         name: name,
         label: name,
         args: [],
-        returnType: null,
+        returnType: returnType,
         startLabel: name,
         endLabel: name,
         isExternal: true,

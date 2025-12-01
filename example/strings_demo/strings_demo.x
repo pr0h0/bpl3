@@ -1,5 +1,7 @@
 import printf, malloc, free, strcpy, strcat, strcmp, strlen from "libc";
 
+extern malloc(size: i32) ret *u8;
+
 frame to_upper(str: *u8) {
     local i: u64 = 0;
     loop {

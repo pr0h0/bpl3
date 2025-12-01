@@ -1,6 +1,7 @@
 import type Token from "../../lexer/token";
 import type AsmGenerator from "../../transpiler/AsmGenerator";
 import type Scope from "../../transpiler/Scope";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
@@ -43,5 +44,15 @@ export default class StringLiteralExpr extends Expression {
       `lea rax, [rel ${label}]`,
       `Load address of string literal "${this.value}"`,
     );
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    const unescaped = this.value
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "\r")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
+    return gen.getStringPtr(unescaped);
   }
 }

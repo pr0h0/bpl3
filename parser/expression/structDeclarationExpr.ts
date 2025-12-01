@@ -1,5 +1,6 @@
 import type Token from "../../lexer/token";
 import type AsmGenerator from "../../transpiler/AsmGenerator";
+import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import type { TypeInfo } from "../../transpiler/Scope";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
@@ -177,5 +178,121 @@ export default class StructDeclarationExpr extends Expression {
     structTypeInfo.declaration = this.startToken;
 
     scope.defineType(this.name, structTypeInfo);
+  }
+
+  generateIR(gen: LlvmGenerator, scope: Scope): string {
+    if (this.genericParams.length > 0) {
+      const structTypeInfo: TypeInfo = {
+        name: this.name,
+        isArray: [],
+        isPointer: 0,
+        members: new Map(),
+        size: 0,
+        alignment: 1,
+        isPrimitive: false,
+        info: {
+          description: `Generic Structure ${this.name}`,
+        },
+        genericParams: this.genericParams,
+        genericFields: this.fields.map((f) => ({
+          name: f.name,
+          type: f.type,
+        })),
+        declaration: this.startToken,
+      };
+      scope.defineType(this.name, structTypeInfo);
+      return "";
+    }
+
+    const structTypeInfo: TypeInfo = {
+      name: this.name,
+      isArray: [],
+      isPointer: 0,
+      members: new Map(),
+      size: 0,
+      alignment: 1,
+      isPrimitive: false,
+      info: {
+        description: `Structure ${this.name}`,
+      },
+    };
+
+    const memberTypes: string[] = [];
+    let currentOffset = 0;
+    let maxAlignment = 1;
+    let memberIndex = 0;
+
+    this.fields.forEach((field) => {
+      let fieldTypeInfo = scope.resolveType(field.type.name);
+
+      if (!fieldTypeInfo && field.type.name === this.name) {
+        // Recursive reference
+        fieldTypeInfo = {
+          name: this.name,
+          size: 0, // Placeholder
+          alignment: 1, // Placeholder
+          isPrimitive: false,
+          members: structTypeInfo.members, // Reference to self members
+          isArray: [],
+          isPointer: 0,
+          info: { description: `Recursive reference to ${this.name}` },
+        };
+      }
+
+      if (!fieldTypeInfo) {
+        throw new Error(
+          `Unknown type '${field.type.name}' for field '${field.name}' in struct '${this.name}'`,
+        );
+      }
+
+      let fieldSize = fieldTypeInfo.size;
+      let fieldAlignment = fieldTypeInfo.alignment || 1;
+
+      if (field.type.isPointer > 0) {
+        fieldSize = 8;
+        fieldAlignment = 8;
+      } else if (field.type.isArray.length > 0) {
+        fieldSize =
+          fieldTypeInfo.size * field.type.isArray.reduce((a, b) => a * b, 1);
+        fieldAlignment = fieldTypeInfo.alignment || 1;
+      }
+
+      // Calculate padding
+      const padding =
+        (fieldAlignment - (currentOffset % fieldAlignment)) % fieldAlignment;
+      currentOffset += padding;
+
+      structTypeInfo.members.set(field.name, {
+        info: { description: `Field ${field.name} of type ${field.type.name}` },
+        name: field.type.name,
+        isArray: field.type.isArray,
+        isPointer: field.type.isPointer,
+        size: fieldSize,
+        offset: currentOffset,
+        alignment: fieldAlignment,
+        isPrimitive: fieldTypeInfo.isPrimitive,
+        members: fieldTypeInfo.members,
+        index: memberIndex++, // Store index for GEP
+      });
+
+      currentOffset += fieldSize;
+      maxAlignment = Math.max(maxAlignment, fieldAlignment);
+
+      memberTypes.push(gen.mapType(field.type));
+    });
+
+    // Align struct size
+    const structPadding =
+      (maxAlignment - (currentOffset % maxAlignment)) % maxAlignment;
+    structTypeInfo.size = currentOffset + structPadding;
+    structTypeInfo.alignment = maxAlignment;
+    structTypeInfo.declaration = this.startToken;
+
+    scope.defineType(this.name, structTypeInfo);
+
+    // Emit LLVM struct definition
+    gen.emitGlobal(`%struct.${this.name} = type { ${memberTypes.join(", ")} }`);
+
+    return "";
   }
 }

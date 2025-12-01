@@ -1,5 +1,4 @@
 import printf from "libc";
-extern printf(fmt: *u8, ...);
 
 struct Test<A, B> {
     a: A,
@@ -20,7 +19,7 @@ frame main() ret u8 {
     t1.b = 2;
 
     call printf("Test<u8, u64>:\n");
-    call printf("Address and value of t1: %p %d\n", &t1, *t1);
+    call printf("Address of t1: %p\n", &t1);
     call printf("Address and value of t1.a: %p %d\n", &t1.a, t1.a);
     call printf("Address and value of t1.b: %p %d\n", &t1.b, t1.b);
 
@@ -31,7 +30,7 @@ frame main() ret u8 {
     t2.b = 4;
 
     call printf("Test<u64, u8>:\n");
-    call printf("Address and value of t2: %p %d\n", &t2, *t2);
+    call printf("Address of t2: %p\n", &t2);
     call printf("Address and value of t2.a: %p %d\n", &t2.a, t2.a);
     call printf("Address and value of t2.b: %p %d\n", &t2.b, t2.b);
 
@@ -43,7 +42,7 @@ frame main() ret u8 {
     t3.b.b = 7;
 
     call printf("Test<u8, Packed<u64, u8>>:\n");
-    call printf("Address and value of t3: %p %d\n", &t3, *t3);
+    call printf("Address of t3: %p\n", &t3);
     call printf("Address and value of t3.a: %p %d\n", &t3.a, t3.a);
     call printf("Address and value of t3.b.a: %p %d\n", &t3.b.a, t3.b.a);
     call printf("Address and value of t3.b.b: %p %d\n", &t3.b.b, t3.b.b);
