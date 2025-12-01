@@ -190,7 +190,7 @@ try {
       debug(`Compiling LLVM IR to object file: ${outputObj}`);
       try {
         execSync(
-          `clang -Wno-override-module -c -o ${outputObj} ${asmFilePath}`,
+          `clang -Wno-override-module -O${optimizationLevel} -c -o ${outputObj} ${asmFilePath}`,
           { stdio: "inherit" },
         );
       } catch (e) {
@@ -208,7 +208,7 @@ try {
     const linkArgs = Array.from(objectsToLink).join(" ");
     try {
       execSync(
-        `clang -Wno-override-module -o ${outputExe} ${asmFilePath} ${linkArgs} -lm`,
+        `clang -Wno-override-module -O${optimizationLevel} -o ${outputExe} ${asmFilePath} ${linkArgs} -lm`,
         { stdio: "inherit" },
       );
     } catch (e) {
