@@ -78,6 +78,7 @@ This will generate an executable file in the same directory as the source file.
 - `-l | --lib`: Compile as a shared library instead of an executable, preserve `.o` file.
 - `-d | --dynamic`: Compile as a dynamically linked executable (default).
 - `-s | --static`: Compile as a static executable (no dynamic linking).
+- `--llvm`: Use the LLVM backend to generate LLVM IR instead of assembly.
 
 ### Import/Export
 
@@ -217,13 +218,13 @@ extern printf(fmt: string, ...);
 
 ### Command Line Arguments and Environment Variables
 
-The `main` function can optionally accept command line arguments and environment variables. It supports `argc` (argument count), `argv` (argument vector), and `envp` (environment pointer).
+The `main` function can optionally accept command line arguments and environment variables. It supports `argc` (argument count), `argv` (argument vector), and `envp` (environment pointer). This is supported in both the default assembly backend and the LLVM backend.
 
 ```bpl
 import getenv;
-frame main(argc: u32, argv: **u8, envp: **u8) ret u8 {
+frame main(argc: i32, argv: **u8, envp: **u8) ret u8 {
     # Print arguments
-    local i: u32 = 0;
+    local i: i32 = 0;
     loop {
         if i >= argc {
             break;

@@ -3,13 +3,7 @@ import type LlvmGenerator from "../../transpiler/LlvmGenerator";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
-import StringLiteralExpr from "./stringLiteralExpr";
-import NumberLiteralExpr from "./numberLiteralExpr";
-import IdentifierExpr from "./identifierExpr";
-import FunctionCallExpr from "./functionCallExpr";
-import BinaryExpr from "./binaryExpr";
-import TokenType from "../../lexer/tokenType";
-import type { VariableType } from "./variableDeclarationExpr";
+import { resolveExpressionType } from "../../utils/typeResolver";
 
 export default class TernaryExpr extends Expression {
   constructor(
@@ -59,53 +53,6 @@ export default class TernaryExpr extends Expression {
     gen.emitLabel(endLabel);
   }
 
-  private resolveExpressionType(
-    expr: Expression,
-    scope: Scope,
-  ): VariableType | null {
-    if (expr instanceof StringLiteralExpr) {
-      return { name: "u8", isPointer: 1, isArray: [] };
-    }
-    if (expr instanceof NumberLiteralExpr) {
-      const val = expr.value;
-      const isHexBinOct =
-        val.startsWith("0x") || val.startsWith("0b") || val.startsWith("0o");
-      return !isHexBinOct &&
-        (val.includes(".") || val.toLowerCase().includes("e"))
-        ? { name: "f64", isPointer: 0, isArray: [] }
-        : { name: "u64", isPointer: 0, isArray: [] };
-    }
-    if (expr instanceof IdentifierExpr) {
-      const resolved = scope.resolve(expr.name);
-      return resolved ? resolved.varType : null;
-    }
-    if (expr instanceof FunctionCallExpr) {
-      const func = scope.resolveFunction(expr.functionName);
-      return func ? func.returnType : null;
-    }
-    if (expr instanceof BinaryExpr) {
-      const op = expr.operator.type;
-      if (
-        op === TokenType.EQUAL ||
-        op === TokenType.NOT_EQUAL ||
-        op === TokenType.LESS_THAN ||
-        op === TokenType.LESS_EQUAL ||
-        op === TokenType.GREATER_THAN ||
-        op === TokenType.GREATER_EQUAL
-      ) {
-        return { name: "u64", isPointer: 0, isArray: [] };
-      }
-      const leftType = this.resolveExpressionType(expr.left, scope);
-      const rightType = this.resolveExpressionType(expr.right, scope);
-      if (leftType?.name === "f64" || rightType?.name === "f64")
-        return { name: "f64", isPointer: 0, isArray: [] };
-      if (leftType?.name === "f32" || rightType?.name === "f32")
-        return { name: "f32", isPointer: 0, isArray: [] };
-      return leftType;
-    }
-    return null;
-  }
-
   generateIR(gen: LlvmGenerator, scope: Scope): string {
     const condition = this.condition.generateIR(gen, scope);
 
@@ -114,14 +61,16 @@ export default class TernaryExpr extends Expression {
     const endLabel = gen.generateLabel("ternary_end");
 
     const type =
-      this.resolveExpressionType(this.trueExpr, scope) ||
-      this.resolveExpressionType(this.falseExpr, scope);
+      resolveExpressionType(this.trueExpr, scope) ||
+      resolveExpressionType(this.falseExpr, scope);
     const llvmType = type ? gen.mapType(type) : "i64";
     const resultVar = gen.generateLocal("ternary_result");
     gen.emit(`  %${resultVar} = alloca ${llvmType}`);
 
+    const condType = resolveExpressionType(this.condition, scope);
+    const condLlvmType = condType ? gen.mapType(condType) : "i64";
     const condBool = gen.generateReg("cond");
-    gen.emit(`${condBool} = icmp ne i64 ${condition}, 0`);
+    gen.emit(`${condBool} = icmp ne ${condLlvmType} ${condition}, 0`);
     gen.emit(`br i1 ${condBool}, label %${trueLabel}, label %${falseLabel}`);
 
     // True Branch

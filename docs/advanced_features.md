@@ -131,10 +131,10 @@ frame main() {
 
 ## Command Line Arguments
 
-The `main` function signature can be expanded to accept arguments.
+The `main` function signature can be expanded to accept arguments. This works for both the default assembly backend and the LLVM backend.
 
 ````bpl
-frame main(argc: u32, argv: **u8, envp: **u8) ret u8 {
+frame main(argc: i32, argv: **u8, envp: **u8) ret u8 {
     # argc: Number of arguments
     # argv: Array of argument strings
     # envp: Array of environment strings

@@ -1,6 +1,7 @@
 ---
 applyTo: '**/*.x, **/*.sh'
 ---
+if you get stuck with files, run pwd to figure out your current directory and adjust paths accordingly.
 when creating tests for examples, use test_example.sh as a reference implementation.
 functions are declared with the "frame" keyword.
 use "call" to invoke functions.

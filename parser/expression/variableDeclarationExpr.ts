@@ -11,6 +11,7 @@ import StringLiteralExpr from "./stringLiteralExpr";
 import UnaryExpr from "./unaryExpr";
 import Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
+import { resolveExpressionType, getIntSize } from "../../utils/typeResolver";
 
 export type VariableType = {
   name: string;
@@ -69,134 +70,6 @@ export default class VariableDeclarationExpr extends Expression {
       this.value = this.value.optimize();
     }
     return this;
-  }
-
-  private resolveExprType(expr: Expression, scope: Scope): VariableType | null {
-    if (expr.type === ExpressionType.NumberLiteralExpr) {
-      const val = (expr as NumberLiteralExpr).value;
-      const isHexBinOct =
-        val.startsWith("0x") || val.startsWith("0b") || val.startsWith("0o");
-      return !isHexBinOct &&
-        (val.includes(".") || val.toLowerCase().includes("e"))
-        ? { name: "f64", isPointer: 0, isArray: [] }
-        : { name: "u64", isPointer: 0, isArray: [] };
-    }
-    if (expr.type === ExpressionType.IdentifierExpr) {
-      const sym = scope.resolve((expr as any).name);
-      return sym ? sym.varType : null;
-    }
-    if (expr.type === ExpressionType.FunctionCall) {
-      const call = expr as any;
-      const func = scope.resolveFunction(call.functionName);
-      return func ? func.returnType : null;
-    }
-    if (expr.type === ExpressionType.BinaryExpression) {
-      const binExpr = expr as BinaryExpr;
-
-      // Comparison operators always return u64 (bool)
-      const op = binExpr.operator.type;
-      if (
-        op === TokenType.EQUAL ||
-        op === TokenType.NOT_EQUAL ||
-        op === TokenType.LESS_THAN ||
-        op === TokenType.LESS_EQUAL ||
-        op === TokenType.GREATER_THAN ||
-        op === TokenType.GREATER_EQUAL
-      ) {
-        return { name: "u64", isPointer: 0, isArray: [] };
-      }
-
-      const leftType = this.resolveExprType(binExpr.left, scope);
-      const rightType = this.resolveExprType(binExpr.right, scope);
-
-      if (binExpr.operator.type === TokenType.SLASH) {
-        if (leftType?.name === "f64" || rightType?.name === "f64")
-          return { name: "f64", isPointer: 0, isArray: [] };
-        if (leftType?.name === "f32" && rightType?.name === "f32")
-          return { name: "f32", isPointer: 0, isArray: [] };
-
-        // Default to f64 for division if not f32
-        return { name: "f64", isPointer: 0, isArray: [] };
-      }
-
-      if (leftType?.name === "f64" || rightType?.name === "f64") {
-        return { name: "f64", isPointer: 0, isArray: [] };
-      }
-      if (leftType?.name === "f32" || rightType?.name === "f32") {
-        return { name: "f32", isPointer: 0, isArray: [] };
-      }
-      // Return left type if compatible?
-      return leftType;
-    }
-    if (expr.type === ExpressionType.MemberAccessExpression) {
-      const memberExpr = expr as any;
-      const objectType = this.resolveExprType(memberExpr.object, scope);
-      if (!objectType) return null;
-
-      if (memberExpr.isIndexAccess) {
-        if (objectType.isArray.length > 0) {
-          return {
-            name: objectType.name,
-            isPointer: objectType.isPointer,
-            isArray: objectType.isArray.slice(1),
-          };
-        } else if (objectType.isPointer > 0) {
-          return {
-            name: objectType.name,
-            isPointer: objectType.isPointer - 1,
-            isArray: [],
-          };
-        }
-        return null;
-      } else {
-        let typeInfo;
-        if (objectType.genericArgs && objectType.genericArgs.length > 0) {
-          typeInfo = scope.resolveGenericType(
-            objectType.name,
-            objectType.genericArgs,
-          );
-        } else {
-          typeInfo = scope.resolveType(objectType.name);
-        }
-
-        if (!typeInfo) return null;
-
-        const propertyName = (memberExpr.property as any).name;
-        const member = typeInfo.members.get(propertyName);
-        if (!member) return null;
-
-        return {
-          name: member.name,
-          isPointer: member.isPointer,
-          isArray: member.isArray,
-        };
-      }
-    }
-    if (expr.type === ExpressionType.UnaryExpression) {
-      const unaryExpr = expr as UnaryExpr;
-      if (unaryExpr.operator.type === TokenType.STAR) {
-        const opType = this.resolveExprType(unaryExpr.right, scope);
-        if (opType && opType.isPointer > 0) {
-          return {
-            name: opType.name,
-            isPointer: opType.isPointer - 1,
-            isArray: opType.isArray,
-          };
-        }
-      } else if (unaryExpr.operator.type === TokenType.AMPERSAND) {
-        const opType = this.resolveExprType(unaryExpr.right, scope);
-        if (opType) {
-          return {
-            name: opType.name,
-            isPointer: opType.isPointer + 1,
-            isArray: opType.isArray,
-          };
-        }
-      }
-      // Handle other unary ops if needed (e.g. MINUS preserves type)
-      return this.resolveExprType(unaryExpr.right, scope);
-    }
-    return null;
   }
 
   transpile(gen: AsmGenerator, scope: Scope): void {
@@ -279,7 +152,7 @@ export default class VariableDeclarationExpr extends Expression {
       this.value.transpile(gen, scope);
 
       // Handle float initialization
-      const sourceType = this.resolveExprType(this.value, scope);
+      const sourceType = resolveExpressionType(this.value, scope);
       if (this.varType.name === "f32") {
         if (sourceType?.name === "f32") {
           gen.emit(`mov [ rbp - ${offset} ], eax`, "Init f32 from f32");
@@ -567,7 +440,7 @@ export default class VariableDeclarationExpr extends Expression {
 
           arrayLit.elements.forEach((elem, index) => {
             let val = elem.generateIR(gen, scope);
-            const valType = this.resolveExprType(elem, scope);
+            const valType = resolveExpressionType(elem, scope);
 
             let valIsI64 = false;
             if (
@@ -655,14 +528,7 @@ export default class VariableDeclarationExpr extends Expression {
           });
         } else {
           let val = this.value.generateIR(gen, scope);
-          const valType = this.resolveExprType(this.value, scope);
-
-          const getIntSize = (name: string) => {
-            if (["u8", "i8", "bool", "char"].includes(name)) return 1;
-            if (["u16", "i16"].includes(name)) return 2;
-            if (["u32", "i32"].includes(name)) return 4;
-            return 8;
-          };
+          const valType = resolveExpressionType(this.value, scope);
 
           // Determine if val is i64 (promoted) or native size
           let valIsI64 = false;
@@ -676,7 +542,48 @@ export default class VariableDeclarationExpr extends Expression {
               valType?.name === "f64" ||
               valType?.name === "f32" ||
               (this.value as any).operator?.type === TokenType.SLASH;
-            if (!isFloat) valIsI64 = true;
+            if (!isFloat) {
+              valIsI64 = true;
+              // Check if BinaryExpr actually returns u8
+              if (this.value.type === ExpressionType.BinaryExpression) {
+                const binExpr = this.value as BinaryExpr;
+                const op = binExpr.operator.type;
+                // Comparisons return u8
+                if (
+                  [
+                    TokenType.EQUAL,
+                    TokenType.NOT_EQUAL,
+                    TokenType.LESS_THAN,
+                    TokenType.GREATER_THAN,
+                    TokenType.LESS_EQUAL,
+                    TokenType.GREATER_EQUAL,
+                  ].includes(op)
+                ) {
+                  valIsI64 = false;
+                }
+                // Logical ops on u8 return u8
+                if (
+                  [
+                    TokenType.AND,
+                    TokenType.OR,
+                    TokenType.AMPERSAND,
+                    TokenType.PIPE,
+                    TokenType.CARET,
+                  ].includes(op)
+                ) {
+                  const lType = resolveExpressionType(binExpr.left, scope);
+                  const rType = resolveExpressionType(binExpr.right, scope);
+                  if (
+                    lType &&
+                    rType &&
+                    getIntSize(lType.name) === 1 &&
+                    getIntSize(rType.name) === 1
+                  ) {
+                    valIsI64 = false;
+                  }
+                }
+              }
+            }
           }
 
           if (valIsI64) {

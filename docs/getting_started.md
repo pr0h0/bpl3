@@ -98,6 +98,7 @@ Run `bun index.ts --help` to see all available options:
 - `-g | --gdb`: Run inside GDB.
 - `-l | --lib`: Compile as a shared library.
 - `-s | --static`: Compile as a static executable.
+- `--llvm`: Use the LLVM backend to generate LLVM IR.
 
 ## VS Code Extension
 

@@ -34,11 +34,13 @@ The parser (`parser.ts`) uses a recursive descent approach to build the AST.
 
 ## 3. Transpiler (`transpiler/`)
 
-The transpiler is responsible for generating assembly code from the AST.
+The transpiler is responsible for generating assembly code or LLVM IR from the AST.
 
 - **`AsmGenerator.ts`**: A helper class that manages the output buffers (`.text`, `.data`, `.bss`) and provides methods to emit assembly instructions.
+- **`LlvmGenerator.ts`**: A helper class for generating LLVM IR.
 - **`Scope.ts`**: Manages variable scopes (global vs. local), symbol tables, and type information.
 - **`transpile()` method**: Each AST node implements a `transpile(gen: AsmGenerator, scope: Scope)` method that emits the corresponding assembly code.
+- **`generateIR()` method**: Each AST node implements a `generateIR(gen: LlvmGenerator, scope: Scope)` method that emits the corresponding LLVM IR.
 
 ### Stack Management
 

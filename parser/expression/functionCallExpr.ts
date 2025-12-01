@@ -12,6 +12,7 @@ import StringLiteralExpr from "./stringLiteralExpr";
 import TernaryExpr from "./ternaryExpr";
 import type { VariableType } from "./variableDeclarationExpr";
 import TokenType from "../../lexer/tokenType";
+import { resolveExpressionType, getIntSize } from "../../utils/typeResolver";
 
 export default class FunctionCallExpr extends Expression {
   constructor(
@@ -50,148 +51,8 @@ export default class FunctionCallExpr extends Expression {
     console.log(this.toString(depth));
   }
 
-  private resolveExpressionType(
-    expr: Expression,
-    scope: Scope,
-  ): VariableType | null {
-    if (expr instanceof IdentifierExpr) {
-      const resolved = scope.resolve(expr.name);
-      return resolved ? resolved.varType : null;
-    } else if (expr instanceof FunctionCallExpr) {
-      const func = scope.resolveFunction(expr.functionName);
-      return func ? func.returnType : null;
-    } else if (expr instanceof MemberAccessExpr) {
-      const objectType = this.resolveExpressionType(expr.object, scope);
-      if (!objectType) return null;
-
-      if (expr.isIndexAccess) {
-        if (objectType.isArray.length > 0) {
-          return {
-            name: objectType.name,
-            isPointer: objectType.isPointer,
-            isArray: objectType.isArray.slice(1),
-          };
-        } else if (objectType.isPointer > 0) {
-          return {
-            name: objectType.name,
-            isPointer: objectType.isPointer - 1,
-            isArray: [],
-          };
-        }
-        return null;
-      } else {
-        let typeInfo;
-        if (objectType.genericArgs && objectType.genericArgs.length > 0) {
-          typeInfo = scope.resolveGenericType(
-            objectType.name,
-            objectType.genericArgs,
-          );
-        } else {
-          typeInfo = scope.resolveType(objectType.name);
-        }
-
-        if (!typeInfo) return null;
-
-        const propertyName = (expr.property as IdentifierExpr).name;
-        const member = typeInfo.members.get(propertyName);
-        if (!member) return null;
-
-        return {
-          name: member.name,
-          isPointer: member.isPointer,
-          isArray: member.isArray,
-        };
-      }
-    } else if (expr instanceof BinaryExpr) {
-      // Comparison operators always return u64 (bool)
-      const op = expr.operator.type;
-      if (
-        op === TokenType.EQUAL ||
-        op === TokenType.NOT_EQUAL ||
-        op === TokenType.LESS_THAN ||
-        op === TokenType.LESS_EQUAL ||
-        op === TokenType.GREATER_THAN ||
-        op === TokenType.GREATER_EQUAL
-      ) {
-        return { name: "u64", isPointer: 0, isArray: [] };
-      }
-
-      const leftType = this.resolveExpressionType(expr.left, scope);
-      const rightType = this.resolveExpressionType(expr.right, scope);
-
-      if (leftType && leftType.isPointer > 0) return leftType;
-      if (rightType && rightType.isPointer > 0) return rightType;
-
-      if (expr.operator.type === TokenType.SLASH) {
-        const leftSize = leftType ? this.getIntSize(leftType.name) : 8;
-        const rightSize = rightType ? this.getIntSize(rightType.name) : 8;
-
-        if (leftType?.name === "f64" || rightType?.name === "f64")
-          return { name: "f64", isPointer: 0, isArray: [] };
-        if (leftType?.name === "f32" || rightType?.name === "f32")
-          return { name: "f32", isPointer: 0, isArray: [] };
-
-        if (leftSize <= 4 && rightSize <= 4)
-          return { name: "f32", isPointer: 0, isArray: [] };
-        return { name: "f64", isPointer: 0, isArray: [] };
-      }
-
-      if (expr.operator.type === TokenType.SLASH_SLASH) {
-        if (leftType?.name === "f64" || rightType?.name === "f64")
-          return { name: "f64", isPointer: 0, isArray: [] };
-        if (leftType?.name === "f32" || rightType?.name === "f32")
-          return { name: "f32", isPointer: 0, isArray: [] };
-        return leftType || { name: "u64", isPointer: 0, isArray: [] };
-      }
-
-      // Handle float binary ops
-      if (leftType?.name === "f64" || rightType?.name === "f64")
-        return { name: "f64", isPointer: 0, isArray: [] };
-      if (leftType?.name === "f32" || rightType?.name === "f32")
-        return { name: "f32", isPointer: 0, isArray: [] };
-
-      return null;
-    } else if (expr instanceof UnaryExpr) {
-      if (expr.operator.value === "*") {
-        const opType = this.resolveExpressionType(expr.right, scope);
-        if (opType && opType.isPointer > 0) {
-          return {
-            name: opType.name,
-            isPointer: opType.isPointer - 1,
-            isArray: opType.isArray,
-          };
-        }
-      } else if (expr.operator.value === "&") {
-        const opType = this.resolveExpressionType(expr.right, scope);
-        if (opType) {
-          return {
-            name: opType.name,
-            isPointer: opType.isPointer + 1,
-            isArray: opType.isArray,
-          };
-        }
-      }
-      return null;
-    } else if (expr instanceof NumberLiteralExpr) {
-      const val = expr.value;
-      const isHexBinOct =
-        val.startsWith("0x") || val.startsWith("0b") || val.startsWith("0o");
-      return !isHexBinOct &&
-        (val.includes(".") || val.toLowerCase().includes("e"))
-        ? { name: "f64", isPointer: 0, isArray: [] }
-        : { name: "u64", isPointer: 0, isArray: [] };
-    } else if (expr instanceof StringLiteralExpr) {
-      return { name: "u8", isPointer: 1, isArray: [] };
-    } else if (expr instanceof TernaryExpr) {
-      const trueType = this.resolveExpressionType(expr.trueExpr, scope);
-      if (trueType) return trueType;
-      return this.resolveExpressionType(expr.falseExpr, scope);
-    }
-    return null;
-  }
-
   private getExprType(expr: Expression, scope: Scope): string {
-    const type = this.resolveExpressionType(expr, scope);
+    const type = resolveExpressionType(expr, scope);
     return type ? type.name : "u64";
   }
 
@@ -516,14 +377,14 @@ export default class FunctionCallExpr extends Expression {
         genericArgs = paramType.genericArgs;
 
         // Handle implicit casting for fixed args
-        const exprType = this.resolveExpressionType(arg, scope);
+        const exprType = resolveExpressionType(arg, scope);
         const exprTypeName = exprType ? exprType.name : "i64";
         const exprIsPointer = exprType ? exprType.isPointer : 0;
         const exprIsArray = exprType ? exprType.isArray.length : 0;
 
         // Check for int size mismatch
-        const paramSize = this.getIntSize(typeName);
-        const exprSize = this.getIntSize(exprTypeName);
+        const paramSize = getIntSize(typeName);
+        const exprSize = getIntSize(exprTypeName);
 
         if (!isPointer && !isArray.length && !exprIsPointer && !exprIsArray) {
           const isParamFloat = typeName === "f64" || typeName === "f32";
@@ -591,12 +452,22 @@ export default class FunctionCallExpr extends Expression {
             }
           } else if (paramSize > exprSize) {
             // Extend
-            // ...
+            const isSigned = ["i8", "i16", "i32"].includes(exprTypeName);
+            const castOp = isSigned ? "sext" : "zext";
+            const ext = gen.generateReg("ext");
+            const destType = gen.mapType(paramType);
+            const srcType = gen.mapType({
+              name: exprTypeName,
+              isPointer: 0,
+              isArray: [],
+            });
+            gen.emit(`${ext} = ${castOp} ${srcType} ${val} to ${destType}`);
+            argValues[index] = ext;
           }
         }
       } else {
         // Varargs or unknown function: infer from expression
-        const exprType = this.resolveExpressionType(arg, scope);
+        const exprType = resolveExpressionType(arg, scope);
         if (exprType) {
           typeName = exprType.name;
           isPointer = exprType.isPointer;
@@ -656,32 +527,5 @@ export default class FunctionCallExpr extends Expression {
     );
 
     return resultReg;
-  }
-
-  private getIntSize(typeName: string): number {
-    switch (typeName) {
-      case "i8":
-      case "u8":
-      case "char":
-      case "bool":
-        return 1;
-      case "i16":
-      case "u16":
-        return 2;
-      case "i32":
-      case "u32":
-        return 4;
-      case "i64":
-      case "u64":
-      case "int":
-      case "usize":
-        return 8;
-      case "f32":
-        return 4;
-      case "f64":
-        return 8;
-      default:
-        return 8;
-    }
   }
 }

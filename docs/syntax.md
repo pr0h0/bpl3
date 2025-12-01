@@ -16,7 +16,8 @@ local x: u64 = 10; # Inline comment
 BPL supports the following primitive types:
 
 - **Unsigned Integers**: `u8`, `u16`, `u32`, `u64`
-- **Signed Integers**: `i8`, `i16`, `i32`, `i64` (Note: currently mostly treated as unsigned in some contexts, but syntax is supported)
+- **Signed Integers**: `i8`, `i16`, `i32`, `i64`
+- **Floating Point**: `f32`, `f64`
 - **Pointers**: `*Type` (e.g., `*u8` for a string/byte pointer)
 - **Arrays**: `Type[Size]` (e.g., `u64[10]`)
 - **Structs**: User-defined types.
@@ -41,7 +42,7 @@ Local variables are declared inside functions (`frame`).
 ```bpl
 frame main() ret u8 {
     local x: u64 = 42;
-    local y: u64; # Uninitialized
+    local y: u64; # Uninitialized (zero-initialized in LLVM backend)
     y = 100;
     return 0;
 }
@@ -189,7 +190,7 @@ local val: u64 = *ptr;
 
 ### Comparison
 
-`==`, `!=`, `<`, `>`, `<=`, `>=`
+`==`, `!=`, `<`, `>`, `<=`, `>=` (Return `u8` 1 for true, 0 for false)
 
 ### Logical
 

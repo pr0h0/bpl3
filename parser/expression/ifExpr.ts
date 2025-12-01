@@ -4,6 +4,7 @@ import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import type BlockExpr from "./blockExpr";
 import Expression from "./expr";
+import { resolveExpressionType } from "../../utils/typeResolver";
 
 export default class IfExpr extends Expression {
   constructor(
@@ -68,8 +69,11 @@ export default class IfExpr extends Expression {
     const elseLabel = gen.generateLabel("else");
     const endLabel = gen.generateLabel("if_end");
 
+    const condType = resolveExpressionType(this.condition, scope);
+    const llvmType = condType ? gen.mapType(condType) : "i64";
+
     const condReg = gen.generateReg("cond");
-    gen.emit(`${condReg} = icmp ne i64 ${cond}, 0`);
+    gen.emit(`${condReg} = icmp ne ${llvmType} ${cond}, 0`);
 
     if (this.elseBranch) {
       gen.emit(`br i1 ${condReg}, label %${thenLabel}, label %${elseLabel}`);
