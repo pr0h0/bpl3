@@ -1,10 +1,10 @@
 const editor = document.getElementById("codeEditor");
 const outputPre = document.getElementById("consoleOutput");
 const irPre = document.getElementById("irOutput");
-const asmPre = document.getElementById("asmOutput");
 const tutorialList = document.getElementById("tutorialList");
 const tutTitle = document.getElementById("tutTitle");
 const tutDesc = document.getElementById("tutDesc");
+const warnPre = document.getElementById("warnOutput");
 
 // Load tutorials
 fetch("/tutorials.json")
@@ -42,12 +42,18 @@ document.getElementById("runBtn").addEventListener("click", async () => {
 
     if (data.error) {
       outputPre.textContent = "Server Error:\n" + data.error;
+      warnPre.textContent = "";
     } else {
       let output = "";
       if (data.stdout) output += data.stdout;
-      if (data.stderr?.trim?.()) output += "\n--- stderr ---\n" + data.stderr;
       if (data.exitCode !== 0) output += "\nExited with code: " + data.exitCode;
       outputPre.textContent = output || "No output";
+
+      // Parse warnings from stderr
+      const warnings = parseWarnings(data.stderr || "");
+      warnPre.textContent = warnings || "No warnings";
+      document.querySelector("button[data-target='warnings']").innerText =
+        `Warnings` + (warnings ? ` (${warnings.split("\n").length})` : "");
     }
     // Switch to output tab
     document.querySelector('.tab[data-target="output"]').click();
@@ -59,7 +65,6 @@ document.getElementById("runBtn").addEventListener("click", async () => {
 // Compile Code
 document.getElementById("compileBtn").addEventListener("click", async () => {
   irPre.textContent = "Compiling...";
-  asmPre.textContent = "Compiling...";
   try {
     const res = await fetch("/api/compile", {
       method: "POST",
@@ -70,22 +75,19 @@ document.getElementById("compileBtn").addEventListener("click", async () => {
 
     if (data.error) {
       irPre.textContent = "Server Error:\n" + data.error;
-      asmPre.textContent = "Server Error:\n" + data.error;
+      warnPre.textContent = "";
     } else {
       irPre.textContent = data.llvm || "No LLVM IR output";
-      asmPre.textContent = data.asm || "No Assembly output";
-
-      if (data.stderr?.trim?.()) {
-        const err = "\n--- stderr ---\n" + data.stderr;
-        irPre.textContent += err;
-        asmPre.textContent += err;
-      }
+      // Parse warnings from stderr
+      const warnings = parseWarnings(data.stderr || "");
+      warnPre.textContent = warnings || "No warnings";
+      document.querySelector("button[data-target='warnings']").innerText =
+        `Warnings` + (warnings ? ` (${warnings.split("\n").length})` : "");
     }
     // Switch to IR tab
     document.querySelector('.tab[data-target="ir"]').click();
   } catch (e) {
     irPre.textContent = "Network Error: " + e.message;
-    asmPre.textContent = "Network Error: " + e.message;
   }
 });
 
@@ -103,3 +105,12 @@ document.querySelectorAll(".tab").forEach((tab) => {
     document.getElementById(tab.dataset.target).classList.add("active");
   });
 });
+
+function parseWarnings(stderr) {
+  if (!stderr || !stderr.trim()) return "";
+  const lines = stderr
+    .split(/\r?\n/)
+    .map((l) => l.trim().replaceAll(/\x1b\[[\d]+m/g, ""));
+  const warnLines = lines; //.filter((l) => l.startsWith("Warning:"));
+  return warnLines.join("\n");
+}

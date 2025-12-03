@@ -17,6 +17,7 @@ import IdentifierExpr from "../../parser/expression/identifierExpr";
 import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
 import StringLiteralExpr from "../../parser/expression/stringLiteralExpr";
 import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
+import MethodCallExpr from "../../parser/expression/methodCallExpr";
 import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
 import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
 import UnaryExpr from "../../parser/expression/unaryExpr";
@@ -82,6 +83,8 @@ export class Formatter {
         return this.visitBinaryExpr(expr as BinaryExpr);
       case ExpressionType.FunctionCall:
         return this.visitFunctionCall(expr as FunctionCallExpr);
+      case ExpressionType.MethodCallExpr:
+        return this.visitMethodCall(expr as MethodCallExpr);
       case ExpressionType.ReturnExpression:
         return this.visitReturnExpr(expr as ReturnExpr);
       case ExpressionType.ImportExpression:
@@ -215,6 +218,7 @@ export class Formatter {
   private needsSemicolon(expr: Expression): boolean {
     switch (expr.type) {
       case ExpressionType.FunctionCall:
+      case ExpressionType.MethodCallExpr:
       case ExpressionType.BinaryExpression:
       case ExpressionType.UnaryExpression:
       case ExpressionType.BreakExpression:
@@ -354,6 +358,13 @@ export class Formatter {
     return output;
   }
 
+  private visitMethodCall(expr: MethodCallExpr): string {
+    let output = `call ${this.visit(expr.receiver)}.${expr.methodName}(`;
+    output += expr.args.map((arg) => this.visit(arg)).join(", ");
+    output += ")";
+    return output;
+  }
+
   private visitReturnExpr(expr: ReturnExpr): string {
     if (expr.value) {
       return `return ${this.visit(expr.value)};`;
@@ -439,6 +450,13 @@ export class Formatter {
       if (field.token) {
         output += this.getTrailingComment(field.token.line);
       }
+      output += "\n";
+    }
+
+    // Format methods
+    for (const method of expr.methods) {
+      output += "\n";
+      output += this.indent() + this.visitFunctionDeclaration(method);
       output += "\n";
     }
 

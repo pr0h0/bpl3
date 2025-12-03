@@ -24,6 +24,7 @@ import FunctionCallExpr from "./expression/functionCallExpr";
 import ReturnExpr from "./expression/returnExpr";
 import EOFExpr from "./expression/EOFExpr";
 import MemberAccessExpr from "./expression/memberAccessExpr";
+import MethodCallExpr from "./expression/methodCallExpr";
 import BreakExpr from "./expression/breakExpr";
 import ContinueExpr from "./expression/continueExpr";
 import ImportExpr from "./expression/importExpr";
@@ -34,6 +35,7 @@ import StructLiteralExpr, {
 } from "./expression/structLiteralExpr";
 import ExternDeclarationExpr from "./expression/externDeclarationExpr";
 import SwitchExpr, { type SwitchCase } from "./expression/switchExpr";
+import CastExpr from "./expression/castExpr";
 import { CompilerError } from "../errors";
 
 export class Parser {
@@ -536,6 +538,8 @@ export class Parser {
           return this.parseExportExpression();
         case "extern":
           return this.parseExternDeclaration();
+        case "cast":
+          return this.parseCastExpression();
         case "NULL":
           this.consume(TokenType.IDENTIFIER);
           return new NullLiteral();
@@ -736,8 +740,100 @@ export class Parser {
 
   parseFunctionCall(): Expression {
     return this.withRange(() => {
-      this.consume(TokenType.IDENTIFIER);
-      const funcNameToken = this.consume(TokenType.IDENTIFIER);
+      this.consume(TokenType.IDENTIFIER); // consume 'call'
+
+      // Parse the receiver expression, stopping before a method call pattern
+      // (DOT followed by IDENTIFIER and OPEN_PAREN)
+      const potentialReceiver = this.parseReceiverChain();
+
+      // If next token is DOT, this is a method call
+      if (this.peek()?.type === TokenType.DOT) {
+        this.consume(TokenType.DOT);
+        const methodNameToken = this.consume(
+          TokenType.IDENTIFIER,
+          "Expected method name after '.'",
+        );
+
+        // Parse generic type arguments if present
+        const genericArgs: VariableType[] = [];
+        if (this.peek()?.type === TokenType.LESS_THAN) {
+          this.consume(TokenType.LESS_THAN);
+
+          do {
+            const typeArg = this.parseType();
+            genericArgs.push(typeArg);
+
+            if (this.peek()?.type === TokenType.COMMA) {
+              this.consume(TokenType.COMMA);
+            } else if (this.peek()?.type === TokenType.GREATER_THAN) {
+              break;
+            } else {
+              throw new CompilerError(
+                "Expected ',' or '>' in generic type argument list",
+                this.peek()?.line || 0,
+              );
+            }
+          } while (true);
+
+          this.consume(
+            TokenType.GREATER_THAN,
+            "Expected '>' after generic type arguments",
+          );
+        }
+
+        this.consume(TokenType.OPEN_PAREN, "Expected '(' after method name.");
+
+        const args = this.parseArguments();
+
+        this.consume(
+          TokenType.CLOSE_PAREN,
+          "Expected ')' after method call arguments.",
+        );
+
+        return new MethodCallExpr(
+          potentialReceiver,
+          methodNameToken.value,
+          args,
+          genericArgs,
+        );
+      }
+
+      // Otherwise it's a regular function call
+      // potentialReceiver should be an IdentifierExpr with the function name
+      if (!(potentialReceiver instanceof IdentifierExpr)) {
+        throw new CompilerError(
+          "Expected function name after 'call'",
+          this.peek()?.line || 0,
+        );
+      }
+
+      // Parse generic type arguments if present
+      const genericArgs: VariableType[] = [];
+      if (this.peek()?.type === TokenType.LESS_THAN) {
+        this.consume(TokenType.LESS_THAN);
+
+        do {
+          const typeArg = this.parseType();
+          genericArgs.push(typeArg);
+
+          if (this.peek()?.type === TokenType.COMMA) {
+            this.consume(TokenType.COMMA);
+          } else if (this.peek()?.type === TokenType.GREATER_THAN) {
+            break;
+          } else {
+            throw new CompilerError(
+              "Expected ',' or '>' in generic type argument list",
+              this.peek()?.line || 0,
+            );
+          }
+        } while (true);
+
+        this.consume(
+          TokenType.GREATER_THAN,
+          "Expected '>' after generic type arguments",
+        );
+      }
+
       this.consume(
         TokenType.OPEN_PAREN,
         "Expected '(' after 'call' function name.",
@@ -750,7 +846,53 @@ export class Parser {
         "Expected ')' after function call arguments.",
       );
 
-      return new FunctionCallExpr(funcNameToken.value, args);
+      return new FunctionCallExpr(potentialReceiver.name, args, genericArgs);
+    });
+  }
+
+  // Parse receiver chain for method calls: expr.prop[idx].prop2 but stop before .method()
+  parseReceiverChain(): Expression {
+    return this.withRange(() => {
+      let expr = this.parseGrouping();
+
+      while (true) {
+        // Check if we're at a method call pattern: .identifier( OR .identifier<
+        if (
+          this.peek()?.type === TokenType.DOT &&
+          this.peek(1)?.type === TokenType.IDENTIFIER &&
+          (this.peek(2)?.type === TokenType.OPEN_PAREN ||
+            this.peek(2)?.type === TokenType.LESS_THAN)
+        ) {
+          // Stop here - this is the method call
+          break;
+        }
+
+        if (this.peek()?.type === TokenType.DOT) {
+          this.consume(TokenType.DOT);
+          const propertyToken = this.consume(
+            TokenType.IDENTIFIER,
+            "Expected property name after '.'.",
+          );
+          const accessExpr = new IdentifierExpr(propertyToken.value);
+
+          expr = new MemberAccessExpr(expr, accessExpr, false);
+        } else if (this.peek()?.type === TokenType.OPEN_BRACKET) {
+          this.consume(TokenType.OPEN_BRACKET);
+
+          const indexExpr = this.parseTernary();
+
+          this.consume(
+            TokenType.CLOSE_BRACKET,
+            "Expected ']' after index expression.",
+          );
+
+          expr = new MemberAccessExpr(expr, indexExpr, true);
+        } else {
+          break;
+        }
+      }
+
+      return expr;
     });
   }
 
@@ -798,6 +940,11 @@ export class Parser {
 
       const fields: StructField[] = [];
       while (this.peek() && this.peek()!.type !== TokenType.CLOSE_BRACE) {
+        // Check if this is a method declaration (starts with 'frame')
+        if (this.peek()?.value === "frame") {
+          break; // Exit field parsing, start method parsing
+        }
+
         const fieldNameToken = this.consume(TokenType.IDENTIFIER);
         this.consume(TokenType.COLON, "Expected ':' after field name.");
 
@@ -814,12 +961,23 @@ export class Parser {
         });
       }
 
+      // Parse methods
+      const methods: FunctionDeclarationExpr[] = [];
+      while (this.peek() && this.peek()?.value === "frame") {
+        const method = this.parseFunctionDeclaration();
+        // Tag this as a method with metadata
+        (method as any).isMethod = true;
+        (method as any).receiverStruct = structNameToken.value;
+        methods.push(method);
+      }
+
       this.consume(TokenType.CLOSE_BRACE, "Expected '}' after struct fields.");
 
       return new StructDeclarationExpr(
         structNameToken.value,
         fields,
         genericParams,
+        methods,
       );
     });
   }
@@ -850,6 +1008,37 @@ export class Parser {
     return this.withRange(() => {
       this.consume(TokenType.IDENTIFIER);
       const funcNameToken = this.consume(TokenType.IDENTIFIER);
+
+      // Parse generic parameters if present
+      const genericParams: string[] = [];
+      if (this.peek()?.type === TokenType.LESS_THAN) {
+        this.consume(TokenType.LESS_THAN);
+
+        do {
+          const paramToken = this.consume(
+            TokenType.IDENTIFIER,
+            "Expected generic parameter name",
+          );
+          genericParams.push(paramToken.value);
+
+          if (this.peek()?.type === TokenType.COMMA) {
+            this.consume(TokenType.COMMA);
+          } else if (this.peek()?.type === TokenType.GREATER_THAN) {
+            break;
+          } else {
+            throw new CompilerError(
+              "Expected ',' or '>' in generic parameter list",
+              this.peek()?.line || 0,
+            );
+          }
+        } while (true);
+
+        this.consume(
+          TokenType.GREATER_THAN,
+          "Expected '>' after generic parameters",
+        );
+      }
+
       const args: { type: VariableType; name: string }[] = [];
       this.consume(
         TokenType.OPEN_PAREN,
@@ -933,6 +1122,7 @@ export class Parser {
         funcNameToken,
         isVariadic,
         variadicType,
+        genericParams,
       );
     });
   }
@@ -1219,6 +1409,24 @@ export class Parser {
 
       this.consume(TokenType.CLOSE_BRACE, "Expected '}'");
       return new StructLiteralExpr(fields);
+    });
+  }
+
+  parseCastExpression(): CastExpr {
+    return this.withRange(() => {
+      this.consume(TokenType.IDENTIFIER); // consume 'cast'
+      this.consume(TokenType.LESS_THAN, "Expected '<' after 'cast'");
+
+      const targetType = this.parseType();
+
+      this.consume(TokenType.GREATER_THAN, "Expected '>' after type");
+      this.consume(TokenType.OPEN_PAREN, "Expected '(' after cast<Type>");
+
+      const value = this.parseTernary();
+
+      this.consume(TokenType.CLOSE_PAREN, "Expected ')' after cast expression");
+
+      return new CastExpr(targetType, value);
     });
   }
 

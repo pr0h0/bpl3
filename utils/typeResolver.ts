@@ -23,6 +23,10 @@ export function resolveExpressionType(
   }
   if (expr.type === ExpressionType.FunctionCall) {
     const call = expr as any;
+    // Use resolved return type from monomorphization if available
+    if (call.resolvedReturnType) {
+      return call.resolvedReturnType;
+    }
     const func = scope.resolveFunction(call.functionName);
     return func ? func.returnType : null;
   }

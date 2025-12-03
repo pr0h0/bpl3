@@ -51,7 +51,7 @@ serve({
       }
     }
 
-    // API: Compile Code (Get IR)
+    // API: Compile Code (Get LLVM IR)
     if (url.pathname === "/api/compile" && req.method === "POST") {
       try {
         const { code } = (await req.json()) as { code: string };
@@ -59,7 +59,7 @@ serve({
 
         writeFileSync(tempFile, code);
 
-        // 1. Get LLVM IR
+        // Get LLVM IR
         const procLlvm = spawnSync(
           "bun",
           ["index.ts", "-q", "-p", "playground_temp.x"],

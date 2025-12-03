@@ -24,20 +24,26 @@ import BinaryExpr from "../../parser/expression/binaryExpr";
 import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
 import TokenType from "../../lexer/tokenType";
 import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
+import MethodCallExpr from "../../parser/expression/methodCallExpr";
 import UnaryExpr from "../../parser/expression/unaryExpr";
 import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
+import { mangleMethod } from "../../utils/methodMangler";
+import CastExpr from "../../parser/expression/castExpr";
+import type { FunctionInfo } from "../Scope";
 
 export class SemanticAnalyzer {
   private currentReturnType: VariableType | null = null;
   private rootScope: Scope | null = null;
   private initializedVars: Set<string> = new Set();
   private currentFunction: string | null = null;
+  private currentProgram: ProgramExpr | null = null;
   public warnings: CompilerWarning[] = [];
 
   public analyze(program: ProgramExpr, parentScope?: Scope): Scope {
     // Use a child scope to avoid polluting the parent scope (used for transpilation)
     const scope = parentScope ? new Scope(parentScope) : new Scope();
     this.rootScope = scope;
+    this.currentProgram = program;
     this.analyzeBlock(program.expressions, scope);
     return scope;
   }
@@ -111,6 +117,9 @@ export class SemanticAnalyzer {
       case ExpressionType.FunctionCall:
         this.analyzeFunctionCall(expr as FunctionCallExpr, scope);
         break;
+      case ExpressionType.MethodCallExpr:
+        this.analyzeMethodCall(expr as MethodCallExpr, scope);
+        break;
       case ExpressionType.ImportExpression:
         this.analyzeImportExpression(expr as ImportExpr, scope);
         break;
@@ -143,6 +152,9 @@ export class SemanticAnalyzer {
         break;
       case ExpressionType.AsmBlockExpression:
         this.analyzeAsmBlockExpr(expr as AsmBlockExpr, scope);
+        break;
+      case ExpressionType.CastExpression:
+        this.analyzeCastExpr(expr as any, scope);
         break;
       case ExpressionType.BreakExpression:
       case ExpressionType.ContinueExpression:
@@ -221,6 +233,10 @@ export class SemanticAnalyzer {
       }
       case ExpressionType.FunctionCall: {
         const call = expr as FunctionCallExpr;
+        // Use resolved return type from monomorphization if available
+        if (call.resolvedReturnType) {
+          return call.resolvedReturnType;
+        }
         const func = scope.resolveFunction(call.functionName);
         return func ? func.returnType : null;
       }
@@ -330,6 +346,7 @@ export class SemanticAnalyzer {
       case ExpressionType.MemberAccessExpression: {
         const memberExpr = expr as any;
         const objectType = this.inferType(memberExpr.object, scope);
+
         if (!objectType) return null;
 
         if (memberExpr.isIndexAccess) {
@@ -346,20 +363,59 @@ export class SemanticAnalyzer {
               isArray: [],
             };
           }
-          return null;
+          // Invalid index access
+          throw new CompilerError(
+            `Cannot index into non-array/non-pointer type '${this.printType(objectType)}'`,
+            memberExpr.startToken?.line || 0,
+          );
         } else {
-          const typeInfo = scope.resolveType(objectType.name);
+          // Resolve the type, handling generics if present
+          let typeInfo: TypeInfo | null = null;
+          if (objectType.genericArgs && objectType.genericArgs.length > 0) {
+            typeInfo = scope.resolveGenericType(
+              objectType.name,
+              objectType.genericArgs,
+            );
+          } else {
+            typeInfo = scope.resolveType(objectType.name);
+          }
+
           if (!typeInfo) return null;
 
           const propertyName = (memberExpr.property as any).name;
           const member = typeInfo.members.get(propertyName);
-          if (!member) return null;
 
-          return {
+          if (!member) {
+            throw new CompilerError(
+              `Type '${typeInfo.name}' has no member '${propertyName}'`,
+              memberExpr.startToken?.line || 0,
+            );
+          }
+
+          // Parse generic args from member name if present (e.g., "Inner<i32>")
+          const memberType: VariableType = {
             name: member.name,
             isPointer: member.isPointer,
             isArray: member.isArray,
           };
+
+          // Check if member name contains generics like "Inner<i32>" or "Box<Pair<A,B>>"
+          const genericMatch = member.name.match(/^([^<]+)<(.+)>$/);
+
+          if (genericMatch) {
+            const baseName = genericMatch[1]!;
+            const argsString = genericMatch[2]!;
+
+            // Parse generic args respecting nesting (handle "A, Box<B, C>" correctly)
+            const genericArgNames = this.parseGenericArgs(argsString);
+
+            memberType.name = baseName;
+            memberType.genericArgs = genericArgNames.map((argName) =>
+              this.parseTypeString(argName),
+            );
+          }
+
+          return memberType;
         }
       }
       case ExpressionType.ArrayLiteralExpr: {
@@ -380,6 +436,10 @@ export class SemanticAnalyzer {
           // Here we care if it's a literal array of literal numbers.
           // Let's say yes.
         };
+      }
+      case ExpressionType.CastExpression: {
+        const castExpr = expr as any;
+        return castExpr.targetType;
       }
     }
     return null;
@@ -404,6 +464,17 @@ export class SemanticAnalyzer {
     ];
 
     if (assignmentOperators.includes(expr.operator.type)) {
+      // Check if trying to reassign 'this'
+      if (expr.left.type === ExpressionType.IdentifierExpr) {
+        const targetName = (expr.left as IdentifierExpr).name;
+        if (targetName === "this") {
+          throw new CompilerError(
+            "Cannot reassign 'this' - it is immutable",
+            expr.left.startToken?.line || 0,
+          );
+        }
+      }
+
       // For assignments, analyze value first
       this.analyzeExpression(expr.right, scope);
 
@@ -749,6 +820,328 @@ export class SemanticAnalyzer {
     return false;
   }
 
+  /**
+   * Monomorphize a generic function by creating a concrete instance with specific type arguments.
+   * Clones the function declaration and substitutes all type parameters with concrete types.
+   */
+  private monomorphizeFunction(
+    func: FunctionInfo,
+    typeArgs: VariableType[],
+    scope: Scope,
+    line: number,
+  ): FunctionInfo {
+    // Generate mangled name for this instantiation
+    const mangledName = this.getMangledFunctionName(func.name, typeArgs);
+
+    // Check if this instantiation already exists
+    const existing = scope.resolveFunction(mangledName);
+    if (existing) {
+      return existing;
+    }
+
+    // Clone the function declaration
+    if (!func.astDeclaration) {
+      throw new CompilerError(
+        `Cannot monomorphize function '${func.name}' - missing declaration`,
+        line,
+      );
+    }
+
+    const clonedDecl = this.cloneFunctionDeclaration(func.astDeclaration);
+
+    // Create type substitution map
+    const typeMap = new Map<string, VariableType>();
+    if (func.genericParams) {
+      for (let i = 0; i < func.genericParams.length; i++) {
+        const genericParam = func.genericParams[i];
+        const typeArg = typeArgs[i];
+        if (genericParam && typeArg) {
+          typeMap.set(genericParam, typeArg);
+        }
+      }
+    }
+
+    // Substitute types throughout the cloned function
+    this.substituteTypesInFunction(clonedDecl, typeMap);
+
+    // Update the function name to mangled name
+    clonedDecl.name = mangledName;
+    clonedDecl.genericParams = []; // Clear generic params since this is now concrete
+
+    // For methods, we need to preserve the 'this' parameter which is in func.args
+    // but not in the AST declaration
+    let finalArgs = clonedDecl.args;
+    const thisParam =
+      func.isMethod && func.args.length > clonedDecl.args.length
+        ? func.args[0]
+        : undefined;
+    if (thisParam) {
+      // Prepend the 'this' parameter from the original function
+      finalArgs = [thisParam, ...clonedDecl.args];
+
+      // Mark the cloned declaration as a method so it gets treated correctly during IR generation
+      (clonedDecl as any).isMethod = true;
+      (clonedDecl as any).receiverStruct = func.receiverStruct;
+    }
+
+    // Define the monomorphized function in scope FIRST to avoid re-entry
+    scope.defineFunction(mangledName, {
+      name: mangledName,
+      label: `${mangledName}_start`,
+      startLabel: `${mangledName}_start`,
+      endLabel: `${mangledName}_end`,
+      args: finalArgs.map((a) => ({ name: a.name, type: a.type })),
+      returnType: clonedDecl.returnType,
+      isExternal: false,
+      isVariadic: clonedDecl.isVariadic,
+      variadicType: clonedDecl.variadicType,
+      genericParams: [], // No generic params for instantiated function
+      astDeclaration: clonedDecl,
+      isMethod: func.isMethod,
+      receiverStruct: func.receiverStruct,
+      originalName: func.originalName,
+    });
+
+    // Add the monomorphized function to the program so it gets code generated
+    if (this.currentProgram) {
+      this.currentProgram.addExpression(clonedDecl);
+    }
+
+    // NOTE: We don't analyze the function body here - it will be analyzed when
+    // the semantic analyzer encounters it in the program expression list
+
+    const instantiated = scope.resolveFunction(mangledName);
+    if (!instantiated) {
+      throw new CompilerError(
+        `Failed to instantiate generic function '${func.name}'`,
+        line,
+      );
+    }
+
+    return instantiated;
+  }
+
+  /**
+   * Generate a mangled name for a generic function instantiation
+   */
+  private getMangledFunctionName(
+    baseName: string,
+    typeArgs: VariableType[],
+  ): string {
+    const mangledTypes = typeArgs.map((t) => this.mangleTypeName(t)).join("_");
+    return `${baseName}__${mangledTypes}`;
+  }
+
+  /**
+   * Mangle a type name for use in function names
+   */
+  private mangleTypeName(type: VariableType): string {
+    let result = "";
+
+    if (type.isPointer > 0) {
+      result += `ptr${type.isPointer}_`;
+    }
+
+    result += type.name;
+
+    if (type.isArray && type.isArray.length > 0) {
+      for (const size of type.isArray) {
+        result += `_arr${size}`;
+      }
+    }
+
+    if (type.genericArgs && type.genericArgs.length > 0) {
+      result +=
+        "_" + type.genericArgs.map((t) => this.mangleTypeName(t)).join("_");
+    }
+
+    return result;
+  }
+
+  /**
+   * Deep clone a function declaration
+   */
+  private cloneFunctionDeclaration(
+    decl: FunctionDeclarationExpr,
+  ): FunctionDeclarationExpr {
+    // Deep clone is handled by creating a new instance with cloned properties
+    return new FunctionDeclarationExpr(
+      decl.name,
+      decl.args.map((a) => ({
+        name: a.name,
+        type: {
+          ...a.type,
+          genericArgs: a.type.genericArgs?.map((g) => ({ ...g })),
+        },
+      })),
+      decl.returnType
+        ? {
+            ...decl.returnType,
+            genericArgs: decl.returnType.genericArgs?.map((g) => ({ ...g })),
+          }
+        : decl.returnType,
+      decl.body, // Keep the same body reference for now
+      decl.nameToken,
+      decl.isVariadic,
+      decl.variadicType
+        ? {
+            ...decl.variadicType,
+            genericArgs: decl.variadicType.genericArgs?.map((g) => ({ ...g })),
+          }
+        : undefined,
+      decl.genericParams ? [...decl.genericParams] : undefined,
+    );
+  }
+
+  /**
+   * Clone an array of statements
+   */
+  private cloneStatements(stmts: Expression[]): Expression[] {
+    return stmts.map((stmt) => this.cloneStatement(stmt));
+  }
+
+  /**
+   * Clone a single statement (simplified - handles common cases)
+   */
+  private cloneStatement(stmt: Expression): Expression {
+    // For now, return the original statement
+    // Full implementation would recursively clone all expression types
+    return stmt;
+  }
+
+  /**
+   * Substitute type parameters with concrete types throughout a function
+   */
+  private substituteTypesInFunction(
+    decl: FunctionDeclarationExpr,
+    typeMap: Map<string, VariableType>,
+  ): void {
+    // Substitute in return type
+    if (decl.returnType) {
+      this.substituteType(decl.returnType, typeMap);
+    }
+
+    // Substitute in arguments
+    for (const arg of decl.args) {
+      this.substituteType(arg.type, typeMap);
+    }
+
+    // Substitute in variadic type
+    if (decl.variadicType) {
+      this.substituteType(decl.variadicType, typeMap);
+    }
+
+    // Substitute in body - recursively walk all expressions
+    if (decl.body) {
+      this.substituteTypesInExpression(decl.body, typeMap);
+    }
+  }
+
+  /**
+   * Recursively substitute types in an expression tree
+   */
+  private substituteTypesInExpression(
+    expr: Expression,
+    typeMap: Map<string, VariableType>,
+  ): void {
+    // Handle different expression types
+    switch (expr.type) {
+      case ExpressionType.VariableDeclaration:
+        const varDecl = expr as VariableDeclarationExpr;
+        if (varDecl.varType) {
+          this.substituteType(varDecl.varType, typeMap);
+        }
+        if (varDecl.value) {
+          this.substituteTypesInExpression(varDecl.value, typeMap);
+        }
+        break;
+
+      case ExpressionType.BlockExpression:
+        const block = expr as BlockExpr;
+        for (const subExpr of block.expressions) {
+          this.substituteTypesInExpression(subExpr, typeMap);
+        }
+        break;
+
+      case ExpressionType.IfExpression:
+        const ifExpr = expr as IfExpr;
+        this.substituteTypesInExpression(ifExpr.condition, typeMap);
+        this.substituteTypesInExpression(ifExpr.thenBranch, typeMap);
+        if (ifExpr.elseBranch) {
+          this.substituteTypesInExpression(ifExpr.elseBranch, typeMap);
+        }
+        break;
+
+      case ExpressionType.ReturnExpression:
+        const retExpr = expr as ReturnExpr;
+        if (retExpr.value) {
+          this.substituteTypesInExpression(retExpr.value, typeMap);
+        }
+        break;
+
+      case ExpressionType.FunctionCall:
+        const callExpr = expr as FunctionCallExpr;
+        for (const arg of callExpr.args) {
+          this.substituteTypesInExpression(arg, typeMap);
+        }
+        // Also substitute generic args if present
+        if (callExpr.genericArgs) {
+          for (const genArg of callExpr.genericArgs) {
+            this.substituteType(genArg, typeMap);
+          }
+        }
+        break;
+
+      case ExpressionType.BinaryExpression:
+        const binOp = expr as BinaryExpr;
+        this.substituteTypesInExpression(binOp.left, typeMap);
+        this.substituteTypesInExpression(binOp.right, typeMap);
+        break;
+
+      case ExpressionType.UnaryExpression:
+        const unaryOp = expr as UnaryExpr;
+        this.substituteTypesInExpression(unaryOp.right, typeMap);
+        break;
+
+      case ExpressionType.CastExpression:
+        const cast = expr as CastExpr;
+        this.substituteTypesInExpression(cast.value, typeMap);
+        if (cast.targetType) {
+          this.substituteType(cast.targetType, typeMap);
+        }
+        break;
+
+      // Add more cases as needed for other expression types
+      default:
+        // For other expression types, do nothing for now
+        break;
+    }
+  }
+
+  /**
+   * Substitute a type parameter with a concrete type
+   */
+  private substituteType(
+    type: VariableType,
+    typeMap: Map<string, VariableType>,
+  ): void {
+    const concrete = typeMap.get(type.name);
+    if (concrete) {
+      // Replace the type with the concrete type
+      type.name = concrete.name;
+      type.isPointer = concrete.isPointer;
+      type.isArray = concrete.isArray ? [...concrete.isArray] : [];
+      type.genericArgs = concrete.genericArgs?.map((g) => ({ ...g }));
+    }
+
+    // Recursively substitute in generic args
+    if (type.genericArgs) {
+      for (const arg of type.genericArgs) {
+        this.substituteType(arg, typeMap);
+      }
+    }
+  }
+
   private checkTypeCompatibilityOrThrow(
     expected: VariableType,
     actual: VariableType,
@@ -760,6 +1153,106 @@ export class SemanticAnalyzer {
         line,
       );
     }
+
+    // Emit warning for implicit casts when types are compatible but differ
+    const castMsg = this.getCastWarning(expected, actual);
+    if (castMsg) {
+      this.warnings.push(
+        new CompilerWarning(
+          castMsg,
+          line,
+          "Consider using explicit cast or matching types",
+        ),
+      );
+    }
+  }
+
+  // Determine if an implicit cast is occurring and return a warning message if so
+  private getCastWarning(
+    expected: VariableType,
+    actual: VariableType,
+  ): string | null {
+    // Exact type match: no cast
+    if (
+      expected.name === actual.name &&
+      expected.isPointer === actual.isPointer &&
+      expected.isArray.length === actual.isArray.length
+    ) {
+      return null;
+    }
+
+    // Arrays: ignore array literal to array exact matches handled elsewhere
+    if (expected.isArray.length > 0 || actual.isArray.length > 0) {
+      return null;
+    }
+
+    // Pointer casts
+    if (expected.isPointer > 0 || actual.isPointer > 0) {
+      // string alias to *u8: no warning
+      const expName = expected.name === "string" ? "u8" : expected.name;
+      const actName = actual.name === "string" ? "u8" : actual.name;
+
+      // Exact pointer type match checked above, here warn on pointer-int casts
+      if (
+        (expName === "u64" && actual.isPointer > 0) ||
+        (expected.isPointer > 0 && actName === "u64")
+      ) {
+        return `Implicit cast between pointer '${this.printType(actual)}' and integer '${this.printType(expected)}' may be unsafe`;
+      }
+
+      // Different pointer depths or different base names (but allowed elsewhere): warn
+      if (
+        expected.isPointer !== actual.isPointer ||
+        (expected.isPointer > 0 && actual.isPointer > 0 && expName !== actName)
+      ) {
+        return `Implicit pointer cast from '${this.printType(actual)}' to '${this.printType(expected)}'`;
+      }
+      return null;
+    }
+
+    // Float casts
+    const isExpFloat = expected.name === "f32" || expected.name === "f64";
+    const isActFloat = actual.name === "f32" || actual.name === "f64";
+    if (isExpFloat && isActFloat) {
+      if (expected.name === "f32" && actual.name === "f64") {
+        return "Implicit cast from f64 to f32 may lose precision";
+      }
+      // f32 -> f64 widen: optional warning (requested to warn on casts)
+      if (expected.name === "f64" && actual.name === "f32") {
+        return "Implicit cast from f32 to f64";
+      }
+      return null;
+    }
+
+    // Int <-> Float casts
+    const isExpInt = !isExpFloat;
+    const isActInt = !isActFloat;
+    if (isExpFloat && isActInt) {
+      return `Implicit cast from integer '${this.printType(actual)}' to float '${this.printType(expected)}'`;
+    }
+    if (isExpInt && isActFloat) {
+      return `Implicit cast from float '${this.printType(actual)}' to integer '${this.printType(expected)}' may truncate`;
+    }
+
+    // Integer size casts
+    const expSize = this.getIntSize(expected.name);
+    const actSize = this.getIntSize(actual.name);
+    if (expSize && actSize) {
+      if (expSize > actSize) {
+        return `Implicit integer promotion from '${actual.name}' to '${expected.name}'`;
+      }
+      if (expSize < actSize) {
+        return `Implicit integer narrowing from '${actual.name}' to '${expected.name}' may truncate`;
+      }
+      return null; // same size different signedness: still a cast, warn
+    }
+
+    // Different non-numeric types: generic cast warning
+    if (expected.name !== actual.name) {
+      return `Implicit cast from '${this.printType(actual)}' to '${this.printType(expected)}'`;
+    }
+
+    return null;
   }
 
   private getIntSize(name: string): number {
@@ -848,13 +1341,24 @@ export class SemanticAnalyzer {
       this.initializedVars.add(expr.name);
     } else if (expr.scope === "local") {
       // Local variable declared but not initialized
-      this.warnings.push(
-        new CompilerWarning(
-          `Local variable '${expr.name}' declared without initialization`,
-          expr.startToken?.line || 0,
-          "Initialize variable to prevent undefined behavior",
-        ),
-      );
+      // Warn only for primitives (e.g., u8, i32). Do not warn for struct types.
+      const declaredTypeInfo = scope.resolveType(expr.varType.name);
+      const isPrimitiveLocal =
+        !!declaredTypeInfo && declaredTypeInfo.isPrimitive === true;
+
+      if (
+        isPrimitiveLocal &&
+        expr.varType.isPointer === 0 &&
+        expr.varType.isArray.length === 0
+      ) {
+        this.warnings.push(
+          new CompilerWarning(
+            `Local variable '${expr.name}' declared without initialization`,
+            expr.startToken?.line || 0,
+            "Initialize variable to prevent undefined behavior",
+          ),
+        );
+      }
     }
 
     // Define in scope
@@ -870,24 +1374,40 @@ export class SemanticAnalyzer {
     expr: FunctionDeclarationExpr,
     scope: Scope,
   ): void {
-    if (scope.resolveFunction(expr.name)) {
+    // Check if this is a method (has metadata from parser)
+    const isMethod = (expr as any).isMethod;
+    const receiverStruct = (expr as any).receiverStruct;
+
+    // Check if this function is already defined
+    const existing = scope.resolveFunction(expr.name);
+    if (!isMethod && existing) {
+      // If it's a monomorphized function that was already registered, skip re-analysis
+      // (Monomorphized functions have no generic params and mangled names like foo__u64)
+      if (expr.genericParams.length === 0 && expr.name.includes("__")) {
+        return; // Already analyzed during monomorphization
+      }
       throw new CompilerError(
         `Function '${expr.name}' is already defined.`,
         expr.startToken?.line || 0,
       );
     }
 
-    scope.defineFunction(expr.name, {
-      name: expr.name,
-      label: expr.name,
-      startLabel: expr.name,
-      endLabel: expr.name,
-      args: expr.args,
-      returnType: expr.returnType,
-      declaration: expr.startToken,
-      isVariadic: expr.isVariadic,
-      variadicType: expr.variadicType,
-    });
+    // Only define function if not a method (methods are already defined in analyzeStructDeclaration)
+    if (!isMethod) {
+      scope.defineFunction(expr.name, {
+        name: expr.name,
+        label: expr.name,
+        startLabel: expr.name,
+        endLabel: expr.name,
+        args: expr.args,
+        returnType: expr.returnType,
+        declaration: expr.startToken,
+        isVariadic: expr.isVariadic,
+        variadicType: expr.variadicType,
+        genericParams: expr.genericParams,
+        astDeclaration: expr,
+      });
+    }
 
     const functionScope = new Scope(scope);
 
@@ -896,6 +1416,21 @@ export class SemanticAnalyzer {
     const previousFunction = this.currentFunction;
     this.initializedVars = new Set();
     this.currentFunction = expr.name;
+
+    // If method, define 'this' parameter first
+    if (isMethod && receiverStruct) {
+      functionScope.define("this", {
+        type: "local",
+        offset: "0",
+        varType: {
+          name: receiverStruct,
+          isPointer: 1,
+          isArray: [],
+        },
+        isParameter: true,
+      });
+      this.initializedVars.add("this");
+    }
 
     // Define arguments in function scope - they are initialized
     for (const arg of expr.args) {
@@ -931,7 +1466,11 @@ export class SemanticAnalyzer {
       // but if it's a standalone identifier expression, it should be a variable.
       if (!scope.resolveFunction(expr.name)) {
         // Check if it's a type (for sizeof or similar constructs)
-        if (!scope.resolveType(expr.name)) {
+        if (
+          !scope.resolveType(expr.name) &&
+          expr.name !== "args" &&
+          expr.name !== "this"
+        ) {
           this.warnings.push(
             new CompilerWarning(
               `Identifier '${expr.name}' is not defined`,
@@ -943,13 +1482,10 @@ export class SemanticAnalyzer {
     } else if (
       resolved.type === "local" &&
       !this.initializedVars.has(expr.name) &&
-      !resolved.isParameter
+      !resolved.isParameter &&
+      this.getIntSize(resolved.varType.name)
     ) {
       // Variable is declared but may not be initialized
-      console.log(
-        `[DEBUG Identifier] '${expr.name}' not in initializedVars:`,
-        Array.from(this.initializedVars),
-      );
       this.warnings.push(
         new CompilerWarning(
           `Variable '${expr.name}' may be used before initialization`,
@@ -961,10 +1497,68 @@ export class SemanticAnalyzer {
   }
 
   private analyzeFunctionCall(expr: FunctionCallExpr, scope: Scope): void {
-    const func = scope.resolveFunction(expr.functionName);
+    let func = scope.resolveFunction(expr.functionName);
     if (!func) {
       throw new CompilerError(
         `Undefined function '${expr.functionName}'`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    // Handle generic function calls
+    if (expr.genericArgs.length > 0) {
+      // Validate generic argument count
+      if (!func.genericParams || func.genericParams.length === 0) {
+        throw new CompilerError(
+          `Function '${expr.functionName}' is not generic but generic type arguments were provided`,
+          expr.startToken?.line || 0,
+        );
+      }
+
+      if (expr.genericArgs.length !== func.genericParams.length) {
+        throw new CompilerError(
+          `Function '${expr.functionName}' expects ${func.genericParams.length} type arguments, but got ${expr.genericArgs.length}`,
+          expr.startToken?.line || 0,
+        );
+      }
+
+      // Validate each type argument exists
+      for (const typeArg of expr.genericArgs) {
+        if (typeArg.genericArgs && typeArg.genericArgs.length > 0) {
+          scope.resolveGenericType(typeArg.name, typeArg.genericArgs);
+        } else {
+          const typeInfo = scope.resolveType(typeArg.name);
+          if (!typeInfo) {
+            throw new CompilerError(
+              `Unknown type '${typeArg.name}' in generic type argument`,
+              expr.startToken?.line || 0,
+            );
+          }
+        }
+      }
+
+      // Trigger monomorphization
+      func = this.monomorphizeFunction(
+        func,
+        expr.genericArgs,
+        scope,
+        expr.startToken?.line || 0,
+      );
+
+      // Store monomorphized function name and resolved return type
+      expr.monomorphizedName = func.name;
+      expr.resolvedReturnType = func.returnType || undefined;
+    } else if (func.genericParams && func.genericParams.length > 0) {
+      throw new CompilerError(
+        `Generic function '${expr.functionName}' requires explicit type arguments: call ${expr.functionName}<...>(...)`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    // At this point func is guaranteed to be non-null
+    if (!func) {
+      throw new CompilerError(
+        `Unexpected error: function '${expr.functionName}' not found after resolution`,
         expr.startToken?.line || 0,
       );
     }
@@ -1176,6 +1770,21 @@ export class SemanticAnalyzer {
     }
 
     if (expr.genericParams.length > 0) {
+      // For generic structs, validate method generics don't shadow struct generics
+      for (const method of expr.methods) {
+        if (method.genericParams && method.genericParams.length > 0) {
+          for (const methodGeneric of method.genericParams) {
+            if (expr.genericParams.includes(methodGeneric)) {
+              throw new CompilerError(
+                `Method generic parameter '${methodGeneric}' shadows struct '${expr.name}' generic parameter with the same name`,
+                method.startToken?.line || 0,
+                `Use a different name for the method's generic parameter`,
+              );
+            }
+          }
+        }
+      }
+
       const structTypeInfo: TypeInfo = {
         name: expr.name,
         isArray: [],
@@ -1192,6 +1801,7 @@ export class SemanticAnalyzer {
           name: f.name,
           type: f.type,
         })),
+        genericMethods: expr.methods, // Store methods for later instantiation
         declaration: expr.startToken,
       };
       scope.defineType(expr.name, structTypeInfo);
@@ -1302,6 +1912,189 @@ export class SemanticAnalyzer {
     structTypeInfo.declaration = expr.startToken;
 
     scope.defineType(expr.name, structTypeInfo);
+
+    // Analyze methods
+    for (const method of expr.methods) {
+      const mangledName = mangleMethod(expr.name, method.name);
+
+      // Check for name collision
+      if (scope.resolveFunction(mangledName)) {
+        throw new CompilerError(
+          `Method '${method.name}' on struct '${expr.name}' conflicts with existing function '${mangledName}'`,
+          method.startToken?.line || 0,
+        );
+      }
+
+      // Validate method generics don't shadow struct generics
+      if (expr.genericParams && expr.genericParams.length > 0) {
+        if (method.genericParams && method.genericParams.length > 0) {
+          for (const methodGeneric of method.genericParams) {
+            if (expr.genericParams.includes(methodGeneric)) {
+              throw new CompilerError(
+                `Method generic parameter '${methodGeneric}' shadows struct '${expr.name}' generic parameter with the same name`,
+                method.startToken?.line || 0,
+                `Use a different name for the method's generic parameter`,
+              );
+            }
+          }
+        }
+      }
+
+      // Prepend 'this' parameter
+      const thisParam = {
+        name: "this",
+        type: {
+          name: expr.name,
+          isPointer: 1,
+          isArray: [],
+        } as VariableType,
+      };
+
+      const allArgs = [thisParam, ...method.args];
+
+      // Define as global function with mangled name
+      scope.defineFunction(mangledName, {
+        name: mangledName,
+        label: mangledName,
+        startLabel: mangledName,
+        endLabel: mangledName + "_end",
+        args: allArgs,
+        returnType: method.returnType,
+        declaration: method.startToken,
+        isMethod: true,
+        receiverStruct: expr.name,
+        originalName: method.name,
+        isVariadic: method.isVariadic,
+        variadicType: method.variadicType,
+        genericParams: method.genericParams,
+        astDeclaration: method,
+      });
+
+      // Analyze the method body with 'this' in scope
+      this.analyzeFunctionDeclaration(method, scope);
+    }
+  }
+
+  private analyzeMethodCall(expr: MethodCallExpr, scope: Scope): void {
+    // Analyze receiver
+    this.analyzeExpression(expr.receiver, scope);
+
+    // Resolve receiver type
+    const receiverType = this.inferType(expr.receiver, scope);
+
+    if (!receiverType) {
+      throw new CompilerError(
+        `Cannot resolve receiver type for method call '${expr.methodName}'`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    // Get base type (strip pointer if present)
+    let structName = receiverType.name;
+    if (receiverType.isPointer > 0) {
+      structName = receiverType.name;
+    }
+
+    // Handle generics
+    if (receiverType.genericArgs && receiverType.genericArgs.length > 0) {
+      const typeInfo = scope.resolveGenericType(
+        receiverType.name,
+        receiverType.genericArgs,
+      );
+      if (typeInfo) {
+        structName = typeInfo.name;
+      }
+    }
+
+    // Mangle and resolve method
+    const mangledName = mangleMethod(structName, expr.methodName);
+    let func = scope.resolveFunction(mangledName);
+
+    if (!func) {
+      throw new CompilerError(
+        `Method '${expr.methodName}' not found on type '${structName}'`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    // Handle generic method calls - monomorphize if needed
+    if (expr.genericArgs && expr.genericArgs.length > 0) {
+      if (!func.genericParams || func.genericParams.length === 0) {
+        throw new CompilerError(
+          `Method '${expr.methodName}' is not generic but was called with type arguments`,
+          expr.startToken?.line || 0,
+        );
+      }
+
+      if (func.genericParams.length !== expr.genericArgs.length) {
+        throw new CompilerError(
+          `Method '${expr.methodName}' expects ${func.genericParams.length} type arguments, but got ${expr.genericArgs.length}`,
+          expr.startToken?.line || 0,
+        );
+      }
+
+      // Monomorphize the method
+      func = this.monomorphizeFunction(
+        func,
+        expr.genericArgs,
+        scope,
+        expr.startToken?.line || 0,
+      );
+
+      // Update the method call to use the monomorphized version
+      const baseMangledName = mangledName;
+      const monomorphizedMangledName = this.getMangledFunctionName(
+        baseMangledName,
+        expr.genericArgs,
+      );
+      // Store the monomorphized name for IR generation
+      (expr as any).monomorphizedName = monomorphizedMangledName;
+    }
+
+    // Type-check arguments (skip first arg which is 'this')
+    const methodArgs = func.args.slice(1);
+    if (func.isVariadic) {
+      if (expr.args.length < methodArgs.length) {
+        throw new CompilerError(
+          `Method '${expr.methodName}' expects at least ${methodArgs.length} arguments, but got ${expr.args.length}`,
+          expr.startToken?.line || 0,
+        );
+      }
+    } else if (methodArgs.length !== expr.args.length) {
+      throw new CompilerError(
+        `Method '${expr.methodName}' expects ${methodArgs.length} arguments, but got ${expr.args.length}`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    // Analyze each argument
+    for (let i = 0; i < expr.args.length; i++) {
+      const arg = expr.args[i];
+      if (!arg) continue;
+      this.analyzeExpression(arg, scope);
+
+      // Type-check if within declared params
+      if (i < methodArgs.length) {
+        const argType = this.inferType(arg, scope);
+        const param = methodArgs[i];
+        if (param && argType) {
+          this.checkTypeCompatibilityOrThrow(
+            param.type,
+            argType,
+            expr.startToken?.line || 0,
+          );
+        }
+      } else if (func.isVariadic && func.variadicType) {
+        const argType = this.inferType(arg, scope);
+        if (argType) {
+          this.checkTypeCompatibilityOrThrow(
+            func.variadicType,
+            argType,
+            expr.startToken?.line || 0,
+          );
+        }
+      }
+    }
   }
 
   private analyzeMemberAccessExpr(expr: MemberAccessExpr, scope: Scope): void {
@@ -1313,5 +2106,115 @@ export class SemanticAnalyzer {
 
   private analyzeUnaryExpr(expr: UnaryExpr, scope: Scope): void {
     this.analyzeExpression(expr.right, scope);
+  }
+
+  private analyzeCastExpr(expr: any, scope: Scope): void {
+    // Validate target type exists
+    if (expr.targetType.genericArgs && expr.targetType.genericArgs.length > 0) {
+      scope.resolveGenericType(
+        expr.targetType.name,
+        expr.targetType.genericArgs,
+      );
+    } else {
+      const typeInfo = scope.resolveType(expr.targetType.name);
+      if (!typeInfo) {
+        throw new CompilerError(
+          `Unknown type '${expr.targetType.name}' in cast expression`,
+          expr.startToken?.line || 0,
+        );
+      }
+    }
+
+    // Analyze the value being cast
+    this.analyzeExpression(expr.value, scope);
+
+    // Infer source type
+    const sourceType = this.inferType(expr.value, scope);
+    if (!sourceType) {
+      throw new CompilerError(
+        `Cannot infer type of cast source expression`,
+        expr.startToken?.line || 0,
+      );
+    }
+
+    // Validate cast is possible (basic checks)
+    const targetType = expr.targetType;
+
+    // Allow all numeric and pointer casts (explicit casts are user responsibility)
+    // Just ensure they're not trying to cast incompatible struct types
+    const srcIsStruct =
+      scope.resolveType(sourceType.name) &&
+      !scope.resolveType(sourceType.name)?.isPrimitive;
+    const tgtIsStruct =
+      scope.resolveType(targetType.name) &&
+      !scope.resolveType(targetType.name)?.isPrimitive;
+
+    if (srcIsStruct && tgtIsStruct && sourceType.name !== targetType.name) {
+      throw new CompilerError(
+        `Cannot cast between different struct types '${sourceType.name}' and '${targetType.name}'`,
+        expr.startToken?.line || 0,
+      );
+    }
+  }
+
+  // Parse generic arguments from string, respecting nesting
+  // E.g., "i32, Box<u64>" -> ["i32", "Box<u64>"]
+  // E.g., "A, Pair<B, C>" -> ["A", "Pair<B, C>"]
+  private parseGenericArgs(argsString: string): string[] {
+    const args: string[] = [];
+    let current = "";
+    let depth = 0;
+
+    for (let i = 0; i < argsString.length; i++) {
+      const char = argsString[i];
+
+      if (char === "<") {
+        depth++;
+        current += char;
+      } else if (char === ">") {
+        depth--;
+        current += char;
+      } else if (char === "," && depth === 0) {
+        args.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+
+    if (current.trim()) {
+      args.push(current.trim());
+    }
+
+    return args;
+  }
+
+  // Parse a type string into a VariableType, handling generics
+  // E.g., "i32" -> { name: "i32", isPointer: 0, isArray: [] }
+  // E.g., "Box<u64>" -> { name: "Box", isPointer: 0, isArray: [], genericArgs: [...] }
+  private parseTypeString(typeStr: string): VariableType {
+    const trimmed = typeStr.trim();
+
+    // Check for generics
+    const genericMatch = trimmed.match(/^([^<]+)<(.+)>$/);
+    if (genericMatch) {
+      const baseName = genericMatch[1]!.trim();
+      const argsString = genericMatch[2]!;
+      const genericArgNames = this.parseGenericArgs(argsString);
+
+      return {
+        name: baseName,
+        isPointer: 0,
+        isArray: [],
+        genericArgs: genericArgNames.map((arg) => this.parseTypeString(arg)),
+      };
+    }
+
+    // Simple type
+    return {
+      name: trimmed,
+      isPointer: 0,
+      isArray: [],
+    };
   }
 }

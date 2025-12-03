@@ -55,7 +55,135 @@ frame main() ret u8 {
 - **Arrays**: Fixed-size collections.
 - **Access**: `points[i].x` syntax.
 
-## 3. Linked List (`example/linked_list/linked_list.x`)
+## 3. Struct Methods (`example/struct_methods/user.x`)
+
+Demonstrates how to add methods to structs for object-oriented style programming.
+
+```bpl
+import printf from "libc";
+
+struct User {
+    name: *u8,
+    age: i32,
+
+    frame sayHello() {
+        call printf("Hello, my name is %s and I am %d years old\n",
+                    this.name, this.age);
+    }
+
+    frame setAge(newAge: i32) {
+        this.age = newAge;
+    }
+
+    frame isAdult() ret i8 {
+        if this.age >= 18 {
+            return 1;
+        }
+        return 0;
+    }
+}
+
+frame main() ret i32 {
+    local user: User;
+    user.name = "Alice";
+    user.age = 25;
+
+    call user.sayHello();
+    call user.setAge(30);
+
+    local adult: i8 = call user.isAdult();
+    return 0;
+}
+```
+
+**Key Concepts:**
+
+- **Methods**: Functions defined inside structs using `frame`.
+- **The `this` keyword**: Implicit pointer to the current struct instance.
+- **Method calls**: Using `call obj.method(args)` syntax.
+- **Encapsulation**: Grouping behavior with data.
+- **Mutation**: Methods can modify struct fields via `this.field = value`.
+
+### Generic Struct Methods (`example/struct_methods/generics_methods.x`)
+
+Demonstrates generic structs with methods.
+
+```bpl
+import printf from "libc";
+
+struct Box<T> {
+    value: T,
+
+    frame getValue() ret T {
+        return this.value;
+    }
+
+    frame setValue(val: T) {
+        this.value = val;
+    }
+}
+
+frame main() ret i32 {
+    local b: Box<u64>;
+    call b.setValue(42);
+    local v: u64 = call b.getValue();
+    call printf("%llu\n", v);  # Prints: 42
+    return 0;
+}
+```
+
+**Key Concepts:**
+
+- **Generic Structs**: Use `<T>` syntax for type parameters.
+- **Generic Methods**: Methods can use generic type parameters.
+- **Type Substitution**: Generic types are resolved at instantiation.
+
+### Nested Method Calls (`example/struct_methods/nested_generics.x`)
+
+Demonstrates calling methods on nested struct fields.
+
+```bpl
+import printf from "libc";
+
+struct Inner<T> {
+    data: T,
+
+    frame getData() ret T {
+        return this.data;
+    }
+}
+
+struct Outer<T> {
+    inner: Inner<T>,
+
+    frame getInnerData() ret T {
+        return call this.inner.getData();
+    }
+}
+
+frame main() ret i32 {
+    local obj: Outer<u64>;
+    obj.inner.data = 100;
+
+    # Nested method call
+    local val: u64 = call obj.inner.getData();
+    call printf("%llu\n", val);  # Prints: 100
+
+    # Method calling nested method
+    local val2: u64 = call obj.getInnerData();
+    call printf("%llu\n", val2);  # Prints: 100
+
+    return 0;
+}
+```
+
+**Key Concepts:**
+
+- **Nested Method Calls**: `call obj.field.method()` syntax.
+- **Chained Member Access**: Access fields through multiple levels.
+- **Generic Nesting**: Outer structs can pass generic types to inner structs.
+
+## 5. Linked List (`example/linked_list/linked_list.x`)
 
 Demonstrates dynamic memory allocation and pointer manipulation.
 
@@ -79,7 +207,7 @@ frame create_node(val: u64) ret *Node {
 - **Malloc**: Allocating memory on the heap.
 - **Null**: Checking for end of list.
 
-## 4. Hotel Management System (`example/hotel/`)
+## 6. Hotel Management System (`example/hotel/`)
 
 A multi-file project demonstrating modular architecture.
 
@@ -95,7 +223,7 @@ A multi-file project demonstrating modular architecture.
 - **Imports**: `import ... from "./file.x"`.
 - **State Management**: Managing global state across modules.
 
-## 5. Inline Assembly (`example/asm_demo/asm_demo.x`)
+## 7. Inline Assembly (`example/asm_demo/asm_demo.x`)
 
 Demonstrates low-level hardware access.
 
@@ -112,7 +240,7 @@ asm {
 - **Interpolation**: Accessing BPL variables `(rnd)` inside assembly.
 - **System Calls**: Direct kernel interaction.
 
-## 6. Struct Literal Initialization (`example/struct_literal_demo/`)
+## 8. Struct Literal Initialization (`example/struct_literal_demo/`)
 
 Demonstrates the various ways to initialize structs using literal syntax.
 
@@ -156,7 +284,7 @@ frame main() ret i32 {
 - **Nested Structs**: Struct literals can be nested for complex initialization.
 - **Restriction**: Cannot mix positional and named initialization in the same literal.
 
-## 7. Division Semantics (`example/division_demo/division_demo.x`)
+## 9. Division Semantics (`example/division_demo/division_demo.x`)
 
 Demonstrates the difference between float division (`/`) and integer/floor division (`//`).
 

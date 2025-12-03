@@ -26,7 +26,10 @@ enum ExpressionType {
 
   FunctionDeclaration = "FunctionDeclaration",
   FunctionCall = "FunctionCall",
+  MethodCallExpr = "MethodCallExpr",
   ReturnExpression = "ReturnExpression",
+
+  CastExpression = "CastExpression",
 
   AsmBlockExpression = "AsmBlockExpression",
   ImportExpression = "ImportExpression",

@@ -172,7 +172,9 @@ export class LLVMTargetBuilder implements TargetBuilder {
       case IROpcode.TRUNC:
       case IROpcode.BITCAST:
       case IROpcode.FP_TO_SI:
+      case IROpcode.FP_TO_UI:
       case IROpcode.SI_TO_FP:
+      case IROpcode.UI_TO_FP:
       case IROpcode.FP_EXT:
       case IROpcode.FP_TRUNC:
       case IROpcode.PTR_TO_INT:
@@ -181,6 +183,10 @@ export class LLVMTargetBuilder implements TargetBuilder {
         let op = IROpcode[i.opcode].toLowerCase().replace(/_/g, "");
         if (i.opcode === IROpcode.FP_EXT) op = "fpext";
         if (i.opcode === IROpcode.FP_TRUNC) op = "fptrunc";
+        if (i.opcode === IROpcode.FP_TO_SI) op = "fptosi";
+        if (i.opcode === IROpcode.FP_TO_UI) op = "fptoui";
+        if (i.opcode === IROpcode.SI_TO_FP) op = "sitofp";
+        if (i.opcode === IROpcode.UI_TO_FP) op = "uitofp";
         if (i.opcode === IROpcode.PTR_TO_INT) op = "ptrtoint";
         if (i.opcode === IROpcode.INT_TO_PTR) op = "inttoptr";
         return `${i.dest} = ${op} ${this.typeToString(i.srcType)} ${i.value} to ${this.typeToString(i.destType)}`;

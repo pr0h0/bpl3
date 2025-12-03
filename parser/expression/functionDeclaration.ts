@@ -14,6 +14,7 @@ export default class FunctionDeclarationExpr extends Expression {
     public nameToken?: Token,
     public isVariadic: boolean = false,
     public variadicType: VariableType | null = null,
+    public genericParams: string[] = [],
   ) {
     super(ExpressionType.FunctionDeclaration);
     this.requiresSemicolon = false;
@@ -25,6 +26,11 @@ export default class FunctionDeclarationExpr extends Expression {
     output += "[ FunctionDeclaration ]\n";
     this.depth++;
     output += this.getDepth() + `Name: ${this.name}\n`;
+    if (this.genericParams.length > 0) {
+      output +=
+        this.getDepth() +
+        `Generic Params: <${this.genericParams.join(", ")}>\n`;
+    }
     output += this.getDepth() + `Arguments:\n`;
     this.depth++;
     for (const arg of this.args) {
@@ -61,9 +67,45 @@ export default class FunctionDeclarationExpr extends Expression {
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {
-    const name = this.name === "main" ? "user_main" : this.name;
+    // Skip IR generation for generic function templates - only their monomorphized
+    // instances should generate code
+    if (this.genericParams && this.genericParams.length > 0) {
+      return "";
+    }
 
-    const resolvedArgs = this.args.map((arg) => {
+    // Check if this is a method
+    const isMethod = (this as any).isMethod;
+    const receiverStruct = (this as any).receiverStruct;
+
+    // Use mangled name for methods, regular name for functions
+    let name: string;
+    if (isMethod && receiverStruct) {
+      const { mangleMethod } = require("../../utils/methodMangler");
+      // If the name already contains the mangled pattern (from monomorphization), use it as-is
+      if (this.name.startsWith("__bplm__") || this.name.includes("__")) {
+        name = this.name;
+      } else {
+        name = mangleMethod(receiverStruct, this.name);
+      }
+    } else {
+      name = this.name === "main" ? "user_main" : this.name;
+    }
+
+    // Prepare receiver type if method
+    let allArgs = this.args;
+    if (isMethod && receiverStruct) {
+      const thisParam = {
+        name: "this",
+        type: {
+          name: receiverStruct,
+          isPointer: 1,
+          isArray: [],
+        },
+      };
+      allArgs = [thisParam, ...this.args];
+    }
+
+    const resolvedArgs = allArgs.map((arg) => {
       let argType = arg.type;
       if (arg.type.genericArgs && arg.type.genericArgs.length > 0) {
         const typeInfo = scope.resolveGenericType(

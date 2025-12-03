@@ -5,6 +5,7 @@ import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import type { VariableType } from "./variableDeclarationExpr";
+import type FunctionDeclarationExpr from "./functionDeclaration";
 
 export type StructField = {
   name: string;
@@ -17,6 +18,7 @@ export default class StructDeclarationExpr extends Expression {
     public name: string,
     public fields: StructField[],
     public genericParams: string[] = [],
+    public methods: FunctionDeclarationExpr[] = [],
   ) {
     super(ExpressionType.StructureDeclaration);
     this.requiresSemicolon = false;
@@ -159,6 +161,11 @@ export default class StructDeclarationExpr extends Expression {
     // Add to IRModule
     const fields = this.fields.map((f) => gen.getIRType(f.type));
     gen.module.addStruct(this.name, fields);
+
+    // Generate IR for methods
+    for (const method of this.methods) {
+      method.toIR(gen, scope);
+    }
 
     return "";
   }

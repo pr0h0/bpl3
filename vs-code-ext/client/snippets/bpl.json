@@ -71,6 +71,51 @@
     "body": ["struct ${1:Name} {", "\t${2:field1}: ${3:u64},", "\t$0", "}"],
     "description": "Define a new struct"
   },
+  "Struct With Method": {
+    "prefix": "structm",
+    "body": [
+      "struct ${1:Name} {",
+      "\t${2:field}: ${3:u64},",
+      "",
+      "\tframe ${4:method}(${5:arg}: ${6:u64}) ret ${7:u64} {",
+      "\t\t# use 'this' to access fields",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Struct with an example method"
+  },
+  "Generic Struct": {
+    "prefix": "structg",
+    "body": [
+      "struct ${1:Box}<${2:T}> {",
+      "\tvalue: ${2:T},",
+      "",
+      "\tframe ${3:set}(v: ${2:T}) ret ${4:void} {",
+      "\t\t# assign: this.value = v",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Define a generic struct with a method"
+  },
+  "Chained Method Call": {
+    "prefix": "chaincall",
+    "body": [
+      "# Example: call obj.a.b[${1:0}].c(${2:args});",
+      "call ${3:obj}.${4:a}.${5:b}[${1:0}].${6:c}(${2:args});"
+    ],
+    "description": "Template for nested chained method calls"
+  },
+  "Cast": {
+    "prefix": "cast",
+    "body": [
+      "# Explicit cast helper: adjust to your target type",
+      "# Example: assign with explicit cast",
+      "local ${1:dst}: ${2:u32} = ${3:src}; # ensure types match"
+    ],
+    "description": "Explicit cast pattern (adjust types)"
+  },
   "External Function": {
     "prefix": "extern fn",
     "body": ["extern ${1:func_name}(${2:args}) ret ${3:u64};"],

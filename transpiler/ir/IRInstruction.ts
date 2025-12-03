@@ -267,8 +267,14 @@ export class CastInst extends IRInstruction {
       case IROpcode.FP_TO_SI:
         opStr = "fptosi";
         break;
+      case IROpcode.FP_TO_UI:
+        opStr = "fptoui";
+        break;
       case IROpcode.SI_TO_FP:
         opStr = "sitofp";
+        break;
+      case IROpcode.UI_TO_FP:
+        opStr = "uitofp";
         break;
       case IROpcode.FP_EXT:
         opStr = "fpext";

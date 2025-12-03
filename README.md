@@ -41,6 +41,9 @@ To install it:
 - **Import/Export**: Supports modular programming through import and export statements with automatic dependency compilation.
 - **Inline Assembly**: Allows embedding raw assembly code within BPL code for low-level operations with interpolation of BPL variables.
 - **Structures and Arrays**: Supports user-defined structures and arrays for complex data management.
+- **Generic Structs**: Supports generic type parameters for reusable data structures (e.g., `Box<T>`, `Pair<A, B>`).
+- **Struct Methods**: Structs can have methods with `this` keyword for object-oriented programming.
+- **Nested Method Calls**: Supports method calls on nested struct fields (e.g., `call obj.field.method()`).
 - **Array Literals**: Supports initializing arrays with literals `[1, 2, 3]`.
 - **Struct Literals**: Supports initializing structs with literals using both named and positional syntax.
 - **Standard Library**: Provides built-in functions for `print`, `exit`, `exec`, `str_len`.
@@ -488,6 +491,7 @@ The `example` directory contains several programs demonstrating various features
 - `malloc.x`: Demonstrates manual memory management using `malloc` and `free`.
 - `structs_arrays.x`: Shows how to use arrays of structures.
 - `struct_literal_demo/`: Demonstrates struct literal initialization (positional, named, and nested).
+- `struct_methods/`: Comprehensive examples of struct methods, generic structs, and nested method calls.
 - `linked_list.x`: Implements a linked list using structs and dynamic memory allocation.
 - `asm_demo.x`: Demonstrates inline assembly and variable interpolation.
 - `operators.x`: Comprehensive test of arithmetic, bitwise, and logical operators.

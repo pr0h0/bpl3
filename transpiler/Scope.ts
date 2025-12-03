@@ -1,4 +1,5 @@
 import type { VariableType } from "../parser/expression/variableDeclarationExpr";
+import type FunctionDeclarationExpr from "../parser/expression/functionDeclaration";
 import Token from "../lexer/token";
 
 export interface VarInfo {
@@ -43,6 +44,7 @@ export type TypeInfo = {
   sourceFile?: string;
   genericParams?: string[];
   genericFields?: { name: string; type: VariableType }[];
+  genericMethods?: any[]; // Store method AST nodes for generic structs
   index?: number;
 };
 
@@ -66,6 +68,11 @@ export type FunctionInfo = {
   sourceFile?: string;
   llvmName?: string;
   irName?: string;
+  isMethod?: boolean;
+  receiverStruct?: string;
+  originalName?: string;
+  genericParams?: string[];
+  astDeclaration?: FunctionDeclarationExpr; // Store AST for monomorphization
 };
 
 export default class Scope {
@@ -152,6 +159,12 @@ export default class Scope {
       return this.functions.get(name)!;
     }
     return null;
+  }
+
+  resolveMethod(structName: string, methodName: string): FunctionInfo | null {
+    const { mangleMethod } = require("../utils/methodMangler");
+    const mangledName = mangleMethod(structName, methodName);
+    return this.resolveFunction(mangledName);
   }
   // #endregion
 
@@ -303,6 +316,56 @@ export default class Scope {
     newType.alignment = maxAlignment;
 
     this.getGlobalScope().defineType(instantiationName, newType);
+
+    // Register methods for the instantiated generic type
+    if (baseType.genericMethods && baseType.genericMethods.length > 0) {
+      const { mangleMethod } = require("../utils/methodMangler");
+
+      for (const method of baseType.genericMethods) {
+        const mangledName = mangleMethod(instantiationName, method.name);
+
+        // Substitute generic type parameters in method signature
+        const thisParam = {
+          name: "this",
+          type: {
+            name: instantiationName,
+            isPointer: 1,
+            isArray: [],
+          },
+        };
+
+        // Substitute generic parameters in method arguments
+        const substitutedArgs = method.args.map((arg: any) => ({
+          name: arg.name,
+          type: this.substituteType(arg.type, paramMap),
+        }));
+
+        const methodArgs = [thisParam, ...substitutedArgs];
+
+        // Substitute generic parameters in return type
+        const returnType = method.returnType
+          ? this.substituteType(method.returnType, paramMap)
+          : null;
+
+        // Register the method as a function
+        this.getGlobalScope().functions.set(mangledName, {
+          name: mangledName,
+          label: mangledName,
+          startLabel: `${mangledName}_start`,
+          endLabel: `${mangledName}_end`,
+          args: methodArgs,
+          returnType: returnType,
+          isExternal: false,
+          declaration: method.startToken,
+          irName: `@${mangledName}`,
+          isMethod: true,
+          receiverStruct: instantiationName,
+          originalName: method.name,
+          genericParams: method.genericParams || [],
+          astDeclaration: method,
+        });
+      }
+    }
     return newType;
   }
 

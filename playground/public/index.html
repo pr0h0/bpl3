@@ -11,7 +11,7 @@
       <h1>BPL Playground</h1>
       <div class="controls">
         <button id="runBtn" class="primary">Run ▶</button>
-        <button id="compileBtn">Show ASM / LLVM IR</button>
+        <button id="compileBtn">Show LLVM IR</button>
       </div>
     </header>
 
@@ -36,7 +36,7 @@
         <div class="tabs">
           <button class="tab active" data-target="output">Output</button>
           <button class="tab" data-target="ir">LLVM IR</button>
-          <button class="tab" data-target="asm">Assembly</button>
+          <button class="tab" data-target="warnings">Warnings</button>
         </div>
         <div id="output" class="tab-content active">
           <pre id="consoleOutput">// Run code to see output</pre>
@@ -44,8 +44,8 @@
         <div id="ir" class="tab-content">
           <pre id="irOutput">// Compile to see LLVM IR</pre>
         </div>
-        <div id="asm" class="tab-content">
-          <pre id="asmOutput">// Compile to see Assembly</pre>
+        <div id="warnings" class="tab-content">
+          <pre id="warnOutput">// Warnings will appear here</pre>
         </div>
       </section>
     </main>

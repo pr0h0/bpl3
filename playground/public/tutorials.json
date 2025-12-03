@@ -80,15 +80,15 @@
     },
     {
       "id": "methods",
-      "title": "14. Methods",
-      "description": "BPL doesn't have classes, but you can define functions that take a struct as the first argument, simulating methods.",
-      "code": "import printf from \"libc\";\n\nextern printf(fmt: *u8, ...);\n\nstruct Rect {\n    width: u64,\n    height: u64,\n}\n\nframe area(r: Rect) ret u64 {\n    return r.width * r.height;\n}\n\nframe perim(r: Rect) ret u64 {\n    return 2 * r.width + 2 * r.height;\n}\n\nframe main() {\n    local r: Rect;\n    r.width = 10;\n    r.height = 5;\n\n    call printf(\"area: %d\\n\", call area(r));\n    call printf(\"perim: %d\\n\", call perim(r));\n}\n"
+      "title": "14. Struct Methods",
+      "description": "Structs can have methods defined inside them using the 'frame' keyword. Use 'this' to access the struct instance.",
+      "code": "import printf from \"libc\";\n\nextern printf(fmt: *u8, ...);\n\nstruct Rect {\n    width: u64,\n    height: u64,\n\n    frame area() ret u64 {\n        return this.width * this.height;\n    }\n\n    frame perim() ret u64 {\n        return 2 * this.width + 2 * this.height;\n    }\n\n    frame scale(factor: u64) {\n        this.width = this.width * factor;\n        this.height = this.height * factor;\n    }\n}\n\nframe main() {\n    local r: Rect;\n    r.width = 10;\n    r.height = 5;\n\n    call printf(\"area: %d\\n\", call r.area());\n    call printf(\"perim: %d\\n\", call r.perim());\n\n    call r.scale(2);\n    call printf(\"after scale - area: %d\\n\", call r.area());\n}\n"
     },
     {
       "id": "generics",
-      "title": "15. Generics",
-      "description": "BPL supports generic structs.",
-      "code": "import printf from \"libc\";\n\nextern printf(fmt: *u8, ...);\n\nstruct Box<T> {\n    val: T,\n}\n\nframe main() {\n    local intBox: Box<u64>;\n    intBox.val = 123;\n    call printf(\"Box<u64>: %d\\n\", intBox.val);\n\n    local strBox: Box<*u8>;\n    strBox.val = \"Generic\";\n    call printf(\"Box<*u8>: %s\\n\", strBox.val);\n}\n"
+      "title": "15. Generic Structs",
+      "description": "BPL supports generic structs with type parameters. Methods on generic structs can use the type parameters.",
+      "code": "import printf from \"libc\";\n\nextern printf(fmt: *u8, ...);\n\nstruct Box<T> {\n    val: T,\n\n    frame get() ret T {\n        return this.val;\n    }\n\n    frame set(value: T) {\n        this.val = value;\n    }\n}\n\nstruct Pair<A, B> {\n    first: A,\n    second: B,\n\n    frame getFirst() ret A {\n        return this.first;\n    }\n\n    frame getSecond() ret B {\n        return this.second;\n    }\n}\n\nframe main() {\n    local intBox: Box<u64>;\n    call intBox.set(123);\n    call printf(\"Box<u64>: %d\\n\", call intBox.get());\n\n    local strBox: Box<*u8>;\n    call strBox.set(\"Generic\");\n    call printf(\"Box<*u8>: %s\\n\", call strBox.get());\n\n    local p: Pair<u64, *u8>;\n    p.first = 42;\n    p.second = \"hello\";\n    call printf(\"Pair: %d, %s\\n\", call p.getFirst(), call p.getSecond());\n}\n"
     },
     {
       "id": "errors",

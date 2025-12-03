@@ -97,11 +97,15 @@
       "patterns": [
         {
           "name": "keyword.control.bpl",
-          "match": "\\b(if|else|loop|break|continue|return|import|from|export|extern)\\b"
+          "match": "\\b(if|else|loop|break|continue|return|import|from|export|extern|cast)\\b"
         },
         {
           "name": "keyword.other.bpl",
           "match": "\\b(frame|global|local|const|struct|asm|call|ret)\\b"
+        },
+        {
+          "name": "variable.language.this.bpl",
+          "match": "\\b(this)\\b"
         },
         {
           "name": "constant.language.bpl",
@@ -235,6 +239,22 @@
           "captures": {
             "1": { "name": "keyword.other.bpl" },
             "2": { "name": "entity.name.function.bpl" }
+          }
+        },
+        {
+          "match": "\\b(call)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*\\.\\s*([a-zA-Z_][a-zA-Z0-9_]*))+(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "keyword.other.bpl" },
+            "2": { "name": "variable.other.object.bpl" },
+            "3": { "name": "entity.name.function.method.bpl" }
+          }
+        },
+        {
+          "match": "\\b(call)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\.\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.bpl" },
+            "2": { "name": "variable.other.object.bpl" },
+            "3": { "name": "entity.name.function.method.bpl" }
           }
         },
         {

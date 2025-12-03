@@ -149,6 +149,32 @@ struct Point {
 }
 ```
 
+### Generic Structs
+
+Structs can have type parameters:
+
+```bpl
+struct Box<T> {
+    value: T
+}
+
+struct Pair<A, B> {
+    first: A,
+    second: B
+}
+
+frame main() ret i32 {
+    local b: Box<u64>;
+    b.value = 42;
+
+    local p: Pair<u64, *u8>;
+    p.first = 10;
+    p.second = "hello";
+
+    return 0;
+}
+```
+
 ### Struct Initialization
 
 Structs can be initialized using struct literals with two different syntaxes:
@@ -206,6 +232,119 @@ frame main() ret u8 {
     return 0;
 }
 ```
+
+### Struct Methods
+
+Structs can have methods that operate on instances. Methods are declared inside the struct using `frame` and receive a pointer to the struct as the implicit `this` parameter.
+
+```bpl
+struct Counter {
+    value: i32,
+
+    frame increment() {
+        this.value = this.value + 1;
+    }
+
+    frame getValue() ret i32 {
+        return this.value;
+    }
+
+    frame setValue(newValue: i32) {
+        this.value = newValue;
+    }
+}
+
+frame main() ret i32 {
+    local c: Counter;
+    c.value = 10;
+
+    call c.increment();
+    call c.increment();
+
+    local val: i32 = call c.getValue();  # val = 12
+
+    call c.setValue(100);
+
+    return 0;
+}
+```
+
+#### Generic Methods
+
+Methods on generic structs can use type parameters:
+
+```bpl
+struct Container<T> {
+    data: T,
+
+    frame get() ret T {
+        return this.data;
+    }
+
+    frame set(val: T) {
+        this.data = val;
+    }
+}
+
+frame main() ret i32 {
+    local c: Container<u64>;
+    call c.set(42);
+    local v: u64 = call c.get();
+    return 0;
+}
+```
+
+#### Nested Method Calls
+
+You can call methods on nested struct fields:
+
+```bpl
+struct Inner {
+    value: i32,
+
+    frame getValue() ret i32 {
+        return this.value;
+    }
+}
+
+struct Outer {
+    inner: Inner,
+
+    frame getInnerValue() ret i32 {
+        # Call method on nested field
+        return call this.inner.getValue();
+    }
+}
+
+frame main() ret i32 {
+    local obj: Outer;
+    obj.inner.value = 100;
+
+    # Nested method call from outside
+    local val: i32 = call obj.inner.getValue();
+
+    # Method calling nested method
+    local val2: i32 = call obj.getInnerValue();
+
+    return 0;
+}
+```
+
+#### The `this` Keyword
+
+Inside methods, use `this` to refer to the current instance. `this` is always a pointer to the struct.
+
+- **Immutable**: You cannot reassign `this` itself (`this = something` will cause an error)
+- **Field mutation allowed**: You can modify fields (`this.field = value`)
+- **Method calls**: You can call other methods on `this` (`call this.otherMethod()`)
+
+#### Method Name Mangling
+
+Methods are compiled to global functions with mangled names using the pattern `__bplm__StructName__methodName__`. This ensures no naming conflicts between methods on different struct types.
+
+#### Auto-import/export
+
+When a struct type is exported or imported, its methods are automatically included.
 
 ## Arrays
 

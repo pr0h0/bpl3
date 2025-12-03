@@ -18,12 +18,15 @@ export default class FunctionCallExpr extends Expression {
   constructor(
     public functionName: string,
     public args: Expression[],
+    public genericArgs: VariableType[] = [],
   ) {
     super(ExpressionType.FunctionCall);
   }
 
   argOrders = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
   public isTailCall: boolean = false;
+  public monomorphizedName?: string; // Set by semantic analyzer for generic function calls
+  public resolvedReturnType?: VariableType; // Set by semantic analyzer for generic function calls
   floatArgOrders = [
     "xmm0",
     "xmm1",
@@ -37,7 +40,12 @@ export default class FunctionCallExpr extends Expression {
 
   toString(depth: number = 0): string {
     this.depth = depth;
-    let output = this.getDepth() + `[ FunctionCall: ${this.functionName} ]\n`;
+    let genericStr =
+      this.genericArgs.length > 0
+        ? `<${this.genericArgs.map((t) => this.printType(t)).join(", ")}>`
+        : "";
+    let output =
+      this.getDepth() + `[ FunctionCall: ${this.functionName}${genericStr} ]\n`;
     this.depth++;
     for (const arg of this.args) {
       output += arg.toString(depth + 1);
@@ -52,9 +60,17 @@ export default class FunctionCallExpr extends Expression {
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {
-    const func = scope.resolveFunction(this.functionName);
+    // Resolve function name (may be mangled if generic)
+    let funcName = this.functionName;
+
+    // If this is a generic call, look up the monomorphized version
+    if (this.genericArgs.length > 0) {
+      funcName = this.getMangledGenericName();
+    }
+
+    const func = scope.resolveFunction(funcName);
     if (!func) {
-      throw new Error(`Function ${this.functionName} not found`);
+      throw new Error(`Function ${funcName} not found`);
     }
 
     const argValues: { value: string; type: any }[] = [];
@@ -143,9 +159,25 @@ export default class FunctionCallExpr extends Expression {
       ? gen.getIRType(func.returnType)
       : ({ type: "void" } as any);
 
-    const funcName = func.irName || `@${this.functionName}`;
+    const irFuncName = func.irName || `@${funcName}`;
 
-    const result = gen.emitCall(funcName, argValues, returnType);
+    const result = gen.emitCall(irFuncName, argValues, returnType);
     return result || "";
+  }
+
+  private getMangledGenericName(): string {
+    const typeStrs = this.genericArgs.map((t) => this.mangleType(t));
+    return `${this.functionName}__${typeStrs.join("_")}`;
+  }
+
+  private mangleType(type: VariableType): string {
+    let name = type.name;
+    if (type.isPointer > 0) {
+      name = "ptr" + type.isPointer + "_" + name;
+    }
+    if (type.isArray.length > 0) {
+      name = name + "_arr" + type.isArray.join("x");
+    }
+    return name;
   }
 }

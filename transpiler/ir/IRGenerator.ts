@@ -268,6 +268,83 @@ export class IRGenerator {
     return dest;
   }
 
+  // Cast helpers for explicit cast<T>(expr)
+  emitBitcast(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.BITCAST, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitTrunc(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.TRUNC, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitZExt(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.ZEXT, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitSExt(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.SEXT, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitFPTrunc(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.FP_TRUNC, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitFPExt(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.FP_EXT, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitFPToSI(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.FP_TO_SI, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitFPToUI(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.FP_TO_UI, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitSIToFP(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.SI_TO_FP, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitUIToFP(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(new CastInst(IROpcode.UI_TO_FP, value, srcType, destType, dest));
+    return dest;
+  }
+
+  emitPtrToInt(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(
+      new CastInst(IROpcode.PTR_TO_INT, value, srcType, destType, dest),
+    );
+    return dest;
+  }
+
+  emitIntToPtr(value: string, srcType: IRType, destType: IRType): string {
+    const dest = this.getTemp("cast");
+    this.emit(
+      new CastInst(IROpcode.INT_TO_PTR, value, srcType, destType, dest),
+    );
+    return dest;
+  }
+
   getIRType(type: VariableType): IRType {
     if (type.isPointer > 0) {
       const base = this.getIRType({ ...type, isPointer: type.isPointer - 1 });

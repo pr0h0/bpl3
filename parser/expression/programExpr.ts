@@ -69,6 +69,9 @@ export default class ProgramExpr extends Expression {
       expr.toIR(gen, scope);
     }
 
+    // Generate instantiated generic methods
+    this.generateInstantiatedGenericMethods(gen, scope);
+
     if (!weHaveExportStmt) {
       const irArgs = [
         { name: "argc", type: { type: "i32" } as any },
@@ -143,5 +146,175 @@ export default class ProgramExpr extends Expression {
       }
     }
     return "";
+  }
+
+  private generateInstantiatedGenericMethods(
+    gen: IRGenerator,
+    scope: Scope,
+  ): void {
+    // Find all generic struct declarations
+    const genericStructs = this.expressions.filter(
+      (expr) =>
+        expr.type === ExpressionType.StructureDeclaration &&
+        (expr as any).genericParams &&
+        (expr as any).genericParams.length > 0,
+    );
+
+    // For each generic struct, find all instantiated versions in the scope
+    for (const structExpr of genericStructs) {
+      const structDecl = structExpr as any;
+      const baseTypeName = structDecl.name;
+
+      // Look through all types in scope to find instantiations
+      const globalScope = scope.getGlobalScope();
+      for (const [typeName, typeInfo] of globalScope.types) {
+        // Check if this is an instantiation of our generic struct
+        if (
+          typeName.startsWith(baseTypeName + "<") &&
+          typeInfo.name === typeName
+        ) {
+          // Generate methods for this instantiation
+          this.generateMethodsForInstantiation(
+            gen,
+            scope,
+            structDecl,
+            typeName,
+          );
+        }
+      }
+    }
+  }
+
+  private generateMethodsForInstantiation(
+    gen: IRGenerator,
+    scope: Scope,
+    structDecl: any,
+    instantiatedTypeName: string,
+  ): void {
+    const { mangleMethod } = require("../../utils/methodMangler");
+
+    // Extract generic type mappings from instantiated type name
+    const paramMap = this.extractGenericMappings(
+      structDecl.genericParams,
+      instantiatedTypeName,
+    );
+
+    // Generate IR for each method
+    for (const method of structDecl.methods) {
+      const mangledName = mangleMethod(instantiatedTypeName, method.name);
+
+      // Clone and substitute generic types in the method
+      const substitutedMethod = this.substituteGenericTypesInMethod(
+        method,
+        paramMap,
+      );
+
+      // Mark method as belonging to the instantiated type
+      (substitutedMethod as any).isMethod = true;
+      (substitutedMethod as any).receiverStruct = instantiatedTypeName;
+
+      // Generate the method IR with substituted types
+      substitutedMethod.toIR(gen, scope);
+    }
+  }
+
+  private substituteGenericTypesInMethod(
+    method: any,
+    paramMap: Map<string, any>,
+  ): any {
+    // Deep clone the method to avoid modifying the original
+    const clonedMethod = this.cloneMethod(method);
+
+    // Substitute types in arguments
+    if (clonedMethod.args) {
+      clonedMethod.args = clonedMethod.args.map((arg: any) => ({
+        ...arg,
+        type: this.substituteTypeInVariableType(arg.type, paramMap),
+      }));
+    }
+
+    // Substitute return type
+    if (clonedMethod.returnType) {
+      clonedMethod.returnType = this.substituteTypeInVariableType(
+        clonedMethod.returnType,
+        paramMap,
+      );
+    }
+
+    return clonedMethod;
+  }
+
+  private cloneMethod(method: any): any {
+    // Create a new FunctionDeclarationExpr with the same properties
+    const FunctionDeclarationExpr = require("./functionDeclaration").default;
+
+    return new FunctionDeclarationExpr(
+      method.name,
+      method.args ? JSON.parse(JSON.stringify(method.args)) : [],
+      method.returnType ? JSON.parse(JSON.stringify(method.returnType)) : null,
+      method.body, // Keep same body reference (expressions will resolve types at IR time)
+      method.nameToken,
+      method.isVariadic || false,
+      method.variadicType
+        ? JSON.parse(JSON.stringify(method.variadicType))
+        : null,
+    );
+  }
+
+  private substituteTypeInVariableType(
+    type: any,
+    paramMap: Map<string, any>,
+  ): any {
+    if (paramMap.has(type.name)) {
+      // Replace generic parameter with concrete type
+      const concreteType = paramMap.get(type.name);
+      return {
+        ...concreteType,
+        isPointer: type.isPointer + (concreteType.isPointer || 0),
+        isArray: [...type.isArray, ...(concreteType.isArray || [])],
+      };
+    }
+
+    // Handle generic args recursively (e.g., Container<T>)
+    if (type.genericArgs && type.genericArgs.length > 0) {
+      return {
+        ...type,
+        genericArgs: type.genericArgs.map((arg: any) =>
+          this.substituteTypeInVariableType(arg, paramMap),
+        ),
+      };
+    }
+
+    return type;
+  }
+
+  private extractGenericMappings(
+    genericParams: string[],
+    instantiatedTypeName: string,
+  ): Map<string, any> {
+    const paramMap = new Map<string, any>();
+
+    // Parse the instantiated type name (e.g., "Container<i32>")
+    const match = instantiatedTypeName.match(/^([^<]+)<(.+)>$/);
+    if (!match || !genericParams || genericParams.length === 0) {
+      return paramMap;
+    }
+
+    const typeArgsString = match[2]!;
+    const typeArgs = typeArgsString.split(",").map((s) => s.trim());
+
+    for (let i = 0; i < genericParams.length && i < typeArgs.length; i++) {
+      const paramName = genericParams[i]!;
+      const concreteTypeName = typeArgs[i];
+
+      // Create a VariableType object for the concrete type
+      paramMap.set(paramName, {
+        name: concreteTypeName,
+        isPointer: 0,
+        isArray: [],
+      });
+    }
+
+    return paramMap;
   }
 }
