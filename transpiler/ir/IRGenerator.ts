@@ -426,10 +426,7 @@ export class IRGenerator {
         isArray: member.isArray,
       };
 
-      if (
-        member.isPointer === 0 &&
-        !member.isPrimitive
-      ) {
+      if (member.isPointer === 0 && !member.isPrimitive) {
         const memberTypeInfo = scope.resolveType(member.name);
         if (memberTypeInfo) {
           this.registerStruct(memberTypeInfo, scope);

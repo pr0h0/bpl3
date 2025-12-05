@@ -137,7 +137,9 @@ export default class StructDeclarationExpr extends Expression {
         currentOffset += padding;
 
         structTypeInfo.members.set(field.name, {
-          info: { description: `Field ${field.name} of type ${field.type.name}` },
+          info: {
+            description: `Field ${field.name} of type ${field.type.name}`,
+          },
           name: field.type.name,
           isArray: field.type.isArray,
           isPointer: field.type.isPointer,

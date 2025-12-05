@@ -308,7 +308,8 @@ export default class VariableDeclarationExpr extends Expression {
             `Too many fields in struct literal for '${structType.name}' or index mismatch`,
           );
         }
-        fieldIndex = foundMember.index !== undefined ? foundMember.index : index;
+        fieldIndex =
+          foundMember.index !== undefined ? foundMember.index : index;
         fieldType = {
           name: foundMember.name,
           isPointer: foundMember.isPointer,

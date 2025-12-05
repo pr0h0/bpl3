@@ -177,7 +177,7 @@ export function resolveExpressionType(
           genericArgs: member.genericArgs,
         };
       }
-      
+
       // Otherwise, the name might already be an instantiated type like "Inner<u64>"
       // Just return the type as-is
       return {

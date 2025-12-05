@@ -279,18 +279,30 @@ export default class Scope {
       }
 
       if (!fieldTypeInfo) {
-        console.error(`Failed to resolve type '${concreteType.name}' in scope ${this.id}.`);
-        console.error(`Available types: ${Array.from(this.types.keys()).join(", ")}`);
-        console.error(`This scope parent: ${this.parent ? this.parent.id : 'null'}`);
+        console.error(
+          `Failed to resolve type '${concreteType.name}' in scope ${this.id}.`,
+        );
+        console.error(
+          `Available types: ${Array.from(this.types.keys()).join(", ")}`,
+        );
+        console.error(
+          `This scope parent: ${this.parent ? this.parent.id : "null"}`,
+        );
         let currentScope: Scope | null = this.parent;
         let depth = 1;
         while (currentScope) {
-          console.error(`Parent scope ${currentScope.id} (depth ${depth}) available types: ${Array.from(currentScope.types.keys()).join(", ")}`);
-          console.error(`  Parent of scope ${currentScope.id}: ${currentScope.parent ? currentScope.parent.id : 'null'}`);
+          console.error(
+            `Parent scope ${currentScope.id} (depth ${depth}) available types: ${Array.from(currentScope.types.keys()).join(", ")}`,
+          );
+          console.error(
+            `  Parent of scope ${currentScope.id}: ${currentScope.parent ? currentScope.parent.id : "null"}`,
+          );
           currentScope = currentScope.parent;
           depth++;
           if (depth > 10) {
-            console.error('Stopping scope chain traversal after 10 levels to prevent infinite loop');
+            console.error(
+              "Stopping scope chain traversal after 10 levels to prevent infinite loop",
+            );
             break;
           }
         }
@@ -343,7 +355,7 @@ export default class Scope {
     // Register methods for the instantiated generic type
     // REMOVED: We now handle method instantiation in SemanticAnalyzer on demand
     // to ensure proper code generation and type substitution in the body.
-    
+
     return newType;
   }
 

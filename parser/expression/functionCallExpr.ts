@@ -77,15 +77,22 @@ export default class FunctionCallExpr extends Expression {
     if (func.isExternal && func.irName) {
       const IRFunction = require("../../transpiler/ir/IRFunction").IRFunction;
       const IRVoid = require("../../transpiler/ir/IRType").IRVoid;
-      
+
       // Check if already declared
       if (!gen.module.functions.some((f: any) => f.name === func.irName)) {
-        const retType = func.returnType ? gen.getIRType(func.returnType) : IRVoid;
+        const retType = func.returnType
+          ? gen.getIRType(func.returnType)
+          : IRVoid;
         const args = (func.args || []).map((a: any) => ({
           name: a.name,
           type: gen.getIRType(a.type),
         }));
-        const irFunc = new IRFunction(func.irName, args, retType, func.isVariadic || false);
+        const irFunc = new IRFunction(
+          func.irName,
+          args,
+          retType,
+          func.isVariadic || false,
+        );
         gen.module.addFunction(irFunc);
       }
     }
