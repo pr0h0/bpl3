@@ -1,9 +1,10 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../../lexer/lexer";
-import { Parser } from "../../parser/parser";
-import ExpressionType from "../../parser/expressionType";
-import ImportExpr from "../../parser/expression/importExpr";
 import ExportExpr from "../../parser/expression/exportExpr";
+import ImportExpr from "../../parser/expression/importExpr";
+import ExpressionType from "../../parser/expressionType";
+import { Parser } from "../../parser/parser";
 
 function parse(input: string) {
   const lexer = new Lexer(input);

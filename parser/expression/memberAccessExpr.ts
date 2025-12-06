@@ -1,13 +1,13 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type Scope from "../../transpiler/Scope";
+import { IROpcode } from "../../transpiler/ir/IRInstruction";
 import ExpressionType from "../expressionType";
 import BinaryExpr from "./binaryExpr";
 import Expression from "./expr";
 import IdentifierExpr from "./identifierExpr";
 import UnaryExpr from "./unaryExpr";
-import type { VariableType } from "./variableDeclarationExpr";
-import { IROpcode } from "../../transpiler/ir/IRInstruction";
 
+import type { VariableType } from "./variableDeclarationExpr";
 export default class MemberAccessExpr extends Expression {
   constructor(
     public object: Expression,
@@ -29,10 +29,6 @@ export default class MemberAccessExpr extends Expression {
     this.depth--;
     output += this.getDepth() + "/[ MemberAccess ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   private resolveExpressionType(
@@ -248,7 +244,9 @@ export default class MemberAccessExpr extends Expression {
 
   getAddress(gen: IRGenerator, scope: Scope): string {
     const objectType = this.resolveExpressionType(this.object, scope);
-    if (!objectType) throw new Error("Cannot resolve object type");
+    if (!objectType) {
+      throw new Error("Cannot resolve object type");
+    }
 
     let basePtr: string;
 

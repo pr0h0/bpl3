@@ -2,6 +2,9 @@ import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import IdentifierExpr from "./identifierExpr";
+import NumberLiteralExpr from "./numberLiteralExpr";
+
 import type { VariableType } from "./variableDeclarationExpr";
 
 export default class CastExpr extends Expression {
@@ -27,10 +30,6 @@ export default class CastExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   optimize(): Expression {
     this.value = this.value.optimize();
     return this;
@@ -44,7 +43,7 @@ export default class CastExpr extends Expression {
       SemanticAnalyzer,
     } = require("../../transpiler/analysis/SemanticAnalyzer");
     const analyzer = new SemanticAnalyzer();
-    const sourceType = (analyzer as any).inferType(this.value, scope);
+    const sourceType = analyzer.inferType(this.value, scope);
 
     if (!sourceType) {
       throw new Error(`Cannot infer type of cast source expression`);
@@ -73,10 +72,10 @@ export default class CastExpr extends Expression {
     // Delegate to SemanticAnalyzer's inferType logic
     // We'll need to import it or duplicate the logic
     // For now, use a simplified version
-    const exprType = (expr as any).type;
+    const exprType = expr.type;
 
     if (exprType === ExpressionType.NumberLiteralExpr) {
-      const numExpr = expr as any;
+      const numExpr = expr as NumberLiteralExpr;
       if (numExpr.value.includes(".")) {
         return { name: "f64", isPointer: 0, isArray: [] };
       }
@@ -84,7 +83,7 @@ export default class CastExpr extends Expression {
     }
 
     if (exprType === ExpressionType.IdentifierExpr) {
-      const ident = expr as any;
+      const ident = expr as IdentifierExpr;
       const resolved = scope.resolve(ident.name);
       return resolved ? resolved.varType : null;
     }

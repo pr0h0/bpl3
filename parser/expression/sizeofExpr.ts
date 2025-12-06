@@ -1,11 +1,11 @@
+import Token from "../../lexer/token";
 import { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import Scope from "../../transpiler/Scope";
-import type { TypeInfo } from "../../transpiler/Scope";
-import Token from "../../lexer/token";
-import type { VariableType } from "./variableDeclarationExpr";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
+import type { TypeInfo } from "../../transpiler/Scope";
+import type { VariableType } from "./variableDeclarationExpr";
 export class SizeofExpr extends Expression {
   constructor(
     public typeArg: VariableType,

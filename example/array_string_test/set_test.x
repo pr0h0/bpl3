@@ -1,6 +1,6 @@
-import printf, malloc, realloc from 'libc';
-import [String] from '../../lib/string.x';
-import [Array] from '../../lib/array.x';
+import printf, malloc, realloc from "libc";
+import [String] from "../../lib/string.x";
+import [Array] from "../../lib/array.x";
 
 extern malloc(size: u64) ret *u8;
 extern realloc(ptr: *u8, size: u64) ret *u8;
@@ -10,7 +10,9 @@ frame s_init(s: *String, literal: *u8) {
     local i: u64 = 0;
     loop {
         local c: u8 = literal[i];
-        if c == 0 { break; }
+        if c == 0 {
+            break;
+        }
         s.data[i] = c;
         i = i + 1;
     }
@@ -41,6 +43,3 @@ frame main() {
     call printf("Map size after remove: %d\n", 1);
     call printf("Contains Vegetables after remove: %d\n", 0);
 }
-
-
-

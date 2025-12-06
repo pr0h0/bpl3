@@ -1,15 +1,15 @@
 import type Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
-import type Scope from "../../transpiler/Scope";
-import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import { IROpcode } from "../../transpiler/ir/IRInstruction";
-import type { IRType } from "../../transpiler/ir/IRType";
+import { getIntSize, resolveExpressionType } from "../../utils/typeResolver";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import NumberLiteralExpr from "./numberLiteralExpr";
-import type { VariableType } from "./variableDeclarationExpr";
-import { resolveExpressionType, getIntSize } from "../../utils/typeResolver";
 
+import type Scope from "../../transpiler/Scope";
+import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import type { IRType } from "../../transpiler/ir/IRType";
+import type { VariableType } from "./variableDeclarationExpr";
 export default class BinaryExpr extends Expression {
   constructor(
     public left: Expression,
@@ -28,10 +28,6 @@ export default class BinaryExpr extends Expression {
     output +=
       this.getDepth() + `/[ Binary Expression: ${this.operator.value} ]\n`;
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   optimize(): Expression {

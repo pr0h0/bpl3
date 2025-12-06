@@ -1,15 +1,24 @@
-import ExpressionType from "../parser/expressionType";
 import TokenType from "../lexer/tokenType";
+import ExpressionType from "../parser/expressionType";
+
 import type Scope from "../transpiler/Scope";
 import type Expression from "../parser/expression/expr";
 import type { VariableType } from "../parser/expression/variableDeclarationExpr";
+import NumberLiteralExpr from "../parser/expression/numberLiteralExpr";
+import IdentifierExpr from "../parser/expression/identifierExpr";
+import FunctionCallExpr from "../parser/expression/functionCallExpr";
+import MethodCallExpr from "../parser/expression/methodCallExpr";
+import BinaryExpr from "../parser/expression/binaryExpr";
+import MemberAccessExpr from "../parser/expression/memberAccessExpr";
+import UnaryExpr from "../parser/expression/unaryExpr";
+import TernaryExpr from "../parser/expression/ternaryExpr";
 
 export function resolveExpressionType(
   expr: Expression,
   scope: Scope,
 ): VariableType | null {
   if (expr.type === ExpressionType.NumberLiteralExpr) {
-    const val = (expr as any).value;
+    const val = (expr as NumberLiteralExpr).value;
     const isHexBinOct =
       val.startsWith("0x") || val.startsWith("0b") || val.startsWith("0o");
     return !isHexBinOct &&
@@ -18,11 +27,11 @@ export function resolveExpressionType(
       : { name: "u64", isPointer: 0, isArray: [] };
   }
   if (expr.type === ExpressionType.IdentifierExpr) {
-    const sym = scope.resolve((expr as any).name);
+    const sym = scope.resolve((expr as IdentifierExpr).name);
     return sym ? sym.varType : null;
   }
   if (expr.type === ExpressionType.FunctionCall) {
-    const call = expr as any;
+    const call = expr as FunctionCallExpr;
     // Use resolved return type from monomorphization if available
     if (call.resolvedReturnType) {
       return call.resolvedReturnType;
@@ -31,7 +40,7 @@ export function resolveExpressionType(
     return func ? func.returnType : null;
   }
   if (expr.type === ExpressionType.MethodCallExpr) {
-    const methodCall = expr as any;
+    const methodCall = expr as MethodCallExpr;
     const receiverType = resolveExpressionType(methodCall.receiver, scope);
     if (!receiverType) return null;
 
@@ -55,7 +64,7 @@ export function resolveExpressionType(
     return func ? func.returnType : null;
   }
   if (expr.type === ExpressionType.BinaryExpression) {
-    const binExpr = expr as any;
+    const binExpr = expr as BinaryExpr;
 
     // Comparison operators always return u8 (bool)
     const op = binExpr.operator.type;
@@ -132,7 +141,7 @@ export function resolveExpressionType(
     return { name: "i64", isPointer: 0, isArray: [] };
   }
   if (expr.type === ExpressionType.MemberAccessExpression) {
-    const memberExpr = expr as any;
+    const memberExpr = expr as MemberAccessExpr;
     const objectType = resolveExpressionType(memberExpr.object, scope);
     if (!objectType) return null;
 
@@ -164,17 +173,24 @@ export function resolveExpressionType(
 
       if (!typeInfo) return null;
 
-      const propertyName = (memberExpr.property as any).name;
+      const propertyName = (memberExpr.property as IdentifierExpr).name;
       const member = typeInfo.members.get(propertyName);
       if (!member) return null;
 
       // If the member has genericArgs, it's a generic type that needs instantiation
-      if (member.genericArgs && member.genericArgs.length > 0) {
+      if (member.genericParams && member.genericParams.length > 0) {
         return {
           name: member.name,
           isPointer: member.isPointer,
           isArray: member.isArray,
-          genericArgs: member.genericArgs,
+          genericArgs: member.genericParams.map((paramName) => ({
+            name: paramName,
+            isPointer: 0,
+            isArray: [],
+            genericArgs: [],
+            isLiteral: false,
+            token: undefined,
+          })),
         };
       }
 
@@ -188,8 +204,8 @@ export function resolveExpressionType(
     }
   }
   if (expr.type === ExpressionType.UnaryExpression) {
-    const unaryExpr = expr as any;
-    if (unaryExpr.operator.type === TokenType.STAR) {
+    const unaryExpr = expr as UnaryExpr;
+    if (unaryExpr.operator.value === "*") {
       const opType = resolveExpressionType(unaryExpr.right, scope);
       if (opType && opType.isPointer > 0) {
         return {
@@ -217,7 +233,7 @@ export function resolveExpressionType(
     return { name: "u8", isPointer: 1, isArray: [] };
   }
   if (expr.type === ExpressionType.TernaryExpression) {
-    const ternaryExpr = expr as any;
+    const ternaryExpr = expr as TernaryExpr;
     const trueType = resolveExpressionType(ternaryExpr.trueExpr, scope);
     if (trueType) return trueType;
     return resolveExpressionType(ternaryExpr.falseExpr, scope);

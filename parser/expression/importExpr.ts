@@ -1,11 +1,11 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import Token from "../../lexer/token";
 import { IRFunction } from "../../transpiler/ir/IRFunction";
 import { IRVoid } from "../../transpiler/ir/IRType";
-import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
-import Token from "../../lexer/token";
+import type Scope from "../../transpiler/Scope";
 import type { VariableType } from "./variableDeclarationExpr";
 
 export default class ImportExpr extends Expression {
@@ -32,10 +32,6 @@ export default class ImportExpr extends Expression {
     output += `${this.getDepth()}`;
     output += "/[ Import Expression ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {

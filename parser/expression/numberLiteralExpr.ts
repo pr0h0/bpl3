@@ -1,6 +1,7 @@
 import type Token from "../../lexer/token";
-import Expression from "./expr";
 import ExpressionType from "../expressionType";
+import Expression from "./expr";
+
 import type Scope from "../../transpiler/Scope";
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 
@@ -23,10 +24,6 @@ export default class NumberLiteralExpr extends Expression {
     output += this.getDepth();
     output += "/[ NumberLiteral ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {

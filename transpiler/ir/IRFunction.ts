@@ -1,4 +1,5 @@
 import { IRBlock } from "./IRBlock";
+
 import type { IRType } from "./IRType";
 
 export class IRFunction {

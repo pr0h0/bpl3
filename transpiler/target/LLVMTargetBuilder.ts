@@ -1,23 +1,25 @@
 import type { TargetBuilder } from "./TargetBuilder";
-import { IRModule } from "../ir/IRModule";
 import { IRFunction } from "../ir/IRFunction";
 import {
-  IRInstruction,
-  IROpcode,
-  BinaryInst,
   AllocaInst,
-  LoadInst,
-  StoreInst,
-  CallInst,
-  ReturnInst,
+  BinaryInst,
   BranchInst,
+  CallInst,
+  CastInst,
   CondBranchInst,
   GetElementPtrInst,
-  CastInst,
-  SwitchInst,
   InlineAsmInst,
+  IRInstruction,
+  IROpcode,
+  LoadInst,
+  ReturnInst,
+  StoreInst,
+  SwitchInst,
 } from "../ir/IRInstruction";
+import { IRModule } from "../ir/IRModule";
+
 import type { IRType } from "../ir/IRType";
+import { Logger } from "../../utils/Logger";
 
 export class LLVMTargetBuilder implements TargetBuilder {
   build(module: IRModule): string {
@@ -75,7 +77,7 @@ export class LLVMTargetBuilder implements TargetBuilder {
     for (const block of func.blocks) {
       if (!block) continue;
       if (typeof block.name === "undefined") {
-        console.error("Block name is undefined:", JSON.stringify(block));
+        Logger.error("Block name is undefined:", JSON.stringify(block));
         continue;
       }
       output += `${block.name.replace("%", "")}:\n`;

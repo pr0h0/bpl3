@@ -1,11 +1,15 @@
 import type Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
-import type Scope from "../../transpiler/Scope";
-import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import { IROpcode } from "../../transpiler/ir/IRInstruction";
 import ExpressionType from "../expressionType";
+import BinaryExpr from "./binaryExpr";
 import Expression from "./expr";
+import IdentifierExpr from "./identifierExpr";
+import MemberAccessExpr from "./memberAccessExpr";
 import NumberLiteralExpr from "./numberLiteralExpr";
+
+import type Scope from "../../transpiler/Scope";
+import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type { VariableType } from "./variableDeclarationExpr";
 
 export default class UnaryExpr extends Expression {
@@ -25,10 +29,6 @@ export default class UnaryExpr extends Expression {
     output += this.right.toString(this.depth + 1);
     output += this.getDepth() + `[/ Unary Expression ]\n`;
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   optimize(): Expression {
@@ -70,11 +70,11 @@ export default class UnaryExpr extends Expression {
     scope: Scope,
   ): VariableType | null {
     if (expr.type === ExpressionType.IdentifierExpr) {
-      const ident = expr as any;
+      const ident = expr as IdentifierExpr;
       const resolved = scope.resolve(ident.name);
       return resolved ? resolved.varType : null;
     } else if (expr.type === ExpressionType.MemberAccessExpression) {
-      const memberExpr = expr as any;
+      const memberExpr = expr as MemberAccessExpr;
       const objectType = this.resolveExpressionType(memberExpr.object, scope);
       if (!objectType) return null;
 
@@ -106,7 +106,7 @@ export default class UnaryExpr extends Expression {
 
         if (!typeInfo) return null;
 
-        const propertyName = (memberExpr.property as any).name;
+        const propertyName = (memberExpr.property as IdentifierExpr).name;
         const member = typeInfo.members.get(propertyName);
         if (!member) return null;
 
@@ -117,7 +117,7 @@ export default class UnaryExpr extends Expression {
         };
       }
     } else if (expr.type === ExpressionType.BinaryExpression) {
-      const binExpr = expr as any;
+      const binExpr = expr as BinaryExpr;
       const leftType = this.resolveExpressionType(binExpr.left, scope);
       const rightType = this.resolveExpressionType(binExpr.right, scope);
 
@@ -131,7 +131,7 @@ export default class UnaryExpr extends Expression {
 
       return null;
     } else if (expr.type === ExpressionType.UnaryExpression) {
-      const unaryExpr = expr as any;
+      const unaryExpr = expr as UnaryExpr;
       if (unaryExpr.operator.value === "*") {
         const opType = this.resolveExpressionType(unaryExpr.right, scope);
         if (opType && opType.isPointer > 0) {

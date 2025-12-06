@@ -1,11 +1,12 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../../lexer/lexer";
-import { Parser } from "../../parser/parser";
-import ExpressionType from "../../parser/expressionType";
-import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
-import LoopExpr from "../../parser/expression/loopExpr";
 import BreakExpr from "../../parser/expression/breakExpr";
 import ContinueExpr from "../../parser/expression/continueExpr";
+import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
+import LoopExpr from "../../parser/expression/loopExpr";
+import ExpressionType from "../../parser/expressionType";
+import { Parser } from "../../parser/parser";
 
 function parse(input: string) {
   const lexer = new Lexer(input);

@@ -1,8 +1,9 @@
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
-import type BlockExpr from "./blockExpr";
 import Expression from "./expr";
 import NumberLiteralExpr from "./numberLiteralExpr";
+
+import type BlockExpr from "./blockExpr";
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type { IRBlock } from "../../transpiler/ir/IRBlock";
 

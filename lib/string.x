@@ -106,9 +106,19 @@ frame atoi(str: *u8) ret i64 {
     local sign: i64 = 1;
     local i: u64 = 0;
 
-    if str[0] == '-' {
+    # Skip whitespace
+    loop {
+        if call is_space(str[i]) == 0 {
+            break;
+        }
+        i = i + 1;
+    }
+
+    if str[i] == '-' {
         sign = -1;
-        i = 1;
+        i = i + 1;
+    } else if str[i] == '+' {
+        i = i + 1;
     }
 
     loop {

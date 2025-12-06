@@ -1,7 +1,7 @@
-import printf from 'libc';
-import [Array] from '../../lib/array.x';
-import [Set] from '../../lib/set.x';
-import [Map] from '../../lib/map.x';
+import printf from "libc";
+import [Array] from "../../lib/array.x";
+import [Set] from "../../lib/set.x";
+import [Map] from "../../lib/map.x";
 
 frame main() {
     # Test Set with duplicate checking
@@ -15,7 +15,7 @@ frame main() {
     call numSet.add(10);
     call numSet.add(20);
     call numSet.add(30);
-    call numSet.add(20);  # This should not be added (duplicate)
+    call numSet.add(20); # This should not be added (duplicate)
 
     call printf("Set size: %llu\n", call numSet.size());
     call printf("Has 20: %d\n", call numSet.has(20));
@@ -39,7 +39,7 @@ frame main() {
     call printf("Putting (1, 100), (2, 200), (1, 150) - updates key 1\n");
     call numMap.put(1, 100);
     call numMap.put(2, 200);
-    call numMap.put(1, 150);  # This should update value for key 1
+    call numMap.put(1, 150); # This should update value for key 1
 
     call printf("Map size: %llu\n", call numMap.size());
     call printf("Get key 1: %llu\n", call numMap.get(1));

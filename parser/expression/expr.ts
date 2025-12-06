@@ -1,9 +1,10 @@
+import { Logger } from "../../utils/Logger";
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type Scope from "../../transpiler/Scope";
-import ExpressionType from "../expressionType";
-import type { VariableType } from "./variableDeclarationExpr";
 import Token from "../../lexer/token";
+import ExpressionType from "../expressionType";
 
+import type { VariableType } from "./variableDeclarationExpr";
 export default class Expression {
   constructor(type: ExpressionType) {
     this.type = type;
@@ -14,19 +15,19 @@ export default class Expression {
   public startToken?: Token;
   public endToken?: Token;
   public contextScope?: Scope;
-
-  public argOrders: string[] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+  public _analyzed?: boolean;
+  public monomorphizedName?: string;
 
   toString(depth: number = 0): string {
     throw new Error("Method not implemented.");
   }
 
   log(depth: number = 0): void {
-    throw new Error("Method not implemented.");
+    Logger.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {
-    console.log("Method not implemented for:", this.constructor.name);
+    Logger.log("Method not implemented for:", this.constructor.name);
     throw new Error("Method not implemented.");
   }
 

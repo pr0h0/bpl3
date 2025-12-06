@@ -4,6 +4,7 @@ import { IRVoid } from "../../transpiler/ir/IRType";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+
 import type { VariableType } from "./variableDeclarationExpr";
 
 export default class ExternDeclarationExpr extends Expression {
@@ -14,7 +15,6 @@ export default class ExternDeclarationExpr extends Expression {
     public isVariadic: boolean = false,
   ) {
     super(ExpressionType.ExternDeclaration);
-    this.requiresSemicolon = true;
   }
 
   toString(depth: number = 0): string {

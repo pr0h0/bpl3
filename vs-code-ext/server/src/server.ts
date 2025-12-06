@@ -1,70 +1,64 @@
-import {
-  createConnection,
-  TextDocuments,
-  ProposedFeatures,
-  type InitializeParams,
-  DidChangeConfigurationNotification,
-  CompletionItem,
-  CompletionItemKind,
-  type TextDocumentPositionParams,
-  TextDocumentSyncKind,
-  type InitializeResult,
-  Diagnostic,
-  DiagnosticSeverity,
-  type DefinitionParams,
-  Location,
-  Range,
-  type HoverParams,
-  Hover,
-  MarkupKind,
-  TextEdit,
-  type CodeActionParams,
-  CodeAction,
-  CodeActionKind,
-  WorkspaceEdit,
-  type ReferenceParams,
-  type RenameParams,
-} from "vscode-languageserver/node";
-import { TextDocument } from "vscode-languageserver-textdocument";
-
-// Relative imports to transpiler code
-// Note: These paths depend on the tsconfig.json setup
-import Lexer from "../../../lexer/lexer";
-import { Parser } from "../../../parser/parser";
-import Scope from "../../../transpiler/Scope";
-import type { TypeInfo } from "../../../transpiler/Scope";
-import { IRGenerator } from "../../../transpiler/ir/IRGenerator";
-import HelperGenerator from "../../../transpiler/HelperGenerator";
-import { SemanticAnalyzer } from "../../../transpiler/analysis/SemanticAnalyzer";
-import { CompilerError, CompilerWarning } from "../../../errors";
-import { Formatter } from "../../../transpiler/formatter/Formatter";
-
-import ProgramExpr from "../../../parser/expression/programExpr";
-import BlockExpr from "../../../parser/expression/blockExpr";
-import FunctionDeclarationExpr from "../../../parser/expression/functionDeclaration";
-import IfExpr from "../../../parser/expression/ifExpr";
-import LoopExpr from "../../../parser/expression/loopExpr";
-import BinaryExpr from "../../../parser/expression/binaryExpr";
-import UnaryExpr from "../../../parser/expression/unaryExpr";
-import FunctionCallExpr from "../../../parser/expression/functionCallExpr";
-import VariableDeclarationExpr from "../../../parser/expression/variableDeclarationExpr";
-import type { VariableType } from "../../../parser/expression/variableDeclarationExpr";
-import IdentifierExpr from "../../../parser/expression/identifierExpr";
-import MemberAccessExpr from "../../../parser/expression/memberAccessExpr";
-import ReturnExpr from "../../../parser/expression/returnExpr";
-import ArrayLiteralExpr from "../../../parser/expression/arrayLiteralExpr";
-import ExportExpr from "../../../parser/expression/exportExpr";
-import ImportExpr from "../../../parser/expression/importExpr";
-import StructDeclarationExpr from "../../../parser/expression/structDeclarationExpr";
-import ExternDeclarationExpr from "../../../parser/expression/externDeclarationExpr";
-import Expression from "../../../parser/expression/expr";
-import Token from "../../../lexer/token";
-import TokenType from "../../../lexer/tokenType";
-
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
+import { TextDocument } from "vscode-languageserver-textdocument";
+import {
+  CodeAction,
+  CodeActionKind,
+  CodeActionParams,
+  CompletionItem,
+  CompletionItemKind,
+  createConnection,
+  DefinitionParams,
+  Diagnostic,
+  DiagnosticSeverity,
+  DidChangeConfigurationNotification,
+  Hover,
+  HoverParams,
+  InitializeParams,
+  InitializeResult,
+  Location,
+  MarkupKind,
+  ProposedFeatures,
+  Range,
+  ReferenceParams,
+  RenameParams,
+  TextDocumentPositionParams,
+  TextDocuments,
+  TextDocumentSyncKind,
+  TextEdit,
+  type WorkspaceEdit,
+} from "vscode-languageserver/node";
+import Lexer from "../../../lexer/lexer";
+import Token from "../../../lexer/token";
+import TokenType from "../../../lexer/tokenType";
+import ArrayLiteralExpr from "../../../parser/expression/arrayLiteralExpr";
+import BinaryExpr from "../../../parser/expression/binaryExpr";
+import BlockExpr from "../../../parser/expression/blockExpr";
+import ExportExpr from "../../../parser/expression/exportExpr";
+import Expression from "../../../parser/expression/expr";
+import ExternDeclarationExpr from "../../../parser/expression/externDeclarationExpr";
+import FunctionCallExpr from "../../../parser/expression/functionCallExpr";
+import FunctionDeclarationExpr from "../../../parser/expression/functionDeclaration";
+import IdentifierExpr from "../../../parser/expression/identifierExpr";
+import IfExpr from "../../../parser/expression/ifExpr";
+import ImportExpr from "../../../parser/expression/importExpr";
+import LoopExpr from "../../../parser/expression/loopExpr";
+import MemberAccessExpr from "../../../parser/expression/memberAccessExpr";
+import ProgramExpr from "../../../parser/expression/programExpr";
+import ReturnExpr from "../../../parser/expression/returnExpr";
+import StructDeclarationExpr from "../../../parser/expression/structDeclarationExpr";
+import UnaryExpr from "../../../parser/expression/unaryExpr";
+import VariableDeclarationExpr from "../../../parser/expression/variableDeclarationExpr";
+import { Parser } from "../../../parser/parser";
+import { SemanticAnalyzer } from "../../../transpiler/analysis/SemanticAnalyzer";
+import { Formatter } from "../../../transpiler/formatter/Formatter";
+import HelperGenerator from "../../../transpiler/HelperGenerator";
+import { IRGenerator } from "../../../transpiler/ir/IRGenerator";
+import Scope from "../../../transpiler/Scope";
 
+import type { TypeInfo } from "../../../transpiler/Scope";
+import type { VariableType } from "../../../parser/expression/variableDeclarationExpr";
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);

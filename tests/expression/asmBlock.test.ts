@@ -1,10 +1,11 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../../lexer/lexer";
-import { Parser } from "../../parser/parser";
-import ExpressionType from "../../parser/expressionType";
+import TokenType from "../../lexer/tokenType";
 import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
 import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
-import TokenType from "../../lexer/tokenType";
+import ExpressionType from "../../parser/expressionType";
+import { Parser } from "../../parser/parser";
 
 function parse(input: string) {
   const lexer = new Lexer(input);

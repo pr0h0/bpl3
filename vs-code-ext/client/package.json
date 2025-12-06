@@ -2,7 +2,7 @@
   "name": "bpl-vscode",
   "displayName": "BPL Language Support",
   "description": "Language support for BPL (The Best Programming Language)",
-  "version": "0.1.10",
+  "version": "0.1.17",
   "publisher": "pr0h0",
   "engines": {
     "vscode": "^1.74.0"

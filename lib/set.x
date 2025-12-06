@@ -1,9 +1,6 @@
 import malloc, realloc from 'libc';
 import [Array] from './array.x';
 
-export [Set];
-
-
 struct Set<T> {
     items: Array<T>,
 
@@ -66,3 +63,6 @@ struct Set<T> {
         return &this.items;
     }
 }
+
+
+export [Set];

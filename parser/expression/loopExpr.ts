@@ -1,9 +1,9 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
-import type BlockExpr from "./blockExpr";
 import Expression from "./expr";
 
+import type BlockExpr from "./blockExpr";
 export default class LoopExpr extends Expression {
   constructor(public body: BlockExpr) {
     super(ExpressionType.LoopExpression);
@@ -18,10 +18,6 @@ export default class LoopExpr extends Expression {
     output += this.getDepth();
     output += "/[ LoopExpression ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {

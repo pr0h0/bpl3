@@ -1,10 +1,11 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import Token from "../../lexer/token";
+import { IRVoid } from "../../transpiler/ir/IRType";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
-import type { VariableType } from "./variableDeclarationExpr";
-import Token from "../../lexer/token";
 
+import type { VariableType } from "./variableDeclarationExpr";
 export default class FunctionDeclarationExpr extends Expression {
   constructor(
     public name: string,
@@ -20,6 +21,10 @@ export default class FunctionDeclarationExpr extends Expression {
     super(ExpressionType.FunctionDeclaration);
     this.requiresSemicolon = false;
   }
+
+  public isMethod?: boolean;
+  public receiverStruct?: string;
+  public thisType?: VariableType;
 
   toString(depth: number = 0): string {
     this.depth = depth;
@@ -58,10 +63,6 @@ export default class FunctionDeclarationExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   optimize(): Expression {
     this.body = this.body.optimize();
     return this;
@@ -79,8 +80,8 @@ export default class FunctionDeclarationExpr extends Expression {
     const effectiveScope = this.scope || scope;
 
     // Check if this is a method
-    const isMethod = (this as any).isMethod;
-    const receiverStruct = (this as any).receiverStruct;
+    const isMethod = this.isMethod;
+    const receiverStruct = this.receiverStruct;
 
     // Use mangled name for methods, regular name for functions
     let name: string;
@@ -99,13 +100,14 @@ export default class FunctionDeclarationExpr extends Expression {
     // Prepare receiver type if method
     let allArgs = this.args;
     if (isMethod && receiverStruct) {
+      const thisType = this.thisType || {
+        name: receiverStruct,
+        isPointer: 1,
+        isArray: [],
+      };
       const thisParam = {
         name: "this",
-        type: {
-          name: receiverStruct,
-          isPointer: 1,
-          isArray: [],
-        },
+        type: thisType,
       };
       allArgs = [thisParam, ...this.args];
     }
@@ -162,7 +164,7 @@ export default class FunctionDeclarationExpr extends Expression {
 
     const irReturnType = resolvedReturnType
       ? gen.getIRType(resolvedReturnType)
-      : ({ type: "void" } as any);
+      : IRVoid;
 
     const irName = name;
     gen.createFunction(irName, irArgs, irReturnType, this.isVariadic);

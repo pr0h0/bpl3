@@ -47,6 +47,7 @@ export type TypeInfo = {
   genericMethods?: any[]; // Store method AST nodes for generic structs
   definingScope?: Scope; // The scope where this type was originally defined (for generic instantiation)
   index?: number;
+  parentType?: string;
 };
 
 export type InfoType = {
@@ -79,7 +80,8 @@ export type FunctionInfo = {
 
 export default class Scope {
   private static nextId = 0;
-  public id = Scope.nextId++;
+  static idCounter = 0;
+  public id: number;
   public types = new Map<string, TypeInfo>();
   public vars = new Map<string, VarInfo>();
   public stackOffset = 0; // Tracks stack usage for this function
@@ -87,7 +89,11 @@ export default class Scope {
   public functions = new Map<string, FunctionInfo>();
   public currentContext: ContextType[] = [];
 
-  constructor(public readonly parent: Scope | null = null) {}
+  constructor(public parent: Scope | null = null) {
+    this.id = Scope.idCounter++;
+    this.parent = parent;
+    this.vars = new Map();
+  }
 
   // #region Context Management
   removeCurrentContext(type: "loop" | "function" | "LHS") {
@@ -214,9 +220,22 @@ export default class Scope {
     return totalSize;
   }
 
-  resolveGenericType(name: string, args: VariableType[]): TypeInfo | null {
+  resolveGenericType(
+    name: string,
+    args: VariableType[],
+    contextScope?: Scope,
+  ): TypeInfo | null {
+    const instantiationName = `${name}<${args.map((a) => this.getCanonicalTypeName(a)).join(",")}>`;
+
+    const existing = this.resolveType(instantiationName);
+    if (existing) {
+      return existing;
+    }
+
     const baseType = this.resolveType(name);
-    if (!baseType) return null;
+    if (!baseType) {
+      return null;
+    }
 
     if (!baseType.genericParams || baseType.genericParams.length === 0) {
       if (args.length > 0) {
@@ -230,11 +249,6 @@ export default class Scope {
         `Type '${name}' expects ${baseType.genericParams.length} generic arguments, but got ${args.length}.`,
       );
     }
-
-    const instantiationName = `${name}<${args.map((a) => this.getCanonicalTypeName(a)).join(",")}>`;
-
-    const existing = this.resolveType(instantiationName);
-    if (existing) return existing;
 
     const newType: TypeInfo = {
       name: instantiationName,
@@ -252,6 +266,9 @@ export default class Scope {
       definingScope: baseType.definingScope, // Preserve the defining scope for method instantiation
     };
 
+    // Register the type early to handle recursive references (e.g. pointers to self)
+    this.getGlobalScope().defineType(instantiationName, newType);
+
     const paramMap = new Map<string, VariableType>();
     baseType.genericParams.forEach((param, index) => {
       paramMap.set(param, args[index]!);
@@ -260,6 +277,22 @@ export default class Scope {
     let currentOffset = 0;
     let maxAlignment = 1;
     let fieldIndex = 0;
+
+    // Handle inheritance for generic instantiation
+    if (baseType.parentType) {
+      const parentType = this.resolveType(baseType.parentType);
+      if (parentType) {
+        for (const [name, info] of parentType.members) {
+          newType.members.set(name, info);
+          if (info.index !== undefined) {
+            fieldIndex = Math.max(fieldIndex, info.index + 1);
+          }
+        }
+        currentOffset = parentType.size;
+        maxAlignment = parentType.alignment || 1;
+        newType.parentType = baseType.parentType;
+      }
+    }
 
     if (!baseType.genericFields) {
       throw new Error("Generic type missing field definitions.");
@@ -273,43 +306,50 @@ export default class Scope {
         fieldTypeInfo = this.resolveGenericType(
           concreteType.name,
           concreteType.genericArgs,
+          contextScope,
         );
+
+        if (!fieldTypeInfo && baseType.definingScope) {
+          fieldTypeInfo = baseType.definingScope.resolveGenericType(
+            concreteType.name,
+            concreteType.genericArgs,
+            this,
+          );
+        }
+
+        if (!fieldTypeInfo && contextScope) {
+          fieldTypeInfo = contextScope.resolveGenericType(
+            concreteType.name,
+            concreteType.genericArgs,
+            contextScope,
+          );
+        }
       } else {
         fieldTypeInfo = this.resolveType(concreteType.name);
+
+        if (!fieldTypeInfo && baseType.definingScope) {
+          fieldTypeInfo = baseType.definingScope.resolveType(concreteType.name);
+        }
+
+        if (!fieldTypeInfo && contextScope) {
+          fieldTypeInfo = contextScope.resolveType(concreteType.name);
+        }
       }
 
       if (!fieldTypeInfo) {
-        console.error(
-          `Failed to resolve type '${concreteType.name}' in scope ${this.id}.`,
-        );
-        console.error(
-          `Available types: ${Array.from(this.types.keys()).join(", ")}`,
-        );
-        console.error(
-          `This scope parent: ${this.parent ? this.parent.id : "null"}`,
-        );
-        let currentScope: Scope | null = this.parent;
-        let depth = 1;
-        while (currentScope) {
-          console.error(
-            `Parent scope ${currentScope.id} (depth ${depth}) available types: ${Array.from(currentScope.types.keys()).join(", ")}`,
-          );
-          console.error(
-            `  Parent of scope ${currentScope.id}: ${currentScope.parent ? currentScope.parent.id : "null"}`,
-          );
-          currentScope = currentScope.parent;
-          depth++;
-          if (depth > 10) {
-            console.error(
-              "Stopping scope chain traversal after 10 levels to prevent infinite loop",
-            );
-            break;
-          }
-        }
         throw new Error(
           `Could not resolve type '${concreteType.name}' during instantiation of '${instantiationName}'.`,
         );
       }
+
+      // Ensure the resolved field type is available in the current scope
+      // This is crucial when the field type was resolved from a defining scope (e.g. Array in Map)
+      // but needs to be visible in the instantiation scope (e.g. test_map.x)
+      if (!this.resolveType(fieldTypeInfo.name)) {
+        this.defineType(fieldTypeInfo.name, fieldTypeInfo);
+      }
+
+      const size = fieldTypeInfo.size;
 
       let fieldSize = fieldTypeInfo.size;
       let fieldAlignment = fieldTypeInfo.alignment || 1;
@@ -349,8 +389,6 @@ export default class Scope {
       (maxAlignment - (currentOffset % maxAlignment)) % maxAlignment;
     newType.size = currentOffset + structPadding;
     newType.alignment = maxAlignment;
-
-    this.getGlobalScope().defineType(instantiationName, newType);
 
     // Register methods for the instantiated generic type
     // REMOVED: We now handle method instantiation in SemanticAnalyzer on demand

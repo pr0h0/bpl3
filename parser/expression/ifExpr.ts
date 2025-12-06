@@ -1,11 +1,12 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import { IROpcode } from "../../transpiler/ir/IRInstruction";
+import { IRI64 } from "../../transpiler/ir/IRType";
 import Scope from "../../transpiler/Scope";
-import ExpressionType from "../expressionType";
-import type BlockExpr from "./blockExpr";
-import Expression from "./expr";
 import { resolveExpressionType } from "../../utils/typeResolver";
+import ExpressionType from "../expressionType";
+import Expression from "./expr";
 
+import type BlockExpr from "./blockExpr";
 export default class IfExpr extends Expression {
   constructor(
     public condition: Expression,
@@ -34,16 +35,10 @@ export default class IfExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   toIR(gen: IRGenerator, scope: Scope): string {
     const condition = this.condition.toIR(gen, scope);
     const condType = resolveExpressionType(this.condition, scope);
-    const irType = condType
-      ? gen.getIRType(condType)
-      : ({ type: "i64" } as any);
+    const irType = condType ? gen.getIRType(condType) : IRI64;
 
     // Compare condition to 0 to get boolean
     const cmp = gen.emitBinary(IROpcode.NE, irType, condition, "0");

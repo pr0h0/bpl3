@@ -14,10 +14,6 @@ export default class EOFExpr extends Expression {
     return this.getDepth() + "<EOF>\n";
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   toIR(gen: IRGenerator, scope: Scope): string {
     return "";
   }

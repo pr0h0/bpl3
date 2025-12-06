@@ -1,25 +1,25 @@
-import { IRModule } from "./IRModule";
-import { IRFunction } from "./IRFunction";
+import Scope from "../Scope";
 import { IRBlock } from "./IRBlock";
+import { IRFunction } from "./IRFunction";
 import {
-  IRInstruction,
   AllocaInst,
-  StoreInst,
-  LoadInst,
   BinaryInst,
-  IROpcode,
-  ReturnInst,
-  CallInst,
   BranchInst,
+  CallInst,
+  CastInst,
   CondBranchInst,
   GetElementPtrInst,
-  CastInst,
-  SwitchInst,
   InlineAsmInst,
+  IRInstruction,
+  IROpcode,
+  LoadInst,
+  ReturnInst,
+  StoreInst,
+  SwitchInst,
 } from "./IRInstruction";
+import { IRModule } from "./IRModule";
+
 import type { IRType } from "./IRType";
-import { IRVoid } from "./IRType";
-import Scope from "../Scope";
 import type { TypeInfo } from "../Scope";
 import type { VariableType } from "../../parser/expression/variableDeclarationExpr";
 

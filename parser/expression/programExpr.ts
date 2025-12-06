@@ -1,10 +1,13 @@
 import HelperGenerator from "../../transpiler/HelperGenerator";
-import type Scope from "../../transpiler/Scope";
-import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import { IROpcode } from "../../transpiler/ir/IRInstruction";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+
+import type Scope from "../../transpiler/Scope";
+import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type { IRType } from "../../transpiler/ir/IRType";
+import { IRI32, IRI8, IRVoid } from "../../transpiler/ir/IRType";
+import StructDeclarationExpr from "./structDeclarationExpr";
 
 export default class ProgramExpr extends Expression {
   public constructor() {
@@ -26,10 +29,6 @@ export default class ProgramExpr extends Expression {
     }
     output += this.getDepth() + "/[ Program ]\n";
     return output;
-  }
-
-  public log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   optimize(): Expression {
@@ -74,17 +73,17 @@ export default class ProgramExpr extends Expression {
 
     if (!weHaveExportStmt) {
       const irArgs = [
-        { name: "argc", type: { type: "i32" } as any },
+        { name: "argc", type: IRI32 },
         {
           name: "argv",
-          type: { type: "pointer", base: { type: "i8" } } as any,
+          type: { type: "pointer", base: IRI8 } as IRType,
         },
         {
           name: "envp",
-          type: { type: "pointer", base: { type: "i8" } } as any,
+          type: { type: "pointer", base: IRI8 } as IRType,
         },
       ];
-      const irRet = { type: "i32" } as any;
+      const irRet = IRI32;
 
       gen.createFunction("main", irArgs, irRet);
       const entry = gen.createBlock("entry");
@@ -112,7 +111,7 @@ export default class ProgramExpr extends Expression {
 
         const retType = userMain.returnType
           ? gen.getIRType(userMain.returnType)
-          : ({ type: "void" } as any);
+          : IRVoid;
         const res = gen.emitCall("user_main", callArgs, retType);
 
         if (retType.type === "void") {
@@ -156,13 +155,13 @@ export default class ProgramExpr extends Expression {
     const genericStructs = this.expressions.filter(
       (expr) =>
         expr.type === ExpressionType.StructureDeclaration &&
-        (expr as any).genericParams &&
-        (expr as any).genericParams.length > 0,
+        (expr as StructDeclarationExpr).genericParams &&
+        (expr as StructDeclarationExpr).genericParams.length > 0,
     );
 
     // For each generic struct, find all instantiated versions in the scope
     for (const structExpr of genericStructs) {
-      const structDecl = structExpr as any;
+      const structDecl = structExpr as StructDeclarationExpr;
       const baseTypeName = structDecl.name;
 
       // Look through all types in scope to find instantiations
@@ -209,7 +208,7 @@ export default class ProgramExpr extends Expression {
       if (
         funcInfo &&
         funcInfo.astDeclaration &&
-        (funcInfo.astDeclaration as any)._analyzed
+        funcInfo.astDeclaration._analyzed
       ) {
         continue; // Skip - already handled during semantic analysis
       }
@@ -221,8 +220,8 @@ export default class ProgramExpr extends Expression {
       );
 
       // Mark method as belonging to the instantiated type
-      (substitutedMethod as any).isMethod = true;
-      (substitutedMethod as any).receiverStruct = instantiatedTypeName;
+      substitutedMethod.isMethod = true;
+      substitutedMethod.receiverStruct = instantiatedTypeName;
 
       // Generate the method IR with substituted types
       substitutedMethod.toIR(gen, scope);

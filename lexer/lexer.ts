@@ -1,6 +1,6 @@
+import { CompilerError } from "../errors";
 import Token from "./token";
 import TokenType from "./tokenType";
-import { CompilerError } from "../errors";
 
 class Lexer {
   constructor(input: string) {

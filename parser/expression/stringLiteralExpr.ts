@@ -25,10 +25,6 @@ export default class StringLiteralExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   formatString(): string {
     return this.value
       .replaceAll('"', '", 0x22, "')

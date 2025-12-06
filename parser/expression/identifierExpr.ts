@@ -19,10 +19,6 @@ export default class IdentifierExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   toIR(gen: IRGenerator, scope: Scope): string {
     const symbol = scope.resolve(this.name);
     if (!symbol) {

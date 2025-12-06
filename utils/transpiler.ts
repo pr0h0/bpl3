@@ -1,21 +1,22 @@
-import { resolve, dirname } from "path";
-import Scope from "../transpiler/Scope";
+import { dirname, resolve } from "path";
+
+import { ErrorReporter } from "../errors";
+import { MemorySafetyAnalyzer } from "../transpiler/analysis/MemorySafetyAnalyzer";
+import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
 import HelperGenerator from "../transpiler/HelperGenerator";
+import { IRGenerator } from "../transpiler/ir/IRGenerator";
+import Scope from "../transpiler/Scope";
+import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
+import { compileLlvmIrToObject } from "./compiler";
+import { saveToFile } from "./file";
+import {
+  extractExportStatements,
+  extractImportStatements,
+  parseFile,
+} from "./parser";
+
 import type ProgramExpr from "../parser/expression/programExpr";
 import type ExportExpr from "../parser/expression/exportExpr";
-import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
-import { MemorySafetyAnalyzer } from "../transpiler/analysis/MemorySafetyAnalyzer";
-import { ErrorReporter } from "../errors";
-import {
-  parseFile,
-  extractImportStatements,
-  extractExportStatements,
-} from "./parser";
-import { saveToFile } from "./file";
-import { compileLlvmIrToObject } from "./compiler";
-import { IRGenerator } from "../transpiler/ir/IRGenerator";
-import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
-
 export function transpileProgram(program: ProgramExpr, scope?: Scope): string {
   if (!scope) {
     scope = new Scope();

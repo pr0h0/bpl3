@@ -1,15 +1,16 @@
 import { describe, expect, test } from "bun:test";
+
 import Lexer from "../lexer/lexer";
 import { Parser } from "../parser/parser";
-import Scope from "../transpiler/Scope";
-import { IRGenerator } from "../transpiler/ir/IRGenerator";
-import HelperGenerator from "../transpiler/HelperGenerator";
-import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
 import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
+import HelperGenerator from "../transpiler/HelperGenerator";
+import { IRGenerator } from "../transpiler/ir/IRGenerator";
+import Scope from "../transpiler/Scope";
+import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
 import {
-  mangleMethod,
-  isMethodMangledName,
   demangleMethod,
+  isMethodMangledName,
+  mangleMethod,
 } from "../utils/methodMangler";
 
 function generateIR(input: string): string {

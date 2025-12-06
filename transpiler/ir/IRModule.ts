@@ -1,4 +1,5 @@
 import { IRFunction } from "./IRFunction";
+
 import type { IRType } from "./IRType";
 
 export class IRModule {

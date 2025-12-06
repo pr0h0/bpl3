@@ -1,12 +1,12 @@
 import { IROpcode } from "../../transpiler/ir/IROpcode";
-import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
-import type { IRType } from "../../transpiler/ir/IRType";
 import { IRI64 } from "../../transpiler/ir/IRType";
-import type Scope from "../../transpiler/Scope";
+import { resolveExpressionType } from "../../utils/typeResolver";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
-import { resolveExpressionType } from "../../utils/typeResolver";
 
+import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import type { IRType } from "../../transpiler/ir/IRType";
+import type Scope from "../../transpiler/Scope";
 export default class TernaryExpr extends Expression {
   constructor(
     public condition: Expression,
@@ -28,10 +28,6 @@ export default class TernaryExpr extends Expression {
     output += this.getDepth();
     output += "/[ Ternary Expression ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {

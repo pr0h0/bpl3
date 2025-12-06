@@ -1,5 +1,5 @@
-import printf from 'libc';
-import [Array] from '../../lib/array.x';
+import printf from "libc";
+import [Array] from "../../lib/array.x";
 
 frame main() {
     # Array demo

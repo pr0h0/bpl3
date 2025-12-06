@@ -1,4 +1,5 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import { type IRType, IRI64 } from "../../transpiler/ir/IRType";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
@@ -26,10 +27,6 @@ export default class ReturnExpr extends Expression {
     output += this.getDepth();
     output += "/[ Return Expression ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   optimize(): Expression {
@@ -73,7 +70,7 @@ export default class ReturnExpr extends Expression {
 
     if (this.value) {
       const val = this.value.toIR(gen, scope);
-      let type = { type: "i64" } as any;
+      let type: IRType = IRI64;
       if (context.returnType) {
         type = gen.getIRType(context.returnType);
       }

@@ -13,10 +13,6 @@ export default class NullLiteral extends Expression {
     return this.getDepth() + `[ NullLiteral ] NULL /[ NullLiteral ]\n`;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   toIR(gen: IRGenerator, scope: Scope): string {
     return "null";
   }

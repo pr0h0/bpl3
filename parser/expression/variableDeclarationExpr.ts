@@ -1,20 +1,16 @@
+import Token from "../../lexer/token";
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import { IROpcode } from "../../transpiler/ir/IROpcode";
 import Scope from "../../transpiler/Scope";
-import type { TypeInfo } from "../../transpiler/Scope";
+import { getIntSize, resolveExpressionType } from "../../utils/typeResolver";
 import ExpressionType from "../expressionType";
 import ArrayLiteralExpr from "./arrayLiteralExpr";
-import BinaryExpr from "./binaryExpr";
 import Expression from "./expr";
-import NullLiteralExpr from "./nullLiteralExpr";
 import NumberLiteralExpr from "./numberLiteralExpr";
 import StringLiteralExpr from "./stringLiteralExpr";
-import UnaryExpr from "./unaryExpr";
-import Token from "../../lexer/token";
-import TokenType from "../../lexer/tokenType";
-import { IROpcode } from "../../transpiler/ir/IROpcode";
-import { resolveExpressionType, getIntSize } from "../../utils/typeResolver";
 import StructLiteralExpr from "./structLiteralExpr";
 
+import type { TypeInfo } from "../../transpiler/Scope";
 export type VariableType = {
   name: string;
   isPointer: number;
@@ -61,10 +57,6 @@ export default class VariableDeclarationExpr extends Expression {
     output += this.getDepth();
     output += "/[ VariableDeclaration ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   optimize(): Expression {

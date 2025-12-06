@@ -1,13 +1,13 @@
 import type Token from "../lexer/token";
 import type ProgramExpr from "../parser/expression/programExpr";
 import type ImportExpr from "../parser/expression/importExpr";
-import ExpressionType from "../parser/expressionType";
-import type ExportExpr from "../parser/expression/exportExpr";
-import type Expression from "../parser/expression/expr";
-import { Parser } from "../parser/parser";
 import Lexer from "../lexer/lexer";
+import ExpressionType from "../parser/expressionType";
+import { Parser } from "../parser/parser";
 import { readFile } from "./file";
 
+import type ExportExpr from "../parser/expression/exportExpr";
+import type Expression from "../parser/expression/expr";
 export function generateTokens(code: string): Token[] {
   const lexer = new Lexer(code);
   return lexer.tokenize();

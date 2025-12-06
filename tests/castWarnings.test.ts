@@ -1,9 +1,10 @@
-import { describe, it, expect } from "bun:test";
-import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
-import Scope from "../transpiler/Scope";
-import { Parser } from "../parser/parser";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../lexer/lexer";
+import { Parser } from "../parser/parser";
+import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
 import HelperGenerator from "../transpiler/HelperGenerator";
+import Scope from "../transpiler/Scope";
 
 function analyzeAndGetWarnings(input: string) {
   const lexer = new Lexer(input);

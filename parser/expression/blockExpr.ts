@@ -18,10 +18,6 @@ export default class BlockExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   optimize(): Expression {
     this.expressions = this.expressions.map((expr) => expr.optimize());
     return this;

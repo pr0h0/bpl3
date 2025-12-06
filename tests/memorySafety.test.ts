@@ -1,10 +1,11 @@
-import { describe, it, expect } from "bun:test";
-import { Parser } from "../parser/parser";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../lexer/lexer";
-import Scope from "../transpiler/Scope";
-import HelperGenerator from "../transpiler/HelperGenerator";
+import { Parser } from "../parser/parser";
 import { MemorySafetyAnalyzer } from "../transpiler/analysis/MemorySafetyAnalyzer";
 import { SemanticAnalyzer } from "../transpiler/analysis/SemanticAnalyzer";
+import HelperGenerator from "../transpiler/HelperGenerator";
+import Scope from "../transpiler/Scope";
 
 function analyzeMemorySafety(input: string) {
   const lexer = new Lexer(input);

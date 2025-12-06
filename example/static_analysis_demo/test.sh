@@ -17,7 +17,7 @@ check_warnings() {
     
     # Run transpiler and capture output (stderr included)
     # Use -q to suppress debug logs, but warnings are still printed
-    OUTPUT=$(bun index.ts -q "$REL_PATH" 2>&1)
+    OUTPUT=$(bun index.ts "$REL_PATH" 2>&1)
     RES=$?
     popd > /dev/null
 

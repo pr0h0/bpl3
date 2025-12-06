@@ -4,6 +4,7 @@ import type { TypeInfo } from "../../transpiler/Scope";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+
 import type { VariableType } from "./variableDeclarationExpr";
 import type FunctionDeclarationExpr from "./functionDeclaration";
 
@@ -19,6 +20,7 @@ export default class StructDeclarationExpr extends Expression {
     public fields: StructField[],
     public genericParams: string[] = [],
     public methods: FunctionDeclarationExpr[] = [],
+    public parent: string | null = null,
   ) {
     super(ExpressionType.StructureDeclaration);
     this.requiresSemicolon = false;
@@ -47,10 +49,6 @@ export default class StructDeclarationExpr extends Expression {
     output += this.getDepth();
     output += "/[ StructDeclaration ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {
@@ -166,8 +164,29 @@ export default class StructDeclarationExpr extends Expression {
 
     // Add to IRModule if not already present
     if (!gen.module.structs.some((s) => s.name === this.name)) {
-      const fields = this.fields.map((f) => gen.getIRType(f.type));
-      gen.module.addStruct(this.name, fields);
+      const typeInfo = scope.resolveType(this.name);
+      if (typeInfo && typeInfo.members.size > 0) {
+        // Sort members by index to ensure correct layout
+        const sortedMembers = Array.from(typeInfo.members.values()).sort(
+          (a, b) => (a.index ?? 0) - (b.index ?? 0),
+        );
+
+        const fields = sortedMembers.map((m) => {
+          const varType: VariableType = {
+            name: m.name,
+            isPointer: m.isPointer,
+            isArray: m.isArray,
+            // Note: genericArgs are not stored in TypeInfo member,
+            // but if the type was monomorphized, m.name should be the specialized name.
+          };
+          return gen.getIRType(varType);
+        });
+        gen.module.addStruct(this.name, fields);
+      } else {
+        // Fallback to AST fields if type info not found (shouldn't happen for valid code)
+        const fields = this.fields.map((f) => gen.getIRType(f.type));
+        gen.module.addStruct(this.name, fields);
+      }
     }
 
     // Generate IR for methods

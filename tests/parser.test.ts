@@ -1,15 +1,16 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../lexer/lexer";
-import { Parser } from "../parser/parser";
-import ExpressionType from "../parser/expressionType";
-import VariableDeclarationExpr from "../parser/expression/variableDeclarationExpr";
-import FunctionDeclarationExpr from "../parser/expression/functionDeclaration";
-import BinaryExpr from "../parser/expression/binaryExpr";
-import NumberLiteralExpr from "../parser/expression/numberLiteralExpr";
 import TokenType from "../lexer/tokenType";
+import BinaryExpr from "../parser/expression/binaryExpr";
+import FunctionDeclarationExpr from "../parser/expression/functionDeclaration";
 import IfExpr from "../parser/expression/ifExpr";
 import LoopExpr from "../parser/expression/loopExpr";
+import NumberLiteralExpr from "../parser/expression/numberLiteralExpr";
 import StructDeclarationExpr from "../parser/expression/structDeclarationExpr";
+import VariableDeclarationExpr from "../parser/expression/variableDeclarationExpr";
+import ExpressionType from "../parser/expressionType";
+import { Parser } from "../parser/parser";
 
 function parse(input: string) {
   const lexer = new Lexer(input);

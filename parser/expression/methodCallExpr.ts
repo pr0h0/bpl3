@@ -1,12 +1,16 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
-import type Scope from "../../transpiler/Scope";
-import ExpressionType from "../expressionType";
-import Expression from "./expr";
+import { IRVoid } from "../../transpiler/ir/IRType";
 import { mangleMethod } from "../../utils/methodMangler";
 import { resolveExpressionType } from "../../utils/typeResolver";
+import ExpressionType from "../expressionType";
+import Expression from "./expr";
+
+import type Scope from "../../transpiler/Scope";
 import type { VariableType } from "./variableDeclarationExpr";
 
 export default class MethodCallExpr extends Expression {
+  public resolvedReturnType?: VariableType;
+
   constructor(
     public receiver: Expression,
     public methodName: string,
@@ -14,7 +18,6 @@ export default class MethodCallExpr extends Expression {
     public genericArgs: VariableType[] = [],
   ) {
     super(ExpressionType.MethodCallExpr);
-    this.requiresSemicolon = true;
   }
 
   toString(depth: number = 0): string {
@@ -32,10 +35,6 @@ export default class MethodCallExpr extends Expression {
     this.depth--;
     output += this.getDepth() + `/[ MethodCall ]\n`;
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {
@@ -72,12 +71,36 @@ export default class MethodCallExpr extends Expression {
     let mangledName = mangleMethod(structName, this.methodName);
 
     // Check if this was monomorphized (semantic analyzer sets this)
-    if ((this as any).monomorphizedName) {
-      mangledName = (this as any).monomorphizedName;
+    if (this.monomorphizedName) {
+      mangledName = this.monomorphizedName;
     }
 
     // Resolve function
-    const func = scope.resolveFunction(mangledName);
+    let func = scope.resolveFunction(mangledName);
+
+    // Inheritance lookup
+    if (!func) {
+      let currentStructName = structName;
+      let depth = 0;
+      while (depth < 10) {
+        const typeInfo = scope.resolveType(currentStructName);
+        if (!typeInfo || !typeInfo.parentType) break;
+
+        currentStructName = typeInfo.parentType;
+        const parentMangledName = mangleMethod(
+          currentStructName,
+          this.methodName,
+        );
+        const parentFunc = scope.resolveFunction(parentMangledName);
+        if (parentFunc) {
+          func = parentFunc;
+          mangledName = parentMangledName;
+          break;
+        }
+        depth++;
+      }
+    }
+
     if (!func) {
       throw new Error(
         `Method '${this.methodName}' not found on type '${structName}'`,
@@ -147,7 +170,7 @@ export default class MethodCallExpr extends Expression {
 
     const returnType = func.returnType
       ? gen.getIRType(func.returnType)
-      : ({ type: "void" } as any);
+      : IRVoid;
 
     const funcName = func.irName || `@${mangledName}`;
     const result = gen.emitCall(funcName, argValues, returnType);

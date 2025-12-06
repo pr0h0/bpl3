@@ -1,8 +1,8 @@
 import type Scope from "../../transpiler/Scope";
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import Token from "../../lexer/token";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
-import Token from "../../lexer/token";
 
 export default class ExportExpr extends Expression {
   constructor(
@@ -24,10 +24,6 @@ export default class ExportExpr extends Expression {
     output += `${this.getDepth()}`;
     output += "/[ Export Expression ]\n";
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {

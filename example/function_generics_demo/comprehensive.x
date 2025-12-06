@@ -13,17 +13,18 @@ frame swap<A, B>(a: A, b: B) ret A {
 # Test non-generic struct with generic method
 struct Container {
     count: u64,
-    
+
     frame process<T>(item: T) ret T {
         call printf("Processing item: %d (count=%d)\n", item, this.count);
         return item;
     }
-    
+
     frame add<T>(a: T, b: T) ret T {
         call printf("Adding: %d + %d (count=%d)\n", a, b, this.count);
         return a;
     }
-}frame main() ret u8 {
+}
+frame main() ret u8 {
     # Test generic functions
     local x: u64 = call identity<u64>(42);
     call printf("identity<u64>(42) = %d\n", x);

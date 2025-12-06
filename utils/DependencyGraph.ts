@@ -1,6 +1,9 @@
-import { resolve, dirname, relative } from "path";
-import { parseFile, extractImportStatements } from "./parser";
+import { dirname, relative, resolve } from "path";
+
+import { extractImportStatements, parseFile } from "./parser";
+
 import type ProgramExpr from "../parser/expression/programExpr";
+import { Logger } from "./Logger";
 
 export function generateDependencyGraph(entryFile: string): string {
   const edges: { from: string; to: string }[] = [];
@@ -59,7 +62,7 @@ export function generateDependencyGraph(entryFile: string): string {
         }
       }
     } catch (e) {
-      console.warn(`Failed to parse ${currentFile} for dependency graph:`, e);
+      Logger.warn(`Failed to parse ${currentFile} for dependency graph:`, e);
     }
   }
 

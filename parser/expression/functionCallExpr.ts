@@ -1,19 +1,12 @@
 import type Scope from "../../transpiler/Scope";
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import { IROpcode } from "../../transpiler/ir/IRInstruction";
+import { IRVoid } from "../../transpiler/ir/IRType";
+import { resolveExpressionType } from "../../utils/typeResolver";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
-import NumberLiteralExpr from "./numberLiteralExpr";
-import MemberAccessExpr from "./memberAccessExpr";
-import BinaryExpr from "./binaryExpr";
-import UnaryExpr from "./unaryExpr";
-import IdentifierExpr from "./identifierExpr";
-import StringLiteralExpr from "./stringLiteralExpr";
-import TernaryExpr from "./ternaryExpr";
-import type { VariableType } from "./variableDeclarationExpr";
-import TokenType from "../../lexer/tokenType";
-import { resolveExpressionType, getIntSize } from "../../utils/typeResolver";
 
+import type { VariableType } from "./variableDeclarationExpr";
 export default class FunctionCallExpr extends Expression {
   constructor(
     public functionName: string,
@@ -23,20 +16,8 @@ export default class FunctionCallExpr extends Expression {
     super(ExpressionType.FunctionCall);
   }
 
-  argOrders = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
   public isTailCall: boolean = false;
-  public monomorphizedName?: string; // Set by semantic analyzer for generic function calls
   public resolvedReturnType?: VariableType; // Set by semantic analyzer for generic function calls
-  floatArgOrders = [
-    "xmm0",
-    "xmm1",
-    "xmm2",
-    "xmm3",
-    "xmm4",
-    "xmm5",
-    "xmm6",
-    "xmm7",
-  ];
 
   toString(depth: number = 0): string {
     this.depth = depth;
@@ -53,10 +34,6 @@ export default class FunctionCallExpr extends Expression {
     this.depth--;
     output += this.getDepth() + `/[ FunctionCall ]\n`;
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {
@@ -181,7 +158,7 @@ export default class FunctionCallExpr extends Expression {
 
     const returnType = func.returnType
       ? gen.getIRType(func.returnType)
-      : ({ type: "void" } as any);
+      : IRVoid;
 
     const irFuncName = func.irName || `@${funcName}`;
 

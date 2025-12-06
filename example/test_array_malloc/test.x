@@ -8,10 +8,10 @@ frame main() ret i32 {
     local arr: Array<u64>;
     call arr.push(42);
     call arr.push(99);
-    
+
     call printf("Array length: %llu\n", call arr.len());
     call printf("First: %llu\n", call arr.get(0));
     call printf("Second: %llu\n", call arr.get(1));
-    
+
     return 0;
 }

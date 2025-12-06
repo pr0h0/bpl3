@@ -1,31 +1,33 @@
-import Expression from "../../parser/expression/expr";
-import ProgramExpr from "../../parser/expression/programExpr";
-import ExpressionType from "../../parser/expressionType";
-import VariableDeclarationExpr from "../../parser/expression/variableDeclarationExpr";
-import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
-import BlockExpr from "../../parser/expression/blockExpr";
-import IfExpr from "../../parser/expression/ifExpr";
-import LoopExpr from "../../parser/expression/loopExpr";
-import BinaryExpr from "../../parser/expression/binaryExpr";
-import FunctionCallExpr from "../../parser/expression/functionCallExpr";
-import ReturnExpr from "../../parser/expression/returnExpr";
-import ImportExpr from "../../parser/expression/importExpr";
-import ExportExpr from "../../parser/expression/exportExpr";
-import ExternDeclarationExpr from "../../parser/expression/externDeclarationExpr";
-import StructDeclarationExpr from "../../parser/expression/structDeclarationExpr";
-import IdentifierExpr from "../../parser/expression/identifierExpr";
-import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
-import StringLiteralExpr from "../../parser/expression/stringLiteralExpr";
-import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
-import MethodCallExpr from "../../parser/expression/methodCallExpr";
-import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
-import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
-import UnaryExpr from "../../parser/expression/unaryExpr";
-import TernaryExpr from "../../parser/expression/ternaryExpr";
-import SwitchExpr from "../../parser/expression/switchExpr";
-import StructLiteralExpr from "../../parser/expression/structLiteralExpr";
 import Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
+import ArrayLiteralExpr from "../../parser/expression/arrayLiteralExpr";
+import AsmBlockExpr from "../../parser/expression/asmBlockExpr";
+import BinaryExpr from "../../parser/expression/binaryExpr";
+import BlockExpr from "../../parser/expression/blockExpr";
+import CastExpr from "../../parser/expression/castExpr";
+import ExportExpr from "../../parser/expression/exportExpr";
+import Expression from "../../parser/expression/expr";
+import ExternDeclarationExpr from "../../parser/expression/externDeclarationExpr";
+import FunctionCallExpr from "../../parser/expression/functionCallExpr";
+import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
+import IdentifierExpr from "../../parser/expression/identifierExpr";
+import IfExpr from "../../parser/expression/ifExpr";
+import ImportExpr from "../../parser/expression/importExpr";
+import LoopExpr from "../../parser/expression/loopExpr";
+import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
+import MethodCallExpr from "../../parser/expression/methodCallExpr";
+import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
+import ProgramExpr from "../../parser/expression/programExpr";
+import ReturnExpr from "../../parser/expression/returnExpr";
+import { SizeofExpr } from "../../parser/expression/sizeofExpr";
+import StringLiteralExpr from "../../parser/expression/stringLiteralExpr";
+import StructDeclarationExpr from "../../parser/expression/structDeclarationExpr";
+import StructLiteralExpr from "../../parser/expression/structLiteralExpr";
+import SwitchExpr from "../../parser/expression/switchExpr";
+import TernaryExpr from "../../parser/expression/ternaryExpr";
+import UnaryExpr from "../../parser/expression/unaryExpr";
+import VariableDeclarationExpr from "../../parser/expression/variableDeclarationExpr";
+import ExpressionType from "../../parser/expressionType";
 
 export class Formatter {
   public indentLevel = 0;
@@ -85,6 +87,10 @@ export class Formatter {
         return this.visitFunctionCall(expr as FunctionCallExpr);
       case ExpressionType.MethodCallExpr:
         return this.visitMethodCall(expr as MethodCallExpr);
+      case ExpressionType.CastExpression:
+        return this.visitCastExpr(expr as CastExpr);
+      case ExpressionType.SizeOfExpression:
+        return this.visitSizeofExpr(expr as SizeofExpr);
       case ExpressionType.ReturnExpression:
         return this.visitReturnExpr(expr as ReturnExpr);
       case ExpressionType.ImportExpression:
@@ -228,6 +234,8 @@ export class Formatter {
       case ExpressionType.IdentifierExpr: // Unlikely
       case ExpressionType.NumberLiteralExpr: // Unlikely
       case ExpressionType.StringLiteralExpr: // Unlikely
+      case ExpressionType.CastExpression:
+      case ExpressionType.SizeOfExpression:
         return true;
       default:
         return false;
@@ -252,7 +260,11 @@ export class Formatter {
   }
 
   private visitFunctionDeclaration(expr: FunctionDeclarationExpr): string {
-    let output = `frame ${expr.name}(`;
+    let output = `frame ${expr.name}`;
+    if (expr.genericParams.length > 0) {
+      output += `<${expr.genericParams.join(", ")}>`;
+    }
+    output += "(";
     output += expr.args
       .map((arg) => `${arg.name}: ${this.formatType(arg.type)}`)
       .join(", ");
@@ -352,17 +364,33 @@ export class Formatter {
   }
 
   private visitFunctionCall(expr: FunctionCallExpr): string {
-    let output = `call ${expr.functionName}(`;
+    let output = `call ${expr.functionName}`;
+    if (expr.genericArgs && expr.genericArgs.length > 0) {
+      output += `<${expr.genericArgs.map((arg) => this.formatType(arg)).join(", ")}>`;
+    }
+    output += "(";
     output += expr.args.map((arg) => this.visit(arg)).join(", ");
     output += ")";
     return output;
   }
 
   private visitMethodCall(expr: MethodCallExpr): string {
-    let output = `call ${this.visit(expr.receiver)}.${expr.methodName}(`;
+    let output = `call ${this.visit(expr.receiver)}.${expr.methodName}`;
+    if (expr.genericArgs && expr.genericArgs.length > 0) {
+      output += `<${expr.genericArgs.map((arg) => this.formatType(arg)).join(", ")}>`;
+    }
+    output += "(";
     output += expr.args.map((arg) => this.visit(arg)).join(", ");
     output += ")";
     return output;
+  }
+
+  private visitCastExpr(expr: CastExpr): string {
+    return `cast<${this.formatType(expr.targetType)}>(${this.visit(expr.value)})`;
+  }
+
+  private visitSizeofExpr(expr: SizeofExpr): string {
+    return `sizeof(${this.formatType(expr.typeArg)})`;
   }
 
   private visitReturnExpr(expr: ReturnExpr): string {
@@ -433,6 +461,9 @@ export class Formatter {
     let output = `struct ${expr.name}`;
     if (expr.genericParams.length > 0) {
       output += `<${expr.genericParams.join(", ")}>`;
+    }
+    if (expr.parent) {
+      output += `: ${expr.parent}`;
     }
     output += " {";
     if (expr.startToken) {
@@ -712,6 +743,8 @@ export class Formatter {
       case ExpressionType.NumberLiteralExpr:
       case ExpressionType.StringLiteralExpr:
       case ExpressionType.NullLiteralExpr:
+      case ExpressionType.CastExpression:
+      case ExpressionType.SizeOfExpression:
         return 19; // Atoms
       default:
         return 0;

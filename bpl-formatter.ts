@@ -1,9 +1,11 @@
-import { parseFile } from "./utils/parser";
-import { Formatter } from "./transpiler/formatter/Formatter";
-import { readFile, saveToFile } from "./utils/file";
 import { existsSync } from "fs";
+
 import Lexer from "./lexer/lexer";
 import TokenType from "./lexer/tokenType";
+import { Formatter } from "./transpiler/formatter/Formatter";
+import { readFile, saveToFile } from "./utils/file";
+import { parseFile } from "./utils/parser";
+import { Logger } from "./utils/Logger";
 
 const args = process.argv.slice(2);
 const files: string[] = [];
@@ -23,7 +25,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (files.length === 0) {
-  console.error("No input files provided.");
+  Logger.error("No input files provided.");
   process.exit(1);
 }
 
@@ -33,7 +35,7 @@ for (const file of files) {
   }
 
   if (!existsSync(file)) {
-    console.error(`File not found: ${file}`);
+    Logger.error(`File not found: ${file}`);
     continue;
   }
 
@@ -56,23 +58,23 @@ for (const file of files) {
     // We trim both to avoid issues with trailing newlines if any
     if (originalContent === formattedContent) {
       if (write) {
-        console.log(`\x1b[90m${file} - unchanged\x1b[0m`);
+        Logger.log(`\x1b[90m${file} - unchanged\x1b[0m`);
       } else {
         // If not writing, we just output the formatted content
         // But if we have multiple files, concatenating them might be what is expected
         // or maybe just processing one by one.
         // Standard prettier outputs to stdout.
-        console.log(formattedContent);
+        Logger.log(formattedContent);
       }
     } else {
       if (write) {
         saveToFile(file, formattedContent);
-        console.log(`${file} - changed`);
+        Logger.log(`${file} - changed`);
       } else {
-        console.log(formattedContent);
+        Logger.log(formattedContent);
       }
     }
   } catch (e: any) {
-    console.error(`Error formatting ${file}: ${e.message}`);
+    Logger.error(`Error formatting ${file}: ${e.message}`);
   }
 }

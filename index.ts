@@ -1,21 +1,23 @@
-import Scope from "./transpiler/Scope";
+import { execSync, spawnSync } from "child_process";
+import { existsSync, readFileSync, unlinkSync } from "fs";
+import { isAbsolute, resolve } from "path";
+
+import { ErrorReporter } from "./errors";
+import { SemanticAnalyzer } from "./transpiler/analysis/SemanticAnalyzer";
 import HelperGenerator from "./transpiler/HelperGenerator";
 import { IRGenerator } from "./transpiler/ir/IRGenerator";
+import Scope from "./transpiler/Scope";
 import { LLVMTargetBuilder } from "./transpiler/target/LLVMTargetBuilder";
-import { SemanticAnalyzer } from "./transpiler/analysis/SemanticAnalyzer";
+import { generateDependencyGraph } from "./utils/DependencyGraph";
+import { getOutputFileName, saveToFile } from "./utils/file";
 import {
-  getFileTokens,
-  parseTokens,
-  parseImportExpressions,
   extractImportStatements,
+  getFileTokens,
+  parseImportExpressions,
+  parseTokens,
 } from "./utils/parser";
 import { parseLibraryFile } from "./utils/transpiler";
-import { getOutputFileName, saveToFile } from "./utils/file";
-import { execSync, spawnSync } from "child_process";
-import { existsSync, unlinkSync, readFileSync } from "fs";
-import { resolve, isAbsolute } from "path";
-import { ErrorReporter } from "./errors";
-import { generateDependencyGraph } from "./utils/DependencyGraph";
+import { Logger } from "./utils/Logger";
 
 // --- Configuration Defaults ---
 let linkMode: "dynamic" | "static" = "dynamic";
@@ -30,18 +32,16 @@ let optimizationLevel = 3;
 let showDeps = false;
 const extraLibs: string[] = [];
 
-function debug(...args: any[]) {
-  if (quiet) return;
-  console.log(...args);
-}
-
 // --- Load Configuration File ---
 const configPath = resolve("transpiler.config.json");
 if (existsSync(configPath)) {
   try {
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     if (config.linkMode) linkMode = config.linkMode;
-    if (config.quiet !== undefined) quiet = config.quiet;
+    if (config.quiet !== undefined) {
+      quiet = config.quiet;
+      Logger.setQuiet(quiet);
+    }
     if (config.printAsm !== undefined) printAsm = config.printAsm;
     if (config.shouldRun !== undefined) shouldRun = config.shouldRun;
     if (config.shouldGdb !== undefined) shouldGdb = config.shouldGdb;
@@ -54,7 +54,7 @@ if (existsSync(configPath)) {
       extraLibs.push(...config.extraLibs);
     }
   } catch (e) {
-    console.warn("Warning: Failed to parse transpiler.config.json");
+    Logger.warn("Warning: Failed to parse transpiler.config.json");
   }
 }
 
@@ -76,6 +76,7 @@ for (const arg of args) {
       case "-q":
       case "--quiet":
         quiet = true;
+        Logger.setQuiet(true);
         break;
       case "-p":
       case "--print-asm":
@@ -112,7 +113,7 @@ for (const arg of args) {
         showDeps = true;
         break;
       default:
-        console.warn(`Warning: Unknown option (ignored): ${arg}`);
+        Logger.warn(`Warning: Unknown option (ignored): ${arg}`);
         break;
     }
   } else {
@@ -125,8 +126,8 @@ for (const arg of args) {
 }
 
 if (!sourceFile) {
-  console.error("Error: No source file provided.");
-  console.error(
+  Logger.error("Error: No source file provided.");
+  Logger.error(
     "Usage: bun index.ts [-s|-d] [-q] [-p] [-r] [-g] [-l] <source.x> [lib1.o ...]",
   );
   process.exit(1);
@@ -136,12 +137,12 @@ const fileName = sourceFile;
 
 if (showDeps) {
   const dot = generateDependencyGraph(fileName);
-  console.log(dot);
+  Logger.log(dot);
   process.exit(0);
 }
 
 // --- 1. Transpiling ---
-debug(`--- 1. Transpiling ${fileName} ---`);
+Logger.info(`--- 1. Transpiling ${fileName} ---`);
 
 let asmContent = "";
 let asmFilePath = "";
@@ -183,15 +184,15 @@ try {
 
 // --- 2. Print Assembly ---
 if (printAsm) {
-  debug(`--- 2. Generated LLVM IR: ${asmFilePath} ---`);
-  console.log(asmContent);
-  debug("-----------------------------------");
+  Logger.info(`--- 2. Generated LLVM IR: ${asmFilePath} ---`);
+  Logger.log(asmContent);
+  Logger.info("-----------------------------------");
 } else {
-  debug("--- 2. Skipping LLVM IR printout ---");
+  Logger.info("--- 2. Skipping LLVM IR printout ---");
 }
 
 // --- 3. Assemble (Compile to Object) ---
-debug(`--- 3. Compiling ${asmFilePath} ---`);
+Logger.info(`--- 3. Compiling ${asmFilePath} ---`);
 const objFilePath = getOutputFileName(fileName, ".o");
 try {
   execSync(
@@ -199,18 +200,18 @@ try {
     { stdio: "inherit" },
   );
 } catch (e) {
-  console.error("Compilation failed.");
+  Logger.error("Compilation failed.");
   process.exit(1);
 }
 
 // --- 4. Link ---
 if (compileLib) {
-  debug("--- 4. Skipping linking (Library Mode) ---");
+  Logger.info("--- 4. Skipping linking (Library Mode) ---");
   if (cleanupAsm && existsSync(asmFilePath)) unlinkSync(asmFilePath);
   process.exit(0);
 }
 
-debug(`--- 4. Linking to create executable (Mode: ${linkMode}) ---`);
+Logger.info(`--- 4. Linking to create executable (Mode: ${linkMode}) ---`);
 
 const outputExe = getOutputFileName(fileName, "");
 const linkArgs = Array.from(objectsToLink).join(" ");
@@ -222,37 +223,37 @@ try {
     { stdio: "inherit" },
   );
 } catch (e) {
-  console.error("Linking failed.");
+  Logger.error("Linking failed.");
   process.exit(1);
 }
 
 // --- 5. Cleanup ---
 if (cleanupAsm && existsSync(asmFilePath)) {
-  debug("--- Cleaning up assembly file ---");
+  Logger.info("--- Cleaning up assembly file ---");
   unlinkSync(asmFilePath);
 }
 if (cleanupO && existsSync(objFilePath)) {
-  debug("--- Cleaning up object file ---");
+  Logger.info("--- Cleaning up object file ---");
   unlinkSync(objFilePath);
 }
 
 // --- 6. Run ---
 if (shouldRun || shouldGdb) {
-  debug(`--- 5. Running ${outputExe} ---`);
+  Logger.info(`--- 5. Running ${outputExe} ---`);
 
   const runPath = isAbsolute(outputExe) ? outputExe : `./${outputExe}`;
 
   if (shouldGdb) {
     spawnSync("gdb", ["-q", runPath], { stdio: "inherit" });
   } else {
-    debug("-----------------------------------");
+    Logger.info("-----------------------------------");
     try {
       execSync(runPath, { stdio: "inherit" });
-      debug("-----------------------------------");
-      debug(`Program exited with code: 0`);
+      Logger.info("-----------------------------------");
+      Logger.info(`Program exited with code: 0`);
     } catch (e: any) {
-      debug("-----------------------------------");
-      debug(`Program exited with code: ${e.status}`);
+      Logger.info("-----------------------------------");
+      Logger.info(`Program exited with code: ${e.status}`);
     }
   }
 }

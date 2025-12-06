@@ -1,10 +1,11 @@
-import { describe, it, expect } from "bun:test";
-import { IRGenerator } from "../transpiler/ir/IRGenerator";
-import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
-import Scope from "../transpiler/Scope";
-import { Parser } from "../parser/parser";
+import { describe, expect, it } from "bun:test";
+
 import Lexer from "../lexer/lexer";
+import { Parser } from "../parser/parser";
 import HelperGenerator from "../transpiler/HelperGenerator";
+import { IRGenerator } from "../transpiler/ir/IRGenerator";
+import Scope from "../transpiler/Scope";
+import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
 
 function generateIR(input: string): string {
   const lexer = new Lexer(input);

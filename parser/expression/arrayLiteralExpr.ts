@@ -3,6 +3,8 @@ import type { IRType } from "../../transpiler/ir/IRType";
 import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import IdentifierExpr from "./identifierExpr";
+import NumberLiteralExpr from "./numberLiteralExpr";
 
 export default class ArrayLiteralExpr extends Expression {
   constructor(public elements: Expression[]) {
@@ -25,10 +27,6 @@ export default class ArrayLiteralExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   toIR(gen: IRGenerator, scope: Scope): string {
     const size = this.elements.length;
     let elemType: IRType = { type: "i64" };
@@ -39,7 +37,7 @@ export default class ArrayLiteralExpr extends Expression {
         throw new Error("Array element is undefined");
       }
       if (first.type === ExpressionType.NumberLiteralExpr) {
-        const val = (first as any).value;
+        const val = (first as NumberLiteralExpr).value;
         elemType =
           val.includes(".") || val.includes("e")
             ? { type: "f64" }
@@ -47,7 +45,7 @@ export default class ArrayLiteralExpr extends Expression {
       } else if (first.type === ExpressionType.StringLiteralExpr) {
         elemType = { type: "pointer", base: { type: "i8" } };
       } else if (first.type === ExpressionType.IdentifierExpr) {
-        const name = (first as any).name;
+        const name = (first as IdentifierExpr).name;
         const resolved = scope.resolve(name);
         if (resolved) elemType = gen.getIRType(resolved.varType);
       }

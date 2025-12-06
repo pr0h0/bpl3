@@ -15,10 +15,6 @@ export default class BreakExpr extends Expression {
     return output;
   }
 
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
-  }
-
   toIR(gen: IRGenerator, scope: Scope): string {
     const context = scope.getCurrentContext("loop");
     if (!context || context.type !== "loop") {

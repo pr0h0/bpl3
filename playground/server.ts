@@ -1,7 +1,7 @@
 import { serve } from "bun";
-import { join, resolve } from "path";
-import { writeFileSync, unlinkSync, existsSync } from "fs";
 import { spawnSync } from "child_process";
+import { existsSync, unlinkSync, writeFileSync } from "fs";
+import { join, resolve } from "path";
 
 const PORT = 3000;
 const PUBLIC_DIR = resolve(import.meta.dir, "public");

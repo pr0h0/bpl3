@@ -1,23 +1,23 @@
-import Expression from "../../parser/expression/expr";
-import ExpressionType from "../../parser/expressionType";
-import ProgramExpr from "../../parser/expression/programExpr";
+import { CompilerError, CompilerWarning } from "../../errors";
+import TokenType from "../../lexer/tokenType";
+import BinaryExpr from "../../parser/expression/binaryExpr";
 import BlockExpr from "../../parser/expression/blockExpr";
+import Expression from "../../parser/expression/expr";
+import FunctionCallExpr from "../../parser/expression/functionCallExpr";
 import FunctionDeclarationExpr from "../../parser/expression/functionDeclaration";
+import IdentifierExpr from "../../parser/expression/identifierExpr";
+import IfExpr from "../../parser/expression/ifExpr";
+import LoopExpr from "../../parser/expression/loopExpr";
+import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
+import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
+import ProgramExpr from "../../parser/expression/programExpr";
+import ReturnExpr from "../../parser/expression/returnExpr";
+import UnaryExpr from "../../parser/expression/unaryExpr";
 import VariableDeclarationExpr, {
   type VariableType,
 } from "../../parser/expression/variableDeclarationExpr";
-import IdentifierExpr from "../../parser/expression/identifierExpr";
-import BinaryExpr from "../../parser/expression/binaryExpr";
-import UnaryExpr from "../../parser/expression/unaryExpr";
-import MemberAccessExpr from "../../parser/expression/memberAccessExpr";
-import FunctionCallExpr from "../../parser/expression/functionCallExpr";
-import ReturnExpr from "../../parser/expression/returnExpr";
-import IfExpr from "../../parser/expression/ifExpr";
-import LoopExpr from "../../parser/expression/loopExpr";
-import NumberLiteralExpr from "../../parser/expression/numberLiteralExpr";
-import TokenType from "../../lexer/tokenType";
+import ExpressionType from "../../parser/expressionType";
 import Scope from "../Scope";
-import { CompilerError, CompilerWarning } from "../../errors";
 
 interface PointerInfo {
   name: string;
@@ -206,7 +206,7 @@ export class MemorySafetyAnalyzer {
         expr.value &&
         (expr.value.type === ExpressionType.NullLiteralExpr ||
           (expr.value.type === ExpressionType.NumberLiteralExpr &&
-            (expr.value as any).value === "0") ||
+            (expr.value as NumberLiteralExpr).value === "0") ||
           (expr.value.type === ExpressionType.IdentifierExpr &&
             (expr.value as IdentifierExpr).name === "null"));
 
@@ -285,6 +285,11 @@ export class MemorySafetyAnalyzer {
     if (assignmentOperators.includes(expr.operator.type)) {
       this.analyzeExpression(expr.right, scope);
 
+      // For array/member access on LHS, we need to analyze it (e.g. for bounds checks)
+      if (expr.left.type !== ExpressionType.IdentifierExpr) {
+        this.analyzeExpression(expr.left, scope);
+      }
+
       // Handle assignment to pointer (track malloc, etc.)
       if (expr.left.type === ExpressionType.IdentifierExpr) {
         const targetName = (expr.left as IdentifierExpr).name;
@@ -323,7 +328,7 @@ export class MemorySafetyAnalyzer {
         const isNullAssignment =
           expr.right.type === ExpressionType.NullLiteralExpr ||
           (expr.right.type === ExpressionType.NumberLiteralExpr &&
-            (expr.right as any).value === "0") ||
+            (expr.right as NumberLiteralExpr).value === "0") ||
           (expr.right.type === ExpressionType.IdentifierExpr &&
             (expr.right as IdentifierExpr).name === "null");
 
@@ -672,7 +677,7 @@ export class MemorySafetyAnalyzer {
 
   private visitChildren(expr: Expression, scope: Scope): void {
     // Visit all child expressions based on type
-    const anyExpr = expr as any;
+    const anyExpr = expr as Record<string, any>;
     for (const key in anyExpr) {
       const value = anyExpr[key];
       if (value && typeof value === "object") {

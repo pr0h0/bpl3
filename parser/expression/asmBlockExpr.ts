@@ -1,10 +1,10 @@
 import Token from "../../lexer/token";
 import TokenType from "../../lexer/tokenType";
-import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
-import type Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 
+import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
+import type Scope from "../../transpiler/Scope";
 export default class AsmBlockExpr extends Expression {
   constructor(code: Token[]) {
     super(ExpressionType.AsmBlockExpression);
@@ -25,10 +25,6 @@ export default class AsmBlockExpr extends Expression {
     this.depth--;
     output += `\n${this.getDepth()}} @${this.code[this.code.length - 1]?.line ?? "EOF"}\n`;
     return output;
-  }
-
-  log(depth: number = 0): void {
-    console.log(this.toString(depth));
   }
 
   toIR(gen: IRGenerator, scope: Scope): string {

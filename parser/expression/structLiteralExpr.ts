@@ -1,5 +1,6 @@
-import Expression from "./expr";
 import ExpressionType from "../expressionType";
+import Expression from "./expr";
+
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type Scope from "../../transpiler/Scope";
 
