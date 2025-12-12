@@ -26,6 +26,7 @@ enum ExpressionType {
   LoopExpression = "LoopExpression",
   BreakExpression = "BreakExpression",
   ContinueExpression = "ContinueExpression",
+  DeferExpression = "DeferExpression",
 
   FunctionDeclaration = "FunctionDeclaration",
   FunctionCall = "FunctionCall",

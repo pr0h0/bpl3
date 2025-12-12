@@ -1,10 +1,11 @@
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import Token from "../../lexer/token";
-import { IRVoid } from "../../transpiler/ir/IRType";
+import { IRVoid, type IRType } from "../../transpiler/ir/IRType";
 import Scope from "../../transpiler/Scope";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
 import { mangleMethod } from "../../utils/methodMangler";
+import { getTarget } from "../../utils/target";
 
 import type { VariableType } from "./variableDeclarationExpr";
 export default class FunctionDeclarationExpr extends Expression {
@@ -238,18 +239,25 @@ export default class FunctionDeclarationExpr extends Expression {
         { type: "void" },
       );
 
-      // Define struct.__va_list_tag if not exists
-      if (!gen.module.structs.some((s) => s.name === "struct.__va_list_tag")) {
-        gen.module.addStruct("struct.__va_list_tag", [
-          { type: "i32" },
-          { type: "i32" },
-          { type: "pointer", base: { type: "i8" } },
-          { type: "pointer", base: { type: "i8" } },
-        ]);
+      // Get target-specific va_list configuration
+      const target = getTarget();
+      const vaListConfig = target.vaList;
+
+      // Define the va_list struct based on target
+      // Convert config fields to IR types
+      const irFields: IRType[] = vaListConfig.fields.map((f) => {
+        if (f.type === "ptr") {
+          return { type: "pointer", base: { type: "i8" } } as IRType;
+        }
+        return { type: f.type as "i32" | "i64" } as IRType;
+      });
+
+      if (!gen.module.structs.some((s) => s.name === vaListConfig.structName)) {
+        gen.module.addStruct(vaListConfig.structName, irFields);
       }
 
       const vaList = gen.emitAlloca(
-        { type: "struct", name: "struct.__va_list_tag", fields: [] },
+        { type: "struct", name: vaListConfig.structName, fields: [] },
         "va_list",
       );
       gen.emitCall(
@@ -258,24 +266,19 @@ export default class FunctionDeclarationExpr extends Expression {
         { type: "void" },
       );
 
-      // Extract reg_save_area (index 3) and overflow_arg_area (index 2)
-      // We need to know the structure of va_list. It is target dependent.
-      // On x86_64 linux it is:
-      // struct __va_list_tag {
-      //   i32 gp_offset;
-      //   i32 fp_offset;
-      //   ptr overflow_arg_area;
-      //   ptr reg_save_area;
-      // }
-      // We can use getelementptr to access fields.
+      // Extract reg_save_area and overflow_arg_area based on target config
+      // The structure varies by platform:
+      // - x86_64 Linux: struct { i32 gp_offset, i32 fp_offset, ptr overflow_arg_area, ptr reg_save_area }
+      // - ARM64: struct { ptr __stack, ptr __gr_top, ptr __vr_top, i32 __gr_offs, i32 __vr_offs }
+      // We use getelementptr to access the appropriate fields.
 
-      // reg_save_area is at index 3
+      // reg_save_area
       const regSaveAreaPtr = gen.emitGEP(
-        { type: "struct", name: "struct.__va_list_tag", fields: [] },
+        { type: "struct", name: vaListConfig.structName, fields: [] },
         vaList,
         [
           { value: "0", type: "i32" },
-          { value: "3", type: "i32" },
+          { value: vaListConfig.regSaveAreaIndex.toString(), type: "i32" },
         ],
       );
       const regSaveArea = gen.emitLoad(
@@ -283,13 +286,13 @@ export default class FunctionDeclarationExpr extends Expression {
         regSaveAreaPtr,
       );
 
-      // overflow_arg_area is at index 2
+      // overflow_arg_area
       const overflowArgAreaPtr = gen.emitGEP(
-        { type: "struct", name: "struct.__va_list_tag", fields: [] },
+        { type: "struct", name: vaListConfig.structName, fields: [] },
         vaList,
         [
           { value: "0", type: "i32" },
-          { value: "2", type: "i32" },
+          { value: vaListConfig.overflowArgAreaIndex.toString(), type: "i32" },
         ],
       );
       const overflowArgArea = gen.emitLoad(
@@ -324,11 +327,26 @@ export default class FunctionDeclarationExpr extends Expression {
         varType: { name: "u64", isPointer: 0, isArray: [] },
         irName: gpCount.toString(),
       });
+
+      // Store target's maxRegOffset for use in MemberAccessExpr
+      funcScope.define("__va_max_reg_offset__", {
+        offset: vaListConfig.maxRegOffset.toString(),
+        type: "local",
+        varType: { name: "u64", isPointer: 0, isArray: [] },
+        irName: vaListConfig.maxRegOffset.toString(),
+      });
     }
 
     this.body.toIR(gen, funcScope);
 
+    // For void functions, execute deferred expressions before implicit return
     if (irReturnType.type === "void") {
+      // Execute deferred expressions in LIFO order
+      const deferredExprs = funcScope.getDeferredExpressions();
+      for (const expr of deferredExprs) {
+        expr.toIR(gen, funcScope);
+      }
+
       if (gen.enableStackTrace) {
         gen.popStackFrame();
       }

@@ -20,6 +20,12 @@ import {
 import { parseLibraryFile } from "./utils/transpiler";
 import { Logger } from "./utils/Logger";
 import { TypePrinter } from "./utils/typePrinter";
+import {
+  setTarget,
+  getTarget,
+  getClangCompileFlags,
+  getClangLinkFlags,
+} from "./utils/target";
 
 // --- Parse Command Line Arguments ---
 const config = parseCLI();
@@ -40,7 +46,15 @@ const {
   sourceFile,
   isEval,
   enableStackTrace,
+  target,
 } = config;
+
+// Initialize target configuration
+if (target) {
+  setTarget(target);
+}
+const targetConfig = getTarget();
+Logger.info(`Target: ${targetConfig.triple} (${targetConfig.arch}-${targetConfig.os})`);
 
 Logger.setQuiet(quiet);
 
@@ -156,10 +170,10 @@ if (printAsm) {
 Logger.info(`--- 3. Compiling ${asmFilePath} ---`);
 objFilePath = getOutputFileName(fileName, ".o");
 try {
-  execSync(
-    `clang -Wno-override-module -O${optimizationLevel} -c -o ${objFilePath} ${asmFilePath}`,
-    { stdio: "inherit" },
-  );
+  const compileFlags = getClangCompileFlags(optimizationLevel);
+  const compileCmd = `clang ${compileFlags.join(" ")} -o ${objFilePath} ${asmFilePath}`;
+  Logger.info(`Compile command: ${compileCmd}`);
+  execSync(compileCmd, { stdio: "inherit" });
 } catch (e) {
   Logger.error("Compilation failed.");
   process.exit(1);
@@ -174,13 +188,13 @@ if (compileLib) {
 Logger.info(`--- 4. Linking to create executable (Mode: ${linkMode}) ---`);
 
 const linkArgs = Array.from(objectsToLink).join(" ");
-const staticFlag = linkMode === "static" ? "-static" : "";
+const isStatic = linkMode === "static";
 
 try {
-  execSync(
-    `clang -Wno-override-module -O${optimizationLevel} ${staticFlag} -o ${outputExe} ${objFilePath} ${linkArgs} -lm`,
-    { stdio: "inherit" },
-  );
+  const linkFlags = getClangLinkFlags(optimizationLevel, isStatic);
+  const linkCmd = `clang ${linkFlags.join(" ")} -o ${outputExe} ${objFilePath} ${linkArgs}`;
+  Logger.info(`Link command: ${linkCmd}`);
+  execSync(linkCmd, { stdio: "inherit" });
 } catch (e) {
   Logger.error("Linking failed.");
   process.exit(1);

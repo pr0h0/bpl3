@@ -181,6 +181,8 @@ export default class MemberAccessExpr extends Expression {
       const regSaveArea = scope.resolve("__va_reg_save_area__");
       const overflowArgArea = scope.resolve("__va_overflow_arg_area__");
 
+      const maxRegOffset = scope.resolve("__va_max_reg_offset__");
+
       if (variadicStart && regSaveArea && overflowArgArea) {
         const index = this.property.toIR(gen, scope);
         const startOffset = parseInt(variadicStart.irName!); // Assuming constant for now
@@ -195,8 +197,10 @@ export default class MemberAccessExpr extends Expression {
           startOffsetBytes.toString(),
         );
 
-        // Check if in registers (offset < 48)
-        const inRegs = gen.emitBinary(IROpcode.LT, "i64", currentOffset, "48");
+        // Check if in registers (offset < maxRegOffset)
+        // maxRegOffset is target-specific: 48 for x86_64, 64 for ARM64
+        const maxOffset = maxRegOffset ? maxRegOffset.irName! : "48";
+        const inRegs = gen.emitBinary(IROpcode.LT, "i64", currentOffset, maxOffset);
         // inRegs is i1 (from icmp)
 
         const labelRegs = gen.createBlock("va_regs");
@@ -228,7 +232,7 @@ export default class MemberAccessExpr extends Expression {
           IROpcode.SUB,
           "i64",
           currentOffset,
-          "48",
+          maxOffset,
         );
         const stackAddr = gen.emitGEP({ type: "i8" }, overflowArgArea.irName!, [
           stackOffset,

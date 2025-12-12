@@ -3,6 +3,7 @@ import TokenType from "../../lexer/tokenType";
 import { CompilerError } from "../../errors";
 import ExpressionType from "../expressionType";
 import Expression from "./expr";
+import { getAsmClobbers, getTarget, isInlineAsmSupported } from "../../utils/target";
 
 import type { IRGenerator } from "../../transpiler/ir/IRGenerator";
 import type Scope from "../../transpiler/Scope";
@@ -134,9 +135,18 @@ export default class AsmBlockExpr extends Expression {
       }
     }
 
+    // Check if inline assembly is supported for this target
+    const target = getTarget();
+    if (!isInlineAsmSupported()) {
+      throw new CompilerError(
+        `Inline assembly is not supported for target ${target.arch}. ` +
+          `Consider using libc functions or extern declarations instead.`,
+        this.code[0]?.line ?? 0,
+      );
+    }
+
     const constraints = argConstraints.join(",");
-    const clobbers =
-      "~{dirflag},~{fpsr},~{flags},~{memory},~{rax},~{rbx},~{rcx},~{rdx},~{rsi},~{rdi},~{r8},~{r9},~{r10},~{r11}";
+    const clobbers = getAsmClobbers();
     const constraintsStr = constraints
       ? `${constraints},${clobbers}`
       : clobbers;

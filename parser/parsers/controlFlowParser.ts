@@ -4,6 +4,7 @@ import TokenType from "../../lexer/tokenType";
 import BlockExpr from "../expression/blockExpr";
 import BreakExpr from "../expression/breakExpr";
 import ContinueExpr from "../expression/continueExpr";
+import DeferExpr from "../expression/deferExpr";
 import Expression from "../expression/expr";
 import IfExpr from "../expression/ifExpr";
 import LoopExpr from "../expression/loopExpr";
@@ -177,6 +178,43 @@ export class ControlFlowParser {
       this.parser.consume(TokenType.THROW);
       const expr = this.parser.parseAssignment();
       return new ThrowExpr(expr);
+    });
+  }
+
+  /**
+   * Parses a defer statement.
+   *
+   * Syntax:
+   *   defer { <statements> }
+   *   defer <single_statement>;
+   *
+   * The deferred code will be executed when the enclosing function exits,
+   * in reverse order of declaration (LIFO - Last In, First Out).
+   *
+   * Examples:
+   *   defer { call cleanup(); }
+   *   defer { call fclose(file); }
+   *
+   * @returns A DeferExpr containing the deferred code block
+   */
+  parseDeferExpression(): Expression {
+    return this.parser.withRange(() => {
+      this.parser.consume(TokenType.IDENTIFIER); // consume 'defer'
+
+      // Defer requires a block: defer { ... }
+      if (
+        this.parser.peek() &&
+        this.parser.peek()!.type === TokenType.OPEN_BRACE
+      ) {
+        const body = this.parser.parseCodeBlock();
+        return new DeferExpr(body);
+      }
+
+      // Error: defer must be followed by a block
+      throw new CompilerError(
+        "defer must be followed by a block: defer { ... }",
+        this.parser.peek()?.line || 0,
+      );
     });
   }
 }

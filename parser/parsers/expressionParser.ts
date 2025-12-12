@@ -521,6 +521,8 @@ export class ExpressionParser {
           return this.parser.parseBreakExpr();
         case "continue":
           return this.parser.parseContinueExpr();
+        case "defer":
+          return this.parser.parseDeferExpression();
         case "import":
           return this.parser.parseImportExpression();
         case "export":

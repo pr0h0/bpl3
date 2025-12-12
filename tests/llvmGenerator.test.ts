@@ -6,6 +6,7 @@ import HelperGenerator from "../transpiler/HelperGenerator";
 import { IRGenerator } from "../transpiler/ir/IRGenerator";
 import Scope from "../transpiler/Scope";
 import { LLVMTargetBuilder } from "../transpiler/target/LLVMTargetBuilder";
+import { isInlineAsmSupported } from "../utils/target";
 
 function generateIR(input: string) {
   const lexer = new Lexer(input);
@@ -137,6 +138,11 @@ describe("LlvmGenerator", () => {
   });
 
   it("should generate asm block", () => {
+    // Skip this test on ARM64 since inline assembly is only supported on x86_64
+    if (!isInlineAsmSupported()) {
+      console.log("Skipping asm block test on non-x86_64 target");
+      return;
+    }
     const ir = generateIR('frame test() { asm { "nop" } }');
     expect(ir).toContain("call void asm sideeffect inteldialect");
     expect(ir).toContain('"nop"');

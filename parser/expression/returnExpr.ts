@@ -72,26 +72,40 @@ export default class ReturnExpr extends Expression {
       );
     }
 
+    // Evaluate return value BEFORE executing deferred expressions
+    // This ensures the return value is computed before any cleanup runs
+    let val: string | null = null;
+    let type: IRType = { type: "void" };
+
     if (this.value) {
-      const val = this.value.toIR(gen, scope);
-      let type: IRType = IRI64;
+      val = this.value.toIR(gen, scope);
       if (context.returnType) {
         type = gen.getIRType(context.returnType);
+      } else {
+        type = IRI64;
       }
+    }
 
-      if (gen.enableStackTrace) {
-        gen.popStackFrame();
-      }
+    // Execute deferred expressions in LIFO order (reverse of declaration)
+    // This happens AFTER evaluating the return value but BEFORE actually returning
+    const deferredExprs = scope.getDeferredExpressions();
+    for (const expr of deferredExprs) {
+      expr.toIR(gen, scope);
+    }
 
+    // Pop stack frame for stack trace (after defer, before return)
+    if (gen.enableStackTrace) {
+      gen.popStackFrame();
+    }
+
+    // Now emit the actual return
+    if (val !== null) {
       if (type.type === "pointer" && val === "0") {
         gen.emitReturn("null", type);
       } else {
         gen.emitReturn(val, type);
       }
     } else {
-      if (gen.enableStackTrace) {
-        gen.popStackFrame();
-      }
       gen.emitReturn(null);
     }
     return "";

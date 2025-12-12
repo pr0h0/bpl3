@@ -26,6 +26,8 @@ export interface CompilerConfig {
   sourceCode: string | null;
   isEval: boolean;
   enableStackTrace: boolean;
+  /** Target triple for cross-compilation (e.g., "x86_64-linux", "arm64-darwin") */
+  target: string | null;
 }
 
 export const defaultConfig: CompilerConfig = {
@@ -46,6 +48,7 @@ export const defaultConfig: CompilerConfig = {
   sourceCode: null,
   isEval: false,
   enableStackTrace: false,
+  target: null,
 };
 
 export function parseCLI(): CompilerConfig {
@@ -145,6 +148,10 @@ export function parseCLI(): CompilerConfig {
     .option("--graph", "Show dependency graph (alias)")
     .option("--stack-trace", "Enable runtime stack traces")
     .option("-e, --eval <code>", "Evaluate code")
+    .option(
+      "-t, --target <triple>",
+      "Target triple (e.g., x86_64-linux, arm64-darwin)",
+    )
     .argument("[file]", "Source file")
     .argument("[libs...]", "Extra object files to link")
     .action(() => {});
@@ -181,6 +188,7 @@ export function parseCLI(): CompilerConfig {
   }
   if (options.deps || options.graph) config.showDeps = true;
   if (options.stackTrace) config.enableStackTrace = true;
+  if (options.target) config.target = options.target;
 
   if (options.eval) {
     config.isEval = true;

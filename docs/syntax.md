@@ -187,6 +187,94 @@ loop {
 }
 ```
 
+### Defer
+
+The `defer` statement schedules code to run when the current function exits. Deferred code executes regardless of how the function returns (normal return, early return, or end of void function).
+
+```bpl
+defer {
+    # This runs when the function exits
+}
+```
+
+#### Key Behaviors
+
+1. **LIFO Order**: Multiple defers execute in reverse order (last registered runs first)
+2. **Guaranteed Execution**: Runs even on early returns
+3. **Return Value First**: Return expressions are evaluated before defers run
+
+#### Basic Example
+
+```bpl
+frame example() {
+    defer { call printf("Third\n"); }   # Runs last
+    defer { call printf("Second\n"); }  # Runs second
+    defer { call printf("First\n"); }   # Runs first
+
+    call printf("Function body\n");
+}
+# Output: Function body, First, Second, Third
+```
+
+#### Memory Management
+
+The most common use case is ensuring resources are cleaned up:
+
+```bpl
+import malloc, free from "std/libc.x";
+
+frame processData() {
+    local buffer: *u8 = call malloc(1024);
+
+    # Schedule cleanup immediately after allocation
+    defer {
+        call free(buffer);
+    }
+
+    # Use buffer safely...
+    # Even if we return early, buffer will be freed
+
+    if error_condition {
+        return;  # defer still runs!
+    }
+
+    # More processing...
+}
+```
+
+#### Multiple Resources
+
+When acquiring multiple resources, defer ensures they're released in the correct order:
+
+```bpl
+frame useResources() {
+    local res1: *u8 = call acquire1();
+    defer { call release1(res1); }
+
+    local res2: *u8 = call acquire2();
+    defer { call release2(res2); }
+
+    # Resources released in reverse order: res2, then res1
+}
+```
+
+#### With Return Values
+
+The return value is computed before defers execute:
+
+```bpl
+frame getValue() ret u64 {
+    defer { call printf("Cleanup\n"); }
+    return 42;  # 42 is computed, then cleanup runs, then 42 is returned
+}
+```
+
+#### Important Notes
+
+- `defer` must be followed by a block: `defer { ... }`
+- Defer is **per-function**, not per-loop-iteration
+- Defer blocks cannot contain `return` statements
+
 ## Structs
 
 Structs allow grouping related data.

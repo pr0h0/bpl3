@@ -114,6 +114,10 @@ export class Parser extends ParserBase implements IParser {
     return this.controlFlowParser.parseThrowExpression();
   }
 
+  parseDeferExpression(): Expression {
+    return this.controlFlowParser.parseDeferExpression();
+  }
+
   parseVariableDeclaration():
     | VariableDeclarationExpr
     | DestructuringDeclarationExpr {

@@ -1,5 +1,6 @@
 import type { VariableType } from "../parser/expression/variableDeclarationExpr";
 import type FunctionDeclarationExpr from "../parser/expression/functionDeclaration";
+import type Expression from "../parser/expression/expr";
 import Token from "../lexer/token";
 import { CompilerError } from "../errors";
 import { TypeRegistry, type TypeInfo, type InfoType } from "./TypeRegistry";
@@ -35,6 +36,13 @@ export default class Scope {
   public stackOffset = 0; // Tracks stack usage for this function
   public localsOffset = 0; // Tracks size of locals allocated (used for alignment calculation)
   public currentContext: ContextType[] = [];
+
+  /**
+   * Stack of deferred expressions for the current function scope.
+   * Deferred expressions are executed in LIFO order when the function exits.
+   * This is similar to Go's defer statement.
+   */
+  private deferredExpressions: Expression[] = [];
 
   constructor(public parent: Scope | null = null) {
     this.id = Scope.idCounter++;
@@ -77,6 +85,46 @@ export default class Scope {
     } else {
       return null;
     }
+  }
+  // #endregion
+
+  // #region Defer Management
+  /**
+   * Adds an expression to the defer stack.
+   * The expression will be executed when the function exits.
+   * Deferred expressions are stored in FIFO order but executed in LIFO order.
+   *
+   * @param expr - The expression to defer
+   */
+  addDeferredExpression(expr: Expression): void {
+    this.deferredExpressions.push(expr);
+  }
+
+  /**
+   * Gets all deferred expressions in execution order (LIFO - reverse of registration order).
+   * This returns a new array with the expressions in the order they should be executed.
+   *
+   * @returns Array of deferred expressions in LIFO order
+   */
+  getDeferredExpressions(): Expression[] {
+    // Return a reversed copy (LIFO order - last registered executes first)
+    return [...this.deferredExpressions].reverse();
+  }
+
+  /**
+   * Checks if there are any deferred expressions in this scope.
+   *
+   * @returns true if there are deferred expressions
+   */
+  hasDeferredExpressions(): boolean {
+    return this.deferredExpressions.length > 0;
+  }
+
+  /**
+   * Clears all deferred expressions (called after they've been emitted).
+   */
+  clearDeferredExpressions(): void {
+    this.deferredExpressions = [];
   }
   // #endregion
 

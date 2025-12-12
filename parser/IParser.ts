@@ -39,4 +39,5 @@ export interface IParser extends ParserBase {
   parseFunctionReturn(): Expression;
   parseTryExpression(): Expression;
   parseThrowExpression(): Expression;
+  parseDeferExpression(): Expression;
 }

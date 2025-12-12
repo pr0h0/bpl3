@@ -20,12 +20,12 @@
 [x] - Implement Result<T, E> pattern for error handling
 [ ] - Add support for custom calling conventions
 [ ] - Support incremental recompilation caching
-[ ] - Add target architecture abstraction layer
+[x] - Add target architecture abstraction layer
 [ ] - Implement plugin architecture for extensibility
 [ ] - Implement Enum types and Pattern Matching
 [ ] - Add support for Interfaces/Traits
 [ ] - Add WebAssembly (WASM) compilation target
-[ ] - Implement 'defer' statement for resource management
+[x] - Implement 'defer' statement for resource management
 [ ] - Create a package manager for dependency resolution
 [ ] - Add support for multi-threading/concurrency primitives
 [ ] - Implement closures and lambda expressions
