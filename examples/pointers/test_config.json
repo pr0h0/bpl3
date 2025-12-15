@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Value: 42", "New Value: 100"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "Original array:",
+    "10, 20, 30, 40, 50",
+    "Maximum value: 50",
+    "Reversed array:",
+    "50, 40, 30, 20, 10",
+    "Before swap: x=100, y=200",
+    "After swap: x=200, y=100"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

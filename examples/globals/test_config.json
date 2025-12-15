@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Global: 100", "Global Modified: 200"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

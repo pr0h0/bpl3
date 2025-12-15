@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Sizeof int: 4", "Sizeof Point: 8"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

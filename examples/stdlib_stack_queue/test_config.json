@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["=== Stack/Queue Demo ===", "3", "3", "2", "3", "10", "2"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

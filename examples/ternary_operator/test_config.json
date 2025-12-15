@@ -1,0 +1,19 @@
+{
+  "expectedOutput": [
+    "Max of 10 and 20 is: 20",
+    "Max(15, 25) = 25",
+    "Min(15, 25) = 15",
+    "Category for 5: low",
+    "Result: 20",
+    "Absolute value of -42 is: 42",
+    "Sign of 100: positive",
+    "Sign of -50: negative",
+    "Sign of 0: zero",
+    "10 is even: 1",
+    "Complex result: 30",
+    "Selected value: 100"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

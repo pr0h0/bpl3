@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "=== Path Demo ===",
+    "/home/user/file.txt",
+    "file.txt",
+    "/home/user"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

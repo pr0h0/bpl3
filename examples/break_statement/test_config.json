@@ -1,0 +1,25 @@
+{
+  "expectedOutput": [
+    "Testing break in simple loop:",
+    "i=0 i=1 i=2 i=3 i=4 Breaking at i=5",
+    "Loop ended with i=5",
+    "Testing break in infinite loop:",
+    "0 1 2 3 4",
+    "Breaking infinite loop",
+    "Testing break in nested loops:",
+    "Outer loop i=0: j=0 j=1 j=2 (break inner)",
+    "Outer loop i=1: j=0 j=1 j=2 (break inner)",
+    "Outer loop i=2: j=0 j=1 j=2 (break inner)",
+    "Testing conditional break:",
+    "sum=1 sum=3 sum=6 sum=10 sum=15 sum=21 sum=28 sum=36 sum=45 sum=55",
+    "Sum exceeded 50, breaking",
+    "Found first even number: 8 at index 4",
+    "Returned even number: 8",
+    "Testing break with complex condition:",
+    "Breaking at x=3, y=7 (product=21)",
+    "Breaking at x=4, y=6 (product=24)"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

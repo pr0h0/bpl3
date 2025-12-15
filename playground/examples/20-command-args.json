@@ -1,0 +1,7 @@
+{
+  "order": 20,
+  "title": "Command-line Arguments",
+  "snippet": "Access program arguments",
+  "description": "Command-line arguments are passed to the program through the main function. The standard signature is 'frame main(argc: int, argv: string*) ret int' where argc is the argument count (including program name) and argv is an array of argument strings. argv[0] is always the program name, argv[1] is the first user argument. Always check argc before accessing argv elements to prevent out-of-bounds access. Arguments are strings - use conversion functions (atoi, atof) to parse numbers. This example shows argument parsing, validation, and conversion to different types.",
+  "code": "extern printf(fmt: string, ...);\n\n# Note: Command-line arguments require standard library imports\n# This example shows a simplified version\n#You can also use argc and argv as main args\n\nframe main(argc:int, argv: **char) ret int {\n    printf(\"Command-line Arguments Demo\\n\");\n    printf(\"To access command-line arguments, you would:\\n\");\n    printf(\"1. Import the Args module: import [Args] from \\\"std/args.bpl\\\"\\n\");\n    printf(\"2. Get count: argc = Args.count()\\n\");\n    printf(\"3. Get arguments: arg = Args.get(i)\\n\");\n\n\n    printf(\"Current argument count: %d\\n\", argc);\n    return 0;\n}"
+}

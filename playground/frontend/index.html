@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BPL Playground - Learn BPL by Example</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css"
+    />
+  </head>
+
+  <body>
+    <div class="container">
+      <!-- Sidebar with examples -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>BPL by Example</h1>
+          <p class="tagline">Learn BPL through annotated example programs</p>
+        </div>
+        <div class="examples-list" id="examples-list">
+          <!-- Examples will be loaded here -->
+        </div>
+      </aside>
+
+      <!-- Main content area -->
+      <main class="main-content">
+        <!-- Header with title and description -->
+        <div class="content-header">
+          <div class="header-top">
+            <h2 id="example-title">Welcome to BPL</h2>
+            <button
+              id="toggle-output-btn"
+              class="btn btn-secondary btn-icon"
+              title="Toggle output panel"
+            >
+              ⊕ Output
+            </button>
+          </div>
+          <p id="example-description">
+            Select an example from the sidebar to get started
+          </p>
+        </div>
+
+        <!-- Left and right panels -->
+        <div class="content-panels">
+          <!-- Left panel: Editor -->
+          <div class="panel panel-left">
+            <!-- Code editor -->
+            <div class="editor-container">
+              <div class="editor-header">
+                <span class="editor-label">Code Editor</span>
+                <div class="editor-actions">
+                  <button id="format-btn" class="btn btn-secondary">
+                    Format
+                  </button>
+                  <button id="run-btn" class="btn btn-primary">Run Code</button>
+                </div>
+              </div>
+              <div id="editor" class="editor"></div>
+            </div>
+
+            <!-- Input/Args section -->
+            <div class="input-section">
+              <details>
+                <summary>Input & Arguments (Optional)</summary>
+                <div class="input-content">
+                  <div class="input-group">
+                    <label for="stdin-input">Standard Input (stdin):</label>
+                    <textarea
+                      id="stdin-input"
+                      placeholder="Enter input data here..."
+                      rows="3"
+                    ></textarea>
+                  </div>
+                  <div class="input-group">
+                    <label for="args-input">Command-line Arguments:</label>
+                    <input
+                      type="text"
+                      id="args-input"
+                      placeholder="arg1 arg2 arg3"
+                    />
+                    <small>Separate arguments with spaces</small>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <!-- Resizable divider -->
+          <div class="resize-divider" id="resize-divider"></div>
+
+          <!-- Right panel: Output tabs -->
+          <div class="panel panel-right">
+            <div class="tabs-container">
+              <div class="tabs-header">
+                <button class="tab-btn active" data-tab="output">Output</button>
+                <button class="tab-btn" data-tab="ir">LLVM IR</button>
+                <button class="tab-btn" data-tab="ast">AST</button>
+                <button class="tab-btn" data-tab="tokens">Tokens</button>
+              </div>
+              <div class="tabs-content">
+                <div id="tab-output" class="tab-pane active">
+                  <pre id="output-content">Run the code to see output...</pre>
+                </div>
+                <div id="tab-ir" class="tab-pane">
+                  <pre id="ir-content">
+LLVM IR will appear here after compilation...</pre
+                  >
+                </div>
+                <div id="tab-ast" class="tab-pane">
+                  <pre id="ast-content">
+Abstract Syntax Tree will appear here after parsing...</pre
+                  >
+                </div>
+                <div id="tab-tokens" class="tab-pane">
+                  <pre id="tokens-content">
+Lexer tokens will appear here after parsing...</pre
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="loading-overlay" style="display: none">
+      <div class="spinner"></div>
+      <p>Compiling and running...</p>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

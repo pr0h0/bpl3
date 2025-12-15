@@ -1,0 +1,20 @@
+{
+  "expectedOutput": [
+    "Pointer Arithmetic",
+    "arr[0] = 0 (via pointer+0)",
+    "arr[9] = 90 (via pointer+9)",
+    "Pointer to Pointer",
+    "Original value: 42",
+    "Via ptr1: 42",
+    "Via ptr2: 42",
+    "After *ptr1 = 100",
+    "Original value: 100",
+    "Via ptr2: 100",
+    "Pointer Parameters",
+    "Before: x=10, y=20",
+    "After: x=99, y=88"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

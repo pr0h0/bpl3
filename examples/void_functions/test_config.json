@@ -1,0 +1,30 @@
+{
+  "expectedOutput": [
+    "Message: Hello from void function",
+    "After calling doNothing()",
+    "Sum of 15 and 25 is 40",
+    "Processing array of size 5: 1 2 3 4 5",
+    "Negative value, returning early",
+    "Zero value, returning early",
+    "Positive value: 10",
+    "Starting nested void calls",
+    "Message: First message",
+    "Sum of 10 and 20 is 30",
+    "Message: Second message",
+    "Finished nested void calls",
+    "Recursive countdown:",
+    "Count: 5",
+    "Count: 4",
+    "Count: 3",
+    "Count: 2",
+    "Count: 1",
+    "Void function in loop:",
+    "Message: Loop iteration",
+    "Message: Loop iteration",
+    "Message: Loop iteration",
+    "Message: Flag is true"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

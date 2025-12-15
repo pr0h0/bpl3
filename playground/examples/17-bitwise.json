@@ -1,0 +1,7 @@
+{
+  "order": 17,
+  "title": "Bitwise Operations",
+  "snippet": "Binary operations",
+  "description": "Bitwise operators manipulate individual bits in integer values. AND (&) sets bits where both operands have 1. OR (|) sets bits where either operand has 1. XOR (^) sets bits where operands differ. NOT (~) flips all bits. Left shift (<<) multiplies by powers of 2. Right shift (>>) divides by powers of 2. Common applications: flags/permissions, color manipulation, performance optimization, low-level hardware control, cryptography. Shifting by negative amounts or >= bit-width is undefined. This example demonstrates all bitwise operators, common bit manipulation patterns like setting/clearing/toggling bits, and mask operations.",
+  "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local a: int;\n    local b: int;\n    \n    a = 12;  # 1100 in binary\n    b = 10;  # 1010 in binary\n    \n    printf(\"a = %d (binary: 1100)\\n\", a);\n    printf(\"b = %d (binary: 1010)\\n\", b);\n    printf(\"\\n\");\n    \n    # Bitwise AND\n    printf(\"a & b = %d\\n\", a & b);\n    \n    # Bitwise OR\n    printf(\"a | b = %d\\n\", a | b);\n    \n    # Bitwise XOR\n    printf(\"a ^ b = %d\\n\", a ^ b);\n    \n    # Left shift\n    printf(\"a << 1 = %d\\n\", a << 1);\n    \n    # Right shift\n    printf(\"a >> 1 = %d\\n\", a >> 1);\n    \n    return 0;\n}"
+}

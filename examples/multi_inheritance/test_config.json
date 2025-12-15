@@ -1,0 +1,16 @@
+{
+  "expectedOutput": [
+    "Multi-Level Inheritance Test",
+    "Accessing inherited fields",
+    "Base fields - ID: 100, Active: 1",
+    "Living fields - Health: 500/500",
+    "Character fields - Name: Dragon, Level: 10",
+    "Enemy fields - Damage: 50, Aggressive: 1",
+    "Enemy - Dragon (Lv10), HP:500, DMG:50, Aggressive:1",
+    "After modifications",
+    "Enemy - Dragon (Lv10), HP:250, DMG:50, Aggressive:1"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

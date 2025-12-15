@@ -1,0 +1,7 @@
+{
+  "order": 3,
+  "title": "Basic Math",
+  "snippet": "Arithmetic operations",
+  "description": "BPL provides comprehensive arithmetic operations for both integers and floating-point numbers. Integer division truncates toward zero (10/3 = 3), while floating-point division preserves precision. The modulo operator (%) returns the remainder of integer division. Mixed-type arithmetic promotes to the wider type (int + float = float). This example demonstrates all basic arithmetic operators with both integer and floating-point values, showcasing operator precedence and type handling.",
+  "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local a: int;\n    local b: int;\n    \n    a = 10;\n    b = 3;\n    \n    # Basic arithmetic operations\n    printf(\"%d + %d = %d\\n\", a, b, a + b);\n    printf(\"%d - %d = %d\\n\", a, b, a - b);\n    printf(\"%d * %d = %d\\n\", a, b, a * b);\n    printf(\"%d / %d = %d\\n\", a, b, a / b);\n    printf(\"%d %% %d = %d\\n\", a, b, a % b);\n    \n    # Float arithmetic\n    local x: float;\n    local y: float;\n    x = 10.5;\n    y = 3.2;\n    \n    printf(\"%.2f + %.2f = %.2f\\n\", x, y, x + y);\n    printf(\"%.2f * %.2f = %.2f\\n\", x, y, x * y);\n    \n    return 0;\n}"
+}

@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["=== UTF8 Demo ===", "hello"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["=== Fmt Demo ===", "123", "0xff", "   ok", "ok   "],
+  "args": [],
+  "env": {},
+  "input": ""
+}

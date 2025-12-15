@@ -1,0 +1,12 @@
+{
+  "description": "Generic Array<T> struct with methods",
+  "expected_output": [
+    "Poped first value: 10",
+    "Error: Array is empty",
+    "Original: 1 2 3 4 5 ",
+    "Popped: 5",
+    "After pop: 1 2 3 4 ",
+    "Squared: 1 4 9 16 ",
+    "Filtered (even): 2 4"
+  ]
+}

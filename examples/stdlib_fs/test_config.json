@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["=== FS Demo ===", "1", "1", "hello"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

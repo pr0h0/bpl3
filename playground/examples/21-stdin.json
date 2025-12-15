@@ -1,0 +1,8 @@
+{
+  "order": 21,
+  "title": "Standard Input",
+  "snippet": "Read user input",
+  "description": "Reading from standard input (stdin) allows interactive programs. The scanf function reads formatted input matching a format string. Always pass addresses (&variable) to scanf for output parameters. Check scanf's return value to verify successful reads - it returns the number of successfully parsed items. For string input, ensure buffers are large enough to prevent overflow. Alternative input functions include: getchar() for single characters, fgets() for line input (safer than scanf for strings). Input validation is crucial - always verify user input meets expectations. This example demonstrates scanf usage, input validation, and safe reading practices.",
+  "code": "extern printf(fmt: string, ...);\nextern scanf(fmt: string, ...);\n\n# Use Standar Input box below to provide input for your program \n# Standar Input is not supported in playground in real time\n\n\nframe main() ret int {\n    local d: i32;\n\n    printf(\"Enter your luck number: \\n\");\n    scanf(\"%d\", &d);\n    printf(\"Now I know it: %d\\n\",d);\n    return 0;\n}",
+  "input": "8"
+}

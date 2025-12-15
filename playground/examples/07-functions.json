@@ -1,0 +1,7 @@
+{
+  "order": 7,
+  "title": "Functions (Frames)",
+  "snippet": "Define and call functions",
+  "description": "Functions in BPL are declared using the 'frame' keyword (BPL's unique terminology). Every function must specify its return type with 'ret <type>', including 'ret void' for functions that don't return a value. Parameters are typed and passed by value by default - to modify the original, pass a pointer. Functions must be declared before use, or use forward declarations for mutual recursion. Return statements are required for non-void functions on all code paths. This example shows function declaration, parameter passing, return values, and calling conventions.",
+  "code": "extern printf(fmt: string, ...);\n\n# Frame with parameters and return value\nframe add(a: int, b: int) ret int {\n    return a + b;\n}\n\n# Frame with no return value (void)\nframe greet(name: string) {\n    printf(\"Hello, %s!\\n\", name);\n}\n\n# Frame that returns a boolean\nframe isEven(n: int) ret bool {\n    return n % 2 == 0;\n}\n\n# Frame with multiple statements\nframe factorial(n: int) ret int {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);\n}\n\nframe main() ret int {\n    # Call frames\n    local sum: int;\n    sum = add(5, 3);\n    printf(\"5 + 3 = %d\\n\", sum);\n    \n    greet(\"Alice\");\n    \n    if (isEven(4)) {\n        printf(\"4 is even\\n\");\n    }\n    \n    printf(\"5! = %d\\n\", factorial(5));\n    \n    return 0;\n}"
+}

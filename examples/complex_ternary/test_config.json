@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "classify(15, 30) = small negative",
+    "Can drive",
+    "Number 100 is large",
+    "Max times two: 14"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

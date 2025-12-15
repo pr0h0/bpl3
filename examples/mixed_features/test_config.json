@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "Value 25 is in range [0, 50]",
+    "Result: 1",
+    "Coordinates: (10, 20)",
+    "Ordered: a=5, b=15"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -1,0 +1,15 @@
+{
+  "expectedOutput": [
+    "=== Option Demo ===",
+    "42",
+    "Caught Option unwrap error",
+    "7",
+    "=== Result Demo ===",
+    "10",
+    "Caught Result error: 5",
+    "99"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

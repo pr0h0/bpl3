@@ -1,0 +1,7 @@
+{
+  "order": 5,
+  "title": "While Loops",
+  "snippet": "Loop with a condition",
+  "description": "BPL uses the 'loop' keyword instead of 'while'. A loop with a condition executes repeatedly as long as the condition evaluates to true. The condition is checked before each iteration (pre-test loop). An infinite loop is created with 'loop { }' without a condition. Use 'break' to exit a loop early and 'continue' to skip to the next iteration. Loop variables can be declared outside the loop (accessible after) or inside the initialization part of a for-style loop (scoped to the loop). This example shows countdown logic and condition-based iteration.",
+  "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Basic while loop\n    local count: int;\n    count = 0;\n    \n    printf(\"Counting to 5:\\n\");\n    loop (count < 5) {\n        count = count + 1;\n        printf(\"%d \", count);\n    }\n    printf(\"\\n\");\n    \n    # While with break\n    local i: int;\n    i = 0;\n    printf(\"\\nWith break at 3:\\n\");\n    loop (i < 10) {\n        i = i + 1;\n        if (i == 3) {\n            break;\n        }\n        printf(\"%d \", i);\n    }\n    printf(\"\\n\");\n    \n    # While with continue\n    local j: int;\n    j = 0;\n    printf(\"\\nSkip even numbers:\\n\");\n    loop (j < 10) {\n        j = j + 1;\n        if (j % 2 == 0) {\n            continue;\n        }\n        printf(\"%d \", j);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}"
+}

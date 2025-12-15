@@ -1,0 +1,7 @@
+{
+  "order": 4,
+  "title": "If Statements",
+  "snippet": "Conditional execution",
+  "description": "If statements control program flow based on boolean conditions. BPL requires explicit boolean conditions (no truthiness for integers by default). Braces {} are mandatory even for single statements, preventing common 'dangling else' bugs. You can chain multiple conditions using 'else if' for multi-way branching. Comparison operators (==, !=, <, >, <=, >=) and logical operators (&&, ||, !) can be combined to create complex conditions. This example demonstrates basic if/else, else-if chains, and nested conditions.",
+  "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local age: int;\n    age = 18;\n    \n    # Simple if statement\n    if (age >= 18) {\n        printf(\"You are an adult\\n\");\n    }\n    \n    # If-else statement\n    local score: int;\n    score = 85;\n    \n    if (score >= 90) {\n        printf(\"Grade: A\\n\");\n    } else if (score >= 80) {\n        printf(\"Grade: B\\n\");\n    } else if (score >= 70) {\n        printf(\"Grade: C\\n\");\n    } else {\n        printf(\"Grade: F\\n\");\n    }\n    \n    # Comparison operators\n    local x: int;\n    local y: int;\n    x = 5;\n    y = 10;\n    \n    if (x == y) { printf(\"Equal\\n\"); }\n    if (x != y) { printf(\"Not equal\\n\"); }\n    if (x < y) { printf(\"%d < %d\\n\", x, y); }\n    \n    return 0;\n}"
+}

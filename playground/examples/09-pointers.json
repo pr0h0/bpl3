@@ -1,0 +1,7 @@
+{
+  "order": 9,
+  "title": "Pointers",
+  "snippet": "Memory addresses and indirection",
+  "description": "Pointers are variables that store memory addresses, enabling indirect access to values and dynamic memory management. The address-of operator (&) gets a variable's memory location, while the dereference operator (*) accesses the value at an address. Pointers are essential for pass-by-reference semantics, dynamic data structures, and efficient large data handling. Always check pointers against null before dereferencing to prevent crashes. Pointer arithmetic automatically scales by the pointed-to type's size. This example demonstrates pointer basics, dereferencing, pointer arithmetic, and safe usage patterns.",
+  "code": "extern printf(fmt: string, ...);\n\nframe swap(a: *int, b: *int) {\n    local temp: int;\n    temp = *a;\n    *a = *b;\n    *b = temp;\n}\n\nframe main() ret int {\n    local x: int;\n    local y: int;\n    local ptr: *int;\n    \n    x = 10;\n    y = 20;\n    \n    printf(\"Before: x=%d, y=%d\\n\", x, y);\n    \n    # Get address of x\n    ptr = &x;\n    printf(\"x is at address %p\\n\", ptr);\n    printf(\"Value at address: %d\\n\", *ptr);\n    \n    # Modify through pointer\n    *ptr = 15;\n    printf(\"After modification: x=%d\\n\", x);\n    \n    # Swap using pointers\n    swap(&x, &y);\n    printf(\"After swap: x=%d, y=%d\\n\", x, y);\n    \n    return 0;\n}"
+}

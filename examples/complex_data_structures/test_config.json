@@ -1,0 +1,18 @@
+{
+  "expectedOutput": [
+    "=== All Students ===",
+    "Student 1: Alice - Score: 95.50",
+    "Student 2: Bob - Score: 87.00",
+    "Student 3: Charlie - Score: 92.50",
+    "Student 4: Diana - Score: 88.50",
+    "Student 5: Eve - Score: 91.00",
+    "Average score: 90.90",
+    "Top student:",
+    "Student 1: Alice - Score: 95.50",
+    "Found student with ID 3:",
+    "Student 3: Charlie - Score: 92.50"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

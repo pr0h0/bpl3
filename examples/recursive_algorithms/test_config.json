@@ -1,0 +1,17 @@
+{
+  "expectedOutput": [
+    "Factorial",
+    "factorial(5) = 120",
+    "Greatest Common Divisor",
+    "gcd(48, 18) = 6",
+    "Power (Exponentiation)",
+    "2^10 = 1024",
+    "Binary Search",
+    "Found 7 at index 3",
+    "Found 13 at index 6",
+    "20 not found"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

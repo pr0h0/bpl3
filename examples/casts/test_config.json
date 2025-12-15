@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Int: 65", "Char: A", "Float: 3.140000", "Int: 3"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

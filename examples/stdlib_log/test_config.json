@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "=== Log Demo ===",
+    "debug message",
+    "warn message",
+    "error message"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

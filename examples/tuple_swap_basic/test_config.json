@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "Before swap: x=10, y=20",
+    "After swap: x=20, y=10",
+    "Before rotation: a=1, b=2, c=3",
+    "After rotation: a=3, b=1, c=2"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

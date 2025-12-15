@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "Pair<int, double>: 10, 3.14",
+    "Swapped Pair<double, int>: 3.14, 10",
+    "Box<int>.getVal(): 42",
+    "Box<int>.map<double>: 1.23",
+    "Box<int>.compare(Box<int>): 1",
+    "Child<int> : Parent<int>: parent=100, child=200",
+    "Child<double>: 1.1, 2.2"
+  ],
+  "args": [],
+  "env": {},
+  "expectedExitCode": 0
+}

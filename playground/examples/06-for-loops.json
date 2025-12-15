@@ -1,0 +1,7 @@
+{
+  "order": 6,
+  "title": "For Loops",
+  "snippet": "Iteration with counter",
+  "description": "BPL supports C-style for loops using the 'loop' keyword with three parts: initialization, condition, and increment. The syntax is 'loop (init; condition; increment) { }'. The initialization runs once before the loop starts, the condition is checked before each iteration, and the increment executes after each iteration. Variables declared in the initialization are scoped to the loop body. This pattern is ideal for counting iterations, array traversal, and any scenario requiring a counter variable. This example demonstrates various for-loop patterns including counting up, counting down, and array iteration.",
+  "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Basic for loop\n    local i: int;\n    printf(\"Count 0 to 9:\\n\");\n    i = 0;\n    loop (i < 10) {\n        printf(\"%d \", i);\n        i = i + 1;\n    }\n    printf(\"\\n\");\n    \n    # For loop with step of 2\n    local j: int;\n    printf(\"\\nEven numbers 0 to 10:\\n\");\n    j = 0;\n    loop (j <= 10) {\n        printf(\"%d \", j);\n        j = j + 2;\n    }\n    printf(\"\\n\");\n    \n    # Nested for loops\n    local row: int;\n    local col: int;\n    printf(\"\\nMultiplication table:\\n\");\n    row = 1;\n    loop (row <= 5) {\n        col = 1;\n        loop (col <= 5) {\n            printf(\"%3d \", row * col);\n            col = col + 1;\n        }\n        printf(\"\\n\");\n        row = row + 1;\n    }\n    \n    return 0;\n}"
+}

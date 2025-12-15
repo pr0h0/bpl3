@@ -1,0 +1,17 @@
+{
+  "note": "Module resolution example",
+  "resolution_demo": true,
+  "expectedOutput": [
+    "=== Module Resolution Demo ===",
+    "1. Geometry Module:",
+    "Circle area (r=5): 75",
+    "2. Graphics Module:",
+    "Drawing circle...",
+    "Circle at Point(10, 20)",
+    "  radius: 5",
+    "3. Physics Module:",
+    "Body kinetic energy: 250",
+    "Body position: (0, 0)",
+    "=== All modules loaded successfully! ==="
+  ]
+}

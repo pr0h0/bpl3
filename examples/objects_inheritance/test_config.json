@@ -1,0 +1,13 @@
+{
+  "expectedOutput": [
+    "Animal Information",
+    "Dog: Buddy",
+    "Cat: Whiskers",
+    "Animal Sounds",
+    "barks: Woof",
+    "meows: Meow"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

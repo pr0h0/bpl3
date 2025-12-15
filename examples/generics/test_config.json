@@ -1,0 +1,12 @@
+{
+  "expectedOutput": [
+    "Int box value: 100",
+    "Float box value: 2.718",
+    "Another int box: 42",
+    "Generic int box: 123",
+    "Generic float box: 3.14"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

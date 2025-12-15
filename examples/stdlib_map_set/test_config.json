@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["=== Map/Set Demo ===", "10", "-1", "1", "1", "1", "0"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

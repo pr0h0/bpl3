@@ -1,6 +1,6 @@
 {
   "name": "the-best-programming-language-v3",
-  "version": "0.1.21",
+  "version": "0.1.1",
   "description": "A transpiler for the BPL programming language targeting LLVM IR.",
   "main": "index.ts",
   "bin": {
@@ -8,9 +8,12 @@
   },
   "scripts": {
     "start": "bun index.ts",
-    "build": "./build.sh",
-    "test": "./tests.sh",
-    "format": "bun index.ts format"
+    "build": "bun build --compile --outfile=bpl ./index.ts",
+    "check": "bunx tsc --noEmit --lib ESNext",
+    "test": "bun test tests/",
+    "format": "prettier --write -u *",
+    "format-examples": "bun index.ts format -w examples/**/*.bpl",
+    "playground": "cd playground &&bash ./start.sh"
   },
   "repository": {
     "type": "git",
@@ -34,6 +37,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "commander": "^14.0.2"
+    "commander": "^14.0.2",
+    "peggy": "^5.0.6"
   }
 }

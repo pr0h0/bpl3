@@ -1,0 +1,4 @@
+{
+  "description": "Generic map function with function pointers",
+  "expected_output": ["Squared: 1 4 9 16", "AddOne: 2 3 4 5"]
+}

@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "De Morgan result: 1, 1",
+    "Safe division result: 0",
+    "Value 50 is in range",
+    "min=3, max=7"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "Age 25 is adult",
+    "Ticket price: $10",
+    "Max doubled: 40",
+    "Result: 100"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

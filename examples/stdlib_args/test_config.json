@@ -1,0 +1,17 @@
+{
+  "expectedOutput": [
+    "=== Program Arguments From main ===",
+    "Program started with 3 arguments.",
+    "argv[0]:",
+    "argv[1]: alpha",
+    "argv[2]: beta",
+    "=== Args Demo From [Args] ===",
+    "3",
+    "arg[0]: ",
+    "arg[1]: alpha",
+    "arg[2]: beta"
+  ],
+  "args": ["alpha", "beta"],
+  "env": {},
+  "input": ""
+}

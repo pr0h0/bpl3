@@ -1,0 +1,20 @@
+{
+  "expectedOutput": [
+    "Array Initialization",
+    "arr[0] = 10",
+    "arr[4] = 50",
+    "Multi-dimensional Arrays",
+    "3x3 Matrix",
+    "1 0 0",
+    "0 1 0",
+    "0 0 1",
+    "Array as Function Parameter",
+    "Sum of array: 105",
+    "Float Arrays",
+    "Temperature readings",
+    "Reading 0: 98.6F"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

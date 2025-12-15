@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "Mixed: num=42, pi=3.14, flag=1, msg=hello",
+    "Distance squared: 8.50",
+    "Updated: num=100, pi=2.71, flag=0, msg=world",
+    "Complex: a=7, b=1.41, s=test"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

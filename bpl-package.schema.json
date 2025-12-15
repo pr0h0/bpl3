@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BPL Package Manifest",
+  "type": "object",
+  "required": ["name", "version"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name (lowercase, hyphens allowed)",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version (e.g., 1.0.0)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of the package"
+    },
+    "author": {
+      "type": "string",
+      "description": "Package author name"
+    },
+    "license": {
+      "type": "string",
+      "description": "License identifier (e.g., MIT, Apache-2.0)"
+    },
+    "main": {
+      "type": "string",
+      "description": "Entry point file (e.g., lib/index.bpl)",
+      "default": "index.bpl"
+    },
+    "exports": {
+      "type": "array",
+      "description": "Public API exports",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Runtime dependencies",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "devDependencies": {
+      "type": "object",
+      "description": "Development dependencies",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "repository": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["git"]
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

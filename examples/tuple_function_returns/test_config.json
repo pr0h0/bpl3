@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "Values: x=100, y=200, z=300",
+    "Sum: 600",
+    "After rotation: x=300, y=100, z=200"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

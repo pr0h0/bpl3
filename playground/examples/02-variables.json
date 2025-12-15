@@ -1,0 +1,7 @@
+{
+  "order": 2,
+  "title": "Variables",
+  "snippet": "Declaring and using variables",
+  "description": "BPL uses the 'local' keyword to declare local variables within functions. All variables must have explicit type declarations - BPL does not support type inference for locals. The type system includes primitives (int, float, char, bool), composite types (strings, arrays, structs), and pointers. Variables are not automatically initialized and contain garbage values until assigned. This example demonstrates declaring variables of different types, assigning values, and using them in expressions.",
+  "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Declare local variables with explicit types\n    local name: string;\n    local age: int;\n    local height: float;\n    local isStudent: bool;\n    \n    # Assign values\n    name = \"Alice\";\n    age = 25;\n    height = 5.6;\n    isStudent = true;\n    \n    # Print the variables\n    printf(\"Name: %s\\n\", name);\n    printf(\"Age: %d\\n\", age);\n    printf(\"Height: %.1f\\n\", height);\n    printf(\"Is student: %d\\n\", isStudent);\n    \n    return 0;\n}"
+}

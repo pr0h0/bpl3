@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "Triple nested: a=1, b=2, c=3, d=4",
+    "Reassigned: x=10, y=20, z=30, w=40",
+    "Partial: p=5, q=6, r=7"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

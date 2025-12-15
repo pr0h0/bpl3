@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "=== Assert Demo ===",
+    "assert ok",
+    "caught assert failure"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

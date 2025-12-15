@@ -1,0 +1,7 @@
+{
+  "order": 1,
+  "title": "Hello World",
+  "snippet": "Your first BPL program",
+  "description": "The classic first program. Every BPL program starts with a main frame that returns an integer. We use the extern printf function to print to the console.",
+  "code": "# The extern keyword declares a function defined elsewhere (in C standard library)\nextern printf(fmt: string, ...);\n\n# Every BPL program needs a main frame\n# 'frame' is BPL's keyword for functions\n# 'ret int' specifies the return type\nframe main() ret int {\n    # Call printf to display a message\n    printf(\"Hello, World!\\n\");\n    \n    # Return 0 to indicate success\n    return 0;\n}"
+}

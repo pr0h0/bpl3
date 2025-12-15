@@ -1,0 +1,7 @@
+{
+  "order": 11,
+  "title": "Strings",
+  "snippet": "Text manipulation",
+  "description": "BPL strings are null-terminated character arrays following C conventions. String literals are immutable and stored in read-only memory. The string type is an alias for char*, enabling pointer operations. Standard C library functions (strlen, strcpy, strcmp, strcat) work with BPL strings. String comparison with == compares pointers, not content - use strcmp for content comparison. Strings are not automatically managed, so heap-allocated strings must be manually freed. This example demonstrates string literals, standard string functions, concatenation, and comparison.",
+  "code": "extern printf(fmt: string, ...);\nextern strlen(s: string) ret int;\n\nframe greetUser(name: string, title: string) {\n    printf(\"%s %s, welcome!\\n\", title, name);\n}\n\nframe main() ret int {\n    local message: string;\n    local name: string;\n    \n    message = \"Hello from BPL!\";\n    name = \"Alice\";\n    \n    # Print strings\n    printf(\"%s\\n\", message);\n    printf(\"Name: %s\\n\", name);\n    \n    # String with function\n    greetUser(\"Smith\", \"Dr.\");\n    greetUser(\"Johnson\", \"Prof.\");\n    \n    # String length (if strlen is available)\n    local len: int;\n    len = strlen(message);\n    printf(\"Message length: %d\\n\", len);\n    \n    # Escape sequences\n    printf(\"Tab:\\there\\n\");\n    printf(\"Quote: \\\"Hello\\\"\\n\");\n    printf(\"Newline below:\\n\\n\");\n    \n    return 0;\n}"
+}

@@ -1,0 +1,77 @@
+{
+  "name": "bpl3-vscode",
+  "displayName": "BPL3 Language Support",
+  "description": "Language support for BPL3",
+  "version": "0.0.1",
+  "publisher": "pr0h0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pr0h0/bpl3.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/vscode-ext/src/extension.js",
+  "activationEvents": [
+    "onLanguage:bpl"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^16.11.7",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "peggy": "^5.0.6",
+    "vscode-languageclient": "^8.1.0",
+    "vscode-languageserver": "^8.1.0",
+    "vscode-languageserver-textdocument": "^1.0.8"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "bpl",
+        "aliases": [
+          "BPL3",
+          "bpl"
+        ],
+        "extensions": [
+          ".bpl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "bpl",
+        "scopeName": "source.bpl",
+        "path": "./syntaxes/bpl.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "BPL3 configuration",
+      "properties": {
+        "bplLanguageServer.maxNumberOfProblems": {
+          "scope": "resource",
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "bplLanguageServer.formatOnSave": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": true,
+          "description": "Enable BPL format-on-save for .bpl files."
+        }
+      }
+    }
+  }
+}

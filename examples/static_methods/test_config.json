@@ -1,0 +1,17 @@
+{
+  "expectedOutput": [
+    "Static Methods Test",
+    "Counter 1 initial value: 10",
+    "After 2 increments: 12",
+    "After 1 decrement: 11",
+    "Static add(5, 7): 12",
+    "Math Utilities",
+    "max(42, 17): 42",
+    "min(42, 17): 17",
+    "abs(-25): 25",
+    "abs(30): 30"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

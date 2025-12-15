@@ -1,0 +1,13 @@
+{
+  "expectedOutput": [
+    "Original matrix:",
+    "  [1, 2]",
+    "  [3, 4]",
+    "Swapped matrix:",
+    "  [4, 3]",
+    "  [2, 1]"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

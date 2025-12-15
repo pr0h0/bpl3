@@ -1,0 +1,3 @@
+{
+  "expectedOutput": "Generic process\nInt two args: 10, 20\nGeneric two args\nNon-generic process\nInt process: 42\nLong process: 100\nGeneric process\nStruct generic process\nStruct int process: 123\nStruct non-generic process (instance)\nStruct non-generic process (instance)\nStruct non-generic process no args\n"
+}

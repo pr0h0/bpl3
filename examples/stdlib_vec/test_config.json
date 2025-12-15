@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["=== Vec Demo ===", "4", "Vec3("],
+  "args": [],
+  "env": {},
+  "input": ""
+}

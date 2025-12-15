@@ -1,0 +1,7 @@
+{
+  "order": 35,
+  "title": "Advanced Type Aliases",
+  "snippet": "Create flexible type aliases including generics",
+  "description": "Advanced type alias patterns include aliasing function pointer types, complex pointer types, and generic instantiations. Aliases can dramatically improve readability of complex type signatures. For example, 'type Handler = void (*)(int, string)' is clearer than repeating the full signature everywhere. Aliases are especially valuable when refactoring - change the alias definition instead of updating every usage. They enable progressive type refinement: start with 'type ID = int', later change to 'type ID = i64' without touching consuming code. Combine with generics for powerful abstractions. This example shows advanced aliasing techniques for complex scenarios.",
+  "code": "# Simple type aliases\ntype Age = int;\ntype Score = float;\ntype Name = string;\n\nextern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Use type aliases\n    local myAge: Age = 25;\n    local myScore: Score = 95.5;\n    local myName: Name = \"Alice\";\n    \n    printf(\"Name: %s, Age: %d, Score: %.1f\\n\", myName, myAge, myScore);\n    \n    # Work with simple types\n    local x: int = 10;\n    local y: int = 20;\n    printf(\"Values: x=%d, y=%d\\n\", x, y);\n    \n    # Create an array\n    local numbers: int[5] = [1, 2, 3, 4, 5];\n    local i: int = 0;\n    printf(\"Array: \");\n    loop (i < 5) {\n        printf(\"%d \", numbers[i]);\n        i = i + 1;\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}"
+}

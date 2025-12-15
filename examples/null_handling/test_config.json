@@ -1,0 +1,32 @@
+{
+  "expectedOutput": [
+    "Testing nullptr:",
+    "ptr is nullptr",
+    "ptr is not nullptr, value: 42",
+    "Testing safe dereference:",
+    "Safe deref result: 99",
+    "Null pointer passed, returning -1",
+    "Safe deref with null result: -1",
+    "Testing find value:",
+    "Found value: 30",
+    "Value 99 not found (as expected)",
+    "Testing pointer comparison:",
+    "p1 and p3 point to same location",
+    "p1 and p2 point to different locations",
+    "p4 is nullptr",
+    "Testing null in structs:",
+    "Memory allocated successfully",
+    "Testing null in conditionals:",
+    "Error case returned nullptr",
+    "Testing void pointer:",
+    "void pointer is not null",
+    "Value through void pointer: 42",
+    "Testing null assignment:",
+    "dynPtr initially: null",
+    "dynPtr after assignment: not null, value: 777",
+    "dynPtr after reset: null"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

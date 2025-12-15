@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "x=42, y=3.14, z=1",
+    "Before swap: a=5, b=10",
+    "After swap: a=10, b=5",
+    "Before direct swap: m=100, n=200",
+    "After direct swap: m=200, n=100",
+    "Nested: p=10, q=20, r=1.5, s=2.5",
+    "Point: px=100, py=200"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

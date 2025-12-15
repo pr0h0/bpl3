@@ -1,0 +1,23 @@
+{
+  "expectedOutput": [
+    "After a += 5: 15",
+    "After b -= 7: 13",
+    "After c *= 4: 12",
+    "After d /= 5: 20",
+    "After e %= 5: 2",
+    "After ++i: 1",
+    "After another ++i: 2",
+    "After --j: 9",
+    "After another --j: 8",
+    "k after ++k in expression: 6, result: 6",
+    "m after --m in expression: 9, result: 9",
+    "After chaining compound ops: 5",
+    "After f += 2.3: 12.80",
+    "After f *= 1.5: 19.20",
+    "Sum of 1-5: 15",
+    "Final x: 30"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

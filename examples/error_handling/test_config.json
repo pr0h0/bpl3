@@ -1,0 +1,27 @@
+{
+  "expectedOutput": [
+    "=== Division Examples ===",
+    "Dividing 10 by 2",
+    "Division successful: 10 / 2 = 5",
+    "Dividing 10 by 0",
+    "Error: Division by zero!",
+    "Dividing 20 by 4",
+    "Division successful: 20 / 4 = 5",
+    "=== Number Processing Examples ===",
+    "Processing number: 50",
+    "Caught bool error: negative number",
+    "Caught int error: number too large (42)",
+    "=== Struct Throw Examples ===",
+    "Value 50 is valid",
+    "Caught MathError: code=-1, message=Negative value error",
+    "Caught MathError: code=100, message=Value too large",
+    "=== Multiple Catch Examples ===",
+    "Value 50 is valid",
+    "Caught int error: -42",
+    "Caught bool error: 1",
+    "Caught MathError: code=500, message=Overflow error"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}
