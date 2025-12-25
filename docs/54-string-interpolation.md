@@ -4,19 +4,19 @@ BPL supports string interpolation, allowing you to embed expressions directly in
 
 ## Syntax
 
-Use the `$` prefix before a string literal to enable interpolation. Expressions are enclosed in `${...}`.
+Use backticks (`` ` ``) to define an interpolated string. Expressions are enclosed in `${...}`.
 
 ```bpl
 local name: string = "World";
 local age: int = 42;
 
 # Basic interpolation
-local s: String = $"Hello ${name}, age ${age}!";
+local s: String = `Hello ${name}, age ${age}!`;
 
 # Expressions
 local x: int = 10;
 local y: int = 20;
-local result: String = $"${x} + ${y} = ${x + y}";
+local result: String = `${x} + ${y} = ${x + y}`;
 ```
 
 ## How it works
@@ -24,7 +24,7 @@ local result: String = $"${x} + ${y} = ${x + y}";
 The compiler desugars interpolated strings into a series of string concatenations using the `String` struct from the standard library.
 
 ```bpl
-$"Hello ${name}"
+`Hello ${name}`
 ```
 
 Is equivalent to:

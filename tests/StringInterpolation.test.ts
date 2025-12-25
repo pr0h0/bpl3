@@ -12,7 +12,7 @@ describe("String Interpolation", () => {
   it("should parse basic string interpolation", () => {
     const source = `
       frame main() {
-        local s: string = $"Hello \${name}!";
+        local s: string = \`Hello \${name}!\`;
       }
     `;
     const ast = parse(source);
@@ -36,7 +36,7 @@ describe("String Interpolation", () => {
   it("should parse expression interpolation", () => {
     const source = `
       frame main() {
-        local s: string = $"Sum: \${a + b}";
+        local s: string = \`Sum: \${a + b}\`;
       }
     `;
     const ast = parse(source);
@@ -56,7 +56,7 @@ describe("String Interpolation", () => {
   it("should parse nested interpolation", () => {
     const source = `
       frame main() {
-        local s: string = $"Result: \${(x > 0) ? "Pos" : "Neg"}";
+        local s: string = \`Result: \${(x > 0) ? "Pos" : "Neg"}\`;
       }
     `;
     const ast = parse(source);
@@ -72,7 +72,7 @@ describe("String Interpolation", () => {
   it("should handle empty interpolation", () => {
     const source = `
       frame main() {
-        local s: string = $"";
+        local s: string = \`\`;
       }
     `;
     const ast = parse(source);
@@ -86,7 +86,7 @@ describe("String Interpolation", () => {
   it("should handle only expression", () => {
     const source = `
       frame main() {
-        local s: string = $"\${x}";
+        local s: string = \`\${x}\`;
       }
     `;
     const ast = parse(source);

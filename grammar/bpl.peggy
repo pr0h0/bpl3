@@ -1372,7 +1372,7 @@ Comment
 SourceChar = .
 
 InterpolatedStringLiteral
-  = '$"' parts:InterpolatedStringPart* '"' {
+  = '`' parts:InterpolatedStringPart* '`' {
       return {
         kind: "InterpolatedString",
         parts: parts,
@@ -1395,9 +1395,10 @@ InterpolatedStringChars
 InterpolatedStringChar
   = "\\" c:. { 
       if (c === '$') return '$'; 
+      if (c === '`') return '`';
       return text(); 
     }
-  / [^"\\$\n\r] { return text(); }
+  / [^`\\$\n\r] { return text(); }
   / "$" ! "{" { return "$"; }
 
 EOF = !.

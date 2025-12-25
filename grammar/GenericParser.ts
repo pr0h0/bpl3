@@ -201,8 +201,8 @@ export class GenericParser {
     }
 
     // Interpolated string literal
-    // Matches $"..." with support for nested interpolation ${...}
-    if (this.source.startsWith('$"', this.position)) {
+    // Matches `...` with support for nested interpolation ${...}
+    if (this.source.startsWith("`", this.position)) {
       const end = this.scanInterpolatedString(this.position);
       if (end !== -1) {
         const value = this.source.slice(this.position, end);
@@ -214,14 +214,14 @@ export class GenericParser {
   }
 
   private scanInterpolatedString(startIndex: number): number {
-    let index = startIndex + 2; // Skip $"
+    let index = startIndex + 1; // Skip `
     let depth = 0; // Brace depth inside ${...}
 
     while (index < this.source.length) {
       const ch = this.source[index];
 
       if (depth === 0) {
-        if (ch === '"') {
+        if (ch === "`") {
           return index + 1;
         } else if (ch === "\\") {
           index += 2;
@@ -252,8 +252,8 @@ export class GenericParser {
               index++;
             }
           }
-        } else if (ch === "$" && this.source[index + 1] === '"') {
-          // Nested interpolated string $"..."
+        } else if (ch === "`") {
+          // Nested interpolated string `...`
           const end = this.scanInterpolatedString(index);
           if (end === -1) return -1;
           index = end;

@@ -751,7 +751,7 @@ export class Formatter {
   }
 
   private formatInterpolatedString(expr: AST.InterpolatedStringExpr): string {
-    let output = '$"';
+    let output = "`";
     for (const part of expr.parts) {
       if (
         part.kind === "Literal" &&
@@ -766,7 +766,7 @@ export class Formatter {
         output += `\${${this.formatExpression(part)}}`;
       }
     }
-    output += '"';
+    output += "`";
     return output;
   }
 

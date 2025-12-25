@@ -33,7 +33,7 @@ multi-line comment
 - `bool` - boolean type (`true`, `false`)
 - `char` - unsigned 8-bit character
 - `void` - empty/no return type
-- `null`, `nullptr` - null values
+- `nullptr` - null values
 
 #### Composite Types
 

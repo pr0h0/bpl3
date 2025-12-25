@@ -12,8 +12,8 @@ describe("String Escaping", () => {
   it("should handle escaped interpolation start in interpolated string", () => {
     const source = `
       frame main() {
-        local s: string = $"Escaped: \\\${not_interpolated}";
-      }
+        local s: string = \`Escaped: \\\${not_interpolated}\`;
+  }
     `;
     const ast = parse(source);
     const func = ast.statements[0] as any;

@@ -13,66 +13,48 @@ function format(code: string): string {
 
 describe("Formatter - String Interpolation", () => {
   it("should format simple interpolated string", () => {
-    const code = `local s: string = $"Hello \${name}!";`;
+    const code = `local s: string = \`Hello \${name}!\`;`;
     const formatted = format(code);
-    expect(formatted).toBe(`local s: string = $"Hello \${name}!";`);
+    expect(formatted).toBe(`local s: string = \`Hello \${name}!\`;`);
   });
 
   it("should format interpolated string with expression", () => {
-    const code = `local s: string = $"Sum: \${a + b}";`;
+    const code = `local s: string = \`Sum: \${a + b}\`;`;
     const formatted = format(code);
-    expect(formatted).toBe(`local s: string = $"Sum: \${a + b}";`);
+    expect(formatted).toBe(`local s: string = \`Sum: \${a + b}\`;`);
   });
 
   it("should format interpolated string with multiple parts", () => {
-    const code = `local s: string = $"Name: \${name}, Age: \${age}";`;
+    const code = `local s: string = \`Name: \${name}, Age: \${age}\`;`;
     const formatted = format(code);
     expect(formatted).toBe(
-      `local s: string = $"Name: \${name}, Age: \${age}";`,
+      `local s: string = \`Name: \${name}, Age: \${age}\`;`,
     );
   });
 
   it("should format interpolated string with escaped characters", () => {
-    const code = `local s: string = $"Line 1\\nLine 2";`;
+    const code = `local s: string = \`Line 1\\nLine 2\`;`;
     const formatted = format(code);
-    expect(formatted).toBe(`local s: string = $"Line 1\\nLine 2";`);
+    expect(formatted).toBe(`local s: string = \`Line 1\\nLine 2\`;`);
   });
 
   it("should format interpolated string with escaped interpolation start", () => {
-    const code = `local s: string = $"Use \\\\\\\${variable} to interpolate";`;
-    // We want the code to be: local s: string = $"Use \${variable} to interpolate";
-    // In JS template literal:
-    // \\ -> \
-    // \${ -> ${
-    // So \\${ -> \${
-    // Wait, if I want \${ in the output string.
-    // JS string: "\\${" -> "\${" ? No.
-    // JS string: "\${" -> "${"
-    // JS string: "\\${" -> "\${" (if ${ is not interpreted as interpolation start because of \)
-    // But \\ escapes the backslash, so the next char is $.
-    // So \\${variable} -> \ + (interpolation of variable)
-    // So I need to escape the $ as well.
-    // \${ escapes the interpolation.
-    // So \\ \${ -> \ ${
-    // So \\\${variable}
-
-    // Let's try with simple string concatenation to avoid confusion
-    const code2 = 'local s: string = $"Use \\${variable} to interpolate";';
-    const formatted = format(code2);
+    const code = "local s: string = `Use \\${variable} to interpolate`;";
+    const formatted = format(code);
     expect(formatted).toBe(
-      'local s: string = $"Use \\${variable} to interpolate";',
+      "local s: string = `Use \\${variable} to interpolate`;",
     );
   });
 
   it("should format interpolated string with quotes", () => {
-    const code = `local s: string = $"Say \\"Hello\\"";`;
+    const code = `local s: string = \`Say \\"Hello\\"\`;`;
     const formatted = format(code);
-    expect(formatted).toBe(`local s: string = $"Say \\"Hello\\"";`);
+    expect(formatted).toBe(`local s: string = \`Say \\"Hello\\"\`;`);
   });
 
   it("should format interpolated string with nested expressions", () => {
-    const code = `local s: string = $"Result: \${foo(bar[0])}";`;
+    const code = `local s: string = \`Result: \${foo(bar[0])}\`;`;
     const formatted = format(code);
-    expect(formatted).toBe(`local s: string = $"Result: \${foo(bar[0])}";`);
+    expect(formatted).toBe(`local s: string = \`Result: \${foo(bar[0])}\`;`);
   });
 });

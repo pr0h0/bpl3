@@ -12,7 +12,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse complex expressions inside interpolation", () => {
     const source = `
       frame main() {
-        local s: string = $"Result: \${foo(a, b) + bar.baz[0]}";
+        local s: string = \`Result: \${foo(a, b) + bar.baz[0]}\`;
       }
     `;
     const ast = parse(source);
@@ -27,7 +27,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse nested interpolated strings", () => {
     const source = `
       frame main() {
-        local s: string = $"Outer \${$"Inner \${val}"} Outer";
+        local s: string = \`Outer \${\`Inner \${val}\`} Outer\`;
       }
     `;
     const ast = parse(source);
@@ -51,7 +51,7 @@ describe("String Interpolation Advanced", () => {
 
     let code = "val";
     for (let i = 9; i >= 0; i--) {
-      code = `$"L${i} \${${code}} L${i}"`;
+      code = `\`L${i} \${${code}} L${i}\``;
     }
 
     const source = `
@@ -79,7 +79,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with struct literal", () => {
     const source = `
       frame main() {
-        local s: string = $"Point: \${Point { x: 1, y: 2 }}";
+        local s: string = \`Point: \${Point { x: 1, y: 2 }}\`;
       }
     `;
     const ast = parse(source);
@@ -93,7 +93,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with match expression", () => {
     const source = `
       frame main() {
-        local s: string = $"Value is \${match(opt) { Option.Some(x) => x, Option.None => 0 }}";
+        local s: string = \`Value is \${match(opt) { Option.Some(x) => x, Option.None => 0 }}\`;
       }
     `;
     const ast = parse(source);
@@ -107,7 +107,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with array literal", () => {
     const source = `
       frame main() {
-        local s: string = $"Array: \${[1, 2, 3]}";
+        local s: string = \`Array: \${[1, 2, 3]}\`;
       }
     `;
     const ast = parse(source);
@@ -121,7 +121,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with pointer operations", () => {
     const source = `
       frame main() {
-        local s: string = $"Pointer: \${&x} Deref: \${*ptr}";
+        local s: string = \`Pointer: \${&x} Deref: \${*ptr}\`;
       }
     `;
     const ast = parse(source);
@@ -139,7 +139,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with enum variant", () => {
     const source = `
       frame main() {
-        local s: string = $"Status: \${Status.Active}";
+        local s: string = \`Status: \${Status.Active}\`;
       }
     `;
     const ast = parse(source);
@@ -153,7 +153,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with ternary operator", () => {
     const source = `
       frame main() {
-        local s: string = $"Result: \${cond ? "True" : "False"}";
+        local s: string = \`Result: \${cond ? "True" : "False"}\`;
       }
     `;
     const ast = parse(source);
@@ -167,7 +167,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with function call", () => {
     const source = `
       frame main() {
-        local s: string = $"Value: \${get_value()}";
+        local s: string = \`Value: \${get_value()}\`;
       }
     `;
     const ast = parse(source);
@@ -181,7 +181,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with arithmetic addition", () => {
     const source = `
       frame main() {
-        local s: string = $"Sum: \${1 + 2}";
+        local s: string = \`Sum: \${1 + 2}\`;
       }
     `;
     const ast = parse(source);
@@ -196,7 +196,7 @@ describe("String Interpolation Advanced", () => {
   it("should parse interpolation with struct addition (operator overloading)", () => {
     const source = `
       frame main() {
-        local s: string = $"Vector Sum: \${vec1 + vec2}";
+        local s: string = \`Vector Sum: \${vec1 + vec2}\`;
       }
     `;
     const ast = parse(source);
@@ -211,8 +211,8 @@ describe("String Interpolation Advanced", () => {
   it("should fail on unterminated interpolation", () => {
     const source = `
       frame main() {
-        local s: string = $"Hello \${name";
-      }
+        local s: string = \`Hello \${name\`;
+  }
     `;
     expect(() => parse(source)).toThrow();
   });
@@ -220,15 +220,9 @@ describe("String Interpolation Advanced", () => {
   it("should fail on unclosed string", () => {
     const source = `
       frame main() {
-        local s: string = $"Hello \${name}";
+    local s: string = \`Hello \${name}
       }
     `;
-    // Wait, the above string is closed.
-    const source2 = `
-      frame main() {
-        local s: string = $"Hello \${name}
-      }
-    `;
-    expect(() => parse(source2)).toThrow();
+    expect(() => parse(source)).toThrow();
   });
 });
