@@ -9,18 +9,18 @@ struct Counter {
     count: int,
 }
 
-# Test null in arithmetic expressions
+# Test nullptr in arithmetic expressions
 frame testArithmetic() {
-    printf("Test 1: Null in arithmetic\n");
-    local p: Point = null;
+    printf("Test 1: Nullptr in arithmetic\n");
+    local p: *Point = nullptr;
     local _result: int = p.x + p.y; # Should trap on p.x
     printf("Should not reach here\n");
 }
 
-# Test null in comparison
+# Test nullptr in comparison
 frame testComparison() {
-    printf("Test 2: Null in comparison\n");
-    local p1: Point = null;
+    printf("Test 2: Nullptr in comparison\n");
+    local p1: *Point = nullptr;
     local p2: Point;
     p2.x = 10;
     p2.y = 20;
@@ -32,53 +32,53 @@ frame testComparison() {
     printf("Should not reach here\n");
 }
 
-# Test null with compound assignment
+# Test nullptr with compound assignment
 frame testCompoundAssignment() {
-    printf("Test 3: Null with compound assignment\n");
-    local c: Counter = null;
+    printf("Test 3: Nullptr with compound assignment\n");
+    local c: *Counter = nullptr;
     c.count = c.count + 1; # Should trap on reading c.count
     printf("Should not reach here\n");
 }
 
-# Test null in ternary operator
+# Test nullptr in ternary operator
 frame testTernary() {
-    printf("Test 4: Null in ternary\n");
-    local p: Point = null;
+    printf("Test 4: Nullptr in ternary\n");
+    local p: *Point = nullptr;
     local _result: int = true ? p.x : 0; # Should trap evaluating p.x
     printf("Should not reach here\n");
 }
 
-# Test null with increment
+# Test nullptr with increment
 frame testIncrement() {
-    printf("Test 5: Null with increment\n");
-    local c: Counter = null;
+    printf("Test 5: Nullptr with increment\n");
+    local c: *Counter = nullptr;
     ++c.count; # Should trap
     printf("Should not reach here\n");
 }
 
-# Test multiple null accesses in one expression
+# Test multiple nullptr accesses in one expression
 frame testMultipleAccess() {
     printf("Test 6: Multiple accesses in expression\n");
-    local p: Point = null;
+    local p: *Point = nullptr;
     # Should trap on first access (p.x)
     local _result: int = (p.x * 2) + (p.y * 3);
     printf("Should not reach here\n");
 }
 
-# Test 7: Null in nested function calls
+# Test 7: Nullptr in nested function calls
 frame getDouble(x: int) ret int {
     return x * 2;
 }
 
 frame testNestedCalls() {
-    printf("Test 7: Null in nested calls\n");
-    local p: Point = null;
+    printf("Test 7: Nullptr in nested calls\n");
+    local p: *Point = nullptr;
     local _result: int = getDouble(p.x); # Should trap evaluating p.x
     printf("Should not reach here\n");
 }
 
 frame main() ret int {
-    printf("=== Null Complex Expressions Test ===\n\n");
+    printf("=== Nullptr Complex Expressions Test ===\n\n");
 
     # Test 1: Arithmetic
     try {

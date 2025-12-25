@@ -181,7 +181,7 @@ frame safeDivide(a: int, b: int) ret bool {
 Non-boolean values in logical contexts:
 
 - **Numbers:** 0 is false, non-zero is true
-- **Pointers:** `null` is false, non-null is true
+- **Pointers:** `nullptr` is false, non-nullptr is true
 
 ```bpl
 local x: int = 5;
@@ -189,9 +189,9 @@ if (x) {  # Equivalent to: if (x != 0)
     printf("x is non-zero\n");
 }
 
-local p: int* = null;
-if (!p) {  # Equivalent to: if (p == null)
-    printf("p is null\n");
+local p: int* = nullptr;
+if (!p) {  # Equivalent to: if (p == nullptr)
+    printf("p is nullptr\n");
 }
 ```
 
@@ -348,10 +348,10 @@ local value: int = *(p + 1);  # Read arr[3]
 - Pointer arithmetic automatically scales by the pointed-to type size
 - `p + 1` adds `sizeof(int)` bytes, not 1 byte
 
-### Null Checks
+### Nullptr Checks
 
 ```bpl
-if (p != null) {
+if (p != nullptr) {
     local value: int = *p;  # Safe to dereference
 }
 ```
@@ -526,8 +526,8 @@ local sum: Vector = v1.add(&v2);  # Not: v1 + v2
 ### Safe Pointer Dereferencing
 
 ```bpl
-if (ptr != null && *ptr > 0) {
-    # Safe: null check prevents dereference
+if (ptr != nullptr && *ptr > 0) {
+    # Safe: nullptr check prevents dereference
 }
 ```
 

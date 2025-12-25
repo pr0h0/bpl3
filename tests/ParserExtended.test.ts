@@ -434,8 +434,8 @@ describe("Parser - Extended Tests", () => {
       expect(program.statements.length).toBe(1);
     });
 
-    it("should parse null literal", () => {
-      const source = "frame test() { local p: *int = null; }";
+    it("should parse nullptr literal", () => {
+      const source = "frame test() { local p: *int = nullptr; }";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
       const program = parser.parse();

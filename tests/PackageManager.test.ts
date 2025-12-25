@@ -290,7 +290,7 @@ describe("PackageManager", () => {
       expect(fs.existsSync(resolved!)).toBe(true);
     });
 
-    test("should return null for non-existent package", () => {
+    test("should return nullptr for non-existent package", () => {
       const resolved = packageManager.resolvePackage("non-existent", tempDir);
       expect(resolved).toBeNull();
     });

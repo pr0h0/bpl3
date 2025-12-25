@@ -1,9 +1,9 @@
 {
   "expectedOutput": [
-    "Testing null access exception handling",
-    "Caught null access exception!",
-    "Message: Attempted to access member of null object",
-    "Function: main\nExpression: p.x\nProgram continues after catching exception\n"
+    "Testing nullptr access exception handling",
+    "Caught nullptr access exception!",
+    "Message: Attempted to access member of nullptr",
+    "Function: main\nExpression: pointer_dereference\nProgram continues after catching exception\n"
   ],
   "args": [],
   "env": {},

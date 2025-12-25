@@ -6,15 +6,16 @@ struct X {
 }
 
 frame main() ret int {
-    local x: X = X { a: String.new("initial") };
-    x = null;
-    local y: *X = &x;
+    # New semantics: Pointers are nullable, Structs are not.
+    local y: *X = nullptr;
 
     try {
-        y.a = String.new("null assignment");
+        # This should throw NullAccessError because y is nullptr
+        # Note: y.a is sugar for (*y).a
+        y.a = String.new("nullptr assignment");
         printf("ERROR: Should have thrown on y.a access!\n");
     } catch (e: NullAccessError) {
-        printf("Caught: %s in %s (expr: %s)\n", e.message, e.function, e.expression);
+        printf("Caught: %s\n", e.message);
     }
     return 0;
 }

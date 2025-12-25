@@ -1,45 +1,45 @@
 extern printf(fmt: string, ...);
+extern malloc(size: int) ret *void;
+
 struct Data {
     value: int,
     valid: bool,
 }
 
-# Return null conditionally
-frame maybeGetData(success: bool) ret Data {
+# Return nullptr conditionally
+frame maybeGetData(success: bool) ret *Data {
     if (success) {
-        local d: Data;
-        d.value = 42;
-        d.valid = true;
-        return d;
+        local ptr: *Data = cast<*Data>(malloc(sizeof(Data)));
+        ptr.value = 42;
+        ptr.valid = true;
+        return ptr;
     }
-    # Return null on failure
-    local null_data: Data = null;
-    return null_data;
+    # Return nullptr on failure
+    return nullptr;
 }
 
-# Use returned null value
-frame processData(d: Data) ret int {
+# Use returned nullptr value
+frame processData(d: *Data) ret int {
     # Just access d.value directly
-    return d.value; # Should trap here since d is null
+    return d.value; # Should trap here since d is nullptr
 }
 
-# Chain function calls with null return
-frame getData() ret Data {
-    local d: Data = null;
-    return d;
+# Chain function calls with nullptr return
+frame getData() ret *Data {
+    return nullptr;
 }
 
-frame extractValue(d: Data) ret int {
+frame extractValue(d: *Data) ret int {
     return d.value;
 }
 
 frame main() ret int {
-    printf("=== Null Return Values Test ===\n\n");
+    printf("=== Nullptr Return Values Test ===\n\n");
 
-    printf("Test 1: Returning null from function\n");
-    local data: Data = maybeGetData(false);
+    printf("Test 1: Returning nullptr from function\n");
+    local data: *Data = maybeGetData(false);
 
-    printf("Test 2: Using returned null value\n");
+    printf("Test 2: Using returned nullptr value\n");
 
     try {
         local _result: int = processData(data);

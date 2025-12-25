@@ -4,10 +4,10 @@ Mistakes to avoid.
 
 ## Pointers
 
-- Dereferencing null pointers.
+- Dereferencing nullptrs.
 - Using freed memory (use-after-free).
 - Memory leaks (forgetting to free).
-- Accessing struct fields on null objects now throws `NullAccessError` at runtime (catch it if you want to recover).
+- Accessing struct fields on nullptr objects now throws `NullAccessError` at runtime (catch it if you want to recover).
 
 ## Types
 

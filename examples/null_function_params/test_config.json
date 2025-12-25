@@ -1,8 +1,8 @@
 {
   "expectedOutput": [
-    "=== Null Function Parameters Test ===",
+    "=== Nullptr Function Parameters Test ===",
     "",
-    "Test 1: Passing null as parameter"
+    "Test 1: Passing nullptr as parameter"
   ],
   "args": [],
   "env": {},

@@ -1,7 +1,7 @@
 {
   "expectedOutput": [
-    "Testing null object access trap...",
-    "Attempting to access p.x on null object:"
+    "Testing nullptr object access trap...",
+    "Attempting to access p.x on nullptr object:"
   ],
   "args": [],
   "env": {},

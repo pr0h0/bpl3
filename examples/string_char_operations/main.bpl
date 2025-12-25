@@ -67,7 +67,7 @@ frame testCharArray() {
     chars[2] = cast<char>(108); # l
     chars[3] = cast<char>(108); # l
     chars[4] = cast<char>(111); # o
-    chars[5] = cast<char>(0); # null terminator
+    chars[5] = cast<char>(0); # nullptr terminator
     printf("Char array as string: %s\n", cast<string>(&chars[0]));
     # Print individual characters
     printf("Individual chars: ");

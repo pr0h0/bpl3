@@ -2,7 +2,7 @@
   "order": 46,
   "title": "Option Type Pattern",
   "snippet": "Handle nullable values safely with Option<T>",
-  "description": "Option<T> is a type-safe way to represent values that might be absent, replacing null pointers. It's an enum with two variants: Some(T) containing a value, or None representing absence. This eliminates null pointer errors at compile time by forcing explicit handling of missing values. Pattern matching on Option makes the intent clear and prevents forgetting to check for null. Common patterns include unwrapping with defaults, chaining operations, and mapping over optional values. Option types are fundamental to writing robust code that handles missing data gracefully.",
+  "description": "Option<T> is a type-safe way to represent values that might be absent, replacing nullptrs. It's an enum with two variants: Some(T) containing a value, or None representing absence. This eliminates nullptr errors at compile time by forcing explicit handling of missing values. Pattern matching on Option makes the intent clear and prevents forgetting to check for nullptr. Common patterns include unwrapping with defaults, chaining operations, and mapping over optional values. Option types are fundamental to writing robust code that handles missing data gracefully.",
   "code": [
     "# Generic Option type",
     "enum Option<T> {",

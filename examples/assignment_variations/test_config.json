@@ -1,0 +1,21 @@
+{
+  "expectedOutput": [
+    "--- Stack Objects ---",
+    "s2 values: { x: 0, y: 0 }",
+    "s3 values: { x: 10, y: 20 }",
+    "--- Pointers ---",
+    "p2: (nil) -> nullptr",
+    "p3: 0x",
+    "p4: 0x",
+    "--- Zero Initialization Tests ---",
+    "arr: [0, 0, 0]",
+    "tup: (0, 0.0)",
+    "float: 0.0",
+    "bool: false",
+    "char: 0"
+  ],
+  "args": [],
+  "env": {},
+  "input": "",
+  "skip_compilation": false
+}

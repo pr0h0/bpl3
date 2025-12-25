@@ -49,9 +49,8 @@ describe("Memory Operations", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("i32: 4");
     expect(stdout).toContain("i64: 8");
-    // Point has a hidden null-bit field (i1) which causes padding.
-    // { i8* (vtable), i32, i32, i1 } -> 8 + 4 + 4 + 1 = 17 -> aligned to 8 -> 24 bytes.
-    expect(stdout).toContain("Point: 24");
+    // Point: { i8* (vtable), i32, i32 } -> 8 + 4 + 4 = 16 bytes.
+    expect(stdout).toContain("Point: 16");
     expect(stdout).toContain("ptr: 8"); // 64-bit pointers
   });
 
@@ -102,21 +101,21 @@ describe("Memory Operations", () => {
     expect(stdout).toContain("Byte: bc");
   });
 
-  it("should handle null pointer checks", () => {
+  it("should handle nullptr pointer checks", () => {
     const source = `
       extern printf(fmt: string, ...);
       frame main() {
         local ptr: *i32 = nullptr;
         if (ptr == nullptr) {
-            printf("Is null\\n");
+            printf("Is nullptr\\n");
         } else {
-            printf("Not null\\n");
+            printf("Not nullptr\\n");
         }
       }
     `;
     const { stdout, stderr, exitCode } = runBPL(source);
     if (exitCode !== 0) console.error("NullCheck Stderr:", stderr);
     expect(exitCode).toBe(0);
-    expect(stdout).toBe("Is null\n");
+    expect(stdout).toBe("Is nullptr\n");
   });
 });

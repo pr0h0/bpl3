@@ -15,7 +15,7 @@ frame testNullptr() {
 }
 frame safeDeref(ptr: *int) ret int {
     if (ptr == nullptr) {
-        printf("Null pointer passed, returning -1\n");
+        printf("Nullptr passed, returning -1\n");
         return -1;
     }
     return *ptr;
@@ -49,8 +49,8 @@ frame testPointerComparison() {
     }
 }
 frame testNullInStruct() {
-    printf("\nTesting null in structs:\n");
-    # Using malloc which can return null
+    printf("\nTesting nullptr in structs:\n");
+    # Using malloc which can return nullptr
     local mem: string = malloc(cast<uint>(100));
     if (mem != nullptr) {
         printf("Memory allocated successfully\n");
@@ -70,7 +70,7 @@ frame testVoidPointer() {
     local x: int = 42;
     local voidPtr: string = cast<string>(&x);
     if (voidPtr != nullptr) {
-        printf("void pointer is not null\n");
+        printf("void pointer is not nullptr\n");
         local intPtr: *int = cast<*int>(voidPtr);
         printf("Value through void pointer: %d\n", *intPtr);
     }
@@ -83,7 +83,7 @@ frame main() ret int {
     local result1: int = safeDeref(&val);
     printf("Safe deref result: %d\n", result1);
     local result2: int = safeDeref(nullptr);
-    printf("Safe deref with null result: %d\n", result2);
+    printf("Safe deref with nullptr result: %d\n", result2);
     # Test find value
     printf("\nTesting find value:\n");
     local numbers: int[5];
@@ -104,21 +104,21 @@ frame main() ret int {
     }
     testPointerComparison();
     testNullInStruct();
-    # Test null in conditionals
-    printf("\nTesting null in conditionals:\n");
+    # Test nullptr in conditionals
+    printf("\nTesting nullptr in conditionals:\n");
     local errorPtr: *int = returnNullOnError(true);
     if (errorPtr == nullptr) {
         printf("Error case returned nullptr\n");
     }
     testVoidPointer();
-    # Test null assignment
-    printf("\nTesting null assignment:\n");
+    # Test nullptr assignment
+    printf("\nTesting nullptr assignment:\n");
     local dynPtr: *int = nullptr;
-    printf("dynPtr initially: %s\n", dynPtr == nullptr ? "null" : "not null");
+    printf("dynPtr initially: %s\n", dynPtr == nullptr ? "nullptr" : "not nullptr");
     local someValue: int = 777;
     dynPtr = &someValue;
-    printf("dynPtr after assignment: %s, value: %d\n", dynPtr == nullptr ? "null" : "not null", *dynPtr);
+    printf("dynPtr after assignment: %s, value: %d\n", dynPtr == nullptr ? "nullptr" : "not nullptr", *dynPtr);
     dynPtr = nullptr;
-    printf("dynPtr after reset: %s\n", dynPtr == nullptr ? "null" : "not null");
+    printf("dynPtr after reset: %s\n", dynPtr == nullptr ? "nullptr" : "not nullptr");
     return 0;
 }

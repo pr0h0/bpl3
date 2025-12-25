@@ -66,7 +66,7 @@ describe("Pointer Edge Cases", () => {
   it("should allow indexing a pointer (dynamic array access)", () => {
     const source = `
       frame main() {
-        local ptr: *i32 = null;
+        local ptr: *i32 = nullptr;
         local _val: i32 = ptr[0];
       }
     `;
@@ -76,7 +76,7 @@ describe("Pointer Edge Cases", () => {
   it("should allow pointer arithmetic (addition)", () => {
     const source = `
       frame main() {
-        local ptr: *i32 = null;
+        local ptr: *i32 = nullptr;
         local _ptr2: *i32 = ptr + 1;
       }
     `;
@@ -86,7 +86,7 @@ describe("Pointer Edge Cases", () => {
   it("should allow pointer arithmetic (subtraction)", () => {
     const source = `
       frame main() {
-        local ptr: *i32 = null;
+        local ptr: *i32 = nullptr;
         local _ptr2: *i32 = ptr - 1;
       }
     `;
@@ -96,8 +96,8 @@ describe("Pointer Edge Cases", () => {
   it("should allow pointer difference", () => {
     const source = `
       frame main() {
-        local ptr1: *i32 = null;
-        local ptr2: *i32 = null;
+        local ptr1: *i32 = nullptr;
+        local ptr2: *i32 = nullptr;
         local _diff: i64 = ptr1 - ptr2;
       }
     `;
@@ -107,7 +107,7 @@ describe("Pointer Edge Cases", () => {
   it("should allow dereferencing a pointer", () => {
     const source = `
       frame main() {
-        local ptr: *i32 = null;
+        local ptr: *i32 = nullptr;
         local _val: i32 = *ptr;
       }
     `;
@@ -152,7 +152,7 @@ describe("Pointer Edge Cases", () => {
     const source = `
       type IntPtr = *i32;
       frame main() {
-        local ptr: IntPtr = null;
+        local ptr: IntPtr = nullptr;
         local _val: i32 = ptr[0];
       }
     `;
@@ -165,7 +165,7 @@ describe("Pointer Edge Cases", () => {
         local _val: T = ptr[0];
       }
       frame main() {
-        local ptr: *i32 = null;
+        local ptr: *i32 = nullptr;
         foo<i32>(ptr);
       }
     `;
@@ -175,7 +175,7 @@ describe("Pointer Edge Cases", () => {
   it("should allow assigning to pointer index", () => {
     const source = `
       frame main() {
-        local ptr: *i32 = null;
+        local ptr: *i32 = nullptr;
         ptr[0] = 10;
       }
     `;
@@ -185,7 +185,7 @@ describe("Pointer Edge Cases", () => {
   it("should allow indexing pointer to pointer", () => {
     const source = `
       frame main() {
-        local pptr: **i32 = null;
+        local pptr: **i32 = nullptr;
         local _ptr: *i32 = pptr[0];
         local _val: i32 = pptr[0][0];
       }

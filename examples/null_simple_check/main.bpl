@@ -6,12 +6,12 @@ struct P {
 }
 
 frame main() ret int {
-    local p: P = null;
+    local p: *P = nullptr;
 
-    if (p == null) {
-        printf("p is null\n");
+    if (p == nullptr) {
+        printf("p is nullptr\n");
     } else {
-        printf("p is not null\n");
+        printf("p is not nullptr\n");
     }
 
     return 0;

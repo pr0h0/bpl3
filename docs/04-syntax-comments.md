@@ -98,7 +98,7 @@ frame    local    global   import   export   extern
 return   if       else     loop     switch   case
 default  try      catch    catchOther throw  break
 continue cast     sizeof   match    type     struct
-true     false    null     nullptr  ret      this
+true     false    nullptr  ret      this
 ```
 
 ### Case Sensitivity
@@ -331,16 +331,14 @@ local isTrue: bool = true;
 local isFalse: bool = false;
 ```
 
-## Null Literals
+## Nullptr Literals
 
 ```bpl
-local ptr: *int = null;         # Generic null
-local ptr2: *int = nullptr;     # Pointer-specific null
+local ptr: *int = nullptr;     # Pointer-specific nullptr
 ```
 
 **Difference:**
 
-- `null` - General null value
 - `nullptr` - Specifically for pointers (more type-safe)
 
 ## Statements vs Expressions

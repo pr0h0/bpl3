@@ -298,8 +298,8 @@ export class GenericParser {
     const value = match[0]!;
     if (value === "true" || value === "false")
       return this.createToken("BoolLiteral", value);
-    if (value === "null") return this.createToken("NullLiteral", value);
-    if (value === "nullptr") return this.createToken("NullptrLiteral", value);
+    if (value === "null" || value === "nullptr")
+      return this.createToken("NullptrLiteral", value);
 
     if (this.keywords.has(value)) return this.createToken("Keyword", value);
     return this.createToken("Identifier", value);

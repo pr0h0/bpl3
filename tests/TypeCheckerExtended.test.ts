@@ -538,21 +538,21 @@ describe("TypeChecker - Extended Tests", () => {
     });
   });
 
-  describe("Null Safety", () => {
-    it("should allow null assignment to pointers", () => {
+  describe("Nullptr Safety", () => {
+    it("should allow nullptr assignment to pointers", () => {
       const source = `
         frame main() ret int {
-          local _p: *int = null;
+          local _p: *int = nullptr;
           return 0;
         }
       `;
       expect(() => check(source)).not.toThrow();
     });
 
-    it("should reject null assignment to non-pointers", () => {
+    it("should reject nullptr assignment to non-pointers", () => {
       const source = `
         frame main() ret int {
-          local x: int = null;
+          local x: int = nullptr;
           return 0;
         }
       `;

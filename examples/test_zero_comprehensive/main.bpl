@@ -8,17 +8,21 @@ struct Point {
 frame main() ret int {
     # Test 1: Struct with all zeros should work
     printf("Test 1: Zero-valued struct\n");
-    local p1: Point = Point { x: 0, y: 0 };
+    local p1: Point;
+    p1.x = 0;
+    p1.y = 0;
     printf("p1.x = %d, p1.y = %d\n", p1.x, p1.y);
 
     # Test 2: Normal struct works
     printf("\nTest 2: Normal struct\n");
-    local p2: Point = Point { x: 10, y: 20 };
+    local p2: Point;
+    p2.x = 10;
+    p2.y = 20;
     printf("p2.x = %d, p2.y = %d\n", p2.x, p2.y);
 
-    # Test 3: Null struct traps
-    printf("\nTest 3: Null struct (should trap)\n");
-    local p3: Point = null;
+    # Test 3: Nullptr struct traps
+    printf("\nTest 3: Nullptr struct (should trap)\n");
+    local p3: *Point = nullptr;
     printf("About to access p3.x...\n");
 
     try {

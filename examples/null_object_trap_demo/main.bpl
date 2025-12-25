@@ -6,10 +6,10 @@ struct Point {
 }
 
 frame main() ret int {
-    local p: Point = null;
+    local p: *Point = nullptr;
 
-    printf("Testing null object access trap...\n");
-    printf("Attempting to access p.x on null object:\n");
+    printf("Testing nullptr object access trap...\n");
+    printf("Attempting to access p.x on nullptr object:\n");
 
     # This will trap with an error message
     local _val: int = p.x;

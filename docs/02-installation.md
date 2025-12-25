@@ -161,7 +161,7 @@ endif
 syn keyword bplKeyword frame local global import export extern return if else loop switch case default try catch catchOther throw break continue cast sizeof match type struct
 syn keyword bplType int uint float bool char void string
 syn keyword bplBoolean true false
-syn keyword bplNull null nullptr
+syn keyword bplNull nullptr
 
 " Comments
 syn match bplComment "#.*$"

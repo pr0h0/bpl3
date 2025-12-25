@@ -11,7 +11,7 @@ struct Container {
 }
 
 frame testMemberAccess() {
-    local p: Point = null;
+    local p: *Point = nullptr;
 
     printf("About to access p.x (should trap with error)...\n");
     local _val: int = p.x; # This will trap with detailed error message
@@ -20,7 +20,7 @@ frame testMemberAccess() {
 }
 
 frame testIndexAccess() {
-    local c: Container = null;
+    local c: *Container = nullptr;
 
     printf("About to access c.items[0] (should trap with error)...\n");
     local _val: int = c.items[0]; # This will trap with detailed error message
@@ -29,7 +29,7 @@ frame testIndexAccess() {
 }
 
 frame main() ret int {
-    printf("=== Null Object Debug Info Test ===\n\n");
+    printf("=== Nullptr Object Debug Info Test ===\n\n");
 
     # Test 1: Member access
     try {

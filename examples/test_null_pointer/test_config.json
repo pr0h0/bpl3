@@ -1,8 +1,5 @@
 {
-  "expectedOutput": [
-    "Caught: Attempted to access member/index of null object",
-    " in main (expr: y.a)"
-  ],
+  "expectedOutput": ["Caught: Attempted to access member of nullptr"],
   "args": [],
   "env": {},
   "input": ""

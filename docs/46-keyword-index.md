@@ -12,6 +12,6 @@ Reserved words in BPL.
 - `import`, `export`
 - `try`, `catch`, `throw`
 - `local`, `global`, `const`
-- `null`, `true`, `false`
+- `nullptr`, `true`, `false`
 - `match`, `type`, `cast`, `sizeof`
 - `extern`, `from`, `as`

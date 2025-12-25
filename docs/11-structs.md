@@ -346,9 +346,9 @@ struct Buffer {
     }
 
     frame cleanup() ret void {
-        if (this.data != null) {
+        if (this.data != nullptr) {
             free(this.data);
-            this.data = null;
+            this.data = nullptr;
             this.size = 0;
         }
     }
@@ -555,24 +555,24 @@ local p: Point;
 p.x = 10;
 p.y = 20;
 
-local ptr: Point* = &p;
-printf("(%d, %d)\n", ptr->x, ptr->y);
+local ptr: *Point = &p;
+printf("(%d, %d)\n", ptr.x, ptr.y);
 
-ptr->x = 30;
+ptr.x = 30;
 printf("(%d, %d)\n", p.x, p.y);  # Now (30, 20)
 ```
 
 ### Dynamic Allocation
 
 ```bpl
-local p: Point* = cast<Point*>(malloc(sizeof(Point)));
-if (p == null) {
+local p: *Point = cast<*Point>(malloc(sizeof(Point)));
+if (p == nullptr) {
     printf("Allocation failed\n");
     return 1;
 }
 
-p->x = 10;
-p->y = 20;
+p.x = 10;
+p.y = 20;
 
 # Use the struct...
 
@@ -584,22 +584,22 @@ free(p);
 ```bpl
 struct Node {
     data: int;
-    next: Node*;
+    next: *Node;
 
     frame append(value: int) ret void {
-        if (this.next == null) {
-            this.next = cast<Node*>(malloc(sizeof(Node)));
-            this.next->data = value;
-            this.next->next = null;
+        if (this.next == nullptr) {
+            this.next = cast<*Node>(malloc(sizeof(Node)));
+            this.next.data = value;
+            this.next.next = nullptr;
         } else {
-            this.next->append(value);
+            this.next.append(value);
         }
     }
 }
 
 local head: Node;
 head.data = 1;
-head.next = null;
+head.next = nullptr;
 head.append(2);
 head.append(3);
 ```

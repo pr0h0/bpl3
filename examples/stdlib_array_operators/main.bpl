@@ -27,7 +27,7 @@ struct IntArray {
             local size: long = cast<long>(new_capacity) * cast<long>(4);
             local new_data: *int = cast<*int>(malloc(size));
             local old_size: long = cast<long>(this.length) * cast<long>(4);
-            if (this.data != null) {
+            if (this.data != nullptr) {
                 memcpy(cast<*void>(new_data), cast<*void>(this.data), old_size);
                 free(cast<*void>(this.data));
             }
@@ -92,9 +92,9 @@ struct IntArray {
     }
 
     frame destroy(this: *IntArray) {
-        if (this.data != null) {
+        if (this.data != nullptr) {
             free(cast<*void>(this.data));
-            this.data = null;
+            this.data = nullptr;
         }
     }
 }

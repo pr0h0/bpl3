@@ -192,15 +192,10 @@
     "body": ["sizeof(${1:type})"],
     "description": "Sizeof operator"
   },
-  "Null": {
-    "prefix": "null",
-    "body": ["null"],
-    "description": "Null value"
-  },
-  "Null Pointer": {
-    "prefix": "nullptr",
+  "Nullptr": {
+    "prefix": ["nullptr", "null"],
     "body": ["nullptr"],
-    "description": "Null pointer"
+    "description": "Nullptr"
   },
   "True": {
     "prefix": "true",

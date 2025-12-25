@@ -499,7 +499,10 @@ export function checkVariableDecl(
         // Check for integer constant compatibility
         const constVal = this.getIntegerConstantValue(decl.initializer);
         if (constVal !== undefined) {
-          if (this.isIntegerTypeCompatible(constVal, resolvedDecl)) {
+          if (
+            constVal === 0n ||
+            this.isIntegerTypeCompatible(constVal, resolvedDecl)
+          ) {
             // Annotate the literal for codegen
             if (
               decl.initializer.kind === "Literal" ||
@@ -521,23 +524,46 @@ export function checkVariableDecl(
               decl.location,
             );
           } else if (!this.areTypesCompatible(resolvedDecl, resolvedInit)) {
+            // Check for implicit pointer-to-value conversion for struct literals
+            // Allow assigning StructLiteral to *Struct (allocates on stack)
+            const isStructLiteralToPointer =
+              resolvedDecl.kind === "BasicType" &&
+              resolvedInit.kind === "BasicType" &&
+              resolvedDecl.name === resolvedInit.name &&
+              resolvedDecl.pointerDepth === resolvedInit.pointerDepth + 1 &&
+              decl.initializer?.kind === "StructLiteral";
+
+            if (!isStructLiteralToPointer) {
+              throw new CompilerError(
+                `Type mismatch: cannot assign ${this.typeToString(
+                  resolvedInit,
+                )} to ${this.typeToString(resolvedDecl)}`,
+                "Ensure the initializer type matches the declared type.",
+                decl.location,
+                "E001",
+              );
+            }
+          }
+        } else if (!this.areTypesCompatible(resolvedDecl, resolvedInit)) {
+          // Check for implicit pointer-to-value conversion for struct literals
+          // Allow assigning StructLiteral to *Struct (allocates on stack)
+          const isStructLiteralToPointer =
+            resolvedDecl.kind === "BasicType" &&
+            resolvedInit.kind === "BasicType" &&
+            resolvedDecl.name === resolvedInit.name &&
+            resolvedDecl.pointerDepth === resolvedInit.pointerDepth + 1 &&
+            decl.initializer?.kind === "StructLiteral";
+
+          if (!isStructLiteralToPointer) {
             throw new CompilerError(
               `Type mismatch: cannot assign ${this.typeToString(
                 resolvedInit,
               )} to ${this.typeToString(resolvedDecl)}`,
               "Ensure the initializer type matches the declared type.",
               decl.location,
+              "E001",
             );
           }
-        } else if (!this.areTypesCompatible(resolvedDecl, resolvedInit)) {
-          throw new CompilerError(
-            `Type mismatch: cannot assign ${this.typeToString(
-              resolvedInit,
-            )} to ${this.typeToString(resolvedDecl)}`,
-            "Ensure the initializer type matches the declared type.",
-            decl.location,
-            "E001",
-          );
         }
       } else {
         declaredType = this.resolveType(initType);

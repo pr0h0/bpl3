@@ -201,6 +201,32 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
   protected generateLiteral(expr: AST.LiteralExpr): string {
     if (expr.type === "number") {
+      // Handle zero initialization for non-primitive types
+      if (expr.value == 0 && expr.resolvedType) {
+        const type = expr.resolvedType;
+        if (type.kind === "BasicType") {
+          if (type.pointerDepth > 0) return "null";
+          const primitives = [
+            "int",
+            "uint",
+            "u8",
+            "u16",
+            "u32",
+            "u64",
+            "float",
+            "double",
+            "bool",
+            "char",
+            "void",
+          ];
+          if (!primitives.includes(type.name)) {
+            return "zeroinitializer";
+          }
+        } else if (type.kind === "ArrayType" || type.kind === "TupleType") {
+          return "zeroinitializer";
+        }
+      }
+
       // Check if this is a floating point type
       if (expr.resolvedType && expr.resolvedType.kind === "BasicType") {
         const typeName = (expr.resolvedType as AST.BasicTypeNode).name;
@@ -434,325 +460,22 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         baseAddr = ptrReg;
       }
 
-      // Runtime null-object guard for pointer dereferences to tracked locals
-      // Only check when we can trace the pointer back to &localVar
-      if (
-        objType.pointerDepth === 1 &&
-        !skipNullObjectCheck &&
-        memberExpr.object.kind === "Identifier" &&
-        baseAddr
-      ) {
-        const ptrName = (memberExpr.object as AST.IdentifierExpr).name;
-        // Check if this pointer is in our tracked pointers map
-        // We'll track it when assigned from &localStruct
-        const trackedLocal = this.pointerToLocal.get(ptrName);
-
-        if (trackedLocal) {
-          const flagPtr = this.localNullFlags.get(trackedLocal);
-          if (flagPtr) {
-            const flagVal = this.newRegister();
-            this.emit(`  ${flagVal} = load i1, i1* ${flagPtr}`);
-
-            // Negate: if flag is 0 (null), trap
-            const isNull = this.newRegister();
-            this.emit(`  ${isNull} = xor i1 ${flagVal}, 1`);
-
-            const funcName = this.currentFunctionName || "unknown";
-            const exprStr = `${ptrName}.${memberExpr.property}`;
-            const msg = "Attempted to access member/index of null object\n";
-
-            // Create string literals for the error struct fields
-            if (!this.stringLiterals.has(msg)) {
-              this.stringLiterals.set(
-                msg,
-                `@.null_err_msg.${this.stringLiterals.size}`,
-              );
-            }
-            if (!this.stringLiterals.has(funcName)) {
-              this.stringLiterals.set(
-                funcName,
-                `@.null_err_func.${this.stringLiterals.size}`,
-              );
-            }
-            if (!this.stringLiterals.has(exprStr)) {
-              this.stringLiterals.set(
-                exprStr,
-                `@.null_err_expr.${this.stringLiterals.size}`,
-              );
-            }
-
-            const throwLabel = this.newLabel("nullptr.throw");
-            const passLabel = this.newLabel("nullptr.pass");
-            this.emit(
-              `  br i1 ${isNull}, label %${throwLabel}, label %${passLabel}`,
-            );
-
-            this.emit(`${throwLabel}:`);
-            // Create and throw NullAccessError
-            const msgLen = msg.length + 1;
-            const funcLen = funcName.length + 1;
-            const exprLen = exprStr.length + 1;
-
-            const msgPtr = `getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${this.stringLiterals.get(msg)}, i32 0, i32 0)`;
-            const funcPtr = `getelementptr inbounds ([${funcLen} x i8], [${funcLen} x i8]* ${this.stringLiterals.get(funcName)}, i32 0, i32 0)`;
-            const exprPtr = `getelementptr inbounds ([${exprLen} x i8], [${exprLen} x i8]* ${this.stringLiterals.get(exprStr)}, i32 0, i32 0)`;
-
-            const nullLayout = this.structLayouts.get("NullAccessError");
-            let currentStruct = "undef";
-
-            if (nullLayout) {
-              if (nullLayout.has("__vtable__")) {
-                const vtableIndex = nullLayout.get("__vtable__");
-                const vtablePtr = this.newRegister();
-                this.emit(
-                  `  ${vtablePtr} = bitcast [3 x i8*]* @NullAccessError_vtable to i8*`,
-                );
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${vtablePtr}, ${vtableIndex}`,
-                );
-                currentStruct = nextStruct;
-              }
-
-              if (nullLayout.has("message")) {
-                const idx = nullLayout.get("message");
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${msgPtr}, ${idx}`,
-                );
-                currentStruct = nextStruct;
-              }
-              if (nullLayout.has("code")) {
-                const idx = nullLayout.get("code");
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 7, ${idx}`,
-                );
-                currentStruct = nextStruct;
-              }
-
-              if (nullLayout.has("function")) {
-                const idx = nullLayout.get("function");
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${funcPtr}, ${idx}`,
-                );
-                currentStruct = nextStruct;
-              }
-
-              if (nullLayout.has("expression")) {
-                const idx = nullLayout.get("expression");
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${exprPtr}, ${idx}`,
-                );
-                currentStruct = nextStruct;
-              }
-
-              if (nullLayout.has("__null_bit__")) {
-                const idx = nullLayout.get("__null_bit__");
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i1 1, ${idx}`,
-                );
-                currentStruct = nextStruct;
-              }
-            } else {
-              // Fallback
-              let s = this.newRegister();
-              this.emit(
-                `  ${s} = insertvalue %struct.NullAccessError undef, i8* ${msgPtr}, 0`,
-              );
-              let s2 = this.newRegister();
-              this.emit(
-                `  ${s2} = insertvalue %struct.NullAccessError ${s}, i8* ${funcPtr}, 1`,
-              );
-              let s3 = this.newRegister();
-              this.emit(
-                `  ${s3} = insertvalue %struct.NullAccessError ${s2}, i8* ${exprPtr}, 2`,
-              );
-              currentStruct = s3;
-            }
-
-            this.emitThrow(currentStruct, "%struct.NullAccessError");
-
-            this.emit(`${passLabel}:`);
-          }
-        }
-      }
-
-      // Runtime null-object guard for struct locals with tracked flags
-      if (
-        objType.pointerDepth === 0 &&
-        memberExpr.object.kind === "Identifier" &&
-        !skipNullObjectCheck
-      ) {
-        const idName = (memberExpr.object as AST.IdentifierExpr).name;
-        const flagPtr = this.localNullFlags.get(idName);
-        if (flagPtr) {
-          const flagVal = this.newRegister();
-          this.emit(`  ${flagVal} = load i1, i1* ${flagPtr}`);
-
-          // Negate the flag: if it's 0 (null), we want to trap
-          const negFlag = this.newRegister();
-          this.emit(`  ${negFlag} = xor i1 ${flagVal}, 1`);
-
-          const funcName = this.currentFunctionName || "unknown";
-          const memberName = memberExpr.property;
-          const exprStr = `${idName}.${memberName}`;
-          const msg = "Attempted to access member of null object";
-
-          // Create string literals for the error struct fields
-          if (!this.stringLiterals.has(msg)) {
-            this.stringLiterals.set(
-              msg,
-              `@.null_err_msg.${this.stringLiterals.size}`,
-            );
-          }
-          if (!this.stringLiterals.has(funcName)) {
-            this.stringLiterals.set(
-              funcName,
-              `@.null_err_func.${this.stringLiterals.size}`,
-            );
-          }
-          if (!this.stringLiterals.has(exprStr)) {
-            this.stringLiterals.set(
-              exprStr,
-              `@.null_err_expr.${this.stringLiterals.size}`,
-            );
-          }
-
-          const throwLabel = this.newLabel("nullobj.throw");
-          const passLabel = this.newLabel("nullobj.pass");
-          this.emit(
-            `  br i1 ${negFlag}, label %${throwLabel}, label %${passLabel}`,
-          );
-
-          // Throw NullAccessError
-          this.emit(`${throwLabel}:`);
-          const msgLen = msg.length + 1;
-          const funcLen = funcName.length + 1;
-          const exprLen = exprStr.length + 1;
-
-          const msgPtr = `getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${this.stringLiterals.get(msg)}, i32 0, i32 0)`;
-          const funcPtr = `getelementptr inbounds ([${funcLen} x i8], [${funcLen} x i8]* ${this.stringLiterals.get(funcName)}, i32 0, i32 0)`;
-          const exprPtr = `getelementptr inbounds ([${exprLen} x i8], [${exprLen} x i8]* ${this.stringLiterals.get(exprStr)}, i32 0, i32 0)`;
-
-          const nullLayout = this.structLayouts.get("NullAccessError");
-          let currentStruct = "undef";
-
-          if (nullLayout) {
-            if (nullLayout.has("__vtable__")) {
-              const vtableIndex = nullLayout.get("__vtable__");
-              const vtablePtr = this.newRegister();
-              this.emit(
-                `  ${vtablePtr} = bitcast [3 x i8*]* @NullAccessError_vtable to i8*`,
-              );
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${vtablePtr}, ${vtableIndex}`,
-              );
-              currentStruct = nextStruct;
-            }
-
-            if (nullLayout.has("message")) {
-              const idx = nullLayout.get("message");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${msgPtr}, ${idx}`,
-              );
-              currentStruct = nextStruct;
-            }
-            if (nullLayout.has("code")) {
-              const idx = nullLayout.get("code");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 7, ${idx}`,
-              );
-              currentStruct = nextStruct;
-            }
-
-            if (nullLayout.has("function")) {
-              const idx = nullLayout.get("function");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${funcPtr}, ${idx}`,
-              );
-              currentStruct = nextStruct;
-            }
-
-            if (nullLayout.has("expression")) {
-              const idx = nullLayout.get("expression");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${exprPtr}, ${idx}`,
-              );
-              currentStruct = nextStruct;
-            }
-
-            if (nullLayout.has("__null_bit__")) {
-              const idx = nullLayout.get("__null_bit__");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i1 1, ${idx}`,
-              );
-              currentStruct = nextStruct;
-            }
-          } else {
-            // Fallback
-            let s = this.newRegister();
-            this.emit(
-              `  ${s} = insertvalue %struct.NullAccessError undef, i8* ${msgPtr}, 0`,
-            );
-            let s2 = this.newRegister();
-            this.emit(
-              `  ${s2} = insertvalue %struct.NullAccessError ${s}, i8* ${funcPtr}, 1`,
-            );
-            let s3 = this.newRegister();
-            this.emit(
-              `  ${s3} = insertvalue %struct.NullAccessError ${s2}, i8* ${exprPtr}, 2`,
-            );
-            currentStruct = s3;
-          }
-
-          this.emitThrow(currentStruct, "%struct.NullAccessError");
-
-          // Continue normal path
-          this.emit(`${passLabel}:`);
-        }
-      }
-
-      // General null-object guard for any struct value (not just identifiers)
-      // This handles cases like arr[1].data where the object is not an identifier
-      if (
-        objType.pointerDepth === 0 &&
-        memberExpr.object.kind !== "Identifier" &&
-        !skipNullObjectCheck &&
-        layout.has("__null_bit__")
-      ) {
-        // Generate the object value first so we can check its null bit
-        const tempObjReg = this.newRegister();
-        const objLlvmType = this.resolveType(objType);
-        this.emit(
-          `  ${tempObjReg} = load ${objLlvmType}, ${objLlvmType}* ${baseAddr}`,
-        );
-
-        // Extract the __null_bit__ field
-        const nullBitIndex = layout.get("__null_bit__")!;
-        const nullBitVal = this.newRegister();
-        this.emit(
-          `  ${nullBitVal} = extractvalue ${objLlvmType} ${tempObjReg}, ${nullBitIndex}`,
-        );
-
-        // Negate: if bit is 0 (null), trap
+      // Runtime null check for pointer dereference
+      if (objType.pointerDepth > 0 && !skipNullObjectCheck) {
         const isNull = this.newRegister();
-        this.emit(`  ${isNull} = xor i1 ${nullBitVal}, 1`);
+        this.emit(`  ${isNull} = icmp eq ${llvmType} ${baseAddr}, null`);
+
+        const throwLabel = this.newLabel("nullptr.throw");
+        const passLabel = this.newLabel("nullptr.pass");
+        this.emit(
+          `  br i1 ${isNull}, label %${throwLabel}, label %${passLabel}`,
+        );
+
+        this.emit(`${throwLabel}:`);
 
         const funcName = this.currentFunctionName || "unknown";
-        const exprStr =
-          this.expressionToString(memberExpr.object) +
-          `.${memberExpr.property}`;
-        const msg = "Attempted to access member of null object";
+        const exprStr = "pointer_dereference";
+        const msg = "Attempted to access member of nullptr";
 
         // Create string literals
         if (!this.stringLiterals.has(msg)) {
@@ -774,14 +497,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           );
         }
 
-        const throwLabel = this.newLabel("nullobj.throw");
-        const passLabel = this.newLabel("nullobj.pass");
-        this.emit(
-          `  br i1 ${isNull}, label %${throwLabel}, label %${passLabel}`,
-        );
-
-        // Throw NullAccessError
-        this.emit(`${throwLabel}:`);
         const msgLen = msg.length + 1;
         const funcLen = funcName.length + 1;
         const exprLen = exprStr.length + 1;
@@ -806,7 +521,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             );
             currentStruct = nextStruct;
           }
-
           if (nullLayout.has("message")) {
             const idx = nullLayout.get("message");
             const nextStruct = this.newRegister();
@@ -823,7 +537,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             );
             currentStruct = nextStruct;
           }
-
           if (nullLayout.has("function")) {
             const idx = nullLayout.get("function");
             const nextStruct = this.newRegister();
@@ -832,7 +545,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             );
             currentStruct = nextStruct;
           }
-
           if (nullLayout.has("expression")) {
             const idx = nullLayout.get("expression");
             const nextStruct = this.newRegister();
@@ -841,12 +553,19 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             );
             currentStruct = nextStruct;
           }
-
-          if (nullLayout.has("__null_bit__")) {
-            const idx = nullLayout.get("__null_bit__");
+          if (nullLayout.has("line")) {
+            const idx = nullLayout.get("line");
             const nextStruct = this.newRegister();
             this.emit(
-              `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i1 1, ${idx}`,
+              `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 ${memberExpr.location.startLine}, ${idx}`,
+            );
+            currentStruct = nextStruct;
+          }
+          if (nullLayout.has("column")) {
+            const idx = nullLayout.get("column");
+            const nextStruct = this.newRegister();
+            this.emit(
+              `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 ${memberExpr.location.startColumn}, ${idx}`,
             );
             currentStruct = nextStruct;
           }
@@ -864,14 +583,30 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           this.emit(
             `  ${s3} = insertvalue %struct.NullAccessError ${s2}, i8* ${exprPtr}, 2`,
           );
-          currentStruct = s3;
+          let s4 = this.newRegister();
+          this.emit(
+            `  ${s4} = insertvalue %struct.NullAccessError ${s3}, i32 ${memberExpr.location.startLine}, 3`,
+          );
+          let s5 = this.newRegister();
+          this.emit(
+            `  ${s5} = insertvalue %struct.NullAccessError ${s4}, i32 ${memberExpr.location.startColumn}, 4`,
+          );
+          currentStruct = s5;
         }
 
         this.emitThrow(currentStruct, "%struct.NullAccessError");
-
-        // Continue normal path
         this.emit(`${passLabel}:`);
       }
+
+      // Runtime null-object guard for pointer dereferences to tracked locals
+      // Only check when we can trace the pointer back to &localVar
+      // (Legacy null check removed)
+
+      // Runtime null-object guard for struct locals with tracked flags
+      // (Legacy null check removed)
+
+      // General null-object guard for any struct value (not just identifiers)
+      // (Legacy null check removed)
 
       const structBase = `%struct.${structName}`;
 
@@ -988,15 +723,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
                 const nextStruct = this.newRegister();
                 this.emit(
                   `  ${nextStruct} = insertvalue %struct.IndexOutOfBoundsError ${currentStruct}, i32 ${size}, ${idx}`,
-                );
-                currentStruct = nextStruct;
-              }
-
-              if (layout.has("__null_bit__")) {
-                const idx = layout.get("__null_bit__");
-                const nextStruct = this.newRegister();
-                this.emit(
-                  `  ${nextStruct} = insertvalue %struct.IndexOutOfBoundsError ${currentStruct}, i1 1, ${idx}`,
                 );
                 currentStruct = nextStruct;
               }
@@ -1120,7 +846,15 @@ export abstract class ExpressionGenerator extends TypeGenerator {
               exprStr,
             )}, i64 0, i64 0), 2`,
           );
-          this.emitThrow(errorWithExpr, "%struct.NullAccessError");
+          const errorWithLine = this.newRegister();
+          this.emit(
+            `  ${errorWithLine} = insertvalue %struct.NullAccessError ${errorWithExpr}, i32 ${indexExpr.location.startLine}, 3`,
+          );
+          const errorWithCol = this.newRegister();
+          this.emit(
+            `  ${errorWithCol} = insertvalue %struct.NullAccessError ${errorWithLine}, i32 ${indexExpr.location.startColumn}, 4`,
+          );
+          this.emitThrow(errorWithCol, "%struct.NullAccessError");
 
           // Continue normal path
           this.emit(`${passLabel}:`);
@@ -1244,15 +978,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     this.emit(`  ${ptr} = alloca ${type}`);
     this.locals.add(name);
     this.localPointers.set(name, ptr);
-
-    // If this is a struct value (non-pointer), allocate a null-flag alongside it
-    // Default to 1 (valid) - we'll set it to 0 only when null is explicitly assigned
-    if (type.startsWith("%struct.") && !type.endsWith("*")) {
-      const flagPtr = `%${name}_null.${this.stackAllocCount++}`;
-      this.emit(`  ${flagPtr} = alloca i1`);
-      this.emit(`  store i1 1, i1* ${flagPtr}`); // Default to 1 (valid/not null)
-      this.localNullFlags.set(name, flagPtr);
-    }
     return ptr;
   }
 
@@ -1484,28 +1209,9 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           addr = spill;
         }
 
-        // Extract __null_bit__ field (last field in struct)
-        const loaded = this.newRegister();
-        this.emit(`  ${loaded} = load ${llvmT}, ${llvmT}* ${addr}`);
-        const nullBitTypeName = (expr.left.resolvedType as AST.BasicTypeNode)
-          .name;
-        const layout = this.structLayouts.get(nullBitTypeName);
-        const nullBitIndex = layout ? layout.get("__null_bit__") : -1;
-
-        let res: string;
-        if (nullBitIndex !== undefined && nullBitIndex >= 0) {
-          // Extract the __null_bit__ field and check if it's 0
-          const extracted = this.newRegister();
-          this.emit(
-            `  ${extracted} = extractvalue ${llvmT} ${loaded}, ${nullBitIndex}`,
-          );
-          res = this.newRegister();
-          // If __null_bit__ is 0, the struct is null
-          this.emit(`  ${res} = xor i1 ${extracted}, 1`);
-        } else {
-          // Fallback: assume not null (no __null_bit__ field)
-          res = "0";
-        }
+        // Structs are value types and cannot be null
+        // So struct == null is always false
+        const res = "0";
 
         if (expr.operator.type === TokenType.EqualEqual) return res;
         const inv = this.newRegister();
@@ -1514,41 +1220,9 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       }
       // right struct vs null
       if (isStructValue(expr.right.resolvedType) && isNullLiteral(expr.left)) {
-        const llvmT = rightType;
-        let addr: string | undefined;
-        try {
-          addr = this.generateAddress(expr.right);
-        } catch {
-          const spill = this.allocateStack(
-            `cmp_spill_${this.labelCount++}`,
-            llvmT,
-          );
-          this.emit(`  store ${llvmT} ${rightRaw}, ${llvmT}* ${spill}`);
-          addr = spill;
-        }
-
-        // Extract __null_bit__ field (last field in struct)
-        const loaded = this.newRegister();
-        this.emit(`  ${loaded} = load ${llvmT}, ${llvmT}* ${addr}`);
-        const nullBitTypeName = (expr.right.resolvedType as AST.BasicTypeNode)
-          .name;
-        const layout = this.structLayouts.get(nullBitTypeName);
-        const nullBitIndex = layout ? layout.get("__null_bit__") : -1;
-
-        let res: string;
-        if (nullBitIndex !== undefined && nullBitIndex >= 0) {
-          // Extract the __null_bit__ field and check if it's 0
-          const extracted = this.newRegister();
-          this.emit(
-            `  ${extracted} = extractvalue ${llvmT} ${loaded}, ${nullBitIndex}`,
-          );
-          res = this.newRegister();
-          // If __null_bit__ is 0, the struct is null
-          this.emit(`  ${res} = xor i1 ${extracted}, 1`);
-        } else {
-          // Fallback: assume not null (no __null_bit__ field)
-          res = "0";
-        }
+        // Structs are value types and cannot be null
+        // So null == struct is always false
+        const res = "0";
 
         if (expr.operator.type === TokenType.EqualEqual) return res;
         const inv = this.newRegister();
@@ -1817,15 +1491,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
               );
               currentStruct = nextStruct;
             }
-
-            if (divLayout.has("__null_bit__")) {
-              const nullBitIndex = divLayout.get("__null_bit__");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i1 1, ${nullBitIndex}`,
-              );
-              currentStruct = nextStruct;
-            }
           } else {
             const nextStruct = this.newRegister();
             this.emit(
@@ -1925,15 +1590,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
               const nextStruct = this.newRegister();
               this.emit(
                 `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i8 0, ${dummyIndex}`,
-              );
-              currentStruct = nextStruct;
-            }
-
-            if (divLayout.has("__null_bit__")) {
-              const nullBitIndex = divLayout.get("__null_bit__");
-              const nextStruct = this.newRegister();
-              this.emit(
-                `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i1 1, ${nullBitIndex}`,
               );
               currentStruct = nextStruct;
             }
@@ -2092,10 +1748,9 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     }
 
     const fields = this.getAllStructFields(structDecl);
-    // Add null bit as a virtual field
+    // Structs are value types, no null bit
     const allFields = [
       ...fields.map((f) => ({ type: this.resolveType(f.type) })),
-      { type: "i1" },
     ];
 
     let resultReg = "true"; // Start with true (all equal)
@@ -3699,62 +3354,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           }
         }
       }
-      // Also update __null_bit__ field in struct when assigning to a member/field
-      else if (expr.assignee.kind === "Member") {
-        const memberExpr = expr.assignee as AST.MemberExpr;
-        if (memberExpr.object.kind === "Identifier") {
-          const structName = (memberExpr.object as AST.IdentifierExpr).name;
-          const flagPtr = this.localNullFlags.get(structName);
-          if (flagPtr) {
-            // Load current flag value, then update __null_bit__ field in struct
-            const objType = memberExpr.object.resolvedType;
-            if (objType && objType.kind === "BasicType") {
-              const structAddr = this.generateAddress(memberExpr.object, true);
-              const llvmType = this.resolveType(objType);
-              const structTypeStr = llvmType.startsWith("%struct.")
-                ? llvmType
-                : `%struct.${llvmType}`;
-
-              // Find __null_bit__ index
-              let layout = this.structLayouts.get(
-                llvmType.substring(8) || llvmType,
-              );
-              let structNameForLayout = objType.name;
-              if (llvmType.startsWith("%struct.")) {
-                structNameForLayout = llvmType.substring(8).replace(/\*+$/, "");
-              }
-              if (!layout && structNameForLayout.includes(".")) {
-                const shortName = structNameForLayout.split(".").pop()!;
-                layout = this.structLayouts.get(shortName);
-              }
-              if (!layout) {
-                layout = this.structLayouts.get(structNameForLayout);
-              }
-
-              const nullBitIndex = layout ? layout.get("__null_bit__") : -1;
-              if (nullBitIndex !== undefined && nullBitIndex >= 0) {
-                // Load current struct, insertvalue the __null_bit__ with current flag value, store back
-                const flagVal = this.newRegister();
-                this.emit(`  ${flagVal} = load i1, i1* ${flagPtr}`);
-
-                const loadedStruct = this.newRegister();
-                this.emit(
-                  `  ${loadedStruct} = load ${structTypeStr}, ${structTypeStr}* ${structAddr}`,
-                );
-
-                const updatedStruct = this.newRegister();
-                this.emit(
-                  `  ${updatedStruct} = insertvalue ${structTypeStr} ${loadedStruct}, i1 ${flagVal}, ${nullBitIndex}`,
-                );
-
-                this.emit(
-                  `  store ${structTypeStr} ${updatedStruct}, ${structTypeStr}* ${structAddr}`,
-                );
-              }
-            }
-          }
-        }
-      }
+      // (Legacy __null_bit__ update removed)
       return castVal;
     }
 
@@ -5330,53 +4930,9 @@ export abstract class ExpressionGenerator extends TypeGenerator {
   }
 
   protected generateMemInit(expr: AST.CallExpr): string {
-    if (expr.args.length !== 1) {
-      throw new CompilerError(
-        "std.mem.init expects exactly 1 argument",
-        "Usage: std.mem.init(ptr)",
-        expr.location,
-      );
-    }
-
-    const ptrExpr = expr.args[0]!;
-    const ptrVal = this.generateExpression(ptrExpr);
-    const ptrType = this.resolveType(ptrExpr.resolvedType!);
-
-    // ptrType should be T* or %struct.T*
-    // We need to find the struct name to get the layout
-    let structName = "";
-
-    // Check if it's a pointer to a struct
-    if (ptrType.startsWith("%struct.") && ptrType.endsWith("*")) {
-      structName = ptrType.substring(8, ptrType.length - 1);
-    } else if (ptrType.endsWith("*")) {
-      // Might be a basic type pointer like i32*
-      // Primitives don't have __null_bit__, so we can ignore or error?
-      // For now, we just ignore if it's not a struct with __null_bit__
-      return "";
-    } else {
-      // Not a pointer?
-      return "";
-    }
-
-    const layout = this.structLayouts.get(structName);
-    if (!layout) {
-      // Unknown struct or no layout (maybe opaque?)
-      return "";
-    }
-
-    const nullBitIndex = layout.get("__null_bit__");
-    if (nullBitIndex !== undefined) {
-      // Generate code to set __null_bit__ to 1
-      const structType = `%struct.${structName}`;
-      const nullBitPtr = this.newRegister();
-      this.emit(
-        `  ${nullBitPtr} = getelementptr inbounds ${structType}, ${structType}* ${ptrVal}, i32 0, i32 ${nullBitIndex}`,
-      );
-      this.emit(`  store i1 1, i1* ${nullBitPtr}`);
-    }
-
-    return ""; // Void return
+    // std.mem.init was used to set __null_bit__
+    // Since structs are now value types, this is no longer needed.
+    return "";
   }
 
   protected generateSizeof(expr: AST.SizeofExpr): string {

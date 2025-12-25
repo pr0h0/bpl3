@@ -48,7 +48,7 @@ const KEYWORDS = [
   "sizeof",
   "match",
   "func",
-  "null",
+  "nullptr",
   "nullptr",
   "true",
   "false",

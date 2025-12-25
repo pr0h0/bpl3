@@ -214,11 +214,7 @@ function convertTokenNodeToToken(node: TokenNode): Token {
     );
   }
 
-  if (type === "NullLiteral") {
-    return new Token(TokenType.Null, value, null, line, column, file);
-  }
-
-  if (type === "NullptrLiteral") {
+  if (type === "NullLiteral" || type === "NullptrLiteral") {
     return new Token(TokenType.Nullptr, value, null, line, column, file);
   }
 

@@ -21,4 +21,4 @@ frame main() ret void {
 
 - Always pair `malloc` with `free`.
 - Avoid double-freeing.
-- Initialize pointers to `null` after freeing if they might be accessed again.
+- Initialize pointers to `nullptr` after freeing if they might be accessed again.

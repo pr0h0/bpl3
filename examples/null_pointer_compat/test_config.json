@@ -1,6 +1,6 @@
 {
   "expectedOutput": [
-    "=== Null/Pointer Compatibility Tests ===",
+    "=== Nullptr/Pointer Compatibility Tests ===",
     "== Test 1: nullptr for all pointers ==",
     "nullptr for all pointers: OK",
     "== Test 2: void* to typed pointers ==",
@@ -13,9 +13,9 @@
     "void* return: OK",
     "== Test 6: malloc pattern ==",
     "malloc user: id=100",
-    "== Test 7: null checks ==",
+    "== Test 7: nullptr checks ==",
     "nullptr check: OK",
-    "struct pointer null check: OK",
+    "struct pointer nullptr check: OK",
     "=== All tests passed ==="
   ],
   "args": [],

@@ -14,7 +14,6 @@ export [StackOverflowError];
 struct Error {
     message: string,
     code: int,
-
     frame new(message: string) ret Error {
         local e: Error;
         e.message = message;
@@ -45,7 +44,6 @@ struct CastError: Error {
 struct IndexOutOfBoundsError: Error {
     index: int,
     size: int,
-
     frame new(index: int, size: int) ret IndexOutOfBoundsError {
         local e: IndexOutOfBoundsError;
         e.message = "Index out of bounds";
@@ -71,7 +69,8 @@ struct EmptyError: Error {
 struct NullAccessError: Error {
     function: string,
     expression: string,
-    __null_bit__: bool,
+    line: int,
+    column: int,
 }
 
 struct DivisionByZeroError: Error {

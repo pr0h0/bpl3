@@ -5,7 +5,7 @@
     "Caught IOError: Cannot open file (code: -1)",
     "Caught IndexOutOfBoundsError: Custom index error message (index 0, size 0)",
     "Caught EmptyError: Pop from empty array",
-    "Caught NullAccessError: Attempted to access member of null object",
+    "Caught NullAccessError: Attempted to access member of nullptr",
     "Caught DivisionByZeroError"
   ],
   "args": [],

@@ -82,21 +82,21 @@ frame testMallocPattern() {
     free(userPtr);
 }
 
-# Test 7: null checks
+# Test 7: nullptr checks
 frame testNullChecks() {
-    printf("== Test 7: null checks ==\n");
+    printf("== Test 7: nullptr checks ==\n");
     local ptr: *int = nullptr;
     if (ptr == nullptr) {
         printf("nullptr check: OK\n");
     }
     local ptr2: *User = nullptr;
     if (ptr2 == nullptr) {
-        printf("struct pointer null check: OK\n");
+        printf("struct pointer nullptr check: OK\n");
     }
 }
 
 frame main() ret int {
-    printf("=== Null/Pointer Compatibility Tests ===\n");
+    printf("=== Nullptr/Pointer Compatibility Tests ===\n");
     testNullptrPointers();
     testVoidToTyped();
     testTypedToVoid();

@@ -9,7 +9,7 @@ enum List {
 }
 
 frame listSum(list: *List) ret int {
-    if (list == null) {
+    if (list == nullptr) {
         return 0;
     }
     return match (*list) {

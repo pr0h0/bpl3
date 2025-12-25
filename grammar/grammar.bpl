@@ -8,8 +8,7 @@ NumberLiteral =
   | '0o' [0-7]+ 
   | [0-9] ('_'? [0-9])* ('.' [0-9] ('_'? [0-9])*)?;
 BoolLiteral = 'true' | 'false';
-NullLiteral = 'null';
-NullptrLiteral = 'nullptr';
+NullptrLiteral = 'null' | 'nullptr';
 Identifier = [a-zA-Z_] [a-zA-Z0-9_]*;
 
 # Comments

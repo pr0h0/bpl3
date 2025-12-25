@@ -6,9 +6,9 @@
     "Test 2: Normal struct",
     "p2.x = 10, p2.y = 20",
     "",
-    "Test 3: Null struct (should trap)",
+    "Test 3: Nullptr struct (should trap)",
     "About to access p3.x...",
-    "Caught: Attempted to access member of null object in main (expr: p3.x)",
+    "Caught: Attempted to access member of nullptr in main (expr: pointer_dereference)",
     "",
     "All tests passed!"
   ],

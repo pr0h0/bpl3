@@ -721,15 +721,18 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       .map((f) => this.resolveType(f.resolvedType || f.type))
       .join(", ");
 
-    // Add hidden null-bit field at the end (i1 = 1 bit boolean)
-    const allFieldTypes = fieldTypes ? `${fieldTypes}, i1` : `i1`;
+    // Structs are pure data layouts (Value Types)
+    // We implement Empty Base Optimization (EBO) by flattening fields.
+    // If a parent struct is empty, it contributes 0 fields/bytes to the child.
+    // If the resulting struct has no fields (empty itself and empty parent),
+    // we add a dummy i8 to ensure non-zero size (standard practice).
+    const allFieldTypes = fieldTypes ? fieldTypes : `i8`;
     this.emitDeclaration(`%struct.${structName} = type { ${allFieldTypes} }`);
     this.emitDeclaration("");
 
-    // Register layout - null_bit is always the last field
+    // Register layout
     const layout = new Map<string, number>();
     fields.forEach((f, i) => layout.set(f.name, i));
-    layout.set("__null_bit__", fields.length); // Hidden null bit field
     this.structLayouts.set(structName, layout);
 
     // Generate VTable if needed

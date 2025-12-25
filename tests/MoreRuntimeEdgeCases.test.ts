@@ -163,7 +163,7 @@ describe("More Runtime Edge Cases", () => {
       const source = `
         struct Box<T> { val: T }
         frame main() {
-          local b: Box<i32, f64> = null;
+          local b: Box<i32, f64> = nullptr;
         }
       `;
       expectError(source, "argument"); // or "count", "generic"

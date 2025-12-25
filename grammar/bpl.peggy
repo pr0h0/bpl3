@@ -2,6 +2,9 @@
   // Helper utilities shared across productions
   function makeLoc(loc) {
     const filePath = (options && options.filePath) || "unknown";
+    if (loc && loc.startLine !== undefined) {
+      return loc;
+    }
     if (!loc || !loc.start || !loc.end) {
       return {
         file: filePath,
@@ -848,7 +851,6 @@ GenericArgList
 
 Primary
   = BoolLiteral
-  / NullLiteral
   / NullptrLiteral
   / NumberLiteral
   / InterpolatedStringLiteral
@@ -952,7 +954,7 @@ LambdaBody
     }
 
 PatternLiteral
-  = lit:(BoolLiteral / NumberLiteral / StringLiteral / CharLiteral / NullLiteral / NullptrLiteral) { 
+  = lit:(BoolLiteral / NumberLiteral / StringLiteral / CharLiteral / NullptrLiteral) { 
       return patternLiteral(lit, location()); 
     }
 
@@ -1083,11 +1085,8 @@ BoolLiteral
   = K_true { return literal(true, "true", "bool", location()); }
   / K_false { return literal(false, "false", "bool", location()); }
 
-NullLiteral
-  = K_null { return literal(null, "null", "null", location()); }
-
 NullptrLiteral
-  = K_nullptr { return literal(null, "nullptr", "nullptr", location()); }
+  = (K_null / K_nullptr) { return literal(null, "nullptr", "nullptr", location()); }
 
 NumberLiteral
   = raw:$(NumberToken) { return literal(parseNumber(raw), raw, "number", location()); }

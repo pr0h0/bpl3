@@ -385,7 +385,7 @@ import [Result, Ok, Err] from "std/result.bpl";
 
 frame readFile(path: string) ret Result<string, string> {
     local file: File* = fopen(path, "r");
-    if (file == null) {
+    if (file == nullptr) {
         return Err<string, string>("Failed to open file");
     }
     # ... read file ...

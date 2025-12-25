@@ -53,7 +53,7 @@ frame add(a: int, b: int) ret int {
 
 ```bpl
 frame getCurrentTime() ret long {
-    return time(null);
+    return time(nullptr);
 }
 ```
 
@@ -209,7 +209,7 @@ frame allocateBuffer(size: int) ret char* {
 
 frame findMax(arr: int*, size: int) ret int* {
     if (size == 0) {
-        return null;
+        return nullptr;
     }
     local maxPtr: int* = &arr[0];
     loop (local i: int = 1; i < size; i++) {
@@ -585,7 +585,7 @@ frame isValidAge(age: int) ret bool {
 
 frame isValidEmail(email: string) ret bool {
     # Simplified validation
-    return strchr(email, '@') != null;
+    return strchr(email, '@') != nullptr;
 }
 ```
 
@@ -616,7 +616,7 @@ initConfig(&cfg);
 3. **Limit parameters** - More than 4-5 parameters suggests refactoring needed
 4. **Limit length** - Functions longer than 50 lines often need splitting
 5. **Use pointers for large structs** - Avoid copying large amounts of data
-6. **Check pointer parameters** - Validate pointers aren't null before dereferencing
+6. **Check pointer parameters** - Validate pointers aren't nullptr before dereferencing
 7. **Return early** - Exit quickly for error cases
 8. **Consistent return** - All paths should return a value (non-void functions)
 9. **Avoid side effects** - Functions should be predictable

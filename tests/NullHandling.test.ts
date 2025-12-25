@@ -35,8 +35,8 @@ function compileAndRun(sourceCode: string) {
   }
 }
 
-describe("Null Handling", () => {
-  test("Null assignment and check", () => {
+describe("Nullptr Handling", () => {
+  test("Nullptr assignment and check", () => {
     const output = compileAndRun(`
       extern printf(fmt: *i8, ...) ret i32;
 
@@ -46,37 +46,37 @@ describe("Null Handling", () => {
       }
 
       frame main() {
-        local n: *Node = null;
+        local n: *Node = nullptr;
 
-        if (n == null) {
-            printf("n is null\\n");
+        if (n == nullptr) {
+            printf("n is nullptr\\n");
         }
 
-        if (n != null) {
-            printf("n is not null\\n");
+        if (n != nullptr) {
+            printf("n is not nullptr\\n");
         }
 
         local n2: Node;
         n2.val = 10;
-        n2.next = null;
+        n2.next = nullptr;
 
-        if (n2.next == null) {
-            printf("n2.next is null\\n");
+        if (n2.next == nullptr) {
+            printf("n2.next is nullptr\\n");
         }
       }
     `);
 
-    expect(output).toContain("n is null");
-    expect(output).toContain("n2.next is null");
+    expect(output).toContain("n is nullptr");
+    expect(output).toContain("n2.next is nullptr");
   });
 
-  test("Null pointer dereference (should crash/error)", () => {
+  test("Nullptr dereference (should crash/error)", () => {
     // This test expects a runtime crash (exit code != 0)
     const source = `
       struct Node { val: i32, }
       frame main() {
-        local n: *Node = null;
-        local x: i32 = n.val; # Dereference null
+        local n: *Node = nullptr;
+        local x: i32 = n.val; # Dereference nullptr
       }
     `;
 

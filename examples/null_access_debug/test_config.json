@@ -1,0 +1,12 @@
+{
+  "expectedOutput": [
+    "Caught NullAccessError:",
+    "Message: Attempted to access member of nullptr",
+    "Function: main",
+    "Expression: pointer_dereference",
+    "Location: 13:9"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -1,10 +1,10 @@
 {
   "expectedOutput": [
-    "=== Null Return Values Test ===",
+    "=== Nullptr Return Values Test ===",
     "",
-    "Test 1: Returning null from function",
-    "Test 2: Using returned null value",
-    "Caught: Attempted to access member of null object in processData (expr: d.value)",
+    "Test 1: Returning nullptr from function",
+    "Test 2: Using returned nullptr value",
+    "Caught: Attempted to access member of nullptr in processData (expr: pointer_dereference)",
     "Test completed successfully"
   ],
   "args": [],

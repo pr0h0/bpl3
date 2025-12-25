@@ -16,21 +16,21 @@ function compile(source: string): string {
 }
 
 describe("Edge Cases and Error Handling", () => {
-  describe("Null and Undefined Handling", () => {
-    it("should handle null pointer assignment", () => {
+  describe("Nullptr and Undefined Handling", () => {
+    it("should handle nullptr pointer assignment", () => {
       const source = `
         frame test() ret *int {
-          local p: *int = null;
+          local p: *int = nullptr;
           return p;
         }
       `;
       expect(() => compile(source)).not.toThrow();
     });
 
-    it("should reject null assignment to non-pointer", () => {
+    it("should reject nullptr assignment to non-pointer", () => {
       const source = `
         frame test() ret int {
-          local x: int = null;
+          local x: int = nullptr;
           return x;
         }
       `;
@@ -39,16 +39,16 @@ describe("Edge Cases and Error Handling", () => {
       );
     });
 
-    it("should handle null in comparisons", () => {
+    it("should handle nullptr in comparisons", () => {
       const source = `
         frame test(p: *int) ret bool {
-          return p == null;
+          return p == nullptr;
         }
       `;
       expect(() => compile(source)).not.toThrow();
     });
 
-    it("should handle null in ternary operator", () => {
+    it("should handle nullptr in ternary operator", () => {
       const source = `
         frame test() ret *int {
           return true ? nullptr : nullptr;
@@ -367,7 +367,7 @@ describe("Edge Cases and Error Handling", () => {
         }
         frame test() ret int {
           local n: Node;
-          n.next = null;
+          n.next = nullptr;
           return n.value;
         }
       `;

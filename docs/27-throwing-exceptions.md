@@ -21,4 +21,4 @@ Exceptions propagate up the call stack until they are caught by a `try-catch` bl
 
 ## Runtime-Generated Exceptions
 
-The compiler/runtime will throw `NullAccessError` automatically when you access a null object. The error includes `message`, `function`, and `expression` fields so you can inspect what went wrong when catching it.
+The compiler/runtime will throw `NullAccessError` automatically when you access a nullptr object. The error includes `message`, `function`, and `expression` fields so you can inspect what went wrong when catching it.

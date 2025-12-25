@@ -120,9 +120,9 @@ describe("Lexer - Extended Tests", () => {
       expect(tokens[0]!.type).toBe(TokenType.False);
     });
 
-    it("should tokenize 'null' keyword", () => {
-      const tokens = tokenize("null");
-      expect(tokens[0]!.type).toBe(TokenType.Null);
+    it("should tokenize 'nullptr' keyword", () => {
+      const tokens = tokenize("nullptr");
+      expect(tokens[0]!.type).toBe(TokenType.Nullptr);
     });
 
     it("should tokenize 'this' keyword", () => {

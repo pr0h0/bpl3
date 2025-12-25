@@ -5,7 +5,7 @@ struct Data {
     flag: bool,
 }
 
-frame testParam(d: Data) {
+frame testParam(d: *Data) {
     printf("In testParam\n");
     printf("d.value=%d\n", d.value);
 
@@ -15,10 +15,10 @@ frame testParam(d: Data) {
         printf("d.flag=false\n");
     }
 
-    if (d == null) {
-        printf("d is null!\n");
+    if (d == nullptr) {
+        printf("d is nullptr!\n");
     } else {
-        printf("d is NOT null\n");
+        printf("d is NOT nullptr\n");
     }
 
     printf("Accessing d.value...\n");
@@ -27,8 +27,8 @@ frame testParam(d: Data) {
 }
 
 frame main() ret int {
-    printf("Test: Passing null as parameter\n");
-    local data: Data = null;
+    printf("Test: Passing nullptr as parameter\n");
+    local data: *Data = nullptr;
 
     try {
         testParam(data);

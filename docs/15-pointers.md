@@ -11,7 +11,7 @@ Pointers are variables that store memory addresses. They are essential for dynam
 - [Pointers to Structs](#pointers-to-structs)
 - [Function Pointers](#function-pointers)
 - [Double Pointers](#double-pointers)
-- [Null Pointers](#null-pointers)
+- [Nullptr Pointers](#nullptr-pointers)
 - [Common Pointer Patterns](#common-pointer-patterns)
 - [Pointer Safety](#pointer-safety)
 
@@ -23,7 +23,7 @@ A pointer is a variable that stores the memory address of another variable.
 
 ```bpl
 local x: int = 42;
-local p: int* = &x;  # p stores the address of x
+local p: *int = &x;  # p stores the address of x
 ```
 
 **Diagram:**
@@ -40,17 +40,17 @@ Address  | Variable | Value
 
 ```bpl
 # Syntax: type*
-local int_ptr: int*;
-local float_ptr: float*;
-local char_ptr: char*;
-local str_ptr: string*;
+local int_ptr: *int;
+local float_ptr: *float;
+local char_ptr: *char;
+local str_ptr: *string;
 
 # Multiple pointers
-local p1: int*;
-local p2: int*;
+local p1: *int;
+local p2: *int;
 
 # Pointer to pointer
-local pp: int**;
+local pp: **int;
 ```
 
 ### Address-Of Operator (&)
@@ -59,7 +59,7 @@ Get the address of a variable:
 
 ```bpl
 local x: int = 10;
-local p: int* = &x;  # p now points to x
+local p: *int = &x;  # p now points to x
 
 printf("Address of x: %p\n", p);
 printf("Value of x: %d\n", x);
@@ -71,7 +71,7 @@ Access the value at the address:
 
 ```bpl
 local x: int = 10;
-local p: int* = &x;
+local p: *int = &x;
 
 local value: int = *p;  # Read value: 10
 *p = 20;                # Write value: x is now 20
@@ -84,7 +84,7 @@ printf("x = %d\n", x);  # Prints 20
 ```bpl
 frame main() ret int {
     local x: int = 42;
-    local p: int* = &x;
+    local p: *int = &x;
 
     printf("x = %d\n", x);           # 42
     printf("&x = %p\n", &x);         # Address of x
@@ -142,16 +142,16 @@ if (p1 != p3) {  # true - different addresses
 }
 ```
 
-### Null Comparison
+### Nullptr Comparison
 
 ```bpl
-local p: int* = null;
+local p: int* = nullptr;
 
-if (p == null) {
-    printf("p is null\n");
+if (p == nullptr) {
+    printf("p is nullptr\n");
 }
 
-if (p != null) {
+if (p != nullptr) {
     # Safe to dereference
     printf("Value: %d\n", *p);
 }
@@ -325,7 +325,7 @@ struct Person {
 
 frame createPerson(name: string, age: int) ret Person* {
     local p: Person* = cast<Person*>(malloc(sizeof(Person)));
-    if (p != null) {
+    if (p != nullptr) {
         p->name = name;
         p->age = age;
     }
@@ -334,7 +334,7 @@ frame createPerson(name: string, age: int) ret Person* {
 
 # Usage
 local person: Person* = createPerson("Alice", 30);
-if (person != null) {
+if (person != nullptr) {
     printf("%s is %d years old\n", person->name, person->age);
     free(person);
 }
@@ -351,17 +351,17 @@ struct Node {
 frame createNode(value: int) ret Node* {
     local node: Node* = cast<Node*>(malloc(sizeof(Node)));
     node->data = value;
-    node->next = null;
+    node->next = nullptr;
     return node;
 }
 
 frame printList(head: Node*) ret void {
     local current: Node* = head;
-    loop (current != null) {
+    loop (current != nullptr) {
         printf("%d -> ", current->data);
         current = current->next;
     }
-    printf("NULL\n");
+    printf("nullptr\n");
 }
 
 # Build a list
@@ -369,7 +369,7 @@ local head: Node* = createNode(1);
 head->next = createNode(2);
 head->next->next = createNode(3);
 
-printList(head);  # 1 -> 2 -> 3 -> NULL
+printList(head);  # 1 -> 2 -> 3 -> nullptr
 ```
 
 ## Function Pointers
@@ -486,10 +486,10 @@ frame allocateArray(arr_ptr: int**, size: int) ret void {
     *arr_ptr = cast<int*>(malloc(size * sizeof(int)));
 }
 
-local arr: int* = null;
+local arr: int* = nullptr;
 allocateArray(&arr, 10);  # arr is now allocated
 
-if (arr != null) {
+if (arr != nullptr) {
     loop (local i: int = 0; i < 10; i++) {
         arr[i] = i;
     }
@@ -520,15 +520,15 @@ loop (local i: int = 0; i < rows; i++) {
 free(matrix);
 ```
 
-## Null Pointers
+## Nullptr Pointers
 
-### The null Constant
+### The nullptr Constant
 
 ```bpl
-local p: int* = null;
+local p: int* = nullptr;
 
-if (p == null) {
-    printf("Pointer is null\n");
+if (p == nullptr) {
+    printf("Pointer is nullptr\n");
 }
 ```
 
@@ -536,24 +536,24 @@ if (p == null) {
 
 ```bpl
 frame safePrint(p: int*) ret void {
-    if (p != null) {
+    if (p != nullptr) {
         printf("Value: %d\n", *p);
     } else {
-        printf("Null pointer\n");
+        printf("Nullptr\n");
     }
 }
 ```
 
-### Null After Free
+### Nullptr After Free
 
 ```bpl
 local p: int* = cast<int*>(malloc(sizeof(int)));
 *p = 42;
 
 free(p);
-p = null;  # Good practice: prevent double-free or use-after-free
+p = nullptr;  # Good practice: prevent double-free or use-after-free
 
-if (p != null) {
+if (p != nullptr) {
     *p = 10;  # Won't execute
 }
 ```
@@ -650,16 +650,16 @@ loop (it.hasNext()) {
 
 ### Common Mistakes
 
-#### 1. Dereferencing Null Pointer
+#### 1. Dereferencing Nullptr Pointer
 
 ```bpl
 # WRONG
-local p: int* = null;
+local p: int* = nullptr;
 printf("%d\n", *p);  # CRASH!
 
 # CORRECT
-local p: int* = null;
-if (p != null) {
+local p: int* = nullptr;
+if (p != nullptr) {
     printf("%d\n", *p);
 }
 ```
@@ -694,7 +694,7 @@ local p: int* = cast<int*>(malloc(sizeof(int)));
 *p = 42;
 # ... use p ...
 free(p);
-p = null;  # Prevent accidental use
+p = nullptr;  # Prevent accidental use
 ```
 
 #### 4. Double Free
@@ -708,8 +708,8 @@ free(p);  # Double free - undefined behavior!
 # CORRECT
 local p: int* = cast<int*>(malloc(sizeof(int)));
 free(p);
-p = null;
-if (p != null) {
+p = nullptr;
+if (p != nullptr) {
     free(p);  # Won't execute
 }
 ```
@@ -736,30 +736,30 @@ loop (local i: int = 0; i < 1000; i++) {
 1. **Always initialize pointers**
 
    ```bpl
-   local p: int* = null;  # Good
+   local p: int* = nullptr;  # Good
    ```
 
 2. **Check allocation success**
 
    ```bpl
    local p: int* = cast<int*>(malloc(size));
-   if (p == null) {
+   if (p == nullptr) {
        # Handle error
        return;
    }
    ```
 
-3. **Set to null after free**
+3. **Set to nullptr after free**
 
    ```bpl
    free(p);
-   p = null;
+   p = nullptr;
    ```
 
 4. **Check before dereferencing**
 
    ```bpl
-   if (p != null) {
+   if (p != nullptr) {
        *p = value;
    }
    ```

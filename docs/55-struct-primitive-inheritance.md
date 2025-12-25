@@ -48,4 +48,4 @@ You can cast between the struct and the primitive type:
 
 The struct will contain the primitive value as its first field (conceptually `__base__`). If the struct has virtual methods (or inherits from a struct with virtual methods), it will also have a vtable pointer.
 
-If the struct has no other fields and no virtual methods, it has the same memory layout as the primitive type (plus a hidden null-bit field used for null safety).
+If the struct has no other fields and no virtual methods, it has the same memory layout as the primitive type.

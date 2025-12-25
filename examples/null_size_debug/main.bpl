@@ -6,15 +6,15 @@ struct P {
 }
 
 frame main() ret int {
-    local p: P = null;
+    local p: *P = nullptr;
     local size: int = sizeof(P);
 
     printf("sizeof(P): %d\n", size);
 
-    if (p == null) {
-        printf("p == null: true\n");
+    if (p == nullptr) {
+        printf("p == nullptr: true\n");
     } else {
-        printf("p == null: false\n");
+        printf("p == nullptr: false\n");
     }
 
     return 0;

@@ -151,19 +151,19 @@ frame doNothing() ret void {
 - Only used as return type
 - `main()` conventionally returns `int`, not `void`
 
-### Null Types
+### Nullptr Types
 
-#### null
+#### nullptr
 
-Generic null value:
+Generic nullptr value:
 
 ```bpl
-local ptr: *int = null;
+local ptr: *int = nullptr;
 ```
 
 #### nullptr
 
-Type-safe null specifically for pointers:
+Type-safe nullptr specifically for pointers:
 
 ```bpl
 local ptr: *char = nullptr;
@@ -172,7 +172,6 @@ local ptr: *char = nullptr;
 **Difference:**
 
 - `nullptr` is more type-safe and preferred for pointers
-- `null` can be used more generically
 
 ## Composite Types
 

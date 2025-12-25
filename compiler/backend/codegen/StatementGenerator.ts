@@ -222,23 +222,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         this.emit(
           `  store ${targetTypeStr} ${structVal}, ${targetTypeStr}* ${localVar}`,
         );
-
-        // Extract __null_bit__ field to update the null flag
-        const flagPtr = this.localNullFlags.get(clause.variable);
-        if (flagPtr) {
-          const structName = (clause.type as AST.BasicTypeNode)?.name;
-          const layout = this.structLayouts.get(structName);
-          const nullBitIndex = layout ? layout.get("__null_bit__") : -1;
-
-          if (nullBitIndex !== undefined && nullBitIndex >= 0) {
-            const extracted = this.newRegister();
-            this.emit(
-              `  ${extracted} = extractvalue ${targetTypeStr} ${structVal}, ${nullBitIndex}`,
-            );
-            // Store __null_bit__ directly in the flag (1=valid, 0=null)
-            this.emit(`  store i1 ${extracted}, i1* ${flagPtr}`);
-          }
-        }
       } else {
         // For primitive types, cast to i64
         const convertedVal = this.emitCast(
@@ -408,21 +391,16 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     if (llvmType.startsWith("%struct.") && !llvmType.endsWith("*")) {
       const structName = llvmType.substring(8);
       const layout = this.structLayouts.get(structName);
-      if (!layout) return "zeroinitializer";
+      if (!layout) return "undef";
 
       let val = "undef";
+      let hasInit = false;
       const sortedFields = Array.from(layout.entries()).sort(
         (a, b) => a[1] - b[1],
       );
 
       for (const [fieldName, index] of sortedFields) {
-        if (fieldName === "__null_bit__") {
-          const nextVal = this.newRegister();
-          this.emit(
-            `  ${nextVal} = insertvalue ${llvmType} ${val}, i1 1, ${index}`,
-          );
-          val = nextVal;
-        } else if (fieldName === "__vtable__") {
+        if (fieldName === "__vtable__") {
           const nextVal = this.newRegister();
           const vtableGlobal = this.vtableGlobalNames.get(structName);
           if (vtableGlobal) {
@@ -437,6 +415,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
             );
           }
           val = nextVal;
+          hasInit = true;
         } else {
           // Find field type
           const decl = this.structMap.get(structName);
@@ -446,28 +425,29 @@ export abstract class StatementGenerator extends ExpressionGenerator {
             );
             if (field) {
               const fieldDefault = this.generateDefaultValue(field.type);
-              const nextVal = this.newRegister();
-              const fieldType = this.resolveType(field.type);
-              this.emit(
-                `  ${nextVal} = insertvalue ${llvmType} ${val}, ${fieldType} ${fieldDefault}, ${index}`,
-              );
-              val = nextVal;
+              // Only insert if the field needs initialization (i.e., it's not undef)
+              if (fieldDefault !== "undef") {
+                const nextVal = this.newRegister();
+                const fieldType = this.resolveType(field.type);
+                this.emit(
+                  `  ${nextVal} = insertvalue ${llvmType} ${val}, ${fieldType} ${fieldDefault}, ${index}`,
+                );
+                val = nextVal;
+                hasInit = true;
+              }
             }
           }
         }
       }
-      return val;
+      return hasInit ? val : "undef";
     }
 
     if (llvmType.startsWith("%enum.") && !llvmType.endsWith("*")) {
       return "zeroinitializer";
     }
 
-    if (llvmType === "double" || llvmType === "float") return "0.0";
-    if (llvmType.endsWith("*")) return "null";
-    if (llvmType.startsWith("{")) return "zeroinitializer";
-
-    return "0";
+    // For primitives and pointers, return undef to represent junk data
+    return "undef";
   }
 
   protected generateVariableDecl(decl: AST.VariableDecl) {
@@ -628,7 +608,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       }
     }
 
-    // Initialize uninitialized struct variables with default values (recursively setting null bits)
+    // Initialize uninitialized struct variables with default values (only if needed, e.g. vtables)
     if (
       !decl.initializer &&
       type.startsWith("%struct.") &&
@@ -636,7 +616,9 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     ) {
       const typeNode = decl.resolvedType || decl.typeAnnotation!;
       const defaultVal = this.generateDefaultValue(typeNode);
-      this.emit(`  store ${type} ${defaultVal}, ${type}* ${addr}`);
+      if (defaultVal !== "undef") {
+        this.emit(`  store ${type} ${defaultVal}, ${type}* ${addr}`);
+      }
     }
 
     if (decl.initializer) {
@@ -734,33 +716,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         srcTypeNode,
         destTypeNode,
       );
-
-      // If returning a struct value that has a null flag, update __null_bit__ before returning
-      if (destType.startsWith("%struct.") && !destType.endsWith("*")) {
-        if (stmt.value.kind === "Identifier") {
-          const varName = (stmt.value as AST.IdentifierExpr).name;
-          const flagPtr = this.localNullFlags.get(varName);
-          if (flagPtr) {
-            // Load the flag and update __null_bit__ in the struct
-            const flagVal = this.newRegister();
-            this.emit(`  ${flagVal} = load i1, i1* ${flagPtr}`);
-
-            // Get __null_bit__ index
-            const structName = (destTypeNode as AST.BasicTypeNode)?.name;
-            const layout = this.structLayouts.get(structName);
-            const nullBitIndex = layout ? layout.get("__null_bit__") : -1;
-
-            if (nullBitIndex !== undefined && nullBitIndex >= 0) {
-              // Insert the flag value into the struct's __null_bit__ field
-              const newStructVal = this.newRegister();
-              this.emit(
-                `  ${newStructVal} = insertvalue ${destType} ${castVal}, i1 ${flagVal}, ${nullBitIndex}`,
-              );
-              castVal = newStructVal;
-            }
-          }
-        }
-      }
 
       if (isMatchYield) {
         const matchContext = this.matchStack[this.matchStack.length - 1]!;
@@ -1239,16 +1194,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
           );
           currentStruct = nextStruct;
         }
-
-        // Initialize null bit
-        if (soLayout.has("__null_bit__")) {
-          const nullBitIndex = soLayout.get("__null_bit__");
-          const nextStruct = this.newRegister();
-          this.emit(
-            `  ${nextStruct} = insertvalue %struct.StackOverflowError ${currentStruct}, i1 1, ${nullBitIndex}`,
-          );
-          currentStruct = nextStruct;
-        }
       } else {
         // Fallback for internal definition
         const nextStruct = this.newRegister();
@@ -1306,32 +1251,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
           this.emit(
             `  call void @llvm.dbg.declare(metadata ${type}* ${stackAddr}, metadata !${paramVarId}, metadata !DIExpression()), !dbg !${locationId}`,
           );
-        }
-
-        // For struct-value parameters, extract the __null_bit__ field to detect if null was passed
-        const flagPtr = this.localNullFlags.get(param.name);
-        if (flagPtr) {
-          // Load the struct and extract __null_bit__ field
-          // __null_bit__ = 1 means valid, 0 means null
-          // The flag stores the validity directly (1=valid, 0=null)
-          const loaded = this.newRegister();
-          this.emit(`  ${loaded} = load ${type}, ${type}* ${stackAddr}`);
-
-          // Get the struct layout to find __null_bit__ index
-          const structName = (
-            effectiveFuncType.paramTypes[i] as AST.BasicTypeNode
-          )?.name;
-          const layout = this.structLayouts.get(structName);
-          const nullBitIndex = layout ? layout.get("__null_bit__") : -1;
-
-          if (nullBitIndex !== undefined && nullBitIndex >= 0) {
-            const extracted = this.newRegister();
-            this.emit(
-              `  ${extracted} = extractvalue ${type} ${loaded}, ${nullBitIndex}`,
-            );
-            // Store __null_bit__ directly (1=valid, 0=null)
-            this.emit(`  store i1 ${extracted}, i1* ${flagPtr}`);
-          }
         }
       }
 

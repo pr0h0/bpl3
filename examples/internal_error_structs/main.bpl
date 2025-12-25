@@ -61,17 +61,8 @@ frame main() ret int {
     }
     # Test NullAccessError
     try {
-        # Create a null struct (simulated by casting null to struct pointer then dereferencing? No, BPL supports null assignment to structs?)
-        # Actually, BPL structs are values. Assigning null to them sets the null bit if supported.
-        # But wait, does BPL support `local p: Point = null;`?
-        # Let's try using a pointer to struct and accessing member, which might trigger it if it's a "null object" check?
-        # The code checks `objType.pointerDepth === 0`. So it's for VALUE access.
-        # How to get a null value?
-        # `local p: Point = null;` might work if parser allows it.
-        # Or `local p: Point;` (uninitialized) might be null?
-        # Let's try:
-        local p: Point = null;
-        p.x = p.y;
+        local p: *Point = nullptr;
+        local _val: int = p.x;
     } catch (e: NullAccessError) {
         printf("Caught NullAccessError: %s\n", e.message);
     } catchOther {

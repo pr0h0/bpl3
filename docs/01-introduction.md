@@ -18,7 +18,7 @@
 - **Strong static typing** - Catch errors at compile-time
 - **Type inference** - Less verbose without sacrificing safety
 - **Generics** - Write reusable code with full type checking
-- **No null pointer dereferencing** - Explicit null handling with Option types
+- **No nullptr dereferencing** - Explicit nullptr handling with Option types
 
 ### 🏗️ Modern Language Features
 
@@ -82,7 +82,7 @@ BPL provides safety features without sacrificing performance:
 
 - Static type checking prevents many bugs
 - Bounds checking can be enabled/disabled
-- Null safety through optional types
+- Nullptr safety through optional types
 - Memory safety through ownership patterns (planned)
 
 ### Simplicity and Consistency
@@ -109,7 +109,7 @@ BPL keeps the language small and consistent:
 - Modern type system with generics
 - Built-in module system
 - Exception handling
-- Safer null handling
+- Safer nullptr handling
 
 ### vs C++
 

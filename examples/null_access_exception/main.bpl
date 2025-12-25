@@ -6,14 +6,14 @@ struct Point {
 }
 
 frame main() ret int {
-    printf("Testing null access exception handling\n");
+    printf("Testing nullptr access exception handling\n");
 
     try {
-        local p: Point = null;
+        local p: *Point = nullptr;
         local _value: int = p.x; # Should throw NullAccessError
         printf("Should not reach here\n");
     } catch (e: NullAccessError) {
-        printf("Caught null access exception!\n");
+        printf("Caught nullptr access exception!\n");
         printf("Message: %s\n", e.message);
         printf("Function: %s\n", e.function);
         printf("Expression: %s\n", e.expression);

@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["p.x: 5, p.y: 10", "Success!"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

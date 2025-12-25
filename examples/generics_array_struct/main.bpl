@@ -27,7 +27,7 @@ struct Array<T> {
             this.length = this.length - 1;
             return this.data[this.length];
         }
-        # Throw error or return null, try null  if compilation fails then throw
+        # Throw error or return nullptr, try nullptr  if compilation fails then throw
         local err: string = "Array is empty";
         throw err;
     }

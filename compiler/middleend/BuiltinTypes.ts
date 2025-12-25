@@ -129,6 +129,18 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
         type: createBasicType("i8", { pointerDepth: 1 }),
         location: INTERNAL_LOCATION,
       },
+      {
+        kind: "StructField",
+        name: "line",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "column",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
     ],
     location: INTERNAL_LOCATION,
   };

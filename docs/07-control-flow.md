@@ -125,10 +125,10 @@ if (x) {  # true
     printf("x is non-zero\n");
 }
 
-# Pointers: null is false, non-null is true
-local p: int* = null;
+# Pointers: nullptr is false, non-nullptr is true
+local p: int* = nullptr;
 if (p) {  # false
-    printf("p is not null\n");
+    printf("p is not nullptr\n");
 }
 
 # Explicit comparison (preferred for clarity)
@@ -136,8 +136,8 @@ if (x != 0) {  # true
     printf("x is non-zero\n");
 }
 
-if (p != null) {  # false
-    printf("p is not null\n");
+if (p != nullptr) {  # false
+    printf("p is not nullptr\n");
 }
 ```
 
@@ -614,8 +614,8 @@ frame printMessage(msg: string) ret void {
     return;  # Optional for void functions
 }
 
-frame processData(data: int*) ret void {
-    if (data == null) {
+frame processData(data: *int) ret void {
+    if (data == nullptr) {
         return;  # Early exit
     }
     # Process data
@@ -660,8 +660,8 @@ Use early returns to reduce nesting:
 
 ```bpl
 # Instead of:
-frame process(data: int*) ret bool {
-    if (data != null) {
+frame process(data: *int) ret bool {
+    if (data != nullptr) {
         if (validate(data)) {
             if (transform(data)) {
                 return save(data);
@@ -672,8 +672,8 @@ frame process(data: int*) ret bool {
 }
 
 # Better:
-frame process(data: int*) ret bool {
-    if (data == null) {
+frame process(data: *int) ret bool {
+    if (data == nullptr) {
         return false;
     }
     if (!validate(data)) {
@@ -727,17 +727,17 @@ A common legitimate use of goto is centralized cleanup:
 
 ```bpl
 frame processFile(filename: string) ret bool {
-    local file: File* = null;
-    local buffer: char* = null;
+    local file: File* = nullptr;
+    local buffer: char* = nullptr;
     local result: bool = false;
 
     file = fopen(filename, "r");
-    if (file == null) {
+    if (file == nullptr) {
         goto cleanup;
     }
 
     buffer = cast<char*>(malloc(1024));
-    if (buffer == null) {
+    if (buffer == nullptr) {
         goto cleanup;
     }
 
@@ -748,10 +748,10 @@ frame processFile(filename: string) ret bool {
     result = processData(buffer);
 
 cleanup:
-    if (buffer != null) {
+    if (buffer != nullptr) {
         free(buffer);
     }
-    if (file != null) {
+    if (file != nullptr) {
         fclose(file);
     }
     return result;

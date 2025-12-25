@@ -19,7 +19,7 @@ frame createNode(left: *Tree, right: *Tree) ret *Tree {
 }
 
 frame sumTree(t: *Tree) ret int {
-    if (t == null) {
+    if (t == nullptr) {
         return 0;
     }
     return match (*t) {

@@ -187,6 +187,32 @@ export class CodeGenerator extends StatementGenerator {
             },
             location: internalLoc,
           },
+          {
+            kind: "StructField",
+            name: "line",
+            type: {
+              kind: "BasicType",
+              name: "int",
+              genericArgs: [],
+              pointerDepth: 0,
+              arrayDimensions: [],
+              location: internalLoc,
+            },
+            location: internalLoc,
+          },
+          {
+            kind: "StructField",
+            name: "column",
+            type: {
+              kind: "BasicType",
+              name: "int",
+              genericArgs: [],
+              pointerDepth: 0,
+              arrayDimensions: [],
+              location: internalLoc,
+            },
+            location: internalLoc,
+          },
         ],
         location: internalLoc,
       };
@@ -197,6 +223,8 @@ export class CodeGenerator extends StatementGenerator {
       nullAccessErrorLayout.set("message", 0);
       nullAccessErrorLayout.set("function", 1);
       nullAccessErrorLayout.set("expression", 2);
+      nullAccessErrorLayout.set("line", 3);
+      nullAccessErrorLayout.set("column", 4);
       this.structLayouts.set("NullAccessError", nullAccessErrorLayout);
     }
 
@@ -344,13 +372,17 @@ export class CodeGenerator extends StatementGenerator {
       !this.structMap.has("NullAccessError") ||
       this.structMap.get("NullAccessError")!.location.file === "internal"
     ) {
-      this.emitDeclaration("%struct.NullAccessError = type { i8*, i8*, i8* }");
+      this.emitDeclaration(
+        "%struct.NullAccessError = type { i8*, i8*, i8*, i32, i32 }",
+      );
       this.structLayouts.set(
         "NullAccessError",
         new Map([
           ["message", 0],
           ["function", 1],
           ["expression", 2],
+          ["line", 3],
+          ["column", 4],
         ]),
       );
     }

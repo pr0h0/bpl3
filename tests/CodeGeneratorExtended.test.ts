@@ -399,14 +399,14 @@ describe("CodeGenerator - Extended Tests", () => {
       expect(ir).toContain("i1 1");
     });
 
-    it("should generate IR for null pointer", () => {
+    it("should generate IR for nullptr pointer", () => {
       const source = `
         frame getNull() ret *int {
-          return null;
+          return nullptr;
         }
       `;
       const ir = generate(source);
-      expect(ir).toContain("null");
+      expect(ir).toContain("bitcast i8* null to i32*");
     });
 
     it("should generate IR for string literals", () => {

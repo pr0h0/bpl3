@@ -5,29 +5,31 @@ struct Data {
     flag: bool,
 }
 
-# Test assigning null after valid data
+# Test assigning nullptr after valid data
 frame testValidThenNull() {
-    printf("Test 1: Valid data then null\n");
-    local d: Data;
+    printf("Test 1: Valid data then nullptr\n");
+    local val: Data;
+    local d: *Data = &val;
     d.value = 100;
     d.flag = true;
     printf("Initial value: %d\n", d.value);
 
-    # Now assign null
-    d = null;
-    printf("Assigned null, now accessing...\n");
+    # Now assign nullptr
+    d = nullptr;
+    printf("Assigned nullptr, now accessing...\n");
     local _val: int = d.value; # Should trap
     printf("Should not reach here\n");
 }
 
-# Test null assignment in conditional
+# Test nullptr assignment in conditional
 frame testConditionalAssignment(useNull: bool) {
-    printf("Test 2: Conditional null assignment\n");
-    local d: Data;
+    printf("Test 2: Conditional nullptr assignment\n");
+    local storage: Data;
+    local d: *Data = &storage;
 
     if (useNull) {
-        d = null;
-        printf("Set to null\n");
+        d = nullptr;
+        printf("Set to nullptr\n");
     } else {
         d.value = 42;
         printf("Set to 42\n");
@@ -39,38 +41,39 @@ frame testConditionalAssignment(useNull: bool) {
     printf("Value: %d\n", val);
 }
 
-# Test reassignment from null to valid
+# Test reassignment from nullptr to valid
 frame testNullToValid() {
-    printf("Test 3: Null to valid\n");
-    local d: Data = null;
+    printf("Test 3: Nullptr to valid\n");
+    local d: *Data = nullptr;
 
-    # Create a new valid struct (not assigning fields to null object)
+    # Create a new valid struct (not assigning fields to nullptr object)
     local valid: Data;
     valid.value = 50;
     valid.flag = false;
 
     # Assign the valid struct to d
-    d = valid;
+    d = &valid;
 
     # This should work
     printf("Value after reassignment: %d\n", d.value);
 }
 
-# Test copying null between variables
+# Test copying nullptr between variables
 frame testCopyNull() {
-    printf("Test 4: Copy null between variables\n");
-    local d1: Data = null;
-    local d2: Data = d1; # Copy null
+    printf("Test 4: Copy nullptr between variables\n");
+    local d1: *Data = nullptr;
+    local d2: *Data = d1; # Copy nullptr
 
     printf("Accessing d2...\n");
     local _val: int = d2.value; # Should trap
     printf("Should not reach here\n");
 }
 
-# Test null in loop with reassignment
+# Test nullptr in loop with reassignment
 frame testLoopReassignment() {
     printf("Test 5: Loop with reassignment\n");
-    local d: Data;
+    local val: Data;
+    local d: *Data = &val;
     d.value = 0;
 
     local i: int = 0;
@@ -78,8 +81,8 @@ frame testLoopReassignment() {
         printf("Iteration %d, value: %d\n", i, d.value);
 
         if (i == 1) {
-            d = null; # Set to null on second iteration
-            printf("Set to null\n");
+            d = nullptr; # Set to nullptr on second iteration
+            printf("Set to nullptr\n");
         }
         i = i + 1;
 
@@ -90,29 +93,29 @@ frame testLoopReassignment() {
 }
 
 frame main() ret int {
-    printf("=== Null Assignment Patterns Test ===\n\n");
+    printf("=== Nullptr Assignment Patterns Test ===\n\n");
 
-    # Test 1: Valid then null
+    # Test 1: Valid then nullptr
     try {
         testValidThenNull();
         printf("ERROR: Should have thrown!\n");
     } catch (e: NullAccessError) {
         printf("Caught Test 1: %s in %s (expr: %s)\n", e.message, e.function, e.expression);
     }
-    # Test 2: Conditional assignment with null
+    # Test 2: Conditional assignment with nullptr
     try {
         testConditionalAssignment(true);
         printf("ERROR: Should have thrown!\n");
     } catch (e: NullAccessError) {
         printf("Caught Test 2: %s in %s (expr: %s)\n", e.message, e.function, e.expression);
     }
-    # Test 3: Null to valid (should NOT throw)
+    # Test 3: Nullptr to valid (should NOT throw)
     try {
         testNullToValid();
     } catch (e: NullAccessError) {
         printf("ERROR: Test 3 should not have thrown!\n");
     }
-    # Test 4: Copy null
+    # Test 4: Copy nullptr
     try {
         testCopyNull();
         printf("ERROR: Should have thrown!\n");
