@@ -8,7 +8,12 @@ Use static methods to create instances.
 
 ```bpl
 struct User {
-    frame create(name: string) ret User { ... }
+    name: string;
+    frame create(name: string) ret User {
+        local u: User;
+        u.name = name;
+        return u;
+    }
 }
 ```
 

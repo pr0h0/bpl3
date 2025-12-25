@@ -280,6 +280,16 @@ local newline: string = "Line 1\nLine 2";     # Newline character
 - `\r` - Carriage return
 - `\0` - Null terminator
 
+### Interpolated Strings
+
+Interpolated strings are enclosed in backticks (`` ` ``) and allow embedding expressions using `${...}`:
+
+```bpl
+local name: string = "BPL";
+local msg: string = `Hello, ${name}!`;
+local calc: string = `1 + 2 = ${1 + 2}`;
+```
+
 ## Character Literals
 
 Single characters are enclosed in single quotes:

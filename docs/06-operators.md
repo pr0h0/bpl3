@@ -22,22 +22,22 @@ This guide covers all operators available in BPL, their precedence, associativit
 
 BPL operators follow C-like precedence rules. Higher precedence operators bind more tightly.
 
-| Precedence  | Operators                                                   | Description                           | Associativity |
-| ----------- | ----------------------------------------------------------- | ------------------------------------- | ------------- | ------------- | ------------- |
-| 1 (highest) | `()` `[]` `.` `->`                                          | Parentheses, subscript, member access | Left to right |
-| 2           | `!` `~` `++` `--` `+` `-` `*` `&` `cast` `sizeof` `is` `as` | Unary operators                       | Right to left |
-| 3           | `*` `/` `%`                                                 | Multiplicative                        | Left to right |
-| 4           | `+` `-`                                                     | Additive                              | Left to right |
-| 5           | `<<` `>>`                                                   | Bitwise shift                         | Left to right |
-| 6           | `<` `<=` `>` `>=`                                           | Relational                            | Left to right |
-| 7           | `==` `!=`                                                   | Equality                              | Left to right |
-| 8           | `&`                                                         | Bitwise AND                           | Left to right |
-| 9           | `^`                                                         | Bitwise XOR                           | Left to right |
-| 10          | `                                                           | `                                     | Bitwise OR    | Left to right |
-| 11          | `&&`                                                        | Logical AND                           | Left to right |
-| 12          | `                                                           |                                       | `             | Logical OR    | Left to right |
-| 13          | `?:`                                                        | Ternary conditional                   | Right to left |
-| 14 (lowest) | `=` `+=` `-=` `*=` `/=` `%=` `<<=` `>>=` `&=` `^=` `        | =`                                    | Assignment    | Right to left |
+| Precedence  | Operators                                                 | Description                           | Associativity |
+| ----------- | --------------------------------------------------------- | ------------------------------------- | ------------- |
+| 1 (highest) | `()` `[]` `.`                                             | Parentheses, subscript, member access | Left to right |
+| 2           | `!` `~` `++` `--` `+` `-` `*` `&` `cast` `sizeof` `match` | Unary operators                       | Right to left |
+| 3           | `*` `/` `%`                                               | Multiplicative                        | Left to right |
+| 4           | `+` `-`                                                   | Additive                              | Left to right |
+| 5           | `<<` `>>`                                                 | Bitwise shift                         | Left to right |
+| 6           | `<` `<=` `>` `>=`                                         | Relational                            | Left to right |
+| 7           | `==` `!=`                                                 | Equality                              | Left to right |
+| 8           | `&`                                                       | Bitwise AND                           | Left to right |
+| 9           | `^`                                                       | Bitwise XOR                           | Left to right |
+| 10          | `\|`                                                      | Bitwise OR                            | Left to right |
+| 11          | `&&`                                                      | Logical AND                           | Left to right |
+| 12          | `\|\|`                                                    | Logical OR                            | Left to right |
+| 13          | `?:`                                                      | Ternary conditional                   | Right to left |
+| 14 (lowest) | `=` `+=` `-=` `*=` `/=` `%=` `<<=` `>>=` `&=` `^=` `\|=`  | Assignment                            | Right to left |
 
 ## Arithmetic Operators
 
@@ -72,39 +72,35 @@ local remainder: int = a % b;  # 1 (modulo)
 ```bpl
 local x: int = 5;
 local y: int = -x;  # Negation: -5
-local z: int = +x;  # Unary plus (identity): 5
+# Unary plus is not supported
+# local z: int = +x;
 
 # Increment/Decrement
 local count: int = 0;
-count++;  # Post-increment: count = 1
-++count;  # Pre-increment: count = 2
-count--;  # Post-decrement: count = 1
+++count;  # Pre-increment: count = 1
 --count;  # Pre-decrement: count = 0
+
+# Note: Post-increment (count++) and post-decrement (count--) are NOT supported.
 ```
 
 **Behavior:**
 
 - `++x`: Increment then return new value
-- `x++`: Return current value then increment
 - `--x`: Decrement then return new value
-- `x--`: Return current value then decrement
 
 ### Type Promotion
 
-Mixed-type arithmetic promotes to the "larger" type:
+BPL requires explicit casts for mixed-type arithmetic:
 
 ```bpl
 local i: int = 10;
 local f: float = 3.5;
-local result: float = i + f;  # int promoted to float: 13.5
+local result: float = cast<float>(i) + f;  # Explicit cast required
 ```
 
 **Promotion Rules:**
 
-1. If either operand is `double`, both become `double`
-2. If either operand is `float`, both become `float`
-3. If either operand is `long`, both become `long`
-4. Otherwise, both are `int`
+BPL does not support implicit type promotion. You must cast operands to the same type before operation.
 
 ## Comparison Operators
 
@@ -125,8 +121,10 @@ local ge: bool = (a >= b);   # Greater or equal: false
 **Pointer Comparison:**
 
 ```bpl
-local p1: int* = &a;
-local p2: int* = &b;
+local a: int = 10;
+local b: int = 20;
+local p1: *int = &a;
+local p2: *int = &b;
 local same: bool = (p1 == p2);  # Pointer equality
 ```
 
@@ -156,6 +154,9 @@ local not_result: bool = !a;      # Logical NOT: false
 **Short-Circuit Evaluation:**
 
 ```bpl
+local a: bool = true;
+local b: bool = false;
+
 # b is only evaluated if a is true
 if (a && b) {
     # ...
@@ -176,21 +177,18 @@ frame safeDivide(a: int, b: int) ret bool {
 }
 ```
 
-### Truthiness
+### Boolean Contexts
 
-Non-boolean values in logical contexts:
-
-- **Numbers:** 0 is false, non-zero is true
-- **Pointers:** `nullptr` is false, non-nullptr is true
+BPL requires explicit boolean expressions in control flow statements (`if`, `loop`). Integers and pointers are NOT automatically converted to booleans.
 
 ```bpl
 local x: int = 5;
-if (x) {  # Equivalent to: if (x != 0)
+if (x != 0) {  # Must compare explicitly
     printf("x is non-zero\n");
 }
 
-local p: int* = nullptr;
-if (!p) {  # Equivalent to: if (p == nullptr)
+local p: *int = nullptr;
+if (p == nullptr) {  # Must compare explicitly
     printf("p is nullptr\n");
 }
 ```
@@ -228,17 +226,20 @@ local right: int = x >> 1;  # Right shift: 0b10 (2)
 ### Common Bit Manipulation
 
 ```bpl
+local x: int = 0;
+local n: int = 1;
+
 # Set bit n
-x |= (1 << n);
+x = x | (1 << n);
 
 # Clear bit n
-x &= ~(1 << n);
+x = x & ~(1 << n);
 
 # Toggle bit n
-x ^= (1 << n);
+x = x ^ (1 << n);
 
 # Check if bit n is set
-if (x & (1 << n)) {
+if ((x & (1 << n)) != 0) {
     # Bit is set
 }
 
@@ -246,9 +247,11 @@ if (x & (1 << n)) {
 local low_byte: int = x & 0xFF;
 
 # Swap using XOR
-a ^= b;
-b ^= a;
-a ^= b;
+local a: int = 1;
+local b: int = 2;
+a = a ^ b;
+b = b ^ a;
+a = a ^ b;
 ```
 
 ## Assignment Operators
@@ -269,11 +272,15 @@ local a: int;
 local b: int;
 local c: int;
 
-# Chain assignments (right-to-left)
-a = b = c = 5;  # All become 5
+# Chain assignments are not supported
+c = 5;
+b = c;
+a = b;
 
 # Assignment in condition
-if ((x = getValue()) != 0) {
+local x: int;
+x = 1;
+if (x != 0) {
     # x was assigned and checked
 }
 ```
@@ -291,12 +298,12 @@ x *= 2;   # x = x * 2;   -> 24
 x /= 4;   # x = x / 4;   -> 6
 x %= 5;   # x = x % 5;   -> 1
 
-x <<= 2;  # x = x << 2;  -> 4
-x >>= 1;  # x = x >> 1;  -> 2
+x = x << 2;  # x = x << 2;  -> 4
+x = x >> 1;  # x = x >> 1;  -> 2
 
-x &= 0xF;  # x = x & 0xF;
-x |= 0x10; # x = x | 0x10;
-x ^= 0xFF; # x = x ^ 0xFF;
+x = x & 0xF;  # x = x & 0xF;
+x = x | 0x10; # x = x | 0x10;
+x = x ^ 0xFF; # x = x ^ 0xFF;
 ```
 
 **Available Compound Operators:**
@@ -307,11 +314,14 @@ x ^= 0xFF; # x = x ^ 0xFF;
 **Equivalent but more efficient:**
 
 ```bpl
+local array: int[10];
+local idx: int = 0;
+
 # Instead of:
-array[complexIndex()] = array[complexIndex()] + 1;
+array[idx] = array[idx] + 1;
 
 # Use:
-array[complexIndex()] += 1;  # Index calculated only once
+array[idx] += 1;  # Index calculated only once
 ```
 
 ## Pointer Operators
@@ -320,12 +330,14 @@ array[complexIndex()] += 1;  # Index calculated only once
 
 ```bpl
 local x: int = 42;
-local p: int* = &x;  # Get address of x
+local p: *int = &x;  # Get address of x
 ```
 
 ### Dereference Operator (\*)
 
 ```bpl
+local x: int = 0;
+local p: *int = &x;
 local value: int = *p;  # Read value at address
 *p = 100;               # Write value to address
 ```
@@ -333,14 +345,15 @@ local value: int = *p;  # Read value at address
 ### Pointer Arithmetic
 
 ```bpl
-local arr: int[5] = [1, 2, 3, 4, 5];
-local p: int* = &arr[0];
+local arr: int[5];
+arr[0] = 1; arr[1] = 2; arr[2] = 3; arr[3] = 4; arr[4] = 5;
+local p: *int = &arr[0];
 
-p++;        # Points to arr[1]
-p += 2;     # Points to arr[3]
-p--;        # Points to arr[2]
+p = &p[1];  # Points to arr[1]
+p = &p[2];  # Points to arr[3]
+p = &p[-1]; # Points to arr[2]
 
-local value: int = *(p + 1);  # Read arr[3]
+local value: int = p[1];  # Read arr[3]
 ```
 
 **Scaling:**
@@ -351,22 +364,26 @@ local value: int = *(p + 1);  # Read arr[3]
 ### Nullptr Checks
 
 ```bpl
+local p: *int = nullptr;
+local value: int;
 if (p != nullptr) {
-    local value: int = *p;  # Safe to dereference
+    value = *p;  # Safe to dereference
 }
 ```
 
 ## Cast Operator
 
 ```bpl
+extern malloc(size: int) ret *void;
+
 # Syntax: cast<TargetType>(expression)
 
 local i: int = 42;
 local f: float = cast<float>(i);      # Integer to float
 local c: char = cast<char>(65);       # Integer to char ('A')
 
-local p: void* = malloc(100);
-local ip: int* = cast<int*>(p);       # Pointer cast
+local p: *void = malloc(100);
+local ip: *int = cast<*int>(p);       # Pointer cast
 
 # Narrowing casts (may lose precision)
 local large: long = 1000000;
@@ -386,10 +403,14 @@ local small: int = cast<int>(large);  # Truncation possible
 ```bpl
 # Syntax: condition ? value_if_true : value_if_false
 
+local a: int = 10;
+local b: int = 20;
 local max: int = (a > b) ? a : b;
 
+local x: int = 5;
 local sign: string = (x >= 0) ? "positive" : "negative";
 
+local score: int = 85;
 # Nested ternary
 local category: string = (score >= 90) ? "A" :
                          (score >= 80) ? "B" :
@@ -408,8 +429,8 @@ local category: string = (score >= 90) ? "A" :
 
 ```bpl
 struct Point {
-    x: int;
-    y: int;
+    x: int,
+    y: int
 }
 
 local p: Point;
@@ -418,18 +439,23 @@ p.y = 20;
 local sum: int = p.x + p.y;
 ```
 
-### Arrow Operator (->)
+### Pointer Access
+
+To access members of a struct pointer, dereference it first:
 
 ```bpl
-local p_ptr: Point* = &p;
-p_ptr->x = 30;  # Equivalent to: (*p_ptr).x = 30;
-p_ptr->y = 40;
+struct Point { x: int, y: int }
+local p: Point;
+local p_ptr: *Point = &p;
+(*p_ptr).x = 30;
+(*p_ptr).y = 40;
 ```
 
 ## Subscript Operator
 
 ```bpl
-local arr: int[5] = [10, 20, 30, 40, 50];
+local arr: int[5];
+arr[0] = 10; arr[1] = 20; arr[2] = 30; arr[3] = 40; arr[4] = 50;
 
 local first: int = arr[0];   # 10
 local last: int = arr[4];    # 50
@@ -444,29 +470,33 @@ matrix[1][2] = 5;
 **Pointer subscripting:**
 
 ```bpl
-local p: int* = &arr[0];
-local third: int = p[2];  # Equivalent to: *(p + 2)
+local arr: int[5];
+local p: *int = &arr[0];
+local third: int = *(p + 2);  # Equivalent to: *(p + 2)
 ```
 
 ## Type Operators
 
-### Type Check (`is`)
+### Type Check (`match`)
 
-The `is` operator checks if a value is of a specific type at runtime.
+The `match` expression can check if a value matches a specific type or pattern.
 
 ```bpl
-if (x is int) {
-    printf("x is an integer\n");
+enum Option<T> { Some(T), None }
+local opt: Option<int> = Option<int>.Some(10);
+
+if (match<Option.Some>(opt)) {
+    printf("opt is Some\n");
 }
 ```
 
-### Type Cast (`as`)
+### Type Cast (`cast`)
 
-The `as` operator performs an explicit type conversion.
+The `cast` operator performs an explicit type conversion.
 
 ```bpl
 local f: float = 3.14;
-local i: int = f as int;
+local i: int = cast<int>(f);
 ```
 
 ## Sizeof Operator
@@ -475,12 +505,12 @@ local i: int = f as int;
 # Syntax: sizeof(type) or sizeof(expression)
 
 local int_size: int = sizeof(int);      # 4 (typically)
-local ptr_size: int = sizeof(void*);    # 8 on 64-bit, 4 on 32-bit
+# local ptr_size: int = sizeof(*void);    # 8 on 64-bit, 4 on 32-bit
 
 struct Data {
-    a: int;
-    b: float;
-    c: char;
+    a: int,
+    b: float,
+    c: char
 }
 
 local struct_size: int = sizeof(Data);
@@ -505,13 +535,13 @@ To provide operator-like functionality for custom types, use named methods:
 
 ```bpl
 struct Vector {
-    x: float;
-    y: float;
+    x: float,
+    y: float,
 
-    frame add(other: Vector*) ret Vector {
+    frame add(this: *Vector, other: *Vector) ret Vector {
         local result: Vector;
-        result.x = this.x + other->x;
-        result.y = this.y + other->y;
+        result.x = this.x + (*other).x;
+        result.y = this.y + (*other).y;
         return result;
     }
 }
@@ -526,6 +556,7 @@ local sum: Vector = v1.add(&v2);  # Not: v1 + v2
 ### Safe Pointer Dereferencing
 
 ```bpl
+local ptr: *int = nullptr;
 if (ptr != nullptr && *ptr > 0) {
     # Safe: nullptr check prevents dereference
 }
@@ -534,9 +565,12 @@ if (ptr != nullptr && *ptr > 0) {
 ### Conditional Assignment
 
 ```bpl
+local x: int = -5;
 # Reset to default if negative
 x = (x < 0) ? 0 : x;
 
+local min: int = 0;
+local max: int = 100;
 # Clamp to range
 x = (x < min) ? min : (x > max) ? max : x;
 ```
@@ -544,38 +578,42 @@ x = (x < min) ? min : (x > max) ? max : x;
 ### Bit Flags
 
 ```bpl
-const FLAG_READ: int = 0x01;
-const FLAG_WRITE: int = 0x02;
-const FLAG_EXECUTE: int = 0x04;
+local FLAG_READ: int = 0x01;
+local FLAG_WRITE: int = 0x02;
+local FLAG_EXECUTE: int = 0x04;
 
 local permissions: int = FLAG_READ | FLAG_WRITE;
 
 # Check flag
-if (permissions & FLAG_WRITE) {
+if ((permissions & FLAG_WRITE) != 0) {
     # Has write permission
 }
 
 # Set flag
-permissions |= FLAG_EXECUTE;
+permissions = permissions | FLAG_EXECUTE;
 
 # Clear flag
-permissions &= ~FLAG_READ;
+permissions = permissions & ~FLAG_READ;
 
 # Toggle flag
-permissions ^= FLAG_WRITE;
+permissions = permissions ^ FLAG_WRITE;
 ```
 
 ### Loop Increment
 
 ```bpl
-# Post-increment in loop
-for (local i: int = 0; i < 10; i++) {
-    # i is used, then incremented
+# Loop with increment
+local i: int = 0;
+loop (i < 10) {
+    # i is used
+    i = i + 1;
 }
 
-# Pre-increment
-for (local i: int = 0; i < 10; ++i) {
-    # i is incremented, then used (more efficient in theory)
+# Loop with pre-increment (same effect in loop body)
+i = 0;
+loop (i < 10) {
+    # i is used
+    ++i;
 }
 ```
 

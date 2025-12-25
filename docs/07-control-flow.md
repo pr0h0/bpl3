@@ -10,13 +10,13 @@ Control flow statements determine the execution order of code. BPL provides fami
 - [Match Expressions](#match-expressions)
 - [Break and Continue](#break-and-continue)
 - [Return Statement](#return-statement)
-- [Goto and Labels](#goto-and-labels)
 
 ## If Statements
 
 ### Basic If
 
 ```bpl
+local condition: bool = true;
 if (condition) {
     # Execute if condition is true
 }
@@ -35,6 +35,7 @@ if (age >= 18) {
 ### If-Else
 
 ```bpl
+local condition: bool = true;
 if (condition) {
     # Execute if true
 } else {
@@ -45,6 +46,7 @@ if (condition) {
 Example:
 
 ```bpl
+local temperature: int = 35;
 if (temperature > 30) {
     printf("It's hot\n");
 } else {
@@ -55,6 +57,10 @@ if (temperature > 30) {
 ### Else-If Chains
 
 ```bpl
+local condition1: bool = false;
+local condition2: bool = true;
+local condition3: bool = false;
+
 if (condition1) {
     # Execute if condition1 is true
 } else if (condition2) {
@@ -69,6 +75,7 @@ if (condition1) {
 Example:
 
 ```bpl
+local score: int = 85;
 if (score >= 90) {
     printf("Grade: A\n");
 } else if (score >= 80) {
@@ -85,6 +92,10 @@ if (score >= 90) {
 ### Nested If Statements
 
 ```bpl
+local hasAccount: bool = true;
+local isLoggedIn: bool = true;
+local hasPermission: bool = true;
+
 if (hasAccount) {
     if (isLoggedIn) {
         if (hasPermission) {
@@ -103,6 +114,10 @@ if (hasAccount) {
 **Better alternative using logical operators:**
 
 ```bpl
+local hasAccount: bool = true;
+local isLoggedIn: bool = true;
+local hasPermission: bool = true;
+
 if (hasAccount && isLoggedIn && hasPermission) {
     printf("Access granted\n");
 } else if (hasAccount && isLoggedIn) {
@@ -121,13 +136,13 @@ Conditions are "truthy" based on these rules:
 ```bpl
 # Numbers: 0 is false, non-zero is true
 local x: int = 5;
-if (x) {  # true
+if (x != 0) {  # true
     printf("x is non-zero\n");
 }
 
 # Pointers: nullptr is false, non-nullptr is true
-local p: int* = nullptr;
-if (p) {  # false
+local p: *int = nullptr;
+if (p != nullptr) {  # false
     printf("p is not nullptr\n");
 }
 
@@ -146,14 +161,16 @@ if (p != nullptr) {  # false
 Braces are **required** even for single statements:
 
 ```bpl
+local x: int = 1;
+
 # CORRECT
 if (x > 0) {
-    x++;
+    x = x + 1;
 }
 
 # INCORRECT - will not compile
-if (x > 0)
-    x++;
+# if (x > 0)
+#    x = x + 1;
 ```
 
 This prevents common errors like the "dangling else" problem.
@@ -165,6 +182,8 @@ BPL provides several looping constructs. Note that BPL uses `loop` instead of `w
 ### Infinite Loop
 
 ```bpl
+frame shouldStop() ret bool { return true; }
+
 loop {
     # Loops forever until break
     if (shouldStop()) {
@@ -176,6 +195,7 @@ loop {
 ### Condition-Based Loop
 
 ```bpl
+local condition: bool = false;
 loop (condition) {
     # Execute while condition is true
 }
@@ -194,8 +214,10 @@ loop (count < 10) {
 Example:
 
 ```bpl
-loop (local i: int = 0; i < 10; i++) {
+local i: int = 0;
+loop (i < 10) {
     printf("i = %d\n", i);
+    i = i + 1;
 }
 ```
 
@@ -205,27 +227,19 @@ loop (local i: int = 0; i < 10; i++) {
 2. **Condition:** Checked before each iteration
 3. **Increment:** Executed after each iteration
 
-### Loop Variable Scope
+### Loop Variables
 
-Variables declared in loop initialization are scoped to the loop:
-
-```bpl
-loop (local i: int = 0; i < 5; i++) {
-    printf("%d\n", i);
-}
-
-# ERROR: i is not accessible here
-# printf("%d\n", i);
-```
-
-To access after loop, declare outside:
+Variables used in the loop condition must be declared before the loop:
 
 ```bpl
 local i: int = 0;
-loop (i = 0; i < 5; i++) {
+loop (i < 5) {
     printf("%d\n", i);
+    i = i + 1;
 }
-printf("Final: %d\n", i);  # OK: i is 5
+
+# i is accessible here
+printf("Final: %d\n", i);
 ```
 
 ### Common Loop Patterns
@@ -233,16 +247,22 @@ printf("Final: %d\n", i);  # OK: i is 5
 **Counting up:**
 
 ```bpl
-loop (local i: int = 0; i < n; i++) {
+local n: int = 10;
+local i: int = 0;
+loop (i < n) {
     # Executes n times: i = 0, 1, 2, ..., n-1
+    i = i + 1;
 }
 ```
 
 **Counting down:**
 
 ```bpl
-loop (local i: int = n - 1; i >= 0; i--) {
+local n: int = 10;
+local i: int = n - 1;
+loop (i >= 0) {
     # Executes n times: i = n-1, n-2, ..., 1, 0
+    i = i - 1;
 }
 ```
 
@@ -250,8 +270,10 @@ loop (local i: int = n - 1; i >= 0; i--) {
 
 ```bpl
 local arr: int[10];
-loop (local i: int = 0; i < 10; i++) {
+local i: int = 0;
+loop (i < 10) {
     arr[i] = i * i;
+    i = i + 1;
 }
 ```
 
@@ -259,20 +281,25 @@ loop (local i: int = 0; i < 10; i++) {
 
 ```bpl
 local arr: int[10];
-local ptr: int* = &arr[0];
-local end: int* = &arr[10];
+local ptr: *int = &arr[0];
+local end: *int = &arr[10];
 
 loop (ptr < end) {
     *ptr = 0;
-    ptr++;
+    ptr = &ptr[1];
 }
 ```
 
 **Processing until sentinel:**
 
 ```bpl
-loop (local ch: char = getchar(); ch != '\n'; ch = getchar()) {
+extern getchar() ret char;
+frame processChar(c: char) { c; }
+
+local ch: char = getchar();
+loop (ch != '\n') {
     processChar(ch);
+    ch = getchar();
 }
 ```
 
@@ -280,11 +307,15 @@ loop (local ch: char = getchar(); ch != '\n'; ch = getchar()) {
 
 ```bpl
 # Print multiplication table
-loop (local i: int = 1; i <= 10; i++) {
-    loop (local j: int = 1; j <= 10; j++) {
+local i: int = 1;
+loop (i <= 10) {
+    local j: int = 1;
+    loop (j <= 10) {
         printf("%4d", i * j);
+        j = j + 1;
     }
     printf("\n");
+    i = i + 1;
 }
 ```
 
@@ -295,16 +326,20 @@ Switch statements allow multi-way branching based on a value.
 ### Basic Switch
 
 ```bpl
+local expression: int = 1;
+# local const constant1: int = 1;
+# local const constant2: int = 2;
+
 switch (expression) {
-    case constant1:
-        # Execute if expression == constant1
-        break;
-    case constant2:
-        # Execute if expression == constant2
-        break;
-    default:
+    case 1: {
+        # Execute if expression == 1
+    }
+    case 2: {
+        # Execute if expression == 2
+    }
+    default: {
         # Execute if no case matches
-        break;
+    }
 }
 ```
 
@@ -314,30 +349,30 @@ switch (expression) {
 local day: int = 3;
 
 switch (day) {
-    case 1:
+    case 1: {
         printf("Monday\n");
-        break;
-    case 2:
+    }
+    case 2: {
         printf("Tuesday\n");
-        break;
-    case 3:
+    }
+    case 3: {
         printf("Wednesday\n");
-        break;
-    case 4:
+    }
+    case 4: {
         printf("Thursday\n");
-        break;
-    case 5:
+    }
+    case 5: {
         printf("Friday\n");
-        break;
-    case 6:
+    }
+    case 6: {
         printf("Saturday\n");
-        break;
-    case 7:
+    }
+    case 7: {
         printf("Sunday\n");
-        break;
-    default:
+    }
+    default: {
         printf("Invalid day\n");
-        break;
+    }
 }
 ```
 
@@ -345,62 +380,26 @@ switch (day) {
 
 ```bpl
 local op: char = '+';
+local a: int = 10;
+local b: int = 20;
+local result: int = 0;
 
 switch (op) {
-    case '+':
+    case '+': {
         result = a + b;
-        break;
-    case '-':
+    }
+    case '-': {
         result = a - b;
-        break;
-    case '*':
+    }
+    case '*': {
         result = a * b;
-        break;
-    case '/':
+    }
+    case '/': {
         result = a / b;
-        break;
-    default:
+    }
+    default: {
         printf("Unknown operator\n");
-        break;
-}
-```
-
-### Fall-Through
-
-Omitting `break` causes fall-through to the next case:
-
-```bpl
-switch (ch) {
-    case 'a':
-    case 'e':
-    case 'i':
-    case 'o':
-    case 'u':
-        printf("Vowel\n");
-        break;
-    case ' ':
-    case '\t':
-    case '\n':
-        printf("Whitespace\n");
-        break;
-    default:
-        printf("Consonant\n");
-        break;
-}
-```
-
-**Warning:** Fall-through is often unintentional and can cause bugs. Use comments to indicate intentional fall-through:
-
-```bpl
-switch (state) {
-    case STATE_INIT:
-        initialize();
-        # Fall through to start processing
-    case STATE_PROCESS:
-        process();
-        break;
-    default:
-        break;
+    }
 }
 ```
 
@@ -409,27 +408,33 @@ switch (state) {
 The `default` case is optional but recommended:
 
 ```bpl
+frame handleOne() {}
+frame handleTwo() {}
+frame handleUnexpected() {}
+
+local value: int = 1;
+
 # Without default - unmatched values do nothing
 switch (value) {
-    case 1:
+    case 1: {
         handleOne();
-        break;
-    case 2:
+    }
+    case 2: {
         handleTwo();
-        break;
+    }
 }
 
 # With default - handles unexpected values
 switch (value) {
-    case 1:
+    case 1: {
         handleOne();
-        break;
-    case 2:
+    }
+    case 2: {
         handleTwo();
-        break;
-    default:
+    }
+    default: {
         handleUnexpected();
-        break;
+    }
 }
 ```
 
@@ -438,16 +443,17 @@ switch (value) {
 Case values must be compile-time constants:
 
 ```bpl
-const OPTION_A: int = 1;
-const OPTION_B: int = 2;
+# local const OPTION_A: int = 1;
+# local const OPTION_B: int = 2;
+local option: int = 1;
 
 switch (option) {
-    case OPTION_A:  # OK: constant
-        break;
-    case OPTION_B:  # OK: constant
-        break;
-    case x + 1:     # ERROR: not a constant expression
-        break;
+    case 1: { # OK: literal
+    }
+    case 2: { # OK: literal
+    }
+    # case x + 1: {    # ERROR: not a constant expression
+    # }
 }
 ```
 
@@ -473,11 +479,18 @@ local msg: string = match(s) {
 Match arms can contain blocks of code. Inside these blocks, you can use the `return` statement to yield a value for the match expression. This is different from returning from the function.
 
 ```bpl
+enum Status {
+    Ok,
+    Error(int)
+}
+
+local s: Status = Status.Ok;
+
 local result: string = match(s) {
     Status.Ok => "All good",
     Status.Error(code) => {
         if (code == 404) {
-            return "Not Found"; // Returns "Not Found" as the value of the match expression
+            return "Not Found"; # Returns "Not Found" as the value of the match expression
         }
         if (code == 500) {
             return "Server Error";
@@ -494,6 +507,17 @@ local result: string = match(s) {
 You can nest match expressions. Explicit returns will yield to the nearest enclosing match expression.
 
 ```bpl
+enum Inner {
+    Val(int),
+    Empty
+}
+
+enum Option<T> {
+    Some(T),
+    None
+}
+
+local opt: Option<Inner> = Option<Inner>.None;
 local res: int = match(opt) {
     Option.None => 0,
     Option.Some(val) => {
@@ -512,46 +536,66 @@ local res: int = match(opt) {
 Exits the innermost loop or switch:
 
 ```bpl
+local found: bool = false;
+frame search(i: int) { i; }
+frame process() {}
+local value: int = 1;
+
 # Exit loop early
-loop (local i: int = 0; i < 100; i++) {
+local i: int = 0;
+loop (i < 100) {
     if (found) {
         break;  # Exit loop
     }
     search(i);
+    i = i + 1;
 }
 
 # Exit switch
 switch (value) {
-    case 1:
+    case 1: {
         process();
-        break;  # Exit switch
+        # break;  # Implicit in BPL
+    }
 }
 ```
 
 **In nested loops, break only exits the innermost:**
 
 ```bpl
-loop (local i: int = 0; i < 10; i++) {
-    loop (local j: int = 0; j < 10; j++) {
+local shouldStop: bool = false;
+
+local i: int = 0;
+loop (i < 10) {
+    local j: int = 0;
+    loop (j < 10) {
         if (shouldStop) {
             break;  # Only exits inner loop
         }
+        j = j + 1;
     }
     # Execution continues here after break
+    i = i + 1;
 }
 ```
 
 **To break outer loop, use a flag:**
 
 ```bpl
+local shouldStop: bool = false;
+
 local done: bool = false;
-loop (local i: int = 0; i < 10 && !done; i++) {
-    loop (local j: int = 0; j < 10; j++) {
+local i: int = 0;
+loop (i < 10 && !done) {
+    local j: int = 0;
+    loop (j < 10) {
         if (shouldStop) {
             done = true;
             break;
         }
+        j = j + 1;
     }
+    i = i + 1;
 }
 ```
 
@@ -561,11 +605,14 @@ Skips to the next iteration of a loop:
 
 ```bpl
 # Skip even numbers
-loop (local i: int = 0; i < 10; i++) {
+local i: int = 0;
+loop (i < 10) {
     if (i % 2 == 0) {
+        i = i + 1;
         continue;  # Skip to next iteration
     }
     printf("%d is odd\n", i);
+    i = i + 1;
 }
 ```
 
@@ -578,7 +625,7 @@ loop (local i: int = 0; i < 10; i++) {
 ```bpl
 local i: int = 0;
 loop (i < 10) {
-    i++;
+    i = i + 1;
     if (i % 2 == 0) {
         continue;
     }
@@ -589,16 +636,26 @@ loop (i < 10) {
 ### Break and Continue with Nested Loops
 
 ```bpl
-loop (local i: int = 0; i < rows; i++) {
-    loop (local j: int = 0; j < cols; j++) {
+local rows: int = 10;
+local cols: int = 10;
+local matrix: **int = nullptr; # Mock for compilation
+frame process(val: int) { val; }
+
+local i: int = 0;
+loop (i < rows) {
+    local j: int = 0;
+    loop (j < cols) {
         if (matrix[i][j] == 0) {
+            j = j + 1;
             continue;  # Skip this cell, continue inner loop
         }
         if (matrix[i][j] < 0) {
             break;  # Exit inner loop, continue outer loop
         }
         process(matrix[i][j]);
+        j = j + 1;
     }
+    i = i + 1;
 }
 ```
 
@@ -659,6 +716,10 @@ frame classify(age: int) ret string {
 Use early returns to reduce nesting:
 
 ```bpl
+frame validate(data: *int) ret bool { data; return true; }
+frame transform(data: *int) ret bool { data; return true; }
+frame save(data: *int) ret bool { data; return true; }
+
 # Instead of:
 frame process(data: *int) ret bool {
     if (data != nullptr) {
@@ -672,7 +733,7 @@ frame process(data: *int) ret bool {
 }
 
 # Better:
-frame process(data: *int) ret bool {
+frame processBetter(data: *int) ret bool {
     if (data == nullptr) {
         return false;
     }
@@ -690,8 +751,8 @@ frame process(data: *int) ret bool {
 
 ```bpl
 struct Point {
-    x: int;
-    y: int;
+    x: int,
+    y: int
 }
 
 frame createPoint(x: int, y: int) ret Point {
@@ -701,98 +762,6 @@ frame createPoint(x: int, y: int) ret Point {
     return p;  # Returns a copy of the struct
 }
 ```
-
-## Goto and Labels
-
-BPL supports `goto` for low-level control flow, though it should be used sparingly.
-
-### Basic Goto
-
-```bpl
-frame example() ret void {
-    local i: int = 0;
-
-start:
-    printf("%d\n", i);
-    i++;
-    if (i < 10) {
-        goto start;
-    }
-}
-```
-
-### Error Handling with Goto
-
-A common legitimate use of goto is centralized cleanup:
-
-```bpl
-frame processFile(filename: string) ret bool {
-    local file: File* = nullptr;
-    local buffer: char* = nullptr;
-    local result: bool = false;
-
-    file = fopen(filename, "r");
-    if (file == nullptr) {
-        goto cleanup;
-    }
-
-    buffer = cast<char*>(malloc(1024));
-    if (buffer == nullptr) {
-        goto cleanup;
-    }
-
-    if (!readData(file, buffer)) {
-        goto cleanup;
-    }
-
-    result = processData(buffer);
-
-cleanup:
-    if (buffer != nullptr) {
-        free(buffer);
-    }
-    if (file != nullptr) {
-        fclose(file);
-    }
-    return result;
-}
-```
-
-### Breaking Out of Nested Loops
-
-```bpl
-loop (local i: int = 0; i < 100; i++) {
-    loop (local j: int = 0; j < 100; j++) {
-        if (found(i, j)) {
-            goto done;
-        }
-    }
-}
-done:
-printf("Search complete\n");
-```
-
-### Goto Restrictions
-
-- Cannot jump into a block from outside
-- Cannot jump over variable declarations (in some cases)
-- Label must be in the same function
-
-```bpl
-# ERROR: Cannot jump into block
-if (condition) {
-    label:
-        doSomething();
-}
-goto label;  # ERROR
-```
-
-**Best Practices:**
-
-- Use goto sparingly - prefer structured control flow
-- Use goto mainly for error handling and cleanup
-- Label names should be descriptive: `cleanup`, `error`, `done`
-- Don't use goto to create spaghetti code
 
 ## Control Flow Best Practices
 
@@ -812,20 +781,26 @@ goto label;  # ERROR
 ### Search Loop
 
 ```bpl
+local size: int = 10;
+local array: int[10];
+local target: int = 5;
 local found: bool = false;
 local index: int = -1;
 
-loop (local i: int = 0; i < size && !found; i++) {
+local i: int = 0;
+loop (i < size && !found) {
     if (array[i] == target) {
         found = true;
         index = i;
     }
+    i = i + 1;
 }
 ```
 
 ### Input Validation Loop
 
 ```bpl
+extern scanf(fmt: string, ptr: *int);
 local input: int;
 loop (true) {
     printf("Enter a positive number: ");
@@ -840,6 +815,10 @@ loop (true) {
 ### Menu Loop
 
 ```bpl
+frame add() {}
+frame remove() {}
+extern scanf(fmt: string, ptr: *int);
+
 local choice: int;
 loop (true) {
     printf("1. Add\n");
@@ -848,17 +827,18 @@ loop (true) {
     scanf("%d", &choice);
 
     switch (choice) {
-        case 1:
+        case 1: {
             add();
-            break;
-        case 2:
+        }
+        case 2: {
             remove();
-            break;
-        case 3:
-            return;
-        default:
+        }
+        case 3: {
+            return 0;
+        }
+        default: {
             printf("Invalid choice\n");
-            break;
+        }
     }
 }
 ```

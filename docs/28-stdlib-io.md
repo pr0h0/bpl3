@@ -5,7 +5,7 @@ The standard library provides functions for input and output.
 ## Printing
 
 ```bpl
-extern frame printf(fmt: string, ...);
+extern printf(fmt: string, ...);
 
 frame main() ret void {
     printf("Hello, %s!\n", "World");

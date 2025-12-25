@@ -18,6 +18,15 @@ multi-line comment
 #/
 ```
 
+### Literals
+
+- **String**: `"Hello"`
+- **Interpolated String**: `` `Value: ${x}` ``
+- **Char**: `'c'`
+- **Boolean**: `true`, `false`
+- **Null**: `null`, `nullptr`
+- **Numbers**: `123`, `0xFF`, `3.14`
+
 ## 1. Types
 
 ### Primitive Types

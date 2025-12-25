@@ -7,8 +7,8 @@ BPL allows structs to inherit from primitive types, enabling you to create speci
 ```bpl
 struct MyInt : int {
     # Methods can be added
-    frame isEven(this: MyInt) ret bool {
-        return (cast<int>(this) % 2) == 0;
+    frame isEven(this: *MyInt) ret bool {
+        return (*cast<*int>(this) % 2) == 0;
     }
 }
 ```

@@ -20,9 +20,12 @@ Structs (structures) allow you to group related data into a single composite typ
 ### Basic Syntax
 
 ```bpl
+type type1 = int;
+type type2 = int;
+
 struct StructName {
-    member1: type1;
-    member2: type2;
+    member1: type1,
+    member2: type2,
     # ... more members
 }
 ```
@@ -31,14 +34,14 @@ struct StructName {
 
 ```bpl
 struct Point {
-    x: int;
-    y: int;
+    x: int,
+    y: int
 }
 
 struct Person {
-    name: string;
-    age: int;
-    height: float;
+    name: string,
+    age: int,
+    height: float
 }
 ```
 
@@ -58,17 +61,17 @@ Members are declared with a name and type:
 
 ```bpl
 struct Rectangle {
-    x: int;
-    y: int;
-    width: int;
-    height: int;
+    x: int,
+    y: int,
+    width: int,
+    height: int
 }
 
 struct Color {
-    red: i8;
-    green: i8;
-    blue: i8;
-    alpha: i8;
+    red: i8,
+    green: i8,
+    blue: i8,
+    alpha: i8
 }
 ```
 
@@ -77,26 +80,31 @@ struct Color {
 All BPL types can be struct members:
 
 ```bpl
+struct Point {
+    x: int,
+    y: int
+}
+
 struct Complex {
     # Primitives
-    id: int;
-    value: float;
-    flag: bool;
-    symbol: char;
+    id: int,
+    value: float,
+    flag: bool,
+    symbol: char,
 
     # Pointers
-    next: Complex*;
-    data: int*;
+    next: *Complex,
+    data: *int,
 
     # Arrays
-    buffer: char[256];
-    matrix: int[3][3];
+    buffer: char[256],
+    matrix: int[3][3],
 
     # Strings
-    name: string;
+    name: string,
 
     # Other structs
-    position: Point;
+    position: Point
 }
 ```
 
@@ -105,28 +113,52 @@ struct Complex {
 Members are not automatically initialized:
 
 ```bpl
-local p: Point;
-# p.x and p.y contain garbage values!
+struct Point {
+    x: int,
+    y: int
+}
+
+frame main() ret int {
+    local p: Point;
+    # p.x and p.y contain garbage values!
+    return p.x;
+}
 ```
 
 You must initialize manually:
 
 ```bpl
-local p: Point;
-p.x = 0;
-p.y = 0;
+struct Point {
+    x: int,
+    y: int
+}
+
+frame main() ret int {
+    local p: Point;
+    p.x = 0;
+    p.y = 0;
+    return 0;
+}
 ```
 
 Or use an initialization function/constructor:
 
 ```bpl
-frame initPoint(p: Point*) ret void {
-    p->x = 0;
-    p->y = 0;
+struct Point {
+    x: int,
+    y: int
 }
 
-local p: Point;
-initPoint(&p);
+frame initPoint(p: *Point) ret void {
+    (*p).x = 0;
+    (*p).y = 0;
+}
+
+frame main() ret int {
+    local p: Point;
+    initPoint(&p);
+    return 0;
+}
 ```
 
 ## Creating Instances
@@ -134,6 +166,11 @@ initPoint(&p);
 ### Stack Allocation
 
 ```bpl
+struct Point {
+    x: int,
+    y: int
+}
+
 # Declare variable
 local p: Point;
 
@@ -145,34 +182,57 @@ p.y = 20;
 ### Heap Allocation
 
 ```bpl
+extern malloc(size: int) ret *void;
+extern free(ptr: *void);
+
+struct Point {
+    x: int,
+    y: int
+}
+
 # Allocate memory
-local p: Point* = cast<Point*>(malloc(sizeof(Point)));
+local p: *Point = cast<*Point>(malloc(sizeof(Point)));
 
 # Initialize members
-p->x = 10;
-p->y = 20;
+(*p).x = 10;
+(*p).y = 20;
 
 # Remember to free
-free(p);
+free(cast<*void>(p));
 ```
 
 ### Array of Structs
 
 ```bpl
-# Stack array
-local points: Point[10];
-loop (local i: int = 0; i < 10; i++) {
-    points[i].x = i;
-    points[i].y = i * i;
+extern malloc(size: int) ret *void;
+extern free(ptr: *void);
+
+struct Point {
+    x: int,
+    y: int
 }
 
-# Heap array
-local points: Point* = cast<Point*>(malloc(10 * sizeof(Point)));
-loop (local i: int = 0; i < 10; i++) {
-    points[i].x = i;
-    points[i].y = i * i;
+frame main() ret int {
+    # Stack array
+    local points: Point[10];
+    local i: int = 0;
+    loop (i < 10) {
+        points[i].x = i;
+        points[i].y = i * i;
+        i = i + 1;
+    }
+
+    # Heap array
+    local heap_points: *Point = cast<*Point>(malloc(10 * cast<int>(sizeof(Point))));
+    i = 0;
+    loop (i < 10) {
+        (*(heap_points + i)).x = i;
+        (*(heap_points + i)).y = i * i;
+        i = i + 1;
+    }
+    free(cast<*void>(heap_points));
+    return 0;
 }
-free(points);
 ```
 
 ## Accessing Members
@@ -182,6 +242,11 @@ free(points);
 Use `.` for direct struct access:
 
 ```bpl
+struct Point {
+    x: int,
+    y: int
+}
+
 local p: Point;
 p.x = 10;
 p.y = 20;
@@ -191,16 +256,23 @@ local sum: int = p.x + p.y;
 printf("Point: (%d, %d)\n", p.x, p.y);
 ```
 
-### Arrow Operator
+### Pointer Access
 
-Use `->` for pointer-to-struct access:
+Use `*` to dereference a pointer before accessing members, or use `.` directly (automatic dereference):
 
 ```bpl
-local p: Point*= cast<Point*>(malloc(sizeof(Point)));
-p->x = 10;
-p->y = 20;
+extern malloc(size: int) ret *void;
 
-printf("Point: (%d, %d)\n", p->x, p->y);
+struct Point {
+    x: int,
+    y: int
+}
+
+local p: *Point = cast<*Point>(malloc(sizeof(Point)));
+(*p).x = 10;
+p.y = 20;  # Automatic dereference
+
+printf("Point: (%d, %d)\n", (*p).x, (*p).y);
 
 # Equivalent to:
 (*p).x = 10;
@@ -210,9 +282,14 @@ printf("Point: (%d, %d)\n", p->x, p->y);
 ### Nested Member Access
 
 ```bpl
+struct Point {
+    x: int,
+    y: int
+}
+
 struct Line {
-    start: Point;
-    end: Point;
+    start: Point,
+    end: Point
 }
 
 local line: Line;
@@ -222,9 +299,9 @@ line.end.x = 100;
 line.end.y = 100;
 
 # With pointers
-local line_ptr: Line* = &line;
-line_ptr->start.x = 5;
-line_ptr->end.y = 50;
+local line_ptr: *Line = &line;
+(*line_ptr).start.x = 5;
+(*line_ptr).end.y = 50;
 ```
 
 ## Struct Methods
@@ -234,24 +311,26 @@ BPL supports methods - functions that belong to a struct:
 ### Defining Methods
 
 ```bpl
+frame sqrt(x: float) ret float { return x; }
+
 struct Point {
-    x: int;
-    y: int;
+    x: int,
+    y: int,
 
     # Method declaration inside struct
-    frame print() ret void {
+    frame print(this: *Point) ret void {
         printf("(%d, %d)\n", this.x, this.y);
     }
 
-    frame distance(other: Point*) ret float {
-        local dx: int = this.x - other->x;
-        local dy: int = this.y - other->y;
+    frame distance(this: *Point, other: *Point) ret float {
+        local dx: int = this.x - (*other).x;
+        local dy: int = this.y - (*other).y;
         return sqrt(cast<float>(dx * dx + dy * dy));
     }
 
-    frame move(dx: int, dy: int) ret void {
-        this.x += dx;
-        this.y += dy;
+    frame move(this: *Point, dx: int, dy: int) ret void {
+        this.x = this.x + dx;
+        this.y = this.y + dy;
     }
 }
 ```
@@ -262,17 +341,17 @@ Inside methods, `this` refers to the current instance:
 
 ```bpl
 struct Counter {
-    count: int;
+    count: int,
 
-    frame increment() ret void {
-        this.count++;  # Access member through this
+    frame increment(this: *Counter) ret void {
+        this.count = this.count + 1;  # Access member through this
     }
 
-    frame reset() ret void {
+    frame reset(this: *Counter) ret void {
         this.count = 0;
     }
 
-    frame getValue() ret int {
+    frame getValue(this: *Counter) ret int {
         return this.count;
     }
 }
@@ -281,6 +360,28 @@ struct Counter {
 ### Calling Methods
 
 ```bpl
+frame sqrt(x: float) ret float { return x; }
+
+struct Point {
+    x: int,
+    y: int,
+
+    frame print(this: *Point) ret void {
+        printf("(%d, %d)\n", this.x, this.y);
+    }
+
+    frame distance(this: *Point, other: *Point) ret float {
+        local dx: int = this.x - (*other).x;
+        local dy: int = this.y - (*other).y;
+        return sqrt(cast<float>(dx * dx + dy * dy));
+    }
+
+    frame move(this: *Point, dx: int, dy: int) ret void {
+        this.x = this.x + dx;
+        this.y = this.y + dy;
+    }
+}
+
 local p: Point;
 p.x = 10;
 p.y = 20;
@@ -299,11 +400,29 @@ p.print();  # Now at (15, 15)
 ### Methods with Pointers
 
 ```bpl
-local p: Point* = cast<Point*>(malloc(sizeof(Point)));
-p->x = 10;
-p->y = 20;
-p->print();  # Works with pointers too
-p->move(5, 5);
+extern malloc(size: int) ret *void;
+extern free(ptr: *void);
+
+struct Point {
+    x: int,
+    y: int,
+
+    frame print(this: *Point) ret void {
+        printf("(%d, %d)\n", this.x, this.y);
+    }
+
+    frame move(this: *Point, dx: int, dy: int) ret void {
+        this.x = this.x + dx;
+        this.y = this.y + dy;
+    }
+}
+
+local p: *Point = cast<*Point>(malloc(sizeof(Point)));
+(*p).x = 10;
+(*p).y = 20;
+(*p).print();  # Works with pointers too
+(*p).move(5, 5);
+free(cast<*void>(p));
 ```
 
 ## Constructors and Destructors
@@ -314,15 +433,15 @@ BPL doesn't have automatic constructors/destructors, but you can use special met
 
 ```bpl
 struct Person {
-    name: string;
-    age: int;
+    name: string,
+    age: int,
 
-    frame init(n: string, a: int) ret void {
+    frame init(this: *Person, n: string, a: int) ret void {
         this.name = n;
         this.age = a;
     }
 
-    frame print() ret void {
+    frame print(this: *Person) ret void {
         printf("%s, age %d\n", this.name, this.age);
     }
 }
@@ -336,29 +455,35 @@ p.print();
 ### Destructor Pattern
 
 ```bpl
-struct Buffer {
-    data: char*;
-    size: int;
+extern malloc(size: int) ret *void;
+extern free(ptr: *void);
 
-    frame init(s: int) ret void {
-        this.data = cast<char*>(malloc(s));
+struct Buffer {
+    data: *char,
+    size: int,
+
+    frame init(this: *Buffer, s: int) ret void {
+        this.data = cast<*char>(malloc(s));
         this.size = s;
     }
 
-    frame cleanup() ret void {
+    frame cleanup(this: *Buffer) ret void {
         if (this.data != nullptr) {
-            free(this.data);
+            free(cast<*void>(this.data));
             this.data = nullptr;
             this.size = 0;
         }
     }
 }
 
-# Usage
-local buf: Buffer;
-buf.init(1024);
-# ... use buffer ...
-buf.cleanup();  # Must call manually!
+frame main() ret int {
+    # Usage
+    local buf: Buffer;
+    buf.init(1024);
+    # ... use buffer ...
+    buf.cleanup();  # Must call manually!
+    return 0;
+}
 ```
 
 ### Factory Functions
@@ -366,6 +491,11 @@ buf.cleanup();  # Must call manually!
 Alternative to constructors:
 
 ```bpl
+struct Point {
+    x: int,
+    y: int,
+}
+
 frame createPoint(x: int, y: int) ret Point {
     local p: Point;
     p.x = x;
@@ -379,30 +509,30 @@ local p: Point = createPoint(10, 20);
 
 ## Inheritance
 
-BPL supports single inheritance using the `extends` keyword:
+BPL supports single inheritance using the `:` syntax:
 
 ### Basic Inheritance
 
 ```bpl
 struct Animal {
-    name: string;
-    age: int;
+    name: string,
+    age: int,
 
-    frame speak() ret void {
+    frame speak(this: *Animal) ret void {
         printf("%s makes a sound\n", this.name);
     }
 }
 
-struct Dog extends Animal {
-    breed: string;
+struct Dog : Animal {
+    breed: string,
 
     # Override speak
-    frame speak() ret void {
+    frame speak(this: *Dog) ret void {
         printf("%s barks\n", this.name);
     }
 
     # New method
-    frame fetch() ret void {
+    frame fetch(this: *Dog) ret void {
         printf("%s fetches the ball\n", this.name);
     }
 }
@@ -411,6 +541,29 @@ struct Dog extends Animal {
 ### Using Inherited Members
 
 ```bpl
+struct Animal {
+    name: string,
+    age: int,
+
+    frame speak(this: *Animal) ret void {
+        printf("%s makes a sound\n", this.name);
+    }
+}
+
+struct Dog : Animal {
+    breed: string,
+
+    # Override speak
+    frame speak(this: *Dog) ret void {
+        printf("%s barks\n", this.name);
+    }
+
+    # New method
+    frame fetch(this: *Dog) ret void {
+        printf("%s fetches the ball\n", this.name);
+    }
+}
+
 local dog: Dog;
 dog.name = "Buddy";  # Inherited from Animal
 dog.age = 3;         # Inherited from Animal
@@ -426,53 +579,57 @@ Derived structs can override base methods:
 
 ```bpl
 struct Shape {
-    x: int;
-    y: int;
+    x: int,
+    y: int,
 
-    frame area() ret float {
+    frame area(this: *Shape) ret float {
         return 0.0;  # Default implementation
     }
 }
 
-struct Circle extends Shape {
-    radius: float;
+struct Circle : Shape {
+    radius: float,
 
-    frame area() ret float {
+    frame area(this: *Circle) ret float {
         return 3.14159 * this.radius * this.radius;
     }
 }
 
-struct Rectangle extends Shape {
-    width: float;
-    height: float;
+struct Rectangle : Shape {
+    width: float,
+    height: float,
 
-    frame area() ret float {
+    frame area(this: *Rectangle) ret float {
         return this.width * this.height;
     }
 }
+
+local c: Circle;
+c.radius = 5.0;
+local a: float = c.area();
 ```
 
 ### Multi-Level Inheritance
 
 ```bpl
 struct Vehicle {
-    speed: int;
+    speed: int,
 
-    frame move() ret void {
+    frame move(this: *Vehicle) ret void {
         printf("Moving at %d mph\n", this.speed);
     }
 }
 
-struct Car extends Vehicle {
-    doors: int;
+struct Car : Vehicle {
+    doors: int
 }
 
-struct SportsCar extends Car {
-    turbo: bool;
+struct SportsCar : Car {
+    turbo: bool,
 
-    frame boost() ret void {
+    frame boost(this: *SportsCar) ret void {
         if (this.turbo) {
-            this.speed += 20;
+            this.speed = this.speed + 20;
         }
     }
 }
@@ -493,16 +650,18 @@ Structs can contain other structs as members:
 ### Composition
 
 ```bpl
+frame sqrt(x: float) ret float { return x; }
+
 struct Point {
-    x: int;
-    y: int;
+    x: int,
+    y: int
 }
 
 struct Line {
-    start: Point;
-    end: Point;
+    start: Point,
+    end: Point,
 
-    frame length() ret float {
+    frame length(this: *Line) ret float {
         local dx: int = this.end.x - this.start.x;
         local dy: int = this.end.y - this.start.y;
         return sqrt(cast<float>(dx * dx + dy * dy));
@@ -521,20 +680,20 @@ printf("Length: %f\n", line.length());  # 5.0
 
 ```bpl
 struct Address {
-    street: string;
-    city: string;
-    zip: string;
+    street: string,
+    city: string,
+    zip: string
 }
 
 struct Contact {
-    phone: string;
-    email: string;
-    address: Address;
+    phone: string,
+    email: string,
+    address: Address
 }
 
 struct Person {
-    name: string;
-    contact: Contact;
+    name: string,
+    contact: Contact
 }
 
 local person: Person;
@@ -551,48 +710,63 @@ person.contact.address.zip = "12345";
 ### Basic Pointer Usage
 
 ```bpl
+struct Point {
+    x: int,
+    y: int
+}
+
 local p: Point;
 p.x = 10;
 p.y = 20;
 
 local ptr: *Point = &p;
-printf("(%d, %d)\n", ptr.x, ptr.y);
+printf("(%d, %d)\n", (*ptr).x, (*ptr).y);
 
-ptr.x = 30;
+(*ptr).x = 30;
 printf("(%d, %d)\n", p.x, p.y);  # Now (30, 20)
 ```
 
 ### Dynamic Allocation
 
 ```bpl
+extern malloc(size: int) ret *void;
+extern free(ptr: *void);
+
+struct Point {
+    x: int,
+    y: int
+}
+
 local p: *Point = cast<*Point>(malloc(sizeof(Point)));
 if (p == nullptr) {
     printf("Allocation failed\n");
     return 1;
 }
 
-p.x = 10;
-p.y = 20;
+(*p).x = 10;
+(*p).y = 20;
 
 # Use the struct...
 
-free(p);
+free(cast<*void>(p));
 ```
 
 ### Linked Structures
 
 ```bpl
-struct Node {
-    data: int;
-    next: *Node;
+extern malloc(size: int) ret *void;
 
-    frame append(value: int) ret void {
+struct Node {
+    data: int,
+    next: *Node,
+
+    frame append(this: *Node, value: int) ret void {
         if (this.next == nullptr) {
             this.next = cast<*Node>(malloc(sizeof(Node)));
-            this.next.data = value;
-            this.next.next = nullptr;
+            (*this.next).data = value;
+            (*this.next).next = nullptr;
         } else {
-            this.next.append(value);
+            (*this.next).append(value);
         }
     }
 }
@@ -609,6 +783,11 @@ head.append(3);
 ### Stack-Allocated Array
 
 ```bpl
+struct Point {
+    x: int,
+    y: int
+}
+
 local points: Point[3];
 points[0].x = 0;
 points[0].y = 0;
@@ -617,39 +796,58 @@ points[1].y = 10;
 points[2].x = 20;
 points[2].y = 20;
 
-loop (local i: int = 0; i < 3; i++) {
+local i: int = 0;
+loop (i < 3) {
     printf("Point %d: (%d, %d)\n", i, points[i].x, points[i].y);
+    i = i + 1;
 }
 ```
 
 ### Heap-Allocated Array
 
 ```bpl
-local size: int = 10;
-local points: Point* = cast<Point*>(malloc(size * sizeof(Point)));
+extern malloc(size: int) ret *void;
+extern free(ptr: *void);
 
-loop (local i: int = 0; i < size; i++) {
-    points[i].x = i;
-    points[i].y = i * i;
+struct Point {
+    x: int,
+    y: int
 }
 
-free(points);
+frame main() ret int {
+    local size: int = 10;
+    local points: *Point = cast<*Point>(malloc(size * cast<int>(sizeof(Point))));
+
+    local i: int = 0;
+    loop (i < size) {
+        (*(points + i)).x = i;
+        (*(points + i)).y = i * i;
+        i = i + 1;
+    }
+
+    free(cast<*void>(points));
+    return 0;
+}
 ```
 
 ### Multi-Dimensional Arrays
 
 ```bpl
 struct Cell {
-    value: int;
-    visited: bool;
+    value: int,
+    visited: bool
 }
 
 local grid: Cell[10][10];
-loop (local i: int = 0; i < 10; i++) {
-    loop (local j: int = 0; j < 10; j++) {
+local i: int = 0;
+loop (i < 10) {
+    local j: int = 0;
+    loop (j < 10) {
         grid[i][j].value = i * 10 + j;
         grid[i][j].visited = false;
+        j = j + 1;
     }
+    i = i + 1;
 }
 ```
 
@@ -659,17 +857,17 @@ loop (local i: int = 0; i < 10; i++) {
 
 ```bpl
 struct Compact {
-    a: i8;
-    b: i8;
+    a: u8,
+    b: u8
 }
 
 struct Padded {
-    a: i8;
-    b: int;
+    a: u8,
+    b: int
 }
 
 printf("Compact: %d bytes\n", sizeof(Compact));  # 2
-printf("Padded: %d bytes\n", sizeof(Padded));    # 8 (due to alignment)
+printf("Padded: %d bytes\n", sizeof(Padded));    # 16 (due to alignment)
 ```
 
 ### Memory Layout
@@ -678,14 +876,14 @@ Struct members are laid out in declaration order, but may include padding for al
 
 ```bpl
 struct Example {
-    a: i8;    # Offset 0
-    # 3 bytes padding
-    b: int;   # Offset 4
-    c: i16;   # Offset 8
-    # 2 bytes padding
-    d: i64;   # Offset 12 (aligned to 8 bytes)
+    a: u8,    # Offset 0
+    # 7 bytes padding
+    b: int,   # Offset 8
+    c: u16,   # Offset 16
+    # 6 bytes padding
+    d: int    # Offset 24
 }
-# Total size: 20 bytes (16 + 4 bytes trailing padding)
+# Total size: 32 bytes
 ```
 
 ## Common Patterns
@@ -694,14 +892,14 @@ struct Example {
 
 ```bpl
 struct Option<T> {
-    hasValue: bool;
-    value: T;
+    hasValue: bool,
+    value: T,
 
-    frame isSome() ret bool {
+    frame isSome(this: *Option<T>) ret bool {
         return this.hasValue;
     }
 
-    frame isNone() ret bool {
+    frame isNone(this: *Option<T>) ret bool {
         return !this.hasValue;
     }
 }
@@ -716,36 +914,38 @@ frame divide(a: int, b: int) ret Option<int> {
     result.value = a / b;
     return result;
 }
+
+local res: Option<int> = divide(10, 2);
 ```
 
 ### Builder Pattern
 
 ```bpl
 struct Config {
-    width: int;
-    height: int;
-    fullscreen: bool;
-    vsync: bool;
+    width: int,
+    height: int,
+    fullscreen: bool,
+    vsync: bool,
 
-    frame setWidth(w: int) ret Config* {
+    frame setWidth(this: *Config, w: int) ret *Config {
         this.width = w;
-        return &this;
+        return this;
     }
 
-    frame setHeight(h: int) ret Config* {
+    frame setHeight(this: *Config, h: int) ret *Config {
         this.height = h;
-        return &this;
+        return this;
     }
 
-    frame setFullscreen(f: bool) ret Config* {
+    frame setFullscreen(this: *Config, f: bool) ret *Config {
         this.fullscreen = f;
-        return &this;
+        return this;
     }
 }
 
 # Usage
 local cfg: Config;
-cfg.setWidth(1920)->setHeight(1080)->setFullscreen(true);
+cfg.setWidth(1920).setHeight(1080).setFullscreen(true);
 ```
 
 ## Best Practices
