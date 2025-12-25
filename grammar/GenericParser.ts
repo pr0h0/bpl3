@@ -30,7 +30,7 @@ export class GenericParser {
     private readonly grammar: Grammar,
     private readonly source: string,
     private readonly filePath: string = "<memory>",
-  ) { }
+  ) {}
 
   private readonly keywords = new Set([
     "global",

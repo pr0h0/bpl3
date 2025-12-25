@@ -295,6 +295,7 @@ frame createArray() ret int[10] {
 ```
 
 # CORRECT - Return pointer
+
 ```bpl
 extern malloc(size: int) ret *void;
 
@@ -718,6 +719,7 @@ frame calculate(x: int) ret int {
 ```
 
 # CORRECT
+
 ```bpl
 frame calculate(x: int) ret int {
     if (x > 0) {

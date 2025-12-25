@@ -21,6 +21,19 @@ The following features are recommended for implementation next:
 
 ## 📋 COMPLETED FEATURES
 
+## [1] ✅ Parser Optimization (COMPLETED)
+
+**Description:** Optimize the Peggy parser to reduce compilation time for large files (e.g., 5000+ functions) by minimizing object allocation during AST construction.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Location Handling**: Removed `normalizeLoc` overhead and optimized `mergeLoc` to avoid intermediate object creation.
+- ✅ **AST Construction**: Updated `IfStatement` and other rules to use optimized location helpers.
+- ✅ **Performance**: Reduced parsing time for massive files from ~8s to ~4s (best case).
+- ✅ **Verification**: Verified with `tests/Integration.test.ts` and specific location tests.
+
 ---
 
 ## [6] ✅ Internal Error Structs (COMPLETED)
@@ -372,53 +385,7 @@ The following features are recommended for implementation next:
 
 ---
 
-## [6] ✅ Explicit Memory Initialization (COMPLETED)
-
-**Description:** Provide a mechanism to initialize raw memory (e.g., from `malloc`) as a valid object by setting internal flags (like `__null_bit__`). This allows using manually allocated memory without calling a constructor, which is useful for arrays of structs or custom allocators.
-
-**Implementation Status:** ✅ Fully Implemented (December 2025)
-
-**What Was Implemented:**
-
-- ✅ `std.mem.init<T>(ptr: *T)` intrinsic in `lib/mem.bpl`
-- ✅ CodeGenerator support to set `__null_bit__` to 1
-- ✅ Verified with `examples/manual_memory/`
-
-**Acceptance Criteria:**
-
-- `local ptr: *User = malloc(...)` followed by `std.mem.init(ptr)` makes `ptr` valid
-- Accessing members of initialized pointer does not throw `NullAccessError`
-- Works for single objects and arrays
-
----
-
-- Clear error messages when narrowing to incompatible types
-
----
-
----
-
-## [5] Documentation Generation Tool
-
-**Description:** Tool to parse source comments and generate API documentation (HTML/Markdown) for language, libraries, and runtime. This enables projects to produce professional API documentation automatically from source code, improving accessibility and maintainability.
-
-**Implementation Notes:**
-
-- Reuse the parser/AST to extract doc comments and signatures
-- Support multiple comment formats (JSDoc-style, Rustdoc-style)
-- Extract type signatures, parameters, return types, examples
-- Provide templates for different output formats (HTML, Markdown, etc.)
-- Add command-line options for customizing output
-- Documentation covers the stdlib and sample modules
-- Output includes function signatures, parameters, return types
-- Documentation includes code examples
-- Generated docs are properly styled and navigable
-
----
-
----
-
-## [6] Allow Structs to Inherit Primitives ✅
+## [6] Allow Structs to Inherit Primitives ✅ (COMPLETED)
 
 **Description:** Permit `struct MyInt : int { ... }` so a struct can behave as a primitive type with additional methods/fields. This enables creating specialized primitive types with domain-specific methods while maintaining compatibility with code expecting the base primitive type.
 
@@ -443,57 +410,125 @@ The following features are recommended for implementation next:
 
 ---
 
-## [8] Async/Await
+## [5] ✅ Language Server Protocol (LSP) Enhancements (COMPLETED)
 
-**Description:** Add `async` functions and `await` operator with promise-like semantics to simplify asynchronous programming. This makes non-blocking I/O and concurrent operations feel natural and avoids callback hell, enabling readable asynchronous code.
+**Description:** Expand the capabilities of the BPL Language Server to support advanced features like "Rename Symbol", "Find All References", "Go to Implementation", and "Code Actions". This significantly improves the developer experience in editors like VS Code.
 
-**Implementation Notes:**
+**Implementation Status:** ✅ Fully Implemented (December 2025)
 
-- Decide between transpiling async into callback-based state machines or using runtime coroutines
-- Implement state machine transformation for `async` functions
-- Create proper Future/Promise types and runtime support
-- Implement event loop integration for executing async tasks
-- Support proper error handling in async contexts
-- Implement `await` operator for suspending and resuming execution
-- Handle spawning and joining of async tasks
-- Ensure memory safety in concurrent contexts
-- Provide debugging support for async code
+**What Was Implemented:**
 
-**Acceptance Criteria:**
-
-- `async` functions return a `Future`/`Promise` type
-- `await` operator suspends/resumes correctly
-- Asynchronous examples compile and run correctly
-- Multiple concurrent tasks can run and complete
-- Error handling works properly in async contexts
+- ✅ **Rename Symbol**: Implemented `textDocument/rename` to rename symbols across open files.
+- ✅ **Find References**: Implemented `textDocument/references` to find symbol usages.
+- ✅ **Go to Implementation**: Implemented `textDocument/implementation` to find structs implementing a spec.
+- ✅ **Code Actions**: Added "Quick Fix" to auto-import common standard library types (`Result`, `Option`, `List`, etc.) when they are unknown.
+- ✅ **Snippets**: Expanded snippet library with `match`, `spec`, `lambda`, `const`, and more.
 
 ---
 
-## [8] Threading Support
+## [6] String Interpolation ✅ (COMPLETED)
 
-**Description:** Provide language primitives to create and manage threads, synchronization primitives, and safe concurrency patterns. This enables multi-threaded programs that can utilize multiple CPU cores while maintaining thread safety and preventing race conditions.
+**Description:** Support embedding expressions directly into string literals using `${expression}` syntax. This simplifies string construction and improves readability compared to concatenation or `printf` formatting.
 
 **Implementation Notes:**
 
-- Integrate with target threading primitives (pthreads on POSIX, WinAPI on Windows)
-- Define clear memory model for concurrent access
-- Implement synchronization primitives (Mutex, RwLock, Semaphore)
-- Provide atomic operations for lock-free programming
-- Implement thread spawning and joining
-- Add support for thread-local storage
-- Create standard library APIs for thread management
-- Ensure safe concurrency through type system where possible
-- Implement proper cleanup and resource management
+- ✅ Update lexer/parser to handle interpolated strings (e.g., `$"Value: ${x}"`)
+- ✅ Desugar interpolation into string concatenation or `StringBuilder` calls
+- ✅ Support arbitrary expressions inside `${...}`
+- ✅ Handle escaping of `$` characters
 
 **Acceptance Criteria:**
 
-- Spawn and join threads correctly
-- Synchronized access examples behave correctly
-- Mutex and other synchronization primitives work properly
-- Race conditions are prevented
-- Threads can communicate safely through channels or queues
+- ✅ `local s: string = $"Hello ${name}!";` compiles and works
+- ✅ Expressions inside `${}` are evaluated correctly
+- ✅ Works with complex expressions (e.g., `${a + b}`)
 
 ---
+
+## [7] ✅ Fuzz Testing Integration (COMPLETED)
+
+**Description:** Integrate fuzz testing (e.g., LLVM libFuzzer) to automatically generate random inputs and find compiler crashes or assertion failures. This improves the robustness of the compiler.
+
+**Implementation Notes:**
+
+- Create a fuzz target that invokes the compiler frontend (lexer/parser/typechecker)
+- Link with libFuzzer
+- Run fuzzer continuously in CI or on dedicated machines
+- Triage and fix discovered crashes
+
+**Acceptance Criteria:**
+
+- Fuzz target exists and can be run
+- Fuzzer finds known crashes (if any)
+- Compiler robustness improves over time
+
+---
+
+## [7] ✅ Compiler Performance Benchmarking (COMPLETED)
+
+**Description:** Establish a benchmarking infrastructure to track compiler performance (build time, memory usage) over time and prevent regressions.
+
+**Implementation Notes:**
+
+- Create a set of benchmark projects (small, medium, large)
+- Write scripts to measure compilation time and peak memory usage
+- Integrate with CI to run benchmarks on every commit or nightly
+- Visualize results to identify trends
+
+**Acceptance Criteria:**
+
+- Benchmarks run automatically
+- Performance regressions are flagged
+- Historical performance data is available
+
+---
+
+## [9] ✅ Source Code Display for Eval/Stdin Errors (COMPLETED)
+
+**Description:** Fix error message code snippets when compiling from stdin (`--stdin`) or eval mode (`-e`). Currently, when an error occurs in code compiled from these sources, the error formatter attempts to read the source from a file that doesn't exist or accidentally reads binary data from compiled executables with similar names (e.g., `stdin-42069`), resulting in garbled output.
+
+**The Problem:**
+
+When using `--stdin` or `-e`, the compiler assigns fake file paths like `stdin-42069` or `eval-42069` to track the source. However, the `CompilerError` class tries to read these as real files to display code snippets. This causes:
+
+1. Binary data display when a compiled executable with that name exists
+2. Empty/missing code snippets when no file exists
+3. Poor user experience for interactive/piped compilation
+
+**Implementation Notes:**
+
+There are several approaches to fix this:
+
+**Option 1: Thread source through CompilerError (Preferred)**
+
+- Modify `CompilerError` constructor to accept optional `sourceLines: string[]` parameter
+- When compiling from stdin/eval, capture the source and pass it to error constructors
+- Store source in a global context or thread it through the compilation pipeline
+- Modify all places that create `CompilerError` to optionally provide source
+
+**Option 2: Source cache by file path**
+
+- Create a global `SourceCache` that maps file paths to source content
+- When compiling stdin/eval, register the source in the cache with the fake path
+- Modify `CompilerError.loadSourceLines()` to check the cache before reading from disk
+- Clear cache after compilation to avoid memory leaks
+
+**Option 3: Virtual file system**
+
+- Create an abstraction layer for file reading that supports "virtual" files
+- Register stdin/eval sources as virtual files in this system
+- Update all file reading throughout the compiler to use this abstraction
+
+**Acceptance Criteria:**
+
+- Errors from `bpl --stdin` display the actual source code line with proper highlighting
+- Errors from `bpl -e "code"` show the code that was passed
+- No binary data or garbled text appears in error messages
+- Column indicators (^^^) correctly point to error locations
+- Solution doesn't significantly complicate the codebase
+- Memory usage remains reasonable (no unbounded caching)
+
+## 🚧 PARTIALLY COMPLETED FEATURES
 
 ## [8] Inline Assembly Blocks
 
@@ -549,38 +584,46 @@ The following features are recommended for implementation next:
 
 ---
 
-## [5] ✅ Language Server Protocol (LSP) Enhancements (COMPLETED)
 
-**Description:** Expand the capabilities of the BPL Language Server to support advanced features like "Rename Symbol", "Find All References", "Go to Implementation", and "Code Actions". This significantly improves the developer experience in editors like VS Code.
+## ⏳ PENDING FEATURES (PRIORITIZED)
 
-**Implementation Status:** ✅ Fully Implemented (December 2025)
+### High Priority
 
-**What Was Implemented:**
+## [5] Parallel Compilation
 
-- ✅ **Rename Symbol**: Implemented `textDocument/rename` to rename symbols across open files.
-- ✅ **Find References**: Implemented `textDocument/references` to find symbol usages.
-- ✅ **Go to Implementation**: Implemented `textDocument/implementation` to find structs implementing a spec.
-- ✅ **Code Actions**: Added "Quick Fix" to auto-import common standard library types (`Result`, `Option`, `List`, etc.) when they are unknown.
-- ✅ **Snippets**: Expanded snippet library with `match`, `spec`, `lambda`, `const`, and more.
-
----
-
-## [6] String Interpolation ✅
-
-**Description:** Support embedding expressions directly into string literals using `${expression}` syntax. This simplifies string construction and improves readability compared to concatenation or `printf` formatting.
+**Description:** Utilize multi-core processors to compile independent modules in parallel, significantly reducing build times for large projects.
 
 **Implementation Notes:**
 
-- ✅ Update lexer/parser to handle interpolated strings (e.g., `$"Value: ${x}"`)
-- ✅ Desugar interpolation into string concatenation or `StringBuilder` calls
-- ✅ Support arbitrary expressions inside `${...}`
-- ✅ Handle escaping of `$` characters
+- Analyze module dependency graph to identify independent subgraphs
+- Use worker threads or child processes to compile modules concurrently
+- Manage shared resources (cache, file locks) safely
+- Implement a task scheduler for compilation jobs
 
 **Acceptance Criteria:**
 
-- ✅ `local s: string = $"Hello ${name}!";` compiles and works
-- ✅ Expressions inside `${}` are evaluated correctly
-- ✅ Works with complex expressions (e.g., `${a + b}`)
+- `bpl build` utilizes multiple cores
+- Build time decreases for projects with many modules
+- No race conditions or corrupted artifacts
+
+---
+
+## [5] Watch Mode
+
+**Description:** Add a `--watch` mode to the CLI that monitors source files for changes and automatically recompiles affected modules. This improves the developer feedback loop.
+
+**Implementation Notes:**
+
+- Use file system watcher (e.g., `chokidar` or native APIs)
+- Integrate with incremental compilation system
+- Debounce change events to avoid redundant builds
+- Clear terminal and show status updates
+
+**Acceptance Criteria:**
+
+- `bpl build --watch` stays running and waits for changes
+- Modifying a file triggers a rebuild
+- Only affected modules are recompiled
 
 ---
 
@@ -602,6 +645,90 @@ The following features are recommended for implementation next:
 - Can call functions omitting default parameters
 - Can call functions using named arguments
 - Named arguments can be in any order
+
+---
+
+## [6] Parser Error Recovery
+
+**Description:** Improve the parser to recover from syntax errors and continue parsing the rest of the file. This allows reporting multiple errors in a single pass, rather than stopping at the first one.
+
+**Implementation Notes:**
+
+- Implement synchronization points (e.g., semicolons, braces)
+- When an error occurs, skip tokens until a synchronization point is found
+- Insert missing tokens or delete unexpected ones to restore valid state
+- Mark AST nodes as "error" nodes to prevent cascading errors in later phases
+
+**Acceptance Criteria:**
+
+- Compiler reports multiple syntax errors in a single file
+- Parser doesn't crash on malformed input
+- IDE experience is improved (syntax highlighting doesn't break completely)
+
+---
+
+## [6] Nested Pattern Matching
+
+**Description:** Extend pattern matching to support nested patterns, allowing deep destructuring of complex data structures in a single match arm. This improves readability and expressiveness when working with nested enums and structs.
+
+**Implementation Notes:**
+
+- Update parser to accept nested patterns (e.g., `Option.Some(Result.Ok(x))`)
+- Update TypeChecker to validate nested patterns and bind variables correctly
+- Update CodeGenerator to emit nested checks and extractions
+- Ensure exhaustiveness checking handles nested cases
+
+**Acceptance Criteria:**
+
+- Can match `Outer.A(Inner.B(x))`
+- Can bind variables at different levels of nesting
+- Exhaustiveness checking works for nested patterns
+
+---
+
+
+### Medium Priority
+
+## [7] Standard Library: Structured Logging
+
+**Description:** Implement a structured logging module in the standard library. This allows applications to emit logs with different severity levels (Info, Warn, Error, Debug) and structured data, which is essential for monitoring and debugging production applications.
+
+**Implementation Notes:**
+
+- **Log Levels:** Define enum `LogLevel { Debug, Info, Warn, Error }`
+- **Logger Interface:** Create `Logger` trait/interface
+- **Console Logger:** Implement default logger writing to stdout/stderr
+- **Formatting:** Support custom log formats (text, JSON)
+- **Configuration:** Allow setting global log level and output target
+- **Macros/Functions:** Provide helper functions `log.info(...)`, `log.error(...)`
+
+**Acceptance Criteria:**
+
+- Can log messages with different levels
+- Can configure minimum log level (e.g., only show Warn+)
+- Can switch between text and JSON output
+- Logs include timestamp and severity
+
+---
+
+## [7] Standard Library: CLI Argument Parser
+
+**Description:** Add a robust command-line argument parsing module to the standard library. This simplifies the creation of CLI tools by handling flag parsing, option validation, subcommand dispatch, and help text generation.
+
+**Implementation Notes:**
+
+- **Declarative API:** Struct-based or builder-based API to define flags and options
+- **Types:** Support bool flags, string/int options, and list arguments
+- **Subcommands:** Support git-style subcommands (e.g., `bpl build`, `bpl run`)
+- **Help Generation:** Automatically generate usage strings and help messages
+- **Validation:** Enforce required arguments and type constraints
+
+**Acceptance Criteria:**
+
+- Can define a CLI with flags (`--verbose`), options (`--output file`), and positional args
+- Can parse `argv` into a structured result
+- Automatically generates `--help` output
+- Handles subcommands correctly
 
 ---
 
@@ -695,139 +822,6 @@ The following features are recommended for implementation next:
 - Can compile BPL code to `.wasm`
 - Generated WASM runs in a browser or Node.js
 - Basic I/O works (via WASI or imports)
-
----
-
-## [8] Null Safety Operators
-
-**Description:** Introduce null-safe navigation (`?.`) and null-coalescing (`??`) operators to simplify handling of nullable types (pointers or Option types).
-
-**Implementation Notes:**
-
-- Implement `?.` for safe member access on pointers/options
-- Implement `??` for providing default values
-- Desugar `a?.b` to `(a != null ? a.b : null)` (or equivalent for Option)
-- Desugar `a ?? b` to `(a != null ? a : b)`
-
-**Acceptance Criteria:**
-
-- `ptr?.field` returns null/None if ptr is null/None
-- `val ?? default` returns default if val is null/None
-- Works with both pointers and `Option<T>`
-
----
-
-## [5] Parallel Compilation
-
-**Description:** Utilize multi-core processors to compile independent modules in parallel, significantly reducing build times for large projects.
-
-**Implementation Notes:**
-
-- Analyze module dependency graph to identify independent subgraphs
-- Use worker threads or child processes to compile modules concurrently
-- Manage shared resources (cache, file locks) safely
-- Implement a task scheduler for compilation jobs
-
-**Acceptance Criteria:**
-
-- `bpl build` utilizes multiple cores
-- Build time decreases for projects with many modules
-- No race conditions or corrupted artifacts
-
----
-
-## [5] Watch Mode
-
-**Description:** Add a `--watch` mode to the CLI that monitors source files for changes and automatically recompiles affected modules. This improves the developer feedback loop.
-
-**Implementation Notes:**
-
-- Use file system watcher (e.g., `chokidar` or native APIs)
-- Integrate with incremental compilation system
-- Debounce change events to avoid redundant builds
-- Clear terminal and show status updates
-
-**Acceptance Criteria:**
-
-- `bpl build --watch` stays running and waits for changes
-- Modifying a file triggers a rebuild
-- Only affected modules are recompiled
-
----
-
-## [6] Parser Error Recovery
-
-**Description:** Improve the parser to recover from syntax errors and continue parsing the rest of the file. This allows reporting multiple errors in a single pass, rather than stopping at the first one.
-
-**Implementation Notes:**
-
-- Implement synchronization points (e.g., semicolons, braces)
-- When an error occurs, skip tokens until a synchronization point is found
-- Insert missing tokens or delete unexpected ones to restore valid state
-- Mark AST nodes as "error" nodes to prevent cascading errors in later phases
-
-**Acceptance Criteria:**
-
-- Compiler reports multiple syntax errors in a single file
-- Parser doesn't crash on malformed input
-- IDE experience is improved (syntax highlighting doesn't break completely)
-
----
-
-## [6] Nested Pattern Matching
-
-**Description:** Extend pattern matching to support nested patterns, allowing deep destructuring of complex data structures in a single match arm. This improves readability and expressiveness when working with nested enums and structs.
-
-**Implementation Notes:**
-
-- Update parser to accept nested patterns (e.g., `Option.Some(Result.Ok(x))`)
-- Update TypeChecker to validate nested patterns and bind variables correctly
-- Update CodeGenerator to emit nested checks and extractions
-- Ensure exhaustiveness checking handles nested cases
-
-**Acceptance Criteria:**
-
-- Can match `Outer.A(Inner.B(x))`
-- Can bind variables at different levels of nesting
-- Exhaustiveness checking works for nested patterns
-
----
-
-## [7] Fuzz Testing Integration
-
-**Description:** Integrate fuzz testing (e.g., LLVM libFuzzer) to automatically generate random inputs and find compiler crashes or assertion failures. This improves the robustness of the compiler.
-
-**Implementation Notes:**
-
-- Create a fuzz target that invokes the compiler frontend (lexer/parser/typechecker)
-- Link with libFuzzer
-- Run fuzzer continuously in CI or on dedicated machines
-- Triage and fix discovered crashes
-
-**Acceptance Criteria:**
-
-- Fuzz target exists and can be run
-- Fuzzer finds known crashes (if any)
-- Compiler robustness improves over time
-
----
-
-## [7] Compiler Performance Benchmarking
-
-**Description:** Establish a benchmarking infrastructure to track compiler performance (build time, memory usage) over time and prevent regressions.
-
-**Implementation Notes:**
-
-- Create a set of benchmark projects (small, medium, large)
-- Write scripts to measure compilation time and peak memory usage
-- Integrate with CI to run benchmarks on every commit or nightly
-- Visualize results to identify trends
-
-**Acceptance Criteria:**
-
-- Benchmarks run automatically
-- Performance regressions are flagged
-- Historical performance data is available
 
 ---
 
@@ -1030,6 +1024,80 @@ The following features are recommended for implementation next:
 
 ---
 
+
+### Low Priority
+
+## [8] Async/Await
+
+**Description:** Add `async` functions and `await` operator with promise-like semantics to simplify asynchronous programming. This makes non-blocking I/O and concurrent operations feel natural and avoids callback hell, enabling readable asynchronous code.
+
+**Implementation Notes:**
+
+- Decide between transpiling async into callback-based state machines or using runtime coroutines
+- Implement state machine transformation for `async` functions
+- Create proper Future/Promise types and runtime support
+- Implement event loop integration for executing async tasks
+- Support proper error handling in async contexts
+- Implement `await` operator for suspending and resuming execution
+- Handle spawning and joining of async tasks
+- Ensure memory safety in concurrent contexts
+- Provide debugging support for async code
+
+**Acceptance Criteria:**
+
+- `async` functions return a `Future`/`Promise` type
+- `await` operator suspends/resumes correctly
+- Asynchronous examples compile and run correctly
+- Multiple concurrent tasks can run and complete
+- Error handling works properly in async contexts
+
+---
+
+## [8] Threading Support
+
+**Description:** Provide language primitives to create and manage threads, synchronization primitives, and safe concurrency patterns. This enables multi-threaded programs that can utilize multiple CPU cores while maintaining thread safety and preventing race conditions.
+
+**Implementation Notes:**
+
+- Integrate with target threading primitives (pthreads on POSIX, WinAPI on Windows)
+- Define clear memory model for concurrent access
+- Implement synchronization primitives (Mutex, RwLock, Semaphore)
+- Provide atomic operations for lock-free programming
+- Implement thread spawning and joining
+- Add support for thread-local storage
+- Create standard library APIs for thread management
+- Ensure safe concurrency through type system where possible
+- Implement proper cleanup and resource management
+
+**Acceptance Criteria:**
+
+- Spawn and join threads correctly
+- Synchronized access examples behave correctly
+- Mutex and other synchronization primitives work properly
+- Race conditions are prevented
+- Threads can communicate safely through channels or queues
+
+---
+
+## [8] Null Safety Operators
+
+**Description:** Introduce null-safe navigation (`?.`) and null-coalescing (`??`) operators to simplify handling of nullable types (pointers or Option types).
+
+**Implementation Notes:**
+
+- Implement `?.` for safe member access on pointers/options
+- Implement `??` for providing default values
+- Desugar `a?.b` to `(a != null ? a.b : null)` (or equivalent for Option)
+- Desugar `a ?? b` to `(a != null ? a : b)`
+
+**Acceptance Criteria:**
+
+- `ptr?.field` returns null/None if ptr is null/None
+- `val ?? default` returns default if val is null/None
+- Works with both pointers and `Option<T>`
+
+---
+
 ## [8] Middle-end Optimizations
 
 **Description:** Implement BPL-specific optimization passes in the middle-end (before LLVM IR generation) to improve code quality and enable high-level optimizations that LLVM might miss.
@@ -1157,32 +1225,6 @@ The following features are recommended for implementation next:
 
 ---
 
-## [9] Result&lt;T, E&gt; Type and Error Propagation
-
-**Description:** Implement a Result enum type for type-safe error handling and add the ? operator for convenient error propagation. This provides an alternative to exceptions with explicit error handling that prevents error silence and improves code reliability.
-
-**Implementation Notes:**
-
-- Define Result<T, E> enum in standard library
-- Implement ? operator in parser and transpiler
-- Add semantics: ? unwraps Ok or returns Err from current function
-- Support Result in function return types
-- Implement ergonomic error conversion
-- Add Into trait for automatic error conversion
-- Provide combinators in stdlib (map, and_then, or_else, etc.)
-- Handle Result with async/await
-
-**Acceptance Criteria:**
-
-- Result<T, E> enum works as expected
-- ? operator propagates errors correctly
-- Functions returning Result integrate smoothly with ? operator
-- Error types convert appropriately
-- Examples show error handling patterns (using Result instead of exceptions)
-- Combinators enable clean error handling chains
-
----
-
 ## [9] Macro System
 
 **Description:** Implement compile-time code generation through procedural macros. This enables metaprogramming, reducing boilerplate code, creating DSLs, and extending the language with domain-specific syntax.
@@ -1209,47 +1251,64 @@ The following features are recommended for implementation next:
 
 ---
 
-## [9] Source Code Display for Eval/Stdin Errors
+## [9] Extension Methods
 
-**Description:** Fix error message code snippets when compiling from stdin (`--stdin`) or eval mode (`-e`). Currently, when an error occurs in code compiled from these sources, the error formatter attempts to read the source from a file that doesn't exist or accidentally reads binary data from compiled executables with similar names (e.g., `stdin-42069`), resulting in garbled output.
-
-**The Problem:**
-
-When using `--stdin` or `-e`, the compiler assigns fake file paths like `stdin-42069` or `eval-42069` to track the source. However, the `CompilerError` class tries to read these as real files to display code snippets. This causes:
-
-1. Binary data display when a compiled executable with that name exists
-2. Empty/missing code snippets when no file exists
-3. Poor user experience for interactive/piped compilation
+**Description:** Allow developers to add new methods to existing types (including standard library types like `string` or `int`) without modifying their source code or using inheritance. This enables "fluent" APIs and better code organization.
 
 **Implementation Notes:**
 
-There are several approaches to fix this:
-
-**Option 1: Thread source through CompilerError (Preferred)**
-
-- Modify `CompilerError` constructor to accept optional `sourceLines: string[]` parameter
-- When compiling from stdin/eval, capture the source and pass it to error constructors
-- Store source in a global context or thread it through the compilation pipeline
-- Modify all places that create `CompilerError` to optionally provide source
-
-**Option 2: Source cache by file path**
-
-- Create a global `SourceCache` that maps file paths to source content
-- When compiling stdin/eval, register the source in the cache with the fake path
-- Modify `CompilerError.loadSourceLines()` to check the cache before reading from disk
-- Clear cache after compilation to avoid memory leaks
-
-**Option 3: Virtual file system**
-
-- Create an abstraction layer for file reading that supports "virtual" files
-- Register stdin/eval sources as virtual files in this system
-- Update all file reading throughout the compiler to use this abstraction
+- **Syntax:** Define syntax like `frame MyType.newMethod(this: MyType, ...)` outside struct definition
+- **Resolution:** Update method resolution logic to search for extension functions in scope if member lookup fails
+- **Codegen:** Transpile `obj.method(arg)` to `method(obj, arg)`
+- **Imports:** Ensure extension methods are properly imported and visible
 
 **Acceptance Criteria:**
 
-- Errors from `bpl --stdin` display the actual source code line with proper highlighting
-- Errors from `bpl -e "code"` show the code that was passed
-- No binary data or garbled text appears in error messages
-- Column indicators (^^^) correctly point to error locations
-- Solution doesn't significantly complicate the codebase
-- Memory usage remains reasonable (no unbounded caching)
+- Can add a method to `string` (e.g., `isEmail()`)
+- Can call the method using dot notation: `"foo".isEmail()`
+- Extension methods respect visibility rules
+- Works with generic types
+
+---
+
+## [9] Generators (yield)
+
+**Description:** Implement generators using the `yield` keyword to simplify the creation of iterators. This allows writing iterators as simple functions that maintain state automatically, enabling lazy evaluation and complex traversal logic.
+
+**Implementation Notes:**
+
+- **Syntax:** Add `yield` keyword
+- **Transformation:** Compiler transforms generator function into a state machine struct
+- **Iterator Interface:** Generated struct implements `Iterator<T>`
+- **State Management:** Local variables are promoted to struct fields to persist across yields
+- **Control Flow:** Handle loops and conditionals within the generator
+
+**Acceptance Criteria:**
+
+- Function using `yield` returns an `Iterator`
+- Can iterate over the result using `loop` or `for`
+- State is preserved between yields
+- Supports infinite sequences (lazy evaluation)
+
+---
+
+## [9] Pipeline Operator (|>)
+
+**Description:** Add the `|>` operator to pass the result of an expression as the first argument to the next function. This improves readability of nested function calls and enables a linear data flow style.
+
+**Implementation Notes:**
+
+- **Parser:** Add `|>` as a binary operator with low precedence
+- **AST Transformation:** Transform `a |> f(b)` into `f(a, b)` during parsing or early semantic analysis
+- **Interaction:** Ensure it works with Extension Methods and standard functions
+- **Chaining:** Support multiple pipes `a |> f |> g` -> `g(f(a))`
+
+**Acceptance Criteria:**
+
+- `x |> f` compiles to `f(x)`
+- `x |> f(y)` compiles to `f(x, y)`
+- Chained pipes work correctly
+- Works with both free functions and methods
+
+---
+

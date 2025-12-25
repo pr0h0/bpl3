@@ -206,6 +206,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         const type = expr.resolvedType;
         if (type.kind === "BasicType") {
           if (type.pointerDepth > 0) return "null";
+          if (type.arrayDimensions.length > 0) return "zeroinitializer";
           const primitives = [
             "int",
             "uint",
@@ -222,7 +223,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           if (!primitives.includes(type.name)) {
             return "zeroinitializer";
           }
-        } else if (type.kind === "ArrayType" || type.kind === "TupleType") {
+        } else if (type.kind === "TupleType") {
           return "zeroinitializer";
         }
       }
@@ -1875,21 +1876,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
   }
 
   protected generateCall(expr: AST.CallExpr): string {
-    // Check for std.mem.init intrinsic
-    if (expr.resolvedDeclaration) {
-      const decl = expr.resolvedDeclaration;
-      // Check if it's the init function in std/mem.bpl or lib/mem.bpl
-      // We check the file path and name
-      if (
-        decl.name === "init" &&
-        decl.location &&
-        (decl.location.file.endsWith("std/mem.bpl") ||
-          decl.location.file.endsWith("lib/mem.bpl"))
-      ) {
-        return this.generateMemInit(expr);
-      }
-    }
-
     let decl: any;
     // Check for enum variant constructor
     const enumVariantInfo = (expr as any).enumVariantInfo;
@@ -2827,16 +2813,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
                     this.emit(`  store i8* ${vtableCast}, i8** ${vtablePtr}`);
                   }
                 }
-
-                // Set null bit
-                const nullBitIndex = layout.get("__null_bit__");
-                if (nullBitIndex !== undefined) {
-                  const nullBitPtr = this.newRegister();
-                  this.emit(
-                    `  ${nullBitPtr} = getelementptr inbounds ${structType}, ${structType}* ${tempStructPtr}, i32 0, i32 ${nullBitIndex}`,
-                  );
-                  this.emit(`  store i1 1, i1* ${nullBitPtr}`);
-                }
               }
 
               return `${targetThisType} ${tempStructPtr}`;
@@ -3354,7 +3330,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           }
         }
       }
-      // (Legacy __null_bit__ update removed)
+
       return castVal;
     }
 
@@ -3840,16 +3816,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             );
             structReg = nextStruct;
           }
-        }
-
-        // Set null bit if present
-        if (layout && layout.has("__null_bit__")) {
-          const nullBitIdx = layout.get("__null_bit__")!;
-          const finalReg = this.newRegister();
-          this.emit(
-            `  ${finalReg} = insertvalue ${destType} ${structReg}, i1 0, ${nullBitIdx}`,
-          );
-          return finalReg;
         }
 
         return structReg;
@@ -4805,16 +4771,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       }
     }
 
-    // Set __null_bit__ to 1 (struct is valid, not null)
-    const nullBitIndex = layout.get("__null_bit__");
-    if (nullBitIndex !== undefined) {
-      const nextVal = this.newRegister();
-      this.emit(
-        `  ${nextVal} = insertvalue ${type} ${structVal}, i1 1, ${nullBitIndex}`,
-      );
-      structVal = nextVal;
-    }
-
     return structVal;
   }
 
@@ -4927,12 +4883,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     this.emit(`  ${result} = load ${enumType}, ${enumType}* ${enumPtr}`);
 
     return result;
-  }
-
-  protected generateMemInit(expr: AST.CallExpr): string {
-    // std.mem.init was used to set __null_bit__
-    // Since structs are now value types, this is no longer needed.
-    return "";
   }
 
   protected generateSizeof(expr: AST.SizeofExpr): string {

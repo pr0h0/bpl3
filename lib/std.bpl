@@ -91,6 +91,3 @@ export [Range];
 
 import [StringBuilder] from "std/string_builder.bpl";
 export [StringBuilder];
-
-import [Memory] from "./mem.bpl";
-export [Memory];

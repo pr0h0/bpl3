@@ -33,11 +33,13 @@ function loadParser(): peggy.Parser {
   }
 
   const source = readFileSync(grammarPath, "utf-8");
+  // console.time("PeggyGenerate");
   cachedParser = peggy.generate(source, {
     output: "parser",
     format: "commonjs",
     cache: true,
   });
+  // console.timeEnd("PeggyGenerate");
   return cachedParser;
 }
 
@@ -61,7 +63,9 @@ export function parseWithPeggy(source: string, filePath: string): AST.Program {
   try {
     const parser: peggy.Parser = loadParser();
     const comments: any[] = [];
+    // console.time("PeggyParseInternal");
     const program = parser.parse(source, { filePath, comments }) as AST.Program;
+    // console.timeEnd("PeggyParseInternal");
     program.comments = comments;
     return program;
   } catch (error: unknown) {

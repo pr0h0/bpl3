@@ -1,27 +1,33 @@
 {
   // Helper utilities shared across productions
   function makeLoc(loc) {
+    // Optimization: Avoid object creation if possible, or simplify
     const filePath = (options && options.filePath) || "unknown";
     if (loc && loc.startLine !== undefined) {
       return loc;
     }
-    if (!loc || !loc.start || !loc.end) {
-      return {
+    // Fast path for Peggy location object
+    if (loc && loc.start && loc.end) {
+       return {
         file: filePath,
-        startLine: 0,
-        startColumn: 0,
-        endLine: 0,
-        endColumn: 0,
+        startLine: loc.start.line,
+        startColumn: loc.start.column,
+        endLine: loc.end.line,
+        endColumn: loc.end.column,
       };
     }
+    
     return {
       file: filePath,
-      startLine: loc.start.line,
-      startColumn: loc.start.column,
-      endLine: loc.end.line,
-      endColumn: loc.end.column,
+      startLine: 0,
+      startColumn: 0,
+      endLine: 0,
+      endColumn: 0,
     };
   }
+
+  // Optimization: Cache common location objects if they are identical?
+  // Probably not worth it for now, but inlining makeLoc calls or reducing them helps.
 
   function basicType(name, genericArgs, pointerDepth, arrayDimensions, loc) {
     return {
@@ -293,40 +299,54 @@
   function makeOperatorToken(op, loc) {
     const type = operatorTypeMap[op] || "Unknown";
     const filePath = (options && options.filePath) || "unknown";
-    const span = normalizeLoc(loc);
+    
+    let line = 1, column = 1;
+    if (loc && loc.startLine !== undefined) {
+        line = loc.startLine;
+        column = loc.startColumn;
+    } else if (loc && loc.start) {
+        line = loc.start.line;
+        column = loc.start.column;
+    }
+
     return {
       type,
       lexeme: op,
       literal: null,
-      line: span.start.line,
-      column: span.start.column,
+      line,
+      column,
       file: filePath,
     };
   }
 
-  function normalizeLoc(loc) {
-    if (!loc) {
-      return { start: { line: 1, column: 1 }, end: { line: 1, column: 1 } };
-    }
-    if (loc.start && loc.end) {
-      return loc;
-    }
-    if (loc.startLine !== undefined) {
-      return {
-        start: { line: loc.startLine, column: loc.startColumn },
-        end: { line: loc.endLine, column: loc.endColumn },
-      };
-    }
-    if (loc.start && loc.start.line !== undefined) {
-      return loc;
-    }
-    return { start: { line: 1, column: 1 }, end: { line: 1, column: 1 } };
-  }
-
   function mergeLoc(startLoc, endLoc) {
-    const start = normalizeLoc(startLoc).start;
-    const end = normalizeLoc(endLoc).end;
-    return { start, end };
+    const filePath = (options && options.filePath) || "unknown";
+    
+    let startLine = 1, startColumn = 1;
+    if (startLoc && startLoc.startLine !== undefined) {
+        startLine = startLoc.startLine;
+        startColumn = startLoc.startColumn;
+    } else if (startLoc && startLoc.start) {
+        startLine = startLoc.start.line;
+        startColumn = startLoc.start.column;
+    }
+
+    let endLine = 1, endColumn = 1;
+    if (endLoc && endLoc.endLine !== undefined) {
+        endLine = endLoc.endLine;
+        endColumn = endLoc.endColumn;
+    } else if (endLoc && endLoc.end) {
+        endLine = endLoc.end.line;
+        endColumn = endLoc.end.column;
+    }
+
+    return {
+        file: filePath,
+        startLine,
+        startColumn,
+        endLine,
+        endColumn
+    };
   }
 
   function parseChar(raw) {
@@ -364,7 +384,9 @@ Program
     }
 
 Statement
-  = VariableDeclaration
+  = ExpressionStatement
+  / VariableDeclaration
+  / ReturnStatement
   / FunctionDeclaration
   / StructDeclaration
   / EnumDeclaration
@@ -377,12 +399,10 @@ Statement
   / LoopStatement
   / IfStatement
   / TryStatement
-  / ReturnStatement
   / ThrowStatement
   / SwitchStatement
   / BreakStatement
   / ContinueStatement
-  / ExpressionStatement
 
 VariableDeclaration
   = K_global _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
@@ -656,8 +676,29 @@ SwitchCase
 DefaultCase
   = K_default _ ":" _ body:Block { return body; }
 
+StatementStartKeyword
+  = "global" IdBoundary
+  / "local" IdBoundary
+  / "type" IdBoundary
+  / "frame" IdBoundary
+  / "struct" IdBoundary
+  / "enum" IdBoundary
+  / "spec" IdBoundary
+  / "import" IdBoundary
+  / "export" IdBoundary
+  / "extern" IdBoundary
+  / "asm" IdBoundary
+  / "loop" IdBoundary
+  / "if" IdBoundary
+  / "break" IdBoundary
+  / "continue" IdBoundary
+  / "try" IdBoundary
+  / "return" IdBoundary
+  / "throw" IdBoundary
+  / "switch" IdBoundary
+
 ExpressionStatement
-  = expr:Expression _ ";" { return expressionStmt(expr, location()); }
+  = !StatementStartKeyword expr:Expression _ ";" { return expressionStmt(expr, location()); }
 
 Expression
   = Assignment
@@ -801,7 +842,7 @@ Postfix
           if (expr.kind === "Identifier") {
             expr = enumStructVariant(expr.name, post.property, post.fields, makeLoc(mergeLoc(expr.location, post.loc)));
           } else {
-            throw new Error("Enum struct variant construction requires an identifier before '.'");
+            error("Enum struct variant construction requires an identifier before '.'");
           }
         } else if (post.type === "generic") {
           expr = genericInstantiation(expr, post.genericArgs, makeLoc(mergeLoc(expr.location, post.loc)));
@@ -1092,7 +1133,13 @@ NumberLiteral
   = raw:$(NumberToken) { return literal(parseNumber(raw), raw, "number", location()); }
 
 StringLiteral
-  = raw:$("\"" ("\\" . / [^"\n\r])* "\"") { return literal(JSON.parse(raw), raw, "string", location()); }
+  = raw:$("\"" ("\\" . / [^"\n\r])* "\"") { 
+      try {
+        return literal(JSON.parse(raw), raw, "string", location());
+      } catch (e) {
+        error("Invalid string literal: " + e.message);
+      }
+    }
 
 CharLiteral
   = raw:$("'" ("\\" . / [^'\n\r]) "'") { return literal(parseChar(raw), raw, "char", location()); }
@@ -1188,122 +1235,45 @@ ImportWhitespace
 IdBoundary
   = ![a-zA-Z0-9_]
 
-K_global
-  = $("global") IdBoundary
-
-K_local
-  = $("local") IdBoundary
-
-K_const
-  = $("const") IdBoundary
-
-K_type
-  = $("type") IdBoundary
-
-K_frame
-  = $("frame") IdBoundary
-
-K_static
-  = $("static") IdBoundary
-
-K_ret
-  = $("ret") IdBoundary
-
-K_struct
-  = $("struct") IdBoundary
-
-K_enum
-  = $("enum") IdBoundary
-
-K_spec
-  = $("spec") IdBoundary
-
-K_import
-  = $("import") IdBoundary
-
-K_from
-  = $("from") IdBoundary
-
-K_as
-  = $("as") IdBoundary
-
-K_export
-  = $("export") IdBoundary
-
-K_extern
-  = $("extern") IdBoundary
-
-K_asm
-  = $("asm") IdBoundary
-
-K_loop
-  = $("loop") IdBoundary
-
-K_if
-  = $("if") IdBoundary
-
-K_else
-  = $("else") IdBoundary
-
-K_break
-  = $("break") IdBoundary
-
-K_continue
-  = $("continue") IdBoundary
-
-K_try
-  = $("try") IdBoundary
-
-K_catch
-  = $("catch") IdBoundary
-
-K_catchOther
-  = $("catchOther") IdBoundary
-
-K_return
-  = $("return") IdBoundary
-
-K_throw
-  = $("throw") IdBoundary
-
-K_switch
-  = $("switch") IdBoundary
-
-K_case
-  = $("case") IdBoundary
-
-K_default
-  = $("default") IdBoundary
-
-K_cast
-  = $("cast") IdBoundary
-
-K_sizeof
-  = $("sizeof") IdBoundary
-
-K_match
-  = $("match") IdBoundary
-
-K_is
-  = $("is") IdBoundary
-
-K_Func
-  = $("Func") IdBoundary
-
-K_void
-  = $("void") IdBoundary
-
-K_true
-  = $("true") IdBoundary
-
-K_false
-  = $("false") IdBoundary
-
-K_null
-  = $("null") IdBoundary
-
-K_nullptr
-  = $("nullptr") IdBoundary
+K_global = "global" IdBoundary
+K_local = "local" IdBoundary
+K_const = "const" IdBoundary
+K_type = "type" IdBoundary
+K_frame = "frame" IdBoundary
+K_static = "static" IdBoundary
+K_ret = "ret" IdBoundary
+K_struct = "struct" IdBoundary
+K_enum = "enum" IdBoundary
+K_spec = "spec" IdBoundary
+K_import = "import" IdBoundary
+K_from = "from" IdBoundary
+K_as = "as" IdBoundary
+K_export = "export" IdBoundary
+K_extern = "extern" IdBoundary
+K_asm = "asm" IdBoundary
+K_loop = "loop" IdBoundary
+K_if = "if" IdBoundary
+K_else = "else" IdBoundary
+K_break = "break" IdBoundary
+K_continue = "continue" IdBoundary
+K_try = "try" IdBoundary
+K_catch = "catch" IdBoundary
+K_catchOther = "catchOther" IdBoundary
+K_return = "return" IdBoundary
+K_throw = "throw" IdBoundary
+K_switch = "switch" IdBoundary
+K_case = "case" IdBoundary
+K_default = "default" IdBoundary
+K_cast = "cast" IdBoundary
+K_sizeof = "sizeof" IdBoundary
+K_match = "match" IdBoundary
+K_is = "is" IdBoundary
+K_Func = "Func" IdBoundary
+K_void = "void" IdBoundary
+K_true = "true" IdBoundary
+K_false = "false" IdBoundary
+K_null = "null" IdBoundary
+K_nullptr = "nullptr" IdBoundary
 
 KeywordReserved
   = "global" IdBoundary
@@ -1389,7 +1359,11 @@ InterpolatedStringPart
 InterpolatedStringChars
   = chars:InterpolatedStringChar+ {
       const raw = '"' + chars.join("") + '"';
-      return JSON.parse(raw);
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        error("Invalid interpolated string: " + e.message);
+      }
     }
 
 InterpolatedStringChar

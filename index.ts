@@ -544,12 +544,18 @@ function processCodeInternal(
 
   // Original single-file compilation path
 
+  if (options.verbose) {
+    console.time("Lexing");
+  }
   let tokens: any[] = [];
   try {
     tokens = lexWithGrammar(content, filePath);
   } catch (e) {
     // Lexer might fail on new syntax not yet in grammar.bpl
     // Proceed with parser only (comments will be missing)
+  }
+  if (options.verbose) {
+    console.timeEnd("Lexing");
   }
 
   if (options.emit === "tokens") {
@@ -558,8 +564,14 @@ function processCodeInternal(
   }
 
   // 2. Parsing
+  if (options.verbose) {
+    console.time("Parsing");
+  }
   const parser = new Parser(content, filePath, tokens);
   const ast = parser.parse(true);
+  if (options.verbose) {
+    console.timeEnd("Parsing");
+  }
 
   if (options.emit === "ast") {
     console.log(JSON.stringify(ast, null, 2));
@@ -579,10 +591,16 @@ function processCodeInternal(
   }
 
   // 3. Type Checking
+  if (options.verbose) {
+    console.time("TypeChecking");
+  }
   const typeChecker = new TypeChecker({
     skipImportResolution: options.prelude === false,
   });
   typeChecker.checkProgram(ast);
+  if (options.verbose) {
+    console.timeEnd("TypeChecking");
+  }
 
   const typeErrors = typeChecker.getErrors();
   if (typeErrors.length > 0) {
@@ -595,12 +613,18 @@ function processCodeInternal(
   }
 
   // 4. Code Generation
+  if (options.verbose) {
+    console.time("CodeGeneration");
+  }
   const hostDefaults = getHostDefaults();
   const generator = new CodeGenerator({
     target: options.target || hostDefaults.target,
     dwarf: options.dwarf,
   });
   const ir = generator.generate(ast, filePath);
+  if (options.verbose) {
+    console.timeEnd("CodeGeneration");
+  }
 
   // Determine output path for LLVM IR
   // If output is specified, use it as base but ensure .ll extension for IR

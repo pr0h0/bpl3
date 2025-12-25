@@ -979,9 +979,6 @@ export abstract class TypeCheckerBase {
     }
 
     if (!decl) {
-      console.log(
-        `resolveMemberWithContext: Could not resolve declaration for ${baseType.name}`,
-      );
       return undefined;
     }
 
@@ -1124,11 +1121,12 @@ export abstract class TypeCheckerBase {
             structDecl.inheritanceList.length > 0
           ) {
             // Check if the first inherited type is the target primitive
-            const parent = structDecl.inheritanceList[0];
+            const parent = structDecl.inheritanceList[0]!;
             const resolvedParent = this.resolveType(parent);
 
             // Fix: Ensure parent is not a struct (to avoid matching implicit 'Type' inheritance)
             if (
+              resolvedParent.kind === "BasicType" &&
               !this.isStructType(resolvedParent.name) &&
               this.areTypesCompatible(resolvedParent, resolvedTarget)
             ) {
@@ -1151,11 +1149,12 @@ export abstract class TypeCheckerBase {
             structDecl.inheritanceList.length > 0
           ) {
             // Check if the first inherited type is the source primitive
-            const parent = structDecl.inheritanceList[0];
+            const parent = structDecl.inheritanceList[0]!;
             const resolvedParent = this.resolveType(parent);
 
             // Fix: Ensure parent is not a struct
             if (
+              resolvedParent.kind === "BasicType" &&
               !this.isStructType(resolvedParent.name) &&
               this.areTypesCompatible(resolvedParent, resolvedSource)
             ) {

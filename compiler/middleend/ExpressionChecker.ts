@@ -86,13 +86,24 @@ export function checkLiteral(
     ) {
       name = "float";
     } else {
-      const val = BigInt(expr.raw);
-      const INT32_MIN = -2147483648n;
-      const INT32_MAX = 2147483647n;
-      if (val >= INT32_MIN && val <= INT32_MAX) {
-        name = "int";
-      } else {
-        name = "long";
+      try {
+        // Remove underscores which are allowed in BPL but not in JS BigInt constructor
+        const cleanRaw = expr.raw.replace(/_/g, "");
+        const val = BigInt(cleanRaw);
+        const INT32_MIN = -2147483648n;
+        const INT32_MAX = 2147483647n;
+        if (val >= INT32_MIN && val <= INT32_MAX) {
+          name = "int";
+        } else {
+          name = "long";
+        }
+      } catch (e) {
+        // Fallback or error if BigInt parsing fails (shouldn't happen with valid grammar, but good for fuzzing)
+        throw new CompilerError(
+          `Invalid integer literal: ${expr.raw}`,
+          "Could not parse integer value.",
+          expr.location,
+        );
       }
     }
   } else if (expr.type === "string") {
@@ -213,7 +224,11 @@ export function checkInterpolatedString(
         rhs = part;
       }
       // Check for pointers (e.g. *int)
-      else if (partType && partType.pointerDepth > 0) {
+      else if (
+        partType &&
+        partType.kind === "BasicType" &&
+        partType.pointerDepth > 0
+      ) {
         // For pointers, we always print the address unless it's a primitive string (handled above).
         // We cast the pointer to 'long' and call String.fromAddress(long).
 
@@ -227,6 +242,7 @@ export function checkInterpolatedString(
               location: part.location,
             },
             property: "fromAddress",
+            location: part.location,
           },
           args: [
             {
@@ -249,7 +265,11 @@ export function checkInterpolatedString(
       }
 
       // Check for Array Literals or Arrays
-      else if (partType && partType.kind === "ArrayType") {
+      else if (
+        partType &&
+        partType.kind === "BasicType" &&
+        partType.arrayDimensions.length > 0
+      ) {
         // Arrays don't have methods in BPL usually, they are just structs or pointers.
         // But `[1, 2, 3]` is an ArrayLiteral which might be `int[]` or `Array<int>`.
         // If it's `Array<T>`, it might have `toString`.
@@ -319,7 +339,14 @@ export function checkInterpolatedString(
     currentExpr = {
       kind: "Binary",
       left: currentExpr,
-      operator: { type: TokenType.Plus, lexeme: "+", line: 0, column: 0 },
+      operator: {
+        type: TokenType.Plus,
+        lexeme: "+",
+        literal: "+",
+        line: 0,
+        column: 0,
+        file: expr.location.file,
+      },
       right: rhs,
       location: expr.location,
     };

@@ -1138,7 +1138,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       this.emit(`${stackErr}:`);
 
       // Initialize StackOverflowError struct
-      // We need to handle both the internal fallback (just i8) and the stdlib version (vtable + i8 + null_bit)
+      // We need to handle both the internal fallback (just i8) and the stdlib version (vtable + i8)
       const msg = "Stack overflow";
       if (!this.stringLiterals.has(msg)) {
         this.stringLiterals.set(
