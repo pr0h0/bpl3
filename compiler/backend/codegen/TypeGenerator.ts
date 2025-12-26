@@ -25,6 +25,9 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
   protected getDwarfTypeId(type: AST.TypeNode): number {
     if (!this.generateDwarf) return 0;
+    console.log(
+      `getDwarfTypeId: ${type.kind} ${type.kind === "BasicType" ? (type as any).name : ""}`,
+    );
 
     const resolvedName = this.resolveType(type);
 
@@ -81,10 +84,16 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       primitiveName = type.name;
     }
 
-    if (primitiveName === "i32" || primitiveName === "int") {
+    if (primitiveName === "i32") {
       return this.debugInfoGenerator.createBasicType("int", 32, 5);
     }
-    if (primitiveName === "u32" || primitiveName === "uint") {
+    if (primitiveName === "int") {
+      return this.debugInfoGenerator.createBasicType("int", 32, 5);
+    }
+    if (primitiveName === "u32") {
+      return this.debugInfoGenerator.createBasicType("unsigned int", 32, 7);
+    }
+    if (primitiveName === "uint") {
       return this.debugInfoGenerator.createBasicType("unsigned int", 32, 7);
     }
     if (primitiveName === "i64" || primitiveName === "long") {
@@ -115,17 +124,23 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       return this.debugInfoGenerator.createBasicType("double", 64, 4);
     }
     if (primitiveName === "float") {
-      return this.debugInfoGenerator.createBasicType("float", 32, 4);
+      return this.debugInfoGenerator.createBasicType("float", 64, 4);
     }
     if (primitiveName === "void") {
       return 0;
     }
 
     // Fallback using resolvedName (for non-BasicTypes or unresolved aliases)
-    if (resolvedName === "i32" || resolvedName === "int") {
+    if (resolvedName === "i32") {
       return this.debugInfoGenerator.createBasicType("int", 32, 5);
     }
-    if (resolvedName === "u32" || resolvedName === "uint") {
+    if (resolvedName === "int") {
+      return this.debugInfoGenerator.createBasicType("int", 32, 5);
+    }
+    if (resolvedName === "u32") {
+      return this.debugInfoGenerator.createBasicType("unsigned int", 32, 7);
+    }
+    if (resolvedName === "uint") {
       return this.debugInfoGenerator.createBasicType("unsigned int", 32, 7);
     }
     if (resolvedName === "i64" || resolvedName === "long") {
@@ -156,7 +171,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       return this.debugInfoGenerator.createBasicType("double", 64, 4);
     }
     if (resolvedName === "float") {
-      return this.debugInfoGenerator.createBasicType("float", 32, 4);
+      return this.debugInfoGenerator.createBasicType("float", 64, 4);
     }
     if (resolvedName === "void") {
       return 0;
@@ -215,8 +230,66 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       const size = type.arrayDimensions[0];
       if (size === null) {
         // Dynamic array / Slice
-        // TODO: Handle slice properly
-        return 0;
+        // Struct { data: T*, len: i64 }
+
+        // Element type (rest of dimensions)
+        let elementTypeNode: AST.BasicTypeNode;
+        if (type.arrayDimensions.length > 1) {
+          elementTypeNode = {
+            ...type,
+            arrayDimensions: type.arrayDimensions.slice(1),
+          };
+        } else {
+          elementTypeNode = {
+            ...type,
+            arrayDimensions: [],
+          };
+        }
+
+        const elementTypeId = this.getDwarfTypeId(elementTypeNode);
+        const ptrTypeId =
+          this.debugInfoGenerator.createPointerType(elementTypeId);
+        const i64TypeId = this.debugInfoGenerator.createBasicType(
+          "long",
+          64,
+          5,
+        );
+
+        const fileId = this.debugInfoGenerator.getFileNodeId(
+          this.currentFilePath,
+        );
+
+        // Create members
+        const dataMember = this.debugInfoGenerator.createMemberType(
+          "data",
+          fileId,
+          0,
+          64,
+          0,
+          ptrTypeId,
+        );
+        const lenMember = this.debugInfoGenerator.createMemberType(
+          "len",
+          fileId,
+          0,
+          64,
+          64,
+          i64TypeId,
+        );
+
+        // Use a safe name for the slice type
+        const elementTypeName = this.resolveType(elementTypeNode).replace(
+          /[^a-zA-Z0-9_]/g,
+          "_",
+        );
+
+        return this.debugInfoGenerator.createStructType(
+          `slice_${elementTypeName}`,
+          128, // Size (64 + 64)
+          fileId,
+          0,
+          [dataMember, lenMember],
+        );
       }
 
       // Element type
@@ -281,21 +354,30 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
           // Update struct name for DWARF to avoid collision with generic template
           const argNames = type.genericArgs
-            .map((arg) => {
-              if (arg.kind === "BasicType")
-                return (arg as AST.BasicTypeNode).name;
-              return "T";
-            })
+            .map((arg) => this.mangleType(arg))
             .join("_");
           structName = `${structDecl.name}_${argNames}`;
         }
 
-        const elements: number[] = [];
-        let offset = 0;
+        // Check cache to avoid recursion
+        if (this.debugInfoGenerator.hasType(`struct:${structName}`)) {
+          return this.debugInfoGenerator.getType(`struct:${structName}`)!;
+        }
 
         const fileId = this.debugInfoGenerator.getFileNodeId(
           structDecl.location.file,
         );
+
+        // Create Forward Declaration to handle recursion
+        this.debugInfoGenerator.createForwardDecl(
+          "DW_TAG_structure_type",
+          structName,
+          fileId,
+          structDecl.location?.startLine || 0,
+        );
+
+        const elements: number[] = [];
+        let offset = 0;
 
         for (const field of fields) {
           const fieldTypeId = this.getDwarfTypeId(field.type);
@@ -329,6 +411,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           fileId,
           structDecl.location?.startLine || 0,
           elements,
+          true, // Force update
         );
       }
     }
@@ -370,17 +453,165 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
     // Enums
     if (type.kind === "BasicType") {
-      const enumDecl = this.enumDeclMap.get(type.name);
+      let enumDecl = this.enumDeclMap.get(type.name);
+
+      // Try to use resolved declaration if name lookup failed
+      if (
+        !enumDecl &&
+        type.resolvedDeclaration &&
+        type.resolvedDeclaration.kind === "EnumDecl"
+      ) {
+        enumDecl = type.resolvedDeclaration as AST.EnumDecl;
+      }
+
+      // Fallback: try stripping namespace
+      if (!enumDecl && type.name.includes(".")) {
+        const parts = type.name.split(".");
+        const simpleName = parts[parts.length - 1]!;
+        enumDecl = this.enumDeclMap.get(simpleName);
+      }
+
       if (enumDecl) {
         const fileId = this.debugInfoGenerator.getFileNodeId(
           enumDecl.location.file,
         );
 
-        // Calculate maxSize if not already known
-        let maxSize = this.enumDataSizes.get(type.name);
-        if (maxSize === undefined) {
-          maxSize = this.calculateEnumMaxSize(enumDecl);
-          this.enumDataSizes.set(type.name, maxSize);
+        let enumName = enumDecl.name;
+        let maxSize = 0;
+
+        // Handle generics
+        if (
+          type.genericArgs &&
+          type.genericArgs.length > 0 &&
+          enumDecl.genericParams
+        ) {
+          const argNames = type.genericArgs
+            .map((arg) => this.mangleType(arg))
+            .join("_");
+          enumName = `${enumDecl.name}_${argNames}`;
+
+          // Check cache to avoid recursion
+          if (this.debugInfoGenerator.hasType(`struct:${enumName}`)) {
+            return this.debugInfoGenerator.getType(`struct:${enumName}`)!;
+          }
+
+          // No forward declaration needed for Enums as we erase payload to bytes
+          // and don't reference the type recursively in the DWARF structure.
+
+          const i32TypeId = this.debugInfoGenerator.createBasicType(
+            "int",
+            32,
+            5,
+          );
+          const i8TypeId = this.debugInfoGenerator.createBasicType(
+            "char",
+            8,
+            8,
+          );
+
+          // Calculate payload size
+          let payloadSize = 0;
+          if (this.enumDataSizes.has(enumName)) {
+            payloadSize = this.enumDataSizes.get(enumName)!;
+          } else {
+            // Substitute types to calculate size
+            const typeMap = new Map<string, AST.TypeNode>();
+            const basicType = type as AST.BasicTypeNode;
+            for (let i = 0; i < enumDecl.genericParams.length; i++) {
+              if (i < basicType.genericArgs.length) {
+                typeMap.set(
+                  enumDecl.genericParams[i]!.name,
+                  basicType.genericArgs[i]!,
+                );
+              }
+            }
+
+            const substitutedDecl: AST.EnumDecl = {
+              ...enumDecl,
+              variants: enumDecl.variants.map((v) => {
+                if (!v.dataType) return v;
+                if (v.dataType.kind === "EnumVariantTuple") {
+                  return {
+                    ...v,
+                    dataType: {
+                      ...v.dataType,
+                      types: v.dataType.types.map((t) =>
+                        this.substituteType(t, typeMap),
+                      ),
+                    },
+                  };
+                } else if (v.dataType.kind === "EnumVariantStruct") {
+                  return {
+                    ...v,
+                    dataType: {
+                      ...v.dataType,
+                      fields: v.dataType.fields.map((f) => ({
+                        ...f,
+                        type: this.substituteType(f.type, typeMap),
+                      })),
+                    },
+                  };
+                }
+                return v;
+              }),
+            };
+
+            payloadSize = this.calculateEnumMaxSize(substitutedDecl);
+            this.enumDataSizes.set(enumName, payloadSize);
+          }
+
+          const elements: number[] = [];
+          const tagMember = this.debugInfoGenerator.createMemberType(
+            "tag",
+            fileId,
+            enumDecl.location.startLine,
+            32,
+            0,
+            i32TypeId,
+          );
+          elements.push(tagMember);
+
+          if (payloadSize > 0) {
+            const payloadArrayTypeId = this.debugInfoGenerator.createArrayType(
+              payloadSize,
+              i8TypeId,
+              payloadSize * 8,
+              8,
+            );
+
+            // Payload offset: 32 bits (4 bytes)
+            const payloadMember = this.debugInfoGenerator.createMemberType(
+              "payload",
+              fileId,
+              enumDecl.location.startLine,
+              payloadSize * 8,
+              32,
+              payloadArrayTypeId,
+            );
+            elements.push(payloadMember);
+          }
+
+          return this.debugInfoGenerator.createStructType(
+            enumName,
+            32 + payloadSize * 8,
+            fileId,
+            enumDecl.location.startLine,
+            elements,
+          );
+        } else {
+          // Non-generic
+          if (this.debugInfoGenerator.hasType(`struct:${enumName}`)) {
+            return this.debugInfoGenerator.getType(`struct:${enumName}`)!;
+          }
+
+          // No forward declaration needed for Enums
+
+          let size = this.enumDataSizes.get(type.name);
+          if (size === undefined) {
+            size = this.calculateEnumMaxSize(enumDecl);
+            this.enumDataSizes.set(type.name, size);
+          }
+          maxSize = size;
         }
 
         // Create DWARF struct
@@ -400,17 +631,39 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         elements.push(tagMember);
 
         // Data (array of i8) - only if maxSize > 0
-        // We omit the data field for now as we don't have array type support in DebugInfoGenerator yet.
-        // But we set the correct size.
+        if (maxSize > 0) {
+          const u8TypeId = this.debugInfoGenerator.createBasicType(
+            "unsigned char",
+            8,
+            8,
+          );
+          const arrayTypeId = this.debugInfoGenerator.createArrayType(
+            maxSize,
+            u8TypeId,
+            maxSize * 8,
+            8,
+          );
+
+          const dataMember = this.debugInfoGenerator.createMemberType(
+            "data",
+            fileId,
+            enumDecl.location.startLine,
+            maxSize * 8,
+            32, // Offset after tag (32 bits)
+            arrayTypeId,
+          );
+          elements.push(dataMember);
+        }
 
         const totalSize = 32 + maxSize * 8;
 
         return this.debugInfoGenerator.createStructType(
-          enumDecl.name,
+          enumName,
           totalSize,
           fileId,
           enumDecl.location.startLine,
           elements,
+          false, // No forward declaration to overwrite
         );
       }
     }
@@ -444,6 +697,38 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
               (typeNode.resolvedDeclaration as AST.StructDecl) ||
               this.structMap.get(typeNode.name);
             if (baseDecl && baseDecl.kind === "StructDecl") {
+              // Check if we are in a generic template context (e.g. Child<T> inheriting Parent<T>)
+              // If so, we shouldn't try to generate a monomorphized struct for Parent<T> yet,
+              // as T is not a concrete type. Instead, we should just substitute the fields.
+              const isTemplateContext =
+                decl.genericParams.length > 0 &&
+                typeNode.genericArgs.some((arg) => {
+                  if (arg.kind === "BasicType") {
+                    return decl.genericParams.some(
+                      (p) => p.name === (arg as AST.BasicTypeNode).name,
+                    );
+                  }
+                  return false;
+                });
+
+              if (isTemplateContext) {
+                const parentFields = this.getAllStructFields(baseDecl);
+                const typeMap = new Map<string, AST.TypeNode>();
+                for (let i = 0; i < baseDecl.genericParams.length; i++) {
+                  if (i < typeNode.genericArgs.length) {
+                    typeMap.set(
+                      baseDecl.genericParams[i]!.name,
+                      typeNode.genericArgs[i]!,
+                    );
+                  }
+                }
+                fields = parentFields.map((f) => ({
+                  ...f,
+                  type: this.substituteType(f.type, typeMap),
+                }));
+                break;
+              }
+
               // Resolve the monomorphized struct to ensure it exists and we get the concrete name
               const llvmType = this.resolveMonomorphizedType(
                 baseDecl,
@@ -1523,8 +1808,10 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           llvmType += "*";
         }
 
-        for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
-          llvmType = `[${basicType.arrayDimensions[i]} x ${llvmType}]`;
+        if ("arrayDimensions" in basicType) {
+          for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
+            llvmType = `[${basicType.arrayDimensions[i]} x ${llvmType}]`;
+          }
         }
 
         return llvmType;

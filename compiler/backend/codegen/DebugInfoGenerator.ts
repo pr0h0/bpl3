@@ -144,16 +144,32 @@ export class DebugInfoGenerator {
     return id;
   }
 
+  public createForwardDecl(
+    tag: string,
+    name: string,
+    fileId: number,
+    line: number,
+  ): number {
+    const key = `struct:${name}`;
+    if (this.typeCache.has(key)) return this.typeCache.get(key)!;
+
+    const content = `!DICompositeType(tag: ${tag}, name: "${name}", file: !${fileId}, line: ${line}, flags: DIFlagFwdDecl)`;
+    const id = this.addNode(content);
+    this.typeCache.set(key, id);
+    return id;
+  }
+
   public createStructType(
     name: string,
     sizeInBits: number,
     fileId: number,
     line: number,
     elements: number[],
+    force: boolean = false,
   ): number {
     // !6 = !DICompositeType(tag: DW_TAG_structure_type, name: "Point", file: !1, line: 10, size: 128, elements: !7)
     const key = `struct:${name}`;
-    if (this.typeCache.has(key)) return this.typeCache.get(key)!;
+    if (!force && this.typeCache.has(key)) return this.typeCache.get(key)!;
 
     const elementsId = this.addNode(
       `!{${elements.map((e) => "!" + e).join(", ")}}`,
@@ -247,6 +263,14 @@ export class DebugInfoGenerator {
     const type = typeId === 0 ? "null" : `!${typeId}`;
     const content = `!DILocalVariable(name: "${name}", arg: ${argIndex}, scope: !${scopeId}, file: !${fileId}, line: ${line}, type: ${type})`;
     return this.addNode(content);
+  }
+
+  public hasType(key: string): boolean {
+    return this.typeCache.has(key);
+  }
+
+  public getType(key: string): number | undefined {
+    return this.typeCache.get(key);
   }
 
   public generateMetadataOutput(): string[] {

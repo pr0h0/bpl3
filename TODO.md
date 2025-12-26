@@ -179,17 +179,16 @@
   - Missing:
     - ❌ Shadowing warning (outer scope)
 
-- [ ] **Debugger Support (DWARF)**
-  - **Status:** PARTIAL (Line Info & Subprograms)
+- [x] **Debugger Support (DWARF)**
+  - **Status:** COMPLETED
   - Implemented:
     - ✅ CLI Flag: `--dwarf`
     - ✅ Metadata Generator: `DebugInfoGenerator` class
     - ✅ Compile Unit: Emits `!llvm.dbg.cu` and `!DICompileUnit`
     - ✅ Subprograms: Emits `!DISubprogram` for functions
     - ✅ Line Info: Attaches `!dbg` location to instructions
-  - Missing:
-    - ❌ Full type descriptors for complex types
-    - ❌ Variable location tracking
+    - ✅ Full type descriptors for complex types (Structs, Enums, Arrays, Slices)
+    - ✅ Variable location tracking (`llvm.dbg.declare`)
 
 ## Pending Features (Prioritized)
 

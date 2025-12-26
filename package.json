@@ -11,7 +11,7 @@
     "build": "bun build --compile --outfile=bpl ./index.ts",
     "check": "bunx tsc --noEmit --lib ESNext",
     "test": "bun test tests/",
-    "format": "prettier --write -u *",
+    "format": "prettier -u --write *",
     "format-examples": "bun index.ts format -w examples/**/*.bpl",
     "playground": "cd playground &&bash ./start.sh"
   },

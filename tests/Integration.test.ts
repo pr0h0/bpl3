@@ -52,6 +52,14 @@ describe("Integration Tests", () => {
         continue;
       }
 
+      // For debugging, enable DWARF generation
+      if (false) {
+        if (!config.args) {
+          config.args = [];
+        }
+        config.args.push("--dwarf");
+      }
+
       it(`should run example: ${example}`, () => {
         // Prepare command
         // We use cmp.sh which runs bun index.ts then lli

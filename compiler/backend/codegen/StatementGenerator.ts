@@ -529,9 +529,13 @@ export abstract class StatementGenerator extends ExpressionGenerator {
 
             // DWARF: Variable declaration
             if (this.generateDwarf && this.currentSubprogramId !== -1) {
-              const typeId = this.getDwarfTypeId(
-                target.type || { kind: "BasicType", name: "unknown" },
-              ); // Need proper type node
+              const typeNode = target.type ||
+                this.getTargetTypeNodeFromTuple(
+                  decl.initializer!.resolvedType!,
+                  [...indexPath, i],
+                ) || { kind: "BasicType", name: "unknown" };
+
+              const typeId = this.getDwarfTypeId(typeNode as AST.TypeNode);
               const fileId = this.debugInfoGenerator.getFileNodeId(
                 decl.location.file,
               );

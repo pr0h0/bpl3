@@ -4321,7 +4321,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           (lastLine.startsWith("ret ") ||
             lastLine.startsWith("br ") ||
             lastLine.startsWith("switch ") ||
-            lastLine === "unreachable");
+            lastLine.startsWith("unreachable"));
 
         if (!isTerminated) {
           this.emit(`  br label %${mergeLabel}`);
@@ -5151,15 +5151,24 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     tupleType: AST.TypeNode,
     indexPath: number[],
   ): string {
+    const typeNode = this.getTargetTypeNodeFromTuple(tupleType, indexPath);
+    if (!typeNode) return "i32";
+    return this.resolveType(typeNode);
+  }
+
+  protected getTargetTypeNodeFromTuple(
+    tupleType: AST.TypeNode,
+    indexPath: number[],
+  ): AST.TypeNode | null {
     let currentType = tupleType;
     for (const idx of indexPath) {
       if (currentType.kind === "TupleType") {
         currentType = (currentType as AST.TupleTypeNode).types[idx]!;
       } else {
-        return "i32"; // fallback
+        return null; // fallback
       }
     }
-    return this.resolveType(currentType);
+    return currentType;
   }
 
   protected generateArrayLiteral(expr: AST.ArrayLiteralExpr): string {
