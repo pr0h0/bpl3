@@ -4,77 +4,20 @@
  */
 
 import * as AST from "../common/AST";
-import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import type { Symbol } from "./SymbolTable";
 import { SymbolTable } from "./SymbolTable";
 import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
-
-/**
- * Type for the TypeChecker context that expression checkers need access to
- */
-export interface ExpressionCheckerContext {
-  currentScope: any;
-  checkExpression(expr: AST.Expression): AST.TypeNode | undefined;
-  resolveType(type: AST.TypeNode, checkConstraints?: boolean): AST.TypeNode;
-  areTypesCompatible(
-    t1: AST.TypeNode,
-    t2: AST.TypeNode,
-    checkConstraints?: boolean,
-  ): boolean;
-  typeToString(type: AST.TypeNode | undefined): string;
-  substituteType(
-    type: AST.TypeNode,
-    map: Map<string, AST.TypeNode>,
-  ): AST.TypeNode;
-  isBoolType(type: AST.TypeNode): boolean;
-  makeVoidType(): AST.TypeNode;
-  isIntegerTypeCompatible(val: bigint, targetType: AST.TypeNode): boolean;
-  getIntegerConstantValue(expr: AST.Expression): bigint | undefined;
-  findOperatorOverload(
-    targetType: AST.TypeNode,
-    methodName: string,
-    paramTypes: AST.TypeNode[],
-  ): AST.FunctionDecl | undefined;
-  resolveOverload(
-    name: string,
-    candidates: Symbol[],
-    argTypes: (AST.TypeNode | undefined)[],
-    genericArgs: AST.TypeNode[],
-    location: SourceLocation,
-  ): any;
-  resolveMemberWithContext(
-    baseType: AST.BasicTypeNode,
-    memberName: string,
-  ): any;
-  resolveStructField(
-    decl: AST.StructDecl,
-    fieldName: string,
-  ): AST.StructField | undefined;
-  checkMatchExhaustiveness(expr: AST.MatchExpr, enumDecl: AST.EnumDecl): void;
-  checkPattern(
-    pattern: AST.Pattern,
-    enumType: AST.TypeNode,
-    enumDecl: AST.EnumDecl | undefined,
-  ): void;
-  checkMatchArmBody(
-    body: AST.Expression | AST.BlockStmt,
-  ): AST.TypeNode | undefined;
-  checkBlock(stmt: AST.BlockStmt, newScope?: boolean): void;
-  isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean;
-  matchContext?: {
-    expectedType?: AST.TypeNode;
-    inferredTypes: AST.TypeNode[];
-  }[];
-}
+import type { CheckerContext } from "./CheckerContext";
 
 /**
  * Check a literal expression and return its type
  */
 export function checkLiteral(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.LiteralExpr,
 ): AST.TypeNode {
   let name = "void";
@@ -132,7 +75,7 @@ export function checkLiteral(
  * Check an interpolated string expression
  */
 export function checkInterpolatedString(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.InterpolatedStringExpr,
 ): AST.TypeNode {
   // Desugar to String concatenation: String.new("") + part1 + part2 ...
@@ -377,7 +320,7 @@ export function checkInterpolatedString(
  * Check an identifier expression
  */
 export function checkIdentifier(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.IdentifierExpr,
 ): AST.TypeNode | undefined {
   const symbol = this.currentScope.resolve(expr.name);
@@ -448,7 +391,7 @@ export function checkIdentifier(
  * Check a binary expression
  */
 export function checkBinary(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.BinaryExpr,
 ): AST.TypeNode | undefined {
   const leftType = this.checkExpression(expr.left);
@@ -685,7 +628,7 @@ export function checkBinary(
  * Check a unary expression
  */
 export function checkUnary(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.UnaryExpr,
 ): AST.TypeNode | undefined {
   const operandType = this.checkExpression(expr.operand);
@@ -831,7 +774,7 @@ export function checkUnary(
  * Check an array literal expression
  */
 export function checkArrayLiteral(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.ArrayLiteralExpr,
 ): AST.TypeNode | undefined {
   if (expr.elements.length === 0) return undefined;
@@ -867,7 +810,7 @@ export function checkArrayLiteral(
  * Check a struct literal expression
  */
 export function checkStructLiteral(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.StructLiteralExpr,
 ): AST.TypeNode | undefined {
   let symbol = this.currentScope.resolve(expr.structName);
@@ -978,7 +921,7 @@ export function checkStructLiteral(
  * Check a tuple literal expression
  */
 export function checkTupleLiteral(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.TupleLiteralExpr,
 ): AST.TypeNode {
   const types: AST.TypeNode[] = [];
@@ -1003,7 +946,7 @@ export function checkTupleLiteral(
  * Check a ternary expression
  */
 export function checkTernary(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.TernaryExpr,
 ): AST.TypeNode | undefined {
   const condType = this.checkExpression(expr.condition);
@@ -1035,7 +978,7 @@ export function checkTernary(
  * Check a cast expression
  */
 export function checkCast(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.CastExpr,
 ): AST.TypeNode {
   const exprType = this.checkExpression(expr.expression);
@@ -1081,7 +1024,7 @@ export function checkCast(
  * Check a sizeof expression
  */
 export function checkSizeof(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.SizeofExpr,
 ): AST.TypeNode {
   let targetType: AST.TypeNode | undefined;
@@ -1124,7 +1067,7 @@ export function checkSizeof(
  * Check a type match expression (match<T>(value))
  */
 export function checkTypeMatch(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.TypeMatchExpr,
 ): AST.TypeNode {
   if ("kind" in expr.value && (expr.value.kind as string) !== "BasicType") {
@@ -1203,10 +1146,7 @@ export function checkTypeMatch(
 /**
  * Check an 'is' expression (expr is Type)
  */
-export function checkIs(
-  this: ExpressionCheckerContext,
-  expr: AST.IsExpr,
-): AST.TypeNode {
+export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
   this.checkExpression(expr.expression);
 
   // If it's a BasicType, it might be an enum variant (e.g. Option.Some)
@@ -1300,10 +1240,7 @@ export function checkIs(
 /**
  * Check an 'as' expression (expr as Type)
  */
-export function checkAs(
-  this: ExpressionCheckerContext,
-  expr: AST.AsExpr,
-): AST.TypeNode {
+export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
   const exprType = this.checkExpression(expr.expression);
 
   if (exprType) {
@@ -1344,7 +1281,7 @@ export function checkAs(
  * Check a match expression
  */
 export function checkMatchExpr(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.MatchExpr,
 ): AST.TypeNode {
   const valueType = this.checkExpression(expr.value);
@@ -1373,13 +1310,13 @@ export function checkMatchExpr(
       let symbol = this.currentScope.resolve(valueType.name);
       if (!symbol && valueType.name.includes(".")) {
         const parts = valueType.name.split(".");
-        let current = this.currentScope.resolve(parts[0]);
+        let current = this.currentScope.resolve(parts[0]!);
         for (let i = 1; i < parts.length; i++) {
           if (!current || !current.moduleScope) {
             current = undefined;
             break;
           }
-          current = current.moduleScope.getInCurrentScope(parts[i]);
+          current = current.moduleScope.getInCurrentScope(parts[i]!);
         }
         symbol = current;
       }
@@ -1438,7 +1375,7 @@ export function checkMatchExpr(
  * Check a lambda expression
  */
 export function checkLambda(
-  this: ExpressionCheckerContext,
+  this: CheckerContext,
   expr: AST.LambdaExpr,
 ): AST.TypeNode {
   // 0. Infer types from context
@@ -1520,7 +1457,7 @@ export function checkLambda(
   // 4. Capture Analysis
   const analyzer = new CaptureAnalyzer(expr);
   const capturedVars = analyzer.analyze();
-  expr.capturedVariables = capturedVars as any[];
+  expr.capturedVariables = capturedVars;
 
   // 5. Construct Function Type
   return {

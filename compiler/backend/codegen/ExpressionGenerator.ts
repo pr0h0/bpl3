@@ -101,7 +101,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
     if (expr.capturedVariables && expr.capturedVariables.length > 0) {
       const captureStructName = `${lambdaName}_ctx`;
-      (expr as any).captureStructName = captureStructName;
+      expr.captureStructName = captureStructName;
       const captureStructType = `%struct.${captureStructName}`;
 
       // Create struct layout
@@ -110,13 +110,13 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
       expr.capturedVariables.forEach((decl, i) => {
         layout.set(decl.name as string, i);
-        if (decl.typeAnnotation) {
+        if ("typeAnnotation" in decl && decl.typeAnnotation) {
           fieldTypes.push(this.resolveType(decl.typeAnnotation));
-        } else if ((decl as any).type) {
+        } else if ("type" in decl && decl.type) {
           // Handle captured parameters which have 'type' instead of 'typeAnnotation'
-          fieldTypes.push(this.resolveType((decl as any).type));
-        } else if (decl.resolvedType) {
-          fieldTypes.push(this.resolveType(decl.resolvedType));
+          fieldTypes.push(this.resolveType(decl.type));
+        } else if ("resolvedType" in decl && (decl as any).resolvedType) {
+          fieldTypes.push(this.resolveType((decl as any).resolvedType));
         } else {
           console.log(`Failed to resolve type for ${decl.name}`);
           console.log(`Keys: ${Object.keys(decl)}`);
@@ -155,7 +155,9 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       expr.capturedVariables.forEach((decl, i) => {
         const varName = decl.name as string;
         const resType =
-          decl.typeAnnotation || (decl as any).type || decl.resolvedType;
+          ("typeAnnotation" in decl ? decl.typeAnnotation : undefined) ||
+          ("type" in decl ? decl.type : undefined) ||
+          decl.resolvedType;
         if (!resType) {
           console.log(`Missing resolvedType for captured variable ${varName}`);
           console.log(`Keys: ${Object.keys(decl)}`);

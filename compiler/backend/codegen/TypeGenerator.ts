@@ -1,6 +1,7 @@
 import type { AST } from "../..";
 import { CompilerError } from "../../common/CompilerError";
 import { BaseCodeGenerator } from "./BaseCodeGenerator";
+import { TypeSubstitution } from "../../middleend/TypeUtils";
 
 export abstract class TypeGenerator extends BaseCodeGenerator {
   protected abstract generateFunction(
@@ -26,7 +27,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
   protected getDwarfTypeId(type: AST.TypeNode): number {
     if (!this.generateDwarf) return 0;
     console.log(
-      `getDwarfTypeId: ${type.kind} ${type.kind === "BasicType" ? (type as any).name : ""}`,
+      `getDwarfTypeId: ${type.kind} ${type.kind === "BasicType" ? type.name : ""}`,
     );
 
     const resolvedName = this.resolveType(type);
@@ -755,7 +756,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           // Try to use resolved declaration first (supports cross-module inheritance)
           if (
             typeNode.resolvedDeclaration &&
-            (typeNode.resolvedDeclaration as any).kind === "StructDecl"
+            typeNode.resolvedDeclaration.kind === "StructDecl"
           ) {
             const parent = typeNode.resolvedDeclaration as AST.StructDecl;
             fields = this.getAllStructFields(parent);
@@ -886,9 +887,9 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
             let pName = typeNode.name;
             if (
               typeNode.resolvedDeclaration &&
-              (typeNode.resolvedDeclaration as any).kind === "StructDecl"
+              typeNode.resolvedDeclaration.kind === "StructDecl"
             ) {
-              pName = (typeNode.resolvedDeclaration as any).name;
+              pName = typeNode.resolvedDeclaration.name;
             }
             // Ignore generics for now or handle them?
             // If generic, we might need to instantiate?
@@ -1509,9 +1510,9 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         // Use resolved declaration if available (handles imports)
         if (
           parent.resolvedDeclaration &&
-          (parent.resolvedDeclaration as any).kind === "StructDecl"
+          parent.resolvedDeclaration.kind === "StructDecl"
         ) {
-          parentName = (parent.resolvedDeclaration as any).name;
+          parentName = parent.resolvedDeclaration.name;
         }
 
         const owner = this.findMethodOwner(parentName, methodName);
@@ -1601,10 +1602,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           const mapped = this.currentTypeMap.get(basicType.name)!;
 
           // Prevent infinite recursion if mapped type is same as current type (T -> T)
-          if (
-            mapped.kind === "BasicType" &&
-            (mapped as any).name === basicType.name
-          ) {
+          if (mapped.kind === "BasicType" && mapped.name === basicType.name) {
             // Fallback to struct name if T maps to T (generic template context)
             let llvmType = `%struct.${basicType.name}`;
             for (let i = 0; i < basicType.pointerDepth; i++) {
@@ -1698,10 +1696,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
               const name = (arg as AST.BasicTypeNode).name;
               if (this.currentTypeMap.has(name)) {
                 const mapped = this.currentTypeMap.get(name)!;
-                if (
-                  mapped.kind === "BasicType" &&
-                  (mapped as any).name === name
-                ) {
+                if (mapped.kind === "BasicType" && mapped.name === name) {
                   return true;
                 }
               }
@@ -1879,7 +1874,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           const name = (arg as AST.BasicTypeNode).name;
           if (this.currentTypeMap.has(name)) {
             const mapped = this.currentTypeMap.get(name)!;
-            if (mapped.kind === "BasicType" && (mapped as any).name === name) {
+            if (mapped.kind === "BasicType" && mapped.name === name) {
               return true;
             }
           }
@@ -2095,12 +2090,14 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           const name = (arg as AST.BasicTypeNode).name;
           if (this.currentTypeMap.has(name)) {
             const mapped = this.currentTypeMap.get(name)!;
-            if (mapped.kind === "BasicType" && (mapped as any).name === name) {
+            if (mapped.kind === "BasicType" && mapped.name === name) {
               return true;
             } else {
               if (name === "T") {
                 console.log(
-                  `[DEBUG] instantiateGenericEnum: T in map but not placeholder. mapped.kind=${mapped.kind}, mapped.name=${(mapped as any).name}`,
+                  `[DEBUG] instantiateGenericEnum: T in map but not placeholder. mapped.kind=${mapped.kind}, mapped.name=${
+                    mapped.kind === "BasicType" ? mapped.name : ""
+                  }`,
                 );
               }
             }
@@ -2377,46 +2374,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     type: AST.TypeNode,
     map: Map<string, AST.TypeNode>,
   ): AST.TypeNode {
-    if (type.kind === "BasicType") {
-      // Check map by iterating keys to ensure string matching works
-      for (const [key, value] of map.entries()) {
-        if (key === type.name.trim()) {
-          const mapped = value;
-          // Merge pointer depth and array dims
-          if (mapped.kind === "BasicType") {
-            return {
-              ...mapped,
-              pointerDepth: mapped.pointerDepth + type.pointerDepth,
-              arrayDimensions: [
-                ...mapped.arrayDimensions,
-                ...type.arrayDimensions,
-              ],
-              // Preserve resolvedDeclaration from the mapped type
-              resolvedDeclaration: mapped.resolvedDeclaration,
-            };
-          }
-          return mapped;
-        }
-      }
-
-      // Recursively substitute generic args
-      const substitutedArgs = type.genericArgs.map((arg) =>
-        this.substituteType(arg, map),
-      );
-      return {
-        ...type,
-        genericArgs: substitutedArgs,
-        // Preserve resolvedDeclaration when creating new type with substituted args
-        resolvedDeclaration: type.resolvedDeclaration,
-      };
-    } else if (type.kind === "FunctionType") {
-      return {
-        ...type,
-        returnType: this.substituteType(type.returnType, map),
-        paramTypes: type.paramTypes.map((p) => this.substituteType(p, map)),
-      };
-    }
-    return type;
+    return TypeSubstitution.substituteType(type, map);
   }
 
   protected emitParentDestroy(

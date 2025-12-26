@@ -4,13 +4,8 @@
  * expression and statement checkers.
  */
 
-import * as fs from "fs";
-import * as path from "path";
-
 import * as AST from "../common/AST";
-import { CompilerError, type SourceLocation } from "../common/CompilerError";
-import { lexWithGrammar } from "../frontend/GrammarLexer";
-import { Parser } from "../frontend/Parser";
+import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import type { Symbol, SymbolKind } from "./SymbolTable";
@@ -19,81 +14,24 @@ import {
   initializeBuiltinsInScope,
   PRIMITIVE_STRUCT_MAP,
 } from "./BuiltinTypes";
-import {
-  TypeUtils,
-  TypeSubstitution,
-  INTEGER_TYPES,
-  KNOWN_TYPES,
-  NUMERIC_TYPES,
-} from "./TypeUtils";
-import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
-
-/**
- * Get the standard library path, using BPL_HOME environment variable if available
- * Falls back to relative path for development mode
- */
-export function getStdLibPath(): string {
-  const bplHome = process.env.BPL_HOME;
-  if (bplHome) {
-    return path.join(bplHome, "lib");
-  }
-  return path.join(__dirname, "../../lib");
-}
-
-/**
- * Interface for type checker context - used by checker modules
- */
-export interface ITypeCheckerContext {
-  // State
-  globalScope: SymbolTable;
-  currentScope: SymbolTable;
-  currentFunctionReturnType: AST.TypeNode | undefined;
-  modules: Map<string, SymbolTable>;
-  skipImportResolution: boolean;
-  preLoadedModules: Map<string, AST.Program>;
-  linkerSymbolTable: LinkerSymbolTable;
-  currentModulePath: string;
-  errors: CompilerError[];
-  collectAllErrors: boolean;
-  loopDepth: number;
-
-  // Core methods that must be available
-  checkExpression(expr: AST.Expression): AST.TypeNode | undefined;
-  checkStatement(stmt: AST.Statement): void;
-  resolveType(type: AST.TypeNode, checkConstraints?: boolean): AST.TypeNode;
-  areTypesCompatible(
-    t1: AST.TypeNode,
-    t2: AST.TypeNode,
-    checkConstraints?: boolean,
-  ): boolean;
-  typeToString(type: AST.TypeNode | undefined): string;
-  defineSymbol(
-    name: string,
-    kind: SymbolKind,
-    type: AST.TypeNode | undefined,
-    node: AST.ASTNode,
-    moduleScope?: SymbolTable,
-    isConst?: boolean,
-  ): void;
-  hoistDeclaration(stmt: AST.Statement): void;
-}
+import { TypeUtils, TypeSubstitution, NUMERIC_TYPES } from "./TypeUtils";
 
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
 export abstract class TypeCheckerBase {
   // ========== State ==========
-  protected globalScope: SymbolTable;
-  protected currentScope: SymbolTable;
-  protected currentFunctionReturnType: AST.TypeNode | undefined;
-  protected modules: Map<string, SymbolTable> = new Map();
-  protected skipImportResolution: boolean;
-  protected preLoadedModules: Map<string, AST.Program> = new Map();
-  protected linkerSymbolTable: LinkerSymbolTable;
-  protected currentModulePath: string = "unknown";
-  protected errors: CompilerError[] = [];
-  protected collectAllErrors: boolean = true;
-  protected loopDepth: number = 0;
+  public globalScope: SymbolTable;
+  public currentScope: SymbolTable;
+  public currentFunctionReturnType: AST.TypeNode | undefined;
+  public modules: Map<string, SymbolTable> = new Map();
+  public skipImportResolution: boolean;
+  public preLoadedModules: Map<string, AST.Program> = new Map();
+  public linkerSymbolTable: LinkerSymbolTable;
+  public currentModulePath: string = "unknown";
+  public errors: CompilerError[] = [];
+  public collectAllErrors: boolean = true;
+  public loopDepth: number = 0;
 
   constructor(
     options: {
@@ -177,8 +115,7 @@ export abstract class TypeCheckerBase {
           | AST.TypeAliasDecl
           | AST.SpecDecl;
 
-        const genericParams =
-          ((decl as any).genericParams as AST.GenericParam[]) || [];
+        const genericParams = decl.genericParams || [];
 
         if (type.genericArgs.length !== genericParams.length) {
           // Special case for Option.Some(42) where generic args are inferred later
@@ -273,7 +210,8 @@ export abstract class TypeCheckerBase {
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
-        basicType.resolvedDeclaration = resolvedSymbol.declaration as any;
+        basicType.resolvedDeclaration =
+          resolvedSymbol.declaration as AST.EnumDecl;
         basicType.genericArgs = resolvedArgs;
 
         return basicType;
@@ -326,14 +264,16 @@ export abstract class TypeCheckerBase {
               ...type.arrayDimensions,
             ],
             location: type.location,
-            isConst: resolvedBase.isConst || (type as any).isConst,
+            isConst:
+              resolvedBase.isConst ||
+              ("isConst" in type ? type.isConst : undefined),
           };
           return result;
         }
 
         // Propagate const for other types (FunctionType, TupleType)
-        if ((type as any).isConst) {
-          return { ...resolvedBase, isConst: true } as any;
+        if ("isConst" in type && type.isConst) {
+          return { ...resolvedBase, isConst: true } as AST.TypeNode;
         }
         return resolvedBase;
       }
@@ -412,27 +352,27 @@ export abstract class TypeCheckerBase {
     return TypeUtils.typeToString(type);
   }
 
-  protected isIntegerType(type: AST.TypeNode): boolean {
+  public isIntegerType(type: AST.TypeNode): boolean {
     return TypeUtils.isIntegerType(type);
   }
 
-  protected isComparisonOperator(op: TokenType): boolean {
+  public isComparisonOperator(op: TokenType): boolean {
     return TypeUtils.isComparisonOperator(op);
   }
 
-  protected isBoolType(type: AST.TypeNode): boolean {
+  public isBoolType(type: AST.TypeNode): boolean {
     return TypeUtils.isBoolType(type);
   }
 
-  protected makeVoidType(): AST.TypeNode {
+  public makeVoidType(): AST.TypeNode {
     return TypeUtils.makeVoidType();
   }
 
-  protected getIntegerConstantValue(expr: AST.Expression): bigint | undefined {
+  public getIntegerConstantValue(expr: AST.Expression): bigint | undefined {
     return TypeUtils.getIntegerConstantValue(expr);
   }
 
-  protected isIntegerTypeCompatible(
+  public isIntegerTypeCompatible(
     val: bigint,
     targetType: AST.TypeNode,
   ): boolean {
@@ -441,13 +381,13 @@ export abstract class TypeCheckerBase {
     );
   }
 
-  protected getIntegerSize(type: AST.TypeNode): number {
+  public getIntegerSize(type: AST.TypeNode): number {
     return TypeUtils.getIntegerSize(type);
   }
 
   // ========== Symbol Management ==========
 
-  protected defineSymbol(
+  public defineSymbol(
     name: string,
     kind: SymbolKind,
     type: AST.TypeNode | undefined,
@@ -493,7 +433,7 @@ export abstract class TypeCheckerBase {
     });
   }
 
-  protected defineImportedSymbol(
+  public defineImportedSymbol(
     name: string,
     symbol: Symbol,
     scope?: SymbolTable,
@@ -525,28 +465,11 @@ export abstract class TypeCheckerBase {
 
   // ========== Type Compatibility ==========
 
-  protected getIntegerBits(typeName: string): number {
-    const aliases: { [key: string]: string } = {
-      long: "i64",
-      ulong: "u64",
-      int: "i32",
-      uint: "u32",
-      short: "i16",
-      ushort: "u16",
-      char: "i8",
-      uchar: "u8",
-      bool: "i1",
-    };
-    const name = aliases[typeName] || typeName;
-    if (name === "i1") return 1;
-    if (name === "i8" || name === "u8") return 8;
-    if (name === "i16" || name === "u16") return 16;
-    if (name === "i32" || name === "u32") return 32;
-    if (name === "i64" || name === "u64") return 64;
-    return 0;
+  public getIntegerBits(typeName: string): number {
+    return TypeUtils.getIntegerBits(typeName);
   }
 
-  protected areTypesCompatible(
+  public areTypesCompatible(
     t1: AST.TypeNode,
     t2: AST.TypeNode,
     checkConstraints: boolean = true,
@@ -717,7 +640,7 @@ export abstract class TypeCheckerBase {
     return false;
   }
 
-  protected areTypesExactMatch(t1: AST.TypeNode, t2: AST.TypeNode): boolean {
+  public areTypesExactMatch(t1: AST.TypeNode, t2: AST.TypeNode): boolean {
     const rt1 = this.resolveType(t1, false);
     const rt2 = this.resolveType(t2, false);
 
@@ -758,7 +681,7 @@ export abstract class TypeCheckerBase {
     return false;
   }
 
-  protected areSignaturesEqual(
+  public areSignaturesEqual(
     f1: AST.FunctionTypeNode,
     f2: AST.FunctionTypeNode,
   ): boolean {
@@ -772,12 +695,12 @@ export abstract class TypeCheckerBase {
 
   // ========== Struct/Type Helpers ==========
 
-  protected isStructType(typeName: string): boolean {
+  public isStructType(typeName: string): boolean {
     const symbol = this.currentScope.resolve(typeName);
     return symbol !== undefined && symbol.kind === "Struct";
   }
 
-  protected getSuperType(
+  public getSuperType(
     child: AST.BasicTypeNode,
     parentName: string,
   ): AST.BasicTypeNode | undefined {
@@ -814,7 +737,7 @@ export abstract class TypeCheckerBase {
     return this.getSuperType(instantiatedParent, parentName);
   }
 
-  protected isSubtype(
+  public isSubtype(
     child: AST.BasicTypeNode,
     parent: AST.BasicTypeNode,
   ): boolean {
@@ -824,16 +747,14 @@ export abstract class TypeCheckerBase {
     if (!childSymbol) return false;
 
     if (childSymbol.kind === "TypeAlias") {
-      const aliasDecl = childSymbol.declaration as any;
+      const aliasDecl = childSymbol.declaration;
       if (
-        (!aliasDecl.kind || aliasDecl.kind === "GenericParam") &&
-        aliasDecl.constraint
+        (aliasDecl.kind === "GenericParam" || !aliasDecl.kind) &&
+        "constraint" in aliasDecl
       ) {
-        if (aliasDecl.constraint.kind === "BasicType") {
-          return this.isSubtype(
-            aliasDecl.constraint as AST.BasicTypeNode,
-            parent,
-          );
+        const gp = aliasDecl as unknown as AST.GenericParam;
+        if (gp.constraint && gp.constraint.kind === "BasicType") {
+          return this.isSubtype(gp.constraint as AST.BasicTypeNode, parent);
         }
       }
     }
@@ -866,7 +787,7 @@ export abstract class TypeCheckerBase {
     return false;
   }
 
-  protected resolveStructField(
+  public resolveStructField(
     decl: AST.StructDecl,
     fieldName: string,
     substitutionMap: Map<string, AST.TypeNode> = new Map(),
@@ -916,7 +837,7 @@ export abstract class TypeCheckerBase {
     return undefined;
   }
 
-  protected resolveMemberWithContext(
+  public resolveMemberWithContext(
     baseType: AST.BasicTypeNode,
     memberName: string,
   ):
@@ -959,16 +880,17 @@ export abstract class TypeCheckerBase {
             decl = symbol.declaration as AST.SpecDecl;
           } else if (symbol.kind === "TypeAlias") {
             // Check if it's a generic parameter with a constraint
-            const aliasDecl = symbol.declaration as any;
+            const aliasDecl = symbol.declaration;
             // GenericParam interface doesn't have 'kind' property, so we check for constraint existence
             // or if it happens to have kind="GenericParam" (future proofing)
             if (
               (aliasDecl.kind === "GenericParam" || !aliasDecl.kind) &&
-              aliasDecl.constraint
+              "constraint" in aliasDecl
             ) {
-              if (aliasDecl.constraint.kind === "BasicType") {
+              const gp = aliasDecl as unknown as AST.GenericParam;
+              if (gp.constraint && gp.constraint.kind === "BasicType") {
                 return this.resolveMemberWithContext(
-                  aliasDecl.constraint as AST.BasicTypeNode,
+                  gp.constraint as AST.BasicTypeNode,
                   memberName,
                 );
               }
@@ -1054,7 +976,7 @@ export abstract class TypeCheckerBase {
 
   // ========== Cast Checking ==========
 
-  protected isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean {
+  public isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean {
     const resolvedSource = this.resolveType(source);
     const resolvedTarget = this.resolveType(target);
 
@@ -1187,62 +1109,22 @@ export abstract class TypeCheckerBase {
     return false;
   }
 
-  protected isImplicitWideningAllowed(
+  public isImplicitWideningAllowed(
     source: AST.TypeNode,
     target: AST.TypeNode,
   ): boolean {
-    const rs = this.resolveType(source);
-    const rt = this.resolveType(target);
-
-    if (rs.kind !== "BasicType" || rt.kind !== "BasicType") return false;
-    if (rs.pointerDepth !== 0 || rt.pointerDepth !== 0) return false;
-
-    const sourceSize = this.getIntegerSize(rs);
-    const targetSize = this.getIntegerSize(rt);
-
-    if (sourceSize === 0 || targetSize === 0) return false;
-
-    // Same signedness, target larger or equal
-    const sourceIsSigned = [
-      "i8",
-      "i16",
-      "i32",
-      "i64",
-      "char",
-      "short",
-      "int",
-      "long",
-    ].includes(rs.name);
-    const targetIsSigned = [
-      "i8",
-      "i16",
-      "i32",
-      "i64",
-      "char",
-      "short",
-      "int",
-      "long",
-    ].includes(rt.name);
-
-    if (sourceIsSigned === targetIsSigned && targetSize >= sourceSize) {
-      return true;
-    }
-
-    // Unsigned to larger signed is also allowed
-    if (!sourceIsSigned && targetIsSigned && targetSize > sourceSize) {
-      return true;
-    }
-
-    return false;
+    return TypeUtils.isImplicitWideningAllowed(source, target, (t) =>
+      this.resolveType(t),
+    );
   }
 
   // ========== Scope Management ==========
 
-  protected enterScope(): void {
+  public enterScope(): void {
     this.currentScope = this.currentScope.enterScope();
   }
 
-  protected exitScope(): void {
+  public exitScope(): void {
     this.currentScope = this.currentScope.exitScope();
   }
 }

@@ -160,7 +160,14 @@ export function createTypeStructDecl(): AST.StructDecl {
     isStatic: false,
     name: "getTypeName",
     genericParams: [],
-    params: [{ name: "this", type: typeType, location: INTERNAL_LOCATION }],
+    params: [
+      {
+        kind: "Parameter",
+        name: "this",
+        type: typeType,
+        location: INTERNAL_LOCATION,
+      },
+    ],
     returnType: stringType,
     resolvedType: {
       kind: "FunctionType",
@@ -196,7 +203,14 @@ export function createTypeStructDecl(): AST.StructDecl {
     isStatic: false,
     name: "toString",
     genericParams: [],
-    params: [{ name: "this", type: typeType, location: INTERNAL_LOCATION }],
+    params: [
+      {
+        kind: "Parameter",
+        name: "this",
+        type: typeType,
+        location: INTERNAL_LOCATION,
+      },
+    ],
     returnType: stringType,
     resolvedType: {
       kind: "FunctionType",
@@ -249,7 +263,14 @@ export function createTypeStructDecl(): AST.StructDecl {
     isStatic: false,
     name: "destroy",
     genericParams: [],
-    params: [{ name: "this", type: typeType, location: INTERNAL_LOCATION }],
+    params: [
+      {
+        kind: "Parameter",
+        name: "this",
+        type: typeType,
+        location: INTERNAL_LOCATION,
+      },
+    ],
     returnType: createBasicType("void"),
     resolvedType: {
       kind: "FunctionType",

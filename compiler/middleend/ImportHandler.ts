@@ -10,21 +10,9 @@ import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
-import { type Symbol, SymbolTable } from "./SymbolTable";
+import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import { initializeBuiltinsInScope } from "./BuiltinTypes";
-
-/**
- * Get the standard library path, using BPL_HOME environment variable if available
- * Falls back to relative path for development mode
- */
-export function getStdLibPath(): string {
-  const bplHome = process.env.BPL_HOME;
-  if (bplHome) {
-    return path.join(bplHome, "lib");
-  }
-  // Fallback to relative path (development mode)
-  return path.join(__dirname, "../../lib");
-}
+import { getLibPath } from "../common/PathResolver";
 
 /**
  * Import handler context
@@ -39,7 +27,7 @@ export interface ImportHandlerContext {
   checkStatement: (stmt: AST.Statement) => void;
   defineSymbol: (
     name: string,
-    kind: string,
+    kind: SymbolKind,
     type: AST.TypeNode | undefined,
     declaration: AST.ASTNode,
     moduleScope?: SymbolTable,
@@ -123,7 +111,7 @@ export class ImportHandler {
       let resolvedImportPath: string | undefined;
 
       if (stmt.source.startsWith("std/")) {
-        const stdLibPath = getStdLibPath();
+        const stdLibPath = getLibPath();
         resolvedImportPath = path.join(stdLibPath, stmt.source.substring(4));
       } else if (path.isAbsolute(stmt.source)) {
         resolvedImportPath = stmt.source;
@@ -176,10 +164,10 @@ export class ImportHandler {
     } else {
       // Handle std/ prefix
       if (stmt.source === "std") {
-        const stdLibPath = getStdLibPath();
+        const stdLibPath = getLibPath();
         importPath = path.join(stdLibPath, "std.bpl");
       } else if (stmt.source.startsWith("std/")) {
-        const stdLibPath = getStdLibPath();
+        const stdLibPath = getLibPath();
         const relativePath = stmt.source.substring(4);
         importPath = path.join(stdLibPath, relativePath);
       } else {
@@ -232,8 +220,8 @@ export class ImportHandler {
     const prevCurrent = this.ctx.currentScope;
 
     // Temporarily switch scopes
-    (this.ctx as any).globalScope = moduleScope;
-    (this.ctx as any).currentScope = moduleScope;
+    this.ctx.globalScope = moduleScope;
+    this.ctx.currentScope = moduleScope;
 
     // Hoist declarations in the imported module
     for (const s of moduleAst.statements) {
@@ -247,8 +235,8 @@ export class ImportHandler {
     }
 
     // Restore context
-    (this.ctx as any).globalScope = prevGlobal;
-    (this.ctx as any).currentScope = prevCurrent;
+    this.ctx.globalScope = prevGlobal;
+    this.ctx.currentScope = prevCurrent;
 
     return moduleScope;
   }
@@ -285,7 +273,7 @@ export class ImportHandler {
    * Load implicit imports (primitives) into the global scope
    */
   public loadImplicitImports(): void {
-    const stdLibPath = getStdLibPath();
+    const stdLibPath = getLibPath();
     const primitivesPath = path.join(stdLibPath, "primitives.bpl");
 
     // Check if file exists to avoid crashing if stdlib is missing

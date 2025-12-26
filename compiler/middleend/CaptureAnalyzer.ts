@@ -8,13 +8,17 @@ export class CaptureAnalyzer {
   constructor(lambdaExpr: AST.LambdaExpr) {
     this.lambdaExpr = lambdaExpr;
     // Add params to local declarations
-    lambdaExpr.params.forEach((p) => this.localDeclarations.add(p as any));
+    lambdaExpr.params.forEach((p) => this.localDeclarations.add(p));
   }
 
-  public analyze(): AST.VariableDecl[] {
+  public analyze(): (AST.VariableDecl | AST.Parameter | AST.LambdaParameter)[] {
     this.visit(this.lambdaExpr.body);
     // Return as VariableDecl[] (casting needed as we store ASTNode)
-    return Array.from(this.capturedVariables) as any[];
+    return Array.from(this.capturedVariables) as (
+      | AST.VariableDecl
+      | AST.Parameter
+      | AST.LambdaParameter
+    )[];
   }
 
   private visit(node: AST.ASTNode) {

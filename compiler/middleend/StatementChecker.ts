@@ -4,57 +4,15 @@
  */
 
 import * as AST from "../common/AST";
-import {
-  CompilerError,
-  DiagnosticSeverity,
-  type SourceLocation,
-} from "../common/CompilerError";
-import type { Symbol, SymbolKind } from "./SymbolTable";
+import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES } from "./TypeUtils";
-
-/**
- * Type for the TypeChecker context that statement checkers need access to
- */
-export interface StatementCheckerContext {
-  currentScope: any;
-  globalScope: any;
-  currentFunctionReturnType: AST.TypeNode | undefined;
-  loopDepth: number;
-  errors: CompilerError[];
-  collectAllErrors: boolean;
-  checkExpression(expr: AST.Expression): AST.TypeNode | undefined;
-  checkStatement(stmt: AST.Statement): void;
-  resolveType(type: AST.TypeNode, checkConstraints?: boolean): AST.TypeNode;
-  areTypesCompatible(
-    t1: AST.TypeNode,
-    t2: AST.TypeNode,
-    checkConstraints?: boolean,
-  ): boolean;
-  typeToString(type: AST.TypeNode | undefined): string;
-  defineSymbol(
-    name: string,
-    kind: SymbolKind,
-    type: AST.TypeNode | undefined,
-    node: AST.ASTNode,
-    moduleScope?: any,
-    isConst?: boolean,
-  ): void;
-  isBoolType(type: AST.TypeNode): boolean;
-  makeVoidType(): AST.TypeNode;
-  getIntegerConstantValue(expr: AST.Expression): bigint | undefined;
-  isIntegerTypeCompatible(val: bigint, targetType: AST.TypeNode): boolean;
-  hoistDeclaration(stmt: AST.Statement): void;
-  matchContext?: {
-    expectedType?: AST.TypeNode;
-    inferredTypes: AST.TypeNode[];
-  }[];
-}
+import type { CheckerContext } from "./CheckerContext";
 
 /**
  * Check a block statement
  */
 export function checkBlock(
-  this: StatementCheckerContext,
+  this: CheckerContext,
   stmt: AST.BlockStmt,
   newScope: boolean = true,
 ): void {
@@ -119,7 +77,7 @@ export function checkBlock(
 /**
  * Check an if statement
  */
-export function checkIf(this: StatementCheckerContext, stmt: AST.IfStmt): void {
+export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
   const condType = this.checkExpression(stmt.condition);
   if (condType && !this.isBoolType(condType)) {
     throw new CompilerError(
@@ -137,10 +95,7 @@ export function checkIf(this: StatementCheckerContext, stmt: AST.IfStmt): void {
 /**
  * Check a loop statement (for/while)
  */
-export function checkLoop(
-  this: StatementCheckerContext,
-  stmt: AST.LoopStmt,
-): void {
+export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
   this.loopDepth++;
   if (stmt.condition) {
     const condType = this.checkExpression(stmt.condition);
@@ -159,10 +114,7 @@ export function checkLoop(
 /**
  * Check a return statement
  */
-export function checkReturn(
-  this: StatementCheckerContext,
-  stmt: AST.ReturnStmt,
-): void {
+export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
   const returnType = stmt.value
     ? this.checkExpression(stmt.value)
     : this.makeVoidType();
@@ -216,10 +168,7 @@ export function checkReturn(
 /**
  * Check a try statement
  */
-export function checkTry(
-  this: StatementCheckerContext,
-  stmt: AST.TryStmt,
-): void {
+export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
   checkBlock.call(this, stmt.tryBlock);
 
   // Check catch clauses
@@ -239,20 +188,14 @@ export function checkTry(
 /**
  * Check a throw statement
  */
-export function checkThrow(
-  this: StatementCheckerContext,
-  stmt: AST.ThrowStmt,
-): void {
+export function checkThrow(this: CheckerContext, stmt: AST.ThrowStmt): void {
   this.checkExpression(stmt.expression);
 }
 
 /**
  * Check a switch statement
  */
-export function checkSwitch(
-  this: StatementCheckerContext,
-  stmt: AST.SwitchStmt,
-): void {
+export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
   const valueType = this.checkExpression(stmt.expression);
 
   if (valueType) {
@@ -325,10 +268,7 @@ export function checkSwitch(
 /**
  * Check a break statement
  */
-export function checkBreak(
-  this: StatementCheckerContext,
-  stmt: AST.BreakStmt,
-): void {
+export function checkBreak(this: CheckerContext, stmt: AST.BreakStmt): void {
   if (this.loopDepth === 0) {
     throw new CompilerError(
       "'break' statement outside of loop",
@@ -342,7 +282,7 @@ export function checkBreak(
  * Check a continue statement
  */
 export function checkContinue(
-  this: StatementCheckerContext,
+  this: CheckerContext,
   stmt: AST.ContinueStmt,
 ): void {
   if (this.loopDepth === 0) {
@@ -358,7 +298,7 @@ export function checkContinue(
  * Check a variable declaration
  */
 export function checkVariableDecl(
-  this: StatementCheckerContext,
+  this: CheckerContext,
   decl: AST.VariableDecl,
 ): void {
   if (Array.isArray(decl.name)) {
@@ -605,7 +545,7 @@ export function checkVariableDecl(
  * Check if all paths in a statement return
  */
 export function checkAllPathsReturn(
-  this: StatementCheckerContext,
+  this: CheckerContext,
   stmt: AST.Statement,
 ): boolean {
   switch (stmt.kind) {

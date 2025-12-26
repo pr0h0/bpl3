@@ -9,10 +9,9 @@ import * as path from "path";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
-import type { Symbol, SymbolKind } from "./SymbolTable";
+import type { Symbol } from "./SymbolTable";
 import { SymbolTable } from "./SymbolTable";
-import { TypeCheckerBase, getStdLibPath } from "./TypeCheckerBase";
-import { initializeBuiltinsInScope } from "./BuiltinTypes";
+import { TypeCheckerBase } from "./TypeCheckerBase";
 import {
   TypeUtils,
   TypeSubstitution,
@@ -22,6 +21,7 @@ import {
 } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP, OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
+import type { CheckerContext } from "./CheckerContext";
 
 // Import checker functions
 import * as ExprChecker from "./ExpressionChecker";
@@ -31,7 +31,7 @@ import * as CallChecker from "./CallChecker";
 /**
  * TypeChecker implementation that uses modular checker functions
  */
-export class TypeChecker extends TypeCheckerBase {
+export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private importHandler: ImportHandler;
   private overloadResolver: OverloadResolver;
   public matchContext: {
@@ -46,8 +46,8 @@ export class TypeChecker extends TypeCheckerBase {
     } = {},
   ) {
     super(options);
-    this.importHandler = new ImportHandler(this as any);
-    this.overloadResolver = new OverloadResolver(this as any);
+    this.importHandler = new ImportHandler(this);
+    this.overloadResolver = new OverloadResolver(this);
 
     // Load implicit imports (primitives)
     if (!options.skipImportResolution) {
@@ -278,31 +278,31 @@ export class TypeChecker extends TypeCheckerBase {
         this.checkExpression(stmt.expression);
         break;
       case "Block":
-        StmtChecker.checkBlock.call(this as any, stmt);
+        StmtChecker.checkBlock.call(this, stmt);
         break;
       case "If":
-        StmtChecker.checkIf.call(this as any, stmt);
+        StmtChecker.checkIf.call(this, stmt);
         break;
       case "Loop":
-        StmtChecker.checkLoop.call(this as any, stmt);
+        StmtChecker.checkLoop.call(this, stmt);
         break;
       case "Return":
-        StmtChecker.checkReturn.call(this as any, stmt);
+        StmtChecker.checkReturn.call(this, stmt);
         break;
       case "Break":
-        StmtChecker.checkBreak.call(this as any, stmt);
+        StmtChecker.checkBreak.call(this, stmt);
         break;
       case "Continue":
-        StmtChecker.checkContinue.call(this as any, stmt);
+        StmtChecker.checkContinue.call(this, stmt);
         break;
       case "Try":
-        StmtChecker.checkTry.call(this as any, stmt);
+        StmtChecker.checkTry.call(this, stmt);
         break;
       case "Throw":
-        StmtChecker.checkThrow.call(this as any, stmt);
+        StmtChecker.checkThrow.call(this, stmt);
         break;
       case "Switch":
-        StmtChecker.checkSwitch.call(this as any, stmt);
+        StmtChecker.checkSwitch.call(this, stmt);
         break;
       case "Import":
       case "Export":
@@ -318,61 +318,61 @@ export class TypeChecker extends TypeCheckerBase {
     let type: AST.TypeNode | undefined;
     switch (expr.kind) {
       case "Literal":
-        type = ExprChecker.checkLiteral.call(this as any, expr);
+        type = ExprChecker.checkLiteral.call(this, expr);
         break;
       case "InterpolatedString":
-        type = ExprChecker.checkInterpolatedString.call(this as any, expr);
+        type = ExprChecker.checkInterpolatedString.call(this, expr);
         break;
       case "Identifier":
-        type = ExprChecker.checkIdentifier.call(this as any, expr);
+        type = ExprChecker.checkIdentifier.call(this, expr);
         break;
       case "Binary":
-        type = ExprChecker.checkBinary.call(this as any, expr);
+        type = ExprChecker.checkBinary.call(this, expr);
         break;
       case "Unary":
-        type = ExprChecker.checkUnary.call(this as any, expr);
+        type = ExprChecker.checkUnary.call(this, expr);
         break;
       case "Assignment":
         type = this.checkAssignment(expr);
         break;
       case "Call":
-        type = CallChecker.checkCall.call(this as any, expr);
+        type = CallChecker.checkCall.call(this, expr);
         break;
       case "Member":
-        type = CallChecker.checkMember.call(this as any, expr);
+        type = CallChecker.checkMember.call(this, expr);
         break;
       case "Index":
-        type = CallChecker.checkIndex.call(this as any, expr);
+        type = CallChecker.checkIndex.call(this, expr);
         break;
       case "Ternary":
-        type = ExprChecker.checkTernary.call(this as any, expr);
+        type = ExprChecker.checkTernary.call(this, expr);
         break;
       case "Cast":
-        type = ExprChecker.checkCast.call(this as any, expr);
+        type = ExprChecker.checkCast.call(this, expr);
         break;
       case "Sizeof":
-        type = ExprChecker.checkSizeof.call(this as any, expr);
+        type = ExprChecker.checkSizeof.call(this, expr);
         break;
       case "TypeMatch":
-        type = ExprChecker.checkTypeMatch.call(this as any, expr);
+        type = ExprChecker.checkTypeMatch.call(this, expr);
         break;
       case "Is":
-        type = ExprChecker.checkIs.call(this as any, expr);
+        type = ExprChecker.checkIs.call(this, expr);
         break;
       case "As":
-        type = ExprChecker.checkAs.call(this as any, expr);
+        type = ExprChecker.checkAs.call(this, expr);
         break;
       case "Match":
-        type = ExprChecker.checkMatchExpr.call(this as any, expr);
+        type = ExprChecker.checkMatchExpr.call(this, expr);
         break;
       case "ArrayLiteral":
-        type = ExprChecker.checkArrayLiteral.call(this as any, expr);
+        type = ExprChecker.checkArrayLiteral.call(this, expr);
         break;
       case "StructLiteral":
-        type = ExprChecker.checkStructLiteral.call(this as any, expr);
+        type = ExprChecker.checkStructLiteral.call(this, expr);
         break;
       case "TupleLiteral":
-        type = ExprChecker.checkTupleLiteral.call(this as any, expr);
+        type = ExprChecker.checkTupleLiteral.call(this, expr);
         break;
       case "EnumStructVariant":
         type = this.checkEnumStructVariant(expr as AST.EnumStructVariantExpr);
@@ -381,7 +381,7 @@ export class TypeChecker extends TypeCheckerBase {
         type = this.checkGenericInstantiation(expr);
         break;
       case "LambdaExpression":
-        type = ExprChecker.checkLambda.call(this as any, expr);
+        type = ExprChecker.checkLambda.call(this, expr);
         break;
     }
 
@@ -395,7 +395,7 @@ export class TypeChecker extends TypeCheckerBase {
   // ========== Variable Declaration ==========
 
   private checkVariableDecl(decl: AST.VariableDecl): void {
-    StmtChecker.checkVariableDecl.call(this as any, decl);
+    StmtChecker.checkVariableDecl.call(this, decl);
   }
 
   // ========== Function Body Checking ==========
@@ -462,7 +462,7 @@ export class TypeChecker extends TypeCheckerBase {
           kind: "GenericParam",
           location: decl.location,
           ...gp,
-        } as any,
+        } as AST.ASTNode,
       );
     }
 
@@ -512,7 +512,7 @@ export class TypeChecker extends TypeCheckerBase {
         param.name,
         "Variable",
         paramType,
-        param as any,
+        { ...param, kind: "Parameter" } as AST.ASTNode,
         undefined,
         param.isConst,
       );
@@ -524,14 +524,14 @@ export class TypeChecker extends TypeCheckerBase {
     const prevReturnType = this.currentFunctionReturnType;
     this.currentFunctionReturnType = decl.returnType;
 
-    StmtChecker.checkBlock.call(this as any, decl.body, false);
+    StmtChecker.checkBlock.call(this, decl.body, false);
 
     // Check return path for non-void functions
     if (
       decl.returnType.kind === "BasicType" &&
       decl.returnType.name !== "void"
     ) {
-      if (!StmtChecker.checkAllPathsReturn.call(this as any, decl.body)) {
+      if (!StmtChecker.checkAllPathsReturn.call(this, decl.body)) {
         throw new CompilerError(
           `Function '${decl.name}' may not return a value on all code paths`,
           "Ensure all paths return a value.",
@@ -671,7 +671,7 @@ export class TypeChecker extends TypeCheckerBase {
           kind: "GenericParam",
           location: decl.location,
           ...gp,
-        } as any,
+        } as AST.ASTNode,
       );
     }
 
@@ -684,7 +684,7 @@ export class TypeChecker extends TypeCheckerBase {
         if (
           resolved.kind === "BasicType" &&
           resolved.resolvedDeclaration &&
-          (resolved.resolvedDeclaration as any).kind === "StructDecl"
+          resolved.resolvedDeclaration.kind === "StructDecl"
         ) {
           hasStructParent = true;
           break;
@@ -707,7 +707,7 @@ export class TypeChecker extends TypeCheckerBase {
           if (
             typeStruct.kind === "BasicType" &&
             typeStruct.resolvedDeclaration &&
-            (typeStruct.resolvedDeclaration as any).kind === "StructDecl"
+            typeStruct.resolvedDeclaration.kind === "StructDecl"
           ) {
             decl.inheritanceList.push({
               kind: "BasicType",
@@ -730,7 +730,7 @@ export class TypeChecker extends TypeCheckerBase {
       if (
         resolvedParent.kind === "BasicType" &&
         resolvedParent.resolvedDeclaration &&
-        (resolvedParent.resolvedDeclaration as any).kind === "SpecDecl"
+        resolvedParent.resolvedDeclaration.kind === "SpecDecl"
       ) {
         this.checkSpecImplementation(
           decl,
@@ -797,7 +797,7 @@ export class TypeChecker extends TypeCheckerBase {
           kind: "GenericParam",
           location: decl.location,
           ...gp,
-        } as any,
+        } as AST.ASTNode,
       );
     }
 
@@ -1072,8 +1072,8 @@ export class TypeChecker extends TypeCheckerBase {
     const baseType = this.checkExpression(expr.base);
     if (!baseType) return undefined;
 
-    if ((baseType as any).kind === "MetaType") {
-      const innerType = (baseType as any).type as AST.BasicTypeNode;
+    if (baseType.kind === "MetaType") {
+      const innerType = baseType.type as AST.BasicTypeNode;
       // Return MetaType with genericArgs applied
       return {
         kind: "MetaType",
@@ -1082,15 +1082,13 @@ export class TypeChecker extends TypeCheckerBase {
           genericArgs: expr.genericArgs,
         },
         location: expr.location,
-      } as any;
+      };
     }
 
     // Handle generic function instantiation
     if (baseType.kind === "FunctionType") {
       const funcType = baseType as AST.FunctionTypeNode;
-      const overloads = (funcType as any).overloads as
-        | AST.FunctionTypeNode[]
-        | undefined;
+      const overloads = funcType.overloads;
 
       const candidates = [funcType, ...(overloads || [])];
       const validCandidates: AST.FunctionTypeNode[] = [];
@@ -1119,7 +1117,7 @@ export class TypeChecker extends TypeCheckerBase {
             ),
             // Remove overloads from the candidate itself to avoid recursion/confusion
             overloads: undefined,
-          } as any);
+          });
         }
       }
 
@@ -1132,7 +1130,7 @@ export class TypeChecker extends TypeCheckerBase {
 
         if (anyGeneric) {
           throw new CompilerError(
-            `No overload of '${(funcType.declaration as any)?.name || "function"}' accepts ${
+            `No overload of '${funcType.declaration?.name || "function"}' accepts ${
               expr.genericArgs.length
             } generic arguments`,
             "Check generic argument count.",
@@ -1140,7 +1138,7 @@ export class TypeChecker extends TypeCheckerBase {
           );
         } else {
           throw new CompilerError(
-            `Type '${(funcType.declaration as any)?.name || "function"}' is not generic`,
+            `Type '${funcType.declaration?.name || "function"}' is not generic`,
             "Cannot provide generic arguments to non-generic function.",
             expr.location,
           );
@@ -1162,7 +1160,7 @@ export class TypeChecker extends TypeCheckerBase {
 
   // ========== Overload Resolution ==========
 
-  protected resolveOverload(
+  public resolveOverload(
     name: string,
     candidates: Symbol[],
     argTypes: (AST.TypeNode | undefined)[],
@@ -1185,7 +1183,7 @@ export class TypeChecker extends TypeCheckerBase {
 
   // ========== Operator Overload Resolution ==========
 
-  protected findOperatorOverload(
+  public findOperatorOverload(
     targetType: AST.TypeNode,
     methodName: string,
     paramTypes: AST.TypeNode[],
@@ -1465,7 +1463,7 @@ export class TypeChecker extends TypeCheckerBase {
       // Push context for collecting return types
       this.matchContext.push({ inferredTypes: [] });
       try {
-        StmtChecker.checkBlock.call(this as any, body);
+        StmtChecker.checkBlock.call(this, body);
         // If we have collected return types, unify them
         const context = this.matchContext[this.matchContext.length - 1]!;
         if (context.inferredTypes.length > 0) {
@@ -1498,6 +1496,6 @@ export class TypeChecker extends TypeCheckerBase {
   // ========== Scope access for checkers ==========
 
   public checkBlock(stmt: AST.BlockStmt, newScope: boolean = true): void {
-    StmtChecker.checkBlock.call(this as any, stmt, newScope);
+    StmtChecker.checkBlock.call(this, stmt, newScope);
   }
 }

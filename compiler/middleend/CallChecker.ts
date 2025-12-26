@@ -2,62 +2,16 @@
  * Call, Member, and Index expression checkers - extracted from TypeChecker
  */
 import * as AST from "../common/AST";
-import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
-import type { Symbol } from "./SymbolTable";
 import { TypeUtils } from "./TypeUtils";
-
-/**
- * Context interface that call checker functions expect
- */
-export interface CallCheckerContext {
-  currentScope: {
-    resolve(name: string): Symbol | undefined;
-    enterScope(): any;
-    exitScope(): any;
-  };
-  checkExpression(expr: AST.Expression): AST.TypeNode | undefined;
-  resolveType(type: AST.TypeNode): AST.TypeNode;
-  areTypesCompatible(a: AST.TypeNode, b: AST.TypeNode): boolean;
-  typeToString(type: AST.TypeNode): string;
-  resolveOverload(
-    name: string,
-    candidates: Symbol[],
-    argTypes: (AST.TypeNode | undefined)[],
-    genericArgs: AST.TypeNode[],
-    location: SourceLocation,
-  ): {
-    symbol: Symbol;
-    type: AST.FunctionTypeNode;
-    declaration: AST.ASTNode;
-    genericArgs?: AST.TypeNode[];
-  };
-  substituteType(
-    type: AST.TypeNode,
-    typeMap: Map<string, AST.TypeNode>,
-  ): AST.TypeNode;
-  findOperatorOverload(
-    targetType: AST.TypeNode,
-    methodName: string,
-    argTypes: AST.TypeNode[],
-  ): AST.FunctionDecl | undefined;
-  resolveMemberWithContext(
-    type: AST.BasicTypeNode,
-    memberName: string,
-  ):
-    | {
-        decl: AST.StructDecl | AST.SpecDecl;
-        members: (AST.FunctionDecl | AST.StructField | AST.SpecMethod)[];
-        genericMap: Map<string, AST.TypeNode>;
-      }
-    | undefined;
-}
+import type { CheckerContext } from "./CheckerContext";
 
 /**
  * Check a call expression
  */
 export function checkCall(
-  this: CallCheckerContext,
+  this: CheckerContext,
   expr: AST.CallExpr,
 ): AST.TypeNode | undefined {
   let name: string | undefined;
@@ -358,7 +312,7 @@ export function checkCall(
 }
 
 function handleEnumVariantCall(
-  this: CallCheckerContext,
+  this: CheckerContext,
   expr: AST.CallExpr,
   enumVariantInfo: any,
   argTypes: (AST.TypeNode | undefined)[],
@@ -458,7 +412,7 @@ function handleEnumVariantCall(
 }
 
 function validateFunctionCall(
-  this: CallCheckerContext,
+  this: CheckerContext,
   expr: AST.CallExpr,
   funcType: AST.FunctionTypeNode,
   argTypes: (AST.TypeNode | undefined)[],
@@ -492,7 +446,7 @@ function validateFunctionCall(
  * Check a member access expression
  */
 export function checkMember(
-  this: CallCheckerContext,
+  this: CheckerContext,
   expr: AST.MemberExpr,
 ): AST.TypeNode | undefined {
   const objectType = this.checkExpression(expr.object);
@@ -977,7 +931,7 @@ export function checkMember(
  * Check an index expression
  */
 export function checkIndex(
-  this: CallCheckerContext,
+  this: CheckerContext,
   expr: AST.IndexExpr,
 ): AST.TypeNode | undefined {
   const objectType = this.checkExpression(expr.object);
@@ -1132,7 +1086,7 @@ function inferGenericArgs(
 }
 
 function resolveMethodTypesInModuleContext(
-  context: CallCheckerContext,
+  context: CheckerContext,
   method: AST.FunctionDecl | AST.SpecMethod,
 ): { returnType: AST.TypeNode; paramTypes: AST.TypeNode[] } {
   let returnType = method.returnType || {
@@ -1163,7 +1117,7 @@ function resolveMethodTypesInModuleContext(
 }
 
 function packVariadicArguments(
-  this: CallCheckerContext,
+  this: CheckerContext,
   expr: AST.CallExpr,
   funcDecl: AST.FunctionDecl,
   funcType: AST.FunctionTypeNode,

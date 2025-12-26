@@ -133,6 +133,35 @@ export class TypeUtils {
   }
 
   /**
+   * Check if a type is a signed integer type
+   */
+  static isSignedInteger(type: AST.TypeNode): boolean {
+    if (type.kind !== "BasicType") return false;
+    if (type.pointerDepth > 0) return false;
+    return ["i8", "i16", "i32", "i64", "char", "short", "int", "long"].includes(
+      type.name,
+    );
+  }
+
+  /**
+   * Check if a type is an unsigned integer type
+   */
+  static isUnsignedInteger(type: AST.TypeNode): boolean {
+    if (type.kind !== "BasicType") return false;
+    if (type.pointerDepth > 0) return false;
+    return [
+      "u8",
+      "u16",
+      "u32",
+      "u64",
+      "uchar",
+      "ushort",
+      "uint",
+      "ulong",
+    ].includes(type.name);
+  }
+
+  /**
    * Check if a token type represents a comparison operator
    */
   static isComparisonOperator(op: TokenType): boolean {
@@ -175,6 +204,30 @@ export class TypeUtils {
         endColumn: 0,
       },
     };
+  }
+
+  /**
+   * Get the size in bits of an integer type (including bool/i1)
+   */
+  static getIntegerBits(typeName: string): number {
+    const aliases: { [key: string]: string } = {
+      long: "i64",
+      ulong: "u64",
+      int: "i32",
+      uint: "u32",
+      short: "i16",
+      ushort: "u16",
+      char: "i8",
+      uchar: "u8",
+      bool: "i1",
+    };
+    const name = aliases[typeName] || typeName;
+    if (name === "i1") return 1;
+    if (name === "i8" || name === "u8") return 8;
+    if (name === "i16" || name === "u16") return 16;
+    if (name === "i32" || name === "u32") return 32;
+    if (name === "i64" || name === "u64") return 64;
+    return 0;
   }
 
   /**
@@ -274,6 +327,41 @@ export class TypeUtils {
     }
 
     return val >= min && val <= max;
+  }
+
+  /**
+   * Check if implicit widening is allowed between two types
+   */
+  static isImplicitWideningAllowed(
+    source: AST.TypeNode,
+    target: AST.TypeNode,
+    resolveType: (t: AST.TypeNode) => AST.TypeNode,
+  ): boolean {
+    const rs = resolveType(source);
+    const rt = resolveType(target);
+
+    if (rs.kind !== "BasicType" || rt.kind !== "BasicType") return false;
+    if (rs.pointerDepth !== 0 || rt.pointerDepth !== 0) return false;
+
+    const sourceSize = TypeUtils.getIntegerSize(rs);
+    const targetSize = TypeUtils.getIntegerSize(rt);
+
+    if (sourceSize === 0 || targetSize === 0) return false;
+
+    // Same signedness, target larger or equal
+    const sourceIsSigned = TypeUtils.isSignedInteger(rs);
+    const targetIsSigned = TypeUtils.isSignedInteger(rt);
+
+    if (sourceIsSigned === targetIsSigned && targetSize >= sourceSize) {
+      return true;
+    }
+
+    // Unsigned to larger signed is also allowed
+    if (!sourceIsSigned && targetIsSigned && targetSize > sourceSize) {
+      return true;
+    }
+
+    return false;
   }
 }
 
@@ -637,6 +725,7 @@ export class TypeSubstitution {
               ...type.arrayDimensions,
             ],
             location: type.location,
+            resolvedDeclaration: subst.resolvedDeclaration,
           };
         }
         return subst;
@@ -648,6 +737,7 @@ export class TypeSubstitution {
           genericArgs: type.genericArgs.map((arg) =>
             TypeSubstitution.substituteType(arg, map),
           ),
+          resolvedDeclaration: type.resolvedDeclaration,
         };
       }
     } else if (type.kind === "TupleType") {

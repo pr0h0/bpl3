@@ -46,6 +46,7 @@ export interface FunctionTypeNode extends ASTNode {
   isVariadic?: boolean;
   declaration?: FunctionDecl;
   isConst?: boolean;
+  overloads?: FunctionTypeNode[];
 }
 
 // --- Expressions ---
@@ -102,7 +103,13 @@ export interface InterpolatedStringExpr extends ASTNode {
 export interface IdentifierExpr extends ASTNode {
   kind: "Identifier";
   name: string;
-  resolvedDeclaration?: FunctionDecl | ExternDecl | VariableDecl | StructDecl;
+  resolvedDeclaration?:
+    | FunctionDecl
+    | ExternDecl
+    | VariableDecl
+    | StructDecl
+    | Parameter
+    | LambdaParameter;
 }
 
 export interface BinaryExpr extends ASTNode {
@@ -284,14 +291,21 @@ export interface GenericInstantiationExpr extends ASTNode {
   genericArgs: TypeNode[];
 }
 
+export interface LambdaParameter extends ASTNode {
+  kind: "LambdaParameter";
+  name: string;
+  type: TypeNode | null;
+}
+
 export interface LambdaExpr extends ASTNode {
   kind: "LambdaExpression";
-  params: { name: string; type: TypeNode | null; location: SourceLocation }[];
+  params: LambdaParameter[];
   returnType: TypeNode | null;
   body: BlockStmt;
   // For semantic analysis
-  capturedVariables?: VariableDecl[];
+  capturedVariables?: (VariableDecl | Parameter | LambdaParameter)[];
   closureStructType?: BasicTypeNode;
+  captureStructName?: string;
 }
 
 // --- Statements ---
@@ -318,6 +332,14 @@ export type Statement =
   | ThrowStmt
   | SwitchStmt;
 
+export interface Parameter extends ASTNode {
+  kind: "Parameter";
+  name: string;
+  type: TypeNode;
+  isConst?: boolean;
+  isVariadic?: boolean;
+}
+
 export interface VariableDecl extends ASTNode {
   kind: "VariableDecl";
   isGlobal: boolean;
@@ -333,13 +355,7 @@ export interface FunctionDecl extends ASTNode {
   isStatic: boolean;
   name: string;
   genericParams: GenericParam[];
-  params: {
-    name: string;
-    type: TypeNode;
-    location: SourceLocation;
-    isConst?: boolean;
-    isVariadic?: boolean;
-  }[];
+  params: Parameter[];
   returnType: TypeNode;
   body: BlockStmt;
 }

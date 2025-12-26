@@ -1,4 +1,5 @@
 import * as AST from "./AST";
+import { TypeUtils } from "../middleend/TypeUtils";
 
 export class ASTPrinter {
   print(node: AST.ASTNode): string {
@@ -104,28 +105,6 @@ export class ASTPrinter {
   }
 
   private typeToString(type: AST.TypeNode): string {
-    if (type.kind === "BasicType") {
-      let s = type.name;
-      if (type.genericArgs.length > 0) {
-        s +=
-          "<" +
-          type.genericArgs.map((a) => this.typeToString(a)).join(", ") +
-          ">";
-      }
-      for (let i = 0; i < type.pointerDepth; i++) s += "*";
-      for (const dim of type.arrayDimensions) s += `[${dim ?? ""}]`;
-      return s;
-    } else if (type.kind === "FunctionType") {
-      const params = type.paramTypes
-        .map((p) => this.typeToString(p))
-        .join(", ");
-      const ret = this.typeToString(type.returnType);
-      return `(${params}) => ${ret}`;
-    } else if (type.kind === "TupleType") {
-      return "(" + type.types.map((t) => this.typeToString(t)).join(", ") + ")";
-    } else if (type.kind === "MetaType") {
-      return `Type<${this.typeToString(type.type)}>`;
-    }
-    return "unknown";
+    return TypeUtils.typeToString(type);
   }
 }

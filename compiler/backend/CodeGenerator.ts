@@ -654,6 +654,7 @@ export class CodeGenerator extends StatementGenerator {
       isStatic: true,
       genericParams: [],
       params: expr.params.map((p) => ({
+        kind: "Parameter",
         name: p.name,
         type: p.type!,
         location: p.location,
@@ -667,7 +668,7 @@ export class CodeGenerator extends StatementGenerator {
     let captureInfo:
       | { name: string; fields: { name: string; type: string }[] }
       | undefined;
-    const captureStructName = (expr as any).captureStructName;
+    const captureStructName = expr.captureStructName;
 
     if (captureStructName && expr.capturedVariables) {
       captureInfo = {
@@ -675,7 +676,9 @@ export class CodeGenerator extends StatementGenerator {
         fields: expr.capturedVariables.map((decl) => ({
           name: decl.name as string,
           type: this.resolveType(
-            decl.typeAnnotation || (decl as any).type || decl.resolvedType,
+            (("typeAnnotation" in decl ? decl.typeAnnotation : undefined) ||
+              ("type" in decl ? decl.type : undefined) ||
+              decl.resolvedType)!,
           ),
         })),
       };

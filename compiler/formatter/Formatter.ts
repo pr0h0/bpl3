@@ -871,7 +871,7 @@ export class Formatter {
   }
 
   private formatSizeof(expr: AST.SizeofExpr): string {
-    if ("kind" in expr.target && (expr.target as any).kind === "BasicType") {
+    if ("kind" in expr.target && expr.target.kind === "BasicType") {
       return `sizeof<${this.formatType(expr.target as AST.TypeNode)}>()`;
     } else {
       return `sizeof(${this.formatExpression(expr.target as AST.Expression)})`;
