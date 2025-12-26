@@ -1,0 +1,15 @@
+{
+  "expectedOutput": [
+    "--- Homogeneous Variadics ---",
+    "Sum(1, 2, 3) = 6",
+    "Sum(10...50) = 150",
+    "",
+    "--- Heterogeneous Variadics ---",
+    "Arg 0 is int: 42",
+    "Arg 1 is string: Hello World",
+    "Arg 2 is int: 100"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

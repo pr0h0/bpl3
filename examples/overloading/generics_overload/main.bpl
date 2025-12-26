@@ -21,7 +21,7 @@ frame process(x: int) {
 }
 
 frame process(x: long) {
-    printf("Long process: %d\n", x);
+    printf("Long process: %lld\n", x);
 }
 
 struct Test {

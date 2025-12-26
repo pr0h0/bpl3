@@ -52,8 +52,8 @@ frame main() ret int {
     }
 
     # Compare 'is' vs 'match'
-    local is_res: bool = (x is int);
     local match_res: bool = match<int>(x);
+    local is_res: bool = (x is int);
     if (is_res == match_res) {
         printf("'is' matches 'match' (Correct)\n");
     } else {

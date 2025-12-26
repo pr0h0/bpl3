@@ -584,7 +584,6 @@ There are several approaches to fix this:
 
 ---
 
-
 ## ⏳ PENDING FEATURES (PRIORITIZED)
 
 ### High Priority
@@ -685,7 +684,6 @@ There are several approaches to fix this:
 - Exhaustiveness checking works for nested patterns
 
 ---
-
 
 ### Medium Priority
 
@@ -1024,7 +1022,6 @@ There are several approaches to fix this:
 
 ---
 
-
 ### Low Priority
 
 ## [8] Async/Await
@@ -1311,4 +1308,3 @@ There are several approaches to fix this:
 - Works with both free functions and methods
 
 ---
-

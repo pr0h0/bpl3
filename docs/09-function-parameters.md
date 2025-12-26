@@ -35,8 +35,70 @@ frame log(msg: string) ret void {
 
 ## Variadic Functions
 
-BPL supports variadic functions, primarily for C interoperability (FFI).
+BPL supports two types of variadic functions: **FFI Variadics** (for C compatibility) and **Native Variadics** (type-safe argument packing).
+
+### FFI Variadics
+
+Used primarily for calling C functions like `printf`.
 
 ```bpl
 extern frame printf(fmt: string, ...);
+```
+
+### Native Variadics
+
+Native variadic functions allow you to accept a variable number of arguments. The compiler automatically packs these arguments into an array and passes the count.
+
+#### Homogeneous Variadics (Same Type)
+
+To accept multiple arguments of the same type, use the `...Type` syntax.
+
+**Requirements:**
+
+1.  The variadic parameter must be the **second-to-last** parameter.
+2.  The **last parameter** must be of type `int` (to receive the count).
+
+```bpl
+# 'nums' receives a pointer to an array of ints
+# 'count' receives the number of arguments passed
+frame sum(...nums: int, count: int) ret int {
+    local total: int = 0;
+    local i: int = 0;
+    loop (i < count) {
+        total += nums[i];
+        i += 1;
+    }
+    return total;
+}
+
+frame main() {
+    # Called naturally:
+    local s: int = sum(10, 20, 30, 40);
+    # Compiler transforms to: sum([10, 20, 30, 40], 4)
+}
+```
+
+#### Heterogeneous Variadics (Mixed Types)
+
+To accept arguments of different types, use `...Any`. The compiler wraps each argument in an `Any` struct containing its type ID and data.
+
+```bpl
+# 'args' is an array of Any structs
+frame printAll(...args: Any, count: int) {
+    local i: int = 0;
+    loop (i < count) {
+        local arg: Any = args[i];
+        # Use match<Type> or type_id to inspect
+        if (arg.type_id == __type_id<int>()) {
+            printf("Int: %d\n", cast<int>(arg.data));
+        } else if (arg.type_id == __type_id<string>()) {
+            printf("String: %s\n", cast<string>(arg.data));
+        }
+        i += 1;
+    }
+}
+
+frame main() {
+    printAll(42, "Hello", 3.14);
+}
 ```

@@ -18,6 +18,15 @@
 - [x] Generic Instantiation in Expressions
 - [x] Make `this` explicit in struct methods
 - [x] Code Generation (LLVM IR or similar)
+
+## Variadic Functions
+
+- [ ] Support homogeneous variadics (e.g., `...int`) alongside heterogeneous `...Any`.
+
+  - Currently, all variadics are treated as `...Any` (array of Any structs).
+  - Need to support `...T` where T is a specific type, passing `T*` (pointer to array of T) and count.
+  - Ensure type checking enforces all arguments match `T`.
+
 - [x] Canonical primitive integer types mapping
 - [x] Type casting (implicit & explicit)
 - [x] CLI compiler tool
@@ -149,6 +158,7 @@
 ## Partially Completed Features
 
 - [ ] **Inline Assembly Blocks**
+
   - **Status:** PARTIAL
   - Implemented:
     - ✅ `asm("flavor") { ... }` syntax parsing
@@ -160,6 +170,7 @@
     - ❌ Validation of assembly content
 
 - [ ] **Semantic Analysis Improvements**
+
   - **Status:** PARTIAL
   - Implemented:
     - ✅ Unreachable code detection
@@ -185,9 +196,11 @@
 ### High Priority (Next Steps)
 
 - [ ] **Advanced Type System Features**
+
   - [ ] Type Guards (User-defined `is` functions)
 
 - [5] **Parallel Compilation**
+
   - Description: Utilize multi-core processors to compile independent modules in parallel.
   - Implementation notes: Analyze dependency graph, use worker threads/processes, manage shared resources.
 
@@ -198,34 +211,42 @@
 ### Medium Priority
 
 - [6] **Default and Named Arguments**
+
   - Description: Allow functions to define default values for parameters and allow callers to specify arguments by name.
   - Implementation notes: Update declaration/call syntax, resolve defaults at call site, handle named args.
 
 - [6] **Parser Error Recovery**
+
   - Description: Improve parser to recover from syntax errors and continue parsing.
   - Implementation notes: Implement synchronization points, skip tokens, mark error nodes.
 
 - [6] **Nested Pattern Matching**
+
   - Description: Extend pattern matching to support nested patterns (e.g., `Option.Some(Result.Ok(x))`).
   - Implementation notes: Update parser/typechecker/codegen for recursive pattern matching.
 
 - [7] **Defer Statement**
+
   - Description: Implement defer for guaranteed execution of cleanup code when scope exits.
   - Implementation notes: Add defer keyword, track deferred statements in scope, inject at all exit points.
 
 - [7] **Module Visibility and Access Control**
+
   - Description: Add public/private visibility modifiers and module encapsulation.
   - Implementation notes: Add pub/private keywords, enforce visibility during semantic analysis, support module-level exports.
 
 - [7] **Package Registry and Dependency Management**
+
   - Description: Create a centralized package registry and enhance package manager for publishing/versioning.
   - Implementation notes: Design metadata format, implement semantic versioning, create registry API, add publish/install commands.
 
 - [7] **WebAssembly (WASM) Target**
+
   - Description: Add compilation target for WebAssembly (WASM) to run BPL in browsers.
   - Implementation notes: Add wasm32 target support, handle ABI differences, map primitives, generate .wasm via LLVM.
 
 - [7] **Automatic C Binding Generation (bindgen)**
+
   - Description: Tool to generate BPL `extern` declarations from C headers.
   - Implementation notes: Use libclang to parse headers, map types, generate BPL files.
 
@@ -246,54 +267,67 @@
 ### Low Priority / Long Term
 
 - [8] **Null Safety Operators**
+
   - Description: Introduce null-safe navigation (`?.`) and null-coalescing (`??`) operators.
   - Implementation notes: Implement `?.` and `??` operators, desugar to conditional checks.
 
 - [8] **Middle-end Optimizations**
+
   - Description: Implement BPL-specific optimization passes before LLVM IR generation.
   - Implementation notes: Dead code elimination, constant folding, inlining on AST/IR.
 
 - [8] **Compile-Time Function Execution (CTFE)**
+
   - Description: Execute functions at compile time to generate constants.
   - Implementation notes: Interpreter for BPL IR/AST, execute during semantic analysis.
 
 - [8] **Code Coverage Integration**
+
   - Description: Generate coverage reports for tests.
   - Implementation notes: Instrument LLVM IR with coverage mapping, support llvm-cov.
 
 - [8] **Region-Based Memory Management (Arenas)**
+
   - Description: Add Arena allocators to stdlib for efficient memory management.
   - Implementation notes: Implement Arena struct, bulk allocation/deallocation.
 
 - [8] **Async/Await**
+
   - Description: Add `async` functions and `await` operator with promise-like semantics.
   - Implementation notes: Decide on state machines vs coroutines, implement event loop integration.
 
 - [8] **Threading Support**
+
   - Description: Provide language primitives to create and manage threads, synchronization primitives.
   - Implementation notes: Integrate with target threading primitives, define memory model.
 
 - [9] **REPL (Read-Eval-Print Loop)**
+
   - Description: Implement interactive shell for quick prototyping and testing.
   - Implementation notes: Create input loop, reuse parser/compiler, use JIT or interpreter.
 
 - [9] **Source Code Display for Eval/Stdin Errors**
+
   - Description: Fix error message code snippets when compiling from stdin or eval.
   - Implementation notes: Modify CompilerError to accept source lines directly.
 
 - [9] **Reflection API**
+
   - Description: Provide runtime type inspection and manipulation capabilities.
   - Implementation notes: Generate type metadata during compilation, expose reflection APIs in stdlib.
 
 - [9] **Macro System**
+
   - Description: Implement compile-time code generation with procedural macros.
   - Implementation notes: Define macro syntax, implement macro expansion phase.
 
 - [9] **Extension Methods**
+
   - Description: Allow adding methods to existing types without inheritance.
   - Implementation notes: Define syntax, update symbol table to find extension methods, transpile to static calls.
 
 - [9] **Generators (yield)**
+
   - Description: Simplify iterator creation using `yield` keyword.
   - Implementation notes: Transform generator functions into state machine structs implementing Iterator.
 

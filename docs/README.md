@@ -16,18 +16,21 @@ Welcome to the comprehensive documentation for the **Best Programming Language (
 - [Types and Variables](05-types-variables.md) - Primitive types, composite types, and variable declarations
 - [Operators](06-operators.md) - Arithmetic, logical, bitwise, and comparison operators
 - [Control Flow](07-control-flow.md) - Conditionals, loops, and branching
+- [String Interpolation](54-string-interpolation.md) - Embedding expressions in strings
 
 ### Functions
 
 - [Functions Basics](08-functions-basics.md) - Declaring and calling functions
 - [Function Parameters](09-function-parameters.md) - Parameters, return values, and variadic functions
 - [Generics Functions](10-generics-functions.md) - Generic programming with functions
+- [Lambda Expressions](53-lambdas.md) - Anonymous functions
 
 ### Data Structures
 
 - [Structs](11-structs.md) - Creating and using structures
 - [Struct Methods](12-struct-methods.md) - Instance and static methods
 - [Inheritance](13-inheritance.md) - Single and multiple inheritance
+- [Struct Primitive Inheritance](55-struct-primitive-inheritance.md) - Inheriting from primitive types
 - [Generic Structs](14-generic-structs.md) - Parameterized types
 
 ### Advanced Types
@@ -37,6 +40,7 @@ Welcome to the comprehensive documentation for the **Best Programming Language (
 - [Tuples](17-tuples.md) - Multi-value types
 - [Type Aliases](18-type-aliases.md) - Creating custom type names
 - [Function Pointers](19-function-pointers.md) - First-class functions
+- [Type Matching](56-type-matching.md) - Runtime type checking with `match<Type>`
 
 ### Memory Management
 
@@ -93,6 +97,8 @@ Welcome to the comprehensive documentation for the **Best Programming Language (
 - [VS Code Extension](49-vscode-extension.md) - Editor integration
 - [Build Systems](50-build-systems.md) - Integration with make, cmake, etc.
 - [Debugging](51-debugging.md) - Troubleshooting techniques
+- [Extending the Compiler](57-extending-compiler.md) - Adding primitives and features
+- [Native Runtime Plan](52-native-runtime-plan.md) - Future runtime architecture
 
 ## Examples
 

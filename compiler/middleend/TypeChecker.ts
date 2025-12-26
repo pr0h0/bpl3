@@ -191,10 +191,19 @@ export class TypeChecker extends TypeCheckerBase {
         this.registerLinkerSymbol(stmt.name, "type", undefined, stmt);
         break;
       case "FunctionDecl":
+        const isVariadic = stmt.params.some((p) => p.isVariadic);
         const functionType: AST.FunctionTypeNode = {
           kind: "FunctionType",
           returnType: this.resolveType(stmt.returnType),
-          paramTypes: stmt.params.map((p) => this.resolveType(p.type)),
+          paramTypes: stmt.params.map((p) => {
+            const resolved = this.resolveType(p.type);
+            if (p.isVariadic && resolved.kind === "BasicType") {
+              // Variadic parameters are passed as pointers (arrays)
+              return { ...resolved, pointerDepth: resolved.pointerDepth + 1 };
+            }
+            return resolved;
+          }),
+          isVariadic: isVariadic,
           location: stmt.location,
           declaration: stmt,
         };
@@ -469,14 +478,47 @@ export class TypeChecker extends TypeCheckerBase {
       }
       paramNames.add(param.name);
 
+      let paramType = this.resolveType(param.type);
+      if (param.isVariadic) {
+        // Variadic param is a pointer to array of Any
+        // We treat it as *Any in the body
+        if (paramType.kind === "BasicType") {
+          paramType = {
+            ...paramType,
+            pointerDepth: paramType.pointerDepth + 1,
+          };
+        }
+
+        // Define implicit count variable
+        // const countName = `${param.name}_count`;
+        // this.defineSymbol(
+        //   countName,
+        //   "Variable",
+        //   {
+        //     kind: "BasicType",
+        //     name: "int",
+        //     genericArgs: [],
+        //     pointerDepth: 0,
+        //     arrayDimensions: [],
+        //     location: param.location,
+        //   },
+        //   param as any,
+        //   undefined,
+        //   true, // const
+        // );
+      }
+
       this.defineSymbol(
         param.name,
         "Variable",
-        this.resolveType(param.type),
+        paramType,
         param as any,
         undefined,
         param.isConst,
       );
+
+      // Note: We used to define implicit _count variable here, but now we require
+      // an explicit count parameter for native variadics.
     }
 
     const prevReturnType = this.currentFunctionReturnType;
@@ -1160,8 +1202,23 @@ export class TypeChecker extends TypeCheckerBase {
 
   public checkMatchExhaustiveness(
     expr: AST.MatchExpr,
-    enumDecl: AST.EnumDecl,
+    enumDecl: AST.EnumDecl | undefined,
   ): void {
+    // If matching on Any/Type, we only require a default case for now
+    if (!enumDecl) {
+      const hasDefault = expr.arms.some(
+        (arm) => arm.pattern.kind === "PatternWildcard" && !arm.guard,
+      );
+      if (!hasDefault) {
+        throw new CompilerError(
+          "Non-exhaustive match: missing default case (_)",
+          "Type matching requires a default case.",
+          expr.location,
+        );
+      }
+      return;
+    }
+
     const coveredVariants = new Set<string>();
     let hasWildcard = false;
 
@@ -1203,9 +1260,80 @@ export class TypeChecker extends TypeCheckerBase {
   public checkPattern(
     pattern: AST.Pattern,
     enumType: AST.TypeNode,
-    enumDecl: AST.EnumDecl,
+    enumDecl: AST.EnumDecl | undefined,
   ): void {
     if (pattern.kind === "PatternWildcard") return;
+
+    // Handle Type Matching (when enumDecl is undefined)
+    if (!enumDecl) {
+      if (pattern.kind === "PatternEnumTuple") {
+        // Treat as Type(binding)
+        // e.g. int(i)
+        // pattern.variantName is the type name
+        // pattern.bindings is [i]
+
+        if (pattern.bindings.length !== 1) {
+          throw new CompilerError(
+            "Type pattern must have exactly one binding",
+            "Usage: Type(variable)",
+            pattern.location,
+          );
+        }
+
+        // Resolve the type
+        const typeName = pattern.variantName;
+        const typeSymbol = this.currentScope.resolve(typeName);
+
+        // Allow primitives
+        let isValidType = false;
+        if (KNOWN_TYPES.includes(typeName) || typeName === "string") {
+          isValidType = true;
+        } else if (
+          typeSymbol &&
+          (typeSymbol.kind === "Struct" || typeSymbol.kind === "Enum")
+        ) {
+          isValidType = true;
+        }
+
+        if (!isValidType) {
+          throw new CompilerError(
+            `Unknown type '${typeName}' in match pattern`,
+            "Ensure the type is defined.",
+            pattern.location,
+          );
+        }
+
+        // Define the binding variable
+        const bindingName = pattern.bindings[0]!;
+        // We need to construct the type node for the binding
+        const bindingType: AST.TypeNode = {
+          kind: "BasicType",
+          name: typeName,
+          genericArgs: [], // TODO: Support generic types in match?
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: pattern.location,
+        };
+
+        // Resolve it properly
+        const resolvedBindingType = this.resolveType(bindingType);
+
+        this.defineSymbol(
+          bindingName,
+          "Variable",
+          resolvedBindingType,
+          pattern as any,
+        );
+
+        return;
+      } else {
+        throw new CompilerError(
+          "Invalid pattern for type matching",
+          "Only Type(variable) or _ patterns are supported for Any matching.",
+          pattern.location,
+        );
+      }
+    }
 
     if (pattern.kind === "PatternEnum") {
       const variant = enumDecl.variants.find(

@@ -108,24 +108,52 @@ export class OverloadResolver {
     const viableCandidates: {
       symbol: Symbol;
       inferredArgs?: AST.TypeNode[];
+      isExplicitVariadic?: boolean;
     }[] = [];
 
     for (const c of candidates) {
       const ft = c.type as AST.FunctionTypeNode;
       const decl = c.declaration as AST.FunctionDecl | AST.ExternDecl;
 
+      let isExplicitVariadic = false;
+
       // Check param count
       if (ft.isVariadic) {
-        if (ft.paramTypes.length > argTypes.length) continue;
+        if (decl.kind === "Extern") {
+          if (argTypes.length < ft.paramTypes.length) continue;
+        } else {
+          // BPL Variadic: (fixed..., variadic, count)
+          // User provides fixed... + variadic args
+          // So min args = paramTypes.length - 2
+          if (argTypes.length < ft.paramTypes.length - 2) continue;
+        }
       } else {
-        if (ft.paramTypes.length !== argTypes.length) continue;
+        if (ft.paramTypes.length !== argTypes.length) {
+          // Check for explicit variadic signature: (..., args: *Any, count: int)
+          const len = ft.paramTypes.length;
+          if (len >= 2) {
+            const lastParam = ft.paramTypes[len - 1]!;
+            const secondLastParam = ft.paramTypes[len - 2]!;
+
+            if (
+              this.isIntType(lastParam) &&
+              this.isPointerToAny(secondLastParam)
+            ) {
+              if (argTypes.length >= len - 2) {
+                isExplicitVariadic = true;
+              }
+            }
+          }
+
+          if (!isExplicitVariadic) continue;
+        }
       }
 
       if (genericArgs.length > 0) {
         // Explicit generics
         if (decl.kind !== "FunctionDecl") continue;
         if (decl.genericParams.length !== genericArgs.length) continue;
-        viableCandidates.push({ symbol: c });
+        viableCandidates.push({ symbol: c, isExplicitVariadic });
       } else {
         // No explicit generics
         if (decl.kind === "FunctionDecl" && decl.genericParams.length > 0) {
@@ -134,7 +162,7 @@ export class OverloadResolver {
           continue;
         } else {
           // Non-generic
-          viableCandidates.push({ symbol: c });
+          viableCandidates.push({ symbol: c, isExplicitVariadic });
         }
       }
     }
@@ -185,16 +213,27 @@ export class OverloadResolver {
           c.type!,
           map,
         ) as AST.FunctionTypeNode;
+
+        const finalType = vc.isExplicitVariadic
+          ? { ...sub, isVariadic: true }
+          : sub;
+
         return {
           symbol: c,
-          type: sub,
+          type: finalType,
           declaration: decl,
           genericArgs: args,
         };
       }
+
+      const baseType = c.type as AST.FunctionTypeNode;
+      const finalType = vc.isExplicitVariadic
+        ? { ...baseType, isVariadic: true }
+        : baseType;
+
       return {
         symbol: c,
-        type: c.type as AST.FunctionTypeNode,
+        type: finalType,
         declaration: decl,
         genericArgs: undefined,
       };
@@ -207,20 +246,75 @@ export class OverloadResolver {
 
     for (const c of substitutedCandidates) {
       const ft = c.type;
+      const decl = c.declaration as AST.FunctionDecl | AST.ExternDecl;
       let isExact = true;
       let needsWidening = false;
       let allCompatible = true;
 
-      for (let i = 0; i < ft.paramTypes.length; i++) {
+      // Determine number of parameters to check
+      let paramsToCheck = ft.paramTypes.length;
+      let isBplVariadic = false;
+
+      if (ft.isVariadic) {
+        if (decl.kind === "FunctionDecl") {
+          // BPL Variadic: (fixed..., variadic)
+          // We check fixed params, then check remaining args against the element type of the variadic param
+          isBplVariadic = true;
+          paramsToCheck = ft.paramTypes.length - 2;
+        }
+        // Extern Variadic: check all defined params (paramsToCheck = length)
+      }
+
+      for (let i = 0; i < argTypes.length; i++) {
         if (!argTypes[i]) {
           allCompatible = false;
           break;
         }
 
-        const exactMatch = this.ctx.areTypesExactMatch(
-          ft.paramTypes[i]!,
-          argTypes[i]!,
-        );
+        let paramType: AST.TypeNode;
+
+        if (isBplVariadic && i >= paramsToCheck) {
+          // This is a variadic argument
+          // The variadic param is at index paramsToCheck (length - 2)
+          // It is a pointer to the element type (e.g. *int or *Any)
+          const variadicArrayType = ft.paramTypes[paramsToCheck]!;
+
+          // Extract element type
+          if (variadicArrayType.kind === "BasicType") {
+            if (variadicArrayType.pointerDepth > 0) {
+              paramType = {
+                ...variadicArrayType,
+                pointerDepth: variadicArrayType.pointerDepth - 1,
+              };
+            } else if (variadicArrayType.arrayDimensions.length > 0) {
+              paramType = {
+                ...variadicArrayType,
+                arrayDimensions: variadicArrayType.arrayDimensions.slice(1),
+              };
+            } else {
+              // Should not happen if TypeChecker works correctly, but fallback
+              paramType = variadicArrayType;
+            }
+          } else {
+            paramType = variadicArrayType;
+          }
+
+          // Special case: Any accepts anything
+          if (paramType.kind === "BasicType" && paramType.name === "Any") {
+            continue; // Match!
+          }
+        } else if (i < paramsToCheck) {
+          paramType = ft.paramTypes[i]!;
+        } else {
+          // Extern variadic or extra args for extern
+          if (ft.isVariadic && decl.kind === "Extern") {
+            continue; // Accept extra args for extern variadic
+          }
+          allCompatible = false;
+          break;
+        }
+
+        const exactMatch = this.ctx.areTypesExactMatch(paramType, argTypes[i]!);
         if (exactMatch) {
           continue;
         }
@@ -476,5 +570,29 @@ export class OverloadResolver {
     }
 
     return undefined;
+  }
+
+  /**
+   * Check if type is 'int'
+   */
+  private isIntType(type: AST.TypeNode): boolean {
+    return (
+      type.kind === "BasicType" &&
+      type.name === "int" &&
+      type.pointerDepth === 0 &&
+      type.arrayDimensions.length === 0
+    );
+  }
+
+  /**
+   * Check if type is '*Any'
+   */
+  private isPointerToAny(type: AST.TypeNode): boolean {
+    return (
+      type.kind === "BasicType" &&
+      type.name === "Any" &&
+      type.pointerDepth === 1 &&
+      type.arrayDimensions.length === 0
+    );
   }
 }

@@ -293,6 +293,24 @@ export function createIntStructDecl(): AST.StructDecl {
   };
 }
 
+export function createLongStructDecl(): AST.StructDecl {
+  return {
+    kind: "StructDecl",
+    name: "Long",
+    genericParams: [],
+    inheritanceList: [],
+    members: [
+      {
+        kind: "StructField",
+        name: "value",
+        type: createBasicType("i64"),
+        location: INTERNAL_LOCATION,
+      },
+    ],
+    location: INTERNAL_LOCATION,
+  };
+}
+
 export function createBoolStructDecl(): AST.StructDecl {
   return {
     kind: "StructDecl",
@@ -345,6 +363,66 @@ export function createStringStructDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "length",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+    ],
+    location: INTERNAL_LOCATION,
+  };
+}
+
+export function createIndexOutOfBoundsErrorDecl(): AST.StructDecl {
+  return {
+    kind: "StructDecl",
+    name: "IndexOutOfBoundsError",
+    genericParams: [],
+    inheritanceList: [],
+    members: [
+      {
+        kind: "StructField",
+        name: "message",
+        type: createBasicType("i8", { pointerDepth: 1 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "code",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "index",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "size",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+    ],
+    location: INTERNAL_LOCATION,
+  };
+}
+
+export function createDivisionByZeroErrorDecl(): AST.StructDecl {
+  return {
+    kind: "StructDecl",
+    name: "DivisionByZeroError",
+    genericParams: [],
+    inheritanceList: [],
+    members: [
+      {
+        kind: "StructField",
+        name: "message",
+        type: createBasicType("i8", { pointerDepth: 1 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "code",
         type: createBasicType("i32"),
         location: INTERNAL_LOCATION,
       },
@@ -412,6 +490,24 @@ export function initializeBuiltinsInScope(scope: SymbolTable): void {
     declaration: nullAccessErrorDecl,
   });
 
+  // Register IndexOutOfBoundsError struct type
+  const indexOutOfBoundsErrorDecl = createIndexOutOfBoundsErrorDecl();
+  scope.define({
+    name: "IndexOutOfBoundsError",
+    kind: "Struct",
+    type: createBasicType("IndexOutOfBoundsError"),
+    declaration: indexOutOfBoundsErrorDecl,
+  });
+
+  // Register DivisionByZeroError struct type
+  const divisionByZeroErrorDecl = createDivisionByZeroErrorDecl();
+  scope.define({
+    name: "DivisionByZeroError",
+    kind: "Struct",
+    type: createBasicType("DivisionByZeroError"),
+    declaration: divisionByZeroErrorDecl,
+  });
+
   // Register Type struct (Root of type hierarchy)
   const typeDecl = createTypeStructDecl();
   scope.define({
@@ -419,5 +515,14 @@ export function initializeBuiltinsInScope(scope: SymbolTable): void {
     kind: "Struct",
     type: createBasicType("Type"),
     declaration: typeDecl,
+  });
+
+  // Register Long struct
+  const longDecl = createLongStructDecl();
+  scope.define({
+    name: "Long",
+    kind: "Struct",
+    type: createBasicType("Long"),
+    declaration: longDecl,
   });
 }

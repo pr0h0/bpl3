@@ -2,8 +2,9 @@
 # This module re-exports all standard library components for easy access.
 
 # Core Type System
-import [Type] from "std/type.bpl";
+import [Type], [Any] from "std/type.bpl";
 export [Type];
+export [Any];
 
 import [Int], [Double], [Bool], [Long], [Char], [UChar], [Short], [UShort], [UInt], [ULong] from "std/primitives.bpl";
 export [Int];

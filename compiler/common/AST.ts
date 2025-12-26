@@ -338,6 +338,7 @@ export interface FunctionDecl extends ASTNode {
     type: TypeNode;
     location: SourceLocation;
     isConst?: boolean;
+    isVariadic?: boolean;
   }[];
   returnType: TypeNode;
   body: BlockStmt;

@@ -3,6 +3,7 @@
  */
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { TokenType } from "../frontend/TokenType";
 import type { Symbol } from "./SymbolTable";
 import { TypeUtils } from "./TypeUtils";
 
@@ -76,6 +77,36 @@ export function checkCall(
   }
 
   if (name) {
+    // Handle intrinsics
+    if (name === "__type_id") {
+      if (genericArgs.length !== 1) {
+        throw new CompilerError(
+          "Intrinsic __type_id requires exactly 1 generic argument",
+          "",
+          expr.location,
+        );
+      }
+      if (expr.args.length !== 0) {
+        throw new CompilerError(
+          "Intrinsic __type_id accepts no arguments",
+          "",
+          expr.location,
+        );
+      }
+      // Resolve the type to ensure it exists and is valid
+      this.resolveType(genericArgs[0]!);
+
+      // Return u64 type
+      return {
+        kind: "BasicType",
+        name: "u64",
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [],
+        location: expr.location,
+      };
+    }
+
     const symbol = this.currentScope.resolve(name);
 
     if (symbol && symbol.kind === "Function") {
@@ -94,6 +125,16 @@ export function checkCall(
         | AST.FunctionDecl
         | AST.ExternDecl;
       expr.callee.resolvedType = match.type;
+
+      // Handle Variadic Argument Packing
+      if (match.type.isVariadic && match.declaration.kind === "FunctionDecl") {
+        packVariadicArguments.call(
+          this,
+          expr,
+          match.declaration as AST.FunctionDecl,
+          match.type,
+        );
+      }
 
       // Ensure base identifier in GenericInstantiation has resolvedType for CodeGenerator
       if (expr.callee.kind === "GenericInstantiation") {
@@ -257,6 +298,58 @@ export function checkCall(
 
     // Update resolvedType on callee to point to specialized type
     expr.callee.resolvedType = effectiveFuncType;
+
+    // Handle Variadic Argument Packing (Explicit or Implicit)
+    if (
+      effectiveFuncType.declaration &&
+      effectiveFuncType.declaration.kind === "FunctionDecl"
+    ) {
+      const decl = effectiveFuncType.declaration as AST.FunctionDecl;
+
+      // Check if explicit variadic pattern
+      let isExplicitVariadic = false;
+      if (!effectiveFuncType.isVariadic) {
+        const len = effectiveFuncType.paramTypes.length;
+        if (len >= 2) {
+          const lastParam = effectiveFuncType.paramTypes[len - 1]!;
+          const secondLastParam = effectiveFuncType.paramTypes[len - 2]!;
+
+          // Check types
+          const isInt =
+            lastParam.kind === "BasicType" &&
+            (lastParam.name === "int" ||
+              lastParam.name === "i32" ||
+              lastParam.name === "i64") &&
+            lastParam.pointerDepth === 0;
+          const isPtrAny =
+            secondLastParam.kind === "BasicType" &&
+            secondLastParam.name === "Any" &&
+            secondLastParam.pointerDepth === 1;
+
+          if (isInt && isPtrAny && argTypes.length >= len - 2) {
+            isExplicitVariadic = true;
+          }
+        }
+      }
+
+      if (effectiveFuncType.isVariadic || isExplicitVariadic) {
+        // If explicit, we need to temporarily set isVariadic=true for packVariadicArguments to work
+        const typeForPacking = isExplicitVariadic
+          ? { ...effectiveFuncType, isVariadic: true }
+          : effectiveFuncType;
+
+        packVariadicArguments.call(this, expr, decl, typeForPacking);
+
+        // Re-compute argTypes
+        const newArgTypes = expr.args.map((arg) => this.checkExpression(arg));
+        return validateFunctionCall.call(
+          this,
+          expr,
+          typeForPacking,
+          newArgTypes,
+        );
+      }
+    }
 
     return validateFunctionCall.call(this, expr, effectiveFuncType, argTypes);
   }
@@ -1067,4 +1160,237 @@ function resolveMethodTypesInModuleContext(
     }
   }
   return { returnType, paramTypes };
+}
+
+function packVariadicArguments(
+  this: CallCheckerContext,
+  expr: AST.CallExpr,
+  funcDecl: AST.FunctionDecl,
+  funcType: AST.FunctionTypeNode,
+): void {
+  if (!funcType.isVariadic) return;
+  if ((expr as any).variadicPacked) return;
+  (expr as any).variadicPacked = true;
+
+  const paramCount = funcDecl.params.length;
+  // Expecting (..., variadic) - variadic is always last
+  let fixedParamCount = paramCount - 1;
+
+  // Special case for externs or functions where count is explicit in declaration
+  if (paramCount > 0) {
+    const lastParam = funcDecl.params[paramCount - 1];
+    if (lastParam && !lastParam.isVariadic) {
+      // Assume (..., variadic, count)
+      fixedParamCount = paramCount - 2;
+    }
+  }
+
+  if (fixedParamCount >= 0) {
+    const variadicArgs = expr.args.slice(fixedParamCount);
+    const fixedArgs = expr.args.slice(0, fixedParamCount);
+    const variadicParam = funcDecl.params[fixedParamCount]!;
+
+    let packedArgs: AST.Expression[] = variadicArgs;
+
+    // Check if Heterogeneous (Any)
+    const isVariadicAny =
+      variadicParam.type.kind === "BasicType" &&
+      variadicParam.type.name === "Any" &&
+      variadicParam.isVariadic;
+
+    const isExplicitAnyPtr =
+      variadicParam.type.kind === "BasicType" &&
+      variadicParam.type.name === "Any" &&
+      variadicParam.type.pointerDepth === 1;
+
+    if (isVariadicAny || isExplicitAnyPtr) {
+      packedArgs = variadicArgs.map((arg) => {
+        // Create Any struct literal
+        // Any { type_id: __type_id<T>(), data: cast<u64>(arg) }
+        const u64Type: AST.BasicTypeNode = {
+          kind: "BasicType",
+          name: "u64",
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: arg.location,
+        };
+
+        const typeIdCall: AST.CallExpr = {
+          kind: "Call",
+          callee: {
+            kind: "Identifier",
+            name: "__type_id",
+            location: arg.location,
+          },
+          args: [],
+          genericArgs: [arg.resolvedType!],
+          location: arg.location,
+          resolvedType: u64Type,
+        };
+
+        const castExpr: AST.CastExpr = {
+          kind: "Cast",
+          targetType: u64Type,
+          expression: arg,
+          location: arg.location,
+          resolvedType: u64Type,
+        };
+
+        const anyType: AST.BasicTypeNode = {
+          kind: "BasicType",
+          name: "Any",
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: arg.location,
+        };
+
+        return {
+          kind: "StructLiteral",
+          structName: "Any",
+          fields: [
+            {
+              name: "type_id",
+              value: typeIdCall,
+            },
+            {
+              name: "data",
+              value: castExpr,
+            },
+          ],
+          genericArgs: [],
+          location: arg.location,
+          resolvedType: anyType,
+        } as AST.StructLiteralExpr;
+      });
+    }
+
+    const arrayLiteral: AST.ArrayLiteralExpr = {
+      kind: "ArrayLiteral",
+      elements: packedArgs,
+      location: expr.location,
+      resolvedType: {
+        kind: "BasicType",
+        name: (variadicParam.type as AST.BasicTypeNode).name,
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [variadicArgs.length],
+        location: expr.location,
+      },
+    };
+
+    let argsPtrExpr: AST.Expression;
+
+    if (packedArgs.length === 0) {
+      // Cast 0 to *Any
+      argsPtrExpr = {
+        kind: "Cast",
+        targetType: {
+          kind: "BasicType",
+          name: "Any",
+          genericArgs: [],
+          pointerDepth: 1,
+          arrayDimensions: [],
+          location: expr.location,
+        },
+        expression: {
+          kind: "Literal",
+          value: 0n,
+          raw: "0",
+          type: "number",
+          location: expr.location,
+          resolvedType: {
+            kind: "BasicType",
+            name: "int",
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: expr.location,
+          },
+        },
+        location: expr.location,
+        resolvedType: {
+          kind: "BasicType",
+          name: "Any",
+          genericArgs: [],
+          pointerDepth: 1,
+          arrayDimensions: [],
+          location: expr.location,
+        },
+      };
+    } else {
+      // &array[0]
+      const indexExpr: AST.IndexExpr = {
+        kind: "Index",
+        object: arrayLiteral,
+        index: {
+          kind: "Literal",
+          value: 0n,
+          raw: "0",
+          type: "number",
+          location: expr.location,
+          resolvedType: {
+            kind: "BasicType",
+            name: "int",
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: expr.location,
+          },
+        },
+        location: expr.location,
+        resolvedType: {
+          kind: "BasicType",
+          name: "Any",
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: expr.location,
+        },
+      };
+
+      argsPtrExpr = {
+        kind: "Unary",
+        operator: {
+          type: TokenType.Ampersand,
+          lexeme: "&",
+          literal: "&",
+          line: 0,
+          column: 0,
+          file: "internal",
+        },
+        operand: indexExpr,
+        isPrefix: true,
+        location: expr.location,
+        resolvedType: {
+          kind: "BasicType",
+          name: "Any",
+          genericArgs: [],
+          pointerDepth: 1,
+          arrayDimensions: [],
+          location: expr.location,
+        },
+      };
+    }
+
+    // Count literal
+    const countLiteral: AST.LiteralExpr = {
+      kind: "Literal",
+      value: BigInt(variadicArgs.length),
+      raw: variadicArgs.length.toString(),
+      type: "number",
+      location: expr.location,
+      resolvedType: {
+        kind: "BasicType",
+        name: "int",
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [],
+        location: expr.location,
+      },
+    };
+
+    expr.args = [...fixedArgs, argsPtrExpr, countLiteral];
+  }
 }

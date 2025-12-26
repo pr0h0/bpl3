@@ -1,6 +1,11 @@
 import { CompilerError, type AST } from "../..";
 import type { SourceLocation } from "../../common/CompilerError";
 import { DebugInfoGenerator } from "./DebugInfoGenerator";
+import {
+  createIndexOutOfBoundsErrorDecl,
+  createDivisionByZeroErrorDecl,
+  createNullAccessErrorDecl,
+} from "../../middleend/BuiltinTypes";
 
 export class BaseCodeGenerator {
   protected stdLibPath?: string;
@@ -22,6 +27,27 @@ export class BaseCodeGenerator {
     this.target = options.target;
     this.generateDwarf = options.dwarf || false;
     this.debugInfoGenerator = new DebugInfoGenerator("unknown.bpl", ".");
+
+    // Register built-in struct layouts
+    this.registerBuiltinLayouts();
+  }
+
+  protected registerBuiltinLayouts() {
+    this.registerBuiltinLayout(createIndexOutOfBoundsErrorDecl());
+    this.registerBuiltinLayout(createDivisionByZeroErrorDecl());
+    this.registerBuiltinLayout(createNullAccessErrorDecl());
+  }
+
+  protected registerBuiltinLayout(decl: AST.StructDecl) {
+    const layout = new Map<string, number>();
+    let index = 0;
+    decl.members.forEach((m) => {
+      if (m.kind === "StructField") {
+        layout.set(m.name, index++);
+      }
+    });
+    this.structLayouts.set(decl.name, layout);
+    this.structMap.set(decl.name, decl);
   }
 
   protected output: string[] = [];

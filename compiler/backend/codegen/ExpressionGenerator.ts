@@ -3,6 +3,7 @@ import { CompilerError } from "../../common/CompilerError";
 import { TokenType } from "../../frontend/TokenType";
 import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
 import { TypeGenerator } from "./TypeGenerator";
+import { RTTI } from "../../middleend/RTTI";
 
 export abstract class ExpressionGenerator extends TypeGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
@@ -876,6 +877,12 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         "Function calls return rvalues and cannot be assigned to or have their address taken.",
         expr.location,
       );
+    } else if (expr.kind === "ArrayLiteral") {
+      const type = this.resolveType(expr.resolvedType!);
+      const ptr = this.allocateStack(`array_lit_${this.labelCount++}`, type);
+      const val = this.generateArrayLiteral(expr as AST.ArrayLiteralExpr);
+      this.emit(`  store ${type} ${val}, ${type}* ${ptr}`);
+      return ptr;
     } else if (expr.kind === "Unary") {
       const unaryExpr = expr as AST.UnaryExpr;
       if (unaryExpr.operator.type === TokenType.Star) {
@@ -1876,6 +1883,36 @@ export abstract class ExpressionGenerator extends TypeGenerator {
   }
 
   protected generateCall(expr: AST.CallExpr): string {
+    // Handle intrinsics
+    let calleeName = "";
+    if (expr.callee.kind === "Identifier") {
+      calleeName = (expr.callee as AST.IdentifierExpr).name;
+    } else if (expr.callee.kind === "GenericInstantiation") {
+      const genExpr = expr.callee as AST.GenericInstantiationExpr;
+      if (genExpr.base.kind === "Identifier") {
+        calleeName = (genExpr.base as AST.IdentifierExpr).name;
+      }
+    }
+
+    if (calleeName === "__type_id") {
+      let genericArgs = expr.genericArgs || [];
+      if (
+        genericArgs.length === 0 &&
+        expr.callee.kind === "GenericInstantiation"
+      ) {
+        genericArgs = (expr.callee as AST.GenericInstantiationExpr).genericArgs;
+      }
+
+      if (genericArgs.length === 1) {
+        let typeArg = genericArgs[0]!;
+        if (this.currentTypeMap.size > 0) {
+          typeArg = this.substituteType(typeArg, this.currentTypeMap);
+        }
+        const typeId = RTTI.getTypeId(typeArg);
+        return `${typeId}`;
+      }
+    }
+
     let decl: any;
     // Check for enum variant constructor
     const enumVariantInfo = (expr as any).enumVariantInfo;
@@ -2658,272 +2695,356 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       }
     }
 
-    const args = argsToGenerate
-      .map((arg, i) => {
-        let targetTypeNode: AST.TypeNode | undefined;
+    const generateArg = (arg: AST.Expression, i: number): string => {
+      let targetTypeNode: AST.TypeNode | undefined;
 
-        if (isInstanceCall) {
-          if (i === 0) {
-            if (targetMethodDecl && targetMethodDecl.params.length > 0) {
-              targetTypeNode = targetMethodDecl.params[0]!.type;
-            } else if (
-              funcType.declaration &&
-              funcType.declaration.params.length > 0
-            ) {
-              targetTypeNode = funcType.declaration.params[0]!.type;
-            } else {
-              targetTypeNode = arg.resolvedType;
-            }
+      if (isInstanceCall) {
+        if (i === 0) {
+          if (targetMethodDecl && targetMethodDecl.params.length > 0) {
+            targetTypeNode = targetMethodDecl.params[0]!.type;
+          } else if (
+            funcType.declaration &&
+            funcType.declaration.params.length > 0
+          ) {
+            targetTypeNode = funcType.declaration.params[0]!.type;
           } else {
-            if (i - 1 < funcType.paramTypes.length) {
-              targetTypeNode = funcType.paramTypes[i - 1];
-            }
+            targetTypeNode = arg.resolvedType;
           }
         } else {
-          if (i < funcType.paramTypes.length) {
-            targetTypeNode = funcType.paramTypes[i];
+          if (i - 1 < funcType.paramTypes.length) {
+            targetTypeNode = funcType.paramTypes[i - 1];
           }
         }
+      } else {
+        if (i < funcType.paramTypes.length) {
+          targetTypeNode = funcType.paramTypes[i];
+        }
+      }
 
-        if (targetTypeNode) {
-          // Apply substitution
-          if (callSubstitutionMap.size > 0) {
-            targetTypeNode = this.substituteType(
-              targetTypeNode,
-              callSubstitutionMap,
-            );
-          }
+      if (targetTypeNode) {
+        // Apply substitution
+        if (callSubstitutionMap.size > 0) {
+          targetTypeNode = this.substituteType(
+            targetTypeNode,
+            callSubstitutionMap,
+          );
+        }
 
-          const destType = this.resolveType(targetTypeNode);
-          const srcType = this.resolveType(arg.resolvedType!);
+        const destType = this.resolveType(targetTypeNode);
+        const srcType = this.resolveType(arg.resolvedType!);
 
-          // Handle 'this' pointer cast for inherited methods
+        // Handle 'this' pointer cast for inherited methods
+        if (
+          isInstanceCall &&
+          i === 0 &&
+          targetThisType &&
+          srcType !== targetThisType
+        ) {
+          // Check if we are casting a primitive to its wrapper struct
+          // e.g. i32 -> %struct.Int*
+          let wrapperStructName = "";
           if (
-            isInstanceCall &&
-            i === 0 &&
-            targetThisType &&
-            srcType !== targetThisType
+            targetThisType.startsWith("%struct.") &&
+            targetThisType.endsWith("*")
           ) {
-            // Check if we are casting a primitive to its wrapper struct
-            // e.g. i32 -> %struct.Int*
-            let wrapperStructName = "";
-            if (
-              targetThisType.startsWith("%struct.") &&
-              targetThisType.endsWith("*")
-            ) {
-              wrapperStructName = targetThisType.substring(
-                8,
-                targetThisType.length - 1,
-              );
-            }
-
-            // Check if this is a primitive wrapper cast
-            let isMatch = false;
-            if (wrapperStructName) {
-              if (PRIMITIVE_STRUCT_MAP[srcType] === wrapperStructName) {
-                isMatch = true;
-              } else {
-                // Check reverse mapping for unsigned types etc.
-                for (const [key, val] of Object.entries(PRIMITIVE_STRUCT_MAP)) {
-                  if (val === wrapperStructName) {
-                    let keyLLVM = "";
-                    switch (key) {
-                      case "i8":
-                      case "u8":
-                      case "char":
-                      case "uchar":
-                        keyLLVM = "i8";
-                        break;
-                      case "i16":
-                      case "u16":
-                      case "short":
-                      case "ushort":
-                        keyLLVM = "i16";
-                        break;
-                      case "i32":
-                      case "u32":
-                      case "int":
-                      case "uint":
-                        keyLLVM = "i32";
-                        break;
-                      case "i64":
-                      case "u64":
-                      case "long":
-                      case "ulong":
-                        keyLLVM = "i64";
-                        break;
-                      case "float":
-                      case "double":
-                        keyLLVM = "double";
-                        break;
-                      case "bool":
-                      case "i1":
-                        keyLLVM = "i1";
-                        break;
-                    }
-                    if (keyLLVM === srcType) {
-                      isMatch = true;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-
-            if (isMatch) {
-              // Construct temporary wrapper struct
-              const structType = `%struct.${wrapperStructName}`;
-              const tempStructPtr = this.allocateStack(
-                `primitive_wrapper_${this.labelCount++}`,
-                structType,
-              );
-
-              // Initialize struct
-              const layout = this.structLayouts.get(wrapperStructName);
-              if (layout) {
-                // Set value
-                const valueIndex = layout.get("value");
-                if (valueIndex !== undefined) {
-                  const val = this.generateExpression(arg);
-                  const valPtr = this.newRegister();
-                  this.emit(
-                    `  ${valPtr} = getelementptr inbounds ${structType}, ${structType}* ${tempStructPtr}, i32 0, i32 ${valueIndex}`,
-                  );
-                  this.emit(`  store ${srcType} ${val}, ${srcType}* ${valPtr}`);
-                }
-
-                // Set vtable if needed
-                const vtableIndex = layout.get("__vtable__");
-                if (vtableIndex !== undefined) {
-                  const vtableGlobal =
-                    this.vtableGlobalNames.get(wrapperStructName);
-                  if (vtableGlobal) {
-                    const methods = this.vtableLayouts.get(wrapperStructName)!;
-                    const arrayType = `[${methods.length} x i8*]`;
-
-                    const vtablePtr = this.newRegister();
-                    this.emit(
-                      `  ${vtablePtr} = getelementptr inbounds ${structType}, ${structType}* ${tempStructPtr}, i32 0, i32 ${vtableIndex}`,
-                    );
-
-                    const vtableCast = this.newRegister();
-                    this.emit(
-                      `  ${vtableCast} = bitcast ${arrayType}* ${vtableGlobal} to i8*`,
-                    );
-                    this.emit(`  store i8* ${vtableCast}, i8** ${vtablePtr}`);
-                  }
-                }
-              }
-
-              return `${targetThisType} ${tempStructPtr}`;
-            }
-
-            let ptrVal: string;
-            let ptrType: string;
-
-            if (srcType.endsWith("*")) {
-              ptrVal = this.generateExpression(arg);
-              ptrType = srcType;
-            } else {
-              // Try to get address
-              try {
-                ptrVal = this.generateAddress(arg);
-                ptrType = srcType + "*";
-              } catch {
-                // Spill to stack
-                const val = this.generateExpression(arg);
-                const spill = this.allocateStack(
-                  `spill_${this.labelCount++}`,
-                  srcType,
-                );
-                this.emit(`  store ${srcType} ${val}, ${srcType}* ${spill}`);
-                ptrVal = spill;
-                ptrType = srcType + "*";
-              }
-            }
-
-            const castReg = this.newRegister();
-            this.emit(
-              `  ${castReg} = bitcast ${ptrType} ${ptrVal} to ${targetThisType}`,
+            wrapperStructName = targetThisType.substring(
+              8,
+              targetThisType.length - 1,
             );
-
-            // Check if the function expects a value or a pointer
-            if (destType === targetThisType) {
-              return `${targetThisType} ${castReg}`;
-            } else if (targetThisType === destType + "*") {
-              // Function expects value, load it from the casted pointer
-              const loaded = this.newRegister();
-              this.emit(
-                `  ${loaded} = load ${destType}, ${targetThisType} ${castReg}`,
-              );
-              return `${destType} ${loaded}`;
-            }
-            // Fallback: return casted pointer (might be wrong if types don't match, but better than nothing)
-            return `${targetThisType} ${castReg}`;
           }
 
-          // Optimize for L-values passing to pointer: take address directly (T -> *T)
-          if (destType === srcType + "*") {
+          // Check if this is a primitive wrapper cast
+          let isMatch = false;
+          if (wrapperStructName) {
+            if (PRIMITIVE_STRUCT_MAP[srcType] === wrapperStructName) {
+              isMatch = true;
+            } else {
+              // Check reverse mapping for unsigned types etc.
+              for (const [key, val] of Object.entries(PRIMITIVE_STRUCT_MAP)) {
+                if (val === wrapperStructName) {
+                  let keyLLVM = "";
+                  switch (key) {
+                    case "i8":
+                    case "u8":
+                    case "char":
+                    case "uchar":
+                      keyLLVM = "i8";
+                      break;
+                    case "i16":
+                    case "u16":
+                    case "short":
+                    case "ushort":
+                      keyLLVM = "i16";
+                      break;
+                    case "i32":
+                    case "u32":
+                    case "int":
+                    case "uint":
+                      keyLLVM = "i32";
+                      break;
+                    case "i64":
+                    case "u64":
+                    case "long":
+                    case "ulong":
+                      keyLLVM = "i64";
+                      break;
+                    case "float":
+                    case "double":
+                      keyLLVM = "double";
+                      break;
+                    case "bool":
+                    case "i1":
+                      keyLLVM = "i1";
+                      break;
+                  }
+                  if (keyLLVM === srcType) {
+                    isMatch = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (isMatch) {
+            // Construct temporary wrapper struct
+            const structType = `%struct.${wrapperStructName}`;
+            const tempStructPtr = this.allocateStack(
+              `primitive_wrapper_${this.labelCount++}`,
+              structType,
+            );
+
+            // Initialize struct
+            const layout = this.structLayouts.get(wrapperStructName);
+            if (layout) {
+              // Set value
+              const valueIndex = layout.get("value");
+              if (valueIndex !== undefined) {
+                const val = this.generateExpression(arg);
+                const valPtr = this.newRegister();
+                this.emit(
+                  `  ${valPtr} = getelementptr inbounds ${structType}, ${structType}* ${tempStructPtr}, i32 0, i32 ${valueIndex}`,
+                );
+                this.emit(`  store ${srcType} ${val}, ${srcType}* ${valPtr}`);
+              }
+
+              // Set vtable if needed
+              const vtableIndex = layout.get("__vtable__");
+              if (vtableIndex !== undefined) {
+                const vtableGlobal =
+                  this.vtableGlobalNames.get(wrapperStructName);
+                if (vtableGlobal) {
+                  const methods = this.vtableLayouts.get(wrapperStructName)!;
+                  const arrayType = `[${methods.length} x i8*]`;
+
+                  const vtablePtr = this.newRegister();
+                  this.emit(
+                    `  ${vtablePtr} = getelementptr inbounds ${structType}, ${structType}* ${tempStructPtr}, i32 0, i32 ${vtableIndex}`,
+                  );
+
+                  const vtableCast = this.newRegister();
+                  this.emit(
+                    `  ${vtableCast} = bitcast ${arrayType}* ${vtableGlobal} to i8*`,
+                  );
+                  this.emit(`  store i8* ${vtableCast}, i8** ${vtablePtr}`);
+                }
+              }
+            }
+
+            return `${targetThisType} ${tempStructPtr}`;
+          }
+
+          let ptrVal: string;
+          let ptrType: string;
+
+          if (srcType.endsWith("*")) {
+            ptrVal = this.generateExpression(arg);
+            ptrType = srcType;
+          } else {
+            // Try to get address
             try {
-              const addr = this.generateAddress(arg as any);
-              return `${destType} ${addr}`;
+              ptrVal = this.generateAddress(arg);
+              ptrType = srcType + "*";
             } catch {
-              // R-value passed where pointer expected: spill to stack
+              // Spill to stack
               const val = this.generateExpression(arg);
               const spill = this.allocateStack(
-                `arg_spill_${this.labelCount++}`,
+                `spill_${this.labelCount++}`,
                 srcType,
               );
               this.emit(`  store ${srcType} ${val}, ${srcType}* ${spill}`);
-              return `${destType} ${spill}`;
+              ptrVal = spill;
+              ptrType = srcType + "*";
             }
           }
 
-          if (srcType.startsWith("[") && destType.endsWith("*")) {
-            if (
-              arg.kind === "Identifier" ||
-              arg.kind === "Member" ||
-              arg.kind === "Index"
-            ) {
-              const addr = this.generateAddress(arg as any);
-
-              const decayReg = this.newRegister();
-              this.emit(
-                `  ${decayReg} = getelementptr inbounds ${srcType}, ${srcType}* ${addr}, i64 0, i64 0`,
-              );
-              return `${destType} ${decayReg}`;
-            }
-          }
-
-          const val = this.generateExpression(arg);
-          const castVal = this.emitCast(
-            val,
-            srcType,
-            destType,
-            arg.resolvedType!,
-            targetTypeNode,
+          const castReg = this.newRegister();
+          this.emit(
+            `  ${castReg} = bitcast ${ptrType} ${ptrVal} to ${targetThisType}`,
           );
-          return `${destType} ${castVal}`;
+
+          // Check if the function expects a value or a pointer
+          if (destType === targetThisType) {
+            return `${targetThisType} ${castReg}`;
+          } else if (targetThisType === destType + "*") {
+            // Function expects value, load it from the casted pointer
+            const loaded = this.newRegister();
+            this.emit(
+              `  ${loaded} = load ${destType}, ${targetThisType} ${castReg}`,
+            );
+            return `${destType} ${loaded}`;
+          }
+          // Fallback: return casted pointer (might be wrong if types don't match, but better than nothing)
+          return `${targetThisType} ${castReg}`;
+        }
+
+        // Optimize for L-values passing to pointer: take address directly (T -> *T)
+        if (destType === srcType + "*") {
+          try {
+            const addr = this.generateAddress(arg as any);
+            return `${destType} ${addr}`;
+          } catch {
+            // R-value passed where pointer expected: spill to stack
+            const val = this.generateExpression(arg);
+            const spill = this.allocateStack(
+              `arg_spill_${this.labelCount++}`,
+              srcType,
+            );
+            this.emit(`  store ${srcType} ${val}, ${srcType}* ${spill}`);
+            return `${destType} ${spill}`;
+          }
+        }
+
+        if (srcType.startsWith("[") && destType.endsWith("*")) {
+          if (
+            arg.kind === "Identifier" ||
+            arg.kind === "Member" ||
+            arg.kind === "Index"
+          ) {
+            const addr = this.generateAddress(arg as any);
+
+            const decayReg = this.newRegister();
+            this.emit(
+              `  ${decayReg} = getelementptr inbounds ${srcType}, ${srcType}* ${addr}, i64 0, i64 0`,
+            );
+            return `${destType} ${decayReg}`;
+          } else {
+            // Handle R-value arrays (ArrayLiteral) by spilling to stack
+            const val = this.generateExpression(arg);
+            const spill = this.allocateStack(
+              `array_lit_${this.labelCount++}`,
+              srcType,
+            );
+            this.emit(`  store ${srcType} ${val}, ${srcType}* ${spill}`);
+
+            const decayReg = this.newRegister();
+            this.emit(
+              `  ${decayReg} = getelementptr inbounds ${srcType}, ${srcType}* ${spill}, i64 0, i64 0`,
+            );
+            return `${destType} ${decayReg}`;
+          }
         }
 
         const val = this.generateExpression(arg);
+        const castVal = this.emitCast(
+          val,
+          srcType,
+          destType,
+          arg.resolvedType!,
+          targetTypeNode,
+        );
+        return `${destType} ${castVal}`;
+      }
+
+      const val = this.generateExpression(arg);
+      const srcType = this.resolveType(arg.resolvedType!);
+
+      // For variadic arguments, promote i1 to i32 (C convention)
+      if (srcType === "i1" && funcType.isVariadic) {
+        const promoted = this.newRegister();
+        this.emit(`  ${promoted} = zext i1 ${val} to i32`);
+        return `i32 ${promoted}`;
+      }
+
+      return `${srcType} ${val}`;
+    };
+
+    let args: string;
+    const isVariadic = funcType.isVariadic === true;
+    const isExtern =
+      expr.resolvedDeclaration && expr.resolvedDeclaration.kind === "Extern";
+
+    if (isVariadic && !isExtern && !(expr as any).variadicPacked) {
+      // BPL Variadic Logic
+      let fixedCount = 0;
+      if (funcType.declaration && (funcType.declaration as any).params) {
+        const params = (funcType.declaration as any).params;
+        const variadicIndex = params.findIndex((p: any) => p.isVariadic);
+        if (variadicIndex !== -1) {
+          fixedCount = variadicIndex;
+        } else {
+          // Fallback if isVariadic is true but no param marked (shouldn't happen)
+          fixedCount = funcType.paramTypes.length - 1;
+        }
+      } else {
+        // Fallback for function pointers etc.
+        // Assume standard BPL variadic: (...args, count) -> 2 extra params in signature compared to fixed args
+        // But wait, paramTypes includes fixed args.
+        // If signature is (a, b, ...args, count), paramTypes is [a, b, args, count].
+        // fixedCount should be 2. Length is 4. So length - 2.
+        if (funcType.paramTypes.length >= 2) {
+          fixedCount = funcType.paramTypes.length - 2;
+        } else {
+          fixedCount = 0;
+        }
+      }
+
+      const fixedArgs = argsToGenerate.slice(0, fixedCount);
+      const varArgs = argsToGenerate.slice(fixedCount);
+
+      const fixedArgStrs = fixedArgs.map((arg, i) => generateArg(arg, i));
+
+      // Pack varArgs
+      const count = varArgs.length;
+      const arrayType = `[${count} x %struct.Any]`;
+      const arrayPtr = this.allocateStack(
+        `varargs_${this.labelCount++}`,
+        arrayType,
+      );
+
+      for (let i = 0; i < count; i++) {
+        const arg = varArgs[i]!;
+        const val = this.generateExpression(arg);
         const srcType = this.resolveType(arg.resolvedType!);
 
-        // For variadic arguments, promote i1 to i32 (C convention)
-        if (srcType === "i1" && funcType.isVariadic) {
-          const promoted = this.newRegister();
-          this.emit(`  ${promoted} = zext i1 ${val} to i32`);
-          return `i32 ${promoted}`;
-        }
+        const anyVal = this.generateAnyConstruction(
+          val,
+          srcType,
+          arg.resolvedType!,
+        );
 
-        return `${srcType} ${val}`;
-      })
-      .join(", ");
+        const elemPtr = this.newRegister();
+        this.emit(
+          `  ${elemPtr} = getelementptr inbounds ${arrayType}, ${arrayType}* ${arrayPtr}, i32 0, i32 ${i}`,
+        );
+        this.emit(`  store %struct.Any ${anyVal}, %struct.Any* ${elemPtr}`);
+      }
+
+      const anyPtr = this.newRegister();
+      this.emit(
+        `  ${anyPtr} = getelementptr inbounds ${arrayType}, ${arrayType}* ${arrayPtr}, i32 0, i32 0`,
+      );
+
+      fixedArgStrs.push(`%struct.Any* ${anyPtr}`);
+      fixedArgStrs.push(`i64 ${count}`);
+
+      args = fixedArgStrs.join(", ");
+    } else {
+      args = argsToGenerate.map((arg, i) => generateArg(arg, i)).join(", ");
+    }
 
     // Prepend closure context if needed
     let finalArgs = args;
-    const isExtern =
-      expr.resolvedDeclaration && expr.resolvedDeclaration.kind === "Extern";
     const isMain = funcName === "main";
 
     if (!isExtern && !isMain) {
@@ -2935,7 +3056,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     }
 
     const retType = this.resolveType(expr.resolvedType!);
-    const isVariadic = funcType.isVariadic === true;
 
     // Ensure external function is declared
     if (callTarget.startsWith("@") && isExtern) {
@@ -2984,7 +3104,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         }
 
         paramTypes.push(
-          ...funcType.paramTypes.map((t) => {
+          ...funcType.paramTypes.map((t, i) => {
             let resolved = t;
             if (callSubstitutionMap.size > 0) {
               resolved = this.substituteType(t, callSubstitutionMap);
@@ -3001,10 +3121,21 @@ export abstract class ExpressionGenerator extends TypeGenerator {
                   resolved.genericArgs,
                 );
                 for (let i = 0; i < resolved.pointerDepth; i++) ret += "*";
+
+                // Handle BPL variadic signature
+                if (funcType.isVariadic && !isExtern) {
+                  return `${ret}*, i32`;
+                }
                 return ret;
               }
             }
-            return this.resolveType(resolved);
+
+            const typeStr = this.resolveType(resolved);
+            // Handle BPL variadic signature
+            if (funcType.isVariadic && !isExtern) {
+              return `${typeStr}*, i32`;
+            }
+            return typeStr;
           }),
         );
 
@@ -3041,7 +3172,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           !this.definedFunctions.has(targetName)
         ) {
           let decl = `declare ${retTypeStr} @${targetName}(${paramTypes.join(", ")}`;
-          if (funcType.isVariadic) {
+          if (funcType.isVariadic && isExtern) {
             if (paramTypes.length > 0) decl += ", ...";
             else decl += "...";
           }
@@ -3071,9 +3202,15 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           }
         }
 
-        this.emit(
-          `  call void (${paramTypesStr}, ...) ${callTarget}(${finalArgs})`,
-        );
+        if (isExtern) {
+          this.emit(
+            `  call void (${paramTypesStr}, ...) ${callTarget}(${finalArgs})`,
+          );
+        } else {
+          this.emit(
+            `  call void (${paramTypesStr}) ${callTarget}(${finalArgs})`,
+          );
+        }
       } else {
         this.emit(`  call void ${callTarget}(${finalArgs})`);
       }
@@ -3094,9 +3231,15 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           }
         }
 
-        this.emit(
-          `  ${reg} = call ${retType} (${paramTypesStr}, ...) ${callTarget}(${finalArgs})`,
-        );
+        if (isExtern) {
+          this.emit(
+            `  ${reg} = call ${retType} (${paramTypesStr}, ...) ${callTarget}(${finalArgs})`,
+          );
+        } else {
+          this.emit(
+            `  ${reg} = call ${retType} (${paramTypesStr}) ${callTarget}(${finalArgs})`,
+          );
+        }
       } else {
         this.emit(`  ${reg} = call ${retType} ${callTarget}(${finalArgs})`);
       }
@@ -3715,6 +3858,67 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     );
   }
 
+  protected generateAnyConstruction(
+    val: string,
+    srcType: string,
+    srcTypeNode: AST.TypeNode,
+  ): string {
+    // Ensure Any struct is defined
+    if (!this.generatedStructs.has("Any")) {
+      this.declarationsOutput.push(`%struct.Any = type { i8*, i64, i64 }`);
+      this.generatedStructs.add("Any");
+    }
+
+    const anyType = `%struct.Any`;
+    const typeId = RTTI.getTypeId(srcTypeNode).toString();
+
+    // Pack data
+    let dataVal = "0";
+    if (
+      srcType === "i64" ||
+      srcType === "u64" ||
+      srcType === "double" ||
+      srcType.endsWith("*")
+    ) {
+      if (srcType === "double") {
+        const cast = this.newRegister();
+        this.emit(`  ${cast} = bitcast double ${val} to i64`);
+        dataVal = cast;
+      } else if (srcType.endsWith("*")) {
+        const cast = this.newRegister();
+        this.emit(`  ${cast} = ptrtoint ${srcType} ${val} to i64`);
+        dataVal = cast;
+      } else {
+        dataVal = val;
+      }
+    } else {
+      // Extend to 64-bit
+      const cast = this.newRegister();
+      if (srcType === "float") {
+        const i32val = this.newRegister();
+        this.emit(`  ${i32val} = bitcast float ${val} to i32`);
+        this.emit(`  ${cast} = zext i32 ${i32val} to i64`);
+      } else {
+        // Integer types
+        this.emit(`  ${cast} = zext ${srcType} ${val} to i64`);
+      }
+      dataVal = cast;
+    }
+
+    const anyVal = this.newRegister();
+    this.emit(`  ${anyVal} = insertvalue ${anyType} undef, i8* null, 0`);
+    const anyVal2 = this.newRegister();
+    this.emit(
+      `  ${anyVal2} = insertvalue ${anyType} ${anyVal}, i64 ${typeId}, 1`,
+    );
+    const finalAny = this.newRegister();
+    this.emit(
+      `  ${finalAny} = insertvalue ${anyType} ${anyVal2}, i64 ${dataVal}, 2`,
+    );
+
+    return finalAny;
+  }
+
   protected emitCast(
     val: string,
     srcType: string,
@@ -3723,6 +3927,11 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     destTypeNode: AST.TypeNode,
   ): string {
     if (srcType === destType) return val;
+
+    // Case: Cast to Any
+    if (destType === "%struct.Any") {
+      return this.generateAnyConstruction(val, srcType, srcTypeNode);
+    }
 
     // Special: casting literal null to a struct/object value should become zeroinitializer
     // Detect by value literal and destination being a non-pointer struct type
@@ -3951,7 +4160,13 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
     const variantInfo = this.enumVariants.get(enumName);
 
+    // Handle Type Matching on Any (or other structs if we support them later)
     if (!variantInfo) {
+      // Check if it's Any
+      if (matchType.name === "Any") {
+        return this.generateAnyMatch(expr, matchValue, matchType);
+      }
+
       throw this.createError(
         `Cannot match on non-enum type '${matchType.name}'`,
         expr.value,
@@ -4162,6 +4377,232 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       // Expression - generate and return
       return this.generateExpression(body as AST.Expression);
     }
+  }
+
+  protected llvmTypeToBplType(llvmType: string): string {
+    let ptrDepth = 0;
+    let base = llvmType;
+    while (base.endsWith("*")) {
+      ptrDepth++;
+      base = base.slice(0, -1);
+    }
+
+    if (base.startsWith("%struct.")) {
+      base = base.substring(8);
+    } else if (base.startsWith("%enum.")) {
+      base = base.substring(6);
+    }
+
+    return "*".repeat(ptrDepth) + base;
+  }
+
+  protected generateAnyMatch(
+    expr: AST.MatchExpr,
+    matchValue: string,
+    matchType: AST.BasicTypeNode,
+  ): string {
+    // Any struct: { type_id: u64, data: u64 }
+    const anyType = `%struct.Any`;
+
+    // Allocate space for Any value to extract fields
+    const anyPtr = this.newRegister();
+    this.emit(`  ${anyPtr} = alloca ${anyType}`);
+    this.emit(`  store ${anyType} ${matchValue}, ${anyType}* ${anyPtr}`);
+
+    // Extract type_id
+    const typeIdPtr = this.newRegister();
+    this.emit(
+      `  ${typeIdPtr} = getelementptr inbounds ${anyType}, ${anyType}* ${anyPtr}, i32 0, i32 1`,
+    );
+    const typeId = this.newRegister();
+    this.emit(`  ${typeId} = load i64, i64* ${typeIdPtr}`);
+
+    // Extract data
+    const dataPtr = this.newRegister();
+    this.emit(
+      `  ${dataPtr} = getelementptr inbounds ${anyType}, ${anyType}* ${anyPtr}, i32 0, i32 2`,
+    );
+    const data = this.newRegister();
+    this.emit(`  ${data} = load i64, i64* ${dataPtr}`);
+
+    // Create labels
+    const mergeLabel = this.newLabel("match_any_merge");
+    const armLabels: string[] = [];
+    for (let i = 0; i < expr.arms.length; i++) {
+      armLabels.push(this.newLabel(`match_any_arm${i}`));
+    }
+    const nextLabels: string[] = [];
+    for (let i = 0; i < expr.arms.length; i++) {
+      nextLabels.push(this.newLabel(`match_any_next${i}`));
+    }
+
+    const resultType = this.resolveType(expr.resolvedType!);
+    this.matchStack.push({
+      mergeLabel,
+      results: [],
+      resultType,
+      resultTypeNode: expr.resolvedType!,
+    });
+
+    // Generate checks for each arm
+    let currentLabel = this.newLabel("match_any_start");
+    this.emit(`  br label %${currentLabel}`);
+    this.emit(`${currentLabel}:`);
+
+    for (let i = 0; i < expr.arms.length; i++) {
+      const arm = expr.arms[i]!;
+      const pattern = arm.pattern;
+      const armLabel = armLabels[i]!;
+      const nextLabel = nextLabels[i]!;
+
+      if (pattern.kind === "PatternWildcard") {
+        // Wildcard matches everything
+        this.emit(`  br label %${armLabel}`);
+      } else if (pattern.kind === "PatternEnumTuple") {
+        // Type(var) pattern
+        // Check type_id
+        const typeName = pattern.variantName;
+
+        // Resolve type alias to match RTTI ID generation
+        const dummyType: AST.BasicTypeNode = {
+          kind: "BasicType",
+          name: typeName,
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: expr.location,
+        };
+        const llvmType = this.resolveType(dummyType);
+        const bplType = this.llvmTypeToBplType(llvmType);
+
+        // We need to get the type ID for this type
+        // This requires a helper to get type ID constant or hash
+        const targetTypeId = this.getRttiTypeId(bplType);
+
+        const typeCheck = this.newRegister();
+        this.emit(`  ${typeCheck} = icmp eq i64 ${typeId}, ${targetTypeId}`);
+        this.emit(
+          `  br i1 ${typeCheck}, label %${armLabel}, label %${nextLabel}`,
+        );
+      } else {
+        // Unsupported pattern for Any
+        this.emit(`  br label %${nextLabel}`);
+      }
+
+      // Generate Arm Body
+      this.emit(`${armLabel}:`);
+
+      // Save state to handle scoping
+      const savedLocalPointers = new Map(this.localPointers);
+      const savedLocals = new Set(this.locals);
+
+      // Bind variable if needed
+      if (pattern.kind === "PatternEnumTuple" && pattern.bindings.length > 0) {
+        const bindingName = pattern.bindings[0]!;
+        const typeName = pattern.variantName;
+        const bindingType = this.resolveType({
+          kind: "BasicType",
+          name: typeName,
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: pattern.location,
+        });
+
+        // Cast data (u64) to target type
+        // If target type is smaller than 64-bit, truncate
+        // If target type is pointer, inttoptr
+        // If target type is float/double, bitcast
+
+        const castVal = this.newRegister();
+
+        if (bindingType === "double") {
+          this.emit(`  ${castVal} = bitcast i64 ${data} to double`);
+        } else if (bindingType === "float") {
+          // float is 32-bit, so we need to truncate first? Or bitcast lower 32 bits?
+          // Assuming data stores bits directly.
+          // For float, we might need to trunc to i32 then bitcast
+          const trunc = this.newRegister();
+          this.emit(`  ${trunc} = trunc i64 ${data} to i32`);
+          this.emit(`  ${castVal} = bitcast i32 ${trunc} to float`);
+        } else if (bindingType.endsWith("*")) {
+          this.emit(`  ${castVal} = inttoptr i64 ${data} to ${bindingType}`);
+        } else {
+          // Integer types
+          // Check size
+          // For now assume int/i64
+          if (bindingType === "i64" || bindingType === "u64") {
+            // No cast needed, just bitcast to be safe if signedness differs in LLVM (it doesn't)
+            // But we need to assign to a new register name
+            this.emit(`  ${castVal} = bitcast i64 ${data} to ${bindingType}`);
+          } else {
+            // Truncate
+            this.emit(`  ${castVal} = trunc i64 ${data} to ${bindingType}`);
+          }
+        }
+
+        // Store in variable
+        const varAddr = this.allocateStack(bindingName, bindingType);
+        this.emit(
+          `  store ${bindingType} ${castVal}, ${bindingType}* ${varAddr}`,
+        );
+      }
+
+      const result = this.generateMatchArmBody(arm.body);
+
+      // Restore state
+      this.localPointers = savedLocalPointers;
+      this.locals = savedLocals;
+
+      // Handle result
+      if (result !== null) {
+        const currentLabel = this.getCurrentLabel();
+        this.matchStack[this.matchStack.length - 1]!.results.push({
+          value: result,
+          label: currentLabel,
+          type: resultType,
+        });
+        this.emit(`  br label %${mergeLabel}`);
+      } else if (
+        !this.isTerminator(this.output[this.output.length - 1] || "")
+      ) {
+        // If block didn't return, jump to merge (for void)
+        this.emit(`  br label %${mergeLabel}`);
+      }
+
+      // Start next block
+      this.emit(`${nextLabel}:`);
+    }
+
+    // If we fall through all checks (no match), it's a runtime error or unreachable if exhaustive
+    this.emit(`  unreachable`);
+
+    const matchContext = this.matchStack.pop()!;
+    const armResults = matchContext.results;
+
+    this.emit(`${mergeLabel}:`);
+
+    if (resultType === "void") {
+      return "";
+    }
+
+    const resultReg = this.newRegister();
+    if (armResults.length > 0) {
+      const phiEntries = armResults
+        .map((r) => `[ ${r.value}, %${r.label} ]`)
+        .join(", ");
+      this.emit(`  ${resultReg} = phi ${resultType} ${phiEntries}`);
+    } else {
+      this.emit(`  ${resultReg} = undef`);
+    }
+
+    return resultReg;
+  }
+
+  // Helper to get type ID (hash of type name)
+  // This should match how Any is constructed
+  protected getRttiTypeId(typeName: string): string {
+    return RTTI.getTypeIdFromName(typeName).toString();
   }
 
   protected generateTypeMatch(expr: AST.TypeMatchExpr): string {
@@ -4410,6 +4851,48 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     targetType: AST.BasicTypeNode,
     expr: AST.TypeMatchExpr,
   ): string {
+    // Check if valueType is Any or *Any
+    const canonVal = this.resolveCanonicalType(valueType);
+    let isAny = false;
+    let isPtrAny = false;
+
+    if (canonVal.kind === "BasicType" && canonVal.name === "Any") {
+      if (canonVal.pointerDepth === 0) isAny = true;
+      else if (canonVal.pointerDepth === 1) isPtrAny = true;
+    }
+
+    if (isAny || isPtrAny) {
+      // Generate runtime check
+      // 1. Get type_id from Any
+      let typeIdVal = "";
+      if (isAny) {
+        // Extract from struct
+        // Any layout: { base, type_id, data } -> index 1
+        // We assume Any has Type as base, so type_id is at index 1
+        const typeIdReg = this.newRegister();
+        this.emit(`  ${typeIdReg} = extractvalue %struct.Any ${matchValue}, 1`);
+        typeIdVal = typeIdReg;
+      } else {
+        // Load from pointer
+        // getelementptr %struct.Any, %struct.Any* %ptr, i32 0, i32 1
+        const typeIdPtr = this.newRegister();
+        this.emit(
+          `  ${typeIdPtr} = getelementptr inbounds %struct.Any, %struct.Any* ${matchValue}, i32 0, i32 1`,
+        );
+        const typeIdReg = this.newRegister();
+        this.emit(`  ${typeIdReg} = load i64, i64* ${typeIdPtr}`);
+        typeIdVal = typeIdReg;
+      }
+
+      // 2. Get target type ID
+      const targetTypeId = RTTI.getTypeId(targetType);
+
+      // 3. Compare
+      const result = this.newRegister();
+      this.emit(`  ${result} = icmp eq i64 ${typeIdVal}, ${targetTypeId}`);
+      return result;
+    }
+
     // For regular type matching, compare the resolved LLVM types
     // Since generics are monomorphized, we know the concrete types at compile time.
 

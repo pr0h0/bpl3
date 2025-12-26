@@ -1,4 +1,4 @@
-# import [Int], [String], [Bool], [Double], [IO] from "std";
+# import [Int], [String], [Bool], [Double], [Long], [IO] from "std";
 import [IO] from "std";
 
 frame main() {

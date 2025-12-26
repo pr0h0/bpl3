@@ -2,6 +2,7 @@
 
 export [String];
 
+extern sprintf(str: string, format: string, ...) ret int;
 extern strlen(s: string) ret int;
 extern strcpy(dst: string, src: string) ret string;
 extern strcmp(s1: string, s2: string) ret int;
@@ -14,8 +15,8 @@ struct String {
     length: int,
     frame new(text: string) ret String {
         local s: String;
-        if (text == null) {
-            s.data = null;
+        if (text == nullptr) {
+            s.data = nullptr;
             s.length = 0;
             return s;
         }
@@ -27,9 +28,9 @@ struct String {
     }
 
     frame destroy(this: *String) {
-        if (this.data != null) {
+        if (this.data != nullptr) {
             free(this.data);
-            this.data = null;
+            this.data = nullptr;
         }
         this.length = 0;
     }
@@ -52,14 +53,14 @@ struct String {
 
     # Create a deep copy of this string.
     frame clone(this: String) ret String {
-        if (this.data == null) {
-            return String.new(null);
+        if (this.data == nullptr) {
+            return String.new(nullptr);
         }
         return String.new(this.data);
     }
 
     frame includes(this: *String, substr: string) ret bool {
-        if ((this.data == null) || (substr == null)) {
+        if ((this.data == nullptr) || (substr == nullptr)) {
             return false;
         }
         local substrLen: int = strlen(substr);
@@ -87,10 +88,10 @@ struct String {
 
     # Operator overloading: String concatenation with +
     frame __add__(this: *String, other: String) ret String {
-        if (this.data == null) {
+        if (this.data == nullptr) {
             return other.clone();
         }
-        if (other.data == null) {
+        if (other.data == nullptr) {
             return this.clone();
         }
         local newLen: int = this.length + other.length;
@@ -114,10 +115,10 @@ struct String {
 
     # Operator overloading: String equality with ==
     frame __eq__(this: *String, other: String) ret bool {
-        if ((this.data == null) && (other.data == null)) {
+        if ((this.data == nullptr) && (other.data == nullptr)) {
             return true;
         }
-        if ((this.data == null) || (other.data == null)) {
+        if ((this.data == nullptr) || (other.data == nullptr)) {
             return false;
         }
         if (this.length != other.length) {
@@ -133,7 +134,7 @@ struct String {
 
     # Operator overloading: String less than with <
     frame __lt__(this: *String, other: String) ret bool {
-        if ((this.data == null) || (other.data == null)) {
+        if ((this.data == nullptr) || (other.data == nullptr)) {
             return false;
         }
         return strcmp(this.data, other.data) < 0;
@@ -141,7 +142,7 @@ struct String {
 
     # Operator overloading: String less than or equal with <=
     frame __le__(this: *String, other: String) ret bool {
-        if ((this.data == null) || (other.data == null)) {
+        if ((this.data == nullptr) || (other.data == nullptr)) {
             return false;
         }
         return strcmp(this.data, other.data) <= 0;
@@ -149,7 +150,7 @@ struct String {
 
     # Operator overloading: String greater than with >
     frame __gt__(this: *String, other: String) ret bool {
-        if ((this.data == null) || (other.data == null)) {
+        if ((this.data == nullptr) || (other.data == nullptr)) {
             return false;
         }
         return strcmp(this.data, other.data) > 0;
@@ -157,7 +158,7 @@ struct String {
 
     # Operator overloading: String greater than or equal with >=
     frame __ge__(this: *String, other: String) ret bool {
-        if ((this.data == null) || (other.data == null)) {
+        if ((this.data == nullptr) || (other.data == nullptr)) {
             return false;
         }
         return strcmp(this.data, other.data) >= 0;
@@ -166,10 +167,10 @@ struct String {
     # Operator overloading: In-place concatenation with <<
     # Usage: str << "text" modifies str in place and returns it
     frame __lshift__(this: *String, other: String) ret String {
-        if (other.data == null) {
+        if (other.data == nullptr) {
             return *this;
         }
-        if (this.data == null) {
+        if (this.data == nullptr) {
             local newStr: String = other.clone();
             this.data = newStr.data;
             this.length = newStr.length;
@@ -212,5 +213,3 @@ struct String {
         return s;
     }
 }
-
-extern sprintf(str: string, format: string, ...) ret int;

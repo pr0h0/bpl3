@@ -42,6 +42,7 @@ export class CodeGenerator extends StatementGenerator {
     this.stringLiterals.clear();
     this.structLayouts.clear();
     this.structMap.clear();
+    this.registerBuiltinLayouts();
     this.loopStack = [];
     this.declaredFunctions.clear();
     this.globals.clear();
@@ -366,50 +367,6 @@ export class CodeGenerator extends StatementGenerator {
     this.declaredFunctions.add("exit");
     this.emitDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
     this.declaredFunctions.add("memcmp");
-
-    // NullAccessError struct for null object access exceptions
-    if (
-      !this.structMap.has("NullAccessError") ||
-      this.structMap.get("NullAccessError")!.location.file === "internal"
-    ) {
-      this.emitDeclaration(
-        "%struct.NullAccessError = type { i8*, i8*, i8*, i32, i32 }",
-      );
-      this.structLayouts.set(
-        "NullAccessError",
-        new Map([
-          ["message", 0],
-          ["function", 1],
-          ["expression", 2],
-          ["line", 3],
-          ["column", 4],
-        ]),
-      );
-    }
-
-    // IndexOutOfBoundsError struct for array access exceptions
-    if (
-      !this.structMap.has("IndexOutOfBoundsError") ||
-      this.structMap.get("IndexOutOfBoundsError")!.location.file === "internal"
-    ) {
-      this.emitDeclaration("%struct.IndexOutOfBoundsError = type { i32, i32 }");
-      this.structLayouts.set(
-        "IndexOutOfBoundsError",
-        new Map([
-          ["index", 0],
-          ["size", 1],
-        ]),
-      );
-    }
-
-    // DivisionByZeroError struct
-    if (
-      !this.structMap.has("DivisionByZeroError") ||
-      this.structMap.get("DivisionByZeroError")!.location.file === "internal"
-    ) {
-      this.emitDeclaration("%struct.DivisionByZeroError = type { i8 }");
-      this.structLayouts.set("DivisionByZeroError", new Map([["dummy", 0]]));
-    }
 
     // StackOverflowError struct
     if (

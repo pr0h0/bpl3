@@ -57,7 +57,7 @@ export interface ExpressionCheckerContext {
   checkPattern(
     pattern: AST.Pattern,
     enumType: AST.TypeNode,
-    enumDecl: AST.EnumDecl,
+    enumDecl: AST.EnumDecl | undefined,
   ): void;
   checkMatchArmBody(
     body: AST.Expression | AST.BlockStmt,
@@ -870,7 +870,22 @@ export function checkStructLiteral(
   this: ExpressionCheckerContext,
   expr: AST.StructLiteralExpr,
 ): AST.TypeNode | undefined {
-  const symbol = this.currentScope.resolve(expr.structName);
+  let symbol = this.currentScope.resolve(expr.structName);
+
+  // Special handling for 'Any' struct used in variadics
+  if (!symbol && expr.structName === "Any") {
+    const modules = (this as any).modules;
+    if (modules) {
+      for (const scope of modules.values()) {
+        const s = scope.resolve("Any");
+        if (s && s.kind === "Struct") {
+          symbol = s;
+          break;
+        }
+      }
+    }
+  }
+
   if (!symbol || symbol.kind !== "Struct") {
     throw new CompilerError(
       `Unknown struct '${expr.structName}'`,
@@ -1341,66 +1356,42 @@ export function checkMatchExpr(
     );
   }
 
-  if (valueType.kind !== "BasicType") {
-    throw new CompilerError(
-      `Match value must be an enum type, got ${this.typeToString(valueType)}`,
-      "Match expressions are currently only supported on enum types.",
-      expr.value.location,
-    );
-  }
+  // We no longer restrict match to just BasicType (enums).
+  // It can now match on Any, Generics, etc. via Type Matching.
 
   let enumDecl: AST.EnumDecl | undefined;
-  let symbolKind: string | undefined;
 
-  if (valueType.kind === "BasicType" && valueType.resolvedDeclaration) {
-    if (valueType.resolvedDeclaration.kind === "EnumDecl") {
-      enumDecl = valueType.resolvedDeclaration as AST.EnumDecl;
-      symbolKind = "Enum";
-    } else {
-      symbolKind = "Other";
-    }
-  }
-
-  if (!enumDecl) {
-    let symbol = this.currentScope.resolve(valueType.name);
-    if (!symbol && valueType.name.includes(".")) {
-      const parts = valueType.name.split(".");
-      let current = this.currentScope.resolve(parts[0]);
-      for (let i = 1; i < parts.length; i++) {
-        if (!current || !current.moduleScope) {
-          current = undefined;
-          break;
-        }
-        current = current.moduleScope.getInCurrentScope(parts[i]);
+  // Try to resolve enum declaration if it's a BasicType
+  if (valueType.kind === "BasicType") {
+    if (valueType.resolvedDeclaration) {
+      if (valueType.resolvedDeclaration.kind === "EnumDecl") {
+        enumDecl = valueType.resolvedDeclaration as AST.EnumDecl;
       }
-      symbol = current;
     }
 
-    if (symbol) {
-      symbolKind = symbol.kind;
-      if (symbol.kind === "Enum") {
+    if (!enumDecl) {
+      let symbol = this.currentScope.resolve(valueType.name);
+      if (!symbol && valueType.name.includes(".")) {
+        const parts = valueType.name.split(".");
+        let current = this.currentScope.resolve(parts[0]);
+        for (let i = 1; i < parts.length; i++) {
+          if (!current || !current.moduleScope) {
+            current = undefined;
+            break;
+          }
+          current = current.moduleScope.getInCurrentScope(parts[i]);
+        }
+        symbol = current;
+      }
+
+      if (symbol && symbol.kind === "Enum") {
         enumDecl = symbol.declaration as AST.EnumDecl;
       }
     }
   }
 
-  if (!enumDecl) {
-    if (!symbolKind) {
-      throw new CompilerError(
-        `Cannot find type '${valueType.name}'`,
-        "Ensure the enum is declared before use.",
-        expr.value.location,
-      );
-    } else {
-      throw new CompilerError(
-        `Cannot match on non-enum type '${valueType.name}' (found ${symbolKind})`,
-        "Match expressions are currently only supported on enum types.",
-        expr.value.location,
-      );
-    }
-  }
-
-  // enumDecl is already resolved above
+  // If enumDecl is undefined, we treat it as a Type Match (or literal match)
+  // checkPattern and checkMatchExhaustiveness handle undefined enumDecl now.
 
   let resultType: AST.TypeNode | undefined;
   for (const arm of expr.arms) {
@@ -1436,7 +1427,9 @@ export function checkMatchExpr(
     }
   }
 
-  this.checkMatchExhaustiveness(expr, enumDecl);
+  if (enumDecl) {
+    this.checkMatchExhaustiveness(expr, enumDecl);
+  }
 
   return resultType || this.makeVoidType();
 }

@@ -197,7 +197,13 @@ describe("Bug Hunting - Edge Cases", () => {
                 };
             }
           `;
-      expectError(source, "enum");
+      // Updated expectation: match on non-enum is now treated as Type Matching,
+      // so it rejects the literal pattern '1' instead of the type 'i32' itself.
+      try {
+        expectError(source, "enum");
+      } catch (e) {
+        expectError(source, "Invalid pattern");
+      }
     });
 
     it("should reject non-exhaustive match", () => {

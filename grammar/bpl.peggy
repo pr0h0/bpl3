@@ -1021,9 +1021,14 @@ PatternEnum
              variant = rest[3].name;
           } else {
              const parts = name.split(".");
-             if (parts.length < 2) error("Enum pattern must be Enum.Variant");
-             variant = parts.pop();
-             name = parts.join(".");
+             if (parts.length < 2) {
+                 // Allow single identifier for Type Matching
+                 variant = name;
+                 name = "";
+             } else {
+                 variant = parts.pop();
+                 name = parts.join(".");
+             }
           }
       }
       return patternEnum(name, generics, variant, location());
@@ -1043,9 +1048,14 @@ PatternEnumTuple
              variant = rest[3].name;
           } else {
              const parts = name.split(".");
-             if (parts.length < 2) error("Enum pattern must be Enum.Variant");
-             variant = parts.pop();
-             name = parts.join(".");
+             if (parts.length < 2) {
+                 // Allow single identifier for Type Matching
+                 variant = name;
+                 name = "";
+             } else {
+                 variant = parts.pop();
+                 name = parts.join(".");
+             }
           }
       }
       return patternEnumTuple(name, generics, variant, bindings || [], location());
@@ -1065,9 +1075,14 @@ PatternEnumStruct
              variant = rest[3].name;
           } else {
              const parts = name.split(".");
-             if (parts.length < 2) error("Enum pattern must be Enum.Variant");
-             variant = parts.pop();
-             name = parts.join(".");
+             if (parts.length < 2) {
+                 // Allow single identifier for Type Matching
+                 variant = name;
+                 name = "";
+             } else {
+                 variant = parts.pop();
+                 name = parts.join(".");
+             }
           }
       }
       return patternEnumStruct(name, generics, variant, fields || [], location());
@@ -1156,11 +1171,30 @@ ParameterList
     }
 
 Parameter
-  = isConstPrefix:K_const? _ name:Identifier _ ":" _ isConstType:K_const? _ type:Type {
+  = isConstPrefix:K_const? _ isVariadicPrefix:"..."? _ name:Identifier _ ":" _ isConstType:K_const? _ isVariadicSuffix:"..."? _ type:Type? {
+      const isVariadic = !!isVariadicPrefix || !!isVariadicSuffix;
+      
+      if (isVariadic && !type) {
+         // Heterogeneous variadic: name: ...
+         // We treat this as Any
+         return {
+            name: name.name,
+            type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: makeLoc(location()) },
+            isConst: !!isConstPrefix || !!isConstType,
+            isVariadic: true,
+            location: makeLoc(location()),
+         };
+      }
+      
+      if (!type) {
+          error("Missing type for parameter " + name.name);
+      }
+
       return {
         name: name.name,
         type,
         isConst: !!isConstPrefix || !!isConstType,
+        isVariadic: isVariadic,
         location: makeLoc(location()),
       };
     }

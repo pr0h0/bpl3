@@ -212,9 +212,10 @@ export class Formatter {
     output += decl.params
       .map((p) => {
         const typeStr = this.formatType(p.type);
+        const prefix = p.isVariadic ? "..." : "";
         return p.isConst
-          ? `const ${p.name}: ${typeStr}`
-          : `${p.name}: ${typeStr}`;
+          ? `const ${prefix}${p.name}: ${typeStr}`
+          : `${prefix}${p.name}: ${typeStr}`;
       })
       .join(", ");
     output += ")";

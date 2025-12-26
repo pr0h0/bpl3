@@ -1,4 +1,5 @@
 import * as AST from "../../common/AST";
+import { CompilerError } from "../../common/CompilerError";
 import { TokenType } from "../../frontend/TokenType";
 import { ExpressionGenerator } from "./ExpressionGenerator";
 
@@ -1068,6 +1069,12 @@ export abstract class StatementGenerator extends ExpressionGenerator {
           .map((p, i) => {
             const type = this.resolveType(funcType.paramTypes[i]!);
             const name = `%${p.name}`;
+
+            if (p.isVariadic) {
+              // Variadic parameter: pass as pointer to array AND count
+              return `${type} ${name}`;
+            }
+
             return `${type} ${name}`;
           })
           .join(", ");
@@ -1221,8 +1228,35 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         this.locals.add(param.name);
         const type = this.resolveType(effectiveFuncType.paramTypes[i]!);
         const paramReg = `%${param.name}`;
-        const stackAddr = this.allocateStack(param.name, type);
-        this.emit(`  store ${type} ${paramReg}, ${type}* ${stackAddr}`);
+        let stackAddr: string;
+
+        if (param.isVariadic) {
+          // Variadic parameter is passed as pointer (already handled by TypeChecker)
+          stackAddr = this.allocateStack(param.name, type);
+          this.emit(`  store ${type} ${paramReg}, ${type}* ${stackAddr}`);
+
+          const nameOfCountArg = decl.params[i + 1];
+          if (!nameOfCountArg || i + 2 !== decl.params.length) {
+            throw new CompilerError(
+              "Last argument must be count:int that will contain number of variadic arguments, it's passed implicitly",
+              "have ...args: Type, count: int",
+              decl.params[i]?.location!,
+            );
+          }
+
+          // Store the implicit count
+          const countName = nameOfCountArg.name;
+          const countReg = `%${countName}`;
+          const countAddr = this.allocateStack(countName, "i32");
+          this.emit(`  store i32 ${countReg}, i32* ${countAddr}`);
+
+          // Register as local variable so it can be resolved
+          this.locals.add(countName);
+          this.localPointers.set(countName, countAddr);
+        } else {
+          stackAddr = this.allocateStack(param.name, type);
+          this.emit(`  store ${type} ${paramReg}, ${type}* ${stackAddr}`);
+        }
 
         // DWARF: Parameter debug info
         if (this.generateDwarf && this.currentSubprogramId) {
@@ -1248,8 +1282,12 @@ export abstract class StatementGenerator extends ExpressionGenerator {
             this.currentSubprogramId,
           );
 
+          // For variadic, stackAddr is type** (pointer to array pointer)
+          // For normal, stackAddr is type* (pointer to value)
+          const addrType = param.isVariadic ? `${type}**` : `${type}*`;
+
           this.emit(
-            `  call void @llvm.dbg.declare(metadata ${type}* ${stackAddr}, metadata !${paramVarId}, metadata !DIExpression()), !dbg !${locationId}`,
+            `  call void @llvm.dbg.declare(metadata ${addrType} ${stackAddr}, metadata !${paramVarId}, metadata !DIExpression()), !dbg !${locationId}`,
           );
         }
       }

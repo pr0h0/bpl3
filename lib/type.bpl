@@ -21,4 +21,10 @@ struct Type {
     }
 }
 
+struct Any {
+    type_id: u64,
+    data: u64,
+}
+
 export [Type];
+export [Any];

@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "--- Type Match Test ---",
+    "Matched int: 42",
+    "Matched string: hello",
+    "Matched unknown type"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

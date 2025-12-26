@@ -15,7 +15,7 @@ struct IntArray {
         local arr: IntArray;
         arr.capacity = initial_capacity;
         arr.length = 0;
-        local size: long = cast<long>(initial_capacity) * cast<long>(4);
+        local size: long = cast<long>(initial_capacity * 4);
         arr.data = cast<*int>(malloc(size));
         return arr;
     }
@@ -24,9 +24,9 @@ struct IntArray {
         if (this.length >= this.capacity) {
             # Grow the array
             local new_capacity: int = (this.capacity * 2) + 1;
-            local size: long = cast<long>(new_capacity) * cast<long>(4);
+            local size: long = cast<long>(new_capacity * 4);
             local new_data: *int = cast<*int>(malloc(size));
-            local old_size: long = cast<long>(this.length) * cast<long>(4);
+            local old_size: long = cast<long>(this.length * 4);
             if (this.data != nullptr) {
                 memcpy(cast<*void>(new_data), cast<*void>(this.data), old_size);
                 free(cast<*void>(this.data));

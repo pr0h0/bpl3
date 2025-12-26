@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Hello World, count is 42"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

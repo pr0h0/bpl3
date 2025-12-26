@@ -1,4 +1,5 @@
-import [IO] from "std";
+# TODO: Remove explicit LONG import and import it implicitly
+import [IO], [Long] from "std";
 
 frame main() {
     local x: long = 1234567890123;

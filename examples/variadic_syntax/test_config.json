@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "--- Variadic Syntax Test ---",
+    "Hello World, count is 123",
+    "Sum: 15"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}
