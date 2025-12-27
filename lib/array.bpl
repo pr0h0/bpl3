@@ -35,9 +35,9 @@ struct Array<T> {
     Frees the memory allocated for the array.
     #/
     frame destroy(this: *Array<T>) {
-        if (this.data != null) {
+        if (this.data != nullptr) {
             free(cast<*void>(this.data));
-            this.data = null;
+            this.data = nullptr;
         }
         this.capacity = 0;
         this.length = 0;
@@ -98,7 +98,7 @@ struct Array<T> {
 
             # Copy old data
             local old_size: long = cast<long>(this.length) * sizeof<T>();
-            if (this.data != null) {
+            if (this.data != nullptr) {
                 memcpy(cast<*void>(new_data), cast<*void>(this.data), old_size);
                 free(cast<*void>(this.data));
             }

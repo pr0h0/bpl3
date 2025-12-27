@@ -585,3 +585,23 @@ export function checkAllPathsReturn(
       return false;
   }
 }
+
+/**
+ * Check an asm block statement
+ */
+export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
+  // Parse content to find variable usages: (varName) or (&varName)
+  const regex = /\((&?)(\w+)\)/g;
+  let match;
+  while ((match = regex.exec(stmt.content)) !== null) {
+    const varName = match[2];
+    const symbol = this.currentScope.resolve(varName!);
+    if (!symbol) {
+      throw new CompilerError(
+        `Undefined variable '${varName}' in asm block`,
+        "Variables used in asm blocks must be defined in the current scope.",
+        stmt.location,
+      );
+    }
+  }
+}

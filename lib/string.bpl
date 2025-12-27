@@ -27,6 +27,12 @@ struct String {
         return s;
     }
 
+    frame new(this: *String) ret *String {
+        this.data = nullptr;
+        this.length = 0;
+        return this;
+    }
+
     frame destroy(this: *String) {
         if (this.data != nullptr) {
             free(this.data);
@@ -35,7 +41,7 @@ struct String {
         this.length = 0;
     }
 
-    frame cstr(this: *String) ret string {
+    frame toString(this: *String) ret string {
         return this.data;
     }
 

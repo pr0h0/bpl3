@@ -17,6 +17,37 @@ The following features are recommended for implementation next:
 - **Use cases:** Type guards
 - **Complexity:** High
 
+### 2. **C-style For Loop Support** [Priority 3] 🔄 CONTROL FLOW
+
+- **Why:** Familiar syntax for iteration, reduces boilerplate compared to `while` loops.
+- **Impact:** Improves developer experience and code readability.
+- **Syntax:** `loop(local i:int=0; i<10; ++i) { ... }`
+- **Implementation Notes:**
+  - Should desugar to a `while` loop structure.
+  - Needs careful handling of the initialization statement's scope (should be local to the loop).
+  - Verify interaction with `break` and `continue`.
+
+### 3. **Scope Verification & Validation** [Priority 2] 🧪 TESTING
+
+- **Why:** Ensure variable scoping rules are consistent and well-understood.
+- **Impact:** Prevents bugs related to variable shadowing and lifetime.
+- **Tasks:**
+  - Verify if blocks `{ ... }` create new scopes.
+  - Check if variables declared in `if`, `loop`, or `switch` blocks leak to outer scope.
+  - Verify hoisting behavior (if any).
+  - Document the scoping rules in `LANGUAGE_SPEC.md`.
+
+### 4. **Implicit Constructor Calls** [Priority 3] 🏗️ STRUCTS
+
+- **Why:** Prevents uninitialized memory issues, especially for structs with pointers.
+- **Impact:** Safer code, less boilerplate for variable declarations.
+- **Syntax:** `local x: X;` triggers `X.new(this)` if it exists.
+- **Implementation Notes:**
+  - Check for `new(this: *X)` method in the struct definition.
+  - If found, generate a call to it after allocating stack space for the variable.
+  - Ensure it only applies when no explicit initialization is provided.
+  - Distinguish from `frame new(...)` which is a static factory method.
+
 ---
 
 ## 📋 COMPLETED FEATURES

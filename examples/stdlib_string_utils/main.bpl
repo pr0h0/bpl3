@@ -20,10 +20,10 @@ frame main() ret int {
     }
     IO.printInt(ew_i);
     local trimmed: String = StringUtils.trim(s);
-    printf("%s\n", trimmed.cstr());
+    printf("%s\n", trimmed.toString());
     IO.printInt(StringUtils.find("abc", cast<char>(98)));
     local replaced: String = StringUtils.replaceChar("a-b-c", cast<char>(45), cast<char>(43));
-    printf("%s\n", replaced.cstr());
+    printf("%s\n", replaced.toString());
 
     IO.log("=== String.assign & includes ===");
     # Managed String tests for assign() and includes()
@@ -38,7 +38,7 @@ frame main() ret int {
 
     # assign a new C-string into the managed String
     m.assign("goodbye");
-    IO.printString(m.cstr());
+    IO.printString(m.toString());
     # now includes should not find "world"
     local inc2: bool = m.includes("world");
     if (inc2) {

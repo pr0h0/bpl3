@@ -8,17 +8,13 @@ spec Printable {
 struct User: Printable {
     name: String,
     age: int,
-
     frame print(this: *User) {
-        printf("User: %s, Age: %d\n", this.name.cstr(), this.age);
+        printf("User: %s, Age: %d\n", this.name.toString(), this.age);
     }
 }
 
 frame main() {
-    local u: User = User {
-        name: String.new("Alice"),
-        age: 30
-    };
-    
+    local u: User = User { name: String.new("Alice"), age: 30 };
+
     u.print();
 }

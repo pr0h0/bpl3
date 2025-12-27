@@ -41,11 +41,11 @@ struct TODO {
     }
 
     frame updateTitle(this: *TODO, title: String) {
-        this.title.assign(title.cstr());
+        this.title.assign(title.toString());
     }
 
     frame updateDescription(this: *TODO, description: String) {
-        this.description.assign(description.cstr());
+        this.description.assign(description.toString());
     }
 
     frame update(this: *TODO, title: String, description: String, completed: bool) {
@@ -56,8 +56,8 @@ struct TODO {
 
     frame print(this: *TODO) {
         printf("ID: %d\n", this.id);
-        printf("Title: %s\n", this.title.cstr());
-        printf("Description: %s\n", this.description.cstr());
+        printf("Title: %s\n", this.title.toString());
+        printf("Description: %s\n", this.description.toString());
         printf("Completed: %s\n", this.completed != false ? "Yes" : "No");
         printf("------------------\n");
     }
@@ -200,8 +200,8 @@ struct MainTODO {
         local i: int = 0;
         loop (i < this.items.len()) {
             local item: TODO = this.items.get(i);
-            local titleMatch: string = strstr(item.title.cstr(), searchTerm.cstr());
-            local descMatch: string = strstr(item.description.cstr(), searchTerm.cstr());
+            local titleMatch: string = strstr(item.title.toString(), searchTerm.toString());
+            local descMatch: string = strstr(item.description.toString(), searchTerm.toString());
             if ((titleMatch != nullptr) || (descMatch != nullptr)) {
                 item.print();
                 found = found + 1;
@@ -300,13 +300,13 @@ struct MainTODO {
             local completedByte: char = item.completed ? cast<char>(1) : cast<char>(0);
             fwrite(cast<*void>(&completedByte), 1, 1, file);
             # Write title length and bytes
-            local titleLen: int = strlen(item.title.cstr());
+            local titleLen: int = strlen(item.title.toString());
             fwrite(cast<*void>(&titleLen), 4, 1, file);
-            fwrite(cast<*void>(item.title.cstr()), 1, titleLen, file);
+            fwrite(cast<*void>(item.title.toString()), 1, titleLen, file);
             # Write description length and bytes
-            local descLen: int = strlen(item.description.cstr());
+            local descLen: int = strlen(item.description.toString());
             fwrite(cast<*void>(&descLen), 4, 1, file);
-            fwrite(cast<*void>(item.description.cstr()), 1, descLen, file);
+            fwrite(cast<*void>(item.description.toString()), 1, descLen, file);
             i = i + 1;
         }
         fclose(file);

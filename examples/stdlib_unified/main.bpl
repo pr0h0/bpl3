@@ -13,7 +13,7 @@ frame main() ret int {
     local s1: String = String.new("Hello");
     local s2: String = s1 + " World"; # + operator for concatenation
     IO.print("Concatenation: ");
-    IO.printString(s2.cstr());
+    IO.printString(s2.toString());
 
     local s3: String = String.new("Apple");
     local s4: String = String.new("Banana");
@@ -24,7 +24,7 @@ frame main() ret int {
     local s5: String = String.new("Builder");
     s5 << " text"; # << operator for in-place concat
     IO.print("In-place concat: ");
-    IO.printString(s5.cstr());
+    IO.printString(s5.toString());
 
     s1.destroy();
     s2.destroy();
@@ -40,7 +40,7 @@ frame main() ret int {
     sb.append(" with ");
     sb.appendInt(123);
     IO.print("Result: ");
-    IO.printString(sb.cstr());
+    IO.printString(sb.toString());
     sb.destroy();
     IO.print("");
 

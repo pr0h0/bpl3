@@ -2979,11 +2979,14 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     if (isVariadic && !isExtern && !(expr as any).variadicPacked) {
       // BPL Variadic Logic
       let fixedCount = 0;
+      let variadicParamType: AST.TypeNode | undefined;
+
       if (funcType.declaration && (funcType.declaration as any).params) {
         const params = (funcType.declaration as any).params;
         const variadicIndex = params.findIndex((p: any) => p.isVariadic);
         if (variadicIndex !== -1) {
           fixedCount = variadicIndex;
+          variadicParamType = params[variadicIndex].type;
         } else {
           // Fallback if isVariadic is true but no param marked (shouldn't happen)
           fixedCount = funcType.paramTypes.length - 1;
@@ -2996,6 +2999,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         // fixedCount should be 2. Length is 4. So length - 2.
         if (funcType.paramTypes.length >= 2) {
           fixedCount = funcType.paramTypes.length - 2;
+          variadicParamType = funcType.paramTypes[fixedCount];
         } else {
           fixedCount = 0;
         }
@@ -3006,9 +3010,25 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
       const fixedArgStrs = fixedArgs.map((arg, i) => generateArg(arg, i));
 
+      // Determine if homogeneous
+      let isHomogeneous = false;
+      let elementType = "%struct.Any";
+
+      if (variadicParamType) {
+        if (
+          variadicParamType.kind === "BasicType" &&
+          variadicParamType.name === "Any"
+        ) {
+          isHomogeneous = false;
+        } else {
+          isHomogeneous = true;
+          elementType = this.resolveType(variadicParamType);
+        }
+      }
+
       // Pack varArgs
       const count = varArgs.length;
-      const arrayType = `[${count} x %struct.Any]`;
+      const arrayType = `[${count} x ${elementType}]`;
       const arrayPtr = this.allocateStack(
         `varargs_${this.labelCount++}`,
         arrayType,
@@ -3019,17 +3039,56 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         const val = this.generateExpression(arg);
         const srcType = this.resolveType(arg.resolvedType!);
 
-        const anyVal = this.generateAnyConstruction(
-          val,
-          srcType,
-          arg.resolvedType!,
-        );
+        if (!isHomogeneous) {
+          const anyVal = this.generateAnyConstruction(
+            val,
+            srcType,
+            arg.resolvedType!,
+          );
 
-        const elemPtr = this.newRegister();
-        this.emit(
-          `  ${elemPtr} = getelementptr inbounds ${arrayType}, ${arrayType}* ${arrayPtr}, i32 0, i32 ${i}`,
-        );
-        this.emit(`  store %struct.Any ${anyVal}, %struct.Any* ${elemPtr}`);
+          const elemPtr = this.newRegister();
+          this.emit(
+            `  ${elemPtr} = getelementptr inbounds ${arrayType}, ${arrayType}* ${arrayPtr}, i32 0, i32 ${i}`,
+          );
+          this.emit(`  store %struct.Any ${anyVal}, %struct.Any* ${elemPtr}`);
+        } else {
+          // Homogeneous packing
+          // Implicit cast if needed (e.g. i32 to i64, or upcast)
+          // For now, assume types match or are compatible enough for bitcast/zext
+          // TODO: Use proper cast generation logic if types differ
+
+          let finalVal = val;
+          if (srcType !== elementType) {
+            // Simple promotion for primitives
+            if (
+              elementType === "double" &&
+              (srcType === "i32" || srcType === "i64")
+            ) {
+              const conv = this.newRegister();
+              this.emit(`  ${conv} = sitofp ${srcType} ${val} to double`);
+              finalVal = conv;
+            } else if (elementType === "i64" && srcType === "i32") {
+              const conv = this.newRegister();
+              this.emit(`  ${conv} = sext i32 ${val} to i64`);
+              finalVal = conv;
+            } else if (srcType !== elementType) {
+              // Try bitcast as last resort
+              const cast = this.newRegister();
+              this.emit(
+                `  ${cast} = bitcast ${srcType} ${val} to ${elementType}`,
+              );
+              finalVal = cast;
+            }
+          }
+
+          const elemPtr = this.newRegister();
+          this.emit(
+            `  ${elemPtr} = getelementptr inbounds ${arrayType}, ${arrayType}* ${arrayPtr}, i32 0, i32 ${i}`,
+          );
+          this.emit(
+            `  store ${elementType} ${finalVal}, ${elementType}* ${elemPtr}`,
+          );
+        }
       }
 
       const anyPtr = this.newRegister();
@@ -3037,7 +3096,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         `  ${anyPtr} = getelementptr inbounds ${arrayType}, ${arrayType}* ${arrayPtr}, i32 0, i32 0`,
       );
 
-      fixedArgStrs.push(`%struct.Any* ${anyPtr}`);
+      fixedArgStrs.push(`${elementType}* ${anyPtr}`);
       fixedArgStrs.push(`i64 ${count}`);
 
       args = fixedArgStrs.join(", ");
@@ -3880,15 +3939,23 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       srcType === "i64" ||
       srcType === "u64" ||
       srcType === "double" ||
-      srcType.endsWith("*")
+      srcType.endsWith("*") ||
+      srcType === "ptr" ||
+      srcType.startsWith("%struct.")
     ) {
       if (srcType === "double") {
         const cast = this.newRegister();
         this.emit(`  ${cast} = bitcast double ${val} to i64`);
         dataVal = cast;
-      } else if (srcType.endsWith("*")) {
+      } else if (
+        srcType.endsWith("*") ||
+        srcType === "ptr" ||
+        srcType.startsWith("%struct.")
+      ) {
         const cast = this.newRegister();
-        this.emit(`  ${cast} = ptrtoint ${srcType} ${val} to i64`);
+        let type = srcType;
+        if (srcType.startsWith("%struct.")) type += "*";
+        this.emit(`  ${cast} = ptrtoint ${type} ${val} to i64`);
         dataVal = cast;
       } else {
         dataVal = val;

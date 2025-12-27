@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Point initialized", "p.x = 10, p.y = 20"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

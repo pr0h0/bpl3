@@ -2,7 +2,7 @@ import [IO] from "std/io.bpl";
 import [Any] from "std/type.bpl";
 
 # Test explicit variadic syntax with "..."
-frame myPrintf(fmt: string, ...args: Any, _count: int) {
+frame myPrintf(fmt: string, args: ...Any, _count: int) {
     # Unsafe access for demo purposes
     # args is *Any (pointer to array of Any)
     # args[0] is Any
@@ -20,13 +20,13 @@ frame myPrintf(fmt: string, ...args: Any, _count: int) {
     IO.bpl_printf(fmt, s, d);
 }
 
-frame sum(...args: Any, count: int) ret int {
+frame sum(args: ...Any, count: int) ret int {
     local total: int = 0;
     local i: int = 0;
     loop (i < count) {
         local arg: *Any = &args[i];
         # Check type dynamically
-        if (arg.type_id == __type_id<int>()) {
+        if ((arg is int)) {
             total = total + cast<int>(arg.data);
         }
         i = i + 1;

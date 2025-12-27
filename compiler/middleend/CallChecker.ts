@@ -1236,18 +1236,20 @@ function packVariadicArguments(
 
     let argsPtrExpr: AST.Expression;
 
+    // Determine the element type for the pointer
+    // If it's Any, we use Any. If it's T, we use T.
+    // variadicParam.type is the element type (e.g. int or Any)
+    const elementType = variadicParam.type;
+    const pointerType: AST.TypeNode = {
+      ...elementType,
+      pointerDepth: (elementType as AST.BasicTypeNode).pointerDepth + 1,
+    } as AST.TypeNode;
+
     if (packedArgs.length === 0) {
-      // Cast 0 to *Any
+      // Cast 0 to *T
       argsPtrExpr = {
         kind: "Cast",
-        targetType: {
-          kind: "BasicType",
-          name: "Any",
-          genericArgs: [],
-          pointerDepth: 1,
-          arrayDimensions: [],
-          location: expr.location,
-        },
+        targetType: pointerType,
         expression: {
           kind: "Literal",
           value: 0n,
@@ -1264,14 +1266,7 @@ function packVariadicArguments(
           },
         },
         location: expr.location,
-        resolvedType: {
-          kind: "BasicType",
-          name: "Any",
-          genericArgs: [],
-          pointerDepth: 1,
-          arrayDimensions: [],
-          location: expr.location,
-        },
+        resolvedType: pointerType,
       };
     } else {
       // &array[0]
@@ -1294,14 +1289,7 @@ function packVariadicArguments(
           },
         },
         location: expr.location,
-        resolvedType: {
-          kind: "BasicType",
-          name: "Any",
-          genericArgs: [],
-          pointerDepth: 0,
-          arrayDimensions: [],
-          location: expr.location,
-        },
+        resolvedType: elementType,
       };
 
       argsPtrExpr = {
@@ -1317,14 +1305,7 @@ function packVariadicArguments(
         operand: indexExpr,
         isPrefix: true,
         location: expr.location,
-        resolvedType: {
-          kind: "BasicType",
-          name: "Any",
-          genericArgs: [],
-          pointerDepth: 1,
-          arrayDimensions: [],
-          location: expr.location,
-        },
+        resolvedType: pointerType,
       };
     }
 
@@ -1346,5 +1327,6 @@ function packVariadicArguments(
     };
 
     expr.args = [...fixedArgs, argsPtrExpr, countLiteral];
+    expr.variadicPacked = true;
   }
 }

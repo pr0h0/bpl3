@@ -38,9 +38,9 @@ struct StringBuilder {
         Destroys the StringBuilder and frees memory
     #/
     frame destroy(this: *StringBuilder) {
-        if (this.buffer != null) {
+        if (this.buffer != nullptr) {
             free(cast<*void>(this.buffer));
-            this.buffer = null;
+            this.buffer = nullptr;
         }
         this.length = 0;
         this.capacity = 0;
@@ -60,7 +60,7 @@ struct StringBuilder {
             local new_buffer: string = cast<string>(malloc(cast<long>(new_capacity + 1)));
 
             # Copy old content
-            if (this.buffer != null) {
+            if (this.buffer != nullptr) {
                 memcpy(cast<*void>(new_buffer), cast<*void>(this.buffer), cast<long>(this.length));
                 free(cast<*void>(this.buffer));
             }
@@ -74,7 +74,7 @@ struct StringBuilder {
         Appends a C-string to the builder
     #/
     frame append(this: *StringBuilder, str: string) {
-        if (str == null) {
+        if (str == nullptr) {
             return;
         }
         local str_len: int = strlen(str);
@@ -95,7 +95,7 @@ struct StringBuilder {
         Appends a String object to the builder
     #/
     frame appendString(this: *StringBuilder, str: String) {
-        this.append(str.cstr());
+        this.append(str.toString());
     }
 
     /#
@@ -169,7 +169,7 @@ struct StringBuilder {
     #/
     frame clear(this: *StringBuilder) {
         this.length = 0;
-        if (this.buffer != null) {
+        if (this.buffer != nullptr) {
             this.buffer[0] = cast<char>(0);
         }
     }
@@ -182,17 +182,10 @@ struct StringBuilder {
     }
 
     /#
-        Returns a C-string pointer (valid until next modification)
-    #/
-    frame cstr(this: *StringBuilder) ret string {
-        return this.buffer;
-    }
-
-    /#
         Builds and returns a String object (caller must destroy)
     #/
-    frame toString(this: *StringBuilder) ret String {
-        return String.new(this.buffer);
+    frame toString(this: *StringBuilder) ret string {
+        return this.buffer;
     }
 
     # Operator overloading: Append with << operator

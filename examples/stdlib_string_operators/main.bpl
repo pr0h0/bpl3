@@ -11,7 +11,7 @@ frame main() ret int {
     local hello: String = String.new("Hello");
     local world: String = String.new(" World");
     local greeting: String = hello + world;
-    printf("'%s' + '%s' = '%s'\n", hello.cstr(), world.cstr(), greeting.cstr());
+    printf("'%s' + '%s' = '%s'\n", hello.toString(), world.toString(), greeting.toString());
     greeting.destroy();
 
     local first: String = String.new("BPL");
@@ -19,32 +19,32 @@ frame main() ret int {
     local second: String = String.new("is");
     local third: String = String.new(" awesome!");
     local sentence: String = first + space + second + third;
-    printf("Chained with +: '%s'\n\n", sentence.cstr());
+    printf("Chained with +: '%s'\n\n", sentence.toString());
     sentence.destroy();
 
     # Test in-place concatenation with <<
     printf("--- In-place Concatenation (<<) ---\n");
     local builder: String = String.new("Hello");
-    printf("Initial: '%s'\n", builder.cstr());
+    printf("Initial: '%s'\n", builder.toString());
     builder << String.new(" ");
-    printf("After << ' ': '%s'\n", builder.cstr());
+    printf("After << ' ': '%s'\n", builder.toString());
     builder << String.new("World");
-    printf("After << 'World': '%s'\n", builder.cstr());
+    printf("After << 'World': '%s'\n", builder.toString());
     builder << String.new("!");
-    printf("After << '!': '%s'\n", builder.cstr());
+    printf("After << '!': '%s'\n", builder.toString());
     printf("\n");
 
     # String Literal Support (no String.new() needed)
     printf("--- String Literal Support ---\n");
     local lit1: String = String.new("Direct");
     local lit2: String = lit1 + " literals"; # No String.new() needed!
-    printf("lit1 + \" literals\": '%s'\n", lit2.cstr());
+    printf("lit1 + \" literals\": '%s'\n", lit2.toString());
     lit2.destroy();
 
     lit1 << " work"; # No String.new() needed!
-    printf("lit1 after << \" work\": '%s'\n", lit1.cstr());
+    printf("lit1 after << \" work\": '%s'\n", lit1.toString());
     lit1 << "!";
-    printf("lit1 after << \"!\": '%s'\n", lit1.cstr());
+    printf("lit1 after << \"!\": '%s'\n", lit1.toString());
     lit1.destroy();
     printf("\n");
 
@@ -52,12 +52,12 @@ frame main() ret int {
     printf("--- Difference: + vs << ---\n");
     local s1: String = String.new("Immutable");
     local s2: String = s1 + String.new(" copy");
-    printf("s1 after s2 = s1 + ' copy': '%s' (unchanged)\n", s1.cstr());
-    printf("s2: '%s' (new string)\n", s2.cstr());
+    printf("s1 after s2 = s1 + ' copy': '%s' (unchanged)\n", s1.toString());
+    printf("s2: '%s' (new string)\n", s2.toString());
 
     local s3: String = String.new("Mutable");
     s3 << String.new(" modified");
-    printf("s3 after s3 << ' modified': '%s' (changed in place)\n", s3.cstr());
+    printf("s3 after s3 << ' modified': '%s' (changed in place)\n", s3.toString());
     printf("\n");
 
     s2.destroy();
@@ -71,30 +71,30 @@ frame main() ret int {
     local eq3: String = String.new("other");
 
     if (eq1 == eq2) {
-        printf("'%s' == '%s': true\n", eq1.cstr(), eq2.cstr());
+        printf("'%s' == '%s': true\n", eq1.toString(), eq2.toString());
     } else {
-        printf("'%s' == '%s': false\n", eq1.cstr(), eq2.cstr());
+        printf("'%s' == '%s': false\n", eq1.toString(), eq2.toString());
     }
 
     if (eq1 == eq3) {
-        printf("'%s' == '%s': true\n", eq1.cstr(), eq3.cstr());
+        printf("'%s' == '%s': true\n", eq1.toString(), eq3.toString());
     } else {
-        printf("'%s' == '%s': false\n", eq1.cstr(), eq3.cstr());
+        printf("'%s' == '%s': false\n", eq1.toString(), eq3.toString());
     }
     printf("\n");
 
     # Test string inequality with !=
     printf("--- String Inequality (!=) ---\n");
     if (eq1 != eq3) {
-        printf("'%s' != '%s': true\n", eq1.cstr(), eq3.cstr());
+        printf("'%s' != '%s': true\n", eq1.toString(), eq3.toString());
     } else {
-        printf("'%s' != '%s': false\n", eq1.cstr(), eq3.cstr());
+        printf("'%s' != '%s': false\n", eq1.toString(), eq3.toString());
     }
 
     if (eq1 != eq2) {
-        printf("'%s' != '%s': true\n", eq1.cstr(), eq2.cstr());
+        printf("'%s' != '%s': true\n", eq1.toString(), eq2.toString());
     } else {
-        printf("'%s' != '%s': false\n", eq1.cstr(), eq2.cstr());
+        printf("'%s' != '%s': false\n", eq1.toString(), eq2.toString());
     }
 
     eq1.destroy();
@@ -109,27 +109,27 @@ frame main() ret int {
     local banana: String = String.new("banana");
 
     if (apple < banana) {
-        printf("'%s' < '%s': true\n", apple.cstr(), banana.cstr());
+        printf("'%s' < '%s': true\n", apple.toString(), banana.toString());
     } else {
-        printf("'%s' < '%s': false\n", apple.cstr(), banana.cstr());
+        printf("'%s' < '%s': false\n", apple.toString(), banana.toString());
     }
 
     if (banana > apple) {
-        printf("'%s' > '%s': true\n", banana.cstr(), apple.cstr());
+        printf("'%s' > '%s': true\n", banana.toString(), apple.toString());
     } else {
-        printf("'%s' > '%s': false\n", banana.cstr(), apple.cstr());
+        printf("'%s' > '%s': false\n", banana.toString(), apple.toString());
     }
 
     if (apple <= banana) {
-        printf("'%s' <= '%s': true\n", apple.cstr(), banana.cstr());
+        printf("'%s' <= '%s': true\n", apple.toString(), banana.toString());
     } else {
-        printf("'%s' <= '%s': false\n", apple.cstr(), banana.cstr());
+        printf("'%s' <= '%s': false\n", apple.toString(), banana.toString());
     }
 
     if (banana >= apple) {
-        printf("'%s' >= '%s': true\n", banana.cstr(), apple.cstr());
+        printf("'%s' >= '%s': true\n", banana.toString(), apple.toString());
     } else {
-        printf("'%s' >= '%s': false\n", banana.cstr(), apple.cstr());
+        printf("'%s' >= '%s': false\n", banana.toString(), apple.toString());
     }
     printf("\n");
 
@@ -140,13 +140,13 @@ frame main() ret int {
     local aa: String = String.new("aa");
 
     if (a < z) {
-        printf("'%s' < '%s': true\n", a.cstr(), z.cstr());
+        printf("'%s' < '%s': true\n", a.toString(), z.toString());
     }
     if (a < aa) {
-        printf("'%s' < '%s': true\n", a.cstr(), aa.cstr());
+        printf("'%s' < '%s': true\n", a.toString(), aa.toString());
     }
     if (z > aa) {
-        printf("'%s' > '%s': true\n", z.cstr(), aa.cstr());
+        printf("'%s' > '%s': true\n", z.toString(), aa.toString());
     }
     # Cleanup
     hello.destroy();

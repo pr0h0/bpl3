@@ -4,6 +4,8 @@ import { TokenType } from "../../frontend/TokenType";
 import { ExpressionGenerator } from "./ExpressionGenerator";
 
 export abstract class StatementGenerator extends ExpressionGenerator {
+  protected localTypes: Map<string, AST.TypeNode> = new Map();
+
   protected generateBlock(block: AST.BlockStmt) {
     for (const stmt of block.statements) {
       this.generateStatement(stmt);
@@ -569,6 +571,14 @@ export abstract class StatementGenerator extends ExpressionGenerator {
 
     this.locals.add(decl.name);
 
+    const typeNode =
+      decl.resolvedType ||
+      decl.typeAnnotation ||
+      decl.initializer?.resolvedType;
+    if (typeNode) {
+      this.localTypes.set(decl.name as string, typeNode);
+    }
+
     if (!decl.typeAnnotation && !decl.initializer?.resolvedType) {
       // If type inference is working, resolvedType should be on the initializer or we need to infer it.
       // But VariableDecl doesn't have resolvedType on itself usually, it relies on typeAnnotation or initializer.
@@ -623,6 +633,63 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       const defaultVal = this.generateDefaultValue(typeNode);
       if (defaultVal !== "undef") {
         this.emit(`  store ${type} ${defaultVal}, ${type}* ${addr}`);
+      }
+
+      // Implicit constructor call
+      // Check if the struct has a 'new(this)' method
+      if (
+        typeNode.kind === "BasicType" &&
+        typeNode.resolvedDeclaration &&
+        typeNode.resolvedDeclaration.kind === "StructDecl"
+      ) {
+        const structDecl = typeNode.resolvedDeclaration as AST.StructDecl;
+        const newMethod = structDecl.members.find(
+          (m) => m.kind === "FunctionDecl" && m.name === "new",
+        ) as AST.FunctionDecl | undefined;
+
+        if (
+          newMethod &&
+          newMethod.params.length === 1 &&
+          newMethod.params[0].name === "this"
+        ) {
+          let structName = structDecl.name;
+          let methodType = newMethod.resolvedType as AST.FunctionTypeNode;
+
+          // Handle generics
+          if (
+            typeNode.kind === "BasicType" &&
+            typeNode.genericArgs.length > 0
+          ) {
+            // 1. Get mangled struct name from 'type' string
+            // type is like "%struct.Point_i32"
+            const match = type.match(/%struct\.([a-zA-Z0-9_]+)/);
+            if (match) {
+              structName = match[1];
+            }
+
+            // 2. Substitute types in method signature
+            const typeMap = new Map<string, AST.TypeNode>();
+            for (let i = 0; i < structDecl.genericParams.length; i++) {
+              if (i < typeNode.genericArgs.length) {
+                typeMap.set(
+                  structDecl.genericParams[i].name,
+                  typeNode.genericArgs[i],
+                );
+              }
+            }
+            methodType = this.substituteType(
+              methodType,
+              typeMap,
+            ) as AST.FunctionTypeNode;
+          }
+
+          const methodName = `${structName}_new`;
+          const ctorName = this.getMangledName(methodName, methodType);
+
+          // Generate call
+          // Pass null for closure context (first argument)
+          this.emit(`  call void @${ctorName}(i8* null, ${type}* ${addr})`);
+        }
       }
     }
 
@@ -862,32 +929,198 @@ export abstract class StatementGenerator extends ExpressionGenerator {
   }
 
   protected generateAsm(stmt: AST.AsmBlockStmt) {
-    const lines = stmt.content.split("\n");
-    for (const line of lines) {
-      // Replace {variable} with %variable (register) or value
-      // This is a simple substitution. For more complex asm, we might need better parsing.
-      // But for now, we assume the user knows what they are doing in the asm block.
-      // We just emit the lines directly to LLVM IR.
-      // However, we should probably support variable substitution.
+    if (
+      stmt.flavor === "x86" ||
+      stmt.flavor === "intel" ||
+      stmt.flavor === "att"
+    ) {
+      // Handle x86 inline assembly
+      // We need to extract variables and pass them as arguments
+      const lines = stmt.content
+        .split("\n")
+        .map((l) => {
+          let trimmed = l.trim();
+          if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            trimmed = trimmed.substring(1, trimmed.length - 1);
+            // Unescape escaped quotes if any
+            trimmed = trimmed.replace(/\\"/g, '"');
+          }
+          return trimmed;
+        })
+        .filter((l) => l.length > 0);
 
-      let processedLine = line;
-      // Regex to find (name)
-      processedLine = processedLine.replace(/\((\w+)\)/g, (match, name) => {
-        // Check if it's a local variable
+      let asmString = lines.join("\\0A"); // Use \0A for newlines in LLVM string
+
+      // Escape $ to $$ for LLVM inline asm (because $ is used for operands)
+      asmString = asmString.replace(/\$/g, "$$$$");
+
+      // Use Intel syntax by default for x86/intel flavor
+      // Note: We use 'inteldialect' in the call instruction instead of manual wrapping
+      // if (stmt.flavor !== "att") {
+      //   asmString =
+      //     ".intel_syntax noprefix\\0A" + asmString + "\\0A.att_syntax";
+      // }
+
+      // Variables to pass as inputs
+      const inputs: {
+        name: string;
+        ptr: string;
+        type: AST.TypeNode;
+        isPtr: boolean;
+      }[] = [];
+
+      // Replace (variable) or (&variable) with $N
+      asmString = asmString.replace(/\((&?)(\w+)\)/g, (match, amp, name) => {
         if (this.locals.has(name)) {
           const ptr = this.localPointers.get(name);
-          if (ptr) {
-            // We need to load the value? Or return the pointer?
-            // Usually inline asm wants values.
-            // But we can't easily inject load instructions here without breaking the flow if it's a single string.
-            // So we assume the user wants the pointer or we just return the pointer name.
-            return ptr;
+          const type = this.localTypes.get(name);
+          if (ptr && type) {
+            const isPtr = amp === "&";
+            // Check if we already have this variable with same mode
+            let index = inputs.findIndex(
+              (i) => i.name === name && i.isPtr === isPtr,
+            );
+            if (index === -1) {
+              index = inputs.length;
+              inputs.push({ name, ptr, type, isPtr });
+            }
+            return `$${index}`;
           }
         }
         return match;
       });
 
-      this.emit(`  ${processedLine}`);
+      // Generate load instructions for inputs
+      const inputRegs: string[] = [];
+      const inputTypes: string[] = [];
+      const constraints: string[] = [];
+
+      for (const input of inputs) {
+        const llvmType = this.resolveType(input.type);
+        if (input.isPtr) {
+          // Pass pointer directly
+          inputRegs.push(input.ptr);
+          inputTypes.push(llvmType + "*");
+          constraints.push("r");
+        } else {
+          // Load value
+          const valReg = this.newRegister();
+          this.emit(
+            `  ${valReg} = load ${llvmType}, ${llvmType}* ${input.ptr}`,
+          );
+          inputRegs.push(valReg);
+          inputTypes.push(llvmType);
+          constraints.push("r"); // Use register constraint
+        }
+      }
+
+      // Construct the call
+      // call void asm sideeffect "...", "constraints"(types...)
+      // Add standard clobbers
+      // Constraints order: outputs, inputs, clobbers
+
+      let clobbers: string[] = [];
+      if (stmt.clobbers && stmt.clobbers.length > 0) {
+        for (const c of stmt.clobbers) {
+          if (c === "default") {
+            clobbers.push("memory", "cc", "dirflag", "flags");
+          } else if (c === "empty") {
+            clobbers.length = 0;
+            break;
+          } else {
+            clobbers.push(c);
+          }
+        }
+      } else {
+        // Default safe set
+        clobbers.push("memory", "cc", "dirflag", "fpsr", "flags");
+
+        // Scan for registers in the assembly string
+        // Regex to match x86 registers (64-bit, 32-bit, 16-bit, 8-bit)
+        const regRegex =
+          /\b(%?)(r[abcd]x|e[abcd]x|[abcd]x|[abcd]l|[abcd]h|r[sd]i|e[sd]i|si|di|dil|sil|rbp|ebp|bp|bpl|rsp|esp|sp|spl|r[89]|r1[0-5]|r[89][dwb]|r1[0-5][dwb]|xmm\d+|ymm\d+|zmm\d+)\b/gi;
+
+        const matches = asmString.match(regRegex);
+        if (matches) {
+          matches.forEach((m) => {
+            // Strip % if present and lowercase
+            let reg = m.replace(/^%/, "").toLowerCase();
+
+            // Normalize to 64-bit register names where possible
+            if (/^(rax|eax|ax|al|ah)$/.test(reg)) reg = "rax";
+            else if (/^(rbx|ebx|bx|bl|bh)$/.test(reg)) reg = "rbx";
+            else if (/^(rcx|ecx|cx|cl|ch)$/.test(reg)) reg = "rcx";
+            else if (/^(rdx|edx|dx|dl|dh)$/.test(reg)) reg = "rdx";
+            else if (/^(rsi|esi|si|sil)$/.test(reg)) reg = "rsi";
+            else if (/^(rdi|edi|di|dil)$/.test(reg)) reg = "rdi";
+            else if (/^(rbp|ebp|bp|bpl)$/.test(reg)) reg = "rbp";
+            else if (/^(rsp|esp|sp|spl)$/.test(reg)) reg = "rsp";
+            else if (/^r([89]|1[0-5])[dwb]?$/.test(reg)) {
+              reg = reg.replace(/[dwb]$/, "");
+            }
+
+            clobbers.push(reg);
+          });
+        }
+      }
+
+      // Deduplicate
+      clobbers = [...new Set(clobbers)];
+
+      const constraintString =
+        (constraints.length > 0 ? constraints.join(",") + "," : "") +
+        clobbers.map((c) => `~{${c}}`).join(",");
+
+      const args = inputRegs
+        .map((reg, i) => `${inputTypes[i]} ${reg}`)
+        .join(", ");
+
+      const dialect =
+        stmt.flavor === "x86" || stmt.flavor === "intel" ? "inteldialect" : "";
+
+      this.emit(
+        `  call void asm sideeffect ${dialect} "${asmString}", "${constraintString}"(${args})`,
+      );
+    } else {
+      const lines = stmt.content.split("\n");
+      for (const line of lines) {
+        let processedLine = line.trim();
+
+        // Strip quotes if present (it's a string literal in the AST)
+        if (processedLine.startsWith('"') && processedLine.endsWith('"')) {
+          processedLine = processedLine.substring(1, processedLine.length - 1);
+          // Unescape escaped quotes if any
+          processedLine = processedLine.replace(/\\"/g, '"');
+        }
+
+        if (processedLine.length === 0) continue;
+
+        // Replace (variable) with %variable_ptr (pointer)
+        // For raw LLVM, we just give the pointer name. The user must load it if they want the value.
+        processedLine = processedLine.replace(/\((\w+)\)/g, (match, name) => {
+          // Check if it's a local variable
+          if (this.locals.has(name)) {
+            const ptr = this.localPointers.get(name);
+            if (ptr) {
+              return ptr;
+            }
+          }
+          // Check if it's a global variable
+          // (We don't have a global map handy here easily without looking at module,
+          // but usually globals are just @name. If we had a map we could verify.)
+          // For now, if it's not local, we leave it or maybe try to guess?
+          // Actually, let's just leave it if not found, or maybe user meant global.
+          // But wait, if user writes (global), they expect @global.
+          // Let's assume if it's not local, it might be global, but we don't have the @ prefix logic here.
+          // The user can just write @global directly in raw LLVM.
+          // But for consistency, maybe we should support (global) -> @global?
+          // Let's stick to locals for now as that's the most critical for "interpolation".
+          // TODO: Add support for global variables
+          return match;
+        });
+
+        this.emit(`  ${processedLine}`);
+      }
     }
   }
 
@@ -947,6 +1180,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     const prevCurrentFunctionName = this.currentFunctionName;
     const prevLocals = new Set(this.locals);
     const prevLocalPointers = new Map(this.localPointers);
+    const prevLocalTypes = new Map(this.localTypes);
     const prevLocalNullFlags = new Map(this.localNullFlags);
     const prevPointerToLocal = new Map(this.pointerToLocal);
     const prevOnReturn = this.onReturn;
@@ -961,6 +1195,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     this.currentFunctionName = decl.name;
     this.locals.clear();
     this.localPointers.clear();
+    this.localTypes.clear();
     this.localNullFlags.clear();
     this.pointerToLocal.clear();
     this.generatingFunctionBody = true;
@@ -1352,6 +1587,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       this.locals = prevLocals;
       this.currentSubprogramId = prevSubprogramId;
       this.localPointers = prevLocalPointers;
+      this.localTypes = prevLocalTypes;
       this.localNullFlags = prevLocalNullFlags;
       this.pointerToLocal = prevPointerToLocal;
       this.onReturn = prevOnReturn;

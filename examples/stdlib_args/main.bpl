@@ -19,7 +19,7 @@ frame main(argc: int, argv: *string) ret int {
     local i: int = 0;
     loop (i < count) {
         local arg: String = Args.get(i);
-        printf("arg[%d]: %s\n", i, arg.cstr());
+        printf("arg[%d]: %s\n", i, arg.toString());
         i = i + 1;
     }
     return 0;

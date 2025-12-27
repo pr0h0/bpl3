@@ -12,10 +12,8 @@ frame main() ret int {
     return 0;
 }
 
-frame test_match(...args: Any, args_count: int) {
+frame test_match(args: ...Any, args_count: int) {
     local i: int = 0;
-    IO.bpl_printf("Expected string id: %l\n", __type_id<string>());
-    IO.bpl_printf("Expected *char id: %l\n", __type_id<*char>());
     loop (i < args_count) {
         local val: *Any = &args[i];
         if (match<int>(val)) {

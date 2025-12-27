@@ -1,0 +1,7 @@
+{
+  "expectedOutput": ["Value after all asm is: 16"],
+  "exitCode": 0,
+  "args": [],
+  "env": {},
+  "input": ""
+}

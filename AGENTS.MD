@@ -537,7 +537,7 @@ local len: int = arr.len();
 
 # String operations
 local s: String = String.new("hello");
-local cstr: *char = s.cstr();
+local cstr: *char = s.toString();
 s.destroy();
 
 # Map operations

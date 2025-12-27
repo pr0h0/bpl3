@@ -73,7 +73,7 @@ struct StringUtils {
         local newlen: int = (end - start) + 1;
         if (newlen <= 0) {
             local empty: String;
-            empty.data = null;
+            empty.data = nullptr;
             empty.length = 0;
             return empty;
         }

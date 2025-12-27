@@ -89,9 +89,9 @@ frame printAll(...args: Any, count: int) {
     loop (i < count) {
         local arg: Any = args[i];
         # Use match<Type> or type_id to inspect
-        if (arg.type_id == __type_id<int>()) {
+        if ((arg is int)) {
             printf("Int: %d\n", cast<int>(arg.data));
-        } else if (arg.type_id == __type_id<string>()) {
+        } else if ((arg is string)) {
             printf("String: %s\n", cast<string>(arg.data));
         }
         i += 1;

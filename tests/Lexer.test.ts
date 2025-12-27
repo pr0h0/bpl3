@@ -547,7 +547,7 @@ describe("Lexer - Extended Tests", () => {
 
   describe("Error Cases", () => {
     it("should handle invalid characters gracefully", () => {
-      expect(() => tokenize("$")).toThrow();
+      expect(() => tokenize("\\")).toThrow();
     });
 
     it("should handle unterminated string", () => {

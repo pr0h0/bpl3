@@ -211,5 +211,35 @@
     "prefix": "Func",
     "body": ["Func<${1:ReturnType}>(${2:ArgTypes})"],
     "description": "Function type definition"
+  },
+  "Asm Clobbers": {
+    "prefix": "clobbers",
+    "body": [
+      "[ \"memory\", \"cc\", \"dirflag\", \"flags\", \"rax\", \"rbx\", \"rcx\", \"rdx\" ]"
+    ],
+    "description": "Default assembly clobbers list"
+  },
+  "Variadic Function (Homogeneous)": {
+    "prefix": "frame-var-homogeneous",
+    "body": [
+      "frame ${1:name}(...${2:args}: ${3:Type}, ${4:count}: int) ret ${5:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Define a function with homogeneous variadic arguments (e.g., ...int)"
+  },
+  "Variadic Function (Heterogeneous)": {
+    "prefix": "frame-var-heterogeneous",
+    "body": [
+      "frame ${1:name}(...${2:args}: Any, ${3:count}: int) ret ${4:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Define a function with heterogeneous variadic arguments (Any type)"
+  },
+  "String Interpolation": {
+    "prefix": "str-interp",
+    "body": ["`$1${$2}$3`"],
+    "description": "Interpolated string literal"
   }
 }

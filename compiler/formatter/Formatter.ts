@@ -213,9 +213,8 @@ export class Formatter {
       .map((p) => {
         const typeStr = this.formatType(p.type);
         const prefix = p.isVariadic ? "..." : "";
-        return p.isConst
-          ? `const ${prefix}${p.name}: ${typeStr}`
-          : `${prefix}${p.name}: ${typeStr}`;
+        const constPrefix = p.isConst ? "const " : "";
+        return `${constPrefix}${p.name}: ${prefix}${typeStr}`;
       })
       .join(", ");
     output += ")";
@@ -534,7 +533,37 @@ export class Formatter {
 
   private formatAsm(stmt: AST.AsmBlockStmt): string {
     const indent = this.getIndent();
-    return `${indent}asm {${stmt.content}}`;
+    const flavor = stmt.flavor ? `("${stmt.flavor}")` : "";
+    let content = stmt.content;
+
+    // Skip comments that are inside the asm block to avoid duplication
+    while (this.currentCommentIndex < this.comments.length) {
+      const c = this.comments[this.currentCommentIndex];
+      if (c.line < stmt.location.endLine) {
+        this.currentCommentIndex++;
+      } else if (
+        c.line === stmt.location.endLine &&
+        c.column < stmt.location.endColumn
+      ) {
+        this.currentCommentIndex++;
+      } else {
+        break;
+      }
+    }
+
+    if (stmt.clobbers && stmt.clobbers.length > 0) {
+      content = content.trimEnd();
+      content += "\n";
+
+      this.indentLevel++;
+      const innerIndent = this.getIndent();
+      this.indentLevel--;
+
+      const clobberStr = `[ ${stmt.clobbers.map((c) => `"${c}"`).join(", ")} ]`;
+      content += `${innerIndent}${clobberStr}\n${indent}`;
+    }
+
+    return `${indent}asm${flavor} {${content}}`;
   }
 
   private formatIf(stmt: AST.IfStmt): string {

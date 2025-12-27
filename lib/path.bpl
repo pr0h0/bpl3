@@ -51,7 +51,7 @@ struct Path {
         local lp: int = strlen(pp);
         if (lp == 0) {
             local empty: String;
-            empty.data = null;
+            empty.data = nullptr;
             empty.length = 0;
             return empty;
         }
@@ -81,7 +81,7 @@ struct Path {
         local lp: int = strlen(pp2);
         if (lp == 0) {
             local empty: String;
-            empty.data = null;
+            empty.data = nullptr;
             empty.length = 0;
             return empty;
         }
@@ -95,7 +95,7 @@ struct Path {
         if (i < 0) {
             # No slash, return empty
             local empty2: String;
-            empty2.data = null;
+            empty2.data = nullptr;
             empty2.length = 0;
             return empty2;
         }

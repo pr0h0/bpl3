@@ -5,14 +5,14 @@ import [Any] from "std/type.bpl";
 
 # Accepts a variable number of integers
 # The compiler passes 'nums' as *Any (pointer to array of Any) and 'nums_count' as int
-frame sum(...nums: Any, count: int) ret int {
+frame sum(nums: ...Any, count: int) ret int {
     local total: int = 0;
     local i: int = 0;
     IO.bpl_printf("sum called with count=%d\n", count);
     loop (i < count) {
         local val_any: *Any = &nums[i];
         # We assume they are ints for this demo, or check type
-        if (val_any.type_id == __type_id<int>()) {
+        if ((val_any is int)) {
             local val: int = cast<int>(val_any.data);
             IO.bpl_printf("nums[%d] = %d\n", i, val);
             total += val;
@@ -26,12 +26,11 @@ frame sum(...nums: Any, count: int) ret int {
 
 # Accepts a variable number of arguments of any type
 # The compiler passes 'args' as *Any (pointer to array of Any structs)
-frame printMixed(...args: Any, args_count: int) {
+frame printMixed(args: ...Any, args_count: int) {
     local i: int = 0;
     local count: int = args_count;
     loop (i < count) {
         local arg: Any = args[i];
-        # Use __type_id to check types
         if ((arg is int)) {
             IO.bpl_printf("Arg %d is int: %d\n", i, cast<int>(arg.data));
         } else if ((arg is string)) {

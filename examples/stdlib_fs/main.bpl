@@ -20,6 +20,6 @@ frame main() ret int {
     }
     IO.printInt(ex_i);
     local content: String = FS.readFile(path);
-    printf("%s\n", content.cstr());
+    printf("%s\n", content.toString());
     return 0;
 }

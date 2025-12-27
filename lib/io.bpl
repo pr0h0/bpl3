@@ -61,7 +61,7 @@ struct IO {
     Prints a String object followed by a newline.
     #/
     frame printString(s: String) {
-        printf("%s\n", s.cstr());
+        printf("%s\n", s.toString());
     }
 
     /#

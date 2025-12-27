@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "Result 1: 15",
+    "Result 2: 20",
+    "Result 3: 30",
+    "Result 4: 105"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -9,6 +9,6 @@ frame main() ret int {
     local s: string = "hello";
     local buf: string = UTF8.encode(s);
     local dec: String = UTF8.decode(buf);
-    printf("%s\n", dec.cstr());
+    printf("%s\n", dec.toString());
     return 0;
 }

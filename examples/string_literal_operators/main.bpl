@@ -10,7 +10,7 @@ frame main() {
     printf("--- Old way (verbose) ---\n");
     local s1: String = String.new("Hello");
     local s2: String = s1 + String.new(" World");
-    printf("Result: '%s'\n", s2.cstr());
+    printf("Result: '%s'\n", s2.toString());
     s2.destroy();
     s1.destroy();
     printf("\n");
@@ -19,7 +19,7 @@ frame main() {
     printf("--- New way (concise) ---\n");
     local s3: String = String.new("Hello");
     local s4: String = s3 + " World"; # No String.new() needed!
-    printf("Result: '%s'\n", s4.cstr());
+    printf("Result: '%s'\n", s4.toString());
     s4.destroy();
     s3.destroy();
     printf("\n");
@@ -30,7 +30,7 @@ frame main() {
     builder << " a"; # No String.new() needed!
     builder << " sentence"; # No String.new() needed!
     builder << " easily!"; # No String.new() needed!
-    printf("Result: '%s'\n", builder.cstr());
+    printf("Result: '%s'\n", builder.toString());
     builder.destroy();
     printf("\n");
 
@@ -43,7 +43,7 @@ frame main() {
     path << "documents";
     path << "/";
     path << "file.txt";
-    printf("Path: '%s'\n", path.cstr());
+    printf("Path: '%s'\n", path.toString());
     path.destroy();
     printf("\n");
 
@@ -51,7 +51,7 @@ frame main() {
     printf("--- Expression building ---\n");
     local name: String = String.new("Alice");
     local greeting: String = String.new("Hello, ") + name + "! Welcome to BPL3.";
-    printf("Greeting: '%s'\n", greeting.cstr());
+    printf("Greeting: '%s'\n", greeting.toString());
     greeting.destroy();
     name.destroy();
     printf("\n");

@@ -204,8 +204,8 @@
     return { kind: "Extern", name, params, isVariadic, returnType, location: makeLoc(loc) };
   }
 
-  function asmBlock(content, loc, flavor) {
-    return { kind: "Asm", content, flavor, location: makeLoc(loc) };
+  function asmBlock(content, loc, flavor, clobbers) {
+    return { kind: "Asm", content, flavor, clobbers, location: makeLoc(loc) };
   }
 
   function tryStmt(tryBlock, catchClauses, catchOther, loc) {
@@ -586,8 +586,14 @@ ExternParameterList
     }
 
 AsmBlock
-  = K_asm _ flavor:("(" _ s:StringLiteral _ ")" { return s.value; })? _ "{" content:AsmContent "}" {
-      return asmBlock(content, location(), flavor || undefined);
+  = K_asm _ flavor:("(" _ s:StringLiteral _ ")" { return s.value; })? _ "{" content:AsmContent clobbers:AsmClobbers? "}" {
+      return asmBlock(content, location(), flavor || undefined, clobbers || undefined);
+    }
+
+AsmClobbers
+  = _ "[" _ head:AsmString tail:(_ "," _ AsmString)* _ "]" _ {
+      const extract = (s) => s.slice(1, -1);
+      return [extract(head), ...tail.map(t => extract(t[3]))];
     }
 
 Block
@@ -597,13 +603,15 @@ Block
     }
 
 AsmContent
-  = parts:(AsmPart)* { return parts.join(""); }
+  = parts:( !AsmClobbers p:AsmPart { return p; } )* { return parts.join(""); }
 
 AsmPart
   = AsmString
   / AsmCharLiteral
   / AsmComment
   / AsmNestedBlock
+  / "[" { return "["; }
+  / "]" { return "]"; }
   / AsmText
 
 AsmString
@@ -619,7 +627,7 @@ AsmNestedBlock
   = "{" body:AsmContent "}" { return "{" + body + "}"; }
 
 AsmText
-  = s:$([^{}"'#]+) { return s; }
+  = s:$([^{}"'#\[\]]+) { return s; }
 
 LoopStatement
   = K_loop _ cond:LoopCondition? _ body:Block {

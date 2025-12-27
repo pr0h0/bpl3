@@ -27,6 +27,16 @@
   - Need to support `...T` where T is a specific type, passing `T*` (pointer to array of T) and count.
   - Ensure type checking enforces all arguments match `T`.
 
+## Struct Initialization
+
+- [x] Implicit Constructor Calls
+
+  - When declaring `local x: X;` without initialization:
+  - Check if `struct X` has an instance method `frame new(this: *X)`.
+  - If yes, implicitly call `x.new()` to initialize the object.
+  - This ensures structs with pointers or specific setup requirements are safely initialized.
+  - Distinguish from static `frame new(...)` which requires explicit call.
+
 - [x] Canonical primitive integer types mapping
 - [x] Type casting (implicit & explicit)
 - [x] CLI compiler tool
@@ -98,8 +108,24 @@
   - ✅ `const` keyword for local variables
   - ✅ `const` keyword for function parameters
   - ✅ Immutability enforcement in TypeChecker
+
+## Pending Features
+
+- [ ] C-style For Loop Support
+
+  - Syntax: `loop(local i:int=0; i<10; ++i) { ... }`
+  - Desugaring to `while` loop with block scope
+  - Verify scope behavior (block vs function scope)
+
+- [ ] Scope Verification Task
+
+  - Validate and verify how scopes work
+  - Determine if each block has its own scope or if variables are hoisted
+  - Document findings
+
   - ✅ Recursive mutability checking for member access and indexing
   - ✅ `this` treated as const pointer in methods
+
 - [x] Documentation Generator ✅
   - ✅ Multi-line comment syntax changed to `/# ... #/` to avoid Markdown conflict
   - ✅ Markdown generation from comments

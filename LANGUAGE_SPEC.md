@@ -275,3 +275,49 @@ export myFunc;
 export [MyStruct];
 export { variable }
 ```
+
+## 9. Inline Assembly
+
+BPL supports inline assembly blocks for embedding LLVM IR or platform-specific assembly.
+
+### Syntax
+
+````bpl
+# Raw LLVM IR
+asm {
+    "%val = add i32 1, 2"
+}
+
+# x86 / Intel Syntax
+asm("x86") {
+    "mov eax, 1"
+    "add eax, 2"
+}
+
+# AT&T Syntax
+asm("att") {
+    "movl $1, %eax"
+}
+
+### Variable Interpolation
+
+Variables can be interpolated into assembly blocks using parentheses.
+
+- **Raw LLVM (`asm`)**: `(var)` resolves to the pointer/register name.
+- **Intel (`asm("x86")`)**:
+  - `(var)`: Value of the variable.
+  - `(&var)`: Address of the variable.
+- **AT&T (`asm("att")`)**:
+  - `(var)`: Value of the variable.
+  - `(&var)`: Address of the variable.
+  - `((&var))`: Dereference address (memory access).
+
+```bpl
+local val: int = 10;
+asm("x86") {
+    "mov eax, (val)"
+}
+asm("att") {
+    "movl (val), %eax"
+}
+````

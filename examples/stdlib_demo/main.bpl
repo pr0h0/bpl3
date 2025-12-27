@@ -55,7 +55,7 @@ frame demoArrayString() {
     local i: int = 0;
     loop (i < len) {
         local s: String = arr.get(i);
-        IO.printString(s.cstr());
+        IO.printString(s.toString());
         i = i + 1;
     }
 
@@ -75,7 +75,7 @@ frame demoArrayString() {
 frame demoString() {
     IO.log("\n--- Demo String ---");
     local s: String = String.new("Hello String");
-    IO.printString(s.cstr());
+    IO.printString(s.toString());
     s.destroy();
 }
 
@@ -99,7 +99,7 @@ frame demoIo() {
     local buf: string = cast<string>(malloc(cast<long>(100)));
     # Note: gets is unsafe, but used here for simplicity in demo
     local len: int = IO.readLine(buf);
-    # Remove newline if present (gets usually keeps it or not? gets removes newline, fgets keeps it. 
+    # Remove newline if present (gets usually keeps it or not? gets removes newline, fgets keeps it.
     # Wait, C gets() removes the newline. But IO.readLine calls gets.
     # Let's assume input "input" results in "input" in buffer.
 

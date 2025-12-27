@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "--- Homogeneous (Structs) ---",
+    "Point 0: (10, 20)",
+    "Point 1: (30, 40)",
+    "--- Heterogeneous (Mixed) ---",
+    "Arg 0 is *Point: (10, 20)",
+    "Arg 1 is int: 123",
+    "Arg 2 is *int: value=999"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -144,6 +144,7 @@ export interface CallExpr extends ASTNode {
   args: Expression[];
   genericArgs: TypeNode[];
   resolvedDeclaration?: FunctionDecl | ExternDecl;
+  variadicPacked?: boolean;
   operatorOverload?: {
     methodName: string; // "__call__"
     targetType: TypeNode;
@@ -502,6 +503,7 @@ export interface AsmBlockStmt extends ASTNode {
   kind: "Asm";
   content: string;
   flavor?: string;
+  clobbers?: string[];
 }
 
 export interface TryStmt extends ASTNode {

@@ -18,7 +18,7 @@ extern free(ptr: string) ret void;
 struct FS {
     frame exists(path: string) ret bool {
         local f: *void = fopen(path, "r");
-        if (f != null) {
+        if (f != nullptr) {
             fclose(f);
             return true;
         }
@@ -27,7 +27,7 @@ struct FS {
 
     frame writeFile(path: string, data: string) ret bool {
         local f: *void = fopen(path, "w");
-        if (f == null) {
+        if (f == nullptr) {
             return false;
         }
         local len: int = strlen(cast<string>(data));
@@ -38,7 +38,7 @@ struct FS {
 
     frame readFile(path: string) ret String {
         local f: *void = fopen(path, "rb");
-        if (f == null) {
+        if (f == nullptr) {
             # cannot open
             throw IOError { code: -1, message: "Cannot open file" };
         }

@@ -7,7 +7,7 @@ extern printf(fmt: string, ...) ret int;
 frame main() ret int {
     IO.log("=== JSON Demo ===");
     local s: String = JSON.stringifyInt(-123);
-    printf("%s\n", s.cstr());
+    printf("%s\n", s.toString());
     IO.printInt(JSON.parse("456"));
     return 0;
 }

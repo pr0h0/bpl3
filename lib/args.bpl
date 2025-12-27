@@ -16,9 +16,9 @@ struct Args {
 
     frame get(index: int) ret String {
         local arg: string = __bpl_argv_get(index);
-        if (arg == null) {
+        if (arg == nullptr) {
             local empty: String;
-            empty.data = null;
+            empty.data = nullptr;
             empty.length = 0;
             return empty;
         }
