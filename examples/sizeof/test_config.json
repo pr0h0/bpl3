@@ -1,5 +1,5 @@
 {
-  "expectedOutput": ["Sizeof int: 4", "Sizeof Point: 16"],
+  "expectedOutput": ["Sizeof int: 4", "Sizeof Point: 8"],
   "args": [],
   "env": {},
   "input": ""

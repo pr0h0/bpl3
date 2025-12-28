@@ -488,6 +488,13 @@ export class CodeGenerator extends StatementGenerator {
       header += `${varName} = private unnamed_addr constant [${len} x i8] c"${escaped}\\00", align 1\n`;
     }
 
+    // Emit opaque declarations for skipped structs that were never generated
+    for (const structName of this.skippedStructs) {
+      if (!this.generatedStructs.has(structName)) {
+        this.declarationsOutput.push(`%struct.${structName} = type opaque`);
+      }
+    }
+
     const result =
       header +
       "\n" +

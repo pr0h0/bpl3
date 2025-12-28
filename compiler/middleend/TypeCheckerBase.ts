@@ -241,6 +241,12 @@ export abstract class TypeCheckerBase {
           resolvedSymbol.type.kind === "BasicType" &&
           resolvedSymbol.type.name === type.name
         ) {
+          // Attach declaration if available (e.g. for GenericParam)
+          if (resolvedSymbol.declaration) {
+            const res = { ...type } as AST.BasicTypeNode;
+            res.resolvedDeclaration = resolvedSymbol.declaration;
+            return res;
+          }
           return type;
         }
 
@@ -369,7 +375,35 @@ export abstract class TypeCheckerBase {
   }
 
   public getIntegerConstantValue(expr: AST.Expression): bigint | undefined {
-    return TypeUtils.getIntegerConstantValue(expr);
+    const val = TypeUtils.getIntegerConstantValue(expr);
+    if (val !== undefined) return val;
+
+    // Handle Enum variants: Enum.Variant
+    // Removed to enforce strict type checking for enums
+
+    return undefined;
+  }
+
+  public getEnumVariantIndex(expr: AST.Expression): number | undefined {
+    if (expr.kind === "Member") {
+      const memberExpr = expr as AST.MemberExpr;
+      if (memberExpr.object.kind === "Identifier") {
+        const symbol = this.currentScope.resolve(
+          (memberExpr.object as AST.IdentifierExpr).name,
+        );
+        if (symbol && symbol.kind === "Enum") {
+          const enumDecl = symbol.declaration as AST.EnumDecl;
+          const variantName = memberExpr.property;
+          const index = enumDecl.variants.findIndex(
+            (v) => v.name === variantName,
+          );
+          if (index !== -1) {
+            return index;
+          }
+        }
+      }
+    }
+    return undefined;
   }
 
   public isIntegerTypeCompatible(

@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["1e20 as int: 2147483647", "-1e20 as int: -2147483648"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

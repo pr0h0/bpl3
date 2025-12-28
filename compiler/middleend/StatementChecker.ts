@@ -244,8 +244,27 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
 
     // Check for duplicate cases
     // We need to evaluate the constant value of the case expression
-    const constVal = this.getIntegerConstantValue(caseItem.value);
+    let constVal = this.getIntegerConstantValue(caseItem.value);
+
+    if (constVal === undefined) {
+      const enumIndex = this.getEnumVariantIndex(caseItem.value);
+      if (enumIndex !== undefined) {
+        constVal = BigInt(enumIndex);
+      }
+    }
+
     if (constVal !== undefined) {
+      // Replace non-literal constant expressions (like Enum variants) with Literals
+      if (caseItem.value.kind !== "Literal") {
+        caseItem.value = {
+          kind: "Literal",
+          value: Number(constVal),
+          raw: constVal.toString(),
+          type: "number",
+          location: caseItem.value.location,
+        } as AST.LiteralExpr;
+      }
+
       const valStr = constVal.toString();
       if (seenValues.has(valStr)) {
         throw new CompilerError(
@@ -520,6 +539,19 @@ export function checkVariableDecl(
   }
 
   decl.resolvedType = declaredType;
+
+  // Check if type is void (and not pointer)
+  if (
+    declaredType.kind === "BasicType" &&
+    declaredType.name === "void" &&
+    declaredType.pointerDepth === 0
+  ) {
+    throw new CompilerError(
+      `Variable '${decl.name}' cannot be of type 'void'`,
+      "Variables cannot be void. Use '*void' for void pointers.",
+      decl.location,
+    );
+  }
 
   // Check for shadowing in current scope
   const existing = this.currentScope.getInCurrentScope(decl.name as string);

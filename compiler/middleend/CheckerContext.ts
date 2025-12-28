@@ -56,6 +56,7 @@ export interface CheckerContext {
   makeVoidType(): AST.TypeNode;
   isIntegerTypeCompatible(val: bigint, targetType: AST.TypeNode): boolean;
   getIntegerConstantValue(expr: AST.Expression): bigint | undefined;
+  getEnumVariantIndex(expr: AST.Expression): number | undefined;
 
   // Overload & Member Resolution
   findOperatorOverload(

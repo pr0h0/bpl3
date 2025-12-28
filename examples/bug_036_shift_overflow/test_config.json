@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["sizeof(int) = 4", "1 << 65 = 2"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

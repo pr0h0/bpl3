@@ -26,8 +26,8 @@ multi-line comment
 
 #### Primitive Types
 
-- `int` - signed 64-bit integers
-- `uint` - unsigned 64-bit integers
+- `int` - signed 32-bit integers
+- `uint` - unsigned 32-bit integers
 - `u8`, `u16`, `u32`, `u64` - unsigned integer variants
 - `float` - 64-bit floating point numbers
 - `bool` - boolean type (`true`, `false`)

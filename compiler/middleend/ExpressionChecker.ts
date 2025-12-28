@@ -1445,8 +1445,16 @@ export function checkLambda(
     };
   }
 
-  // Check the body
-  this.checkBlock(expr.body, false); // false because we already created the scope
+  // Save and clear matchContext to prevent return statements from being captured by outer match/variable context
+  const savedMatchContext = checker.matchContext;
+  checker.matchContext = [];
+
+  try {
+    // Check the body
+    this.checkBlock(expr.body, false); // false because we already created the scope
+  } finally {
+    checker.matchContext = savedMatchContext;
+  }
 
   let returnType = checker.currentFunctionReturnType;
 

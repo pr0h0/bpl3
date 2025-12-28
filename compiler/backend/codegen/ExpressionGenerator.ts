@@ -421,6 +421,14 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       // Use resolved name for monomorphization lookup
       // resolveType returns e.g. %struct.Box_i32 or %struct.Point
       const llvmType = this.resolveType(objType);
+
+      // Force generation of struct layout if it's a pointer
+      // This is necessary because resolveType skips generation for pointers to avoid infinite recursion
+      if (objType.pointerDepth > 0) {
+        const underlying = { ...objType, pointerDepth: 0 };
+        this.resolveType(underlying);
+      }
+
       let structName = objType.name;
 
       if (llvmType.startsWith("%struct.")) {
@@ -1047,6 +1055,14 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             ? structDecl.genericParams
             : enumDecl!.genericParams;
 
+          // Force generation of the monomorphized struct and its methods
+          if (structDecl) {
+            const substitutedArgs = targetType.genericArgs.map((arg) =>
+              this.substituteType(arg, this.currentTypeMap),
+            );
+            this.resolveMonomorphizedType(structDecl, substitutedArgs);
+          }
+
           // Build context map for generic substitution
           const contextMap = new Map<string, AST.TypeNode>();
           for (let i = 0; i < genericParams.length; i++) {
@@ -1425,6 +1441,8 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
 
     let op = "";
+    let finalRight = right;
+
     switch (expr.operator.type) {
       case TokenType.Plus:
         op = isFloat ? "fadd" : "add";
@@ -1628,15 +1646,39 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         break;
       case TokenType.LessLess:
         op = "shl";
+        {
+          let bitWidth = 32;
+          if (leftType === "i64") bitWidth = 64;
+          else if (leftType === "i32") bitWidth = 32;
+          else if (leftType === "i16") bitWidth = 16;
+          else if (leftType === "i8") bitWidth = 8;
+
+          const maskVal = bitWidth - 1;
+          const maskedRight = this.newRegister();
+          this.emit(`  ${maskedRight} = and ${rightType} ${right}, ${maskVal}`);
+          finalRight = maskedRight;
+        }
         break;
       case TokenType.GreaterGreater:
         op = isUnsigned ? "lshr" : "ashr";
+        {
+          let bitWidth = 32;
+          if (leftType === "i64") bitWidth = 64;
+          else if (leftType === "i32") bitWidth = 32;
+          else if (leftType === "i16") bitWidth = 16;
+          else if (leftType === "i8") bitWidth = 8;
+
+          const maskVal = bitWidth - 1;
+          const maskedRight = this.newRegister();
+          this.emit(`  ${maskedRight} = and ${rightType} ${right}, ${maskVal}`);
+          finalRight = maskedRight;
+        }
         break;
     }
 
     if (op) {
       const reg = this.newRegister();
-      this.emit(`  ${reg} = ${op} ${leftType} ${left}, ${right}`);
+      this.emit(`  ${reg} = ${op} ${leftType} ${left}, ${finalRight}`);
       return reg;
     }
     return "0";
@@ -2194,6 +2236,21 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             structDecl.genericParams.length > 0 &&
             objType.genericArgs.length > 0
           ) {
+            // Force generation of the monomorphized struct and its methods
+            // This is crucial if the struct was only used as a pointer before (e.g. *Array<int>)
+            // and thus skipped generation, but now we are calling a method on it.
+            if (structDecl.kind === "StructDecl") {
+              const substitutedArgs = objType.genericArgs.map((arg) =>
+                this.substituteType(arg, this.currentTypeMap),
+              );
+              // We pass undefined for skipGeneration to let it auto-detect placeholders.
+              // If args are concrete, it will generate the struct and methods.
+              this.resolveMonomorphizedType(
+                structDecl as AST.StructDecl,
+                substitutedArgs,
+              );
+            }
+
             contextMap = new Map();
             for (let i = 0; i < structDecl.genericParams.length; i++) {
               if (i < objType.genericArgs.length) {
@@ -3695,6 +3752,12 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       if (targetType.genericArgs && targetType.genericArgs.length > 0) {
         const structDecl = this.structMap.get(targetType.name);
         if (structDecl && structDecl.genericParams.length > 0) {
+          // Force generation of the monomorphized struct and its methods
+          const substitutedArgs = targetType.genericArgs.map((arg) =>
+            this.substituteType(arg, this.currentTypeMap),
+          );
+          this.resolveMonomorphizedType(structDecl, substitutedArgs);
+
           // Build context map for generic substitution
           const contextMap = new Map<string, AST.TypeNode>();
           for (let i = 0; i < structDecl.genericParams.length; i++) {
@@ -4129,8 +4192,19 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
     // Float casts
     if (srcType === "double" && destType.startsWith("i")) {
-      const op = this.isSigned(destTypeNode) ? "fptosi" : "fptoui";
-      this.emit(`  ${reg} = ${op} double ${val} to ${destType}`);
+      const isSigned = this.isSigned(destTypeNode);
+      const width = this.getBitWidth(destType);
+
+      // Use saturating cast intrinsic to prevent UB on overflow
+      const intrinsicOp = isSigned ? "llvm.fptosi.sat" : "llvm.fptoui.sat";
+      const intrinsicName = `${intrinsicOp}.i${width}.f64`;
+
+      const decl = `declare ${destType} @${intrinsicName}(double)`;
+      if (!this.declarationsOutput.includes(decl)) {
+        this.declarationsOutput.push(decl);
+      }
+
+      this.emit(`  ${reg} = call ${destType} @${intrinsicName}(double ${val})`);
       return reg;
     }
     if (srcType.startsWith("i") && destType === "double") {
@@ -4936,17 +5010,16 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       let typeIdVal = "";
       if (isAny) {
         // Extract from struct
-        // Any layout: { base, type_id, data } -> index 1
-        // We assume Any has Type as base, so type_id is at index 1
+        // Any layout: { type_id, data } -> index 0
         const typeIdReg = this.newRegister();
-        this.emit(`  ${typeIdReg} = extractvalue %struct.Any ${matchValue}, 1`);
+        this.emit(`  ${typeIdReg} = extractvalue %struct.Any ${matchValue}, 0`);
         typeIdVal = typeIdReg;
       } else {
         // Load from pointer
-        // getelementptr %struct.Any, %struct.Any* %ptr, i32 0, i32 1
+        // getelementptr %struct.Any, %struct.Any* %ptr, i32 0, i32 0
         const typeIdPtr = this.newRegister();
         this.emit(
-          `  ${typeIdPtr} = getelementptr inbounds %struct.Any, %struct.Any* ${matchValue}, i32 0, i32 1`,
+          `  ${typeIdPtr} = getelementptr inbounds %struct.Any, %struct.Any* ${matchValue}, i32 0, i32 0`,
         );
         const typeIdReg = this.newRegister();
         this.emit(`  ${typeIdReg} = load i64, i64* ${typeIdPtr}`);

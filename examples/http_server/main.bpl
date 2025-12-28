@@ -181,5 +181,5 @@ frame send_404(client_fd: int) {
 }
 
 frame htons(v: ushort) ret ushort {
-    return ((v & 0xFF) << 8) | ((v & 0xFF00) >> 8);
+    return ((v & 0xFF) << cast<ushort>(8)) | ((v & 0xFF00) >> cast<ushort>(8));
 }

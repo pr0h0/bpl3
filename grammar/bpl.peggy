@@ -706,7 +706,7 @@ StatementStartKeyword
   / "switch" IdBoundary
 
 ExpressionStatement
-  = !StatementStartKeyword expr:Expression _ ";" { return expressionStmt(expr, location()); }
+  = !StatementStartKeyword expr:Expression _ semi:";"? &{ return semi || expr.kind === "Match"; } { return expressionStmt(expr, location()); }
 
 Expression
   = Assignment
@@ -1165,7 +1165,13 @@ StringLiteral
     }
 
 CharLiteral
-  = raw:$("'" ("\\" . / [^'\n\r]) "'") { return literal(parseChar(raw), raw, "char", location()); }
+  = raw:$("'" ("\\" . / [^'\n\r])+ "'") { 
+      const parsed = parseChar(raw);
+      if (parsed.length !== 1) {
+        error("Character literal must contain exactly one character");
+      }
+      return literal(parsed, raw, "char", location()); 
+    }
 
 NumberToken
   = "0x" [0-9a-fA-F]+

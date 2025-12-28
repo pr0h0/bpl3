@@ -457,8 +457,7 @@ export function checkMember(
   if (
     objectType.kind === "BasicType" &&
     objectType.pointerDepth === 0 &&
-    objectType.arrayDimensions.length === 0 &&
-    !objectType.resolvedDeclaration
+    objectType.arrayDimensions.length === 0
   ) {
     let structName: string | undefined;
     switch (objectType.name) {

@@ -49,8 +49,8 @@ describe("Memory Operations", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("i32: 4");
     expect(stdout).toContain("i64: 8");
-    // Point: { i8* (vtable), i32, i32 } -> 8 + 4 + 4 = 16 bytes.
-    expect(stdout).toContain("Point: 16");
+    // Point: { i32, i32 } -> 4 + 4 = 8 bytes.
+    expect(stdout).toContain("Point: 8");
     expect(stdout).toContain("ptr: 8"); // 64-bit pointers
   });
 

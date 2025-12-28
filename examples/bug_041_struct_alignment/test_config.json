@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["sizeof(Simple): 16", "sizeof(WithMethod): 24"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

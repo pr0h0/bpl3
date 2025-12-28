@@ -482,6 +482,19 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       paramNames.add(param.name);
 
       let paramType = this.resolveType(param.type);
+
+      if (
+        paramType.kind === "BasicType" &&
+        paramType.name === "void" &&
+        paramType.pointerDepth === 0
+      ) {
+        throw new CompilerError(
+          `Parameter '${param.name}' cannot be of type 'void'`,
+          "Parameters cannot be void. Use '*void' for void pointers.",
+          param.location,
+        );
+      }
+
       if (param.isVariadic) {
         // Variadic param is a pointer to array of Any
         // We treat it as *Any in the body
@@ -657,6 +670,40 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkStructBody(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
+    // Check for duplicate member names
+    const fieldNames = new Set<string>();
+    const methodNames = new Set<string>();
+
+    for (const member of decl.members) {
+      if (member.kind === "FunctionDecl") {
+        if (fieldNames.has(member.name)) {
+          throw new CompilerError(
+            `Method '${member.name}' conflicts with field in struct '${decl.name}'`,
+            `The method '${member.name}' shares a name with a field in struct '${decl.name}'.`,
+            member.location,
+          );
+        }
+        methodNames.add(member.name);
+      } else {
+        // Field
+        if (fieldNames.has(member.name)) {
+          throw new CompilerError(
+            `Duplicate field '${member.name}' in struct '${decl.name}'`,
+            `The field '${member.name}' is defined multiple times in struct '${decl.name}'.`,
+            member.location,
+          );
+        }
+        if (methodNames.has(member.name)) {
+          throw new CompilerError(
+            `Field '${member.name}' conflicts with method in struct '${decl.name}'`,
+            `The field '${member.name}' shares a name with a method in struct '${decl.name}'.`,
+            member.location,
+          );
+        }
+        fieldNames.add(member.name);
+      }
+    }
+
     // Add generic params
     for (const gp of decl.genericParams) {
       this.defineSymbol(
@@ -695,35 +742,41 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
 
       if (!hasStructParent && decl.name !== "Type") {
-        // Add Type as parent
-        // We rely on Type being available in the scope (e.g. via std import)
-        try {
-          const typeStruct = this.resolveType({
-            kind: "BasicType",
-            name: "Type",
-            genericArgs: [],
-            pointerDepth: 0,
-            arrayDimensions: [],
-            location: decl.location,
-          });
+        // Only add Type as parent if the struct has methods
+        // This avoids adding vtable pointer overhead to POD structs
+        const hasMethods = decl.members.some((m) => m.kind === "FunctionDecl");
 
-          if (
-            typeStruct.kind === "BasicType" &&
-            typeStruct.resolvedDeclaration &&
-            typeStruct.resolvedDeclaration.kind === "StructDecl"
-          ) {
-            decl.inheritanceList.push({
+        if (hasMethods) {
+          // Add Type as parent
+          // We rely on Type being available in the scope (e.g. via std import)
+          try {
+            const typeStruct = this.resolveType({
               kind: "BasicType",
               name: "Type",
               genericArgs: [],
               pointerDepth: 0,
               arrayDimensions: [],
               location: decl.location,
-              resolvedDeclaration: typeStruct.resolvedDeclaration,
             });
+
+            if (
+              typeStruct.kind === "BasicType" &&
+              typeStruct.resolvedDeclaration &&
+              typeStruct.resolvedDeclaration.kind === "StructDecl"
+            ) {
+              decl.inheritanceList.push({
+                kind: "BasicType",
+                name: "Type",
+                genericArgs: [],
+                pointerDepth: 0,
+                arrayDimensions: [],
+                location: decl.location,
+                resolvedDeclaration: typeStruct.resolvedDeclaration,
+              });
+            }
+          } catch (e) {
+            // Type struct not found (e.g. std not imported), ignore
           }
-        } catch (e) {
-          // Type struct not found (e.g. std not imported), ignore
         }
       }
     }

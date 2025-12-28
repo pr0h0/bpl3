@@ -70,6 +70,7 @@ export class BaseCodeGenerator {
   protected localNullFlags: Map<string, string> = new Map(); // Track struct locals -> null-flag pointer
   protected pointerToLocal: Map<string, string> = new Map(); // Track pointer variable -> source local for null checking
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
+  protected skippedStructs: Set<string> = new Set(); // Track structs that were skipped during generation (e.g. pointers)
   protected onReturn?: () => void;
   protected typeIdMap: Map<string, number> = new Map(); // Type name -> Type ID
   protected nextTypeId: number = 10; // Start user types at 10

@@ -1706,10 +1706,12 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
           if (structDecl) {
             // Instantiate generic struct
+            // If it's a pointer, we skip generation to avoid infinite recursion for recursive types
+            const isPointer = basicType.pointerDepth > 0;
             llvmType = this.resolveMonomorphizedType(
               structDecl,
               instantiatedArgs,
-              hasPlaceholders,
+              hasPlaceholders || isPointer,
             );
           } else if (enumDecl) {
             // Instantiate generic enum
@@ -1917,6 +1919,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     }
 
     if (skipGeneration) {
+      this.skippedStructs.add(mangledName);
       return `%struct.${mangledName}`;
     }
 

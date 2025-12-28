@@ -1,0 +1,13 @@
+{
+  "expectedOutput": [
+    "Creating array...",
+    "Counter created!",
+    "Checking values...",
+    "arr[0].val = 42",
+    "arr[1].val = 42",
+    "arr[2].val = 42"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

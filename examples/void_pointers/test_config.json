@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["p is null"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -650,7 +650,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         if (
           newMethod &&
           newMethod.params.length === 1 &&
-          newMethod.params[0].name === "this"
+          newMethod.params[0]!.name === "this"
         ) {
           let structName = structDecl.name;
           let methodType = newMethod.resolvedType as AST.FunctionTypeNode;
@@ -664,7 +664,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
             // type is like "%struct.Point_i32"
             const match = type.match(/%struct\.([a-zA-Z0-9_]+)/);
             if (match) {
-              structName = match[1];
+              structName = match[1]!;
             }
 
             // 2. Substitute types in method signature
@@ -672,8 +672,8 @@ export abstract class StatementGenerator extends ExpressionGenerator {
             for (let i = 0; i < structDecl.genericParams.length; i++) {
               if (i < typeNode.genericArgs.length) {
                 typeMap.set(
-                  structDecl.genericParams[i].name,
-                  typeNode.genericArgs[i],
+                  structDecl.genericParams[i]!.name,
+                  typeNode.genericArgs[i]!,
                 );
               }
             }
@@ -689,6 +689,42 @@ export abstract class StatementGenerator extends ExpressionGenerator {
           // Generate call
           // Pass null for closure context (first argument)
           this.emit(`  call void @${ctorName}(i8* null, ${type}* ${addr})`);
+        }
+      }
+    }
+
+    // Initialize uninitialized array variables if elements need construction
+    if (!decl.initializer && type.startsWith("[")) {
+      const typeNode = decl.resolvedType || decl.typeAnnotation!;
+      if (
+        typeNode.kind === "BasicType" &&
+        typeNode.arrayDimensions.length > 0 &&
+        typeNode.resolvedDeclaration &&
+        typeNode.resolvedDeclaration.kind === "StructDecl"
+      ) {
+        const structDecl = typeNode.resolvedDeclaration as AST.StructDecl;
+        const newMethods = structDecl.members.filter(
+          (m) => m.kind === "FunctionDecl" && m.name === "new",
+        ) as AST.FunctionDecl[];
+
+        const matchingNew = newMethods.find((newMethod) => {
+          if (
+            newMethod &&
+            ((newMethod.params.length === 1 &&
+              newMethod.params[0]!.name === "this") ||
+              newMethod.params.length === 0)
+          ) {
+            return newMethod;
+          }
+        });
+        if (matchingNew) {
+          this.generateArrayInitialization(
+            addr,
+            type,
+            typeNode,
+            structDecl,
+            matchingNew,
+          );
         }
       }
     }
@@ -882,7 +918,17 @@ export abstract class StatementGenerator extends ExpressionGenerator {
   }
 
   protected generateSwitch(stmt: AST.SwitchStmt) {
-    const cond = this.generateExpression(stmt.expression);
+    let cond = this.generateExpression(stmt.expression);
+    let condType = this.resolveType(stmt.expression.resolvedType!);
+
+    // Check if we are switching on an Enum
+    if (condType.startsWith("%enum.")) {
+      const tagReg = this.newRegister();
+      this.emit(`  ${tagReg} = extractvalue ${condType} ${cond}, 0`);
+      cond = tagReg;
+      condType = "i32";
+    }
+
     const endLabel = this.newLabel("switch.end");
     const defaultLabel = stmt.defaultCase
       ? this.newLabel("switch.default")
@@ -898,8 +944,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       const label = this.newLabel("switch.case");
       caseLabels.push({ value: val, label, body: caseStmt.body });
     }
-
-    const condType = this.resolveType(stmt.expression.resolvedType!);
 
     // Use raw output push to avoid attaching !dbg to the middle of the instruction
     this.output.push(`  switch ${condType} ${cond}, label %${defaultLabel} [`);
@@ -1594,5 +1638,115 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       this.isMainWithVoidReturn = prevIsMainWithVoidReturn;
       this.generatingFunctionBody = prevGeneratingFunctionBody;
     }
+  }
+
+  protected generateArrayInitialization(
+    baseAddr: string,
+    arrayTypeStr: string,
+    typeNode: AST.BasicTypeNode,
+    structDecl: AST.StructDecl,
+    newMethod: AST.FunctionDecl,
+  ) {
+    // Calculate total elements
+    let totalElements = 1;
+    for (const dim of typeNode.arrayDimensions) {
+      if (dim === null) {
+        // Should not happen for stack-allocated arrays
+        return;
+      }
+      totalElements *= dim;
+    }
+
+    // Resolve struct type and constructor name
+    let structName = structDecl.name;
+    let methodType = newMethod.resolvedType as AST.FunctionTypeNode;
+    let structTypeStr = `%struct.${structName}`;
+
+    // Handle generics
+    if (typeNode.genericArgs.length > 0) {
+      // 1. Get mangled struct name from 'type' string
+      // type is like "[3 x %struct.Point_i32]"
+      const match = arrayTypeStr.match(/%struct\.([a-zA-Z0-9_]+)/);
+      if (match) {
+        structName = match[1]!;
+        structTypeStr = `%struct.${structName}`;
+      }
+
+      // 2. Substitute types in method signature
+      const typeMap = new Map<string, AST.TypeNode>();
+      for (let i = 0; i < structDecl.genericParams.length; i++) {
+        if (i < typeNode.genericArgs.length) {
+          typeMap.set(
+            structDecl.genericParams[i]!.name,
+            typeNode.genericArgs[i]!,
+          );
+        }
+      }
+      methodType = this.substituteType(
+        methodType,
+        typeMap,
+      ) as AST.FunctionTypeNode;
+    }
+
+    const methodName = `${structName}_new`;
+    const ctorName = this.getMangledName(methodName, methodType);
+
+    const isInstanceInit =
+      newMethod.params.length === 1 && newMethod.params[0]!.name === "this";
+
+    // Cast array pointer to pointer to first element (flat)
+    const elemPtr = this.newRegister();
+    this.emit(
+      `  ${elemPtr} = bitcast ${arrayTypeStr}* ${baseAddr} to ${structTypeStr}*`,
+    );
+
+    const loopHead = this.newLabel("array_init.head");
+    const loopBody = this.newLabel("array_init.body");
+    const loopEnd = this.newLabel("array_init.end");
+
+    // Allocate loop counter
+    const counterPtr = this.allocateStack("init_idx", "i32");
+    this.emit(`  store i32 0, i32* ${counterPtr}`);
+
+    this.emit(`  br label %${loopHead}`);
+    this.emit(`${loopHead}:`);
+
+    const counter = this.newRegister();
+    this.emit(`  ${counter} = load i32, i32* ${counterPtr}`);
+
+    const cmp = this.newRegister();
+    this.emit(`  ${cmp} = icmp slt i32 ${counter}, ${totalElements}`);
+    this.emit(`  br i1 ${cmp}, label %${loopBody}, label %${loopEnd}`);
+
+    this.emit(`${loopBody}:`);
+
+    // Get pointer to current element
+    const currentElemPtr = this.newRegister();
+    this.emit(
+      `  ${currentElemPtr} = getelementptr ${structTypeStr}, ${structTypeStr}* ${elemPtr}, i32 ${counter}`,
+    );
+
+    if (isInstanceInit) {
+      // Call constructor
+      this.emit(
+        `  call void @${ctorName}(i8* null, ${structTypeStr}* ${currentElemPtr})`,
+      );
+    } else {
+      // Call static factory
+      const val = this.newRegister();
+      this.emit(`  ${val} = call ${structTypeStr} @${ctorName}(i8* null)`);
+      this.emit(
+        `  store ${structTypeStr} ${val}, ${structTypeStr}* ${currentElemPtr}`,
+      );
+    }
+
+    // Increment counter
+    const nextCounter = this.newRegister();
+    this.emit(`  ${nextCounter} = add i32 ${counter}, 1`);
+    this.emit(`  store i32 ${nextCounter}, i32* ${counterPtr}`);
+
+    this.emit(`  br label %${loopHead}`);
+
+    this.emit(`${loopEnd}:`);
   }
 }
