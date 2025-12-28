@@ -12,11 +12,7 @@ export class DebugInfoGenerator {
   constructor(
     private filename: string,
     private directory: string,
-  ) {
-    // Reserve ID 0 for later use if needed, start from 1?
-    // Actually LLVM IR metadata can be numbered arbitrarily, but usually sequential.
-    // We will generate them at the end or collect them.
-  }
+  ) {}
 
   public reset() {
     this.nextId = 1;

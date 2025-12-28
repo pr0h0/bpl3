@@ -126,7 +126,11 @@ export function checkCall(
   }
 
   // Try __call__ operator overload
-  if (calleeType && calleeType.kind !== "FunctionType") {
+  if (
+    calleeType &&
+    calleeType.kind !== "FunctionType" &&
+    calleeType.kind !== "LambdaType"
+  ) {
     const method = this.findOperatorOverload(
       calleeType,
       "__call__",
@@ -149,8 +153,11 @@ export function checkCall(
     );
   }
 
-  if (calleeType && calleeType.kind === "FunctionType") {
-    const funcType = calleeType as AST.FunctionTypeNode;
+  if (
+    calleeType &&
+    (calleeType.kind === "FunctionType" || calleeType.kind === "LambdaType")
+  ) {
+    const funcType = calleeType as AST.FunctionTypeNode | AST.LambdaTypeNode;
     const overloads = (funcType as any).overloads as AST.FunctionTypeNode[];
 
     if (overloads && overloads.length > 0) {
@@ -414,7 +421,7 @@ function handleEnumVariantCall(
 function validateFunctionCall(
   this: CheckerContext,
   expr: AST.CallExpr,
-  funcType: AST.FunctionTypeNode,
+  funcType: AST.FunctionTypeNode | AST.LambdaTypeNode,
   argTypes: (AST.TypeNode | undefined)[],
 ): AST.TypeNode {
   if (!funcType.isVariadic && funcType.paramTypes.length !== expr.args.length) {

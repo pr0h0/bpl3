@@ -1,6 +1,6 @@
 extern printf(fmt: string, ...);
 
-type Printer = Func<void>();
+type Printer = Lambda<void>();
 
 frame main() ret int {
     local x: int = 10;

@@ -749,6 +749,24 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
               if (parent) {
                 fields = this.getAllStructFields(parent);
                 break; // Only one parent struct
+              } else {
+                // Parent is likely a monomorphized struct not in structMap
+                // We need to substitute fields from baseDecl
+                const parentFields = this.getAllStructFields(baseDecl);
+                const typeMap = new Map<string, AST.TypeNode>();
+                for (let i = 0; i < baseDecl.genericParams.length; i++) {
+                  if (i < typeNode.genericArgs.length) {
+                    typeMap.set(
+                      baseDecl.genericParams[i]!.name,
+                      typeNode.genericArgs[i]!,
+                    );
+                  }
+                }
+                fields = parentFields.map((f) => ({
+                  ...f,
+                  type: this.substituteType(f.type, typeMap),
+                }));
+                break; // Only one parent struct
               }
             }
           }
@@ -807,30 +825,12 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       }
     }
 
-    const hasVTable = (this.vtableLayouts.get(decl.name)?.length || 0) > 0;
-    const parentHasVTable = fields.some((f) => f.name === "__vtable__");
-
     const currentFields = decl.members.filter(
       (m) => m.kind === "StructField",
     ) as AST.StructField[];
 
     let resultFields = [...fields];
-    if (hasVTable && !parentHasVTable) {
-      const vtableField: AST.StructField = {
-        kind: "StructField",
-        name: "__vtable__",
-        type: {
-          kind: "BasicType",
-          name: "i8",
-          genericArgs: [],
-          pointerDepth: 1,
-          arrayDimensions: [],
-          location: decl.location,
-        },
-        location: decl.location,
-      };
-      resultFields.push(vtableField);
-    }
+    // VTable injection removed for POD structs
 
     return resultFields.concat(currentFields);
   }
@@ -845,11 +845,93 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         if (decl.genericParams.length === 0) {
           const layout = new Map<string, number>();
           const fields = this.getAllStructFields(decl);
-          fields.forEach((f, i) => layout.set(f.name, i));
+
+          const hasVTable =
+            this.vtableLayouts.has(decl.name) &&
+            this.vtableLayouts.get(decl.name)!.length > 0;
+          const offset = hasVTable ? 1 : 0;
+
+          if (hasVTable) {
+            layout.set("__vtable__", 0);
+          }
+
+          fields.forEach((f, i) => layout.set(f.name, i + offset));
           this.structLayouts.set(decl.name, layout);
         }
       }
     }
+  }
+
+  protected getVTableMethodName(decl: AST.FunctionDecl): string {
+    if (!decl.resolvedType || decl.resolvedType.kind !== "FunctionType") {
+      return decl.name;
+    }
+    const type = decl.resolvedType as AST.FunctionTypeNode;
+    // Skip first param (this)
+    const paramTypes = type.paramTypes.slice(1);
+    const mangledParams = paramTypes.map((t) => this.mangleType(t)).join("_");
+    return `${decl.name}_${mangledParams}`;
+  }
+
+  protected getStructMethods(decl: AST.StructDecl): string[] {
+    return decl.members
+      .filter((m) => m.kind === "FunctionDecl")
+      .filter((m) => (m as AST.FunctionDecl).genericParams.length === 0)
+      .map((m) => {
+        const funcDecl = m as AST.FunctionDecl;
+        return this.getVTableMethodName(funcDecl);
+      });
+  }
+
+  protected computeVTableLayout(name: string): string[] {
+    if (this.vtableLayouts.has(name)) return this.vtableLayouts.get(name)!;
+
+    const decl = this.structMap.get(name);
+    if (!decl) return [];
+
+    let layout: string[] = [];
+
+    // Check parent
+    let parentName: string | null = null;
+    if (decl.inheritanceList) {
+      for (const typeNode of decl.inheritanceList) {
+        if (typeNode.kind === "BasicType") {
+          // Resolve parent name
+          let pName = typeNode.name;
+
+          if (typeNode.genericArgs && typeNode.genericArgs.length > 0) {
+            // It's a generic parent. We need the instantiated name.
+            const llvmType = this.resolveType(typeNode);
+            // Strip %struct. and *
+            pName = llvmType.replace(/^%struct\./, "").replace(/\*+$/, "");
+          } else if (
+            typeNode.resolvedDeclaration &&
+            typeNode.resolvedDeclaration.kind === "StructDecl"
+          ) {
+            pName = typeNode.resolvedDeclaration.name;
+          }
+          parentName = pName;
+          break;
+        }
+      }
+    }
+
+    if (parentName) {
+      layout = [...this.computeVTableLayout(parentName)];
+    }
+
+    // Add/Override methods
+    const methods = this.getStructMethods(decl);
+    for (const method of methods) {
+      const index = layout.indexOf(method);
+      if (index === -1) {
+        layout.push(method);
+      }
+      // If index !== -1, it's an override, position stays same.
+    }
+
+    this.vtableLayouts.set(name, layout);
+    return layout;
   }
 
   protected computeVTableLayouts(program: AST.Program) {
@@ -861,67 +943,10 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       }
     }
 
-    // Helper to get methods of a struct
-    const getMethods = (decl: AST.StructDecl): string[] => {
-      return decl.members
-        .filter((m) => m.kind === "FunctionDecl")
-        .filter((m) => (m as AST.FunctionDecl).genericParams.length === 0)
-        .map((m) => (m as AST.FunctionDecl).name);
-    };
-
-    // Helper to compute layout recursively
-    const compute = (name: string): string[] => {
-      if (this.vtableLayouts.has(name)) return this.vtableLayouts.get(name)!;
-
-      const decl = this.structMap.get(name);
-      if (!decl) return [];
-
-      let layout: string[] = [];
-
-      // Check parent
-      let parentName: string | null = null;
-      if (decl.inheritanceList) {
-        for (const typeNode of decl.inheritanceList) {
-          if (typeNode.kind === "BasicType") {
-            // Resolve parent name
-            let pName = typeNode.name;
-            if (
-              typeNode.resolvedDeclaration &&
-              typeNode.resolvedDeclaration.kind === "StructDecl"
-            ) {
-              pName = typeNode.resolvedDeclaration.name;
-            }
-            // Ignore generics for now or handle them?
-            // If generic, we might need to instantiate?
-            // For now, assume non-generic inheritance for vtables or simple names.
-            parentName = pName;
-            break;
-          }
-        }
-      }
-
-      if (parentName) {
-        layout = [...compute(parentName)];
-      }
-
-      // Add/Override methods
-      const methods = getMethods(decl);
-      for (const method of methods) {
-        const index = layout.indexOf(method);
-        if (index === -1) {
-          layout.push(method);
-        }
-        // If index !== -1, it's an override, position stays same.
-      }
-
-      this.vtableLayouts.set(name, layout);
-      return layout;
-    };
-
     // Compute for all structs
     for (const [name, decl] of this.structMap) {
       if (decl.genericParams.length === 0) {
-        compute(name);
+        this.computeVTableLayout(name);
       }
     }
   }
@@ -939,27 +964,83 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     for (const methodName of methods) {
       const owner = this.findMethodOwner(structName, methodName);
       if (!owner) {
-        ptrs.push("null");
+        console.log(
+          `[VTable] ${structName}: Method ${methodName} owner not found`,
+        );
+        ptrs.push("i8* null");
         continue;
       }
 
-      const methodDecl = owner.members.find(
-        (m) =>
-          m.kind === "FunctionDecl" &&
-          m.name === methodName &&
-          (m as AST.FunctionDecl).genericParams.length === 0,
-      ) as AST.FunctionDecl;
+      const methodDecl = owner.members.find((m) => {
+        if (m.kind !== "FunctionDecl") return false;
+        const fd = m as AST.FunctionDecl;
+        if (fd.genericParams.length > 0) return false;
 
-      const funcName = `${owner.name}_${methodName}`;
+        return this.getVTableMethodName(fd) === methodName;
+      }) as AST.FunctionDecl;
+
+      if (!methodDecl) {
+        console.log(
+          `[VTable] ${structName}: Method ${methodName} decl not found in ${owner.name}`,
+        );
+        // Try to find by name directly if mangled name check failed
+        // This handles cases where methodName is simple (e.g. "getValue") but methodDecl has complex type
+        const fallback = owner.members.find(
+          (m) => m.kind === "FunctionDecl" && m.name === methodName,
+        ) as AST.FunctionDecl;
+        if (fallback) {
+          // Found it!
+          const funcName = fallback.name;
+          const baseName = `${owner.name}_${funcName}`;
+          const funcType = fallback.resolvedType as AST.FunctionTypeNode;
+          let mangled = this.getMangledName(baseName, funcType);
+
+          // If the function is generic, we can't put it in vtable directly unless it's instantiated?
+          // But vtable methods shouldn't be generic.
+          // If fallback is generic, we skip it.
+          if (fallback.genericParams.length > 0) {
+            ptrs.push("null");
+            continue;
+          }
+
+          // If we are here, it means we failed to find methodDecl by mangled name.
+          // This implies 'methodName' (from vtable) != getMangledName(method in owner).
+          // We fallback to finding by name directly.
+          // This looks valid LLVM IR: [i8* ..., i8* null]
+          // But maybe it needs to be `i8* null` explicitly?
+          // Yes, `null` alone is not enough in array constant if type is not inferred?
+          // But the array type is `[4 x i8*]`.
+
+          // Let's check the error again:
+          // constant [4 x i8*] [..., null]
+          // ^ expected type
+
+          // It seems `null` must be typed as `i8* null`.
+
+          ptrs.push("i8* null");
+          continue;
+        }
+
+        ptrs.push("i8* null");
+        continue;
+      }
+
+      const funcName = methodDecl.name; // Use original name, not mangled name as base
       let mangled = funcName;
       if (
         methodDecl.resolvedType &&
         methodDecl.resolvedType.kind === "FunctionType"
       ) {
+        // Ensure we use the correct mangled name for the function definition.
+        // The function definition includes parameter types in its name (e.g., Struct_method_ParamType).
+        // We must reconstruct this name to reference the correct global function symbol.
+        const baseName = `${owner.name}_${funcName}`;
         mangled = this.getMangledName(
-          funcName,
+          baseName,
           methodDecl.resolvedType as AST.FunctionTypeNode,
         );
+      } else {
+        mangled = `${owner.name}_${methodName}`;
       }
 
       // We need the raw function pointer type, not the closure struct type
@@ -1003,25 +1084,34 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     // No, standard resolveType relies on resolving AST nodes.
     // When we call generateStruct for Box<int>, we should have already substituted T with int in the fields.
 
-    const fieldTypes = fields
+    // Check if we need a vtable pointer
+    const hasVTable =
+      this.vtableLayouts.has(structName) &&
+      this.vtableLayouts.get(structName)!.length > 0;
+
+    let allFieldTypes = fields
       .map((f) => this.resolveType(f.resolvedType || f.type))
       .join(", ");
 
-    // Structs are pure data layouts (Value Types)
-    // We implement Empty Base Optimization (EBO) by flattening fields.
-    // If a parent struct is empty, it contributes 0 fields/bytes to the child.
-    // If the resulting struct has no fields (empty itself and empty parent),
-    // we add a dummy i8 to ensure non-zero size (standard practice).
-    const allFieldTypes = fieldTypes ? fieldTypes : `i8`;
+    if (hasVTable) {
+      allFieldTypes = allFieldTypes ? `i8*, ${allFieldTypes}` : `i8*`;
+    } else if (!allFieldTypes) {
+      allFieldTypes = `i8`;
+    }
+
     this.emitDeclaration(`%struct.${structName} = type { ${allFieldTypes} }`);
     this.emitDeclaration("");
 
     // Register layout
     const layout = new Map<string, number>();
-    fields.forEach((f, i) => layout.set(f.name, i));
+    const offset = hasVTable ? 1 : 0;
+    if (hasVTable) {
+      layout.set("__vtable__", 0);
+    }
+    fields.forEach((f, i) => layout.set(f.name, i + offset));
     this.structLayouts.set(structName, layout);
 
-    // Generate VTable if needed
+    // VTable generation disabled for POD structs
     if (this.vtableLayouts.has(structName)) {
       this.generateVTable(structName, decl);
     }
@@ -1470,12 +1560,31 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     if (!decl) return null;
 
     // Check members
-    if (
-      decl.members.some(
-        (m) => m.kind === "FunctionDecl" && m.name === methodName,
-      )
-    ) {
-      return decl;
+    for (const m of decl.members) {
+      if (m.kind === "FunctionDecl") {
+        const funcDecl = m as AST.FunctionDecl;
+        if (funcDecl.name === methodName) {
+          return decl;
+        }
+        // Check mangled name (for vtable generation)
+        if (
+          funcDecl.resolvedType &&
+          funcDecl.resolvedType.kind === "FunctionType"
+        ) {
+          const mangled = this.getMangledName(
+            funcDecl.name,
+            funcDecl.resolvedType as AST.FunctionTypeNode,
+          );
+          if (mangled === methodName) {
+            return decl;
+          }
+          // Check vtable name
+          const vtableName = this.getVTableMethodName(funcDecl);
+          if (vtableName === methodName) {
+            return decl;
+          }
+        }
+      }
     }
 
     // Check parents
@@ -1500,6 +1609,13 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
             while (pName.endsWith("*")) {
               pName = pName.slice(0, -1);
             }
+
+            // If the parent is a monomorphized struct, we need to check its methods.
+            // But findMethodOwner expects a struct name that exists in structMap.
+            // Monomorphized structs are added to structMap during generation.
+            // However, if it hasn't been generated yet, we might fail.
+            // But resolveMonomorphizedType should have triggered generation.
+
             const owner = this.findMethodOwner(pName, methodName);
             if (owner) return owner;
           }
@@ -1577,9 +1693,6 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     this.resolveTypeDepth++;
     try {
       if (!type) {
-        // Should not happen if TypeChecker did its job
-        console.error("resolveType called with undefined!");
-        console.error(new Error().stack);
         throw new CompilerError(
           "Cannot resolve undefined type",
           "Internal compiler error: resolveType called with undefined.",
@@ -1592,6 +1705,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           },
         );
       }
+
       if (type.kind === "BasicType") {
         const basicType = type as AST.BasicTypeNode;
 
@@ -1674,6 +1788,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
           let structDecl: AST.StructDecl | undefined;
           let enumDecl: AST.EnumDecl | undefined;
+          let specDecl: AST.SpecDecl | undefined;
 
           // FIRST: Check resolvedDeclaration from TypeChecker (highest priority)
           // This ensures that qualified names like std.Option are correctly resolved
@@ -1683,12 +1798,15 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
               structDecl = basicType.resolvedDeclaration as AST.StructDecl;
             } else if (basicType.resolvedDeclaration.kind === "EnumDecl") {
               enumDecl = basicType.resolvedDeclaration as AST.EnumDecl;
+            } else if (basicType.resolvedDeclaration.kind === "SpecDecl") {
+              specDecl = basicType.resolvedDeclaration as AST.SpecDecl;
             }
           }
 
           // FALLBACK: Lookup by name (for types not resolved by TypeChecker)
           if (!structDecl) structDecl = this.structMap.get(basicType.name);
           if (!enumDecl) enumDecl = this.enumDeclMap.get(basicType.name);
+          if (!specDecl) specDecl = this.specMap.get(basicType.name);
 
           // Check for placeholders in instantiatedArgs
           const hasPlaceholders = instantiatedArgs.some((arg) => {
@@ -1721,6 +1839,9 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
               hasPlaceholders,
             );
             llvmType = `%enum.${mangledName}`;
+          } else if (specDecl) {
+            // Spec type is always a fat pointer { i8*, i8* }
+            llvmType = "{ i8*, i8* }";
           } else {
             // Maybe a primitive like int<T>? Should not happen.
             if (basicType.name === "T") {
@@ -1787,6 +1908,8 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
                   const structDecl =
                     basicType.resolvedDeclaration as AST.StructDecl;
                   llvmType = `%struct.${structDecl.name}`;
+                } else if (basicType.resolvedDeclaration.kind === "SpecDecl") {
+                  llvmType = "{ i8*, i8* }";
                 } else {
                   llvmType = `%struct.${basicType.name}`;
                 }
@@ -1794,6 +1917,8 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
                 llvmType = `%enum.${basicType.name}`;
               } else if (this.enumDeclMap.has(basicType.name)) {
                 llvmType = `%enum.${basicType.name}`;
+              } else if (this.specMap.has(basicType.name)) {
+                llvmType = "{ i8*, i8* }";
               } else {
                 llvmType = `%struct.${basicType.name}`;
               }
@@ -1821,6 +1946,14 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         const funcType = type as AST.FunctionTypeNode;
         const ret = this.resolveType(funcType.returnType);
         const params = funcType.paramTypes
+          .map((p) => this.resolveType(p))
+          .join(", ");
+        // Raw function pointer: ret (params...)*
+        return `${ret} (${params})*`;
+      } else if (type.kind === "LambdaType") {
+        const lambdaType = type as AST.LambdaTypeNode;
+        const ret = this.resolveType(lambdaType.returnType);
+        const params = lambdaType.paramTypes
           .map((p) => this.resolveType(p))
           .join(", ");
         // Closure type: { function_ptr, context_ptr }
@@ -2027,6 +2160,10 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
       // Register in structMap so it can be looked up by name (for inheritance etc)
       this.structMap.set(mangledName, instantiatedStruct);
+
+      // Compute vtable layout for the instantiated struct
+      // This handles generic inheritance correctly by resolving parent types
+      this.computeVTableLayout(mangledName);
 
       this.generateStruct(instantiatedStruct, mangledName);
 
@@ -2389,8 +2526,15 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     if (parentStruct.inheritanceList) {
       for (const t of parentStruct.inheritanceList) {
         if (t.kind === "BasicType") {
-          parentType = t;
-          break;
+          // Check if it is a struct (skip Specs)
+          if (
+            this.structMap.has(t.name) ||
+            (t.resolvedDeclaration &&
+              t.resolvedDeclaration.kind === "StructDecl")
+          ) {
+            parentType = t;
+            break;
+          }
         }
       }
     }
@@ -2439,6 +2583,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
     // Call parent destroy
     let callName = destroyMethodName;
+    let shouldCall = true;
 
     // Try to find the parent struct and its destroy method to get the correct mangled name
     const parentDecl = this.structMap.get(structName);
@@ -2447,8 +2592,9 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         (m) => m.kind === "FunctionDecl" && m.name === "destroy",
       ) as AST.FunctionDecl | undefined;
 
-      if (
-        destroyMethod &&
+      if (!destroyMethod) {
+        shouldCall = false;
+      } else if (
         destroyMethod.resolvedType &&
         destroyMethod.resolvedType.kind === "FunctionType"
       ) {
@@ -2459,6 +2605,8 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       }
     }
 
-    this.emit(`  call void @${callName}(${parentPtrType} ${casted})`);
+    if (shouldCall) {
+      this.emit(`  call void @${callName}(${parentPtrType} ${casted})`);
+    }
   }
 }

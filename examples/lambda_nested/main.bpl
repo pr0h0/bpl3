@@ -1,6 +1,6 @@
 extern printf(fmt: string, ...);
 
-type Op = Func<int>(int);
+type Op = Lambda<int>(int);
 
 frame main() ret int {
     local x: int = 10;

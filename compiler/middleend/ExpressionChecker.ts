@@ -213,23 +213,9 @@ export function checkInterpolatedString(
         partType.kind === "BasicType" &&
         partType.arrayDimensions.length > 0
       ) {
-        // Arrays don't have methods in BPL usually, they are just structs or pointers.
-        // But `[1, 2, 3]` is an ArrayLiteral which might be `int[]` or `Array<int>`.
-        // If it's `Array<T>`, it might have `toString`.
-        // If it's `T[]` (slice/dynamic array), it might not.
-
-        // Let's try to call `String.fromArray(arr)`?
-        // Or maybe we can implement a generic `toString` for arrays in the compiler?
-        // That would be complex to desugar to AST.
-
-        // Alternative: "rule it that it's not allowed in compile time"
-        // The user gave us the option.
-        // "either fix it or we will rule it that it's not allowed in compile time"
-
-        // Given the complexity of printing arbitrary arrays (need to iterate, print elements, join),
-        // and pointers (need hex formatting), and we are in `ExpressionChecker` desugaring...
-        // It might be safer to disallow it for now with a clear error message,
-        // UNLESS we can find a `toString` method.
+        // Arrays and pointers don't automatically have a toString method.
+        // We check if one exists (e.g. for Array<T> struct), otherwise we disallow it.
+        // Implementing generic array printing here would be complex.
 
         // Let's check for `toString` method.
         const hasToString =
@@ -1382,7 +1368,11 @@ export function checkLambda(
   let expectedFuncType: AST.FunctionTypeNode | undefined;
   if (this.matchContext && this.matchContext.length > 0) {
     const ctx = this.matchContext[this.matchContext.length - 1]!;
-    if (ctx.expectedType && ctx.expectedType.kind === "FunctionType") {
+    if (
+      ctx.expectedType &&
+      (ctx.expectedType.kind === "FunctionType" ||
+        ctx.expectedType.kind === "LambdaType")
+    ) {
       expectedFuncType = ctx.expectedType as AST.FunctionTypeNode;
     }
   }
@@ -1468,10 +1458,15 @@ export function checkLambda(
   expr.capturedVariables = capturedVars;
 
   // 5. Construct Function Type
+  // Always return LambdaType for consistency.
+  // This ensures all lambdas are treated as closures (fat pointers)
+  // and avoids issues when mixing stateful and stateless lambdas.
+  // Users needing raw function pointers (e.g. for FFI) should use named functions.
   return {
-    kind: "FunctionType",
+    kind: "LambdaType",
     returnType: returnType,
     paramTypes: paramTypes,
     location: expr.location,
+    captures: capturedVars,
   };
 }

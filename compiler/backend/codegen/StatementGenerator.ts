@@ -1152,14 +1152,9 @@ export abstract class StatementGenerator extends ExpressionGenerator {
           // Check if it's a global variable
           // (We don't have a global map handy here easily without looking at module,
           // but usually globals are just @name. If we had a map we could verify.)
-          // For now, if it's not local, we leave it or maybe try to guess?
-          // Actually, let's just leave it if not found, or maybe user meant global.
-          // But wait, if user writes (global), they expect @global.
-          // Let's assume if it's not local, it might be global, but we don't have the @ prefix logic here.
-          // The user can just write @global directly in raw LLVM.
-          // But for consistency, maybe we should support (global) -> @global?
-          // Let's stick to locals for now as that's the most critical for "interpolation".
-          // TODO: Add support for global variables
+          // For now, we only support local variables in inline assembly interpolation.
+          // Global variables can be accessed directly using @name in the assembly string.
+          // TODO: Add support for global variables interpolation
           return match;
         });
 
@@ -1211,9 +1206,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     }
 
     if (this.currentFunctionName) {
-      // console.log(`[DEBUG] RECURSIVE generateFunction detected!`);
-      // console.log(`[DEBUG] Outer: ${this.currentFunctionName}`);
-      // console.log(`[DEBUG] Inner: ${decl.name}`);
+      // Recursive generation detected
     }
 
     // Save state for re-entrancy (e.g. when resolving types triggers monomorphization)
@@ -1248,7 +1241,11 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     const funcType = decl.resolvedType as AST.FunctionTypeNode;
     let effectiveFuncType = funcType;
 
-    if (decl.resolvedType && decl.resolvedType.kind === "FunctionType") {
+    if (
+      decl.resolvedType &&
+      (decl.resolvedType.kind === "FunctionType" ||
+        decl.resolvedType.kind === "LambdaType")
+    ) {
       let genericArgs: AST.TypeNode[] = [];
       if (decl.genericParams.length > 0) {
         genericArgs = decl.genericParams.map(

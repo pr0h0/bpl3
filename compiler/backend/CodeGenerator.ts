@@ -56,6 +56,7 @@ export class CodeGenerator extends StatementGenerator {
     this.definedFunctions.clear();
     this.emittedFunctions.clear();
     this.typeAliasMap.clear();
+    this.specMap.clear();
 
     // Populate structMap and enumDeclMap with user-defined types first
     for (const stmt of program.statements) {
@@ -66,6 +67,8 @@ export class CodeGenerator extends StatementGenerator {
         );
       } else if (stmt.kind === "EnumDecl") {
         this.enumDeclMap.set((stmt as AST.EnumDecl).name, stmt as AST.EnumDecl);
+      } else if (stmt.kind === "SpecDecl") {
+        this.specMap.set((stmt as AST.SpecDecl).name, stmt as AST.SpecDecl);
       }
     }
 
@@ -549,15 +552,8 @@ export class CodeGenerator extends StatementGenerator {
         // Exports are metadata for module resolution and don't generate code directly
         break;
       case "SpecDecl":
-        const spec = node as AST.SpecDecl;
-        for (const method of spec.methods) {
-          const funcName = `${spec.name}_${method.name}`;
-          if (this.declaredFunctions.has(funcName)) continue;
-          this.declaredFunctions.add(funcName);
-          this.emitDeclaration(
-            `define void @${funcName}(%struct.${spec.name}* %this) { ret void }`,
-          );
-        }
+        // Specs are handled by TypeGenerator (fat pointers) and ExpressionGenerator (vtables)
+        // No code generation needed at top level.
         break;
       case "Asm":
         this.generateAsm(node as AST.AsmBlockStmt);

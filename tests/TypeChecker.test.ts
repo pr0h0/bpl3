@@ -68,13 +68,7 @@ describe("TypeChecker", () => {
         frame method(this: A) {} 
       }
     `;
-    // This might fail during parsing or type checking depending on when we check 'this' type.
-    // My implementation checks it during member access, but also we should probably check it during declaration if possible,
-    // or at least when calling.
-    // Wait, if I define `method(this: A)` inside `struct B`, is that allowed?
-    // The parser doesn't prevent it. The type checker checks compatibility at call site.
-    // But `this` parameter implies it expects `A`.
-    // If I call `b.method()`, `b` is `B`. `this` expects `A`.
+    // If `method(this: A)` is defined inside `struct B`, calling `b.method()` passes `B` as `this`.
     // If `B` is not compatible with `A`, it should fail.
 
     const source2 = `

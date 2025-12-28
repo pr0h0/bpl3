@@ -135,7 +135,7 @@ frame identity<T>(val: T) ret T {
 
 ## 4. Structs
 
-Structs can contain fields and methods.
+Structs can contain fields and methods. Structs can inherit from a single parent struct using the `:` operator. All structs implicitly inherit from the root `Type` struct.
 
 ```bpl
 struct Point {
@@ -143,6 +143,10 @@ struct Point {
     y: int,
 
     frame new(x: int, y: int) ret Point { ... }
+}
+
+struct Point3D : Point {
+    z: int
 }
 
 struct Generic<T>{
@@ -157,6 +161,28 @@ struct Generic<T>{
     }
 }
 ```
+
+## 4.1 Specs - Interfaces
+
+Specs define interfaces that structs can implement.
+
+```bpl
+spec Drawable {
+    frame draw(this:Self);
+}
+
+struct Shape {}
+
+struct Circle: Shape, Drawable, <other specs> {
+    radius: float,
+
+    frame draw(this: Circle) {
+        # Implementation of draw for Circle
+    }
+}
+```
+
+Structs can inherit only one struct but can implement multiple specs.
 
 ## 5. Control Flow
 

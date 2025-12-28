@@ -781,8 +781,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
 
-    for (const parentType of decl.inheritanceList) {
+    for (let i = 0; i < decl.inheritanceList.length; i++) {
+      const parentType = decl.inheritanceList[i]!;
       const resolvedParent = this.resolveType(parentType);
+
+      // Update inheritance list with resolved type to ensure resolvedDeclaration is available
+      if (resolvedParent.kind === "BasicType") {
+        decl.inheritanceList[i] = resolvedParent as AST.BasicTypeNode;
+      }
+
       if (
         resolvedParent.kind === "BasicType" &&
         resolvedParent.resolvedDeclaration &&

@@ -93,8 +93,17 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     const lambdaName = `lambda_L${expr.location.startLine}_C${expr.location.startColumn}`;
     this.pendingLambdas.push({ name: lambdaName, expr });
 
-    const funcType = expr.resolvedType as AST.FunctionTypeNode;
-    const mangledName = this.getMangledName(lambdaName, funcType);
+    const type = expr.resolvedType;
+
+    if (type.kind === "FunctionType") {
+      // Stateless lambda -> Raw function pointer
+      const funcType = type as AST.FunctionTypeNode;
+      const mangledName = this.getMangledName(lambdaName, funcType);
+      return `@${mangledName}`;
+    }
+
+    const funcType = type as AST.LambdaTypeNode;
+    const mangledName = this.getMangledName(lambdaName, funcType as any);
     const closureType = this.resolveType(funcType); // { func*, i8* }
 
     let ctxPtr = "null";
@@ -310,26 +319,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         return `@${funcName}`;
       }
 
-      // Wrap in closure struct
-      const closureType = this.resolveType(expr.resolvedType);
-      const funcType = expr.resolvedType as AST.FunctionTypeNode;
-      const retTypeStr = this.resolveType(funcType.returnType);
-      const paramTypesStr = funcType.paramTypes
-        .map((t) => this.resolveType(t))
-        .join(", ");
-      const rawFuncPtrType = `${retTypeStr} (i8*${paramTypesStr ? ", " + paramTypesStr : ""})*`;
-
-      const undef = this.newRegister();
-      this.emit(
-        `  ${undef} = insertvalue ${closureType} undef, ${rawFuncPtrType} @${funcName}, 0`,
-      );
-
-      const closure = this.newRegister();
-      this.emit(
-        `  ${closure} = insertvalue ${closureType} ${undef}, i8* null, 1`,
-      );
-
-      return closure;
+      return `@${funcName}`;
     }
 
     const type = this.resolveType(expr.resolvedType!);
@@ -1805,20 +1795,32 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       ...fields.map((f) => ({ type: this.resolveType(f.type) })),
     ];
 
+    // Check for vtable offset
+    // If the struct has a vtable, it is stored at index 0 in the LLVM struct.
+    // The actual data fields start at index 1.
+    // We must skip the vtable pointer during comparison because it's metadata, not data.
+    // Also, vtable pointers should be identical for same-type objects, but comparing them is redundant.
+    const hasVTable =
+      this.vtableLayouts.has(structName) &&
+      this.vtableLayouts.get(structName)!.length > 0;
+    const offset = hasVTable ? 1 : 0;
+
     let resultReg = "true"; // Start with true (all equal)
 
     for (let i = 0; i < allFields.length; i++) {
       const fieldType = allFields[i]!.type;
+      // Apply offset to access the correct LLVM struct field index
+      const llvmIndex = i + offset;
 
       // Extract values
       const leftField = this.newRegister();
       this.emit(
-        `  ${leftField} = extractvalue %struct.${structName} ${leftVal}, ${i}`,
+        `  ${leftField} = extractvalue %struct.${structName} ${leftVal}, ${llvmIndex}`,
       );
 
       const rightField = this.newRegister();
       this.emit(
-        `  ${rightField} = extractvalue %struct.${structName} ${rightVal}, ${i}`,
+        `  ${rightField} = extractvalue %struct.${structName} ${rightVal}, ${llvmIndex}`,
       );
 
       let cmpReg: string;
@@ -1924,6 +1926,439 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       return notResult;
     }
     return resultReg;
+  }
+
+  protected generateVirtualCall(
+    callExpr: AST.CallExpr,
+    memberExpr: AST.MemberExpr,
+    structName: string,
+    methodIndex: number,
+    argsToGenerate: AST.Expression[],
+  ): string {
+    // 1. Get object pointer
+    const objRaw = this.generateExpression(memberExpr.object);
+    const objType = this.resolveType(memberExpr.object.resolvedType!);
+
+    let objPtr = objRaw;
+    let structType = objType;
+
+    // Check for primitive boxing
+    const resolvedType = memberExpr.object.resolvedType!;
+    if (
+      resolvedType.kind === "BasicType" &&
+      PRIMITIVE_STRUCT_MAP[resolvedType.name] === structName
+    ) {
+      // Box it!
+      const wrapperType = `%struct.${structName}`;
+      const wrapperPtr = this.allocateStack(
+        `boxed_${structName}_${this.labelCount++}`,
+        wrapperType,
+      );
+
+      // Set vtable
+      const vtablePtrPtr = this.newRegister();
+      this.emit(
+        `  ${vtablePtrPtr} = getelementptr ${wrapperType}, ${wrapperType}* ${wrapperPtr}, i32 0, i32 0`,
+      );
+      const vtableGlobal = `@${structName}_vtable`;
+      const vtableType = `[${this.vtableLayouts.get(structName)!.length} x i8*]`;
+      const vtableCast = this.newRegister();
+      this.emit(
+        `  ${vtableCast} = bitcast ${vtableType}* ${vtableGlobal} to i8*`,
+      );
+      this.emit(`  store i8* ${vtableCast}, i8** ${vtablePtrPtr}`);
+
+      // Set value
+      const valuePtr = this.newRegister();
+      this.emit(
+        `  ${valuePtr} = getelementptr ${wrapperType}, ${wrapperType}* ${wrapperPtr}, i32 0, i32 1`,
+      );
+
+      // Store primitive value
+      const primType = objType; // e.g. i32
+      this.emit(`  store ${primType} ${objRaw}, ${primType}* ${valuePtr}`);
+
+      objPtr = wrapperPtr;
+      structType = wrapperType + "*";
+    } else if (!objType.endsWith("*")) {
+      // Value type - get address
+      try {
+        objPtr = this.generateAddress(memberExpr.object);
+        structType = objType + "*";
+      } catch {
+        const spillAddr = this.allocateStack(
+          `vcall_spill_${this.labelCount++}`,
+          objType,
+        );
+        this.emit(`  store ${objType} ${objRaw}, ${objType}* ${spillAddr}`);
+        objPtr = spillAddr;
+        structType = objType + "*";
+      }
+    }
+
+    // 2. Load vtable pointer (index 0)
+    // structType is %struct.Name*
+    // We need to ensure it's a pointer to a struct that has vtable at index 0.
+    // The vtable pointer is always the first element (i8*).
+    // We can bitcast to a type that allows accessing the first element as i8*.
+    // Or just use getelementptr if we know the struct layout.
+    // Since we know it has a vtable (methodIndex !== -1), it must have i8* at index 0.
+
+    const vtablePtrPtr = this.newRegister();
+    // We use the actual struct type for GEP
+    this.emit(
+      `  ${vtablePtrPtr} = getelementptr ${structType.slice(
+        0,
+        -1,
+      )}, ${structType} ${objPtr}, i32 0, i32 0`,
+    );
+
+    const vtablePtr = this.newRegister();
+    this.emit(`  ${vtablePtr} = load i8*, i8** ${vtablePtrPtr}`);
+
+    // 3. Index into vtable
+    const vtableArrayPtr = this.newRegister();
+    this.emit(`  ${vtableArrayPtr} = bitcast i8* ${vtablePtr} to i8**`);
+
+    const methodPtrPtr = this.newRegister();
+    this.emit(
+      `  ${methodPtrPtr} = getelementptr i8*, i8** ${vtableArrayPtr}, i32 ${methodIndex}`,
+    );
+
+    const methodVoidPtr = this.newRegister();
+    this.emit(`  ${methodVoidPtr} = load i8*, i8** ${methodPtrPtr}`);
+
+    // 4. Resolve method signature
+    // We need the declaration of the method in the struct (or parent)
+    // structName is the name of the struct type of the object expression.
+    let structDecl = this.structMap.get(structName);
+    if (!structDecl) {
+      // Try to find in imported modules?
+      // If not found, we can't determine signature easily.
+      // But we can try to find it in the object type's resolved declaration if available.
+      const typeNode = memberExpr.object.resolvedType as AST.BasicTypeNode;
+      if (
+        typeNode.resolvedDeclaration &&
+        typeNode.resolvedDeclaration.kind === "StructDecl"
+      ) {
+        structDecl = typeNode.resolvedDeclaration as AST.StructDecl;
+      }
+    }
+
+    if (!structDecl) {
+      throw new CompilerError(
+        `Struct declaration for ${structName} not found during virtual call generation`,
+        "",
+        memberExpr.location,
+      );
+    }
+
+    // Find the method in the struct (or parents)
+    // We need to find the method that corresponds to the name 'memberExpr.property'
+    // It might be inherited.
+    let methodDecl: AST.FunctionDecl | undefined;
+    let currentDecl: AST.StructDecl | undefined = structDecl;
+    const genericMap = new Map<string, AST.TypeNode>();
+
+    const targetDecl =
+      callExpr.resolvedDeclaration &&
+      callExpr.resolvedDeclaration.kind === "FunctionDecl"
+        ? (callExpr.resolvedDeclaration as AST.FunctionDecl)
+        : undefined;
+
+    while (currentDecl) {
+      let found: AST.FunctionDecl | undefined;
+
+      if (targetDecl) {
+        // Try to find matching overload
+        found = currentDecl.members.find((m) => {
+          if (m.kind !== "FunctionDecl") return false;
+          const fd = m as AST.FunctionDecl;
+          if (fd.name !== memberExpr.property) return false;
+
+          // If exact match
+          if (fd === targetDecl) return true;
+
+          // Match by mangled name/signature
+          if (
+            fd.resolvedType &&
+            targetDecl.resolvedType &&
+            fd.resolvedType.kind === "FunctionType" &&
+            targetDecl.resolvedType.kind === "FunctionType"
+          ) {
+            const m1 = this.getMangledName(
+              fd.name,
+              fd.resolvedType as AST.FunctionTypeNode,
+            );
+            const m2 = this.getMangledName(
+              targetDecl.name,
+              targetDecl.resolvedType as AST.FunctionTypeNode,
+            );
+            return m1 === m2;
+          }
+          return false;
+        }) as AST.FunctionDecl;
+
+        // Fallback: if not found by signature, try finding by name if it's the only one
+        // This handles cases where targetDecl is generic but currentDecl is monomorphized
+        if (!found) {
+          const candidates = currentDecl.members.filter(
+            (m) => m.kind === "FunctionDecl" && m.name === memberExpr.property,
+          ) as AST.FunctionDecl[];
+          if (candidates.length === 1) {
+            found = candidates[0];
+          }
+        }
+      } else {
+        // Fallback: find first method with name
+        found = currentDecl.members.find(
+          (m) => m.kind === "FunctionDecl" && m.name === memberExpr.property,
+        ) as AST.FunctionDecl;
+      }
+
+      if (found) {
+        methodDecl = found;
+        break;
+      }
+      // Check parent
+      if (currentDecl.inheritanceList) {
+        let parentFound = false;
+        for (const parent of currentDecl.inheritanceList) {
+          if (
+            parent.kind === "BasicType" &&
+            parent.resolvedDeclaration &&
+            parent.resolvedDeclaration.kind === "StructDecl"
+          ) {
+            const parentDecl = parent.resolvedDeclaration as AST.StructDecl;
+
+            // Collect generic mappings
+            if (parentDecl.genericParams && parent.genericArgs) {
+              for (let i = 0; i < parentDecl.genericParams.length; i++) {
+                if (i < parent.genericArgs.length) {
+                  let arg = parent.genericArgs[i]!;
+                  // Substitute arg with existing map if needed
+                  if (genericMap.size > 0) {
+                    arg = this.substituteType(arg, genericMap);
+                  }
+                  genericMap.set(parentDecl.genericParams[i]!.name, arg);
+                }
+              }
+            }
+
+            currentDecl = parentDecl;
+            parentFound = true;
+            break;
+          }
+        }
+        if (!parentFound) break;
+      } else {
+        break;
+      }
+    }
+
+    if (!methodDecl) {
+      throw new CompilerError(
+        `Method ${memberExpr.property} not found in struct ${structName}`,
+        "",
+        memberExpr.location,
+      );
+    }
+
+    // Resolve function type
+    let funcType = methodDecl.resolvedType as AST.FunctionTypeNode;
+
+    // Apply generic substitution
+    if (genericMap.size > 0) {
+      funcType = {
+        ...funcType,
+        returnType: this.substituteType(funcType.returnType, genericMap),
+        paramTypes: funcType.paramTypes.map((p) =>
+          this.substituteType(p, genericMap),
+        ),
+      };
+    }
+
+    const retType = this.resolveType(funcType.returnType);
+    const paramTypes = funcType.paramTypes.map((t) => this.resolveType(t));
+
+    // 5. Cast function pointer
+    const funcSig = `${retType} (i8*, ${paramTypes.join(", ")})`;
+    const funcPtr = this.newRegister();
+    this.emit(`  ${funcPtr} = bitcast i8* ${methodVoidPtr} to ${funcSig}*`);
+
+    // 6. Prepare arguments
+    const callArgs: string[] = [];
+
+    // Add closure context (null for virtual calls as we don't support closures in vtables yet)
+    callArgs.push("i8* null");
+
+    // 'this' argument
+    const thisType = paramTypes[0]!;
+
+    if (thisType.endsWith("*")) {
+      const thisArg = this.newRegister();
+      this.emit(
+        `  ${thisArg} = bitcast ${structType} ${objPtr} to ${thisType}`,
+      );
+      callArgs.push(`${thisType} ${thisArg}`);
+    } else {
+      // thisType is by value (e.g. %struct.Type)
+      // We need to cast objPtr to %struct.Type* then load.
+      const ptrType = thisType + "*";
+      const ptrReg = this.newRegister();
+      this.emit(`  ${ptrReg} = bitcast ${structType} ${objPtr} to ${ptrType}`);
+
+      const valReg = this.newRegister();
+      this.emit(`  ${valReg} = load ${thisType}, ${ptrType} ${ptrReg}`);
+
+      callArgs.push(`${thisType} ${valReg}`);
+    }
+
+    // Other arguments
+    for (let i = 0; i < argsToGenerate.length; i++) {
+      const argVal = this.generateExpression(argsToGenerate[i]!);
+      const argType = paramTypes[i + 1]!; // +1 because paramTypes includes 'this'
+      callArgs.push(`${argType} ${argVal}`);
+    }
+
+    // 7. Call
+    const resultReg = this.newRegister();
+    if (retType === "void") {
+      this.emit(`  call void ${funcPtr}(${callArgs.join(", ")})`);
+      return "0";
+    } else {
+      this.emit(
+        `  ${resultReg} = call ${retType} ${funcPtr}(${callArgs.join(", ")})`,
+      );
+      return resultReg;
+    }
+  }
+
+  protected generateSpecMethodCall(
+    callExpr: AST.CallExpr,
+    memberExpr: AST.MemberExpr,
+    specDecl: AST.SpecDecl,
+  ): string {
+    // 1. Evaluate object (Fat Pointer)
+    let objVal = this.generateExpression(memberExpr.object);
+    const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
+
+    // Handle pointer to interface (auto-dereference)
+    if (objType.pointerDepth > 0) {
+      const loaded = this.newRegister();
+      const ptrType = this.resolveType(objType);
+      // Remove last *
+      const valType = ptrType.substring(0, ptrType.length - 1);
+      this.emit(`  ${loaded} = load ${valType}, ${ptrType} ${objVal}`);
+      objVal = loaded;
+    }
+
+    // 2. Extract Object Pointer and VTable Pointer
+    const objPtr = this.newRegister();
+    this.emit(`  ${objPtr} = extractvalue { i8*, i8* } ${objVal}, 0`);
+
+    const vtablePtr = this.newRegister();
+    this.emit(`  ${vtablePtr} = extractvalue { i8*, i8* } ${objVal}, 1`);
+
+    // 3. Look up method in VTable
+    const allMethods = this.getAllSpecMethods(specDecl);
+    const methodIndex = allMethods.findIndex(
+      (m) => m.name === memberExpr.property,
+    );
+    if (methodIndex === -1) {
+      throw new CompilerError(
+        `Method ${memberExpr.property} not found in spec ${specDecl.name}`,
+        "",
+        memberExpr.location,
+      );
+    }
+
+    // vtablePtr is i8*. We need to cast it to i8** to index it.
+    const vtableArrayPtr = this.newRegister();
+    this.emit(`  ${vtableArrayPtr} = bitcast i8* ${vtablePtr} to i8**`);
+
+    const methodPtrPtr = this.newRegister();
+    this.emit(
+      `  ${methodPtrPtr} = getelementptr i8*, i8** ${vtableArrayPtr}, i32 ${methodIndex}`,
+    );
+
+    const methodVoidPtr = this.newRegister();
+    this.emit(`  ${methodVoidPtr} = load i8*, i8** ${methodPtrPtr}`);
+
+    // 4. Cast function pointer to correct type
+    const methodDecl = allMethods[methodIndex]!;
+
+    // Handle generics
+    const typeMap = new Map<string, AST.TypeNode>();
+    if (specDecl.genericParams) {
+      const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
+      for (let i = 0; i < specDecl.genericParams.length; i++) {
+        if (i < objType.genericArgs.length) {
+          typeMap.set(specDecl.genericParams[i]!.name, objType.genericArgs[i]!);
+        }
+      }
+    }
+
+    // Resolve params
+    const paramTypes: string[] = [];
+    for (const p of methodDecl.params) {
+      // Skip 'this' param as it is handled by the i8* in funcSig
+      if (p.name === "this") continue;
+
+      let pType = p.type;
+      if (!pType) {
+        console.error("Param type is undefined for", p.name);
+        continue;
+      }
+      if (typeMap.size > 0) {
+        pType = this.substituteType(pType, typeMap);
+      }
+      paramTypes.push(this.resolveType(pType));
+    }
+
+    let retTypeNode = methodDecl.returnType;
+    if (!retTypeNode) {
+      retTypeNode = {
+        kind: "BasicType",
+        name: "void",
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [],
+        location: methodDecl.location,
+      } as AST.BasicTypeNode;
+    }
+    if (typeMap.size > 0) {
+      retTypeNode = this.substituteType(retTypeNode, typeMap);
+    }
+    const retType = this.resolveType(retTypeNode);
+
+    const paramsStr = paramTypes.length > 0 ? `, ${paramTypes.join(", ")}` : "";
+    const funcSig = `${retType} (i8*${paramsStr})`;
+    const funcPtr = this.newRegister();
+    this.emit(`  ${funcPtr} = bitcast i8* ${methodVoidPtr} to ${funcSig}*`);
+
+    // 5. Generate Arguments
+    const argRegs: string[] = [];
+    for (const arg of callExpr.args) {
+      argRegs.push(this.generateExpression(arg));
+    }
+
+    // 6. Call
+    const callArgs = [`i8* ${objPtr}`];
+    for (let i = 0; i < argRegs.length; i++) {
+      callArgs.push(`${paramTypes[i]} ${argRegs[i]}`);
+    }
+
+    const resultReg = this.newRegister();
+    if (retType === "void") {
+      this.emit(`  call void ${funcPtr}(${callArgs.join(", ")})`);
+      return "0"; // Void return
+    } else {
+      this.emit(
+        `  ${resultReg} = call ${retType} ${funcPtr}(${callArgs.join(", ")})`,
+      );
+      return resultReg;
+    }
   }
 
   protected generateCall(expr: AST.CallExpr): string {
@@ -2180,10 +2615,25 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         funcName = memberExpr.property;
       } else {
         let structName = "";
+        let ownerDecl: AST.StructDecl | null = null;
         let contextMap: Map<string, AST.TypeNode> | undefined;
         let prefix: string | undefined;
 
         if (objType.kind === "BasicType") {
+          // Check if it is a Spec
+          let specDecl = this.specMap.get(objType.name);
+          if (
+            !specDecl &&
+            objType.resolvedDeclaration &&
+            objType.resolvedDeclaration.kind === "SpecDecl"
+          ) {
+            specDecl = objType.resolvedDeclaration as AST.SpecDecl;
+          }
+
+          if (specDecl) {
+            return this.generateSpecMethodCall(expr, memberExpr, specDecl);
+          }
+
           // Use resolved type name to handle monomorphization
           const typeStr = this.resolveType(objType);
           // typeStr is %struct.Box_i32 or %struct.Box
@@ -2217,6 +2667,166 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             targetThisType = `%struct.${structName}*`;
           } else {
             structName = objType.name;
+          }
+
+          // Check for inherited method
+          ownerDecl = this.findMethodOwner(structName, memberExpr.property);
+
+          if (
+            ownerDecl &&
+            ownerDecl.name !== (objType as AST.BasicTypeNode).name
+          ) {
+            // Inherited method
+            if (ownerDecl.genericParams.length === 0) {
+              // Parent is not generic, use its name directly
+              structName = ownerDecl.name;
+              targetThisType = `%struct.${structName}*`;
+            } else {
+              // Generic parent inheritance
+              const childDecl = this.structMap.get(
+                (objType as AST.BasicTypeNode).name,
+              );
+              if (childDecl) {
+                const parentType = this.findInstantiatedParentType(
+                  childDecl,
+                  objType as AST.BasicTypeNode,
+                  ownerDecl.name,
+                );
+
+                if (parentType) {
+                  const llvmType = this.resolveMonomorphizedType(
+                    ownerDecl,
+                    parentType.genericArgs,
+                  );
+                  structName = llvmType.substring(8); // Strip %struct.
+                  targetThisType = `${llvmType}*`;
+
+                  // Populate callSubstitutionMap for generic parent
+                  if (ownerDecl.genericParams.length > 0) {
+                    for (let i = 0; i < ownerDecl.genericParams.length; i++) {
+                      if (i < parentType.genericArgs.length) {
+                        callSubstitutionMap.set(
+                          ownerDecl.genericParams[i]!.name,
+                          parentType.genericArgs[i]!,
+                        );
+                        // Also populate contextMap for mangling
+                        if (!contextMap) contextMap = new Map();
+                        contextMap.set(
+                          ownerDecl.genericParams[i]!.name,
+                          parentType.genericArgs[i]!,
+                        );
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          decl = expr.resolvedDeclaration;
+
+          // If we found a concrete owner, try to find the method declaration there
+          if (ownerDecl) {
+            const isDeclaredInOwner =
+              decl && ownerDecl.members.includes(decl as any);
+
+            if (!isDeclaredInOwner) {
+              const candidates = ownerDecl.members.filter(
+                (m) =>
+                  m.kind === "FunctionDecl" && m.name === memberExpr.property,
+              ) as AST.FunctionDecl[];
+
+              if (candidates.length === 1) {
+                decl = candidates[0];
+              } else if (
+                candidates.length > 1 &&
+                decl &&
+                decl.kind === "FunctionDecl"
+              ) {
+                const targetParams = (decl as AST.FunctionDecl).params;
+                const targetParamTypes = targetParams
+                  .slice(1)
+                  .map((p) => p.type);
+
+                const match = candidates.find((c) => {
+                  if (
+                    c.genericParams.length !==
+                    (decl as AST.FunctionDecl).genericParams.length
+                  )
+                    return false;
+
+                  const cParams = c.params.slice(1).map((p) => p.type);
+                  if (cParams.length !== targetParamTypes.length) return false;
+                  return cParams.every(
+                    (t, i) =>
+                      this.resolveType(t) ===
+                      this.resolveType(targetParamTypes[i]!),
+                  );
+                });
+
+                if (match) {
+                  decl = match;
+                }
+              }
+            }
+          }
+
+          // Check for virtual method dispatch
+          // Only for instance calls (not static calls like Struct.new())
+          // And only if the struct has a vtable
+          if (this.vtableLayouts.has(structName)) {
+            const layout = this.vtableLayouts.get(structName)!;
+
+            let lookupName = memberExpr.property;
+            // Try to resolve specific overload using resolvedDeclaration
+            // Use 'decl' if available (it might be the concrete implementation found in owner)
+            const targetDecl =
+              (decl as AST.FunctionDecl) ||
+              (expr.resolvedDeclaration as AST.FunctionDecl);
+
+            if (targetDecl && targetDecl.kind === "FunctionDecl") {
+              if (
+                targetDecl.resolvedType &&
+                targetDecl.resolvedType.kind === "FunctionType"
+              ) {
+                let typeToMangle =
+                  targetDecl.resolvedType as AST.FunctionTypeNode;
+                if (callSubstitutionMap.size > 0) {
+                  typeToMangle = this.substituteType(
+                    typeToMangle,
+                    callSubstitutionMap,
+                  ) as AST.FunctionTypeNode;
+                }
+                // Use VTable naming convention (skip 'this' parameter).
+                // The VTable keys are generated using `getVTableMethodName` in TypeGenerator,
+                // which explicitly skips the first parameter (this) to create a consistent key
+                // regardless of the specific 'this' type (e.g. Parent* vs Child*).
+                const paramTypes = typeToMangle.paramTypes.slice(1);
+                const mangledParams = paramTypes
+                  .map((t) => this.mangleType(t))
+                  .join("_");
+                lookupName = `${targetDecl.name}_${mangledParams}`;
+              }
+            }
+
+            const methodIndex = layout.indexOf(lookupName);
+
+            if (methodIndex !== -1) {
+              // It is a virtual method!
+              // We need to handle arguments generation here because generateVirtualCall takes expressions.
+              // argsToGenerate is already set to [memberExpr.object, ...expr.args] for instance calls?
+              // No, argsToGenerate is initialized to expr.args.
+              // But for virtual call, we pass expr.args to generateVirtualCall, and it handles 'this' (memberExpr.object).
+              // So we pass expr.args.
+
+              return this.generateVirtualCall(
+                expr,
+                memberExpr,
+                structName,
+                methodIndex,
+                expr.args,
+              );
+            }
           }
 
           prefix = structName; // e.g. Box_double
@@ -2327,6 +2937,9 @@ export abstract class ExpressionGenerator extends TypeGenerator {
                 prefix = structName;
               }
             }
+
+            ownerDecl = this.findMethodOwner(structName, memberExpr.property);
+
             // Static call: no extra argument
           } else {
             throw new CompilerError(
@@ -2343,114 +2956,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           );
         }
 
-        // Check for inherited method
-        const ownerDecl = this.findMethodOwner(structName, memberExpr.property);
-        if (
-          ownerDecl &&
-          ownerDecl.name !== (objType as AST.BasicTypeNode).name
-        ) {
-          // Inherited method
-          if (ownerDecl.genericParams.length === 0) {
-            // Parent is not generic, use its name directly
-            structName = ownerDecl.name;
-            targetThisType = `%struct.${structName}*`;
-          } else {
-            // Generic parent inheritance
-            const childDecl = this.structMap.get(
-              (objType as AST.BasicTypeNode).name,
-            );
-            if (childDecl) {
-              const parentType = this.findInstantiatedParentType(
-                childDecl,
-                objType as AST.BasicTypeNode,
-                ownerDecl.name,
-              );
-
-              if (parentType) {
-                const llvmType = this.resolveMonomorphizedType(
-                  ownerDecl,
-                  parentType.genericArgs,
-                );
-                structName = llvmType.substring(8); // Strip %struct.
-                targetThisType = `${llvmType}*`;
-
-                // Populate callSubstitutionMap for generic parent
-                if (ownerDecl.genericParams.length > 0) {
-                  for (let i = 0; i < ownerDecl.genericParams.length; i++) {
-                    if (i < parentType.genericArgs.length) {
-                      callSubstitutionMap.set(
-                        ownerDecl.genericParams[i]!.name,
-                        parentType.genericArgs[i]!,
-                      );
-                      // Also populate contextMap for mangling
-                      if (!contextMap) contextMap = new Map();
-                      contextMap.set(
-                        ownerDecl.genericParams[i]!.name,
-                        parentType.genericArgs[i]!,
-                      );
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-
         funcName = `${structName}_${memberExpr.property}`;
-
-        decl = expr.resolvedDeclaration;
-
-        // If we found a concrete owner, try to find the method declaration there
-        // This fixes issues where TypeChecker resolved to interface/parent method
-        // but we are calling a concrete implementation with different signature (e.g. 'this' type)
-        if (ownerDecl) {
-          // Check if the resolved declaration is already in the owner
-          // If it is, we respect the TypeChecker's choice (handles overloads)
-          const isDeclaredInOwner =
-            decl && ownerDecl.members.includes(decl as any);
-
-          if (!isDeclaredInOwner) {
-            const candidates = ownerDecl.members.filter(
-              (m) =>
-                m.kind === "FunctionDecl" && m.name === memberExpr.property,
-            ) as AST.FunctionDecl[];
-
-            if (candidates.length === 1) {
-              decl = candidates[0];
-            } else if (
-              candidates.length > 1 &&
-              decl &&
-              decl.kind === "FunctionDecl"
-            ) {
-              // Multiple overloads in owner - try to match signature of original decl
-              const targetParams = (decl as AST.FunctionDecl).params;
-              // Skip 'this' (first param)
-              const targetParamTypes = targetParams.slice(1).map((p) => p.type);
-
-              const match = candidates.find((c) => {
-                // Check generic params count match
-                if (
-                  c.genericParams.length !==
-                  (decl as AST.FunctionDecl).genericParams.length
-                )
-                  return false;
-
-                const cParams = c.params.slice(1).map((p) => p.type);
-                if (cParams.length !== targetParamTypes.length) return false;
-                // Compare resolved types
-                return cParams.every(
-                  (t, i) =>
-                    this.resolveType(t) ===
-                    this.resolveType(targetParamTypes[i]!),
-                );
-              });
-
-              if (match) {
-                decl = match;
-              }
-            }
-          }
-        }
 
         if (
           !decl &&
@@ -2520,25 +3026,40 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     if (callee.kind === "Identifier") {
       const ident = callee as AST.IdentifierExpr;
       if (this.locals.has(ident.name)) {
-        // Indirect call (closure)
+        // Indirect call
         isIndirectCall = true;
-        const closureType = this.resolveType(ident.resolvedType!);
-        const addr = this.generateAddress(ident);
-        const closureVal = this.newRegister();
-        // addr is closureType*
-        this.emit(
-          `  ${closureVal} = load ${closureType}, ${closureType}* ${addr}`,
-        );
+        const type = ident.resolvedType!;
 
-        const funcPtr = this.newRegister();
-        this.emit(
-          `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
-        );
-        callTarget = funcPtr;
+        if (type.kind === "FunctionType") {
+          // Raw pointer
+          const funcType = this.resolveType(type);
+          const addr = this.generateAddress(ident);
+          const funcPtr = this.newRegister();
+          this.emit(`  ${funcPtr} = load ${funcType}, ${funcType}* ${addr}`);
+          callTarget = funcPtr;
+          closureCtx = "null";
+        } else {
+          // Closure (LambdaType)
+          const closureType = this.resolveType(type);
+          const addr = this.generateAddress(ident);
+          const closureVal = this.newRegister();
+          // addr is closureType*
+          this.emit(
+            `  ${closureVal} = load ${closureType}, ${closureType}* ${addr}`,
+          );
 
-        const ctxPtr = this.newRegister();
-        this.emit(`  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`);
-        closureCtx = ctxPtr;
+          const funcPtr = this.newRegister();
+          this.emit(
+            `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
+          );
+          callTarget = funcPtr;
+
+          const ctxPtr = this.newRegister();
+          this.emit(
+            `  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`,
+          );
+          closureCtx = ctxPtr;
+        }
       } else {
         callTarget = `@${funcName}`;
       }
@@ -2560,22 +3081,32 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         const layout = this.structLayouts.get(structName);
         if (layout && layout.has(memberExpr.property)) {
           // It IS a field! Indirect call.
-          // We should generate the member access to get the closure struct.
-          const closureVal = this.generateMember(memberExpr); // Get closure struct value
           isIndirectCall = true;
-          const closureType = this.resolveType(memberExpr.resolvedType!);
+          const type = memberExpr.resolvedType!;
 
-          const funcPtr = this.newRegister();
-          this.emit(
-            `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
-          );
-          callTarget = funcPtr;
+          if (type.kind === "FunctionType") {
+            // Raw pointer field
+            const funcPtr = this.generateMember(memberExpr);
+            callTarget = funcPtr;
+            closureCtx = "null";
+          } else {
+            // Closure field
+            // We should generate the member access to get the closure struct.
+            const closureVal = this.generateMember(memberExpr); // Get closure struct value
+            const closureType = this.resolveType(memberExpr.resolvedType!);
 
-          const ctxPtr = this.newRegister();
-          this.emit(
-            `  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`,
-          );
-          closureCtx = ctxPtr;
+            const funcPtr = this.newRegister();
+            this.emit(
+              `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
+            );
+            callTarget = funcPtr;
+
+            const ctxPtr = this.newRegister();
+            this.emit(
+              `  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`,
+            );
+            closureCtx = ctxPtr;
+          }
 
           // Reset args (remove "this" injection done for methods)
           if (isInstanceCall) {
@@ -2584,31 +3115,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           }
         } else {
           // Method call
-          const vtableMethods = this.vtableLayouts.get(structName)!;
           let useVirtualCall = false;
-
-          if (
-            isInstanceCall &&
-            vtableMethods &&
-            vtableMethods.includes(memberExpr.property) &&
-            genericArgs.length === 0
-          ) {
-            useVirtualCall = true;
-            // Verify overload match - only the first non-generic overload is in the vtable
-            // If we are calling a different overload, we must use direct call
-            const owner = this.findMethodOwner(structName, memberExpr.property);
-            if (owner && decl) {
-              const vtableDecl = owner.members.find(
-                (m) =>
-                  m.kind === "FunctionDecl" &&
-                  m.name === memberExpr.property &&
-                  (m as AST.FunctionDecl).genericParams.length === 0,
-              );
-              if (vtableDecl !== decl) {
-                useVirtualCall = false;
-              }
-            }
-          }
 
           if (useVirtualCall) {
             // Generate indirect call via vtable
@@ -2654,6 +3161,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
               const vtableArrayPtr = this.newRegister();
               this.emit(`  ${vtableArrayPtr} = bitcast i8* ${vptr} to i8**`);
 
+              const vtableMethods = this.vtableLayouts.get(structName)!;
               const methodIndex = vtableMethods.indexOf(memberExpr.property);
               const funcPtrPtr = this.newRegister();
               this.emit(
@@ -2664,7 +3172,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
               this.emit(`  ${funcPtrI8} = load i8*, i8** ${funcPtrPtr}`);
 
               const funcType = expr.callee.resolvedType as AST.FunctionTypeNode;
-              // Fix: resolveType returns closure struct type, but we need raw function pointer type
+              // We need the raw function pointer type, not the closure struct type
               const retType = this.resolveType(funcType.returnType);
               const paramTypes = funcType.paramTypes.map((p) =>
                 this.resolveType(p),
@@ -2690,19 +3198,28 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         callTarget = `@${funcName}`;
       }
     } else {
-      // Other expressions (Index, Call, etc) evaluating to closure struct
+      // Other expressions (Index, Call, etc) evaluating to closure struct or func ptr
       // e.g. arr[0]()
       isIndirectCall = true;
-      const closureType = this.resolveType(callee.resolvedType!);
-      const closureVal = this.generateExpression(callee);
+      const type = callee.resolvedType!;
 
-      const funcPtr = this.newRegister();
-      this.emit(`  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`);
-      callTarget = funcPtr;
+      if (type.kind === "FunctionType") {
+        callTarget = this.generateExpression(callee);
+        closureCtx = "null";
+      } else {
+        const closureType = this.resolveType(callee.resolvedType!);
+        const closureVal = this.generateExpression(callee);
 
-      const ctxPtr = this.newRegister();
-      this.emit(`  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`);
-      closureCtx = ctxPtr;
+        const funcPtr = this.newRegister();
+        this.emit(
+          `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
+        );
+        callTarget = funcPtr;
+
+        const ctxPtr = this.newRegister();
+        this.emit(`  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`);
+        closureCtx = ctxPtr;
+      }
     }
 
     const funcType = expr.callee.resolvedType as AST.FunctionTypeNode;
@@ -3051,7 +3568,6 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       } else {
         // Fallback for function pointers etc.
         // Assume standard BPL variadic: (...args, count) -> 2 extra params in signature compared to fixed args
-        // But wait, paramTypes includes fixed args.
         // If signature is (a, b, ...args, count), paramTypes is [a, b, args, count].
         // fixedCount should be 2. Length is 4. So length - 2.
         if (funcType.paramTypes.length >= 2) {
@@ -3969,6 +4485,211 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     return "0";
   }
 
+  protected getAllSpecMethods(specDecl: AST.SpecDecl): AST.SpecMethod[] {
+    let methods: AST.SpecMethod[] = [];
+
+    if (specDecl.extends) {
+      for (const parentType of specDecl.extends) {
+        if (parentType.kind === "BasicType") {
+          let parentSpec = this.specMap.get(parentType.name);
+          if (
+            !parentSpec &&
+            parentType.resolvedDeclaration &&
+            parentType.resolvedDeclaration.kind === "SpecDecl"
+          ) {
+            parentSpec = parentType.resolvedDeclaration as AST.SpecDecl;
+          }
+          if (parentSpec) {
+            methods = methods.concat(this.getAllSpecMethods(parentSpec));
+          }
+        }
+      }
+    }
+
+    methods = methods.concat(specDecl.methods);
+    return methods;
+  }
+
+  protected getOrGenerateSpecVTable(
+    structType: AST.BasicTypeNode,
+    specType: AST.BasicTypeNode,
+  ): string {
+    // Resolve struct name (handling generics)
+    let structName = structType.name;
+    let structDecl = this.structMap.get(structName);
+
+    if (!structDecl && structType.resolvedDeclaration) {
+      structDecl = structType.resolvedDeclaration as AST.StructDecl;
+      structName = structDecl.name;
+    }
+
+    if (!structDecl) {
+      throw new Error(`Cannot find struct declaration for ${structName}`);
+    }
+
+    // Resolve spec name
+    let specName = specType.name;
+    let specDecl = this.specMap.get(specName);
+
+    if (!specDecl && specType.resolvedDeclaration) {
+      specDecl = specType.resolvedDeclaration as AST.SpecDecl;
+      specName = specDecl.name;
+    }
+
+    if (!specDecl) {
+      throw new Error(`Cannot find spec declaration for ${specName}`);
+    }
+
+    // Construct unique vtable name including generic args
+    let vtableName = `__vtable_${structName}`;
+    if (structType.genericArgs.length > 0) {
+      const args = structType.genericArgs
+        .map((a) => this.resolveType(a))
+        .join("_")
+        .replace(/[^a-zA-Z0-9_]/g, "_");
+      vtableName += `_${args}`;
+    }
+    vtableName += `_${specName}`;
+    if (specType.genericArgs.length > 0) {
+      const args = specType.genericArgs
+        .map((a) => this.resolveType(a))
+        .join("_")
+        .replace(/[^a-zA-Z0-9_]/g, "_");
+      vtableName += `_${args}`;
+    }
+
+    if (this.generatedStructs.has(vtableName)) {
+      return vtableName;
+    }
+
+    // Create type map for substitution
+    const typeMap = new Map<string, AST.TypeNode>();
+    if (structDecl.genericParams) {
+      for (let i = 0; i < structDecl.genericParams.length; i++) {
+        if (i < structType.genericArgs.length) {
+          typeMap.set(
+            structDecl.genericParams[i]!.name,
+            structType.genericArgs[i]!,
+          );
+        }
+      }
+    }
+    // TODO: Handle spec generics if needed
+
+    // Calculate struct mangled name for method lookup
+    let structMangledName = structName;
+    if (structType.genericArgs.length > 0) {
+      const args = structType.genericArgs
+        .map((a) => this.mangleType(a))
+        .join("_");
+      structMangledName = `${structName}_${args}`;
+    }
+
+    const entries: string[] = [];
+    const allMethods = this.getAllSpecMethods(specDecl);
+
+    for (const method of allMethods) {
+      const implMethod = structDecl.members.find(
+        (m) => m.kind === "FunctionDecl" && m.name === method.name,
+      ) as AST.FunctionDecl;
+
+      if (!implMethod) {
+        throw new Error(
+          `Struct ${structName} does not implement method ${method.name} of spec ${specName}`,
+        );
+      }
+
+      const thunkName = `__thunk_${vtableName}_${method.name}`;
+
+      // Resolve implementation function type with substitutions
+      let funcType = implMethod.resolvedType as AST.FunctionTypeNode;
+      if (typeMap.size > 0) {
+        funcType = this.substituteType(
+          funcType,
+          typeMap,
+        ) as AST.FunctionTypeNode;
+      }
+
+      const retType = this.resolveType(funcType.returnType);
+      const paramTypes = funcType.paramTypes
+        .slice(1)
+        .map((t) => this.resolveType(t));
+      const paramNames = paramTypes.map((_, i) => `%p${i}`);
+      const paramsStr = [
+        "i8* %this_void",
+        ...paramTypes.map((t, i) => `${t} ${paramNames[i]}`),
+      ].join(", ");
+
+      const thunkBody: string[] = [];
+      thunkBody.push(
+        `define linkonce_odr ${retType} @${thunkName}(${paramsStr}) {`,
+      );
+      thunkBody.push(`entry:`);
+
+      // Cast this
+      // We need the struct type string (e.g. %struct.MyStruct or %struct.MyStruct_i32)
+      // We can use resolveType on the substituted first param
+      const firstParamType = this.resolveType(funcType.paramTypes[0]!);
+      // firstParamType is like %struct.MyStruct or %struct.MyStruct*
+
+      let structTypeStr = firstParamType;
+      if (structTypeStr.endsWith("*")) {
+        structTypeStr = structTypeStr.slice(0, -1);
+      }
+
+      thunkBody.push(
+        `  %this_ptr = bitcast i8* %this_void to ${structTypeStr}*`,
+      );
+
+      let thisArg = "%this_ptr";
+      if (!firstParamType.endsWith("*")) {
+        // By value
+        thunkBody.push(
+          `  %this_val = load ${structTypeStr}, ${structTypeStr}* %this_ptr`,
+        );
+        thisArg = "%this_val";
+      }
+
+      // Get mangled name of implementation
+      // We already substituted funcType.
+      const methodName = `${structMangledName}_${implMethod.name}`;
+      const implName = this.getMangledName(methodName, funcType, false, []);
+
+      const args = [thisArg, ...paramNames].join(", ");
+      const argTypes = [firstParamType, ...paramTypes];
+      const typedArgs = argTypes
+        .map((t, i) => `${t} ${i === 0 ? thisArg : paramNames[i - 1]}`)
+        .join(", ");
+
+      if (retType === "void") {
+        thunkBody.push(`  call void @${implName}(${typedArgs})`);
+        thunkBody.push(`  ret void`);
+      } else {
+        thunkBody.push(`  %ret = call ${retType} @${implName}(${typedArgs})`);
+        thunkBody.push(`  ret ${retType} %ret`);
+      }
+      thunkBody.push(`}`);
+
+      this.declarationsOutput.push(thunkBody.join("\n"));
+
+      // Add to entries
+      const paramTypesStr =
+        paramTypes.length > 0 ? `, ${paramTypes.join(", ")}` : "";
+      const thunkSig = `${retType} (i8*${paramTypesStr})`;
+      entries.push(`i8* bitcast (${thunkSig}* @${thunkName} to i8*)`);
+    }
+
+    // Emit VTable
+    const arrayType = `[${entries.length} x i8*]`;
+    const arrayContent = `[${entries.join(", ")}]`;
+    this.declarationsOutput.push(
+      `@${vtableName} = linkonce_odr constant ${arrayType} ${arrayContent}`,
+    );
+    this.generatedStructs.add(vtableName);
+
+    return vtableName;
+  }
+
   protected generateCast(expr: AST.CastExpr): string {
     const val = this.generateExpression(expr.expression);
     const srcType = this.resolveType(expr.expression.resolvedType!);
@@ -4090,6 +4811,59 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       return reg;
     }
 
+    // Struct -> Spec (Fat Pointer Construction)
+    if (
+      srcTypeNode.kind === "BasicType" &&
+      destTypeNode.kind === "BasicType" &&
+      destType === "{ i8*, i8* }"
+    ) {
+      // 1. Get pointer to object
+      let objPtr: string;
+      if (!srcType.endsWith("*")) {
+        const alloca = this.newRegister();
+        this.emit(`  ${alloca} = alloca ${srcType}`);
+        this.emit(`  store ${srcType} ${val}, ${srcType}* ${alloca}`);
+        const castPtr = this.newRegister();
+        this.emit(`  ${castPtr} = bitcast ${srcType}* ${alloca} to i8*`);
+        objPtr = castPtr;
+      } else {
+        const castPtr = this.newRegister();
+        this.emit(`  ${castPtr} = bitcast ${srcType} ${val} to i8*`);
+        objPtr = castPtr;
+      }
+
+      // 2. Get VTable pointer
+      const vtableName = this.getOrGenerateSpecVTable(
+        srcTypeNode as AST.BasicTypeNode,
+        destTypeNode as AST.BasicTypeNode,
+      );
+
+      const specName = (destTypeNode as AST.BasicTypeNode).name;
+      let specDecl = this.specMap.get(specName);
+      if (!specDecl && destTypeNode.resolvedDeclaration) {
+        specDecl = destTypeNode.resolvedDeclaration as AST.SpecDecl;
+      }
+      const size = specDecl ? this.getAllSpecMethods(specDecl).length : 0;
+
+      const vtablePtr = this.newRegister();
+
+      this.emit(
+        `  ${vtablePtr} = bitcast [${size} x i8*]* @${vtableName} to i8*`,
+      );
+
+      // 3. Construct Fat Pointer
+      const fatPtr1 = this.newRegister();
+      this.emit(
+        `  ${fatPtr1} = insertvalue { i8*, i8* } undef, i8* ${objPtr}, 0`,
+      );
+      const fatPtr2 = this.newRegister();
+      this.emit(
+        `  ${fatPtr2} = insertvalue { i8*, i8* } ${fatPtr1}, i8* ${vtablePtr}, 1`,
+      );
+
+      return fatPtr2;
+    }
+
     // Struct <-> Primitive inheritance casts
     if (
       srcTypeNode.kind === "BasicType" &&
@@ -4174,6 +4948,61 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     if (srcType.endsWith("*") && destType === "i8*") {
       this.emit(`  ${reg} = bitcast ${srcType} ${val} to ${destType}`);
       return reg;
+    }
+
+    // Struct* -> Spec* (Fat Pointer Construction on Stack)
+    if (
+      srcTypeNode.kind === "BasicType" &&
+      destTypeNode.kind === "BasicType" &&
+      (srcTypeNode as AST.BasicTypeNode).pointerDepth > 0 &&
+      (destTypeNode as AST.BasicTypeNode).pointerDepth > 0 &&
+      destType === "{ i8*, i8* }*"
+    ) {
+      const srcBasic = srcTypeNode as AST.BasicTypeNode;
+      const destBasic = destTypeNode as AST.BasicTypeNode;
+
+      // 1. Get pointer to object (which is just val, since val is Struct*)
+      const objPtr = this.newRegister();
+      this.emit(`  ${objPtr} = bitcast ${srcType} ${val} to i8*`);
+
+      // 2. Get VTable pointer
+      const vtableName = this.getOrGenerateSpecVTable(srcBasic, destBasic);
+
+      const specName = destBasic.name;
+      let specDecl = this.specMap.get(specName);
+      if (!specDecl && destBasic.resolvedDeclaration) {
+        specDecl = destBasic.resolvedDeclaration as AST.SpecDecl;
+      }
+      const size = specDecl ? this.getAllSpecMethods(specDecl).length : 0;
+
+      const vtablePtr = this.newRegister();
+      this.emit(
+        `  ${vtablePtr} = bitcast [${size} x i8*]* @${vtableName} to i8*`,
+      );
+
+      // 3. Construct Fat Pointer on Stack
+      const fatPtrType = "{ i8*, i8* }";
+      const fatPtrAlloc = this.allocateStack(
+        `fat_ptr_${this.labelCount++}`,
+        fatPtrType,
+      );
+
+      // Store obj pointer
+      const objField = this.newRegister();
+      this.emit(
+        `  ${objField} = getelementptr inbounds ${fatPtrType}, ${fatPtrType}* ${fatPtrAlloc}, i32 0, i32 0`,
+      );
+      this.emit(`  store i8* ${objPtr}, i8** ${objField}`);
+
+      // Store vtable pointer
+      const vtableField = this.newRegister();
+      this.emit(
+        `  ${vtableField} = getelementptr inbounds ${fatPtrType}, ${fatPtrType}* ${fatPtrAlloc}, i32 0, i32 1`,
+      );
+      this.emit(`  store i8* ${vtablePtr}, i8** ${vtableField}`);
+
+      // Return pointer to fat pointer
+      return fatPtrAlloc;
     }
 
     // Pointer casts

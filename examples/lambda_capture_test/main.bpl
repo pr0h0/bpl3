@@ -8,7 +8,7 @@ struct Point {
 frame main() ret int {
     # 1. Primitive Capture (Copy)
     local x: int = 5;
-    local cb_int: Func<int>() = || ret int {
+    local cb_int: Lambda<int>() = || ret int {
         return x;
     };
     x = 10;
@@ -19,7 +19,7 @@ frame main() ret int {
     p.x = 100;
     p.y = 200;
 
-    local cb_struct: Func<int>() = || ret int {
+    local cb_struct: Lambda<int>() = || ret int {
         return p.x;
     };
 
@@ -30,7 +30,7 @@ frame main() ret int {
     local val: int = 1000;
     local ptr: *int = &val;
 
-    local cb_ptr: Func<int>() = || ret int {
+    local cb_ptr: Lambda<int>() = || ret int {
         return *ptr;
     };
 

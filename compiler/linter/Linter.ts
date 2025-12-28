@@ -43,12 +43,7 @@ export class Linter {
           node.location,
           code,
         );
-        // We can't set severity on CompilerError directly as it's private,
-        // but we can use a subclass or just treat them as warnings later.
-        // Actually CompilerError has setSeverity method? Let's check.
-        // It doesn't seem to have a public setter in the interface I read.
-        // But DiagnosticFormatter handles severity passed to formatError.
-        // So we will store them and the caller will format them as warnings.
+        // We store the error and the caller will format it as a warning.
         this.errors.push(error);
       },
     };

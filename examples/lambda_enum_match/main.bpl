@@ -7,11 +7,11 @@ enum Operation {
     Clear,
 }
 
-type OpFunc = Func<int>(int);
+type OpFunc = Lambda<int>(int);
 
 frame main() ret int {
     # Scenario 1: Lambda matching on Enum
-    local processor: Func<int>(int, Operation) = |current: int, op: Operation| ret int {
+    local processor: Lambda<int>(int, Operation) = |current: int, op: Operation| ret int {
         return match (op) {
             Operation.Add(x) => current + x,
             Operation.Sub(x) => current - x,

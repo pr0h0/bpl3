@@ -136,7 +136,7 @@ struct Array<T> {
     #/
 
     # Maps elements to a new array using a transformation function
-    frame map<U>(this: *Array<T>, transform: Func<U>(T, int)) ret Array<U> {
+    frame map<U>(this: *Array<T>, transform: Lambda<U>(T, int)) ret Array<U> {
         local result: Array<U> = Array<U>.new(this.capacity);
         local i: int = 0;
         loop (i < this.length) {
@@ -147,7 +147,7 @@ struct Array<T> {
     }
 
     # Filters elements based on a predicate function
-    frame filter(this: *Array<T>, predicate: Func<bool>(T, int)) ret Array<T> {
+    frame filter(this: *Array<T>, predicate: Lambda<bool>(T, int)) ret Array<T> {
         local result: Array<T> = Array<T>.new(this.capacity);
         local i: int = 0;
         loop (i < this.length) {
@@ -160,7 +160,7 @@ struct Array<T> {
     }
 
     # Reduces the array to a single value using a reducer function
-    frame reduce<U>(this: *Array<T>, initial: U, reducer: Func<U>(U, T, int)) ret U {
+    frame reduce<U>(this: *Array<T>, initial: U, reducer: Lambda<U>(U, T, int)) ret U {
         local accumulator: U = initial;
         local i: int = 0;
         loop (i < this.length) {
@@ -171,7 +171,7 @@ struct Array<T> {
     }
 
     # Iterates over each element and applies an action
-    frame forEach(this: *Array<T>, action: Func<void>(T, int)) {
+    frame forEach(this: *Array<T>, action: Lambda<void>(T, int)) {
         local i: int = 0;
         loop (i < this.length) {
             action(this.data[i], i);
@@ -180,7 +180,7 @@ struct Array<T> {
     }
 
     # Finds the first element matching the predicate
-    frame find(this: *Array<T>, predicate: Func<bool>(T)) ret Option<T> {
+    frame find(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<T> {
         local i: int = 0;
         loop (i < this.length) {
             if (predicate(this.data[i])) {
@@ -192,7 +192,7 @@ struct Array<T> {
     }
 
     # Checks if every element matches the predicate
-    frame every(this: *Array<T>, predicate: Func<bool>(T)) ret bool {
+    frame every(this: *Array<T>, predicate: Lambda<bool>(T)) ret bool {
         local i: int = 0;
         loop (i < this.length) {
             if (!predicate(this.data[i])) {
@@ -204,7 +204,7 @@ struct Array<T> {
     }
 
     # Checks if at least one element matches the predicate
-    frame some(this: *Array<T>, predicate: Func<bool>(T)) ret bool {
+    frame some(this: *Array<T>, predicate: Lambda<bool>(T)) ret bool {
         local i: int = 0;
         loop (i < this.length) {
             if (predicate(this.data[i])) {
@@ -233,7 +233,7 @@ struct Array<T> {
     }
 
     # Finds the first element matching the predicate
-    frame findIndex(this: *Array<T>, predicate: Func<bool>(T)) ret Option<int> {
+    frame findIndex(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<int> {
         local i: int = 0;
         loop (i < this.length) {
             if (predicate(this.data[i])) {

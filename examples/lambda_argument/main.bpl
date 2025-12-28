@@ -1,6 +1,6 @@
 extern printf(fmt: string, ...);
 
-type IntOp = Func<int>(int, int);
+type IntOp = Lambda<int>(int, int);
 
 frame apply(op: IntOp, a: int, b: int) ret int {
     return op(a, b);

@@ -534,7 +534,12 @@ function processCodeInternal(
         console.log(`LLVM IR written to ${outputPath}`);
       }
 
-      if (options.emit === "llvm") {
+      if (
+        options.emit === "llvm" ||
+        options.run ||
+        options.emit === "binary" ||
+        !options.emit
+      ) {
         compileBinaryAndRun(outputPath, options, programArgs);
       }
     }

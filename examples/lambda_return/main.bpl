@@ -1,6 +1,6 @@
 extern printf(fmt: string, ...);
 
-type Adder = Func<int>(int);
+type Adder = Lambda<int>(int);
 
 frame makeAdder(x: int) ret Adder {
     return |y: int| ret int {

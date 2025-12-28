@@ -114,7 +114,12 @@ export class TypeUtils {
       const params = type.paramTypes
         .map((p) => TypeUtils.typeToString(p))
         .join(", ");
-      return `(${params}) => ${TypeUtils.typeToString(type.returnType)}`;
+      return `Func<${TypeUtils.typeToString(type.returnType)}>(${params})`;
+    } else if (type.kind === "LambdaType") {
+      const params = type.paramTypes
+        .map((p) => TypeUtils.typeToString(p))
+        .join(", ");
+      return `Lambda<${TypeUtils.typeToString(type.returnType)}>(${params})`;
     } else if (type.kind === "TupleType") {
       return (
         "(" + type.types.map((t) => TypeUtils.typeToString(t)).join(", ") + ")"
@@ -461,7 +466,15 @@ export class TypeComparison {
 
     // 1. Check basic kind
     if (rt1.kind !== rt2.kind) {
-      return false;
+      // Allow FunctionType vs LambdaType compatibility check
+      const isFuncOrLambda1 =
+        rt1.kind === "FunctionType" || rt1.kind === "LambdaType";
+      const isFuncOrLambda2 =
+        rt2.kind === "FunctionType" || rt2.kind === "LambdaType";
+
+      if (!isFuncOrLambda1 || !isFuncOrLambda2) {
+        return false;
+      }
     }
 
     // 2. Handle BasicType
@@ -554,13 +567,33 @@ export class TypeComparison {
       }
 
       return true;
-    } else if (rt1.kind === "FunctionType" && rt2.kind === "FunctionType") {
-      if (!this.areTypesCompatible(rt1.returnType, rt2.returnType))
+    } else if (
+      (rt1.kind === "FunctionType" || rt1.kind === "LambdaType") &&
+      (rt2.kind === "FunctionType" || rt2.kind === "LambdaType")
+    ) {
+      console.error(`Checking compatibility: ${rt1.kind} vs ${rt2.kind}`);
+      // Func <- Lambda : Error (unless stateless, but that's handled by checkLambda returning Func)
+      if (rt1.kind === "FunctionType" && rt2.kind === "LambdaType") {
+        console.error("Func <- Lambda is not allowed");
         return false;
-      if (rt1.paramTypes.length !== rt2.paramTypes.length) return false;
-      for (let i = 0; i < rt1.paramTypes.length; i++) {
-        if (!this.areTypesCompatible(rt1.paramTypes[i]!, rt2.paramTypes[i]!))
+      }
+
+      const f1 = rt1 as AST.FunctionTypeNode | AST.LambdaTypeNode;
+      const f2 = rt2 as AST.FunctionTypeNode | AST.LambdaTypeNode;
+
+      if (!this.areTypesCompatible(f1.returnType, f2.returnType)) {
+        console.error("Return types incompatible");
+        return false;
+      }
+      if (f1.paramTypes.length !== f2.paramTypes.length) {
+        console.error("Param length mismatch");
+        return false;
+      }
+      for (let i = 0; i < f1.paramTypes.length; i++) {
+        if (!this.areTypesCompatible(f1.paramTypes[i]!, f2.paramTypes[i]!)) {
+          console.error(`Param ${i} incompatible`);
           return false;
+        }
       }
       return true;
     } else if (rt1.kind === "TupleType" && rt2.kind === "TupleType") {
@@ -746,6 +779,14 @@ export class TypeSubstitution {
         types: type.types.map((t) => TypeSubstitution.substituteType(t, map)),
       };
     } else if (type.kind === "FunctionType") {
+      return {
+        ...type,
+        returnType: TypeSubstitution.substituteType(type.returnType, map),
+        paramTypes: type.paramTypes.map((t) =>
+          TypeSubstitution.substituteType(t, map),
+        ),
+      };
+    } else if (type.kind === "LambdaType") {
       return {
         ...type,
         returnType: TypeSubstitution.substituteType(type.returnType, map),

@@ -62,6 +62,7 @@ export class BaseCodeGenerator {
   protected isMainWithVoidReturn: boolean = false;
   protected structLayouts: Map<string, Map<string, number>> = new Map();
   protected structMap: Map<string, AST.StructDecl> = new Map();
+  protected specMap: Map<string, AST.SpecDecl> = new Map();
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];
   protected declaredFunctions: Set<string> = new Set();
   protected globals: Set<string> = new Set();

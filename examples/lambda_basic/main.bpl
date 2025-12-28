@@ -1,7 +1,7 @@
 extern printf(fmt: string, ...);
 
 frame main() ret int {
-    local f: Func<int>(int, int) = |a: int, b: int| ret int {
+    local f: Lambda<int>(int, int) = |a: int, b: int| ret int {
         return a * b;
     };
 

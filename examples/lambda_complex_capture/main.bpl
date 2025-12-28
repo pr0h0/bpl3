@@ -1,6 +1,6 @@
 extern printf(fmt: string, ...);
 
-type Processor = Func<void>(int);
+type Processor = Lambda<void>(int);
 
 frame main() ret int {
     local a: int = 100;

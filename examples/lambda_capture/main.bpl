@@ -2,7 +2,7 @@ extern printf(fmt: string, ...);
 
 frame main() ret int {
     local x: int = 10;
-    local f: Func<int>(int) = |y: int| ret int {
+    local f: Lambda<int>(int) = |y: int| ret int {
         return x + y;
     };
 

@@ -48,6 +48,10 @@
     return { kind: "FunctionType", returnType: ret, paramTypes: params || [], location: makeLoc(loc) };
   }
 
+  function lambdaType(ret, params, loc) {
+    return { kind: "LambdaType", returnType: ret, paramTypes: params || [], location: makeLoc(loc) };
+  }
+
   function literal(value, raw, type, loc) {
     return { kind: "Literal", value, raw, type, location: makeLoc(loc) };
   }
@@ -1241,11 +1245,15 @@ Type
 
 BaseType
   = FunctionType
+  / LambdaType
   / TupleType
   / BasicType
 
 FunctionType
   = K_Func _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" { return functionType(ret, params || [], location()); }
+
+LambdaType
+  = K_Lambda _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" { return lambdaType(ret, params || [], location()); }
 
 TypeList
   = head:Type tail:(_ "," _ Type)* { return [head, ...tail.map(t => t[3])]; }
@@ -1317,6 +1325,7 @@ K_sizeof = "sizeof" IdBoundary
 K_match = "match" IdBoundary
 K_is = "is" IdBoundary
 K_Func = "Func" IdBoundary
+K_Lambda = "Lambda" IdBoundary
 K_void = "void" IdBoundary
 K_true = "true" IdBoundary
 K_false = "false" IdBoundary
@@ -1359,6 +1368,7 @@ KeywordReserved
   / "match" IdBoundary
   / "is" IdBoundary
   / "Func" IdBoundary
+  / "Lambda" IdBoundary
   / "null" IdBoundary
   / "nullptr" IdBoundary
   / "true" IdBoundary

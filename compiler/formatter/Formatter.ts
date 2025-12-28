@@ -539,6 +539,7 @@ export class Formatter {
     // Skip comments that are inside the asm block to avoid duplication
     while (this.currentCommentIndex < this.comments.length) {
       const c = this.comments[this.currentCommentIndex];
+      if (!c) break;
       if (c.line < stmt.location.endLine) {
         this.currentCommentIndex++;
       } else if (
@@ -1109,6 +1110,16 @@ export class Formatter {
         func += type.paramTypes.map((t) => this.formatType(t)).join(", ");
         func += ")";
         return func;
+      }
+      case "LambdaType": {
+        let output = "";
+        if (type.isConst) output += "const ";
+        output += `Lambda<${this.formatType((type as AST.LambdaTypeNode).returnType)}>(`;
+        output += (type as AST.LambdaTypeNode).paramTypes
+          .map((t) => this.formatType(t))
+          .join(", ");
+        output += ")";
+        return output;
       }
       case "TupleType": {
         let output = "";

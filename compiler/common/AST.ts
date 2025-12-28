@@ -21,6 +21,7 @@ export type TypeNode =
   | BasicTypeNode
   | TupleTypeNode
   | FunctionTypeNode
+  | LambdaTypeNode
   | MetaType;
 
 export interface BasicTypeNode extends ASTNode {
@@ -47,6 +48,15 @@ export interface FunctionTypeNode extends ASTNode {
   declaration?: FunctionDecl;
   isConst?: boolean;
   overloads?: FunctionTypeNode[];
+}
+
+export interface LambdaTypeNode extends ASTNode {
+  kind: "LambdaType";
+  returnType: TypeNode;
+  paramTypes: TypeNode[];
+  isVariadic?: boolean;
+  isConst?: boolean;
+  captures?: (VariableDecl | Parameter | LambdaParameter)[];
 }
 
 // --- Expressions ---

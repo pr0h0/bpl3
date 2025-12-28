@@ -5,7 +5,7 @@ frame takeConst(const x: int) {
     # x = 10; # This would fail
 }
 
-frame takeFunc(f: Func<void>(const int)) {
+frame takeFunc(f: Lambda<void>(const int)) {
     f(42);
 }
 
@@ -13,7 +13,7 @@ frame main() ret int {
     local x: int = 10;
     takeConst(x);
 
-    local f: Func<void>(const int) = |val: const int| {
+    local f: Lambda<void>(const int) = |val: const int| {
         printf("Lambda received %d\n", val);
         # val = 20; # This would fail
     };
@@ -21,7 +21,7 @@ frame main() ret int {
     takeFunc(f);
 
     local const c: int = 100;
-    local lambda: Func<void>() = || {
+    local lambda: Lambda<void>() = || {
         printf("Captured const c: %d\n", c);
         # c = 200; # This would fail
     };

@@ -164,12 +164,6 @@ function convertTokenNodeToToken(node: TokenNode): Token {
   }
 
   if (type === "InterpolatedStringLiteral") {
-    // For now, treat as unknown or handle specially if we add a token type
-    // But since we are using Peggy parser which re-parses everything,
-    // we can just pass it as a StringLiteral or a new token type if we added one.
-    // However, TokenType doesn't have InterpolatedStringLiteral yet.
-    // Let's map it to StringLiteral for now, but the parser will need to distinguish it by the '$' prefix.
-    // Actually, let's add a new TokenType.InterpolatedStringLiteral
     return new Token(
       TokenType.InterpolatedStringLiteral,
       value,

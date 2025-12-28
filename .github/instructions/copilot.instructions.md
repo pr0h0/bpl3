@@ -11,29 +11,29 @@ You are working with BPL, a statically-typed, compiled programming language that
 ### Comments
 
 - **Single-line comments**: Start with `#` and continue to the end of the line.
-- **Multi-line comments**: Enclosed in `### ... ###`.
+- **Multi-line comments**: Enclosed in `/# ... #/`.
 
 ```bpl
 # This is a single-line comment
 
-###
+/#
 This is a
 multi-line comment
-###
+#/
 ```
 
 ### Data Types
 
 #### Primitive Types
 
-- `int` - signed 64-bit integers
-- `uint` - unsigned 64-bit integers
+- `int` - signed 32-bit integers
+- `uint` - unsigned 32-bit integers
 - `u8`, `u16`, `u32`, `u64` - unsigned integer variants
 - `float` - 64-bit floating point numbers
 - `bool` - boolean type (`true`, `false`)
 - `char` - unsigned 8-bit character
 - `void` - empty/no return type
-- `null`, `nullptr` - null values
+- `nullptr` - null values
 
 #### Composite Types
 
@@ -236,7 +236,7 @@ frame main() ret int {
 
 #### Struct Inheritance
 
-- Use `extends` for single inheritance.
+- Use `:` for single inheritance.
 - Child structs inherit parent fields and methods.
 
 ```bpl
@@ -248,7 +248,7 @@ struct Animal {
     }
 }
 
-struct Dog extends Animal {
+struct Dog : Animal {
     breed: string,
 
     frame makeSound(this: Dog) {

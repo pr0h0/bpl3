@@ -34,7 +34,7 @@ describe("Const Correctness", () => {
   it("should parse |x: const int| lambda", () => {
     const source = `
       frame main() {
-        local _f: Func<int>(const int) = |x: const int| {
+        local _f: Lambda<int>(const int) = |x: const int| {
            # x = 10; # Should fail if uncommented
            return x;
         };
@@ -46,7 +46,7 @@ describe("Const Correctness", () => {
   it("should fail assignment to const param in lambda", () => {
     const source = `
       frame main() {
-        local _f: Func<void>(const int) = |x: const int| {
+        local _f: Lambda<void>(const int) = |x: const int| {
            x = 10;
         };
       }
@@ -57,7 +57,7 @@ describe("Const Correctness", () => {
   it("should fail assignment to const local in lambda", () => {
     const source = `
       frame main() {
-        local _f: Func<void>(int) = |x: int| {
+        local _f: Lambda<void>(int) = |x: int| {
            local const y: int = 10;
            y = 20;
         };
@@ -70,7 +70,7 @@ describe("Const Correctness", () => {
     const source = `
       frame main() {
         local const x: int = 10;
-        local _f: Func<void>() = || {
+        local _f: Lambda<void>() = || {
            x = 20;
         };
       }

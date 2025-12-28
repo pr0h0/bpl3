@@ -118,24 +118,8 @@ export abstract class TypeCheckerBase {
         const genericParams = decl.genericParams || [];
 
         if (type.genericArgs.length !== genericParams.length) {
-          // Special case for Option.Some(42) where generic args are inferred later
-          // If this is a raw type usage (no generic args) and it's an enum variant constructor context,
-          // we might want to allow it temporarily if we can infer it.
-          // However, resolveType is general purpose.
-
-          // If we are resolving a type that is part of an expression that will be inferred,
-          // we might not have generic args yet.
-
-          // For now, let's only enforce this if we have SOME generic args but wrong count,
-          // OR if it's a struct/type alias which must always be explicit.
-          // Enums in constructor calls might be inferred.
-
-          // Actually, the issue is that Option.Some(42) creates a Member expression where 'Option' is resolved.
-          // 'Option' as a namespace/value doesn't have generic args.
-          // 'Option' as a type DOES.
-
-          // If we are resolving the type of the Enum DECLARATION itself (e.g. in a variable decl), it must have args.
-          // But if we are resolving the type of the Enum SYMBOL used as a value (e.g. Option.Some), it might not.
+          // Special case for Option.Some(42) where generic args are inferred later.
+          // If we are resolving the type of the Enum SYMBOL used as a value (e.g. Option.Some), it might not have args yet.
 
           // Let's check if we are in a context where inference is possible?
           // No, resolveType doesn't know context.
@@ -244,7 +228,10 @@ export abstract class TypeCheckerBase {
           // Attach declaration if available (e.g. for GenericParam)
           if (resolvedSymbol.declaration) {
             const res = { ...type } as AST.BasicTypeNode;
-            res.resolvedDeclaration = resolvedSymbol.declaration;
+            res.resolvedDeclaration = resolvedSymbol.declaration as
+              | AST.StructDecl
+              | AST.EnumDecl
+              | AST.SpecDecl;
             return res;
           }
           return type;
@@ -295,6 +282,14 @@ export abstract class TypeCheckerBase {
       return {
         ...type,
         types: type.types.map((t) => this.resolveType(t, checkConstraints)),
+      };
+    } else if (type.kind === "LambdaType") {
+      return {
+        ...type,
+        returnType: this.resolveType(type.returnType, checkConstraints),
+        paramTypes: type.paramTypes.map((p) =>
+          this.resolveType(p, checkConstraints),
+        ),
       };
     }
     return type;
@@ -512,7 +507,15 @@ export abstract class TypeCheckerBase {
     const rt2 = this.resolveType(t2, checkConstraints);
 
     if (rt1.kind !== rt2.kind) {
-      return false;
+      // Allow FunctionType vs LambdaType
+      const isFuncOrLambda1 =
+        rt1.kind === "FunctionType" || rt1.kind === "LambdaType";
+      const isFuncOrLambda2 =
+        rt2.kind === "FunctionType" || rt2.kind === "LambdaType";
+
+      if (!isFuncOrLambda1 || !isFuncOrLambda2) {
+        return false;
+      }
     }
 
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
@@ -653,12 +656,22 @@ export abstract class TypeCheckerBase {
       }
 
       return true;
-    } else if (rt1.kind === "FunctionType" && rt2.kind === "FunctionType") {
-      if (!this.areTypesCompatible(rt1.returnType, rt2.returnType))
+    } else if (
+      (rt1.kind === "FunctionType" || rt1.kind === "LambdaType") &&
+      (rt2.kind === "FunctionType" || rt2.kind === "LambdaType")
+    ) {
+      // Func <- Lambda : Error (unless stateless, but that's handled by checkLambda returning Func)
+      if (rt1.kind === "FunctionType" && rt2.kind === "LambdaType") {
         return false;
-      if (rt1.paramTypes.length !== rt2.paramTypes.length) return false;
-      for (let i = 0; i < rt1.paramTypes.length; i++) {
-        if (!this.areTypesCompatible(rt1.paramTypes[i]!, rt2.paramTypes[i]!))
+      }
+
+      const f1 = rt1 as AST.FunctionTypeNode | AST.LambdaTypeNode;
+      const f2 = rt2 as AST.FunctionTypeNode | AST.LambdaTypeNode;
+
+      if (!this.areTypesCompatible(f1.returnType, f2.returnType)) return false;
+      if (f1.paramTypes.length !== f2.paramTypes.length) return false;
+      for (let i = 0; i < f1.paramTypes.length; i++) {
+        if (!this.areTypesCompatible(f1.paramTypes[i]!, f2.paramTypes[i]!))
           return false;
       }
       return true;

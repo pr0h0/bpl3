@@ -11,15 +11,15 @@ You are working with BPL, a statically-typed, compiled programming language that
 ### Comments
 
 - **Single-line comments**: Start with `#` and continue to the end of the line.
-- **Multi-line comments**: Enclosed in `### ... ###`.
+- **Multi-line comments**: Enclosed in `/# ... #/`.
 
 ```bpl
 # This is a single-line comment
 
-###
+/#
 This is a
 multi-line comment
-###
+#/
 ```
 
 ### Data Types
@@ -236,7 +236,7 @@ frame main() ret int {
 
 #### Struct Inheritance
 
-- Use `extends` for single inheritance.
+- Use `:` for single inheritance.
 - Child structs inherit parent fields and methods.
 
 ```bpl
@@ -248,7 +248,7 @@ struct Animal {
     }
 }
 
-struct Dog extends Animal {
+struct Dog : Animal {
     breed: string,
 
     frame makeSound(this: Dog) {
