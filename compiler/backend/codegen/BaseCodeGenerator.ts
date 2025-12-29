@@ -99,7 +99,11 @@ export class BaseCodeGenerator {
     resultTypeNode: AST.TypeNode;
     results: { value: string; label: string; type: string }[];
   }[] = [];
-  protected pendingLambdas: { name: string; expr: AST.LambdaExpr }[] = [];
+  protected pendingLambdas: {
+    name: string;
+    expr: AST.LambdaExpr;
+    typeMap: Map<string, AST.TypeNode>;
+  }[] = [];
 
   /**
    * Create a CompilerError with proper location information

@@ -12,7 +12,7 @@ frame sum(nums: ...Any, count: int) ret int {
     loop (i < count) {
         local val_any: *Any = &nums[i];
         # We assume they are ints for this demo, or check type
-        if ((val_any is int)) {
+        if (val_any is int) {
             local val: int = cast<int>(val_any.data);
             IO.bpl_printf("nums[%d] = %d\n", i, val);
             total += val;
@@ -31,12 +31,12 @@ frame printMixed(args: ...Any, args_count: int) {
     local count: int = args_count;
     loop (i < count) {
         local arg: Any = args[i];
-        if ((arg is int)) {
+        if (arg is int) {
             IO.bpl_printf("Arg %d is int: %d\n", i, cast<int>(arg.data));
-        } else if ((arg is string)) {
+        } else if (arg is string) {
             # Cast u64 data to *char (string)
             IO.bpl_printf("Arg %d is string: %s\n", i, cast<*char>(arg.data));
-        } else if ((arg is double)) {
+        } else if (arg is double) {
             # Note: float/double might need special handling depending on how they are cast/stored in u64 data
             # For now, let's assume standard casting works if it fits
             IO.bpl_printf("Arg %d is double (cast to int for display): %d\n", i, cast<int>(arg.data));

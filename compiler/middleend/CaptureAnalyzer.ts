@@ -88,6 +88,9 @@ export class CaptureAnalyzer {
       case "Cast":
         this.visit((node as AST.CastExpr).expression);
         break;
+      case "Group":
+        this.visit((node as AST.GroupExpr).expression);
+        break;
       case "Ternary":
         this.visit((node as AST.TernaryExpr).condition);
         this.visit((node as AST.TernaryExpr).trueExpr);

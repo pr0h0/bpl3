@@ -24,11 +24,12 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
     return mangled;
   }
 
-  protected getDwarfTypeId(type: AST.TypeNode): number {
+  protected getDwarfTypeId(type: AST.TypeNode, depth: number = 0): number {
     if (!this.generateDwarf) return 0;
-    console.log(
-      `getDwarfTypeId: ${type.kind} ${type.kind === "BasicType" ? type.name : ""}`,
-    );
+    if (depth > 50) {
+      // Avoid infinite recursion for deeply nested generic types
+      return 0; // void
+    }
 
     const resolvedName = this.resolveType(type);
 
@@ -44,7 +45,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
             ...type,
             pointerDepth: type.pointerDepth - 1,
           };
-          const pointeeId = this.getDwarfTypeId(pointeeType);
+          const pointeeId = this.getDwarfTypeId(pointeeType, depth + 1);
           return this.debugInfoGenerator.createPointerType(pointeeId);
         }
       }
@@ -74,12 +75,12 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
               }
             }
             const substituted = this.substituteType(aliasDecl.type, typeMap);
-            return this.getDwarfTypeId(substituted);
+            return this.getDwarfTypeId(substituted, depth + 1);
           }
         }
 
         // Non-generic alias or generic alias used without args
-        return this.getDwarfTypeId(aliasDecl.type);
+        return this.getDwarfTypeId(aliasDecl.type, depth + 1);
       }
 
       primitiveName = type.name;
@@ -222,6 +223,50 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
       );
     }
 
+    // Lambda Types (Closures)
+    if (type.kind === "LambdaType") {
+      const voidPtrId = this.debugInfoGenerator.createPointerType(0);
+      const fileId = this.debugInfoGenerator.getFileNodeId(
+        this.currentFilePath,
+      );
+
+      // Create members for { i8*, i8* }
+      const funcMember = this.debugInfoGenerator.createMemberType(
+        "func_ptr",
+        fileId,
+        0,
+        64,
+        0,
+        voidPtrId,
+      );
+      const envMember = this.debugInfoGenerator.createMemberType(
+        "env_ptr",
+        fileId,
+        0,
+        64,
+        64,
+        voidPtrId,
+      );
+
+      const lambdaType = type as AST.LambdaTypeNode;
+      const retName = this.resolveType(lambdaType.returnType);
+      const paramNames = lambdaType.paramTypes
+        .map((p) => this.resolveType(p))
+        .join("_");
+      const closureName = `Closure_${retName}_${paramNames}`.replace(
+        /[^a-zA-Z0-9_]/g,
+        "_",
+      );
+
+      return this.debugInfoGenerator.createStructType(
+        closureName,
+        128,
+        fileId,
+        0,
+        [funcMember, envMember],
+      );
+    }
+
     // Arrays
     if (
       type.kind === "BasicType" &&
@@ -247,7 +292,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           };
         }
 
-        const elementTypeId = this.getDwarfTypeId(elementTypeNode);
+        const elementTypeId = this.getDwarfTypeId(elementTypeNode, depth + 1);
         const ptrTypeId =
           this.debugInfoGenerator.createPointerType(elementTypeId);
         const i64TypeId = this.debugInfoGenerator.createBasicType(
@@ -307,7 +352,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         };
       }
 
-      const elementTypeId = this.getDwarfTypeId(elementTypeNode);
+      const elementTypeId = this.getDwarfTypeId(elementTypeNode, depth + 1);
       const elementSizeInBits = this.getTypeSizeInBits(elementTypeNode);
       const sizeInBits = size! * elementSizeInBits;
       const alignInBits = elementSizeInBits >= 64 ? 64 : elementSizeInBits;
@@ -381,7 +426,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         let offset = 0;
 
         for (const field of fields) {
-          const fieldTypeId = this.getDwarfTypeId(field.type);
+          const fieldTypeId = this.getDwarfTypeId(field.type, depth + 1);
           // Compute size and alignment (simplified)
           let size = 64; // Default to 64 bits for pointers/i64/double
           const fieldTypeName = this.resolveType(field.type);
@@ -428,7 +473,7 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
       for (let i = 0; i < tupleType.types.length; i++) {
         const fieldType = tupleType.types[i]!;
-        const fieldTypeId = this.getDwarfTypeId(fieldType);
+        const fieldTypeId = this.getDwarfTypeId(fieldType, depth + 1);
         const fieldSize = this.getTypeSizeInBits(fieldType);
 
         const memberId = this.debugInfoGenerator.createMemberType(
@@ -1682,6 +1727,36 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
   protected resolveTypeDepth = 0;
 
+  protected getEffectiveModifiers(type: AST.TypeNode): {
+    pointerDepth: number;
+    arrayDimensions: (number | null)[];
+  } {
+    if (type.kind === "BasicType") {
+      const basic = type as AST.BasicTypeNode;
+      let ptr = basic.pointerDepth;
+      let arr = [...basic.arrayDimensions];
+
+      if (this.typeAliasMap.has(basic.name)) {
+        const alias = this.typeAliasMap.get(basic.name)!;
+        // Only recurse if not generic, or if we can handle it.
+        // For now, assume non-generic recursion is safe.
+        if (!alias.genericParams || alias.genericParams.length === 0) {
+          const inner = this.getEffectiveModifiers(alias.type);
+          ptr += inner.pointerDepth;
+          arr = [...inner.arrayDimensions, ...arr];
+        }
+      }
+      return { pointerDepth: ptr, arrayDimensions: arr };
+    }
+    if ("arrayDimensions" in type) {
+      return {
+        pointerDepth: 0,
+        arrayDimensions: [...((type as any).arrayDimensions || [])],
+      };
+    }
+    return { pointerDepth: 0, arrayDimensions: [] };
+  }
+
   protected resolveType(type: AST.TypeNode): string {
     if (this.resolveTypeDepth > 200) {
       throw new CompilerError(
@@ -1708,6 +1783,100 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
 
       if (type.kind === "BasicType") {
         const basicType = type as AST.BasicTypeNode;
+
+        // Check for variableDeclaration (from & operator)
+        if (basicType.variableDeclaration) {
+          // console.error("Resolving VariableDecl/Parameter type...");
+          const decl = basicType.variableDeclaration;
+          let declType: AST.TypeNode | undefined;
+          if (decl.kind === "VariableDecl") {
+            declType = decl.typeAnnotation;
+          } else if (decl.kind === "Parameter") {
+            declType = decl.type;
+          }
+
+          if (!declType) {
+            declType = decl.resolvedType!;
+          }
+
+          const baseTypeStr = this.resolveType(declType);
+          // console.error("Base type: " + baseTypeStr);
+
+          const declMods = this.getEffectiveModifiers(declType);
+          const totalMods = {
+            pointerDepth: basicType.pointerDepth,
+            arrayDimensions: basicType.arrayDimensions,
+          };
+          // console.error(`Decl mods: ptr=${declMods.pointerDepth}, arr=${declMods.arrayDimensions}`);
+          // console.error(`Total mods: ptr=${totalMods.pointerDepth}, arr=${totalMods.arrayDimensions}`);
+
+          const ptrDiff = totalMods.pointerDepth - declMods.pointerDepth;
+          const arrDiff = totalMods.arrayDimensions.slice(
+            declMods.arrayDimensions.length,
+          );
+          // console.error(`Diff: ptr=${ptrDiff}, arr=${arrDiff}`);
+
+          let llvmType = baseTypeStr;
+          if (ptrDiff > 0) {
+            for (let i = 0; i < ptrDiff; i++) {
+              llvmType += "*";
+            }
+          } else if (ptrDiff < 0) {
+            for (let i = 0; i < -ptrDiff; i++) {
+              if (llvmType.endsWith("*")) {
+                llvmType = llvmType.slice(0, -1);
+              }
+            }
+          }
+          for (let i = arrDiff.length - 1; i >= 0; i--) {
+            llvmType = `[${arrDiff[i]} x ${llvmType}]`;
+          }
+          // console.error("Result: " + llvmType);
+          return llvmType;
+        }
+
+        // Check for aliasDeclaration (from TypeChecker) to preserve alias structure (e.g. pointer to array)
+        if (
+          basicType.aliasDeclaration &&
+          (!basicType.aliasDeclaration.genericParams ||
+            basicType.aliasDeclaration.genericParams.length === 0)
+        ) {
+          const aliasDecl = basicType.aliasDeclaration;
+          // Resolve the alias base type
+          const baseTypeStr = this.resolveType(aliasDecl.type);
+
+          // Calculate modifier diff
+          const aliasMods = this.getEffectiveModifiers(aliasDecl.type);
+          // basicType is the resolved/flattened type, so its modifiers include the alias modifiers
+          const totalMods = {
+            pointerDepth: basicType.pointerDepth,
+            arrayDimensions: basicType.arrayDimensions,
+          };
+
+          const ptrDiff = totalMods.pointerDepth - aliasMods.pointerDepth;
+          // Array dimensions are appended, so we slice off the prefix
+          const arrDiff = totalMods.arrayDimensions.slice(
+            aliasMods.arrayDimensions.length,
+          );
+
+          // Apply diff to baseTypeStr
+          let llvmType = baseTypeStr;
+          if (ptrDiff > 0) {
+            for (let i = 0; i < ptrDiff; i++) {
+              llvmType += "*";
+            }
+          } else if (ptrDiff < 0) {
+            for (let i = 0; i < -ptrDiff; i++) {
+              if (llvmType.endsWith("*")) {
+                llvmType = llvmType.slice(0, -1);
+              }
+            }
+          }
+          for (let i = arrDiff.length - 1; i >= 0; i--) {
+            llvmType = `[${arrDiff[i]} x ${llvmType}]`;
+          }
+          return llvmType;
+        }
 
         let llvmType = "";
 
@@ -1801,6 +1970,50 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
             } else if (basicType.resolvedDeclaration.kind === "SpecDecl") {
               specDecl = basicType.resolvedDeclaration as AST.SpecDecl;
             }
+          }
+
+          // Check for variableDeclaration (from & operator)
+          if (basicType.variableDeclaration) {
+            console.error("Resolving VariableDecl/Parameter type...");
+            const decl = basicType.variableDeclaration as
+              | AST.VariableDecl
+              | AST.Parameter;
+            let declType: AST.TypeNode | undefined;
+            if (decl.kind === "VariableDecl") {
+              declType = decl.typeAnnotation;
+            } else if (decl.kind === "Parameter") {
+              declType = decl.type;
+            }
+
+            if (!declType) {
+              // @ts-ignore
+              declType = decl.resolvedType!;
+            }
+
+            const baseTypeStr = this.resolveType(declType!);
+            console.error("Base type: " + baseTypeStr);
+
+            const declMods = this.getEffectiveModifiers(declType!);
+            const totalMods = {
+              pointerDepth: basicType.pointerDepth,
+              arrayDimensions: basicType.arrayDimensions,
+            };
+
+            const ptrDiff = totalMods.pointerDepth - declMods.pointerDepth;
+            const arrDiff = totalMods.arrayDimensions.slice(
+              declMods.arrayDimensions.length,
+            );
+            console.error(`Diff: ptr=${ptrDiff}, arr=${arrDiff}`);
+
+            let llvmType = baseTypeStr;
+            for (let i = 0; i < ptrDiff; i++) {
+              llvmType += "*";
+            }
+            for (let i = arrDiff.length - 1; i >= 0; i--) {
+              llvmType = `[${arrDiff[i]} x ${llvmType}]`;
+            }
+            console.error("Result: " + llvmType);
+            return llvmType;
           }
 
           // FALLBACK: Lookup by name (for types not resolved by TypeChecker)
@@ -1941,7 +2154,13 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         const tupleType = type as AST.TupleTypeNode;
         // Represent tuples as LLVM structs: { type0, type1, ... }
         const elementTypes = tupleType.types.map((t) => this.resolveType(t));
-        return `{ ${elementTypes.join(", ")} }`;
+        let llvmType = `{ ${elementTypes.join(", ")} }`;
+        if (tupleType.arrayDimensions) {
+          for (let i = tupleType.arrayDimensions.length - 1; i >= 0; i--) {
+            llvmType = `[${tupleType.arrayDimensions[i]} x ${llvmType}]`;
+          }
+        }
+        return llvmType;
       } else if (type.kind === "FunctionType") {
         const funcType = type as AST.FunctionTypeNode;
         const ret = this.resolveType(funcType.returnType);
@@ -1949,7 +2168,13 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
           .map((p) => this.resolveType(p))
           .join(", ");
         // Raw function pointer: ret (params...)*
-        return `${ret} (${params})*`;
+        let llvmType = `${ret} (${params})*`;
+        if (funcType.arrayDimensions) {
+          for (let i = funcType.arrayDimensions.length - 1; i >= 0; i--) {
+            llvmType = `[${funcType.arrayDimensions[i]} x ${llvmType}]`;
+          }
+        }
+        return llvmType;
       } else if (type.kind === "LambdaType") {
         const lambdaType = type as AST.LambdaTypeNode;
         const ret = this.resolveType(lambdaType.returnType);
@@ -1960,7 +2185,13 @@ export abstract class TypeGenerator extends BaseCodeGenerator {
         // Function signature: ret (i8*, params...)
         // We use i8* for the context pointer (type erased)
         const paramsStr = params ? `, ${params}` : "";
-        return `{ ${ret} (i8*${paramsStr})*, i8* }`;
+        let llvmType = `{ ${ret} (i8*${paramsStr})*, i8* }`;
+        if (lambdaType.arrayDimensions) {
+          for (let i = lambdaType.arrayDimensions.length - 1; i >= 0; i--) {
+            llvmType = `[${lambdaType.arrayDimensions[i]} x ${llvmType}]`;
+          }
+        }
+        return llvmType;
       }
       return "void";
     } finally {

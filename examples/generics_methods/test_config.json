@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Printing generic value", "Map result: 3.14"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

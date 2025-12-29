@@ -30,14 +30,24 @@ export interface BasicTypeNode extends ASTNode {
   genericArgs: TypeNode[];
   pointerDepth: number;
   arrayDimensions: (number | null)[];
-  resolvedDeclaration?: StructDecl | EnumDecl | SpecDecl;
+  resolvedDeclaration?:
+    | StructDecl
+    | EnumDecl
+    | SpecDecl
+    | TypeAliasDecl
+    | VariableDecl
+    | Parameter;
+  aliasDeclaration?: TypeAliasDecl;
+  variableDeclaration?: VariableDecl | Parameter;
   isConst?: boolean;
+  isPointerToArray?: boolean;
 }
 
 export interface TupleTypeNode extends ASTNode {
   kind: "TupleType";
   types: TypeNode[];
   isConst?: boolean;
+  arrayDimensions?: (number | null)[];
 }
 
 export interface FunctionTypeNode extends ASTNode {
@@ -48,6 +58,7 @@ export interface FunctionTypeNode extends ASTNode {
   declaration?: FunctionDecl;
   isConst?: boolean;
   overloads?: FunctionTypeNode[];
+  arrayDimensions?: (number | null)[];
 }
 
 export interface LambdaTypeNode extends ASTNode {
@@ -57,6 +68,7 @@ export interface LambdaTypeNode extends ASTNode {
   isVariadic?: boolean;
   isConst?: boolean;
   captures?: (VariableDecl | Parameter | LambdaParameter)[];
+  arrayDimensions?: (number | null)[];
 }
 
 // --- Expressions ---
@@ -83,7 +95,13 @@ export type Expression =
   | GenericInstantiationExpr
   | LambdaExpr
   | IsExpr
-  | AsExpr;
+  | AsExpr
+  | GroupExpr;
+
+export interface GroupExpr extends ASTNode {
+  kind: "Group";
+  expression: Expression;
+}
 
 export interface IsExpr extends ASTNode {
   kind: "Is";

@@ -330,6 +330,8 @@ frame myFunction() ret void {
 
 **Scope Rules:**
 
+Variables are scoped to the block in which they are declared. Inner blocks can shadow variables from outer blocks.
+
 ```bpl
 frame scopeExample() ret void {
     local x: int = 1;
@@ -337,6 +339,12 @@ frame scopeExample() ret void {
     if (true) {
         local x: int = 2;      # Shadows outer x
         printf("%d\n", x);     # Prints: 2
+    }
+
+    # Anonymous block for scoping
+    {
+        local x: string = "shadow"; # Shadows outer x with different type
+        printf("%s\n", x);          # Prints: shadow
     }
 
     printf("%d\n", x);         # Prints: 1

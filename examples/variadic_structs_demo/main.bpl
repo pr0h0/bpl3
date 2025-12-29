@@ -27,13 +27,13 @@ frame printMixed(args: ...Any, count: int) {
     loop (i < count) {
         local arg: Any = args[i];
 
-        if ((arg is int)) {
+        if (arg is int) {
             IO.bpl_printf("Arg %d is int: %d\n", i, cast<int>(arg.data));
-        } else if ((arg is *Point)) {
+        } else if (arg is *Point) {
             # Structs are passed by pointer to Any
             local p_ptr: *Point = cast<*Point>(arg.data);
             IO.bpl_printf("Arg %d is *Point: (%d, %d)\n", i, p_ptr.x, p_ptr.y);
-        } else if ((arg is *int)) {
+        } else if (arg is *int) {
             local ptr: *int = cast<*int>(arg.data);
             IO.bpl_printf("Arg %d is *int: value=%d\n", i, *ptr);
         } else {

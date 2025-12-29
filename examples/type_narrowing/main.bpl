@@ -3,21 +3,21 @@ extern printf(fmt: string, ...);
 frame main() ret int {
     local x: int = 42;
 
-    if ((x is i32)) {
+    if (x is i32) {
         printf("x is i32 (Correct)\n");
     } else {
         printf("x is NOT i32 (Error)\n");
         return 1;
     }
 
-    if ((x is int)) {
+    if (x is int) {
         printf("x is int (Correct)\n");
     } else {
         printf("x is NOT int (Error)\n");
         return 1;
     }
 
-    if ((x is uint)) {
+    if (x is uint) {
         printf("x is uint (Error)\n");
         return 1;
     } else {
@@ -27,7 +27,7 @@ frame main() ret int {
     # Check alias
     type MyInt = int;
     local y: MyInt = 10;
-    if ((y is i32)) {
+    if (y is i32) {
         printf("y is i32 (Correct)\n");
     } else {
         printf("y is NOT i32 (Error)\n");
@@ -35,7 +35,7 @@ frame main() ret int {
     }
 
     # Chained as test
-    if ((((((42 as int) as uint) as short) as bool) is bool)) {
+    if (((((42 as int) as uint) as short) as bool) is bool) {
         printf("Chained as works (Correct)\n");
     } else {
         printf("Chained as failed (Error)\n");

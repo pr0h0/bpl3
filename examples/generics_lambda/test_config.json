@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Lambda executed", "Lambda executed"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

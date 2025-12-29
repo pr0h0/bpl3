@@ -62,6 +62,8 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         return this.generateAs(expr as AST.AsExpr);
       case "LambdaExpression":
         return this.generateLambda(expr as AST.LambdaExpr);
+      case "Group":
+        return this.generateExpression(expr.expression);
       default:
         console.warn(`Unhandled expression kind: ${expr.kind}`);
         return "0"; // Placeholder
@@ -90,21 +92,61 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         expr.location,
       );
     }
-    const lambdaName = `lambda_L${expr.location.startLine}_C${expr.location.startColumn}`;
-    this.pendingLambdas.push({ name: lambdaName, expr });
+    let lambdaName = `lambda_L${expr.location.startLine}_C${expr.location.startColumn}`;
+
+    // If we are in a generic context, append generic args to make the name unique
+    if (this.currentTypeMap.size > 0) {
+      const args: string[] = [];
+      // Sort keys to ensure deterministic order
+      const keys = Array.from(this.currentTypeMap.keys()).sort();
+      for (const key of keys) {
+        const val = this.currentTypeMap.get(key)!;
+        args.push(this.mangleType(val));
+      }
+      if (args.length > 0) {
+        lambdaName += "_" + args.join("_");
+      }
+    }
+
+    this.pendingLambdas.push({
+      name: lambdaName,
+      expr,
+      typeMap: new Map(this.currentTypeMap),
+    });
 
     const type = expr.resolvedType;
 
     if (type.kind === "FunctionType") {
       // Stateless lambda -> Raw function pointer
       const funcType = type as AST.FunctionTypeNode;
-      const mangledName = this.getMangledName(lambdaName, funcType);
+
+      let effectiveFuncType = funcType;
+      if (this.currentTypeMap.size > 0) {
+        effectiveFuncType = this.substituteType(
+          funcType,
+          this.currentTypeMap,
+        ) as AST.FunctionTypeNode;
+      }
+
+      const mangledName = this.getMangledName(lambdaName, effectiveFuncType);
       return `@${mangledName}`;
     }
 
     const funcType = type as AST.LambdaTypeNode;
-    const mangledName = this.getMangledName(lambdaName, funcType as any);
-    const closureType = this.resolveType(funcType); // { func*, i8* }
+
+    let effectiveFuncType = funcType;
+    if (this.currentTypeMap.size > 0) {
+      effectiveFuncType = this.substituteType(
+        funcType,
+        this.currentTypeMap,
+      ) as AST.LambdaTypeNode;
+    }
+
+    const mangledName = this.getMangledName(
+      lambdaName,
+      effectiveFuncType as any,
+    );
+    const closureType = this.resolveType(effectiveFuncType); // { func*, i8* }
 
     let ctxPtr = "null";
 
@@ -617,6 +659,11 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         `  ${addr} = getelementptr inbounds ${structBase}, ${structBase}* ${baseAddr}, i32 0, i32 ${fieldIndex}`,
       );
       return addr;
+    } else if (expr.kind === "Group") {
+      return this.generateAddress(
+        (expr as AST.GroupExpr).expression,
+        skipNullObjectCheck,
+      );
     } else if (expr.kind === "Index") {
       const indexExpr = expr as AST.IndexExpr;
       const objectAddr = this.generateAddress(
@@ -639,12 +686,21 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       }
 
       const objType = indexExpr.object.resolvedType;
-      if (!objType || objType.kind !== "BasicType") {
+      if (!objType) {
+        throw new CompilerError("Indexing undefined type", "", expr.location);
+      }
+
+      const hasArrayDims =
+        "arrayDimensions" in objType &&
+        objType.arrayDimensions &&
+        objType.arrayDimensions.length > 0;
+
+      if (!hasArrayDims && objType.kind !== "BasicType") {
         throw new CompilerError("Indexing non-basic type", "", expr.location);
       }
 
       let addr: string;
-      if (objType.arrayDimensions.length > 0) {
+      if (hasArrayDims) {
         const llvmType = this.resolveType(objType);
 
         // Bounds check for fixed-size arrays
@@ -760,7 +816,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
             `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 ${indexVal}`,
           );
         }
-      } else if (objType.pointerDepth > 0) {
+      } else if (objType.kind === "BasicType" && objType.pointerDepth > 0) {
         const ptrReg = this.newRegister();
         const ptrType = this.resolveType(objType); // T*
         this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
@@ -780,6 +836,7 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
       // Runtime null-object guard for struct locals being indexed (if any)
       if (
+        objType.kind === "BasicType" &&
         objType.pointerDepth === 0 &&
         indexExpr.object.kind === "Identifier" &&
         !skipNullObjectCheck

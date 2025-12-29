@@ -66,3 +66,24 @@ frame main() ret int {
     return 0;
 }
 ```
+
+## Explicit Method Invocation
+
+Member methods can also be called statically by using the struct name and passing the object instance (or pointer) as the first argument explicitly.
+
+```bpl
+local v: Vector;
+v.x = 3;
+v.y = 4;
+
+# Standard method call syntax
+v.length();
+
+# Explicit static call syntax
+Vector.length(&v);
+```
+
+This pattern is particularly useful for:
+
+1.  **Calling Parent Methods**: Simulating `super` calls in inheritance (see [Inheritance](13-inheritance.md)).
+2.  **Disambiguation**: When multiple methods might have similar names or when dealing with function pointers.

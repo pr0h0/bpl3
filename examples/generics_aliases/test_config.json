@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["BoxedInt: 10", "Boxed<float>: 3.14"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

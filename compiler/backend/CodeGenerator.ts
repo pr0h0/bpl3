@@ -460,13 +460,23 @@ export class CodeGenerator extends StatementGenerator {
       this.generateTopLevel(stmt);
     }
 
-    // Process pending lambdas
-    this.processPendingLambdas();
+    // Process pending lambdas and monomorphized functions iteratively
+    // This is necessary because monomorphized functions might generate lambdas,
+    // and lambdas might trigger new monomorphizations.
+    while (
+      this.pendingLambdas.length > 0 ||
+      this.pendingGenerations.length > 0
+    ) {
+      this.processPendingLambdas();
 
-    // Process pending monomorphized functions
-    while (this.pendingGenerations.length > 0) {
-      const task = this.pendingGenerations.shift()!;
-      task();
+      // Process one batch of pending generations
+      // We use a while loop here to process all currently pending generations
+      // before checking lambdas again, but we could also do one by one.
+      const currentGenerations = [...this.pendingGenerations];
+      this.pendingGenerations = [];
+      for (const task of currentGenerations) {
+        task();
+      }
     }
 
     if (this.generateDwarf) {
@@ -643,8 +653,14 @@ export class CodeGenerator extends StatementGenerator {
 
   private processPendingLambdas() {
     while (this.pendingLambdas.length > 0) {
-      const { name, expr } = this.pendingLambdas.shift()!;
-      this.generateLambdaFunction(name, expr);
+      const { name, expr, typeMap } = this.pendingLambdas.shift()!;
+      const oldMap = this.currentTypeMap;
+      this.currentTypeMap = typeMap;
+      try {
+        this.generateLambdaFunction(name, expr);
+      } finally {
+        this.currentTypeMap = oldMap;
+      }
     }
   }
 

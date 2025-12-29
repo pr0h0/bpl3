@@ -386,6 +386,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       case "LambdaExpression":
         type = ExprChecker.checkLambda.call(this, expr);
         break;
+      case "Group":
+        type = this.checkExpression(expr.expression);
+        break;
     }
 
     if (type) {

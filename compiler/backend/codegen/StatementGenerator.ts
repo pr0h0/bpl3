@@ -7,6 +7,51 @@ export abstract class StatementGenerator extends ExpressionGenerator {
   protected localTypes: Map<string, AST.TypeNode> = new Map();
 
   protected generateBlock(block: AST.BlockStmt) {
+    // Scope management:
+    // We need to track variables declared in this block so we can restore their previous state (if any)
+    // or remove them (if they were new) when the block exits.
+    // This ensures that variables declared inside the block don't leak out or permanently shadow outer variables.
+
+    const declaredInBlock = new Set<string>();
+
+    const collectDeclaredNames = (
+      name: string | any[] | { name: string; type?: AST.TypeNode }[],
+    ) => {
+      if (typeof name === "string") {
+        declaredInBlock.add(name);
+      } else if (Array.isArray(name)) {
+        for (const item of name) {
+          if (Array.isArray(item)) {
+            collectDeclaredNames(item);
+          } else if (item && typeof item.name === "string") {
+            declaredInBlock.add(item.name);
+          }
+        }
+      }
+    };
+
+    // Scan for variable declarations in this block (shallow scan)
+    for (const stmt of block.statements) {
+      if (stmt.kind === "VariableDecl") {
+        const decl = stmt as AST.VariableDecl;
+        collectDeclaredNames(decl.name);
+      }
+    }
+
+    // Save state of variables that will be modified
+    const savedPointers = new Map<string, string>();
+    const savedTypes = new Map<string, AST.TypeNode>();
+
+    for (const name of declaredInBlock) {
+      if (this.localPointers.has(name)) {
+        savedPointers.set(name, this.localPointers.get(name)!);
+      }
+      if (this.localTypes.has(name)) {
+        savedTypes.set(name, this.localTypes.get(name)!);
+      }
+    }
+
+    // Generate statements
     for (const stmt of block.statements) {
       this.generateStatement(stmt);
       // If we hit a terminator, stop generating for this block (dead code elimination)
@@ -15,6 +60,23 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         this.isTerminator(this.output[this.output.length - 1] || "")
       ) {
         break;
+      }
+    }
+
+    // Restore state
+    for (const name of declaredInBlock) {
+      // Restore pointer
+      if (savedPointers.has(name)) {
+        this.localPointers.set(name, savedPointers.get(name)!);
+      } else {
+        this.localPointers.delete(name);
+      }
+
+      // Restore type
+      if (savedTypes.has(name)) {
+        this.localTypes.set(name, savedTypes.get(name)!);
+      } else {
+        this.localTypes.delete(name);
       }
     }
   }

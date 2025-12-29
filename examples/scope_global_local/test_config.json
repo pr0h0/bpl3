@@ -1,0 +1,3 @@
+{
+  "expectedOutput": ["Global: 99", "Local: 10"]
+}

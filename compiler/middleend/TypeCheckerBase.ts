@@ -237,6 +237,47 @@ export abstract class TypeCheckerBase {
           return type;
         }
 
+        const decl = resolvedSymbol.declaration as AST.TypeAliasDecl;
+        if (decl && decl.genericParams && decl.genericParams.length > 0) {
+          // Generic Alias Substitution
+          if (type.genericArgs.length !== decl.genericParams.length) {
+            throw new CompilerError(
+              `Generic alias '${type.name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
+              "Check generic argument count.",
+              type.location,
+            );
+          }
+
+          const typeMap = new Map<string, AST.TypeNode>();
+          for (let i = 0; i < decl.genericParams.length; i++) {
+            typeMap.set(
+              decl.genericParams[i]!.name,
+              this.resolveType(type.genericArgs[i]!, checkConstraints),
+            );
+          }
+
+          const substituted = this.substituteType(resolvedSymbol.type, typeMap);
+          const resolvedSubstituted = this.resolveType(
+            substituted,
+            checkConstraints,
+          );
+
+          if (resolvedSubstituted.kind === "BasicType") {
+            return {
+              ...resolvedSubstituted,
+              pointerDepth:
+                resolvedSubstituted.pointerDepth + type.pointerDepth,
+              arrayDimensions: [
+                ...resolvedSubstituted.arrayDimensions,
+                ...type.arrayDimensions,
+              ],
+              location: type.location,
+              aliasDeclaration: decl,
+            };
+          }
+          return resolvedSubstituted;
+        }
+
         const resolvedBase = this.resolveType(
           resolvedSymbol.type,
           checkConstraints,
@@ -257,9 +298,8 @@ export abstract class TypeCheckerBase {
               ...type.arrayDimensions,
             ],
             location: type.location,
-            isConst:
-              resolvedBase.isConst ||
-              ("isConst" in type ? type.isConst : undefined),
+            isConst: type.isConst || resolvedBase.isConst,
+            aliasDeclaration: decl,
           };
           return result;
         }
@@ -1028,6 +1068,18 @@ export abstract class TypeCheckerBase {
     const resolvedTarget = this.resolveType(target);
 
     if (this.areTypesCompatible(resolvedSource, resolvedTarget)) {
+      return true;
+    }
+
+    // Allow casting if source or target is a generic parameter
+    if (
+      (resolvedSource.kind === "BasicType" &&
+        resolvedSource.resolvedDeclaration &&
+        (resolvedSource.resolvedDeclaration as any).kind === "GenericParam") ||
+      (resolvedTarget.kind === "BasicType" &&
+        resolvedTarget.resolvedDeclaration &&
+        (resolvedTarget.resolvedDeclaration as any).kind === "GenericParam")
+    ) {
       return true;
     }
 

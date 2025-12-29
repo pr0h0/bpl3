@@ -1,0 +1,18 @@
+{
+  "expectedOutput": [
+    "--- Generic Struct ---",
+    "Box<int>: 42",
+    "Box<float>: 3.14",
+    "",
+    "--- Generic Function ---",
+    "identity<int>: 10",
+    "identity<float>: 2.50",
+    "swap<int>: 2, 1",
+    "",
+    "--- Generic Inheritance ---",
+    "Child<int>: parent=100, child=200"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

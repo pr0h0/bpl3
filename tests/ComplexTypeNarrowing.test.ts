@@ -32,22 +32,18 @@ function format(source: string) {
 
 describe("Complex Type Narrowing", () => {
   describe("Formatter", () => {
-    it("should format 'as' with parentheses", () => {
+    it("should format 'as' without parentheses", () => {
       const source = "frame main() { local x: int = 10 as int; }";
       const formatted = format(source);
-      expect(formatted).toContain("(10 as int)");
+      expect(formatted).toContain("10 as int");
     });
 
-    it("should format chained 'as' with parentheses", () => {
+    it("should format chained 'as' without parentheses", () => {
       const source =
         "frame main() { local x: bool = 42 as int as short as bool; }";
       const formatted = format(source);
-      // ((42 as int) as short) as bool
-      // The formatter should wrap each 'as' expression.
-      // 42 as int -> (42 as int)
-      // (42 as int) as short -> ((42 as int) as short)
-      // ((42 as int) as short) as bool -> (((42 as int) as short) as bool)
-      expect(formatted).toContain("(((42 as int) as short) as bool)");
+      // 42 as int as short as bool
+      expect(formatted).toContain("42 as int as short as bool");
     });
   });
 

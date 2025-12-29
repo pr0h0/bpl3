@@ -1,0 +1,7 @@
+{
+  "expectedOutput": [
+    "Entity initialized with ID: 42",
+    "Player initialized with name: Hero",
+    "Final State -> ID: 42, Name: Hero"
+  ]
+}

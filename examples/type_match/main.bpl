@@ -19,7 +19,7 @@ frame test_match(args: ...Any, args_count: int) {
         if (match<int>(val)) {
             local v: int = cast<int>(val.data);
             IO.bpl_printf("Matched int: %d\n", v);
-        } else if ((val is string)) {
+        } else if (val is string) {
             local s: *char = cast<*char>(val.data);
             IO.bpl_printf("Matched string: %s\n", s);
         } else if (match<*char>(val)) {

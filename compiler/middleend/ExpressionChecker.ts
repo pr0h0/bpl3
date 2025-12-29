@@ -419,7 +419,15 @@ export function checkBinary(
         targetType.genericArgs.length > 0
       ) {
         const decl = targetType.resolvedDeclaration;
-        if (decl && decl.genericParams && decl.genericParams.length > 0) {
+        if (
+          decl &&
+          (decl.kind === "StructDecl" ||
+            decl.kind === "EnumDecl" ||
+            decl.kind === "SpecDecl" ||
+            decl.kind === "TypeAlias") &&
+          decl.genericParams &&
+          decl.genericParams.length > 0
+        ) {
           for (let i = 0; i < decl.genericParams.length; i++) {
             typeSubstitutionMap.set(
               decl.genericParams[i]!.name,
@@ -640,7 +648,15 @@ export function checkUnary(
         operandType.genericArgs.length > 0
       ) {
         const decl = operandType.resolvedDeclaration;
-        if (decl && decl.genericParams && decl.genericParams.length > 0) {
+        if (
+          decl &&
+          (decl.kind === "StructDecl" ||
+            decl.kind === "EnumDecl" ||
+            decl.kind === "SpecDecl" ||
+            decl.kind === "TypeAlias") &&
+          decl.genericParams &&
+          decl.genericParams.length > 0
+        ) {
           for (let i = 0; i < decl.genericParams.length; i++) {
             typeSubstitutionMap.set(
               decl.genericParams[i]!.name,
@@ -668,10 +684,28 @@ export function checkUnary(
     if (operandType.kind === "BasicType") {
       if (!operandType)
         console.error("DEBUG: operandType is undefined in Ampersand check");
-      return {
+
+      const result: AST.BasicTypeNode = {
         ...operandType,
         pointerDepth: operandType.pointerDepth + 1,
       };
+
+      // Attach resolvedDeclaration if operand is a variable/parameter
+      // This helps TypeGenerator reconstruct complex types like pointer-to-array
+      if (expr.operand.kind === "Identifier") {
+        const id = expr.operand as AST.IdentifierExpr;
+        if (
+          id.resolvedDeclaration &&
+          (id.resolvedDeclaration.kind === "VariableDecl" ||
+            id.resolvedDeclaration.kind === "Parameter")
+        ) {
+          result.variableDeclaration = id.resolvedDeclaration as
+            | AST.VariableDecl
+            | AST.Parameter;
+        }
+      }
+
+      return result;
     }
 
     throw new CompilerError(

@@ -10,6 +10,7 @@ Control flow statements determine the execution order of code. BPL provides fami
 - [Match Expressions](#match-expressions)
 - [Break and Continue](#break-and-continue)
 - [Return Statement](#return-statement)
+- [Anonymous Blocks](#anonymous-blocks)
 
 ## If Statements
 
@@ -840,6 +841,28 @@ loop (true) {
             printf("Invalid choice\n");
         }
     }
+}
+```
+
+## Anonymous Blocks
+
+BPL supports standalone blocks `{ ... }` as statements. These are useful for creating new scopes to limit variable lifetime or to shadow variables.
+
+```bpl
+frame main() ret int {
+    local x: int = 10;
+
+    # Anonymous block
+    {
+        local x: int = 20;  # Shadows outer x
+        local y: int = 30;
+        printf("Inner x: %d, y: %d\n", x, y);
+    }
+
+    # y is not accessible here
+    printf("Outer x: %d\n", x);  # Prints 10
+
+    return 0;
 }
 ```
 

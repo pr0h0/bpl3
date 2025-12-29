@@ -1,0 +1,3 @@
+{
+  "expectedOutput": ["Inner: 20", "Outer: 10"]
+}

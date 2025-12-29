@@ -58,6 +58,29 @@ Methods declared in a parent struct can be overridden in a child struct by defin
 - **Virtual Dispatch**: When a method is called on a pointer to a parent type, the runtime looks up the actual implementation in the vtable of the object. This ensures the correct method (e.g., `Dog.makeSound`) is called even if the variable is of type `*Animal`.
 - **VTable**: The compiler automatically generates a Virtual Method Table (vtable) for each struct that participates in inheritance.
 
+## Calling Parent Methods (Super)
+
+BPL does not have a `super` keyword. Instead, you can call a parent's method implementation explicitly by using the parent struct's name and passing the object pointer (`this`) as the first argument.
+
+This bypasses virtual dispatch and calls the specific implementation defined in the parent struct.
+
+```bpl
+struct Animal {
+    frame speak(this: *Animal) {
+        printf("Animal speaks\n");
+    }
+}
+
+struct Dog : Animal {
+    frame speak(this: *Dog) {
+        printf("Dog barks\n");
+
+        # Call parent implementation (super.speak())
+        Animal.speak(this);
+    }
+}
+```
+
 ## The `Type` Root Struct
 
 All user-defined structs implicitly inherit from `Type` (defined in `std/type.bpl`). This provides common methods like:

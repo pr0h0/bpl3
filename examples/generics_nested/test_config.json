@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Nested: 42", "Pair: 1, 2.50"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -26,7 +26,7 @@ frame sum(args: ...Any, count: int) ret int {
     loop (i < count) {
         local arg: *Any = &args[i];
         # Check type dynamically
-        if ((arg is int)) {
+        if (arg is int) {
             total = total + cast<int>(arg.data);
         }
         i = i + 1;

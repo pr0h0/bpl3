@@ -100,6 +100,10 @@
     return { kind: "TupleLiteral", elements, location: makeLoc(loc) };
   }
 
+  function group(expression, loc) {
+    return { kind: "Group", expression, location: makeLoc(loc) };
+  }
+
   function enumStructVariant(enumName, variantName, fields, loc) {
     return { kind: "EnumStructVariant", enumName, variantName, fields: fields || [], location: makeLoc(loc) };
   }
@@ -388,7 +392,8 @@ Program
     }
 
 Statement
-  = ExpressionStatement
+  = Block
+  / ExpressionStatement
   / VariableDeclaration
   / ReturnStatement
   / FunctionDeclaration
@@ -929,7 +934,7 @@ TupleOrGrouped
       if (elems.length === 1 && filePath.includes("tuple_operations")) {
         return tupleLiteral(elems, loc);
       }
-      if (elems.length === 1) return elems[0];
+      if (elems.length === 1) return group(elems[0], loc);
       return tupleLiteral(elems, loc);
     }
 
@@ -1250,18 +1255,28 @@ BaseType
   / BasicType
 
 FunctionType
-  = K_Func _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" { return functionType(ret, params || [], location()); }
+  = K_Func _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
+      const t = functionType(ret, params || [], location());
+      t.arrayDimensions = arr.length ? arr.map(a => a) : [];
+      return t;
+    }
 
 LambdaType
-  = K_Lambda _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" { return lambdaType(ret, params || [], location()); }
+  = K_Lambda _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
+      const t = lambdaType(ret, params || [], location());
+      t.arrayDimensions = arr.length ? arr.map(a => a) : [];
+      return t;
+    }
 
 TypeList
   = head:Type tail:(_ "," _ Type)* { return [head, ...tail.map(t => t[3])]; }
 
 TupleType
-  = "(" _ head:Type tail:(_ "," _ Type)+ _ ")" {
+  = "(" _ head:Type tail:(_ "," _ Type)+ _ ")" arr:ArraySuffix* {
       const types = [head, ...tail.map(t => t[3])];
-      return tupleType(types, location());
+      const t = tupleType(types, location());
+      t.arrayDimensions = arr.length ? arr.map(a => a) : [];
+      return t;
     }
 
 BasicType

@@ -6,13 +6,13 @@ struct Point<T> {
     y: T,
     frame new(this: *Point<T>) {
         local dummy: T = 0;
-        if ((dummy is int)) {
+        if (dummy is int) {
             local val_x: int = 10;
             local val_y: int = 20;
             memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof(int));
             memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof(int));
             printf("Point initialized\n");
-        } else if ((dummy is char)) {
+        } else if (dummy is char) {
             local val_x: char = 'a';
             local val_y: char = 'b';
             memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof(char));

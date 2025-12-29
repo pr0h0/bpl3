@@ -569,7 +569,7 @@ export class Formatter {
 
   private formatIf(stmt: AST.IfStmt): string {
     const indent = this.getIndent();
-    let output = `${indent}if (${this.formatExpression(stmt.condition)}) `;
+    let output = `${indent}if (${this.formatExpression(this.unwrapGroup(stmt.condition))}) `;
     output += this.formatBlock(stmt.thenBranch, false);
 
     if (stmt.elseBranch) {
@@ -597,7 +597,7 @@ export class Formatter {
     const indent = this.getIndent();
     let output = `${indent}loop`;
     if (stmt.condition) {
-      output += ` (${this.formatExpression(stmt.condition)})`;
+      output += ` (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
     }
     output += " ";
     output += this.formatBlock(stmt.body, false);
@@ -664,7 +664,7 @@ export class Formatter {
 
   private formatSwitch(stmt: AST.SwitchStmt): string {
     const indent = this.getIndent();
-    let output = `${indent}switch (${this.formatExpression(stmt.expression)}) {\n`;
+    let output = `${indent}switch (${this.formatExpression(this.unwrapGroup(stmt.expression))}) {\n`;
     this.indentLevel++;
 
     this.lastLineProcessed = stmt.location.startLine;
@@ -712,6 +712,14 @@ export class Formatter {
   }
 
   // --- Expressions ---
+
+  private unwrapGroup(expr: AST.Expression): AST.Expression {
+    let current = expr;
+    while (current.kind === "Group") {
+      current = (current as AST.GroupExpr).expression;
+    }
+    return current;
+  }
 
   private formatExpression(expr: AST.Expression): string {
     switch (expr.kind) {
@@ -763,17 +771,43 @@ export class Formatter {
         return this.formatIs(expr as AST.IsExpr);
       case "As":
         return this.formatAs(expr as AST.AsExpr);
+      case "Group":
+        return `(${this.formatExpression(expr.expression)})`;
       default:
         return `/* Unknown expr: ${(expr as AST.Expression).kind} */`;
     }
   }
 
   private formatIs(expr: AST.IsExpr): string {
-    return `(${this.formatExpression(expr.expression)} is ${this.formatType(expr.type)})`;
+    const left = this.formatExpression(expr.expression);
+    const right = this.formatType(expr.type);
+
+    // Check if left operand needs parentheses
+    if (expr.expression.kind === "Binary") {
+      const op = (expr.expression as AST.BinaryExpr).operator.lexeme;
+      const prec = this.getPrecedence(op);
+      // 'is' has precedence 7. If left op has lower precedence, wrap it.
+      if (prec < 7) {
+        return `(${left}) is ${right}`;
+      }
+    }
+    return `${left} is ${right}`;
   }
 
   private formatAs(expr: AST.AsExpr): string {
-    return `(${this.formatExpression(expr.expression)} as ${this.formatType(expr.type)})`;
+    const left = this.formatExpression(expr.expression);
+    const right = this.formatType(expr.type);
+
+    // Check if left operand needs parentheses
+    if (expr.expression.kind === "Binary") {
+      const op = (expr.expression as AST.BinaryExpr).operator.lexeme;
+      const prec = this.getPrecedence(op);
+      // 'as' has precedence 7. If left op has lower precedence, wrap it.
+      if (prec < 7) {
+        return `(${left}) as ${right}`;
+      }
+    }
+    return `${left} as ${right}`;
   }
 
   private formatLiteral(expr: AST.LiteralExpr): string {
@@ -1109,6 +1143,11 @@ export class Formatter {
         func += `Func<${this.formatType(type.returnType)}>(`;
         func += type.paramTypes.map((t) => this.formatType(t)).join(", ");
         func += ")";
+        if (type.arrayDimensions) {
+          for (const dim of type.arrayDimensions) {
+            func += `[${dim !== null ? dim : ""}]`;
+          }
+        }
         return func;
       }
       case "LambdaType": {
@@ -1119,12 +1158,22 @@ export class Formatter {
           .map((t) => this.formatType(t))
           .join(", ");
         output += ")";
+        if (type.arrayDimensions) {
+          for (const dim of type.arrayDimensions) {
+            output += `[${dim !== null ? dim : ""}]`;
+          }
+        }
         return output;
       }
       case "TupleType": {
         let output = "";
         if (type.isConst) output += "const ";
         output += `(${type.types.map((t) => this.formatType(t)).join(", ")})`;
+        if (type.arrayDimensions) {
+          for (const dim of type.arrayDimensions) {
+            output += `[${dim !== null ? dim : ""}]`;
+          }
+        }
         return output;
       }
       default:
@@ -1152,21 +1201,24 @@ export class Formatter {
       case "==":
       case "!=":
         return 6;
+      case "is":
+      case "as":
+        return 7;
       case "<":
       case "<=":
       case ">":
       case ">=":
-        return 7;
+        return 8;
       case "<<":
       case ">>":
-        return 8;
+        return 9;
       case "+":
       case "-":
-        return 9;
+        return 10;
       case "*":
       case "/":
       case "%":
-        return 10;
+        return 11;
       default:
         return 0; // unknown or assignment handled elsewhere
     }

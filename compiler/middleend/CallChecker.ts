@@ -947,7 +947,7 @@ export function checkIndex(
 
   // Handle array indexing
   if (
-    objectType.kind === "BasicType" &&
+    "arrayDimensions" in objectType &&
     objectType.arrayDimensions &&
     objectType.arrayDimensions.length > 0
   ) {
@@ -959,7 +959,7 @@ export function checkIndex(
       );
     }
     const innerType = { ...objectType };
-    innerType.arrayDimensions = innerType.arrayDimensions.slice(1);
+    innerType.arrayDimensions = innerType.arrayDimensions!.slice(1);
     return innerType;
   }
 
@@ -997,7 +997,15 @@ export function checkIndex(
         objectType.genericArgs.length > 0
       ) {
         const decl = objectType.resolvedDeclaration;
-        if (decl && decl.genericParams && decl.genericParams.length > 0) {
+        if (
+          decl &&
+          (decl.kind === "StructDecl" ||
+            decl.kind === "EnumDecl" ||
+            decl.kind === "SpecDecl" ||
+            decl.kind === "TypeAlias") &&
+          decl.genericParams &&
+          decl.genericParams.length > 0
+        ) {
           for (let i = 0; i < decl.genericParams.length; i++) {
             typeSubstitutionMap.set(
               decl.genericParams[i]!.name,

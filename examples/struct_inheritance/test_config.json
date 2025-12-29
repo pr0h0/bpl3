@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Dog barks", "Animal speaks"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

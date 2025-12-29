@@ -116,6 +116,9 @@ export class Linter {
           this.visit(arg, context);
         }
         break;
+      case "Group":
+        this.visit((node as AST.GroupExpr).expression, context);
+        break;
       // Add more cases as needed
     }
   }

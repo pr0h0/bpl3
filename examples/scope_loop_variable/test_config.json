@@ -1,0 +1,3 @@
+{
+  "expectedOutput": ["Inner i: 0", "Outer i: 100"]
+}
