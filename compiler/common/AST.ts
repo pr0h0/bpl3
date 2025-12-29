@@ -478,8 +478,11 @@ export interface IfStmt extends ASTNode {
 
 export interface LoopStmt extends ASTNode {
   kind: "Loop";
+  init?: Statement;
   condition?: Expression;
+  step?: Expression;
   body: BlockStmt;
+  isCStyle?: boolean; // true if loop(init; cond; step) syntax was used
 }
 
 export interface ReturnStmt extends ASTNode {

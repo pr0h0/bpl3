@@ -178,7 +178,7 @@ This prevents common errors like the "dangling else" problem.
 
 ## Loop Statements
 
-BPL provides several looping constructs. Note that BPL uses `loop` instead of `while` or `for`.
+BPL provides several looping constructs using the `loop` keyword.
 
 ### Infinite Loop
 
@@ -192,6 +192,41 @@ loop {
     }
 }
 ```
+
+### While-Style Loop
+
+Equivalent to a `while` loop in other languages.
+
+```bpl
+local i: int = 0;
+loop (i < 5) {
+    printf("%d\n", i);
+    i = i + 1;
+}
+```
+
+### C-Style For Loop
+
+BPL supports the classic C-style for loop syntax: `loop (init; condition; step)`.
+
+```bpl
+# Standard iteration
+loop (local i: int = 0; i < 10; i = i + 1) {
+    printf("%d\n", i);
+}
+
+# Loop with existing variable
+local j: int = 0;
+loop (; j < 5; j = j + 1) {
+    printf("%d\n", j);
+}
+
+# Loop with missing parts (equivalent to while or infinite loop)
+loop (; i < 10;) { ... }
+loop (;;) { ... }
+```
+
+**Scoping:** The initialization variable (e.g., `local i: int = 0`) is scoped to the loop block and is not visible outside.
 
 ### Condition-Based Loop
 

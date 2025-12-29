@@ -97,6 +97,14 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
  */
 export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
   this.loopDepth++;
+
+  // Enter loop scope for init variable
+  this.currentScope = this.currentScope.enterScope();
+
+  if (stmt.init) {
+    this.checkStatement(stmt.init);
+  }
+
   if (stmt.condition) {
     const condType = this.checkExpression(stmt.condition);
     if (condType && !this.isBoolType(condType)) {
@@ -107,7 +115,30 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
       );
     }
   }
-  checkBlock.call(this, stmt.body);
+
+  if (stmt.step) {
+    this.checkExpression(stmt.step);
+  }
+
+  checkBlock.call(this, stmt.body, true);
+
+  // Check for unused variables in the loop scope
+  const unused = this.currentScope.getUnusedVariables();
+  for (const symbol of unused) {
+    if (symbol.name.startsWith("_")) continue;
+    const error = new CompilerError(
+      `Unused variable '${symbol.name}'`,
+      "Variable is declared but never used.",
+      symbol.declaration.location,
+    );
+    if (this.collectAllErrors) {
+      this.errors.push(error);
+    } else {
+      throw error;
+    }
+  }
+
+  this.currentScope = this.currentScope.exitScope();
   this.loopDepth--;
 }
 

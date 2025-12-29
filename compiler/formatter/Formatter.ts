@@ -596,7 +596,60 @@ export class Formatter {
   private formatLoop(stmt: AST.LoopStmt): string {
     const indent = this.getIndent();
     let output = `${indent}loop`;
-    if (stmt.condition) {
+
+    if (stmt.isCStyle || stmt.init || stmt.step) {
+      output += " (";
+      if (stmt.init) {
+        // Temporarily disable indentation for init statement
+        const oldIndent = this.indentLevel;
+        this.indentLevel = 0;
+        // We need to handle comments carefully, but for now assume simple init
+        let initStr = this.formatStatement(stmt.init).trim();
+        this.indentLevel = oldIndent;
+        output += initStr;
+      } else {
+        output += ";";
+      }
+
+      output += " ";
+
+      if (stmt.condition) {
+        output += this.formatExpression(this.unwrapGroup(stmt.condition));
+      }
+
+      output += "; ";
+
+      if (stmt.step) {
+        output += this.formatExpression(this.unwrapGroup(stmt.step));
+      } else {
+        // If no step, remove the trailing space if it exists
+        if (output.endsWith(" ")) {
+          output = output.slice(0, -1);
+        }
+      }
+
+      // If both condition and step are missing, we might have "; ;" which looks weird.
+      // We want ";;" if possible, or "; ;" if that's preferred.
+      // Currently it produces "; ;" because of the space after the first semicolon.
+      // If we want (;;), we need to remove the space after the first semicolon if condition is missing.
+      if (!stmt.condition && !stmt.step) {
+        // output ends with ";;" now because we removed the trailing space above
+        // But wait, we added "; " before step.
+        // Let's trace:
+        // init -> ";"
+        // " " -> "; "
+        // cond missing -> "; "
+        // "; " -> "; ; "
+        // step missing -> remove trailing space -> "; ;"
+
+        // If we want (;;), we should check if we can collapse spaces.
+        if (output.endsWith("; ;")) {
+          output = output.slice(0, -3) + ";;";
+        }
+      }
+
+      output += ")";
+    } else if (stmt.condition) {
       output += ` (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
     }
     output += " ";

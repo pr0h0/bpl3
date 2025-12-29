@@ -111,17 +111,17 @@
 
 ## Pending Features
 
-- [ ] C-style For Loop Support
+- [x] C-style For Loop Support ✅
 
-  - Syntax: `loop(local i:int=0; i<10; ++i) { ... }`
-  - Desugaring to `while` loop with block scope
-  - Verify scope behavior (block vs function scope)
+  - ✅ Syntax: `loop(local i:int=0; i<10; ++i) { ... }`
+  - ✅ Desugaring to `while` loop with block scope (Implemented directly in Codegen)
+  - ✅ Verify scope behavior (block vs function scope)
 
-- [ ] Scope Verification Task
+- [x] Scope Verification Task ✅
 
-  - Validate and verify how scopes work
-  - Determine if each block has its own scope or if variables are hoisted
-  - Document findings
+  - ✅ Validate and verify how scopes work
+  - ✅ Determine if each block has its own scope or if variables are hoisted
+  - ✅ Document findings
 
   - ✅ Recursive mutability checking for member access and indexing
   - ✅ `this` treated as const pointer in methods

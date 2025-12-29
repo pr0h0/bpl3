@@ -101,6 +101,19 @@ global const MAX_USERS: int = 100;
 frame process(data: const *int) { ... }
 ```
 
+### Scoping
+
+Variables are lexically scoped. A variable declared inside a block `{ ... }` is only visible within that block and its sub-blocks. Inner blocks can shadow variables from outer blocks.
+
+```bpl
+local x: int = 10;
+if (true) {
+    local x: int = 20; # Shadows outer x
+    printf("%d", x); # Prints 20
+}
+printf("%d", x); # Prints 10
+```
+
 ## 3. Functions
 
 ### Declaration
@@ -202,17 +215,27 @@ if (x > 0) {
 
 ### Loops
 
-The only loop construct is `loop`. It functions as a `while` loop. Conditions must be enclosed in parentheses.
+The `loop` construct supports three forms: infinite, while-style, and C-style for loops.
 
 ```bpl
-loop (i < 10) {
-    # ...
+# Infinite loop
+loop {
+    if (condition) break;
 }
 
-loop {
-    # Infinite loop
-    break;
+# While-style loop
+loop (i < 10) {
+    i = i + 1;
 }
+
+# C-style for loop
+loop (local i: int = 0; i < 10; i = i + 1) {
+    printf("%d", i);
+}
+
+# C-style loop with missing parts
+loop (; i < 10; ) { ... }
+loop (;;) { ... } # Equivalent to loop { ... }
 ```
 
 ### Switch

@@ -97,7 +97,10 @@ match (opt) {
 ### Control Flow
 
 - **If/Else**: `if (cond) { ... } else { ... }`
-- **Loop**: `loop (cond) { ... }` (while loop), `loop { ... }` (infinite)
+- **Loop**:
+  - `loop (cond) { ... }` (while loop)
+  - `loop { ... }` (infinite)
+  - `loop (init; cond; step) { ... }` (C-style for loop)
 - **Switch**: `switch (val) { case 1: ... default: ... }`
 - **Match**: `match (val) { Pattern => ... }`
 

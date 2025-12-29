@@ -953,11 +953,23 @@ export abstract class StatementGenerator extends ExpressionGenerator {
   }
 
   protected generateLoop(stmt: AST.LoopStmt) {
+    // Generate init
+    if (stmt.init) {
+      this.generateStatement(stmt.init);
+    }
+
     const condLabel = this.newLabel("cond");
     const bodyLabel = this.newLabel("body");
+    const stepLabel = this.newLabel("step");
     const endLabel = this.newLabel("end");
 
-    this.loopStack.push({ continueLabel: condLabel, breakLabel: endLabel });
+    // If we have a step, continue jumps to step. Otherwise it jumps to condition.
+    const continueTarget = stmt.step ? stepLabel : condLabel;
+
+    this.loopStack.push({
+      continueLabel: continueTarget,
+      breakLabel: endLabel,
+    });
 
     this.emit(`  br label %${condLabel}`);
     this.emit(`${condLabel}:`);
@@ -972,6 +984,13 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     this.emit(`${bodyLabel}:`);
     this.generateBlock(stmt.body);
     if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+      this.emit(`  br label %${continueTarget}`);
+    }
+
+    // Generate step
+    if (stmt.step) {
+      this.emit(`${stepLabel}:`);
+      this.generateExpression(stmt.step);
       this.emit(`  br label %${condLabel}`);
     }
 

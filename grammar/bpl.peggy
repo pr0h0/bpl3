@@ -252,8 +252,8 @@
     return { kind: "ExpressionStmt", expression: expr, location: makeLoc(loc) };
   }
 
-  function loopStmt(condition, body, loc) {
-    return { kind: "Loop", condition, body, location: makeLoc(loc) };
+  function loopStmt(init, condition, step, body, loc, isCStyle) {
+    return { kind: "Loop", init, condition, step, body, location: makeLoc(loc), isCStyle };
   }
 
   function ifStmt(condition, thenBranch, elseBranch, loc) {
@@ -639,12 +639,23 @@ AsmText
   = s:$([^{}"'#\[\]]+) { return s; }
 
 LoopStatement
-  = K_loop _ cond:LoopCondition? _ body:Block {
-      return loopStmt(cond || undefined, body, location());
+  = K_loop _ header:LoopHeader? _ body:Block {
+      const { init, cond, step, isCStyle } = header || {};
+      return loopStmt(init, cond, step, body, location(), isCStyle);
     }
 
-LoopCondition
-  = "(" _ expr:Expression _ ")" { return expr; }
+LoopHeader
+  = "(" _ init:ForInit _ cond:Expression? _ ";" _ step:Expression? _ ")" {
+      return { init, cond, step, isCStyle: true };
+    }
+  / "(" _ cond:Expression _ ")" {
+      return { cond, isCStyle: false };
+    }
+
+ForInit
+  = VariableDeclaration
+  / ExpressionStatement
+  / ";" { return undefined; }
 
 IfStatement
   = K_if _ "(" _ cond:Expression _ ")" _ thenBranch:Block _ elseBranch:ElseClause? {

@@ -1,0 +1,25 @@
+{
+  "expectedOutput": [
+    "Loop 1:",
+    "0",
+    "1",
+    "2",
+    "Loop 2 (continue):",
+    "0",
+    "1",
+    "3",
+    "4",
+    "Loop 3 (empty init/step):",
+    "0",
+    "1",
+    "2",
+    "Loop 4 (empty init/condition/step):",
+    "5",
+    "7",
+    "9",
+    "11"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

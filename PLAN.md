@@ -17,40 +17,45 @@ The following features are recommended for implementation next:
 - **Use cases:** Type guards
 - **Complexity:** High
 
-### 2. **C-style For Loop Support** [Priority 3] 🔄 CONTROL FLOW
-
-- **Why:** Familiar syntax for iteration, reduces boilerplate compared to `while` loops.
-- **Impact:** Improves developer experience and code readability.
-- **Syntax:** `loop(local i:int=0; i<10; ++i) { ... }`
-- **Implementation Notes:**
-  - Should desugar to a `while` loop structure.
-  - Needs careful handling of the initialization statement's scope (should be local to the loop).
-  - Verify interaction with `break` and `continue`.
-
-### 3. **Scope Verification & Validation** [Priority 2] 🧪 TESTING
-
-- **Why:** Ensure variable scoping rules are consistent and well-understood.
-- **Impact:** Prevents bugs related to variable shadowing and lifetime.
-- **Tasks:**
-  - Verify if blocks `{ ... }` create new scopes.
-  - Check if variables declared in `if`, `loop`, or `switch` blocks leak to outer scope.
-  - Verify hoisting behavior (if any).
-  - Document the scoping rules in `LANGUAGE_SPEC.md`.
-
-### 4. **Implicit Constructor Calls** [Priority 3] 🏗️ STRUCTS
-
-- **Why:** Prevents uninitialized memory issues, especially for structs with pointers.
-- **Impact:** Safer code, less boilerplate for variable declarations.
-- **Syntax:** `local x: X;` triggers `X.new(this)` if it exists.
-- **Implementation Notes:**
-  - Check for `new(this: *X)` method in the struct definition.
-  - If found, generate a call to it after allocating stack space for the variable.
-  - Ensure it only applies when no explicit initialization is provided.
-  - Distinguish from `frame new(...)` which is a static factory method.
-
 ---
 
 ## 📋 COMPLETED FEATURES
+
+## [3] ✅ C-style For Loop Support (COMPLETED)
+
+**Description:** Support for C-style for loops `loop(init; cond; step) { ... }`.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Grammar**: Updated `bpl.peggy` to support `loop (init; cond; step)`.
+- ✅ **AST**: Updated `LoopStmt` to include `init` and `step`.
+- ✅ **Checker**: Updated `StatementChecker` to handle scope and type checking for init/step.
+- ✅ **Codegen**: Updated `StatementGenerator` to generate correct LLVM IR including `continue` jumping to step.
+- ✅ **Formatter**: Updated `Formatter` to format C-style loops.
+- ✅ **Tests**: Added `examples/c_style_loop` verifying execution and `continue` behavior.
+
+## [2] ✅ Scope Verification & Validation (COMPLETED)
+
+**Description:** Verify and document variable scoping rules.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Verification**: Verified block scoping and shadowing with `examples/scope_block_shadowing`.
+- ✅ **Documentation**: Updated `LANGUAGE_SPEC.md` with formal scoping rules.
+
+## [3] ✅ Implicit Constructor Calls (COMPLETED)
+
+**Description:** Automatically call `X.new(this)` when declaring `local x: X;`.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Verification**: Verified existing implementation with `examples/implicit_ctor`.
 
 ## [1] ✅ Parser Optimization (COMPLETED)
 
