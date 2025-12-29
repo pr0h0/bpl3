@@ -352,6 +352,7 @@ export type Statement =
   | ReturnStmt
   | BreakStmt
   | ContinueStmt
+  | DeferStmt
   | ExpressionStmt
   | ImportStmt
   | ExportStmt
@@ -498,6 +499,11 @@ export interface ContinueStmt extends ASTNode {
   kind: "Continue";
 }
 
+export interface DeferStmt extends ASTNode {
+  kind: "Defer";
+  statement: Statement;
+}
+
 export interface ExpressionStmt extends ASTNode {
   kind: "ExpressionStmt";
   expression: Expression;
@@ -549,6 +555,11 @@ export interface CatchClause extends ASTNode {
   variable: string;
   type: TypeNode;
   body: BlockStmt;
+}
+
+export interface RuntimeDeferCleanupStmt extends ASTNode {
+  kind: "RuntimeDeferCleanup";
+  ctxVal: string; // The register holding the context pointer
 }
 
 export interface ThrowStmt extends ASTNode {

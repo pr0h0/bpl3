@@ -146,6 +146,17 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
  * Check a return statement
  */
 export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
+  if (this.inDefer) {
+    if (stmt.value) {
+      throw new CompilerError(
+        "Return with value not allowed in defer block",
+        "Defer blocks must return void. Use 'return;' to exit the defer block early.",
+        stmt.location,
+      );
+    }
+    return;
+  }
+
   const returnType = stmt.value
     ? this.checkExpression(stmt.value)
     : this.makeVoidType();
@@ -666,5 +677,18 @@ export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
         stmt.location,
       );
     }
+  }
+}
+
+/**
+ * Check a defer statement
+ */
+export function checkDefer(this: CheckerContext, stmt: AST.DeferStmt): void {
+  const prevInDefer = this.inDefer;
+  this.inDefer = true;
+  try {
+    this.checkStatement(stmt.statement);
+  } finally {
+    this.inDefer = prevInDefer;
   }
 }

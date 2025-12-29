@@ -175,7 +175,7 @@
       "patterns": [
         {
           "name": "keyword.control.bpl",
-          "match": "\\b(if|else|loop|break|continue|return|switch|case|default|try|catch|catchOther|throw|import|from|as|export|extern|asm)\\b"
+          "match": "\\b(if|else|loop|break|continue|return|switch|case|default|try|catch|catchOther|throw|import|from|as|export|extern|asm|defer)\\b"
         },
         {
           "name": "storage.type.function.bpl",
@@ -229,7 +229,7 @@
       "patterns": [
         {
           "name": "storage.type.bpl",
-          "match": "\\b(int|uint|u8|u16|u32|u64|float|string|bool|char|void|any|Func|Self)\\b"
+          "match": "\\b(int|uint|u8|u16|u32|u64|float|string|bool|char|void|any|Func|Lambda|Self)\\b"
         },
         {
           "match": "\\b([A-Z][a-zA-Z0-9_]*)\\.([A-Z][a-zA-Z0-9_]*)",

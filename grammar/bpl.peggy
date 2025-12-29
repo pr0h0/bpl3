@@ -412,6 +412,7 @@ Statement
   / SwitchStatement
   / BreakStatement
   / ContinueStatement
+  / DeferStatement
 
 VariableDeclaration
   = K_global _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
@@ -674,6 +675,9 @@ BreakStatement
 ContinueStatement
   = K_continue _ ";" { return continueStmt(location()); }
 
+DeferStatement
+  = K_defer _ stmt:Statement { return { kind: "Defer", statement: stmt, location: makeLoc(location()) }; }
+
 TryStatement
   = K_try _ tryBlock:Block _ catches:(CatchClause _)+ catchOther:CatchOther? {
       const catchList = catches.map(c => c[0]);
@@ -720,6 +724,7 @@ StatementStartKeyword
   / "if" IdBoundary
   / "break" IdBoundary
   / "continue" IdBoundary
+  / "defer" IdBoundary
   / "try" IdBoundary
   / "return" IdBoundary
   / "throw" IdBoundary
@@ -1338,6 +1343,7 @@ K_if = "if" IdBoundary
 K_else = "else" IdBoundary
 K_break = "break" IdBoundary
 K_continue = "continue" IdBoundary
+K_defer = "defer" IdBoundary
 K_try = "try" IdBoundary
 K_catch = "catch" IdBoundary
 K_catchOther = "catchOther" IdBoundary

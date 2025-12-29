@@ -97,6 +97,16 @@
     "body": ["printf(\"${1:%d}\\n\", ${2:value});"],
     "description": "Print using printf"
   },
+  "Defer": {
+    "prefix": "defer",
+    "body": ["defer {", "\t$0", "}"],
+    "description": "Defer execution until scope exit"
+  },
+  "Catch Other": {
+    "prefix": "catchOther",
+    "body": ["catchOther {", "\t$0", "}"],
+    "description": "Catch all other exceptions"
+  },
   "Import": {
     "prefix": "import",
     "body": ["import ${1:symbol} from \"${2:module}\";"],

@@ -6,11 +6,18 @@ import { ExpressionGenerator } from "./ExpressionGenerator";
 export abstract class StatementGenerator extends ExpressionGenerator {
   protected localTypes: Map<string, AST.TypeNode> = new Map();
 
-  protected generateBlock(block: AST.BlockStmt) {
+  protected generateBlock(
+    block: AST.BlockStmt,
+    isLoop: boolean = false,
+    isFunction: boolean = false,
+  ) {
     // Scope management:
     // We need to track variables declared in this block so we can restore their previous state (if any)
     // or remove them (if they were new) when the block exits.
     // This ensures that variables declared inside the block don't leak out or permanently shadow outer variables.
+
+    // Push scope for defer
+    this.scopeStack.push({ deferred: [], isLoop, isFunction });
 
     const declaredInBlock = new Set<string>();
 
@@ -79,6 +86,18 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         this.localTypes.delete(name);
       }
     }
+
+    // Generate deferred statements (LIFO)
+    const scope = this.scopeStack.pop()!;
+    // Only generate defers if we haven't terminated (or if we are falling through)
+    if (
+      this.output.length === 0 ||
+      !this.isTerminator(this.output[this.output.length - 1] || "")
+    ) {
+      for (let i = scope.deferred.length - 1; i >= 0; i--) {
+        this.generateStatement(scope.deferred[i]!);
+      }
+    }
   }
 
   protected generateStatement(stmt: AST.Statement) {
@@ -89,7 +108,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       this.currentStatementLocation = null;
     }
 
-    switch (stmt.kind) {
+    switch (stmt.kind as string) {
       case "VariableDecl":
         this.generateVariableDecl(stmt as AST.VariableDecl);
         break;
@@ -131,6 +150,20 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       case "Asm":
         this.generateAsm(stmt as AST.AsmBlockStmt);
         break;
+      case "Defer":
+        this.generateDefer(stmt as AST.DeferStmt);
+        break;
+      case "RuntimeDeferCleanup":
+        this.generateRuntimeDeferCleanup(
+          stmt as unknown as AST.RuntimeDeferCleanupStmt,
+        );
+        break;
+      case "LambdaCall":
+        this.generateLambdaCall(stmt as any);
+        break;
+      case "FreeCaptureStruct":
+        this.generateFreeCaptureStruct(stmt as any);
+        break;
       default:
         console.warn(`Unhandled statement kind: ${stmt.kind}`);
         break;
@@ -159,6 +192,19 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     );
     this.emit(
       `  store %struct.ExceptionFrame* ${prevFramePtrReg}, %struct.ExceptionFrame** ${prevFieldPtr}`,
+    );
+
+    // Save current defer_top
+    const currentDeferTop = this.newRegister();
+    this.emit(
+      `  ${currentDeferTop} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+    const deferFieldPtr = this.newRegister();
+    this.emit(
+      `  ${deferFieldPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 2`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${currentDeferTop}, %struct.DeferNode** ${deferFieldPtr}`,
     );
 
     // 3. Set new top
@@ -414,6 +460,76 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     this.emit(`  unreachable`);
 
     this.emit(`${jumpLabel}:`);
+
+    // Unwind defers
+    const targetDeferTopPtr = this.newRegister();
+    this.emit(
+      `  ${targetDeferTopPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 2`,
+    );
+    const targetDeferTop = this.newRegister();
+    this.emit(
+      `  ${targetDeferTop} = load %struct.DeferNode*, %struct.DeferNode** ${targetDeferTopPtr}`,
+    );
+
+    const loopCondLabel = this.newLabel("defer.unwind.cond");
+    const loopBodyLabel = this.newLabel("defer.unwind.body");
+    const loopEndLabel = this.newLabel("defer.unwind.end");
+
+    this.emit(`  br label %${loopCondLabel}`);
+    this.emit(`${loopCondLabel}:`);
+
+    const currentDefer = this.newRegister();
+    this.emit(
+      `  ${currentDefer} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+
+    const isDone = this.newRegister();
+    this.emit(
+      `  ${isDone} = icmp eq %struct.DeferNode* ${currentDefer}, ${targetDeferTop}`,
+    );
+    this.emit(
+      `  br i1 ${isDone}, label %${loopEndLabel}, label %${loopBodyLabel}`,
+    );
+
+    this.emit(`${loopBodyLabel}:`);
+    // Call defer function
+    const funcPtrPtr = this.newRegister();
+    this.emit(
+      `  ${funcPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDefer}, i32 0, i32 0`,
+    );
+    const funcVoidPtr = this.newRegister();
+    this.emit(`  ${funcVoidPtr} = load i8*, i8** ${funcPtrPtr}`);
+
+    // Cast to function type void (*)(i8*)
+    const funcPtr = this.newRegister();
+    this.emit(`  ${funcPtr} = bitcast i8* ${funcVoidPtr} to void (i8*)*`);
+
+    const ctxPtrPtr = this.newRegister();
+    this.emit(
+      `  ${ctxPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDefer}, i32 0, i32 1`,
+    );
+    const ctxPtr = this.newRegister();
+    this.emit(`  ${ctxPtr} = load i8*, i8** ${ctxPtrPtr}`);
+
+    this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
+
+    // Move to next
+    const nextPtrPtr = this.newRegister();
+    this.emit(
+      `  ${nextPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDefer}, i32 0, i32 2`,
+    );
+    const nextPtr = this.newRegister();
+    this.emit(
+      `  ${nextPtr} = load %struct.DeferNode*, %struct.DeferNode** ${nextPtrPtr}`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${nextPtr}, %struct.DeferNode** @defer_top`,
+    );
+
+    this.emit(`  br label %${loopCondLabel}`);
+
+    this.emit(`${loopEndLabel}:`);
+
     const bufFieldPtr = this.newRegister();
     this.emit(
       `  ${bufFieldPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 0`,
@@ -426,6 +542,304 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     this.emit(`  unreachable`);
   }
 
+  protected generateDefer(stmt: AST.DeferStmt) {
+    if (this.scopeStack.length === 0) {
+      throw this.createError(
+        "Defer statement outside of scope",
+        stmt,
+        "Defer statements must be inside a block or function",
+      );
+    }
+
+    // 1. Create Lambda AST from body
+    // We wrap the body in a lambda to capture variables and create a function pointer
+    // Modify location to ensure unique lambda name if multiple defers on same line (or if location is reused)
+    const uniqueLoc = {
+      ...stmt.location,
+      startColumn: stmt.location.startColumn + this.registerCount,
+    };
+
+    // Analyze captures
+    const captures = new Map<string, AST.TypeNode>();
+    const visited = new Set<any>();
+    const collectCaptures = (node: any) => {
+      if (!node || typeof node !== "object") return;
+      if (visited.has(node)) return;
+      visited.add(node);
+
+      if (node.kind === "Identifier") {
+        const name = node.name;
+        if (this.locals.has(name) && !captures.has(name)) {
+          captures.set(name, this.localTypes.get(name)!);
+        }
+      }
+
+      // Explicitly traverse known AST properties to avoid walking into unknown/circular structures
+      if (Array.isArray(node)) {
+        for (const item of node) collectCaptures(item);
+        return;
+      }
+
+      // Handle StructField which is not an ASTNode with kind but is in StructLiteralExpr
+      if (node.fieldName && node.value) {
+        collectCaptures(node.value);
+        return;
+      }
+
+      switch (node.kind) {
+        case "Block":
+          collectCaptures((node as AST.BlockStmt).statements);
+          break;
+        case "VariableDecl":
+          collectCaptures((node as AST.VariableDecl).initializer);
+          break;
+        case "Return":
+          collectCaptures((node as AST.ReturnStmt).value);
+          break;
+        case "If":
+          collectCaptures((node as AST.IfStmt).condition);
+          collectCaptures((node as AST.IfStmt).thenBranch);
+          collectCaptures((node as AST.IfStmt).elseBranch);
+          break;
+        case "Loop":
+          collectCaptures((node as AST.LoopStmt).condition);
+          collectCaptures((node as AST.LoopStmt).body);
+          break;
+        case "ExpressionStmt":
+          collectCaptures((node as AST.ExpressionStmt).expression);
+          break;
+        case "Defer":
+          collectCaptures((node as AST.DeferStmt).statement);
+          break;
+        case "Binary":
+          collectCaptures((node as AST.BinaryExpr).left);
+          collectCaptures((node as AST.BinaryExpr).right);
+          break;
+        case "Unary":
+          collectCaptures((node as AST.UnaryExpr).operand);
+          break;
+        case "Call":
+          collectCaptures((node as AST.CallExpr).callee);
+          collectCaptures((node as AST.CallExpr).args);
+          break;
+        case "Member":
+          collectCaptures((node as AST.MemberExpr).object);
+          break;
+        case "Index":
+          collectCaptures((node as AST.IndexExpr).object);
+          collectCaptures((node as AST.IndexExpr).index);
+          break;
+        case "Assignment":
+          collectCaptures((node as AST.AssignmentExpr).assignee);
+          collectCaptures((node as AST.AssignmentExpr).value);
+          break;
+        case "Cast":
+          collectCaptures((node as AST.CastExpr).expression);
+          break;
+        case "Group":
+          collectCaptures((node as AST.GroupExpr).expression);
+          break;
+        case "Ternary":
+          collectCaptures((node as AST.TernaryExpr).condition);
+          collectCaptures((node as AST.TernaryExpr).trueExpr);
+          collectCaptures((node as AST.TernaryExpr).falseExpr);
+          break;
+        case "StructLiteral":
+          collectCaptures((node as AST.StructLiteralExpr).fields);
+          break;
+        case "ArrayLiteral":
+          collectCaptures((node as AST.ArrayLiteralExpr).elements);
+          break;
+        case "TupleLiteral":
+          collectCaptures((node as AST.TupleLiteralExpr).elements);
+          break;
+        case "Match":
+          collectCaptures((node as AST.MatchExpr).value);
+          collectCaptures((node as AST.MatchExpr).arms);
+          break;
+        case "MatchArm":
+          collectCaptures((node as AST.MatchArm).guard);
+          collectCaptures((node as AST.MatchArm).body);
+          break;
+        case "LambdaExpression":
+          // TODO: Implement proper nested capture analysis.
+          // Currently skipping nested lambdas to avoid complexity with circular references.
+          break;
+        // Add other nodes as needed
+      }
+    };
+    collectCaptures(stmt.statement);
+
+    const capturedVariables: AST.VariableDecl[] = [];
+    for (const [name, type] of captures) {
+      capturedVariables.push({
+        kind: "VariableDecl",
+        isGlobal: false,
+        isConst: false,
+        name: name,
+        typeAnnotation: type,
+        location: uniqueLoc,
+        initializer: undefined,
+      } as AST.VariableDecl);
+    }
+
+    const lambdaExpr: AST.LambdaExpr = {
+      kind: "LambdaExpression",
+      params: [],
+      returnType: {
+        kind: "BasicType",
+        name: "void",
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [],
+        location: uniqueLoc,
+      },
+      body:
+        stmt.statement.kind === "Block"
+          ? (stmt.statement as AST.BlockStmt)
+          : {
+              kind: "Block",
+              statements: [stmt.statement],
+              location: uniqueLoc,
+            },
+      location: uniqueLoc,
+      resolvedType: {
+        kind: "LambdaType",
+        returnType: {
+          kind: "BasicType",
+          name: "void",
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: uniqueLoc,
+        },
+        paramTypes: [],
+        location: uniqueLoc,
+      },
+      capturedVariables: capturedVariables,
+      captureStructName:
+        capturedVariables.length > 0
+          ? `struct.lambda_capture_${this.nextTypeId++}`
+          : undefined,
+    };
+
+    // 2. Generate Lambda construction
+    // This emits the function and returns the struct value (as a register string)
+    const lambdaVal = this.generateExpression(lambdaExpr);
+    this.emit(`; Lambda Value: ${lambdaVal}`);
+    const lambdaType = this.resolveType(lambdaExpr.resolvedType!);
+
+    // 3. Extract func and ctx
+    const funcVal = this.newRegister();
+    this.emit(`  ${funcVal} = extractvalue ${lambdaType} ${lambdaVal}, 0`);
+    const ctxVal = this.newRegister();
+    this.emit(`  ${ctxVal} = extractvalue ${lambdaType} ${lambdaVal}, 1`);
+
+    // 4. Allocate DeferNode
+    const nodeSize = 24; // 8 ptr + 8 ptr + 8 ptr
+    const nodeVoidPtr = this.newRegister();
+    this.emit(`  ${nodeVoidPtr} = call i8* @malloc(i64 ${nodeSize})`);
+    const nodePtr = this.newRegister();
+    this.emit(
+      `  ${nodePtr} = bitcast i8* ${nodeVoidPtr} to %struct.DeferNode*`,
+    );
+
+    // 5. Fill DeferNode
+    // func (cast to i8*)
+    const funcVoid = this.newRegister();
+    this.emit(`  ${funcVoid} = bitcast void (i8*)* ${funcVal} to i8*`);
+    const funcField = this.newRegister();
+    this.emit(
+      `  ${funcField} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${nodePtr}, i32 0, i32 0`,
+    );
+    this.emit(`  store i8* ${funcVoid}, i8** ${funcField}`);
+
+    // ctx
+    const ctxField = this.newRegister();
+    this.emit(
+      `  ${ctxField} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${nodePtr}, i32 0, i32 1`,
+    );
+    this.emit(`  store i8* ${ctxVal}, i8** ${ctxField}`);
+
+    // next
+    const currentTop = this.newRegister();
+    this.emit(
+      `  ${currentTop} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+    const nextField = this.newRegister();
+    this.emit(
+      `  ${nextField} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${nodePtr}, i32 0, i32 2`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${currentTop}, %struct.DeferNode** ${nextField}`,
+    );
+
+    // Update top
+    this.emit(
+      `  store %struct.DeferNode* ${nodePtr}, %struct.DeferNode** @defer_top`,
+    );
+
+    // 6. Push cleanup to scope.deferred
+    // We push a block that pops the runtime node, frees it, and then executes the body via lambda call.
+    // Using a lambda call ensures correct semantics (return in defer returns from lambda, not outer function).
+    this.scopeStack[this.scopeStack.length - 1]!.deferred.push({
+      kind: "Block",
+      statements: [
+        {
+          kind: "RuntimeDeferCleanup",
+          ctxVal: ctxVal,
+          location: stmt.location,
+        } as AST.RuntimeDeferCleanupStmt,
+        {
+          kind: "LambdaCall",
+          funcVal: funcVal,
+          ctxVal: ctxVal,
+          location: stmt.location,
+        } as any,
+        {
+          kind: "FreeCaptureStruct",
+          ctxVal: ctxVal,
+          location: stmt.location,
+        } as any,
+      ],
+      location: stmt.location,
+    });
+  }
+
+  protected generateRuntimeDeferCleanup(stmt: AST.RuntimeDeferCleanupStmt) {
+    const curr = this.newRegister();
+    this.emit(
+      `  ${curr} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+
+    const nextPtrPtr = this.newRegister();
+    this.emit(
+      `  ${nextPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${curr}, i32 0, i32 2`,
+    );
+
+    const next = this.newRegister();
+    this.emit(
+      `  ${next} = load %struct.DeferNode*, %struct.DeferNode** ${nextPtrPtr}`,
+    );
+
+    this.emit(
+      `  store %struct.DeferNode* ${next}, %struct.DeferNode** @defer_top`,
+    );
+
+    const currVoid = this.newRegister();
+    this.emit(`  ${currVoid} = bitcast %struct.DeferNode* ${curr} to i8*`);
+
+    this.emit(`  call void @free(i8* ${currVoid})`);
+  }
+
+  protected generateFreeCaptureStruct(stmt: { ctxVal: string }) {
+    this.emit(`  call void @free(i8* ${stmt.ctxVal})`);
+  }
+
+  protected generateLambdaCall(stmt: { funcVal: string; ctxVal: string }) {
+    this.emit(`  call void ${stmt.funcVal}(i8* ${stmt.ctxVal})`);
+  }
+
   protected generateBreak(stmt: AST.BreakStmt) {
     if (this.loopStack.length === 0) {
       throw this.createError(
@@ -434,6 +848,16 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         "Break statements can only be used inside loops (for, while, do-while)",
       );
     }
+
+    // Unwind scopes until loop
+    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+      const scope = this.scopeStack[i]!;
+      for (let j = scope.deferred.length - 1; j >= 0; j--) {
+        this.generateStatement(scope.deferred[j]!);
+      }
+      if (scope.isLoop) break;
+    }
+
     const { breakLabel } = this.loopStack[this.loopStack.length - 1]!;
     this.emit(`  br label %${breakLabel}`);
   }
@@ -446,6 +870,16 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         "Continue statements can only be used inside loops (for, while, do-while)",
       );
     }
+
+    // Unwind scopes until loop
+    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+      const scope = this.scopeStack[i]!;
+      for (let j = scope.deferred.length - 1; j >= 0; j--) {
+        this.generateStatement(scope.deferred[j]!);
+      }
+      if (scope.isLoop) break;
+    }
+
     const { continueLabel } = this.loopStack[this.loopStack.length - 1]!;
     this.emit(`  br label %${continueLabel}`);
   }
@@ -862,8 +1296,33 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       isMatchYield = true;
     }
 
+    let retVal: string | undefined;
+
+    if (stmt.value) {
+      const rawVal = this.generateExpression(stmt.value);
+      const srcTypeNode = stmt.value.resolvedType!;
+      const srcType = this.resolveType(srcTypeNode);
+
+      retVal = this.emitCast(
+        rawVal,
+        srcType,
+        destType,
+        srcTypeNode,
+        destTypeNode,
+      );
+    }
+
     // Only trigger function-level return hooks (like destructors) if not yielding from a match
     if (!isMatchYield) {
+      // Run defers (LIFO)
+      for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+        const scope = this.scopeStack[i]!;
+        for (let j = scope.deferred.length - 1; j >= 0; j--) {
+          this.generateStatement(scope.deferred[j]!);
+        }
+        if (scope.isFunction) break;
+      }
+
       // Decrement stack depth
       const depth = this.newRegister();
       this.emit(`  ${depth} = load i32, i32* @__bpl_stack_depth`);
@@ -874,44 +1333,25 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       if (this.onReturn) this.onReturn();
     }
 
-    if (stmt.value) {
-      const rawVal = this.generateExpression(stmt.value);
-      const srcTypeNode = stmt.value.resolvedType!;
-      const srcType = this.resolveType(srcTypeNode);
-
-      let castVal = this.emitCast(
-        rawVal,
-        srcType,
-        destType,
-        srcTypeNode,
-        destTypeNode,
-      );
-
-      if (isMatchYield) {
-        const matchContext = this.matchStack[this.matchStack.length - 1]!;
+    if (isMatchYield) {
+      const matchContext = this.matchStack[this.matchStack.length - 1]!;
+      if (retVal) {
         matchContext.results.push({
-          value: castVal,
+          value: retVal,
           label: this.getCurrentLabel(),
           type: destType,
         });
-        this.emit(`  br label %${matchContext.mergeLabel}`);
-        return;
       }
-
-      this.emit(`  ret ${destType} ${castVal}`);
+      this.emit(`  br label %${matchContext.mergeLabel}`);
     } else {
-      if (isMatchYield) {
-        // Handle void yield from match
-        const matchContext = this.matchStack[this.matchStack.length - 1]!;
-        this.emit(`  br label %${matchContext.mergeLabel}`);
-        return;
-      }
-
-      // For void returns, check if this is main with modified return type
-      if (this.isMainWithVoidReturn) {
-        this.emit("  ret i32 0");
+      if (retVal) {
+        this.emit(`  ret ${destType} ${retVal}`);
       } else {
-        this.emit("  ret void");
+        if (this.isMainWithVoidReturn) {
+          this.emit("  ret i32 0");
+        } else {
+          this.emit("  ret void");
+        }
       }
     }
   }
@@ -982,7 +1422,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     }
 
     this.emit(`${bodyLabel}:`);
-    this.generateBlock(stmt.body);
+    this.generateBlock(stmt.body, true);
     if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
       this.emit(`  br label %${continueTarget}`);
     }
@@ -1054,6 +1494,17 @@ export abstract class StatementGenerator extends ExpressionGenerator {
   }
 
   protected generateAsm(stmt: AST.AsmBlockStmt) {
+    if (stmt.flavor === "raw") {
+      // Inject raw LLVM IR
+      const lines = stmt.content.split("\n");
+      for (const line of lines) {
+        if (line.trim()) {
+          this.emit(line);
+        }
+      }
+      return;
+    }
+
     if (
       stmt.flavor === "x86" ||
       stmt.flavor === "intel" ||
@@ -1269,9 +1720,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       const isInstantiating = parentStruct.genericParams.every((p) => {
         const pName = p.name.trim();
         if (!this.currentTypeMap.has(pName)) {
-          console.log(
-            `[DEBUG] Skipping ${decl.name}: Type map missing ${pName}`,
-          );
           return false;
         }
         const mapped = this.currentTypeMap.get(pName)!;
@@ -1284,10 +1732,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       if (!isInstantiating) {
         return;
       }
-    }
-
-    if (this.currentFunctionName) {
-      // Recursive generation detected
     }
 
     // Save state for re-entrancy (e.g. when resolving types triggers monomorphization)
@@ -1573,7 +2017,6 @@ export abstract class StatementGenerator extends ExpressionGenerator {
 
       const errorStruct = currentStruct;
       this.emitThrow(errorStruct, "%struct.StackOverflowError");
-      // this.emit("  unreachable");
 
       this.emit(`${stackOk}:`);
 
@@ -1587,6 +2030,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       for (let i = 0; i < decl.params.length; i++) {
         const param = decl.params[i]!;
         this.locals.add(param.name);
+        this.localTypes.set(param.name, effectiveFuncType.paramTypes[i]!);
         const type = this.resolveType(effectiveFuncType.paramTypes[i]!);
         const paramReg = `%${param.name}`;
         let stackAddr: string;
@@ -1653,7 +2097,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         }
       }
 
-      this.generateBlock(decl.body);
+      this.generateBlock(decl.body, false, true);
 
       // Add implicit return for void functions if missing
       let lastLine = "";

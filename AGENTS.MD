@@ -11,7 +11,7 @@ You are working with BPL, a statically-typed, compiled programming language that
 ### Keywords
 
 - **Declarations**: `frame` (function), `struct`, `spec` (interface/trait), `enum`, `type` (alias), `local`, `global`, `const`.
-- **Control Flow**: `if`, `else`, `loop`, `break`, `continue`, `switch`, `case`, `default`, `return`.
+- **Control Flow**: `if`, `else`, `loop`, `break`, `continue`, `switch`, `case`, `default`, `return`, `defer`.
 - **Pattern Matching**: `match`.
 - **Error Handling**: `try`, `catch`, `throw`.
 - **Modules**: `import`, `export`, `from`, `as`.
@@ -103,6 +103,7 @@ match (opt) {
   - `loop (init; cond; step) { ... }` (C-style for loop)
 - **Switch**: `switch (val) { case 1: ... default: ... }`
 - **Match**: `match (val) { Pattern => ... }`
+- **Defer**: `defer { ... }` (executes on scope exit or throw)
 
 ### Error Handling
 

@@ -141,6 +141,8 @@ export class Formatter {
         return `${indent}break;`;
       case "Continue":
         return `${indent}continue;`;
+      case "Defer":
+        return this.formatDefer(stmt as AST.DeferStmt);
       case "Block":
         return this.formatBlock(stmt as AST.BlockStmt);
       case "Try":
@@ -713,6 +715,16 @@ export class Formatter {
   private formatThrow(stmt: AST.ThrowStmt): string {
     const indent = this.getIndent();
     return `${indent}throw ${this.formatExpression(stmt.expression)};`;
+  }
+
+  private formatDefer(stmt: AST.DeferStmt): string {
+    const indent = this.getIndent();
+    if (stmt.statement.kind === "Block") {
+      return `${indent}defer ${this.formatBlock(stmt.statement as AST.BlockStmt, false)}`;
+    } else {
+      const inner = this.formatStatement(stmt.statement).trimStart();
+      return `${indent}defer ${inner}`;
+    }
   }
 
   private formatSwitch(stmt: AST.SwitchStmt): string {

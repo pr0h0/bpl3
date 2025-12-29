@@ -14,6 +14,7 @@ export interface CheckerContext {
   globalScope: SymbolTable;
   currentFunctionReturnType: AST.TypeNode | undefined;
   loopDepth: number;
+  inDefer: boolean;
   errors: CompilerError[];
   collectAllErrors: boolean;
   matchContext: {

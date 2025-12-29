@@ -238,6 +238,26 @@ loop (; i < 10; ) { ... }
 loop (;;) { ... } # Equivalent to loop { ... }
 ```
 
+### Defer
+
+The `defer` statement schedules a block of code to be executed when the current scope exits. This is useful for resource cleanup, such as closing files or freeing memory.
+
+- **LIFO Order**: Deferred statements are executed in Last-In, First-Out order (reverse of declaration).
+- **Scope Bound**: Execution happens when the enclosing block exits (via return, break, continue, throw, or fallthrough).
+- **Void Return**: The deferred block must return `void`. It cannot return a value to the outer function.
+
+```bpl
+frame processFile(path: string) {
+    local file = open(path);
+    defer {
+        close(file);
+    }
+
+    # ... process file ...
+    # close(file) is called automatically here
+}
+```
+
 ### Switch
 
 The switch expression must be enclosed in parentheses.

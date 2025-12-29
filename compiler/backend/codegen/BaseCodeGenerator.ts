@@ -64,6 +64,11 @@ export class BaseCodeGenerator {
   protected structMap: Map<string, AST.StructDecl> = new Map();
   protected specMap: Map<string, AST.SpecDecl> = new Map();
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];
+  protected scopeStack: {
+    deferred: AST.Statement[];
+    isLoop: boolean;
+    isFunction: boolean;
+  }[] = [];
   protected declaredFunctions: Set<string> = new Set();
   protected globals: Set<string> = new Set();
   protected locals: Set<string> = new Set();

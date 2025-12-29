@@ -32,6 +32,7 @@ export abstract class TypeCheckerBase {
   public errors: CompilerError[] = [];
   public collectAllErrors: boolean = true;
   public loopDepth: number = 0;
+  public inDefer: boolean = false;
 
   constructor(
     options: {

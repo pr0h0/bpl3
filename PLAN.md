@@ -21,6 +21,20 @@ The following features are recommended for implementation next:
 
 ## 📋 COMPLETED FEATURES
 
+## [3] ✅ Defer Statement (COMPLETED)
+
+**Description:** Implement `defer` for guaranteed execution of cleanup code when scope exits.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Grammar**: Added `defer` keyword and statement parsing.
+- ✅ **AST**: Added `DeferStmt` node.
+- ✅ **Checker**: Enforced `void` return type for deferred blocks.
+- ✅ **Codegen**: Implemented LIFO execution using `LambdaCall` and `FreeCaptureStruct` to handle recursion safely.
+- ✅ **Tests**: Added `examples/defer_test` and `examples/defer_edge_cases`.
+
 ## [3] ✅ C-style For Loop Support (COMPLETED)
 
 **Description:** Support for C-style for loops `loop(init; cond; step) { ... }`.

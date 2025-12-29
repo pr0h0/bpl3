@@ -98,6 +98,13 @@
 - [x] Multi-Target Support (Cross-compilation via LLVM target triples)
 - [x] Root Global `Type` Struct (Implicit inheritance for all structs)
 - [x] Primitive Types as Structs Inheriting `Primitive` (Wrapper structs for int, float, bool, char)
+- [x] Defer Statement ✅
+  - ✅ `defer` keyword implemented
+  - ✅ LIFO execution order
+  - ✅ Scope-bound cleanup
+  - ✅ Void return enforcement
+  - ✅ Recursion/Stack Overflow fix (LambdaCall)
+  - ✅ VS Code Extension support
 - [x] Closures and Lambda Expressions ✅
   - ✅ Lambda syntax `|args| body` implemented
   - ✅ Capture by value semantics verified
@@ -249,13 +256,6 @@
 
   - Description: Extend pattern matching to support nested patterns (e.g., `Option.Some(Result.Ok(x))`).
   - Implementation notes: Update parser/typechecker/codegen for recursive pattern matching.
-
-- [7] **Defer Statement**
-
-  - Description: Implement defer for guaranteed execution of cleanup code when scope exits.
-  - Implementation notes: Add defer keyword, track deferred statements in scope, inject at all exit points.
-
-- [7] **Module Visibility and Access Control**
 
   - Description: Add public/private visibility modifiers and module encapsulation.
   - Implementation notes: Add pub/private keywords, enforce visibility during semantic analysis, support module-level exports.

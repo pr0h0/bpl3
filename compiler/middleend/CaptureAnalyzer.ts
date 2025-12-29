@@ -59,11 +59,8 @@ export class CaptureAnalyzer {
         this.visit((node as AST.IfStmt).condition);
         this.visit((node as AST.IfStmt).thenBranch);
         if ((node as AST.IfStmt).elseBranch) {
-          if ((node as AST.IfStmt).elseBranch!.kind === "If") {
-            this.visit((node as AST.IfStmt).elseBranch!);
-          } else {
-            this.visit((node as AST.IfStmt).elseBranch!);
-          }
+          // Handle both BlockStmt and IfStmt (else if)
+          this.visit((node as AST.IfStmt).elseBranch!);
         }
         break;
       case "Loop":

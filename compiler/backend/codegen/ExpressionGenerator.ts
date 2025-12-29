@@ -821,6 +821,142 @@ export abstract class ExpressionGenerator extends TypeGenerator {
         const ptrType = this.resolveType(objType); // T*
         this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
 
+        if (!skipNullObjectCheck) {
+          const isNull = this.newRegister();
+          this.emit(`  ${isNull} = icmp eq ${ptrType} ${ptrReg}, null`);
+
+          const throwLabel = this.newLabel("nullptr.throw");
+          const passLabel = this.newLabel("nullptr.pass");
+          this.emit(
+            `  br i1 ${isNull}, label %${throwLabel}, label %${passLabel}`,
+          );
+
+          this.emit(`${throwLabel}:`);
+
+          const funcName = this.currentFunctionName || "unknown";
+          const exprStr = "pointer_index";
+          const msg = "Attempted to index null pointer";
+
+          if (!this.stringLiterals.has(msg)) {
+            this.stringLiterals.set(
+              msg,
+              `@.null_err_msg.${this.stringLiterals.size}`,
+            );
+          }
+          if (!this.stringLiterals.has(funcName)) {
+            this.stringLiterals.set(
+              funcName,
+              `@.null_err_func.${this.stringLiterals.size}`,
+            );
+          }
+          if (!this.stringLiterals.has(exprStr)) {
+            this.stringLiterals.set(
+              exprStr,
+              `@.null_err_expr.${this.stringLiterals.size}`,
+            );
+          }
+
+          const msgLen = msg.length + 1;
+          const funcLen = funcName.length + 1;
+          const exprLen = exprStr.length + 1;
+
+          const msgPtr = `getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${this.stringLiterals.get(msg)}, i32 0, i32 0)`;
+          const funcPtr = `getelementptr inbounds ([${funcLen} x i8], [${funcLen} x i8]* ${this.stringLiterals.get(funcName)}, i32 0, i32 0)`;
+          const exprPtr = `getelementptr inbounds ([${exprLen} x i8], [${exprLen} x i8]* ${this.stringLiterals.get(exprStr)}, i32 0, i32 0)`;
+
+          const nullLayout = this.structLayouts.get("NullAccessError");
+          let currentStruct = "undef";
+
+          if (nullLayout) {
+            if (nullLayout.has("__vtable__")) {
+              const vtableIndex = nullLayout.get("__vtable__");
+              const vtablePtr = this.newRegister();
+              this.emit(
+                `  ${vtablePtr} = bitcast [3 x i8*]* @NullAccessError_vtable to i8*`,
+              );
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${vtablePtr}, ${vtableIndex}`,
+              );
+              currentStruct = nextStruct;
+            }
+            if (nullLayout.has("message")) {
+              const idx = nullLayout.get("message");
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${msgPtr}, ${idx}`,
+              );
+              currentStruct = nextStruct;
+            }
+            if (nullLayout.has("code")) {
+              const idx = nullLayout.get("code");
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 7, ${idx}`,
+              );
+              currentStruct = nextStruct;
+            }
+            if (nullLayout.has("function")) {
+              const idx = nullLayout.get("function");
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${funcPtr}, ${idx}`,
+              );
+              currentStruct = nextStruct;
+            }
+            if (nullLayout.has("expression")) {
+              const idx = nullLayout.get("expression");
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i8* ${exprPtr}, ${idx}`,
+              );
+              currentStruct = nextStruct;
+            }
+            if (nullLayout.has("line")) {
+              const idx = nullLayout.get("line");
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 ${indexExpr.location.startLine}, ${idx}`,
+              );
+              currentStruct = nextStruct;
+            }
+            if (nullLayout.has("column")) {
+              const idx = nullLayout.get("column");
+              const nextStruct = this.newRegister();
+              this.emit(
+                `  ${nextStruct} = insertvalue %struct.NullAccessError ${currentStruct}, i32 ${indexExpr.location.startColumn}, ${idx}`,
+              );
+              currentStruct = nextStruct;
+            }
+          } else {
+            // Fallback
+            let s = this.newRegister();
+            this.emit(
+              `  ${s} = insertvalue %struct.NullAccessError undef, i8* ${msgPtr}, 0`,
+            );
+            let s2 = this.newRegister();
+            this.emit(
+              `  ${s2} = insertvalue %struct.NullAccessError ${s}, i8* ${funcPtr}, 1`,
+            );
+            let s3 = this.newRegister();
+            this.emit(
+              `  ${s3} = insertvalue %struct.NullAccessError ${s2}, i8* ${exprPtr}, 2`,
+            );
+            let s4 = this.newRegister();
+            this.emit(
+              `  ${s4} = insertvalue %struct.NullAccessError ${s3}, i32 ${indexExpr.location.startLine}, 3`,
+            );
+            let s5 = this.newRegister();
+            this.emit(
+              `  ${s5} = insertvalue %struct.NullAccessError ${s4}, i32 ${indexExpr.location.startColumn}, 4`,
+            );
+            currentStruct = s5;
+          }
+
+          this.emitThrow(currentStruct, "%struct.NullAccessError");
+          this.emit(`${passLabel}:`);
+        }
+
         const elemType = this.resolveType(indexExpr.resolvedType!);
         addr = this.newRegister();
         this.emit(
@@ -1025,6 +1161,108 @@ export abstract class ExpressionGenerator extends TypeGenerator {
     this.emit(`  unreachable`);
 
     this.emit(`${jumpLabel}:`);
+
+    // Unwind defer stack
+    const targetDeferTopPtr = this.newRegister();
+    this.emit(
+      `  ${targetDeferTopPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 2`,
+    );
+    const targetDeferTop = this.newRegister();
+    this.emit(
+      `  ${targetDeferTop} = load %struct.DeferNode*, %struct.DeferNode** ${targetDeferTopPtr}`,
+    );
+
+    const unwindCond = this.newLabel("defer.unwind.cond");
+    const unwindBody = this.newLabel("defer.unwind.body");
+    const unwindEnd = this.newLabel("defer.unwind.end");
+
+    this.emit(`  br label %${unwindCond}`);
+
+    this.emit(`${unwindCond}:`);
+    const currentDeferTop = this.newRegister();
+    this.emit(
+      `  ${currentDeferTop} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+    const isDone = this.newRegister();
+    this.emit(
+      `  ${isDone} = icmp eq %struct.DeferNode* ${currentDeferTop}, ${targetDeferTop}`,
+    );
+    this.emit(`  br i1 ${isDone}, label %${unwindEnd}, label %${unwindBody}`);
+
+    this.emit(`${unwindBody}:`);
+    // Execute defer
+    const funcPtrPtr = this.newRegister();
+    this.emit(
+      `  ${funcPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDeferTop}, i32 0, i32 0`,
+    );
+    const funcVoidPtr = this.newRegister();
+    this.emit(`  ${funcVoidPtr} = load i8*, i8** ${funcPtrPtr}`);
+    const funcPtr = this.newRegister();
+    this.emit(`  ${funcPtr} = bitcast i8* ${funcVoidPtr} to void (i8*)*`);
+
+    const ctxPtrPtr = this.newRegister();
+    this.emit(
+      `  ${ctxPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDeferTop}, i32 0, i32 1`,
+    );
+    const ctxPtr = this.newRegister();
+    this.emit(`  ${ctxPtr} = load i8*, i8** ${ctxPtrPtr}`);
+
+    this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
+
+    // Pop and free
+    const nextPtrPtr = this.newRegister();
+    this.emit(
+      `  ${nextPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDeferTop}, i32 0, i32 2`,
+    );
+    const nextPtr = this.newRegister();
+    this.emit(
+      `  ${nextPtr} = load %struct.DeferNode*, %struct.DeferNode** ${nextPtrPtr}`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${nextPtr}, %struct.DeferNode** @defer_top`,
+    );
+    // Free node? Yes, we should free it to avoid leak.
+    // But we also need to free the context if it was allocated?
+    // The context is usually part of the closure struct which is malloc'd in generateDefer?
+    // Wait, generateDefer allocates DeferNode, but the closure context is passed in.
+    // In generateDefer:
+    //   const lambdaVal = this.generateExpression(lambdaExpr);
+    //   ...
+    //   const ctxVal = extractvalue ...
+    // The lambda expression generation allocates the closure context if needed.
+    // So we should probably not free ctx here unless we know how it was allocated.
+    // But we SHOULD free the DeferNode itself.
+    // Wait, generateRuntimeDeferCleanup frees the node.
+    // So we should free it here too.
+    // But wait, if we free it, we can't access nextPtr? We loaded nextPtr before.
+    // So we can free currentDeferTop.
+    // But wait, generateDefer allocates DeferNode using malloc.
+    // So we should free it.
+    // But what about the closure context?
+    // The closure context is managed by the lambda generation.
+    // If it's a heap allocated closure, it should be freed.
+    // But we don't know if it is.
+    // However, in generateDefer, we don't see explicit free of context in RuntimeDeferCleanup?
+    // Let's check generateRuntimeDeferCleanup in StatementGenerator.
+
+    // Checking StatementGenerator.ts...
+    // It does: call void @free(i8* %node)
+    // And: call void @free(i8* %ctx)
+    // So we should free both.
+
+    // Free context
+    this.emit(`  call void @free(i8* ${ctxPtr})`);
+
+    // Free node
+    const nodeVoidPtr = this.newRegister();
+    this.emit(
+      `  ${nodeVoidPtr} = bitcast %struct.DeferNode* ${currentDeferTop} to i8*`,
+    );
+    this.emit(`  call void @free(i8* ${nodeVoidPtr})`);
+
+    this.emit(`  br label %${unwindCond}`);
+
+    this.emit(`${unwindEnd}:`);
     const bufFieldPtr = this.newRegister();
     this.emit(
       `  ${bufFieldPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 0`,

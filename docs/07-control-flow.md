@@ -901,6 +901,64 @@ frame main() ret int {
 }
 ```
 
+## Defer Statement
+
+The `defer` statement schedules a function call or block to be executed when the surrounding function returns or the surrounding block exits. Deferred statements are executed in LIFO (Last-In, First-Out) order.
+
+`defer` is useful for cleanup tasks like closing files, freeing memory, or unlocking mutexes.
+
+### Basic Usage
+
+```bpl
+frame main() {
+    defer printf("World\n");
+    printf("Hello ");
+}
+# Output:
+# Hello World
+```
+
+### LIFO Order
+
+```bpl
+{
+    defer printf("First\n");
+    defer printf("Second\n");
+    printf("Start\n");
+}
+# Output:
+# Start
+# Second
+# First
+```
+
+### Interaction with Exceptions
+
+Deferred statements are guaranteed to execute even if an exception is thrown (stack unwinding).
+
+```bpl
+try {
+    defer printf("Cleanup\n");
+    throw 1;
+} catch (e: int) {
+    printf("Caught\n");
+}
+# Output:
+# Cleanup
+# Caught
+```
+
+### Capturing Variables
+
+Deferred statements capture variables from their surrounding scope. Arguments to function calls in `defer` are evaluated immediately (by value), similar to Go.
+
+```bpl
+local i: int = 0;
+defer printf("%d\n", i); # Captures i=0
+i = 1;
+# Output: 0
+```
+
 ## Next Steps
 
 - [Functions Basics](08-functions-basics.md) - Function declarations and calls

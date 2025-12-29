@@ -1,0 +1,29 @@
+{
+  "expectedOutput": [
+    "--- Test 1: NullAccessError triggering Defer ---",
+    "About to trigger NullAccessError",
+    "Defer executed during NullAccess unwinding",
+    "Caught NullAccessError in main",
+    "",
+    "--- Test 2: Defer causing NullAccessError ---",
+    "Function body finishing normally",
+    "Defer running, about to crash",
+    "Caught NullAccessError from defer in main",
+    "",
+    "--- Test 3: Return inside Defer ---",
+    "Function body",
+    "Defer start",
+    "Result: 1",
+    "",
+    "--- Test 4: Modifying Return Value (Primitive) ---",
+    "Defer updating y to 5",
+    "Result: 3, x.y: 5",
+    "",
+    "--- Test 5: Modifying Return Value (Pointer) ---",
+    "Defer updating y to 10",
+    "Result->y: 10"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

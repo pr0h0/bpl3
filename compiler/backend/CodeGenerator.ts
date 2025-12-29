@@ -387,9 +387,16 @@ export class CodeGenerator extends StatementGenerator {
     this.declaredFunctions.add("fprintf");
 
     // Exception Handling Primitives
-    // jmp_buf is platform dependent. [32 x i64] is 256 bytes, sufficient for x64.
+    // Defer Node
     this.emitDeclaration(
-      `%struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame* }`,
+      `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }`,
+    );
+    this.emitDeclaration(`@defer_top = weak global %struct.DeferNode* null`);
+
+    // jmp_buf is platform dependent. [32 x i64] is 256 bytes, sufficient for x64.
+    // Added saved_defer_top to restore defer stack on catch
+    this.emitDeclaration(
+      `%struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }`,
     );
     this.emitDeclaration(
       `@exception_top = weak global %struct.ExceptionFrame* null`,

@@ -307,6 +307,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       case "Asm":
         StmtChecker.checkAsm.call(this, stmt as AST.AsmBlockStmt);
         break;
+      case "Defer":
+        StmtChecker.checkDefer.call(this, stmt as AST.DeferStmt);
+        break;
       case "Import":
       case "Export":
       case "Extern":
