@@ -21,7 +21,7 @@
 
 ## Variadic Functions
 
-- [ ] Support homogeneous variadics (e.g., `...int`) alongside heterogeneous `...Any`.
+- [x] Support homogeneous variadics (e.g., `...int`) alongside heterogeneous `...Any`.
 
   - Currently, all variadics are treated as `...Any` (array of Any structs).
   - Need to support `...T` where T is a specific type, passing `T*` (pointer to array of T) and count.

@@ -102,6 +102,20 @@ The following features are recommended for implementation next:
 
 ---
 
+## [3] ✅ Homogeneous Variadic Functions (COMPLETED)
+
+**Description:** Support for typed variadic functions (e.g., `...args: int`) alongside heterogeneous `...Any`.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Type Checker**: Enforced strict structure `frame foo(...args: T, count: int)`.
+- ✅ **Overload Resolver**: Updated to handle typed variadics correctly.
+- ✅ **Tests**: Added `examples/variadic_homogeneous` and `tests/Variadic.test.ts`.
+
+---
+
 ## [3] ✅ Type Narrowing / Pattern Matching (COMPLETED)
 
 **Description:** Allows safer code by narrowing types in conditional blocks and explicit casting.

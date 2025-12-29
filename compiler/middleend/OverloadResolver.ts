@@ -257,12 +257,11 @@ export class OverloadResolver {
 
       if (ft.isVariadic) {
         if (decl.kind === "FunctionDecl") {
-          // BPL Variadic: (fixed..., variadic)
+          // BPL Variadic: (fixed..., variadic, count)
           // We check fixed params, then check remaining args against the element type of the variadic param
           isBplVariadic = true;
           paramsToCheck = ft.paramTypes.length - 2;
         }
-        // Extern Variadic: check all defined params (paramsToCheck = length)
       }
 
       for (let i = 0; i < argTypes.length; i++) {

@@ -477,7 +477,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Add params to scope
     const paramNames = new Set<string>();
-    for (const param of decl.params) {
+    for (let i = 0; i < decl.params.length; i++) {
+      const param = decl.params[i]!;
       if (paramNames.has(param.name)) {
         throw new CompilerError(
           `Duplicate parameter name '${param.name}'`,
@@ -502,6 +503,31 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
 
       if (param.isVariadic) {
+        // Enforce variadic structure: (..., variadic, count)
+        // The variadic parameter must be the second to last parameter
+        if (i !== decl.params.length - 2) {
+          throw new CompilerError(
+            "Variadic parameter must be followed by exactly one parameter (the count)",
+            "BPL requires variadic functions to have an explicit count parameter: frame foo(...args: T, count: int)",
+            param.location,
+          );
+        }
+
+        // The following parameter must be of type int
+        const countParam = decl.params[i + 1]!;
+        const countType = this.resolveType(countParam.type);
+        if (
+          countType.kind !== "BasicType" ||
+          (countType.name !== "int" && countType.name !== "i32") ||
+          countType.pointerDepth > 0
+        ) {
+          throw new CompilerError(
+            "Variadic count parameter must be of type 'int'",
+            "The parameter following the variadic argument must be an integer count.",
+            countParam.location,
+          );
+        }
+
         // Variadic param is a pointer to array of Any
         // We treat it as *Any in the body
         if (paramType.kind === "BasicType") {
@@ -510,24 +536,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             pointerDepth: paramType.pointerDepth + 1,
           };
         }
-
-        // Define implicit count variable
-        // const countName = `${param.name}_count`;
-        // this.defineSymbol(
-        //   countName,
-        //   "Variable",
-        //   {
-        //     kind: "BasicType",
-        //     name: "int",
-        //     genericArgs: [],
-        //     pointerDepth: 0,
-        //     arrayDimensions: [],
-        //     location: param.location,
-        //   },
-        //   param as any,
-        //   undefined,
-        //   true, // const
-        // );
       }
 
       this.defineSymbol(
