@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["AT&T Result: 42", "LLVM Result: 123"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

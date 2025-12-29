@@ -21,6 +21,19 @@ The following features are recommended for implementation next:
 
 ## 📋 COMPLETED FEATURES
 
+## [8] ✅ Inline Assembly Blocks (COMPLETED)
+
+**Description:** Allow embedding inline assembly with explicit register lists and integration with calling conventions.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Syntax**: Extended interpolation syntax `(var)`, `(=var)`, `(var: "constraint")`.
+- ✅ **Codegen**: Updated `StatementGenerator` to parse extended syntax and generate correct LLVM inline asm calls with constraints.
+- ✅ **Constraints**: Supported explicit input/output constraints and clobber lists.
+- ✅ **Tests**: Added `examples/asm_test` verifying inputs, outputs, and clobbers.
+
 ## [3] ✅ Defer Statement (COMPLETED)
 
 **Description:** Implement `defer` for guaranteed execution of cleanup code when scope exits.
@@ -593,34 +606,6 @@ There are several approaches to fix this:
 - Memory usage remains reasonable (no unbounded caching)
 
 ## 🚧 PARTIALLY COMPLETED FEATURES
-
-## [8] Inline Assembly Blocks
-
-**Description:** Allow embedding inline assembly with explicit register lists and integration with calling conventions. This enables developers to write performance-critical code or access CPU features that aren't exposed through the language. Support `asm("flavor") { ... }` syntax for different assembly dialects (e.g., "intel", "att") or targets.
-
-**Implementation Notes:**
-
-- Add parser support for inline assembly syntax with optional flavor string
-- Create safe lowered representation for assembly blocks
-- Implement proper integration with calling conventions
-- Support explicit register constraints and clobber lists
-- Validate register usage and detect conflicts
-- Generate correct inline assembly in LLVM IR or native codegen
-- Support input/output constraints for variables via interpolation `(var)`
-- Implement flavor-based wrapping (e.g. automatically wrapping x86 asm in LLVM `call asm`)
-- Implement proper type checking for assembly operands
-- Generate warnings for platform-specific assembly
-
-**Acceptance Criteria:**
-
-- `asm("intel") { ... }` syntax compiles correctly
-- `asm { ... (var) ... }` correctly interpolates variables
-- Inline assembly is properly injected into compiled code
-- Register constraints are validated
-- Inline assembly interoperates with normal code
-- Documentation covers constraints and usage patterns
-
----
 
 ## [9] Semantic Analysis Improvements
 

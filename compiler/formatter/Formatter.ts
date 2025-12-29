@@ -554,16 +554,63 @@ export class Formatter {
       }
     }
 
+    // Re-indent content
+    const lines = content.split("\n");
+    // Remove first empty line if it exists (common case: asm { \n ...)
+    if (lines.length > 0 && lines[0]!.trim() === "") {
+      lines.shift();
+    }
+    // Remove last empty line if it exists (common case: ... \n })
+    if (lines.length > 0 && lines[lines.length - 1]!.trim() === "") {
+      lines.pop();
+    }
+
+    if (lines.length > 0) {
+      // Find minimum indentation
+      let minIndent = Infinity;
+      for (const line of lines) {
+        if (line.trim().length === 0) continue;
+        const match = line.match(/^(\s*)/);
+        if (match) {
+          minIndent = Math.min(minIndent, match[1]!.length);
+        }
+      }
+      if (minIndent === Infinity) minIndent = 0;
+
+      // Re-indent
+      this.indentLevel++;
+      const innerIndent = this.getIndent();
+      this.indentLevel--;
+
+      content =
+        "\n" +
+        lines
+          .map((line) => {
+            if (line.trim().length === 0) return "";
+            return innerIndent + line.substring(minIndent);
+          })
+          .join("\n");
+    } else {
+      content = "";
+    }
+
     if (stmt.clobbers && stmt.clobbers.length > 0) {
-      content = content.trimEnd();
-      content += "\n";
+      if (content.length > 0) {
+        content += "\n";
+      } else {
+        content = "\n";
+      }
 
       this.indentLevel++;
       const innerIndent = this.getIndent();
       this.indentLevel--;
 
       const clobberStr = `[ ${stmt.clobbers.map((c) => `"${c}"`).join(", ")} ]`;
-      content += `${innerIndent}${clobberStr}\n${indent}`;
+      content += `${innerIndent}${clobberStr}`;
+    }
+
+    if (content.length > 0) {
+      content += `\n${indent}`;
     }
 
     return `${indent}asm${flavor} {${content}}`;

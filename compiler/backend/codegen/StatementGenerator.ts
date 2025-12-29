@@ -1530,71 +1530,79 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       // Escape $ to $$ for LLVM inline asm (because $ is used for operands)
       asmString = asmString.replace(/\$/g, "$$$$");
 
-      // Use Intel syntax by default for x86/intel flavor
-      // Note: We use 'inteldialect' in the call instruction instead of manual wrapping
-      // if (stmt.flavor !== "att") {
-      //   asmString =
-      //     ".intel_syntax noprefix\\0A" + asmString + "\\0A.att_syntax";
-      // }
-
-      // Variables to pass as inputs
-      const inputs: {
+      // Variables to pass as inputs/outputs
+      interface AsmOperand {
         name: string;
         ptr: string;
         type: AST.TypeNode;
         isPtr: boolean;
-      }[] = [];
-
-      // Replace (variable) or (&variable) with $N
-      asmString = asmString.replace(/\((&?)(\w+)\)/g, (match, amp, name) => {
-        if (this.locals.has(name)) {
-          const ptr = this.localPointers.get(name);
-          const type = this.localTypes.get(name);
-          if (ptr && type) {
-            const isPtr = amp === "&";
-            // Check if we already have this variable with same mode
-            let index = inputs.findIndex(
-              (i) => i.name === name && i.isPtr === isPtr,
-            );
-            if (index === -1) {
-              index = inputs.length;
-              inputs.push({ name, ptr, type, isPtr });
-            }
-            return `$${index}`;
-          }
-        }
-        return match;
-      });
-
-      // Generate load instructions for inputs
-      const inputRegs: string[] = [];
-      const inputTypes: string[] = [];
-      const constraints: string[] = [];
-
-      for (const input of inputs) {
-        const llvmType = this.resolveType(input.type);
-        if (input.isPtr) {
-          // Pass pointer directly
-          inputRegs.push(input.ptr);
-          inputTypes.push(llvmType + "*");
-          constraints.push("r");
-        } else {
-          // Load value
-          const valReg = this.newRegister();
-          this.emit(
-            `  ${valReg} = load ${llvmType}, ${llvmType}* ${input.ptr}`,
-          );
-          inputRegs.push(valReg);
-          inputTypes.push(llvmType);
-          constraints.push("r"); // Use register constraint
-        }
+        isOutput: boolean;
+        constraint?: string;
       }
 
-      // Construct the call
-      // call void asm sideeffect "...", "constraints"(types...)
-      // Add standard clobbers
-      // Constraints order: outputs, inputs, clobbers
+      const uniqueOperands = new Map<string, AsmOperand>();
+      const getKey = (name: string, isPtr: boolean, isOutput: boolean) =>
+        `${name}:${isPtr}:${isOutput}`;
 
+      // 1. Find all matches and collect unique operands
+      // Replace (=variable), (variable), (&variable), or with constraints
+      // Regex: /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g
+      const tempString = asmString.replace(
+        /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g,
+        (match, eq, amp, name, constraint) => {
+          if (this.locals.has(name)) {
+            const ptr = this.localPointers.get(name);
+            const type = this.localTypes.get(name);
+            if (ptr && type) {
+              const isOutput = eq === "=";
+              const isPtr = amp === "&";
+              const key = getKey(name, isPtr, isOutput);
+
+              if (!uniqueOperands.has(key)) {
+                uniqueOperands.set(key, {
+                  name,
+                  ptr,
+                  type,
+                  isPtr,
+                  isOutput,
+                  constraint,
+                });
+              }
+              return `__BPL_ASM_OP_${key}__`;
+            }
+          }
+          return match;
+        },
+      );
+
+      // 2. Sort operands: Outputs first, then Inputs
+      const allOperands = Array.from(uniqueOperands.values());
+      const outputs = allOperands.filter((o) => o.isOutput);
+      const inputs = allOperands.filter((o) => !o.isOutput);
+      const sortedOperands = [...outputs, ...inputs];
+
+      // 3. Replace placeholders with $index
+      asmString = tempString.replace(
+        /__BPL_ASM_OP_([^_]+)__/g,
+        (match, key) => {
+          const op = uniqueOperands.get(key);
+          if (!op) return match;
+          const index = sortedOperands.indexOf(op);
+          return `$${index}`;
+        },
+      );
+
+      // 4. Generate constraints string
+      // Constraints order: outputs, inputs, clobbers
+      const operandConstraints = sortedOperands.map((op) => {
+        if (op.isOutput) {
+          return op.constraint || "=r";
+        } else {
+          return op.constraint || "r";
+        }
+      });
+
+      // Handle clobbers
       let clobbers: string[] = [];
       if (stmt.clobbers && stmt.clobbers.length > 0) {
         for (const c of stmt.clobbers) {
@@ -1612,16 +1620,13 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         clobbers.push("memory", "cc", "dirflag", "fpsr", "flags");
 
         // Scan for registers in the assembly string
-        // Regex to match x86 registers (64-bit, 32-bit, 16-bit, 8-bit)
         const regRegex =
           /\b(%?)(r[abcd]x|e[abcd]x|[abcd]x|[abcd]l|[abcd]h|r[sd]i|e[sd]i|si|di|dil|sil|rbp|ebp|bp|bpl|rsp|esp|sp|spl|r[89]|r1[0-5]|r[89][dwb]|r1[0-5][dwb]|xmm\d+|ymm\d+|zmm\d+)\b/gi;
 
         const matches = asmString.match(regRegex);
         if (matches) {
           matches.forEach((m) => {
-            // Strip % if present and lowercase
             let reg = m.replace(/^%/, "").toLowerCase();
-
             // Normalize to 64-bit register names where possible
             if (/^(rax|eax|ax|al|ah)$/.test(reg)) reg = "rax";
             else if (/^(rbx|ebx|bx|bl|bh)$/.test(reg)) reg = "rbx";
@@ -1634,29 +1639,65 @@ export abstract class StatementGenerator extends ExpressionGenerator {
             else if (/^r([89]|1[0-5])[dwb]?$/.test(reg)) {
               reg = reg.replace(/[dwb]$/, "");
             }
-
             clobbers.push(reg);
           });
         }
       }
-
-      // Deduplicate
       clobbers = [...new Set(clobbers)];
 
       const constraintString =
-        (constraints.length > 0 ? constraints.join(",") + "," : "") +
-        clobbers.map((c) => `~{${c}}`).join(",");
+        (operandConstraints.length > 0
+          ? operandConstraints.join(",") + ","
+          : "") + clobbers.map((c) => `~{${c}}`).join(",");
 
-      const args = inputRegs
-        .map((reg, i) => `${inputTypes[i]} ${reg}`)
-        .join(", ");
+      // 5. Prepare input arguments
+      const inputArgs = inputs.map((op) => {
+        const llvmType = this.resolveType(op.type);
+        if (op.isPtr) {
+          return `${llvmType}* ${op.ptr}`;
+        } else {
+          const valReg = this.newRegister();
+          this.emit(`  ${valReg} = load ${llvmType}, ${llvmType}* ${op.ptr}`);
+          return `${llvmType} ${valReg}`;
+        }
+      });
+
+      const argsString = inputArgs.join(", ");
 
       const dialect =
         stmt.flavor === "x86" || stmt.flavor === "intel" ? "inteldialect" : "";
 
+      // 6. Determine return type and emit call
+      let returnType = "void";
+      if (outputs.length === 1) {
+        returnType = this.resolveType(outputs[0]!.type);
+      } else if (outputs.length > 1) {
+        const types = outputs.map((o) => this.resolveType(o.type));
+        returnType = `{ ${types.join(", ")} }`;
+      }
+
+      const resultReg = outputs.length > 0 ? this.newRegister() : "";
+      const callPrefix = outputs.length > 0 ? `${resultReg} = ` : "";
+
       this.emit(
-        `  call void asm sideeffect ${dialect} "${asmString}", "${constraintString}"(${args})`,
+        `  ${callPrefix}call ${returnType} asm sideeffect ${dialect} "${asmString}", "${constraintString}"(${argsString})`,
       );
+
+      // 7. Store results back to variables
+      if (outputs.length === 1) {
+        const op = outputs[0]!;
+        const llvmType = this.resolveType(op.type);
+        this.emit(`  store ${llvmType} ${resultReg}, ${llvmType}* ${op.ptr}`);
+      } else if (outputs.length > 1) {
+        outputs.forEach((op, i) => {
+          const llvmType = this.resolveType(op.type);
+          const valReg = this.newRegister();
+          this.emit(
+            `  ${valReg} = extractvalue ${returnType} ${resultReg}, ${i}`,
+          );
+          this.emit(`  store ${llvmType} ${valReg}, ${llvmType}* ${op.ptr}`);
+        });
+      }
     } else {
       const lines = stmt.content.split("\n");
       for (const line of lines) {

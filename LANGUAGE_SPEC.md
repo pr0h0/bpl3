@@ -351,21 +351,68 @@ BPL supports inline assembly blocks for embedding LLVM IR or platform-specific a
 
 ### Syntax
 
-````bpl
-# Raw LLVM IR
-asm {
-    "%val = add i32 1, 2"
+```bpl
+# Raw LLVM IR (default or "llvm")
+asm("llvm") {
+    "%ptr = getelementptr i32, i32* (var), i32 0"
+    "store i32 1, i32* %ptr"
 }
 
-# x86 / Intel Syntax
-asm("x86") {
-    "mov eax, 1"
-    "add eax, 2"
+# Intel Syntax
+asm("intel") {
+    mov eax, (input)          # Input
+    add eax, 1
+    mov (=output), eax        # Output
+    [ "eax" ]                 # Clobbers
 }
 
 # AT&T Syntax
 asm("att") {
-    "movl $1, %eax"
+    movl (input), %eax
+    addl $1, %eax
+    movl %eax, (=output)
+}
+```
+
+### Flavors
+
+- **`llvm`** (or `raw`): Injects content directly into LLVM IR. Supports `(var)` interpolation (resolves to pointer).
+- **`intel`** (or `x86`): Wraps content in `call void asm sideeffect inteldialect`. Supports full interpolation.
+- **`att`**: Wraps content in `call void asm sideeffect`. Supports full interpolation.
+
+### Interpolation & Constraints
+
+- **Input**: `(var)` or `(var: "constraint")`. Default constraint is `"r"`.
+- **Output**: `(=var)` or `(=var: "constraint")`. Default constraint is `"=r"`.
+- **Address**: `(&var)`. Passes the address of the variable.
+- **Clobbers**: `[ "reg1", "reg2", "memory" ]`.
+
+### Constraints
+
+Standard LLVM inline assembly constraints apply:
+
+- `"r"`: General purpose register
+- `"m"`: Memory operand
+- `"i"`: Immediate integer
+- `"={eax}"`: Specific register output
+- `"{eax}"`: Specific register input
+
+```bpl
+asm("intel") {
+    mov eax, (val: "{ebx}")   # Force val into ebx
+    mov (=res: "={ecx}"), eax # Force result from ecx
+}
+```
+
+asm("x86") {
+"mov eax, 1"
+"add eax, 2"
+}
+
+# AT&T Syntax
+
+asm("att") {
+"movl $1, %eax"
 }
 
 ### Variable Interpolation
@@ -389,4 +436,4 @@ asm("x86") {
 asm("att") {
     "movl (val), %eax"
 }
-````
+```

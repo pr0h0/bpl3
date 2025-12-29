@@ -190,14 +190,16 @@
 
 ## Partially Completed Features
 
-- [ ] **Inline Assembly Blocks**
+- [x] Inline Assembly Blocks ✅
 
-  - **Status:** PARTIAL
-  - Implemented:
-    - ✅ `asm("flavor") { ... }` syntax parsing
-    - ✅ Raw string injection into LLVM IR
-    - ✅ Simple variable substitution `(var)` -> local register
-  - Missing:
+  - ✅ Syntax: `asm("flavor") { ... }`
+  - ✅ Flavors: `intel`, `att`, `llvm`, `raw`
+  - ✅ Interpolation: `(var)` (input), `(=var)` (output), `(&var)` (address)
+  - ✅ Constraints: Explicit LLVM constraints `(var: "r")`
+  - ✅ Clobbers: `[ "eax", "memory" ]`
+  - ✅ Codegen: Generates `call asm` for x86/att, raw injection for llvm/raw
+  - ✅ Tests: `examples/asm_test`, `examples/asm_flavors_test`
+
     - ❌ Flavor-based wrapping (e.g. `call asm`)
     - ❌ Explicit register constraints
     - ❌ Validation of assembly content

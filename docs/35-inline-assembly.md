@@ -4,50 +4,103 @@ BPL allows embedding LLVM IR directly into the generated code. This is useful fo
 
 ## Syntax
 
-The `asm` block allows you to write raw LLVM IR instructions.
+The `asm` block allows you to write raw LLVM IR instructions or platform-specific assembly.
 
 ```bpl
-asm {
-    "add i32 1, 2"
+asm("flavor") {
+    ...
 }
 ```
-
-## Variable Interpolation
-
-You can access BPL variables (locals and globals) using the `(variableName)` syntax. The compiler will replace this with the corresponding LLVM register or global name.
-
-```bpl
-frame main() ret int {
-    local a: int = 10;
-    local b: int = 20;
-    local res: int = 0;
-
-    asm {
-        # Load values from stack pointers
-        "%val_a = load i64, i64* (a)"
-        "%val_b = load i64, i64* (b)"
-
-        # Perform operation
-        "%sum = add i64 %val_a, %val_b"
-
-        # Store result back
-        "store i64 %sum, i64* (res)"
-    }
-
-    return res;
-}
-```
-
-- `(local_var)` resolves to the register holding the pointer to the local variable (e.g., `%local_var_ptr.0`).
-- `(global_var)` resolves to the global variable name (e.g., `@global_var`).
 
 ## Assembly Flavors
 
 BPL supports different assembly flavors to make writing inline assembly easier.
 
-### 1. Raw LLVM IR (Default)
+### 1. Raw LLVM IR (`llvm` or `raw`)
 
-If no flavor is specified, the block is treated as raw LLVM IR. You can use this to write optimized LLVM instructions directly.
+If no flavor is specified, or if `llvm` or `raw` is used, the block is treated as raw LLVM IR. You can use this to write optimized LLVM instructions directly.
+
+```bpl
+asm("llvm") {
+    "%ptr = getelementptr i32, i32* (result), i32 0"
+    "store i32 123, i32* %ptr"
+}
+```
+
+**Interpolation:**
+
+- `(var)`: Resolves to the register holding the pointer to the local variable (e.g., `%var_ptr`).
+
+### 2. Intel Syntax (`intel` or `x86`)
+
+Wraps the assembly in an LLVM `call asm` instruction with `inteldialect`.
+
+```bpl
+asm("intel") {
+    mov eax, (input)
+    add eax, 1
+    mov (=output), eax
+}
+```
+
+### 3. AT&T Syntax (`att`)
+
+Wraps the assembly in an LLVM `call asm` instruction (default dialect).
+
+```bpl
+asm("att") {
+    movl (input), %eax
+    addl $1, %eax
+    movl %eax, (=output)
+}
+```
+
+## Variable Interpolation & Constraints
+
+For `intel` and `att` flavors, BPL provides powerful interpolation syntax to bind variables to registers.
+
+### Inputs
+
+- `(var)`: Passes the value of `var` in a register. Default constraint: `"r"`.
+- `(var: "constraint")`: Passes `var` with a specific LLVM constraint.
+- `(&var)`: Passes the address of `var`.
+
+### Outputs
+
+- `(=var)`: Stores the result into `var`. Default constraint: `"=r"`.
+- `(=var: "constraint")`: Stores result with specific constraint.
+
+### Clobbers
+
+You can specify clobbered registers or resources in a list at the end of the block.
+
+```bpl
+asm("intel") {
+    ...
+    [ "eax", "memory", "cc" ]
+}
+```
+
+## Examples
+
+### Explicit Register Constraints
+
+```bpl
+asm("intel") {
+    # Force 'val' into ebx, and result into eax
+    mov eax, (val: "{ebx}")
+    mov (=res: "={eax}"), eax
+}
+```
+
+### Using AT&T Syntax
+
+```bpl
+asm("att") {
+    movl $42, %eax
+    movl %eax, (=result: "=r")
+}
+```
 
 Variable interpolation in raw LLVM works by substituting the variable name with its LLVM register/pointer name.
 

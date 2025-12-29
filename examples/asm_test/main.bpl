@@ -1,14 +1,34 @@
 extern printf(fmt: string, ...);
 
 frame main() ret int {
-    printf("Before asm\n");
-    asm {
-        %ignored = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.asm, i64 0, i64 0))
-    }
-    printf("After asm\n");
-    return 0;
-}
+    local a: int = 10;
+    local b: int = 20;
+    local result: int = 0;
 
-asm {
-    @.str.asm = private unnamed_addr constant [12 x i8] c"Inside asm\0A\00", align 1
+    # Test 1: Basic interpolation with output
+    asm("intel") {
+        mov eax, (a)
+        add eax, (b)
+        mov (=result), eax
+    }
+    printf("Result 1: %d\n", result);
+
+    # Test 2: Explicit constraints
+    asm("intel") {
+        mov ebx, 100
+        mov (=result: "={eax}"), ebx
+    }
+    printf("Result 2: %d\n", result);
+
+    # Test 3: Clobbers
+    # We use ebx and declare it as clobbered.
+    # This ensures LLVM doesn't store anything important in ebx across this block.
+    asm("intel") {
+        mov ebx, 200
+        mov (=result), ebx
+        [ "ebx" ]
+    }
+    printf("Result 3: %d\n", result);
+
+    return 0;
 }

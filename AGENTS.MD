@@ -125,6 +125,30 @@ import [Point] from "./geometry.bpl";
 export frame myFunc() { ... }
 ```
 
+### Inline Assembly
+
+```bpl
+# Intel Syntax
+asm("intel") {
+    mov eax, (a)              # Input (default "r")
+    add eax, (b: "r")         # Input with explicit constraint
+    mov (=result), eax        # Output (default "=r")
+    mov (=out: "=a"), ebx     # Output with explicit constraint
+    [ "ebx" ]                 # Clobbers
+}
+
+# AT&T Syntax
+asm("att") {
+    movl (a), %eax
+    movl %eax, (=result)
+}
+
+# Raw LLVM IR
+asm("llvm") {
+    "%ptr = getelementptr i32, i32* (a), i32 0"
+}
+```
+
 ## 2. Project Workflow & Development
 
 ### Prerequisites
