@@ -452,25 +452,31 @@ describe("Parser - Extended Tests", () => {
   });
 
   describe("Error Recovery", () => {
-    it("should throw on missing semicolon", () => {
+    it("should report error on missing semicolon", () => {
       const source = "local x: int = 10 local y: int = 20;";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
-      expect(() => parser.parse()).toThrow();
+      const ast = parser.parse();
+      expect((ast as any).errors).toBeDefined();
+      expect((ast as any).errors.length).toBeGreaterThan(0);
     });
 
-    it("should throw on mismatched braces", () => {
+    it("should report error on mismatched braces", () => {
       const source = "frame test() { if (x) { y = 1; }";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
-      expect(() => parser.parse()).toThrow();
+      const ast = parser.parse();
+      expect((ast as any).errors).toBeDefined();
+      expect((ast as any).errors.length).toBeGreaterThan(0);
     });
 
-    it("should throw on invalid type syntax", () => {
+    it("should report error on invalid type syntax", () => {
       const source = "local x: int[;";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
-      expect(() => parser.parse()).toThrow();
+      const ast = parser.parse();
+      expect((ast as any).errors).toBeDefined();
+      expect((ast as any).errors.length).toBeGreaterThan(0);
     });
   });
 });

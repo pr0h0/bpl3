@@ -10,12 +10,12 @@ Priority levels: 0 = Highest Priority, 9 = Lowest Priority
 
 The following features are recommended for implementation next:
 
-### 1. **Advanced Type System Features** [Priority 4] 🔍 TYPES
+### 1. **Watch Mode** [Priority 5] ⏱️ DX
 
-- **Why:** Increases expressiveness and type safety
-- **Impact:** Allows more flexible API design
-- **Use cases:** Type guards
-- **Complexity:** High
+- **Why:** Improves developer feedback loop
+- **Impact:** Faster iteration during development
+- **Use cases:** Active development
+- **Complexity:** Medium
 
 ---
 
@@ -96,6 +96,20 @@ The following features are recommended for implementation next:
 - ✅ **AST Construction**: Updated `IfStatement` and other rules to use optimized location helpers.
 - ✅ **Performance**: Reduced parsing time for massive files from ~8s to ~4s (best case).
 - ✅ **Verification**: Verified with `tests/Integration.test.ts` and specific location tests.
+
+## [2] ✅ Parser Error Recovery (COMPLETED)
+
+**Description:** Implement robust error recovery in the parser to report multiple syntax errors in a single pass instead of crashing on the first one.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Grammar**: Added `ErrorRecovery` and `TopLevelErrorRecovery` rules to `bpl.peggy` using panic-mode recovery (synchronizing on `;` or `}`).
+- ✅ **Parser**: Updated `PeggyParser.ts` to collect errors in an array and attach them to the AST instead of throwing immediately.
+- ✅ **Driver**: Updated `Compiler` driver to handle `collectAllErrors` option.
+- ✅ **Formatter**: Fixed formatter to throw `CompilerError` on invalid ASTs instead of crashing or producing garbage.
+- ✅ **Tests**: Added `tests/ParserRecovery.test.ts` and verified with fuzzing (10k iterations with 0 crashes).
 
 ---
 
@@ -636,25 +650,6 @@ There are several approaches to fix this:
 ## ⏳ PENDING FEATURES (PRIORITIZED)
 
 ### High Priority
-
-## [5] Parallel Compilation
-
-**Description:** Utilize multi-core processors to compile independent modules in parallel, significantly reducing build times for large projects.
-
-**Implementation Notes:**
-
-- Analyze module dependency graph to identify independent subgraphs
-- Use worker threads or child processes to compile modules concurrently
-- Manage shared resources (cache, file locks) safely
-- Implement a task scheduler for compilation jobs
-
-**Acceptance Criteria:**
-
-- `bpl build` utilizes multiple cores
-- Build time decreases for projects with many modules
-- No race conditions or corrupted artifacts
-
----
 
 ## [5] Watch Mode
 
@@ -1355,5 +1350,40 @@ There are several approaches to fix this:
 - `x |> f(y)` compiles to `f(x, y)`
 - Chained pipes work correctly
 - Works with both free functions and methods
+
+---
+
+## [4] Advanced Type System Features
+
+**Description:** Increases expressiveness and type safety.
+
+**Implementation Notes:**
+
+- **Type Guards:** `if (x is T) { ... }`
+- **Intersection Types:** `A & B`
+- **Union Types:** `A | B`
+- **Conditional Types:** `T extends U ? X : Y`
+
+**Acceptance Criteria:**
+
+- Type guards work correctly
+- Intersection and union types are supported
+
+## [5] Parallel Compilation
+
+**Description:** Utilize multi-core processors to compile independent modules in parallel, significantly reducing build times for large projects.
+
+**Implementation Notes:**
+
+- Analyze module dependency graph to identify independent subgraphs
+- Use worker threads or child processes to compile modules concurrently
+- Manage shared resources (cache, file locks) safely
+- Implement a task scheduler for compilation jobs
+
+**Acceptance Criteria:**
+
+- `bpl build` utilizes multiple cores
+- Build time decreases for projects with many modules
+- No race conditions or corrupted artifacts
 
 ---

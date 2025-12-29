@@ -91,6 +91,20 @@ export class Compiler {
       const parser = new Parser(sourceCode, this.options.filePath, tokens);
       const ast = parser.parse(true);
 
+      // Check for parser errors
+      if ((ast as any).errors && (ast as any).errors.length > 0) {
+        const errors = (ast as any).errors as CompilerError[];
+        if (this.options.collectAllErrors) {
+          return {
+            success: false,
+            errors: errors,
+            ast: ast,
+          };
+        } else {
+          throw errors[0];
+        }
+      }
+
       if (this.options.emitType === "ast") {
         return {
           success: true,

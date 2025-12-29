@@ -26,6 +26,16 @@
     };
   }
 
+  function addError(message, loc) {
+    if (options && options.errors) {
+      options.errors.push({
+        message,
+        location: makeLoc(loc),
+        severity: "error"
+      });
+    }
+  }
+
   // Optimization: Cache common location objects if they are identical?
   // Probably not worth it for now, but inlining makeLoc calls or reducing them helps.
 
@@ -385,10 +395,16 @@
 }
 
 Program
-  = _ stmts:(Statement _)* EOF {
+  = _ stmts:(Statement _ / TopLevelErrorRecovery _)* EOF {
       const statements = stmts.map(([stmt]) => stmt).filter(Boolean);
       const loc = location();
       return { kind: "Program", statements, location: makeLoc(loc) };
+    }
+
+TopLevelErrorRecovery
+  = !EOF error:. {
+      addError("Unexpected token: " + error, location());
+      return null;
     }
 
 Statement
@@ -413,6 +429,15 @@ Statement
   / BreakStatement
   / ContinueStatement
   / DeferStatement
+  / ErrorRecovery
+
+ErrorRecovery
+  = !EOF !("}") start:. rest:(!(";" / "}") .)* end:(";")? {
+      const restStr = rest.map(r => r[1]).join("");
+      const text = start + restStr;
+      addError("Unexpected syntax: '" + text + "'", location());
+      return null;
+    }
 
 VariableDeclaration
   = K_global _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
@@ -608,7 +633,7 @@ AsmClobbers
 
 Block
   = "{" _ stmts:(Statement _)* "}" {
-      const statements = stmts.map(s => s[0]);
+      const statements = stmts.map(s => s[0]).filter(s => s !== null);
       return block(statements, location());
     }
 

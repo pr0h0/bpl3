@@ -9,6 +9,10 @@ export class Formatter {
   private lastLineProcessed: number = 0;
 
   format(program: AST.Program): string {
+    if ((program as any).errors && (program as any).errors.length > 0) {
+      throw (program as any).errors[0];
+    }
+
     this.indentLevel = 0;
     this.comments = program.comments || [];
     // Sort comments by position

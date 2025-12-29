@@ -4,6 +4,8 @@
 
 ## Completed Features
 
+- [x] Parser Error Recovery (Multiple syntax errors)
+- [x] Formatter Robustness (Throw on Syntax Error)
 - [x] Parser Optimization (Peggy location handling)
 - [x] Advanced Generics (Constraints, Inference)
 - [x] Strict Type Compatibility Checking

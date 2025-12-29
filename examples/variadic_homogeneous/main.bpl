@@ -1,6 +1,6 @@
 extern printf(fmt: *char, ...);
 
-frame sum(...args: int, count: int) ret int {
+frame sum(args: ...int, count: int) ret int {
     local total: int = 0;
     loop (local i: int = 0; i < count; i++) {
         total = total + args[i];

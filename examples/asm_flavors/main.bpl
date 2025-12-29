@@ -5,9 +5,9 @@ frame main() ret int {
 
     # Raw LLVM IR (default)
     asm("llvm") {
-          %val_llvm = load i32, i32* (x)
-          %val2_llvm = add i32 %val_llvm, 1
-          store i32 %val2_llvm, i32* (x)
+        %val_llvm = load i32, i32* (x)
+        %val2_llvm = add i32 %val_llvm, 1
+        store i32 %val2_llvm, i32* (x)
     }
 
     # x86 Assembly (AT&T syntax required for variables)
