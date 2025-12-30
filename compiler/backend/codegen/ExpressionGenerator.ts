@@ -2888,6 +2888,123 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       } else if (funcName === "debugtrap") {
         this.emit(`  call void @llvm.debugtrap()`);
         return "0";
+      } else if (
+        [
+          "sqrt",
+          "sin",
+          "cos",
+          "exp",
+          "log",
+          "floor",
+          "ceil",
+          "round",
+          "fabs",
+        ].includes(funcName)
+      ) {
+        const arg = this.generateExpression(expr.args[0]!);
+        const reg = this.newRegister();
+        this.emit(
+          `  ${reg} = call double @llvm.${funcName}.f64(double ${arg})`,
+        );
+        return reg;
+      } else if (["pow", "minnum", "maxnum", "copysign"].includes(funcName)) {
+        const arg1 = this.generateExpression(expr.args[0]!);
+        const arg2 = this.generateExpression(expr.args[1]!);
+        const reg = this.newRegister();
+        this.emit(
+          `  ${reg} = call double @llvm.${funcName}.f64(double ${arg1}, double ${arg2})`,
+        );
+        return reg;
+      } else if (funcName === "fma") {
+        const arg1 = this.generateExpression(expr.args[0]!);
+        const arg2 = this.generateExpression(expr.args[1]!);
+        const arg3 = this.generateExpression(expr.args[2]!);
+        const reg = this.newRegister();
+        this.emit(
+          `  ${reg} = call double @llvm.fma.f64(double ${arg1}, double ${arg2}, double ${arg3})`,
+        );
+        return reg;
+      } else if (funcName === "frameaddress" || funcName === "returnaddress") {
+        const level = this.generateExpression(expr.args[0]!);
+        const reg = this.newRegister();
+        this.emit(`  ${reg} = call i8* @llvm.${funcName}(i32 ${level})`);
+        return reg;
+      } else if (funcName === "stacksave") {
+        const reg = this.newRegister();
+        this.emit(`  ${reg} = call i8* @llvm.stacksave()`);
+        return reg;
+      } else if (funcName === "stackrestore") {
+        const ptr = this.generateExpression(expr.args[0]!);
+        const ptrType = this.resolveType(expr.args[0]!.resolvedType!);
+        let finalPtr = ptr;
+        if (ptrType !== "i8*") {
+          finalPtr = this.newRegister();
+          this.emit(`  ${finalPtr} = bitcast ${ptrType} ${ptr} to i8*`);
+        }
+        this.emit(`  call void @llvm.stackrestore(i8* ${finalPtr})`);
+        return "0";
+      } else if (
+        ["ctpop", "ctlz", "cttz", "bswap", "bitreverse"].includes(funcName)
+      ) {
+        const arg = this.generateExpression(expr.args[0]!);
+        const reg = this.newRegister();
+        // For ctlz and cttz, the second argument is is_zero_undef (i1). We set it to false (0) to be safe (return bit width if zero).
+        if (funcName === "ctlz" || funcName === "cttz") {
+          this.emit(
+            `  ${reg} = call i32 @llvm.${funcName}.i32(i32 ${arg}, i1 0)`,
+          );
+        } else {
+          this.emit(`  ${reg} = call i32 @llvm.${funcName}.i32(i32 ${arg})`);
+        }
+        return reg;
+      } else if (funcName === "memcpy" || funcName === "memmove") {
+        const dest = this.generateExpression(expr.args[0]!);
+        const src = this.generateExpression(expr.args[1]!);
+        const len = this.generateExpression(expr.args[2]!);
+        let isVolatile = "0";
+        if (expr.args.length > 3 && expr.args[3]) {
+          isVolatile = this.generateExpression(expr.args[3]!);
+        }
+
+        const destType = this.resolveType(expr.args[0]!.resolvedType!);
+        const srcType = this.resolveType(expr.args[1]!.resolvedType!);
+
+        let finalDest = dest;
+        if (destType !== "i8*") {
+          finalDest = this.newRegister();
+          this.emit(`  ${finalDest} = bitcast ${destType} ${dest} to i8*`);
+        }
+
+        let finalSrc = src;
+        if (srcType !== "i8*") {
+          finalSrc = this.newRegister();
+          this.emit(`  ${finalSrc} = bitcast ${srcType} ${src} to i8*`);
+        }
+
+        this.emit(
+          `  call void @llvm.${funcName}.p0i8.p0i8.i64(i8* ${finalDest}, i8* ${finalSrc}, i64 ${len}, i1 ${isVolatile})`,
+        );
+        return "0";
+      } else if (funcName === "memset") {
+        const dest = this.generateExpression(expr.args[0]!);
+        const val = this.generateExpression(expr.args[1]!);
+        const len = this.generateExpression(expr.args[2]!);
+        let isVolatile = "0";
+        if (expr.args.length > 3 && expr.args[3]) {
+          isVolatile = this.generateExpression(expr.args[3]!);
+        }
+
+        const destType = this.resolveType(expr.args[0]!.resolvedType!);
+        let finalDest = dest;
+        if (destType !== "i8*") {
+          finalDest = this.newRegister();
+          this.emit(`  ${finalDest} = bitcast ${destType} ${dest} to i8*`);
+        }
+
+        this.emit(
+          `  call void @llvm.memset.p0i8.i64(i8* ${finalDest}, i8 ${val}, i64 ${len}, i1 ${isVolatile})`,
+        );
+        return "0";
       }
 
       // Handle generic function call
@@ -3680,6 +3797,81 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
         const destType = this.resolveType(targetTypeNode);
         const srcType = this.resolveType(arg.resolvedType!);
+
+        // Check for Struct* -> Spec* cast
+        if (targetTypeNode.kind === "BasicType") {
+          let specDecl = this.specMap.get(targetTypeNode.name);
+          if (
+            !specDecl &&
+            targetTypeNode.resolvedDeclaration &&
+            targetTypeNode.resolvedDeclaration.kind === "SpecDecl"
+          ) {
+            specDecl = targetTypeNode.resolvedDeclaration as AST.SpecDecl;
+          }
+
+          if (specDecl) {
+            // It is a spec!
+            // Check if arg is a struct pointer
+            const argType = arg.resolvedType!;
+            if (argType.kind === "BasicType" && argType.pointerDepth === 1) {
+              // Check if it's a struct
+              let structDecl = this.structMap.get(argType.name);
+              if (
+                !structDecl &&
+                argType.resolvedDeclaration &&
+                argType.resolvedDeclaration.kind === "StructDecl"
+              ) {
+                structDecl = argType.resolvedDeclaration as AST.StructDecl;
+              }
+
+              if (structDecl) {
+                // Generate fat pointer
+                const structType = { ...argType, pointerDepth: 0 };
+                const vtableName = this.getOrGenerateSpecVTable(
+                  structType,
+                  targetTypeNode,
+                );
+
+                // Allocate fat pointer on stack
+                const fatPtr = this.allocateStack(
+                  `fat_ptr_${this.labelCount++}`,
+                  "{ i8*, i8* }",
+                );
+
+                // Store data pointer (cast to i8*)
+                const dataPtrPtr = this.newRegister();
+                this.emit(
+                  `  ${dataPtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 0`,
+                );
+
+                const srcVal = this.generateExpression(arg); // This is the struct pointer
+                const srcVoidPtr = this.newRegister();
+                this.emit(
+                  `  ${srcVoidPtr} = bitcast ${srcType} ${srcVal} to i8*`,
+                );
+                this.emit(`  store i8* ${srcVoidPtr}, i8** ${dataPtrPtr}`);
+
+                // Store vtable pointer (cast to i8*)
+                const vtablePtrPtr = this.newRegister();
+                this.emit(
+                  `  ${vtablePtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 1`,
+                );
+
+                const vtableSize = this.getAllSpecMethods(specDecl).length;
+                const vtableType = `[${vtableSize} x i8*]`;
+                const vtableGlobal = `@${vtableName}`;
+
+                const vtableVoidPtr = this.newRegister();
+                this.emit(
+                  `  ${vtableVoidPtr} = bitcast ${vtableType}* ${vtableGlobal} to i8*`,
+                );
+                this.emit(`  store i8* ${vtableVoidPtr}, i8** ${vtablePtrPtr}`);
+
+                return `{ i8*, i8* }* ${fatPtr}`;
+              }
+            }
+          }
+        }
 
         // Handle 'this' pointer cast for inherited methods
         if (
@@ -5166,6 +5358,13 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       !destType.endsWith("*")
     ) {
       return "zeroinitializer";
+    }
+
+    // Pointer to Pointer cast (bitcast)
+    if (srcType.endsWith("*") && destType.endsWith("*")) {
+      const reg = this.newRegister();
+      this.emit(`  ${reg} = bitcast ${srcType} ${val} to ${destType}`);
+      return reg;
     }
 
     // Implicit address-of (T -> *T)

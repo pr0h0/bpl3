@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Stack Trace:", "[0] RA:", "[0] FP:"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

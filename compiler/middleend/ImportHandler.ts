@@ -8,6 +8,7 @@ import * as path from "path";
 
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
@@ -434,15 +435,6 @@ export class ImportHandler {
             if (exportedItem.name === item.name) {
               isExported = true;
               exportedSymbol = moduleScope.resolve(item.name);
-              if (!exportedSymbol) {
-                // console.log(
-                //   `Failed to resolve exported symbol '${item}' in module scope.`,
-                // );
-                // console.log(
-                //   "Available symbols:",
-                //   Array.from((moduleScope as any).symbols.keys()),
-                // );
-              }
               break;
             }
           }

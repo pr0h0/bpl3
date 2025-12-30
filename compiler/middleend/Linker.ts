@@ -226,6 +226,11 @@ export class Linker {
         }
       }
 
+      // Always link libm and libdl
+      clangArgs.push("-lm");
+      clangArgs.push("-ldl");
+      clangArgs.push("-rdynamic");
+
       // Add output
       clangArgs.push("-o");
       clangArgs.push(options.outputPath);

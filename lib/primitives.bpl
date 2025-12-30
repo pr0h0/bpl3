@@ -1,5 +1,7 @@
 import [String] from "std/string.bpl";
 import [Comparable] from "std/core_specs.bpl";
+import ctpop, ctlz, cttz, bswap, bitreverse from "./intrinsics.bpl";
+import memcpy, memmove, memset from "./intrinsics.bpl";
 
 extern sprintf(str: string, format: string, ...) ret int;
 extern snprintf(str: string, size: long, format: string, ...) ret int;
@@ -39,19 +41,19 @@ struct Int: Comparable<Int> {
 
     # Bit Manipulation Intrinsics
     frame popCount(this: *Int) ret int {
-        return 0;
+        return ctpop(this.value);
     }
     frame leadingZeros(this: *Int) ret int {
-        return 0;
+        return ctlz(this.value);
     }
     frame trailingZeros(this: *Int) ret int {
-        return 0;
+        return cttz(this.value);
     }
     frame byteSwap(this: *Int) ret int {
-        return 0;
+        return bswap(this.value);
     }
     frame reverseBits(this: *Int) ret int {
-        return 0;
+        return bitreverse(this.value);
     }
 }
 

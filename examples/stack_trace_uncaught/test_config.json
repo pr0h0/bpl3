@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "Stack Trace for Error 'Something went wrong in funcC (Uncaught)':"
+  ],
+  "args": [],
+  "env": {},
+  "input": "",
+  "exitCode": 1
+}

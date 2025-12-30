@@ -93,7 +93,9 @@ async function compileAndRunExample(
 
     // Compile IR to binary using clang
     try {
-      await execAsync(`clang -o "${binFile}" "${irFile}" -Wno-override-module`);
+      await execAsync(
+        `clang -o "${binFile}" "${irFile}" -Wno-override-module -lm`,
+      );
     } catch (e: any) {
       return {
         success: false,

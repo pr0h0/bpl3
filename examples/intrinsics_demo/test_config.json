@@ -1,0 +1,13 @@
+{
+  "expectedOutput": [
+    "--- Intrinsics Demo ---",
+    "fma(2.000000, 3.000000, 4.000000) = 10.000000",
+    "Current frame address is non-null",
+    "Return address is non-null",
+    "Stack pointer saved",
+    "Stack pointer restored"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

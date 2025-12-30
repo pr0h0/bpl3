@@ -456,8 +456,84 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     this.emit(`  br i1 ${isNull}, label %${abortLabel}, label %${jumpLabel}`);
 
     this.emit(`${abortLabel}:`);
-    this.emit(`  call void @exit(i32 1)`);
-    this.emit(`  unreachable`);
+
+    // Check if it is an Error type (or inherits from it)
+    let isError = false;
+    if (type.kind === "BasicType") {
+      const structName = (type as AST.BasicTypeNode).name;
+
+      const checkInheritance = (name: string): boolean => {
+        if (name === "Error") return true;
+        const decl = this.structMap.get(name);
+        if (!decl) return false;
+        for (const parentType of decl.inheritanceList) {
+          if (parentType.kind === "BasicType") {
+            if (checkInheritance((parentType as AST.BasicTypeNode).name))
+              return true;
+          }
+        }
+        return false;
+      };
+
+      isError = checkInheritance(structName);
+    }
+
+    // console.log("Generating throw for", typeStr, "isError:", isError);
+
+    if (isError) {
+      // Load the exception value (pointer to struct)
+      const exVal = this.newRegister();
+      this.emit(`  ${exVal} = load i64, i64* @exception_value`);
+
+      // Cast to struct pointer
+      const exPtr = this.newRegister();
+      this.emit(`  ${exPtr} = inttoptr i64 ${exVal} to ${typeStr}*`);
+
+      // Cast to Error*
+      const errorPtr = this.newRegister();
+      this.emit(
+        `  ${errorPtr} = bitcast ${typeStr}* ${exPtr} to %struct.Error*`,
+      );
+
+      // Call printStack
+      // Find mangled name
+      let printStackName = "@Error_printStack_Error_ptr";
+      const errorDecl = this.structMap.get("Error");
+      if (errorDecl) {
+        const method = errorDecl.members.find(
+          (m) => m.kind === "FunctionDecl" && m.name === "printStack",
+        );
+        if (
+          method &&
+          method.resolvedType &&
+          method.resolvedType.kind === "FunctionType"
+        ) {
+          printStackName =
+            "@" +
+            this.getMangledName(
+              "Error_printStack",
+              method.resolvedType as AST.FunctionTypeNode,
+            );
+        }
+      }
+
+      // Note: BPL functions take a closure context as first argument (i8*)
+      this.emit(
+        `  call void ${printStackName}(i8* null, %struct.Error* ${errorPtr})`,
+      );
+
+      // Exit
+      this.emit(`  call void @exit(i32 1)`);
+      this.emit(`  unreachable`);
+    } else {
+      const msgPtr = this.getStringLiteralPtr("Uncaught exception\n");
+      const printfResult = this.newRegister();
+      this.emit(
+        `  ${printfResult} = call i32 (i8*, ...) @printf(i8* ${msgPtr})`,
+      );
+      this.emit(`  call void @exit(i32 1)`);
+      this.emit(`  unreachable`);
+    }
 
     this.emit(`${jumpLabel}:`);
 
@@ -1944,7 +2020,7 @@ export abstract class StatementGenerator extends ExpressionGenerator {
         dbgSuffix = ` !dbg !${this.currentSubprogramId}`;
       }
       this.emit(
-        `define ${linkage}${retType} @${name}(${params})${dbgSuffix} {`,
+        `define ${linkage}${retType} @${name}(${params}) #0${dbgSuffix} {`,
       );
       this.emit("entry:");
 

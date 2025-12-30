@@ -98,6 +98,17 @@ export class BaseCodeGenerator {
   protected typeAliasMap: Map<string, AST.TypeAliasDecl> = new Map(); // Track type aliases
   protected vtableLayouts: Map<string, string[]> = new Map(); // StructName -> [MethodName]
   protected vtableGlobalNames: Map<string, string> = new Map(); // StructName -> @StructName_vtable
+
+  protected getStringLiteralPtr(content: string): string {
+    if (!this.stringLiterals.has(content)) {
+      const varName = `@.str.${this.stringLiterals.size}`;
+      this.stringLiterals.set(content, varName);
+    }
+    const varName = this.stringLiterals.get(content)!;
+    const len = content.length + 1;
+    return `getelementptr inbounds ([${len} x i8], [${len} x i8]* ${varName}, i64 0, i64 0)`;
+  }
+
   protected matchStack: {
     mergeLabel: string;
     resultType: string;

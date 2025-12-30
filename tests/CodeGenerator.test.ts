@@ -20,7 +20,7 @@ describe("CodeGenerator", () => {
     const source = "frame main() { return; }";
     const ir = compile(source);
     // main() with no return type is treated as void but returns i32 0 for exit code
-    expect(ir).toContain("define i32 @main(i32 %argc, i8** %argv) {");
+    expect(ir).toContain("define i32 @main(i32 %argc, i8** %argv) #0 {");
     expect(ir).toContain("ret i32 0");
   });
 

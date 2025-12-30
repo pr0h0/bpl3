@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "--- Error Stack Trace Demo ---",
+    "Printing via printStack():",
+    "Stack Trace:",
+    "Printing via getStackTrace():",
+    "Printing via toString():",
+    "Stack Trace for Error 'Something went wrong in funcC':",
+    "--- Debug.printStackTrace Demo ---"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

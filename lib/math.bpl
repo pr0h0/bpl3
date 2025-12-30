@@ -1,8 +1,8 @@
 # Math helpers
 
-export [Math];
+import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, copysign from "./intrinsics.bpl";
 
-extern printf(fmt: string, ...) ret int;
+export [Math];
 
 /#
 # Math Utilities
@@ -12,9 +12,6 @@ struct Math {
     /#
     # Absolute Value (Int)
     Returns the absolute value of an integer.
-    
-    ## Arguments
-    - `x`: The input integer
     #/
     frame absInt(x: int) ret int {
         if (x < 0) {
@@ -26,15 +23,9 @@ struct Math {
     /#
     # Absolute Value (Float)
     Returns the absolute value of a float.
-    
-    ## Arguments
-    - `x`: The input float
     #/
     frame absFloat(x: float) ret float {
-        if (x < 0.0) {
-            return -x;
-        }
-        return x;
+        return fabs(x);
     }
 
     /#
@@ -64,10 +55,7 @@ struct Math {
     Returns the smaller of two floats.
     #/
     frame minFloat(a: float, b: float) ret float {
-        if (a < b) {
-            return a;
-        }
-        return b;
+        return minnum(a, b);
     }
 
     /#
@@ -75,33 +63,42 @@ struct Math {
     Returns the larger of two floats.
     #/
     frame maxFloat(a: float, b: float) ret float {
-        if (a > b) {
-            return a;
-        }
-        return b;
+        return maxnum(a, b);
     }
 
     /#
     # Square Root
     Calculates the square root of a float.
-    
-    ## Throws
-    Throws `-1` if input is negative.
     #/
     frame sqrtFloat(x: float) ret float {
-        if (x < 0.0) {
-            # sqrt of negative
-            throw -1;
-        }
-        if (x == 0.0) {
-            return 0.0;
-        }
-        local guess: float = x / 2.0;
-        local i: int = 0;
-        loop (i < 20) {
-            guess = 0.5 * (guess + (x / guess));
-            i = i + 1;
-        }
-        return guess;
+        return sqrt(x);
+    }
+
+    frame sin(x: float) ret float {
+        return sin(x);
+    }
+    frame cos(x: float) ret float {
+        return cos(x);
+    }
+    frame pow(x: float, y: float) ret float {
+        return pow(x, y);
+    }
+    frame exp(x: float) ret float {
+        return exp(x);
+    }
+    frame log(x: float) ret float {
+        return log(x);
+    }
+    frame floor(x: float) ret float {
+        return floor(x);
+    }
+    frame ceil(x: float) ret float {
+        return ceil(x);
+    }
+    frame round(x: float) ret float {
+        return round(x);
+    }
+    frame copysign(x: float, y: float) ret float {
+        return copysign(x, y);
     }
 }

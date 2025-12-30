@@ -714,6 +714,12 @@ function compileBinaryAndRun(
     }
   }
 
+  // Always link libm and libdl (for stack traces)
+  clangArgs.push("-lm");
+  clangArgs.push("-ldl");
+  // Export symbols for dladdr
+  clangArgs.push("-rdynamic");
+
   const extraClangFlags = options.clangFlag
     ? Array.isArray(options.clangFlag)
       ? options.clangFlag

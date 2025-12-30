@@ -525,7 +525,8 @@ export class CodeGenerator extends StatementGenerator {
       "\n" +
       this.declarationsOutput.join("\n") +
       "\n" +
-      this.output.join("\n");
+      this.output.join("\n") +
+      '\nattributes #0 = { "frame-pointer"="all" }\n';
 
     try {
       const fs = require("fs");
