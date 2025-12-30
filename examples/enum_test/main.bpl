@@ -1,3 +1,4 @@
+import [Option] from "std/option.bpl";
 extern printf(fmt: string, ...);
 
 enum Color {
@@ -10,11 +11,6 @@ enum Message {
     Quit,
     Move(int, int),
     Write(string),
-}
-
-enum Option<T> {
-    Some(T),
-    None,
 }
 
 frame printColor(c: Color) {

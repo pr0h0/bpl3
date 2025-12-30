@@ -1,9 +1,5 @@
+import [Option] from "std/option.bpl";
 extern printf(fmt: string, ...);
-
-enum Option<T> {
-    Some(T),
-    None,
-}
 
 frame main() ret int {
     local o1: Option<int> = Option<int>.Some(10);

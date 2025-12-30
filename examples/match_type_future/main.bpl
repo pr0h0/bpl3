@@ -2,12 +2,9 @@
 # This shows how match<Type> could work with primitives and structs
 # Note: Full RTTI support is needed for runtime generic type checking
 
-extern printf(fmt: string, ...) ret int;
+import [Option] from "std/option.bpl";
 
-enum Option<T> {
-    Some(T),
-    None,
-}
+extern printf(fmt: string, ...) ret int;
 
 # For now, match<Type> works perfectly with enum variants
 frame processOption(opt: Option<int>) ret int {

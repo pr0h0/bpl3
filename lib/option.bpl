@@ -1,8 +1,9 @@
 # Option<T> standard library
 
-export [Option];
-
 import [OptionUnwrapError] from "std/errors.bpl";
+import [Equatable], [Cloneable] from "std/core_specs.bpl";
+
+export [Option];
 
 enum Option<T> {
     Some(T),
@@ -50,4 +51,13 @@ enum Option<T> {
     frame __ne__(this: *Option<T>, other: *Option<T>) ret bool {
         return !this.__eq__(other);
     }
+
+    frame clone(this: *Option<T>) ret Option<T> {
+        return match (*this) {
+            Option.Some(v) => Option<T>.Some(v),
+            Option.None => Option<T>.None,
+        };
+    }
 }
+
+export [Option];

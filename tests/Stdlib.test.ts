@@ -337,4 +337,56 @@ describe("Standard Library", () => {
       fs.unlinkSync("test_file.txt");
     }
   });
+
+  test("LinkedList<i32> basic operations", async () => {
+    const output = compileAndRun(`
+      import [LinkedList] from "std/linked_list.bpl";
+      extern printf(fmt: *i8, ...) ret i32;
+
+      frame main() {
+        local list: LinkedList<i32> = LinkedList<i32>.new();
+        list.pushBack(10);
+        list.pushBack(20);
+        list.pushFront(5);
+        
+        printf("Len: %d\\n", list.len());
+        printf("PopFront: %d\\n", list.popFront().unwrap());
+        printf("PopBack: %d\\n", list.popBack().unwrap());
+        printf("PopBack: %d\\n", list.popBack().unwrap());
+        printf("Len: %d\\n", list.len());
+        
+        list.destroy();
+      }
+    `);
+
+    expect(output).toContain("Len: 3");
+    expect(output).toContain("PopFront: 5");
+    expect(output).toContain("PopBack: 20");
+    expect(output).toContain("PopBack: 10");
+    expect(output).toContain("Len: 0");
+  });
+
+  test("PriorityQueue<i32> basic operations", async () => {
+    const output = compileAndRun(`
+      import [PriorityQueue] from "std/priority_queue.bpl";
+      extern printf(fmt: *i8, ...) ret i32;
+
+      frame main() {
+        local pq: PriorityQueue<i32> = PriorityQueue<i32>.new(10);
+        pq.push(30);
+        pq.push(10);
+        pq.push(20);
+        
+        printf("Pop: %d\\n", pq.pop().unwrap());
+        printf("Pop: %d\\n", pq.pop().unwrap());
+        printf("Pop: %d\\n", pq.pop().unwrap());
+        
+        pq.destroy();
+      }
+    `);
+
+    expect(output).toContain("Pop: 10");
+    expect(output).toContain("Pop: 20");
+    expect(output).toContain("Pop: 30");
+  });
 });

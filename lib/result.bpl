@@ -2,11 +2,8 @@
 
 export [Result];
 
-# Result<T, E> standard library
-
-export [Result];
-
 import [ResultUnwrapError] from "std/errors.bpl";
+import [Equatable], [Cloneable] from "std/core_specs.bpl";
 
 enum Result<T, E> {
     Ok(T),
@@ -45,7 +42,7 @@ enum Result<T, E> {
         };
     }
 
-    frame __eq__(this: *Result<T, E>, other: Result<T, E>) ret bool {
+    frame __eq__(this: *Result<T, E>, other: *Result<T, E>) ret bool {
         if (this.isOk()) {
             if (other.isOk()) {
                 return this.unwrap() == other.unwrap();
@@ -61,7 +58,14 @@ enum Result<T, E> {
         }
     }
 
-    frame __ne__(this: *Result<T, E>, other: Result<T, E>) ret bool {
+    frame __ne__(this: *Result<T, E>, other: *Result<T, E>) ret bool {
         return !this.__eq__(other);
+    }
+
+    frame clone(this: *Result<T, E>) ret Result<T, E> {
+        return match (*this) {
+            Result.Ok(v) => Result<T, E>.Ok(v),
+            Result.Err(e) => Result<T, E>.Err(e),
+        };
     }
 }

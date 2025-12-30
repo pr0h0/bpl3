@@ -34,10 +34,11 @@ describe("Bug Fixes Batch 3", () => {
     expect(result.success).toBe(true);
   });
 
-  it("BUG-085: should support sizeof(int[10])", () => {
+  it("BUG-085: should support sizeof<int[10]>()", () => {
     const source = `
+      import [Int] from "std/primitives.bpl";
       frame main() {
-        local _s = sizeof(int[10]);
+        local _s = sizeof<int[10]>();
       }
     `;
     const result = compiler.compile(source);

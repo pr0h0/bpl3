@@ -429,6 +429,7 @@ export interface EnumDecl extends ASTNode {
   kind: "EnumDecl";
   name: string;
   genericParams: GenericParam[];
+  implements: TypeNode[];
   variants: EnumVariant[];
   methods: FunctionDecl[];
 }

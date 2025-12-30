@@ -1,5 +1,7 @@
 # String standard library
 
+import [Comparable], [Equatable], [Destructible], [Cloneable] from "std/core_specs.bpl";
+
 export [String];
 
 extern sprintf(str: string, format: string, ...) ret int;
@@ -10,7 +12,7 @@ extern strcat(dst: string, src: string) ret string;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 
-struct String {
+struct String: Comparable<String>, Cloneable<String>, Destructible {
     data: string,
     length: int,
     frame new(text: string) ret String {
@@ -58,7 +60,7 @@ struct String {
     }
 
     # Create a deep copy of this string.
-    frame clone(this: String) ret String {
+    frame clone(this: *String) ret String {
         if (this.data == nullptr) {
             return String.new(nullptr);
         }
@@ -90,6 +92,49 @@ struct String {
             i = i + 1;
         }
         return false;
+    }
+
+    # Comparable implementation
+    frame __eq__(this: *String, other: *String) ret bool {
+        if (this.data == other.data) {
+            return true;
+        }
+        if ((this.data == nullptr) || (other.data == nullptr)) {
+            return false;
+        }
+        return strcmp(this.data, other.data) == 0;
+    }
+
+    frame __ne__(this: *String, other: *String) ret bool {
+        return !this.__eq__(other);
+    }
+
+    frame __lt__(this: *String, other: *String) ret bool {
+        if (this.data == nullptr) {
+            return other.data != nullptr; # null is less than anything else
+        }
+        if (other.data == nullptr) {
+            return false;
+        }
+        return strcmp(this.data, other.data) < 0;
+    }
+
+    frame __gt__(this: *String, other: *String) ret bool {
+        if (this.data == nullptr) {
+            return false;
+        }
+        if (other.data == nullptr) {
+            return true;
+        }
+        return strcmp(this.data, other.data) > 0;
+    }
+
+    frame __le__(this: *String, other: *String) ret bool {
+        return !this.__gt__(other);
+    }
+
+    frame __ge__(this: *String, other: *String) ret bool {
+        return !this.__lt__(other);
     }
 
     # Operator overloading: String concatenation with +

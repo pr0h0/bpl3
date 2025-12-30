@@ -430,24 +430,30 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
 
       // Define 'this'
+      const thisType: AST.BasicTypeNode = {
+        kind: "BasicType",
+        name: parentStruct.name,
+        genericArgs: parentStruct.genericParams.map((p) => ({
+          kind: "BasicType",
+          name: p.name,
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: decl.location,
+        })),
+        pointerDepth: 1,
+        arrayDimensions: [],
+        location: decl.location,
+      };
+
+      // Resolve 'this' type to ensure resolvedDeclaration is set
+      // This is crucial for match expressions on 'this' to find the EnumDecl
+      const resolvedThisType = this.resolveType(thisType);
+
       this.defineSymbol(
         "this",
         "Parameter",
-        {
-          kind: "BasicType",
-          name: parentStruct.name,
-          genericArgs: parentStruct.genericParams.map((p) => ({
-            kind: "BasicType",
-            name: p.name,
-            genericArgs: [],
-            pointerDepth: 0,
-            arrayDimensions: [],
-            location: decl.location,
-          })),
-          pointerDepth: 1,
-          arrayDimensions: [],
-          location: decl.location,
-        },
+        resolvedThisType,
         decl,
         undefined,
         true, // 'this' is const

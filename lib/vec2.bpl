@@ -2,9 +2,11 @@
 
 export [Vec2];
 
+import [Equatable], [Cloneable] from "std/core_specs.bpl";
+
 extern printf(fmt: string, ...) ret int;
 
-struct Vec2 {
+struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
     x: float,
     y: float,
     frame new(x: float, y: float) ret Vec2 {
@@ -12,6 +14,18 @@ struct Vec2 {
         v.x = x;
         v.y = y;
         return v;
+    }
+
+    frame __eq__(this: *Vec2, other: *Vec2) ret bool {
+        return (this.x == other.x) && (this.y == other.y);
+    }
+
+    frame __ne__(this: *Vec2, other: *Vec2) ret bool {
+        return !this.__eq__(other);
+    }
+
+    frame clone(this: *Vec2) ret Vec2 {
+        return Vec2.new(this.x, this.y);
     }
 
     frame add(this: *Vec2, other: Vec2) ret Vec2 {

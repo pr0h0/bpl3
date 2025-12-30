@@ -1,11 +1,7 @@
 # Test pattern guards in match expressions
+import [Option] from "std/option.bpl";
 
 extern printf(fmt: string, ...) ret int;
-
-enum Option<T> {
-    Some(T),
-    None,
-}
 
 frame classifyValue(opt: Option<int>) ret string {
     return match (opt) {

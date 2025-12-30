@@ -1060,7 +1060,8 @@ export function checkSizeof(
     // Check if it's a BasicType that is actually a variable
     let isVariable = false;
     if (target.kind === "BasicType") {
-      const symbol = this.currentScope.resolve(target.name);
+      const basicTarget = target as AST.BasicTypeNode;
+      const symbol = this.currentScope.resolve(basicTarget.name);
       if (
         symbol &&
         (symbol.kind === "Variable" || symbol.kind === "Parameter")
@@ -1070,10 +1071,11 @@ export function checkSizeof(
     }
 
     if (isVariable && target.kind === "BasicType") {
+      const basicTarget = target as AST.BasicTypeNode;
       // Treat as expression
       const idExpr: AST.IdentifierExpr = {
         kind: "Identifier",
-        name: target.name,
+        name: basicTarget.name,
         location: target.location,
       };
       expr.target = idExpr; // Update AST
@@ -1349,9 +1351,7 @@ export function checkMatchExpr(
       if (valueType.resolvedDeclaration.kind === "EnumDecl") {
         enumDecl = valueType.resolvedDeclaration as AST.EnumDecl;
       }
-    }
-
-    if (!enumDecl) {
+    } else {
       let symbol = this.currentScope.resolve(valueType.name);
       if (!symbol && valueType.name.includes(".")) {
         const parts = valueType.name.split(".");

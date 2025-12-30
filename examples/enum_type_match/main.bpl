@@ -1,11 +1,7 @@
 # Test match<Type>(value) for runtime type checking
+import [Option] from "std/option.bpl";
 
 extern printf(fmt: string, ...) ret int;
-
-enum Option<T> {
-    Some(T),
-    None,
-}
 
 frame main() ret int {
     local opt1: Option<int> = Option<int>.Some(42);

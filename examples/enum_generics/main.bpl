@@ -2,10 +2,7 @@
 # Showcases generic enums with type-safe pattern matching
 # Option<T> is instantiated as Option<int> with proper type substitution
 
-enum Option<T> {
-    Some(T),
-    None,
-}
+import [Option] from "std/option.bpl";
 
 frame main() ret int {
     local x: Option<int> = Option<int>.Some(42);

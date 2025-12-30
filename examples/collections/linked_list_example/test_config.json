@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "--- LinkedList Example: Integers ---",
+    "List size: 4",
+    "Popping:",
+    "Value: 5",
+    "Value: 10",
+    "Value: 20",
+    "Value: 30"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

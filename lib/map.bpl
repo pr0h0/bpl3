@@ -1,9 +1,12 @@
 # Map<K,V> simple associative array using Array<Pair<K,V>>
 
 export [Map];
+export [MapIterator];
 
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
+import [Iterable], [Iterator] from "std/iter_specs.bpl";
+import [Destructible] from "std/core_specs.bpl";
 
 struct Pair<K, V> {
     key: K,
@@ -11,12 +14,32 @@ struct Pair<K, V> {
 }
 export [Pair];
 
-struct Map<K, V> {
+struct MapIterator<K, V>: Iterator<Pair<K, V>> {
+    map: *Map<K, V>,
+    index: int,
+    frame next(this: *MapIterator<K, V>) ret Option<Pair<K, V>> {
+        if (this.index >= this.map.items.len()) {
+            return Option<Pair<K, V>>.None;
+        }
+        local p: Pair<K, V> = this.map.items.get(this.index);
+        this.index = this.index + 1;
+        return Option<Pair<K, V>>.Some(p);
+    }
+}
+
+struct Map<K, V>: Iterable<Pair<K, V>>, Destructible {
     items: Array<Pair<K, V>>,
     frame new(initial_capacity: int) ret Map<K, V> {
         local m: Map<K, V>;
         m.items = Array<Pair<K, V>>.new(initial_capacity);
         return m;
+    }
+
+    frame iterator(this: *Map<K, V>) ret MapIterator<K, V> {
+        local it: MapIterator<K, V>;
+        it.map = this;
+        it.index = 0;
+        return it;
     }
 
     frame destroy(this: *Map<K, V>) {

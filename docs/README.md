@@ -73,6 +73,7 @@ Welcome to the comprehensive documentation for the **Best Programming Language (
 
 - [Inline Assembly](35-inline-assembly.md) - Low-level programming
 - [FFI (Foreign Function Interface)](36-ffi.md) - Calling C functions
+- [LLVM Intrinsics](58-intrinsics.md) - Built-in functions for performance and low-level control
 - [Cross-Compilation](37-cross-compilation.md) - Building for different platforms
 - [Code Formatting](38-code-formatting.md) - Consistent code style
 - [Compiler Options](39-compiler-options.md) - Flags and configuration

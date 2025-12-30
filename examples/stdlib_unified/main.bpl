@@ -86,12 +86,12 @@ frame main() ret int {
     local res2: Result<int, int> = Result<int, int>.Ok(100);
     local res3: Result<int, int> = Result<int, int>.Err(1);
 
-    if (res1.__eq__(res2)) {
+    if (res1.__eq__(&res2)) {
         # equality comparison
         IO.printString("Ok(100) == Ok(100): true");
     }
     # inequality comparison
-    if (res1.__ne__(res3)) {
+    if (res1.__ne__(&res3)) {
         IO.printString("Ok(100) != Err(1): true");
     }
     IO.print("");

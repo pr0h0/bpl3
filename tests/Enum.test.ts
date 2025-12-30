@@ -1253,10 +1253,7 @@ describe("Enum Generic Instantiation", () => {
 
   it("should accept generic enum with inferred type parameters", () => {
     const source = `
-      enum Option<T> {
-        Some(T),
-        None,
-      }
+      import [Option] from "std/option.bpl";
       frame main() {
         local _x: Option<int> = Option.Some(42);
       }
@@ -1400,10 +1397,7 @@ describe("Enum Methods", () => {
 describe("Enum Pattern Guards", () => {
   it("should parse pattern guard with condition", () => {
     const source = `
-      enum Option<T> {
-        Some(T),
-        None,
-      }
+      import [Option] from "std/option.bpl";
       frame main() ret int {
         local opt: Option<int> = Option<int>.Some(42);
         return match (opt) {
@@ -1452,10 +1446,7 @@ describe("Enum Pattern Guards", () => {
 
   it("should reject guard with non-boolean condition", () => {
     const source = `
-      enum Option<T> {
-        Some(T),
-        None,
-      }
+      import [Option] from "std/option.bpl";
       frame main() ret int {
         local opt: Option<int> = Option<int>.Some(42);
         return match (opt) {
@@ -1508,10 +1499,7 @@ describe("Enum Pattern Guards", () => {
 describe("Enum Type Matching with match<Type>", () => {
   it("should parse match<Type> expression", () => {
     const source = `
-      enum Option<T> {
-        Some(T),
-        None,
-      }
+      import [Option] from "std/option.bpl";
       frame main() ret int {
         local opt: Option<int> = Option<int>.Some(42);
         if (match<Option.Some>(opt)) {
@@ -1645,10 +1633,7 @@ describe("Combined Guards and Type Matching", () => {
 
   it("should use type matching for early returns", () => {
     const source = `
-      enum Option<T> {
-        Some(T),
-        None,
-      }
+      import [Option] from "std/option.bpl";
       frame unwrap_positive(opt: Option<int>) ret int {
         if (match<Option.None>(opt)) {
           return 0;

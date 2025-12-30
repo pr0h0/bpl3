@@ -95,11 +95,7 @@ describe("Enums and Pattern Matching", () => {
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);
-
-      enum Option<T> {
-          Some(T),
-          None,
-      }
+      import [Option] from "std/option.bpl";
 
       frame main() {
           local opt: Option<i32> = Option.Some(42);

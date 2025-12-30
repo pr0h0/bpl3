@@ -1,0 +1,15 @@
+{
+  "expectedOutput": [
+    "--- PriorityQueue Example: Integers ---",
+    "Pushing 30",
+    "Pushing 10",
+    "Pushing 20",
+    "Popping:",
+    "Value: 10",
+    "Value: 20",
+    "Value: 30"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

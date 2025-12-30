@@ -1,15 +1,31 @@
 # Array<T> standard library implementation
 
 export [Array];
+export [ArrayIterator];
 
 import [Option] from "./option.bpl";
 import [IndexOutOfBoundsError], [EmptyError] from "std/errors.bpl";
+import [Iterable], [Iterator] from "std/iter_specs.bpl";
+import [Cloneable], [Destructible] from "std/core_specs.bpl";
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 extern memcpy(dest: *void, src: *void, n: long) ret *void;
 
-struct Array<T> {
+struct ArrayIterator<T>: Iterator<T> {
+    array: *Array<T>,
+    index: int,
+    frame next(this: *ArrayIterator<T>) ret Option<T> {
+        if (this.index >= this.array.length) {
+            return Option<T>.None;
+        }
+        local val: T = this.array.get(this.index);
+        this.index = this.index + 1;
+        return Option<T>.Some(val);
+    }
+}
+
+struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     data: *T,
     capacity: int,
     length: int,
@@ -41,6 +57,23 @@ struct Array<T> {
         }
         this.capacity = 0;
         this.length = 0;
+    }
+
+    frame iterator(this: *Array<T>) ret ArrayIterator<T> {
+        local it: ArrayIterator<T>;
+        it.array = this;
+        it.index = 0;
+        return it;
+    }
+
+    frame clone(this: *Array<T>) ret Array<T> {
+        local newArr: Array<T> = Array<T>.new(this.capacity);
+        newArr.length = this.length;
+        if (this.length > 0) {
+            local size: long = cast<long>(this.length) * sizeof<T>();
+            memcpy(cast<*void>(newArr.data), cast<*void>(this.data), size);
+        }
+        return newArr;
     }
 
     /#

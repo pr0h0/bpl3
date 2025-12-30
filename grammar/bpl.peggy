@@ -146,8 +146,8 @@
     return { kind: "GenericInstantiation", base, genericArgs, location: makeLoc(loc) };
   }
 
-  function enumDecl(name, genericParams, variants, methods, loc) {
-    return { kind: "EnumDecl", name, genericParams, variants, methods: methods || [], location: makeLoc(loc) };
+  function enumDecl(name, genericParams, variants, methods, loc, implementsList) {
+    return { kind: "EnumDecl", name, genericParams, variants, methods: methods || [], implements: implementsList || [], location: makeLoc(loc) };
   }
 
   function enumVariant(name, dataType, loc) {
@@ -495,11 +495,12 @@ StructDeclaration
     }
 
 EnumDeclaration
-  = K_enum _ name:Identifier _ gen:GenericParamList? _ "{" _ content:EnumContent? _ "}" {
+  = K_enum _ name:Identifier _ gen:GenericParamList? _ ext:(_ ":" _ TypeList)? _ "{" _ content:EnumContent? _ "}" {
       const genericParams = gen ? gen : [];
+      const implementsList = ext ? ext[3] : [];
       const variantList = content ? content.variants : [];
       const methods = content ? content.methods : [];
-      return enumDecl(name.name, genericParams, variantList, methods, location());
+      return enumDecl(name.name, genericParams, variantList, methods, location(), implementsList);
     }
 
 EnumContent

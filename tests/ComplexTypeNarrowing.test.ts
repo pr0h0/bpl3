@@ -104,7 +104,7 @@ describe("Complex Type Narrowing", () => {
   describe("Enums", () => {
     it("should check 'is' with enums", () => {
       const source = `
-        enum Option<T> { Some(T), None }
+        import [Option] from "std/option.bpl";
         frame main() {
             local o: Option<int> = Option<int>.Some(42);
             if (o is Option<int>) {}

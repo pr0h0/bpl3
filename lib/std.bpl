@@ -6,6 +6,17 @@ import [Type], [Any] from "std/type.bpl";
 export [Type];
 export [Any];
 
+# Specs / Interfaces
+import [Comparable], [Equatable], [Destructible], [Cloneable] from "std/core_specs.bpl";
+import [Iterator], [Iterable] from "std/iter_specs.bpl";
+
+export [Comparable];
+export [Equatable];
+export [Destructible];
+export [Cloneable];
+export [Iterator];
+export [Iterable];
+
 import [Int], [Double], [Bool], [Long], [Char], [UChar], [Short], [UShort], [UInt], [ULong] from "std/primitives.bpl";
 export [Int];
 export [Bool];
@@ -47,6 +58,20 @@ export [Queue];
 
 import [Set] from "std/set.bpl";
 export [Set];
+
+import [LinkedList], [ListNode] from "std/linked_list.bpl";
+export [LinkedList];
+export [ListNode];
+
+import [PriorityQueue] from "std/priority_queue.bpl";
+export [PriorityQueue];
+
+import [likely], [unlikely], [prefetch], [trap], [debugtrap] from "std/intrinsics.bpl";
+export [likely];
+export [unlikely];
+export [prefetch];
+export [trap];
+export [debugtrap];
 
 import [Option] from "std/option.bpl";
 export [Option];

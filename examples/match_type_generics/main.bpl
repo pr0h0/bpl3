@@ -1,12 +1,9 @@
 # Test match<Type> with enum variants
 # Demonstrates enum variant type checking at runtime
 
-extern printf(fmt: string, ...) ret int;
+import [Option] from "std/option.bpl";
 
-enum Option<T> {
-    Some(T),
-    None,
-}
+extern printf(fmt: string, ...) ret int;
 
 enum Result<T, E> {
     Ok(T),

@@ -1,15 +1,39 @@
 # Set<T> built on Map<T, bool>
 
 export [Set];
+export [SetIterator];
 
 import [Map] from "std/map.bpl";
+import [Option] from "std/option.bpl";
+import [Iterable], [Iterator] from "std/iter_specs.bpl";
+import [Destructible] from "std/core_specs.bpl";
 
-struct Set<T> {
+struct SetIterator<T>: Iterator<T> {
+    set: *Set<T>,
+    index: int,
+    frame next(this: *SetIterator<T>) ret Option<T> {
+        if (this.index >= this.set.size()) {
+            return Option<T>.None;
+        }
+        local val: T = this.set.inner.getKey(this.index);
+        this.index = this.index + 1;
+        return Option<T>.Some(val);
+    }
+}
+
+struct Set<T>: Iterable<T>, Destructible {
     inner: Map<T, bool>,
     frame new(initial_capacity: int) ret Set<T> {
         local s: Set<T>;
         s.inner = Map<T, bool>.new(initial_capacity);
         return s;
+    }
+
+    frame iterator(this: *Set<T>) ret SetIterator<T> {
+        local it: SetIterator<T>;
+        it.set = this;
+        it.index = 0;
+        return it;
     }
 
     frame destroy(this: *Set<T>) {

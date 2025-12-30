@@ -1,0 +1,16 @@
+{
+  "expectedOutput": [
+    "--- Queue Example: Print Jobs ---",
+    "Submitting Job 101",
+    "Submitting Job 102",
+    "Submitting Job 103",
+    "Queue size: 3",
+    "Processing jobs:",
+    "Printing Job ID: 101",
+    "Printing Job ID: 102",
+    "Printing Job ID: 103"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

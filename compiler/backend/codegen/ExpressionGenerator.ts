@@ -2855,6 +2855,41 @@ export abstract class ExpressionGenerator extends TypeGenerator {
       const ident = callee as AST.IdentifierExpr;
       funcName = ident.name;
 
+      // Handle intrinsics
+      if (funcName === "likely" || funcName === "unlikely") {
+        const cond = this.generateExpression(expr.args[0]!);
+        const expected = funcName === "likely" ? "1" : "0";
+        const reg = this.newRegister();
+        this.emit(
+          `  ${reg} = call i1 @llvm.expect.i1(i1 ${cond}, i1 ${expected})`,
+        );
+        return reg;
+      } else if (funcName === "prefetch") {
+        const ptr = this.generateExpression(expr.args[0]!);
+        const rw = this.generateExpression(expr.args[1]!);
+        const locality = this.generateExpression(expr.args[2]!);
+        const ptrType = this.resolveType(expr.args[0]!.resolvedType!);
+
+        // Cast to i8* if needed
+        let ptrI8 = ptr;
+        if (ptrType !== "i8*") {
+          ptrI8 = this.newRegister();
+          this.emit(`  ${ptrI8} = bitcast ${ptrType} ${ptr} to i8*`);
+        }
+
+        this.emit(
+          `  call void @llvm.prefetch(i8* ${ptrI8}, i32 ${rw}, i32 ${locality}, i32 1)`,
+        );
+        return "0"; // void
+      } else if (funcName === "trap") {
+        this.emit(`  call void @llvm.trap()`);
+        this.emit(`  unreachable`);
+        return "0";
+      } else if (funcName === "debugtrap") {
+        this.emit(`  call void @llvm.debugtrap()`);
+        return "0";
+      }
+
       // Handle generic function call
       if (genericArgs.length > 0) {
         // Find declaration
@@ -2905,6 +2940,48 @@ export abstract class ExpressionGenerator extends TypeGenerator {
           "The type of the object could not be resolved.",
           memberExpr.location,
         );
+
+      // Handle Bit Manipulation Intrinsics on primitive integers
+      if (objType.kind === "BasicType") {
+        const resolvedType = this.resolveType(objType);
+        if (this.isIntegerType(resolvedType)) {
+          const method = memberExpr.property;
+          const val = this.generateExpression(memberExpr.object);
+          const width = this.getBitWidth(resolvedType);
+
+          if (method === "popCount") {
+            const reg = this.newRegister();
+            this.emit(
+              `  ${reg} = call ${resolvedType} @llvm.ctpop.i${width}(${resolvedType} ${val})`,
+            );
+            return reg;
+          } else if (method === "leadingZeros") {
+            const reg = this.newRegister();
+            this.emit(
+              `  ${reg} = call ${resolvedType} @llvm.ctlz.i${width}(${resolvedType} ${val}, i1 false)`,
+            );
+            return reg;
+          } else if (method === "trailingZeros") {
+            const reg = this.newRegister();
+            this.emit(
+              `  ${reg} = call ${resolvedType} @llvm.cttz.i${width}(${resolvedType} ${val}, i1 false)`,
+            );
+            return reg;
+          } else if (method === "byteSwap") {
+            const reg = this.newRegister();
+            this.emit(
+              `  ${reg} = call ${resolvedType} @llvm.bswap.i${width}(${resolvedType} ${val})`,
+            );
+            return reg;
+          } else if (method === "reverseBits") {
+            const reg = this.newRegister();
+            this.emit(
+              `  ${reg} = call ${resolvedType} @llvm.bitreverse.i${width}(${resolvedType} ${val})`,
+            );
+            return reg;
+          }
+        }
+      }
 
       if ((objType as any).kind === "ModuleType") {
         funcName = memberExpr.property;
