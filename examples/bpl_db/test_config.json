@@ -1,0 +1,29 @@
+{
+  "expectedOutput": [
+    "=== BPL DB Example ===",
+    "--- Creating Table ---",
+    "--- Inserting Data ---",
+    "--- Select All ---",
+    "ID: 1 | 25 100 ",
+    "ID: 2 | 30 200 ",
+    "ID: 3 | 20 50 ",
+    "--- Select Where age > 22 ---",
+    "ID: 1 | 25 100 ",
+    "ID: 2 | 30 200 ",
+    "--- Update score = 999 Where age == 20 ---",
+    "ID: 1 | 25 100 ",
+    "ID: 2 | 30 200 ",
+    "ID: 3 | 20 999 ",
+    "--- Delete Where score > 150 ---",
+    "--- Final Result ---",
+    "ID: 1 | 25 100 ",
+    "--- Persistence Test ---",
+    "Saving to 'db_main.dump'...",
+    "Loading into new engine...",
+    "Verifying loaded data:",
+    "ID: 1 | 25 100 "
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -21,6 +21,19 @@ The following features are recommended for implementation next:
 
 ## 📋 COMPLETED FEATURES
 
+## [3] ✅ Basic Package Management (COMPLETED)
+
+**Description:** Implement core package management commands to pack, install, and resolve local packages.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **CLI Commands**: `bpl pack` (creates .tar.gz), `bpl install <path/to/package.tar.gz>`.
+- ✅ **Resolution**: Updated `ImportHandler` and `ModuleResolver` to resolve packages from `bpl_modules`.
+- ✅ **Metadata**: Defined `bpl.json` format for package metadata.
+- ✅ **Verification**: Verified with `bpl-db` package and `db_client` example.
+
 ## [8] ✅ Inline Assembly Blocks (COMPLETED)
 
 **Description:** Allow embedding inline assembly with explicit register lists and integration with calling conventions.
@@ -843,24 +856,23 @@ There are several approaches to fix this:
 
 ---
 
-## [7] Package Registry and Dependency Management
+## [7] Package Registry and Advanced Dependency Management
 
-**Description:** Create a centralized package registry and enhance the package manager to support publishing, versioning, and dependency resolution. This makes it easier to share and consume BPL libraries.
+**Description:** Create a centralized package registry and enhance the package manager to support publishing, semantic versioning, and transitive dependency resolution.
 
 **Implementation Notes:**
 
-- Design package metadata format (enhanced `bpl-package.json`)
-- Implement semantic versioning resolution
-- Create a backend registry API (simple static file server or API)
-- Add CLI commands: `bpl publish`, `bpl install <package>`
-- Handle transitive dependencies and version conflicts
+- **Registry:** Create a backend registry API (simple static file server or API).
+- **Publishing:** Add `bpl publish` command.
+- **Versioning:** Implement semantic versioning resolution for dependencies.
+- **Transitive Deps:** Handle transitive dependencies and version conflicts (currently only direct dependencies are supported).
 
 **Acceptance Criteria:**
 
-- Can publish a package to the registry
-- Can install a package and its dependencies
-- Version constraints are respected
-- `bpl_modules` structure handles dependencies correctly
+- Can publish a package to the registry.
+- Can install a package by name (e.g., `bpl install my-pkg`) instead of file path.
+- Version constraints are respected.
+- Transitive dependencies are automatically installed.
 
 ---
 

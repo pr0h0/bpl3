@@ -1,0 +1,18 @@
+{
+  "expectedOutput": [
+    "=== BPL DB Persistence Test ===",
+    "",
+    "--- Creating Data ---",
+    "",
+    "--- Saving to 'db.dump' ---",
+    "",
+    "--- Loading from 'db.dump' ---",
+    "",
+    "--- Verifying Loaded Data ---",
+    "ID: 1 | Alice 100 ",
+    "ID: 2 | Bob 200 "
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

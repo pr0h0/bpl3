@@ -14,6 +14,7 @@ import { Parser } from "../frontend/Parser";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import { initializeBuiltinsInScope } from "./BuiltinTypes";
 import { getLibPath } from "../common/PathResolver";
+import { ModuleResolver } from "./ModuleResolver";
 
 /**
  * Import handler context
@@ -107,42 +108,21 @@ export class ImportHandler {
     let importPath: string | undefined;
     let ast: AST.Program | undefined;
 
+    // Always use ModuleResolver to get the canonical path
+    const moduleResolver = new ModuleResolver();
+    try {
+      importPath = moduleResolver.resolveModulePath(stmt.source, currentFile);
+    } catch (e) {
+      // Ignore error, will handle below
+    }
+
     if (this.ctx.skipImportResolution) {
-      // Try to resolve the import path to match against pre-loaded modules
-      let resolvedImportPath: string | undefined;
-
-      if (stmt.source.startsWith("std/")) {
-        const stdLibPath = getLibPath();
-        resolvedImportPath = path.join(stdLibPath, stmt.source.substring(4));
-      } else if (path.isAbsolute(stmt.source)) {
-        resolvedImportPath = stmt.source;
+      // Try to find AST in pre-loaded modules using the resolved path
+      if (importPath && this.ctx.preLoadedModules.has(importPath)) {
+        ast = this.ctx.preLoadedModules.get(importPath);
       } else {
-        const currentDir = path.dirname(currentFile);
-        resolvedImportPath = path.resolve(currentDir, stmt.source);
-      }
-
-      // Try to find exact match first (checking extensions)
-      if (resolvedImportPath) {
-        if (this.ctx.preLoadedModules.has(resolvedImportPath)) {
-          importPath = resolvedImportPath;
-          ast = this.ctx.preLoadedModules.get(importPath);
-        } else {
-          // Try extensions
-          for (const ext of [".x", ".bpl"]) {
-            const withExt = resolvedImportPath + ext;
-            if (this.ctx.preLoadedModules.has(withExt)) {
-              importPath = withExt;
-              ast = this.ctx.preLoadedModules.get(importPath);
-              break;
-            }
-          }
-        }
-      }
-
-      if (!importPath) {
-        // Fallback to heuristic
+        // Fallback to heuristic if ModuleResolver failed or path not in preLoadedModules
         for (const [modulePath, moduleAst] of this.ctx.preLoadedModules) {
-          // Simple heuristic: if the module path contains the import source
           if (
             modulePath.includes(stmt.source) ||
             modulePath.includes(stmt.source.replace(/^[./]+/, ""))
@@ -155,7 +135,6 @@ export class ImportHandler {
       }
 
       if (!importPath) {
-        // This shouldn't happen if ModuleResolver did its job
         throw new CompilerError(
           `Module not found: ${stmt.source}`,
           "Module resolution failed",
@@ -163,17 +142,19 @@ export class ImportHandler {
         );
       }
     } else {
-      // Handle std/ prefix
-      if (stmt.source === "std") {
-        const stdLibPath = getLibPath();
-        importPath = path.join(stdLibPath, "std.bpl");
-      } else if (stmt.source.startsWith("std/")) {
-        const stdLibPath = getLibPath();
-        const relativePath = stmt.source.substring(4);
-        importPath = path.join(stdLibPath, relativePath);
-      } else {
-        const currentDir = path.dirname(currentFile);
-        importPath = path.resolve(currentDir, stmt.source);
+      // If not skipping, use the resolved path or fallback to simple resolution
+      if (!importPath) {
+        if (stmt.source === "std") {
+          const stdLibPath = getLibPath();
+          importPath = path.join(stdLibPath, "std.bpl");
+        } else if (stmt.source.startsWith("std/")) {
+          const stdLibPath = getLibPath();
+          const relativePath = stmt.source.substring(4);
+          importPath = path.join(stdLibPath, relativePath);
+        } else {
+          const currentDir = path.dirname(currentFile);
+          importPath = path.resolve(currentDir, stmt.source);
+        }
       }
     }
 

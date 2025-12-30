@@ -1,0 +1,24 @@
+{
+  "expectedOutput": [
+    "=== Library Management System ===",
+    "Initializing Database...",
+    "Seeding Data...",
+    "",
+    "--- Operations ---",
+    "Action: User 1 attempting to borrow Book 1... Success: Book borrowed.",
+    "Action: User 2 attempting to borrow Book 1... Failed: Book is currently unavailable.",
+    "Action: User 2 attempting to borrow Book 2... Success: Book borrowed.",
+    "",
+    "--- Active Loans ---",
+    "ID: 1 | 1 1 1 ",
+    "ID: 2 | 2 2 1 ",
+    "",
+    "Action: User 1 returning Book 1... Success: Book returned.",
+    "",
+    "--- Active Loans (After Return) ---",
+    "ID: 2 | 2 2 1 "
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

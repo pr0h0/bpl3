@@ -54,3 +54,4 @@ bpl
 
 ir.ll
 tests/ir.ll
+*.dump

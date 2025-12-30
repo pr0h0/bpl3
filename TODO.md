@@ -264,7 +264,12 @@
   - Description: Add public/private visibility modifiers and module encapsulation.
   - Implementation notes: Add pub/private keywords, enforce visibility during semantic analysis, support module-level exports.
 
-- [7] **Package Registry and Dependency Management**
+- [3] ✅ **Basic Package Management (COMPLETED)**
+
+  - Description: Implement core package management commands to pack, install, and resolve local packages.
+  - Implementation notes: Implemented `bpl pack`, `bpl install`, and module resolution logic.
+
+- [7] **Package Registry and Advanced Dependency Management**
 
   - Description: Create a centralized package registry and enhance package manager for publishing/versioning.
   - Implementation notes: Design metadata format, implement semantic versioning, create registry API, add publish/install commands.

@@ -1,0 +1,8 @@
+{
+  "name": "bpl-db",
+  "version": "0.1.0",
+  "description": "A simple in-memory database for BPL",
+  "main": "index.bpl",
+  "author": "BPL User",
+  "license": "MIT"
+}

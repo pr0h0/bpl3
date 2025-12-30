@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["HP:"],
+  "args": [],
+  "env": {},
+  "input": "q"
+}
