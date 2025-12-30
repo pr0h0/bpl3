@@ -9,7 +9,7 @@ struct Data {
 # Return nullptr conditionally
 frame maybeGetData(success: bool) ret *Data {
     if (success) {
-        local ptr: *Data = cast<*Data>(malloc(sizeof(Data)));
+        local ptr: *Data = cast<*Data>(malloc(sizeof<Data>()));
         ptr.value = 42;
         ptr.valid = true;
         return ptr;

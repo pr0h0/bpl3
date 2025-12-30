@@ -152,6 +152,22 @@ export abstract class TypeCheckerBase {
             for (let i = 0; i < genericParams.length; i++) {
               const param = genericParams[i]!;
               const arg = resolvedArgs[i]!;
+
+              // Check for void type argument
+              if (
+                arg.kind === "BasicType" &&
+                arg.name === "void" &&
+                arg.pointerDepth === 0
+              ) {
+                this.addError(
+                  new CompilerError(
+                    `Generic type argument cannot be 'void'.`,
+                    "Use '*void' for void pointers.",
+                    type.location,
+                  ),
+                );
+              }
+
               if (param.constraint) {
                 const substitutedConstraint = this.substituteType(
                   param.constraint,
@@ -305,7 +321,26 @@ export abstract class TypeCheckerBase {
           return result;
         }
 
-        // Propagate const for other types (FunctionType, TupleType)
+        // Propagate array dimensions for other types (FunctionType, TupleType, LambdaType)
+        if (
+          resolvedBase.kind === "FunctionType" ||
+          resolvedBase.kind === "TupleType" ||
+          resolvedBase.kind === "LambdaType"
+        ) {
+          const result = { ...resolvedBase } as any;
+          if (type.arrayDimensions && type.arrayDimensions.length > 0) {
+            result.arrayDimensions = [
+              ...(result.arrayDimensions || []),
+              ...type.arrayDimensions,
+            ];
+          }
+          if ("isConst" in type && type.isConst) {
+            result.isConst = true;
+          }
+          return result as AST.TypeNode;
+        }
+
+        // Propagate const for other types
         if ("isConst" in type && type.isConst) {
           return { ...resolvedBase, isConst: true } as AST.TypeNode;
         }
@@ -1226,5 +1261,13 @@ export abstract class TypeCheckerBase {
 
   public exitScope(): void {
     this.currentScope = this.currentScope.exitScope();
+  }
+
+  public addError(error: CompilerError): void {
+    if (this.collectAllErrors) {
+      this.errors.push(error);
+    } else {
+      throw error;
+    }
   }
 }

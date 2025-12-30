@@ -7,7 +7,7 @@ struct P {
 
 frame main() ret int {
     local p: *P = nullptr;
-    local size: int = sizeof(P);
+    local size: int = sizeof<P>();
 
     printf("sizeof(P): %d\n", size);
 

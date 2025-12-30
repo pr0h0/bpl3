@@ -1053,9 +1053,34 @@ export function checkSizeof(
   if (
     target.kind === "BasicType" ||
     target.kind === "TupleType" ||
-    target.kind === "FunctionType"
+    target.kind === "FunctionType" ||
+    target.kind === "LambdaType" ||
+    target.kind === "MetaType"
   ) {
-    targetType = this.resolveType(target as AST.TypeNode);
+    // Check if it's a BasicType that is actually a variable
+    let isVariable = false;
+    if (target.kind === "BasicType") {
+      const symbol = this.currentScope.resolve(target.name);
+      if (
+        symbol &&
+        (symbol.kind === "Variable" || symbol.kind === "Parameter")
+      ) {
+        isVariable = true;
+      }
+    }
+
+    if (isVariable && target.kind === "BasicType") {
+      // Treat as expression
+      const idExpr: AST.IdentifierExpr = {
+        kind: "Identifier",
+        name: target.name,
+        location: target.location,
+      };
+      expr.target = idExpr; // Update AST
+      targetType = this.checkExpression(idExpr);
+    } else {
+      targetType = this.resolveType(target as AST.TypeNode);
+    }
   } else {
     targetType = this.checkExpression(target as AST.Expression);
   }

@@ -14,7 +14,7 @@ struct WithMethod {
 }
 
 frame main() ret int {
-    printf("sizeof(Simple): %d\n", sizeof(Simple));
-    printf("sizeof(WithMethod): %d\n", sizeof(WithMethod));
+    printf("sizeof(Simple): %d\n", sizeof<Simple>());
+    printf("sizeof(WithMethod): %d\n", sizeof<WithMethod>());
     return 0;
 }

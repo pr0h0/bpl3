@@ -7,13 +7,13 @@ extern printf(fmt: string, ...);
 extern malloc(size: ulong) ret *void;
 
 frame createLeaf(val: int) ret *Tree {
-    local t: *Tree = cast<*Tree>(malloc(sizeof(Tree)));
+    local t: *Tree = cast<*Tree>(malloc(sizeof<Tree>()));
     *t = Tree.Leaf(val);
     return t;
 }
 
 frame createNode(left: *Tree, right: *Tree) ret *Tree {
-    local t: *Tree = cast<*Tree>(malloc(sizeof(Tree)));
+    local t: *Tree = cast<*Tree>(malloc(sizeof<Tree>()));
     *t = Tree.Node(left, right);
     return t;
 }

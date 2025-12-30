@@ -28,7 +28,7 @@ struct User {
 }
 
 frame main() ret int {
-    local size: int = sizeof(User) * 3;
+    local size: int = sizeof<User>() * 3;
     local users: *User = cast<*User>(malloc(size));
 
     # Initialize users

@@ -17,6 +17,7 @@ You are working with BPL, a statically-typed, compiled programming language that
 - **Modules**: `import`, `export`, `from`, `as`.
 - **Types & Values**: `true`, `false`, `nullptr`, `void`, `int`, `float`, `bool`, `char`, `string`, `ushort`, `uint`, `ulong`.
 - **Operators**: `cast`, `sizeof`, `is`, `as`.
+  - `sizeof<T>()` or `sizeof(T)` or `sizeof(expr)`
 - **FFI & Low Level**: `extern`, `asm`.
 
 ### Data Types

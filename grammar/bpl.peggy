@@ -460,6 +460,12 @@ VariableDeclaration
       const initializer = init ? init[3] : undefined;
       return variableDecl(false, false, name.name, type, initializer, location());
     }
+  / K_global _ name:Identifier _ "=" _ init:Expression _ ";" {
+      return variableDecl(true, false, name.name, undefined, init, location());
+    }
+  / K_local _ name:Identifier _ "=" _ init:Expression _ ";" {
+      return variableDecl(false, false, name.name, undefined, init, location());
+    }
 
 DestructTargetList
   = head:DestructTarget tail:(_ "," _ DestructTarget)* _ ","? {
@@ -991,6 +997,7 @@ CastExpression
 
 SizeofExpression
   = K_sizeof _ "<" _ type:Type _ ">" _ "(" _ ")" { return sizeofNode(type, location()); }
+  / K_sizeof _ "(" _ arg:(Expression / Type) _ ")" { return sizeofNode(arg, location()); }
   / K_sizeof _ "(" _ expr:Expression _ ")" { return sizeofNode(expr, location()); }
 
 TypeMatchExpression
@@ -1293,7 +1300,19 @@ BaseType
   = FunctionType
   / LambdaType
   / TupleType
+  / ParenthesizedType
   / BasicType
+
+ParenthesizedType
+  = "(" _ t:Type _ ")" arr:ArraySuffix* {
+      if (arr.length > 0) {
+        if (!t.arrayDimensions) {
+          t.arrayDimensions = [];
+        }
+        t.arrayDimensions.push(...arr.map(a => a));
+      }
+      return t;
+    }
 
 FunctionType
   = K_Func _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 

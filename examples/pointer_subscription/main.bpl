@@ -3,7 +3,7 @@ extern free(ptr: *void);
 extern printf(fmt: string, ...);
 
 frame main() ret int {
-    local size: int = sizeof(int) * 5;
+    local size: int = sizeof<int>() * 5;
     local arr: *int = cast<*int>(malloc(size));
 
     arr[0] = 10;

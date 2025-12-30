@@ -41,6 +41,9 @@ export interface CheckerContext {
   ): AST.TypeNode;
   isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean;
 
+  // Error Handling
+  addError(error: CompilerError): void;
+
   // Symbol Management
   defineSymbol(
     name: string,

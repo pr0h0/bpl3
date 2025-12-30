@@ -1,7 +1,7 @@
 extern printf(fmt: string, ...);
 
 frame main() ret int {
-    printf("sizeof(int) = %d\n", sizeof(int));
+    printf("sizeof(int) = %d\n", sizeof<int>());
 
     local x: int = 1;
     local shift: int = 65;

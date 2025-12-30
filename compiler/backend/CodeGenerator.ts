@@ -69,6 +69,11 @@ export class CodeGenerator extends StatementGenerator {
         this.enumDeclMap.set((stmt as AST.EnumDecl).name, stmt as AST.EnumDecl);
       } else if (stmt.kind === "SpecDecl") {
         this.specMap.set((stmt as AST.SpecDecl).name, stmt as AST.SpecDecl);
+      } else if (stmt.kind === "TypeAlias") {
+        this.typeAliasMap.set(
+          (stmt as AST.TypeAliasDecl).name,
+          stmt as AST.TypeAliasDecl,
+        );
       }
     }
 

@@ -8,7 +8,7 @@ struct Point {
 }
 
 frame make_point_ptr(x: int, y: int) ret *Point {
-    local p: *Point = cast<*Point>(malloc(sizeof(Point)));
+    local p: *Point = cast<*Point>(malloc(sizeof<Point>()));
     p.x = x;
     p.y = y;
     return p;

@@ -6645,10 +6645,18 @@ export abstract class ExpressionGenerator extends TypeGenerator {
 
   protected generateSizeof(expr: AST.SizeofExpr): string {
     let type: AST.TypeNode;
-    if ("kind" in expr.target && (expr.target.kind as string) !== "BasicType") {
-      type = (expr.target as AST.Expression).resolvedType!;
+    const target = expr.target as AST.ASTNode;
+
+    if (
+      target.kind === "BasicType" ||
+      target.kind === "TupleType" ||
+      target.kind === "FunctionType" ||
+      target.kind === "LambdaType" ||
+      target.kind === "MetaType"
+    ) {
+      type = target as AST.TypeNode;
     } else {
-      type = expr.target as AST.TypeNode;
+      type = (target as AST.Expression).resolvedType!;
     }
 
     if (type.kind === "MetaType") {

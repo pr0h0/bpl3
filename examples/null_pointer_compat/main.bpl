@@ -75,7 +75,7 @@ frame testVoidReturn() {
 # Test 6: malloc pattern (common use case)
 frame testMallocPattern() {
     printf("== Test 6: malloc pattern ==\n");
-    local userPtr: *User = malloc(sizeof(User));
+    local userPtr: *User = malloc(sizeof<User>());
     userPtr.id = 100;
     userPtr.name = "malloc'd";
     printf("malloc user: id=%d\n", userPtr.id);

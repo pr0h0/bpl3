@@ -480,10 +480,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     for (let i = 0; i < decl.params.length; i++) {
       const param = decl.params[i]!;
       if (paramNames.has(param.name)) {
-        throw new CompilerError(
-          `Duplicate parameter name '${param.name}'`,
-          `The parameter '${param.name}' is declared multiple times in function '${decl.name}'.`,
-          param.location,
+        this.addError(
+          new CompilerError(
+            `Duplicate parameter name '${param.name}'`,
+            `The parameter '${param.name}' is declared multiple times in function '${decl.name}'.`,
+            param.location,
+          ),
         );
       }
       paramNames.add(param.name);
@@ -495,10 +497,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         paramType.name === "void" &&
         paramType.pointerDepth === 0
       ) {
-        throw new CompilerError(
-          `Parameter '${param.name}' cannot be of type 'void'`,
-          "Parameters cannot be void. Use '*void' for void pointers.",
-          param.location,
+        this.addError(
+          new CompilerError(
+            `Parameter '${param.name}' cannot be of type 'void'`,
+            "Parameters cannot be void. Use '*void' for void pointers.",
+            param.location,
+          ),
         );
       }
 
@@ -819,7 +823,38 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Check member methods and fields
     for (const member of decl.members) {
-      if (member.kind === "FunctionDecl") {
+      if (member.kind === "StructField") {
+        const fieldType = this.resolveType(member.type);
+        if (
+          fieldType.kind === "BasicType" &&
+          fieldType.name === "void" &&
+          fieldType.pointerDepth === 0
+        ) {
+          this.addError(
+            new CompilerError(
+              `Struct field '${member.name}' cannot be void.`,
+              "Struct fields cannot have type 'void'. Use '*void' for pointers.",
+              member.location,
+            ),
+          );
+        }
+
+        // Check for recursive struct definition without pointer
+        if (
+          fieldType.kind === "BasicType" &&
+          fieldType.name === decl.name &&
+          fieldType.pointerDepth === 0 &&
+          fieldType.arrayDimensions.length === 0
+        ) {
+          this.addError(
+            new CompilerError(
+              `Recursive struct '${decl.name}' contains field '${member.name}' of type '${decl.name}' without pointer`,
+              "Recursive structs must use pointers for self-reference (e.g., *Node instead of Node) to have finite size.",
+              member.location,
+            ),
+          );
+        }
+      } else if (member.kind === "FunctionDecl") {
         // Set resolvedType for struct methods so CodeGenerator can use it
         const functionType: AST.FunctionTypeNode = {
           kind: "FunctionType",
@@ -831,21 +866,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         member.resolvedType = functionType;
 
         this.checkFunctionBody(member, decl);
-      } else if (member.kind === "StructField") {
-        // Check for recursive struct definition without pointer
-        const fieldType = this.resolveType(member.type);
-        if (
-          fieldType.kind === "BasicType" &&
-          fieldType.name === decl.name &&
-          fieldType.pointerDepth === 0 &&
-          fieldType.arrayDimensions.length === 0
-        ) {
-          throw new CompilerError(
-            `Recursive struct '${decl.name}' contains field '${member.name}' of type '${decl.name}' without pointer`,
-            "Recursive structs must use pointers for self-reference (e.g., *Node instead of Node) to have finite size.",
-            member.location,
-          );
-        }
       }
     }
 
@@ -856,6 +876,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   private checkEnumBody(decl: AST.EnumDecl): void {
     this.currentScope = this.currentScope.enterScope();
+
+    // Check for duplicate variants
+    const variantNames = new Set<string>();
+    for (const variant of decl.variants) {
+      if (variantNames.has(variant.name)) {
+        this.addError(
+          new CompilerError(
+            `Duplicate enum variant '${variant.name}' in enum '${decl.name}'`,
+            "Enum variants must be unique.",
+            variant.location,
+          ),
+        );
+      }
+      variantNames.add(variant.name);
+    }
 
     // Add generic params
     for (const gp of decl.genericParams) {

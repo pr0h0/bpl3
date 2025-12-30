@@ -455,6 +455,23 @@ export function checkVariableDecl(
     ? this.resolveType(decl.typeAnnotation)
     : undefined;
 
+  // Check for void type (BUG-060)
+  if (declaredType) {
+    if (
+      declaredType.kind === "BasicType" &&
+      declaredType.name === "void" &&
+      declaredType.pointerDepth === 0
+    ) {
+      this.addError(
+        new CompilerError(
+          `Variable '${decl.name}' cannot be void.`,
+          "Variables cannot have type 'void'. Use '*void' for pointers.",
+          decl.location,
+        ),
+      );
+    }
+  }
+
   if (declaredType) {
     decl.resolvedType = declaredType;
   }

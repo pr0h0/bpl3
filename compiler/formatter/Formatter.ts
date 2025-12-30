@@ -1051,10 +1051,17 @@ export class Formatter {
   }
 
   private formatSizeof(expr: AST.SizeofExpr): string {
-    if ("kind" in expr.target && expr.target.kind === "BasicType") {
-      return `sizeof<${this.formatType(expr.target as AST.TypeNode)}>()`;
+    const target = expr.target as AST.ASTNode;
+    if (
+      target.kind === "BasicType" ||
+      target.kind === "TupleType" ||
+      target.kind === "FunctionType" ||
+      target.kind === "LambdaType" ||
+      target.kind === "MetaType"
+    ) {
+      return `sizeof<${this.formatType(target as AST.TypeNode)}>()`;
     } else {
-      return `sizeof(${this.formatExpression(expr.target as AST.Expression)})`;
+      return `sizeof(${this.formatExpression(target as AST.Expression)})`;
     }
   }
 

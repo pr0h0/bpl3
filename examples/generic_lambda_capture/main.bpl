@@ -1,7 +1,7 @@
 extern printf(fmt: string, ...);
 
 frame run<T>() {
-    printf("Size: %d\n", sizeof(T));
+    printf("Size: %d\n", sizeof<T>());
     local f: Lambda<void>() = || ret void {
         # Capture generic val? Might be tricky if T is not known size?
         # But here T is monomorphized.

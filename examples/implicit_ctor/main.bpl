@@ -9,14 +9,14 @@ struct Point<T> {
         if (dummy is int) {
             local val_x: int = 10;
             local val_y: int = 20;
-            memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof(int));
-            memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof(int));
+            memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof<int>());
+            memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof<int>());
             printf("Point initialized\n");
         } else if (dummy is char) {
             local val_x: char = 'a';
             local val_y: char = 'b';
-            memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof(char));
-            memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof(char));
+            memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof<char>());
+            memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof<char>());
             printf("Point<char> initialized\n");
         } else {
             printf("Unsupported type\n");

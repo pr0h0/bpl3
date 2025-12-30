@@ -502,9 +502,11 @@ local i: int = cast<int>(f);
 ## Sizeof Operator
 
 ```bpl
-# Syntax: sizeof(type) or sizeof(expression)
+# Syntax: sizeof(type), sizeof(expression), or sizeof<type>()
 
 local int_size: int = sizeof(int);      # 4 (typically)
+local int_size_alt: int = sizeof<int>(); # Alternative syntax
+
 # local ptr_size: int = sizeof(*void);    # 8 on 64-bit, 4 on 32-bit
 
 struct Data {

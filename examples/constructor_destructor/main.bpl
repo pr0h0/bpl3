@@ -8,7 +8,7 @@ struct Resource {
     frame new(resourceId: int) ret Resource {
         local res: Resource;
         res.id = resourceId;
-        res.data = cast<*int>(malloc(cast<uint>(sizeof(int) * 10)));
+        res.data = cast<*int>(malloc(cast<uint>(sizeof<int>() * 10)));
         printf("Resource %d constructed (allocated memory)\n", res.id);
         # Initialize data
         local i: int = 0;

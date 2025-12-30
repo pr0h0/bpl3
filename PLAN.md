@@ -129,6 +129,23 @@ The following features are recommended for implementation next:
 
 ---
 
+## [3] ✅ Sizeof Operator Improvements (COMPLETED)
+
+**Description:** Support generic syntax `sizeof<T>()` and function-call syntax `sizeof(expr)` or `sizeof(T)`.
+
+**Implementation Status:** ✅ Fully Implemented (December 2025)
+
+**What Was Implemented:**
+
+- ✅ **Grammar**: Updated `bpl.peggy` to accept `sizeof(Expression | Type)`.
+- ✅ **AST**: Updated `SizeofExpr` to support `Expression` or `TypeNode` targets.
+- ✅ **Formatter**: Updated `Formatter.ts` to preserve `sizeof<T>()` vs `sizeof(expr)` style.
+- ✅ **Checker**: Updated `ExpressionChecker` to handle `LambdaType` and `MetaType` targets.
+- ✅ **Codegen**: Updated `ExpressionGenerator` to resolve types for expression targets.
+- ✅ **Tests**: Added `tests/Sizeof.test.ts` covering all cases.
+
+---
+
 ## [3] ✅ Homogeneous Variadic Functions (COMPLETED)
 
 **Description:** Support for typed variadic functions (e.g., `...args: int`) alongside heterogeneous `...Any`.
