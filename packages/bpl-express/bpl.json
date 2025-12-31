@@ -1,0 +1,7 @@
+{
+  "name": "bpl-express",
+  "version": "0.1.0",
+  "description": "A mini web framework for BPL",
+  "entry": "index.bpl",
+  "dependencies": {}
+}

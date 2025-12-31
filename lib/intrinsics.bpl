@@ -92,7 +92,7 @@ struct Dl_info {
     dli_fname: *i8,
     dli_fbase: *void,
     dli_sname: *i8,
-    dli_saddr: *void
+    dli_saddr: *void,
 }
 
 extern dladdr(addr: *void, info: *Dl_info) ret int;
