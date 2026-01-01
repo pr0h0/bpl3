@@ -255,6 +255,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Statement Checking ==========
 
   public checkStatement(stmt: AST.Statement): void {
+    if (!stmt) return;
     switch (stmt.kind) {
       case "VariableDecl":
         this.checkVariableDecl(stmt);

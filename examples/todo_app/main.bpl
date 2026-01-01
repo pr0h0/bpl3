@@ -1,5 +1,5 @@
 import [App], [Router], [Request], [Response] from "bpl-express";
-import sprintf, printf, atoi, strcpy, strcat, strlen from "bpl-express";
+import sprintf, printf, atoi, strcpy, strcat, strlen, strcmp from "bpl-express";
 import [Database], [Table], [Row], [Value], [DataType] from "bpl-db";
 import [Array] from "std/array.bpl";
 import [Map] from "std/map.bpl";
@@ -27,14 +27,33 @@ frame main() {
     app.router.get("/todos", getTodos);
     app.router.post("/todos", createTodo);
     app.router.get("/todos/:id", getTodo);
+    app.router.put("/todos/:id", updateTodo);
     app.router.delete("/todos/:id", deleteTodo);
+    app.router.get("/greet/:name", greetUser);
+    app.router.useNotFound(notFound);
 
     app.listen(8080);
 }
 
-frame getTodos(req: *Request, res: *Response) {
-    cast<*void>(req);
+frame notFound(_req: *Request, res: *Response) {
+    res.status(404).json("{\"error\": \"Route not found\"}");
+}
 
+frame greetUser(req: *Request, res: *Response) {
+    local name_opt = req.getParam("name");
+    match (name_opt) {
+        Option.Some(name) => {
+            local json_buf: char[256];
+            sprintf(cast<string>(&json_buf[0]), "{\"message\": \"Hello, %s!\"}", name);
+            res.json(cast<string>(&json_buf[0]));
+        },
+        Option.None => {
+            res.status(400).json("{\"error\": \"Missing name\"}");
+        },
+    };
+}
+
+frame getTodos(_req: *Request, res: *Response) {
     local json_buf: char[4096];
     local ptr: string = cast<string>(&json_buf[0]);
 
@@ -94,7 +113,7 @@ frame createTodo(req: *Request, res: *Response) {
 }
 
 frame getTodo(req: *Request, res: *Response) {
-    local id_opt = req.params.get("id");
+    local id_opt = req.getParam("id");
     match (id_opt) {
         Option.Some(id_str) => {
             local id = atoi(id_str);
@@ -137,8 +156,37 @@ frame getTodo(req: *Request, res: *Response) {
     };
 }
 
+frame updateTodo(req: *Request, res: *Response) {
+    local id_opt = req.getParam("id");
+    match (id_opt) {
+        Option.Some(id_str) => {
+            local id = atoi(id_str);
+            local completed_str = req.body;
+            local completed = false;
+            if (strcmp(completed_str, "true") == 0) {
+                completed = true;
+            }
+            local i: int = 0;
+            loop (i < todos.rows.len()) {
+                local row = todos.rows.get(i);
+                if (row.id == id) {
+                    row.values.set(1, Value.Bool(completed));
+                    todos.rows.set(i, row);
+                    res.status(200).json("{\"status\": \"updated\"}");
+                    return;
+                }
+                i = i + 1;
+            }
+            res.status(404).json("{\"error\": \"Not found\"}");
+        },
+        Option.None => {
+            res.status(400).json("{\"error\": \"Missing ID\"}");
+        },
+    };
+}
+
 frame deleteTodo(req: *Request, res: *Response) {
-    local id_opt = req.params.get("id");
+    local id_opt = req.getParam("id");
     match (id_opt) {
         Option.Some(id_str) => {
             local id = atoi(id_str);

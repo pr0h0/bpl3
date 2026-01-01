@@ -7,7 +7,6 @@ spec Container<T> {
 
 struct IntBox: Container<int> {
     val: int,
-
     frame get(this: *IntBox) ret int {
         return this.val;
     }

@@ -37,7 +37,7 @@ frame main() ret int {
     local r: int = testRed();
     local g: int = testGreen();
     local b: int = testBlue();
-    
+
     # Should return 6 if all tests pass (1 + 2 + 3)
     return r + g + b;
 }

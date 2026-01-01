@@ -456,7 +456,7 @@ describe("Parser - Extended Tests", () => {
       const source = "local x: int = 10 local y: int = 20;";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
-      const ast = parser.parse();
+      const ast = parser.parse(false, false);
       expect((ast as any).errors).toBeDefined();
       expect((ast as any).errors.length).toBeGreaterThan(0);
     });
@@ -465,7 +465,7 @@ describe("Parser - Extended Tests", () => {
       const source = "frame test() { if (x) { y = 1; }";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
-      const ast = parser.parse();
+      const ast = parser.parse(false, false);
       expect((ast as any).errors).toBeDefined();
       expect((ast as any).errors.length).toBeGreaterThan(0);
     });
@@ -474,7 +474,7 @@ describe("Parser - Extended Tests", () => {
       const source = "local x: int[;";
       const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl", tokens);
-      const ast = parser.parse();
+      const ast = parser.parse(false, false);
       expect((ast as any).errors).toBeDefined();
       expect((ast as any).errors.length).toBeGreaterThan(0);
     });

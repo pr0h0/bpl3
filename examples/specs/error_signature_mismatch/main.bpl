@@ -3,7 +3,8 @@ spec S {
 }
 
 struct Mismatch: S {
-    frame foo(this: *Mismatch, x: string) { # Wrong param type
+    frame foo(this: *Mismatch, x: string) {
+        # Wrong param type
         # ...
     }
 }

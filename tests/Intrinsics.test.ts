@@ -105,7 +105,7 @@ describe("Intrinsics", () => {
       extern free(ptr: *void) ret void;
 
       frame main() {
-        local ptr: *i32 = cast<*i32>(malloc(20)); // 5 ints
+        local ptr: *i32 = cast<*i32>(malloc(20)); # 5 ints
         
         # Memset to 0
         memset(ptr, 0, 20, false);

@@ -10,7 +10,6 @@ spec B {
 
 struct C: A, B {
     val: int,
-
     frame foo(this: *C) {
         printf("foo: %d\n", this.val);
     }

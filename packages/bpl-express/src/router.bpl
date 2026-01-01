@@ -1,7 +1,7 @@
 import [Request], [Response], [HttpMethod] from "./http.bpl";
 import [Array] from "std/array.bpl";
 import [Map] from "std/map.bpl";
-import strcmp, strncmp, strlen, printf from "./libc.bpl";
+import strcmp, strncmp, strlen, printf, malloc, free from "./libc.bpl";
 
 export [Router];
 export [RouteHandler];
@@ -11,16 +11,26 @@ type RouteHandler = Func<void>(*Request, *Response);
 struct Route {
     method: HttpMethod,
     path: string,
-    handler: RouteHandler
+    handler: RouteHandler,
+}
+
+frame defaultNotFoundHandler(req: *Request, res: *Response) {
+    cast<*void>(req);
+    res.status(404).send("Cannot match path");
 }
 
 struct Router {
     routes: Array<Route>,
-    
+    notFoundHandler: RouteHandler,
     frame new() ret Router {
         local r: Router;
         r.routes = Array<Route>.new(16);
+        r.notFoundHandler = defaultNotFoundHandler;
         return r;
+    }
+
+    frame useNotFound(this: *Router, handler: RouteHandler) {
+        this.notFoundHandler = handler;
     }
 
     frame get(this: *Router, path: string, handler: RouteHandler) {
@@ -38,7 +48,7 @@ struct Router {
         route.handler = handler;
         this.routes.push(route);
     }
-    
+
     frame put(this: *Router, path: string, handler: RouteHandler) {
         local route: Route;
         route.method = HttpMethod.PUT;
@@ -46,7 +56,7 @@ struct Router {
         route.handler = handler;
         this.routes.push(route);
     }
-    
+
     frame delete(this: *Router, path: string, handler: RouteHandler) {
         local route: Route;
         route.method = HttpMethod.DELETE;
@@ -67,24 +77,83 @@ struct Router {
             }
             i = i + 1;
         }
-        res.status(404).send("Cannot match path");
+        this.notFoundHandler(req, res);
     }
 
     frame matchPath(this: *Router, routePath: string, reqPath: string, params: *Map<string, string>) ret bool {
-        if (strcmp(routePath, reqPath) == 0) { return true; }
-        
-        # Hacky support for /todos/:id
-        # Check if route is /todos/:id
-        if (strcmp(routePath, "/todos/:id") == 0) {
-             if (strncmp(reqPath, "/todos/", 7) == 0) {
-                 local id_str = &reqPath[7];
-                 # Ensure there is an ID
-                 if (strlen(id_str) > 0) {
-                     params.set("id", id_str);
-                     return true;
-                 }
-             }
+        # Pass 1: Check match
+        local r_idx: int = 0;
+        local q_idx: int = 0;
+        local r_len = cast<int>(strlen(routePath));
+        local q_len = cast<int>(strlen(reqPath));
+
+        loop ((r_idx < r_len) && (q_idx < q_len)) {
+            # Check for parameter
+            if (routePath[r_idx] == ':') {
+                # Skip route segment
+                loop ((r_idx < r_len) && (routePath[r_idx] != '/')) {
+                    r_idx = r_idx + 1;
+                }
+                # Skip req segment
+                loop ((q_idx < q_len) && (reqPath[q_idx] != '/')) {
+                    q_idx = q_idx + 1;
+                }
+            } else {
+                if (routePath[r_idx] != reqPath[q_idx]) {
+                    return false;
+                }
+                r_idx = r_idx + 1;
+                q_idx = q_idx + 1;
+            }
         }
-        return false;
+
+        # Check if both ended
+        if ((r_idx != r_len) || (q_idx != q_len)) {
+            return false;
+        }
+        # Pass 2: Extract params
+        r_idx = 0;
+        q_idx = 0;
+        loop ((r_idx < r_len) && (q_idx < q_len)) {
+            if (routePath[r_idx] == ':') {
+                r_idx = r_idx + 1; # Skip ':'
+                local key_start = r_idx;
+                loop ((r_idx < r_len) && (routePath[r_idx] != '/')) {
+                    r_idx = r_idx + 1;
+                }
+                local key_len = r_idx - key_start;
+
+                local val_start = q_idx;
+                loop ((q_idx < q_len) && (reqPath[q_idx] != '/')) {
+                    q_idx = q_idx + 1;
+                }
+                local val_len = q_idx - val_start;
+
+                # Allocate and copy
+                local key_str = malloc(cast<ulong>(key_len + 1));
+                local val_str = malloc(cast<ulong>(val_len + 1));
+
+                local k: int = 0;
+                loop (k < key_len) {
+                    key_str[k] = routePath[key_start + k];
+                    k = k + 1;
+                }
+                key_str[key_len] = '\0';
+
+                local v: int = 0;
+                loop (v < val_len) {
+                    val_str[v] = reqPath[val_start + v];
+                    v = v + 1;
+                }
+                val_str[val_len] = '\0';
+
+                params.set(key_str, val_str);
+            } else {
+                r_idx = r_idx + 1;
+                q_idx = q_idx + 1;
+            }
+        }
+
+        return true;
     }
 }

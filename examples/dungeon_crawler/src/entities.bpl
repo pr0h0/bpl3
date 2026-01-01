@@ -1,4 +1,3 @@
-
 export [Entity];
 export [Actor];
 export [Player];
@@ -11,9 +10,10 @@ struct Entity {
     x: int,
     y: int,
     symbol: char,
-    color: int, # ANSI color code
+    color: int,
     name: string,
-    
+    # ANSI color code
+
     frame new(x: int, y: int, symbol: char, name: string) ret Entity {
         local e: Entity;
         e.x = x;
@@ -25,16 +25,15 @@ struct Entity {
     }
 }
 
-struct Actor : Entity {
+struct Actor: Entity {
     hp: int,
     max_hp: int,
     attack: int,
     defense: int,
-    
     frame is_alive(this: *Actor) ret bool {
         return this.hp > 0;
     }
-    
+
     frame take_damage(this: *Actor, amount: int) {
         this.hp = this.hp - amount;
         if (this.hp < 0) {
@@ -43,10 +42,9 @@ struct Actor : Entity {
     }
 }
 
-struct Player : Actor {
+struct Player: Actor {
     xp: int,
     level: int,
-    
     frame new(x: int, y: int) ret Player {
         local p: Player;
         # Initialize Entity fields
@@ -55,17 +53,17 @@ struct Player : Actor {
         p.symbol = '@';
         p.name = "Hero";
         p.color = 33; # Yellow
-        
+
         # Initialize Actor fields
         p.hp = 100;
         p.max_hp = 100;
         p.attack = 10;
         p.defense = 2;
-        
+
         # Initialize Player fields
         p.xp = 0;
         p.level = 1;
-        
+
         return p;
     }
 }
@@ -73,18 +71,17 @@ struct Player : Actor {
 enum MonsterType {
     Goblin,
     Orc,
-    Troll
+    Troll,
 }
 
-struct Monster : Actor {
+struct Monster: Actor {
     kind: MonsterType,
-    
     frame new(x: int, y: int, kind: MonsterType) ret Monster {
         local m: Monster;
         m.x = x;
         m.y = y;
         m.kind = kind;
-        
+
         match (kind) {
             MonsterType.Goblin => {
                 m.symbol = 'g';
@@ -109,9 +106,8 @@ struct Monster : Actor {
                 m.max_hp = 100;
                 m.attack = 15;
                 m.color = 35; # Magenta
-            }
-        }
-        
+            },
+        };
         m.defense = 0;
         return m;
     }

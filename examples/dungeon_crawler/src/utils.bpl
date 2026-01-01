@@ -1,4 +1,3 @@
-
 export random;
 export random_range;
 export distance;
@@ -26,7 +25,9 @@ frame distance(x1: int, y1: int, x2: int, y2: int) ret int {
     local dx: int = x1 - x2;
     local dy: int = y1 - y2;
     # Approximation: Manhattan distance for simplicity in grid
-    if (dx < 0) dx = -dx;
-    if (dy < 0) dy = -dy;
+    if (dx < 0) 
+        dx = -dx;
+    if (dy < 0) 
+        dy = -dy;
     return dx + dy;
 }

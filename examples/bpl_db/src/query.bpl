@@ -1,4 +1,3 @@
-
 export [Query];
 export [Command];
 export [Condition];
@@ -14,25 +13,25 @@ enum Operator {
     Gt,
     Lt,
     Gte,
-    Lte
+    Lte,
 }
 
 struct Condition {
     column: string,
     op: Operator,
-    value: Value
+    value: Value,
 }
 
 enum Command {
-    Select(string, *Array<Condition>),     # Table name, Conditions
-    Insert(string, *Array<Value>),         # Table name, Values
-    Create(string, *Array<string>),        # Table name, Columns
+    Select(string, *Array<Condition>), # Table name, Conditions
+    Insert(string, *Array<Value>), # Table name, Values
+    Create(string, *Array<string>), # Table name, Columns
     Update(string, *Array<Condition>, string, Value), # Table, Where, ColName, NewVal
-    Delete(string, *Array<Condition>)      # Table, Where
+    Delete(string, *Array<Condition>), # Table, Where
 }
 
 struct Query {
-    command: Command
+    command: Command,
 }
 
 # Simplified Parser (Mock)

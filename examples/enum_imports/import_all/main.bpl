@@ -1,7 +1,6 @@
-
 # Test import all enums
 
-import [Color],[Status] from "../enums.bpl";
+import [Color], [Status] from "../enums.bpl";
 
 frame main() ret int {
     local c: Color = Color.Green;

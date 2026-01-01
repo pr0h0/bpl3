@@ -1444,7 +1444,17 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     this.emit(`  br i1 ${cond}, label %${thenLabel}, label %${targetElse}`);
 
     this.emit(`${thenLabel}:`);
-    this.generateBlock(stmt.thenBranch);
+    if (stmt.thenBranch.kind === "Block") {
+      this.generateBlock(stmt.thenBranch as AST.BlockStmt);
+    } else {
+      const block: AST.BlockStmt = {
+        kind: "Block",
+        statements: [stmt.thenBranch],
+        location: stmt.thenBranch.location,
+      };
+      this.generateBlock(block);
+    }
+
     if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
       this.emit(`  br label %${mergeLabel}`);
     }
@@ -1456,8 +1466,12 @@ export abstract class StatementGenerator extends ExpressionGenerator {
       } else if (stmt.elseBranch!.kind === "If") {
         this.generateIf(stmt.elseBranch as AST.IfStmt);
       } else {
-        // Single statement else? AST says elseBranch is Statement.
-        this.generateStatement(stmt.elseBranch!);
+        const block: AST.BlockStmt = {
+          kind: "Block",
+          statements: [stmt.elseBranch!],
+          location: stmt.elseBranch!.location,
+        };
+        this.generateBlock(block);
       }
 
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
@@ -1498,7 +1512,17 @@ export abstract class StatementGenerator extends ExpressionGenerator {
     }
 
     this.emit(`${bodyLabel}:`);
-    this.generateBlock(stmt.body, true);
+    if (stmt.body.kind === "Block") {
+      this.generateBlock(stmt.body as AST.BlockStmt, true);
+    } else {
+      const block: AST.BlockStmt = {
+        kind: "Block",
+        statements: [stmt.body],
+        location: stmt.body.location,
+      };
+      this.generateBlock(block, true);
+    }
+
     if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
       this.emit(`  br label %${continueTarget}`);
     }

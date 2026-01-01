@@ -672,8 +672,9 @@ AsmText
   = s:$([^{}"'#\[\]]+) { return s; }
 
 LoopStatement
-  = K_loop _ header:LoopHeader? _ body:Block {
+  = K_loop _ header:LoopHeader? _ body:Statement {
       const { init, cond, step, isCStyle } = header || {};
+      if (!body) return null;
       return loopStmt(init, cond, step, body, location(), isCStyle);
     }
 
@@ -691,12 +692,13 @@ ForInit
   / ";" { return undefined; }
 
 IfStatement
-  = K_if _ "(" _ cond:Expression _ ")" _ thenBranch:Block _ elseBranch:ElseClause? {
+  = K_if _ "(" _ cond:Expression _ ")" _ thenBranch:Statement _ elseBranch:ElseClause? {
+      if (!thenBranch) return null;
       return ifStmt(cond, thenBranch, elseBranch || undefined, location());
     }
 
 ElseClause
-  = K_else _ stmt:(blk:Block { return blk; } / ifs:IfStatement { return ifs; }) { return stmt; }
+  = K_else _ stmt:Statement { return stmt; }
 
 ReturnStatement
   = K_return _ expr:Expression? _ ";" { return returnStmt(expr || undefined, location()); }

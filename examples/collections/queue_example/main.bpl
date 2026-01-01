@@ -9,7 +9,7 @@ frame main() {
     # Add jobs
     printf("Submitting Job 101\n");
     printQueue.enqueue(101);
-    
+
     printf("Submitting Job 102\n");
     printQueue.enqueue(102);
 
@@ -20,7 +20,7 @@ frame main() {
 
     # Process jobs
     printf("Processing jobs:\n");
-    
+
     loop (!printQueue.isEmpty()) {
         local jobId: int = printQueue.dequeue().unwrap();
         printf("Printing Job ID: %d\n", jobId);

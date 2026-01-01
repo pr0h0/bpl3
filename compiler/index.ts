@@ -89,7 +89,7 @@ export class Compiler {
         console.log("[Frontend] Syntax Analysis...");
       }
       const parser = new Parser(sourceCode, this.options.filePath, tokens);
-      const ast = parser.parse(true);
+      const ast = parser.parse(true, !this.options.collectAllErrors);
 
       // Check for parser errors
       if ((ast as any).errors && (ast as any).errors.length > 0) {

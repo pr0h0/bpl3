@@ -14,7 +14,7 @@ frame main() {
     printf("List size: %d\n", list.len());
 
     printf("Popping:\n");
-    
+
     loop (!list.isEmpty()) {
         local val: int = list.popFront().unwrap();
         printf("Value: %d\n", val);

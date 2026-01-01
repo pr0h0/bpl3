@@ -8,10 +8,11 @@ export [Request];
 export [Response];
 export [HttpMethod];
 
-import sprintf, printf, atoi, strcpy, strcat, strlen from "./src/libc.bpl";
+import sprintf, printf, atoi, strcpy, strcat, strlen, strcmp from "./src/libc.bpl";
 export sprintf;
 export printf;
 export atoi;
 export strcpy;
 export strcat;
 export strlen;
+export strcmp;

@@ -474,7 +474,7 @@ export interface BlockStmt extends ASTNode {
 export interface IfStmt extends ASTNode {
   kind: "If";
   condition: Expression;
-  thenBranch: BlockStmt;
+  thenBranch: Statement;
   elseBranch?: Statement; // Block or IfStmt
 }
 
@@ -483,7 +483,7 @@ export interface LoopStmt extends ASTNode {
   init?: Statement;
   condition?: Expression;
   step?: Expression;
-  body: BlockStmt;
+  body: Statement;
   isCStyle?: boolean; // true if loop(init; cond; step) syntax was used
 }
 

@@ -4,7 +4,7 @@ struct Animal {
     age: int,
 }
 
-struct Dog : Animal {
+struct Dog: Animal {
     breed: int,
 }
 

@@ -623,10 +623,23 @@ export class Formatter {
   private formatIf(stmt: AST.IfStmt): string {
     const indent = this.getIndent();
     let output = `${indent}if (${this.formatExpression(this.unwrapGroup(stmt.condition))}) `;
-    output += this.formatBlock(stmt.thenBranch, false);
+
+    if (stmt.thenBranch.kind === "Block") {
+      output += this.formatBlock(stmt.thenBranch as AST.BlockStmt, false);
+    } else {
+      output += "\n";
+      this.indentLevel++;
+      output += this.formatStatement(stmt.thenBranch);
+      this.indentLevel--;
+    }
 
     if (stmt.elseBranch) {
-      output += " else ";
+      if (stmt.thenBranch.kind === "Block") {
+        output += " else ";
+      } else {
+        output += `\n${indent}else `;
+      }
+
       if (stmt.elseBranch.kind === "If") {
         // Else if
         // We need to trim the indentation of the nested if
@@ -706,7 +719,15 @@ export class Formatter {
       output += ` (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
     }
     output += " ";
-    output += this.formatBlock(stmt.body, false);
+
+    if (stmt.body.kind === "Block") {
+      output += this.formatBlock(stmt.body as AST.BlockStmt, false);
+    } else {
+      output += "\n";
+      this.indentLevel++;
+      output += this.formatStatement(stmt.body);
+      this.indentLevel--;
+    }
     return output;
   }
 

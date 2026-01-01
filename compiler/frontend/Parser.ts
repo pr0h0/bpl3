@@ -1,4 +1,5 @@
 import * as AST from "../common/AST";
+import type { CompilerError } from "../common/CompilerError";
 import { parseWithPeggy } from "./PeggyParser";
 import { Token } from "./Token";
 import { TokenType } from "./TokenType";
@@ -14,7 +15,10 @@ export class Parser {
     this.tokens = tokens;
   }
 
-  public parse(injectImplicitImports: boolean = false): AST.Program {
+  public parse(
+    injectImplicitImports: boolean = false,
+    throwOnError: boolean = true,
+  ): AST.Program {
     const ast = parseWithPeggy(this.source, this.filePath);
 
     // Implicitly import Error from std/errors.bpl if not already in errors.bpl
@@ -43,8 +47,29 @@ export class Parser {
     if (this.tokens.length > 0) {
       const comments = this.tokens.filter((t) => t.type === TokenType.Comment);
       this.attachComments(ast);
-      return { ...ast, comments };
+      const result = { ...ast, comments };
+
+      // Check for syntax errors from error recovery
+      if (
+        throwOnError &&
+        (ast as any).errors &&
+        (ast as any).errors.length > 0
+      ) {
+        const errors = (ast as any).errors as CompilerError[];
+        // If we want to report all errors, we might need a way to pass them up.
+        // For now, throw the first one to stop compilation.
+        throw errors[0];
+      }
+
+      return result;
     }
+
+    // Check for syntax errors from error recovery
+    if (throwOnError && (ast as any).errors && (ast as any).errors.length > 0) {
+      const errors = (ast as any).errors as CompilerError[];
+      throw errors[0];
+    }
+
     return ast;
   }
 

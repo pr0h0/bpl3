@@ -49,7 +49,7 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
   const mapped = tokens.map(convertTokenNodeToToken);
 
   // Extract comments from source
-  const comments = extractComments(source, filePath);
+  const comments = extractComments(source, filePath, tokens);
   mapped.push(...comments);
 
   // Sort by position
@@ -66,19 +66,70 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
   return mapped;
 }
 
-function extractComments(source: string, filePath: string): Token[] {
+function extractComments(
+  source: string,
+  filePath: string,
+  tokens: TokenNode[],
+): Token[] {
   const comments: Token[] = [];
   const lines = source.split("\n");
+
+  // Identify ranges to exclude (strings, chars)
+  const excludeRanges = tokens
+    .filter(
+      (t) =>
+        t.type === "StringLiteral" ||
+        t.type === "InterpolatedStringLiteral" ||
+        t.type === "CharLiteral",
+    )
+    .map((t) => ({ start: t.start, end: t.end }))
+    .sort((a, b) => a.start - b.start);
+
+  // Calculate line start indices
+  const lineStartIndices: number[] = [];
+  let currentIdx = 0;
+  for (const line of lines) {
+    lineStartIndices.push(currentIdx);
+    currentIdx += line.length + 1; // +1 for newline
+  }
 
   let inBlockComment = false;
   let blockCommentStart = { line: 0, column: 0 };
   let blockCommentContent = "";
+  let rangeIdx = 0;
 
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const line = lines[lineNum] || "";
+    const lineStart = lineStartIndices[lineNum]!;
     let col = 0;
 
     while (col < line.length) {
+      const absPos = lineStart + col;
+
+      // Skip excluded ranges (strings, chars)
+      // Advance rangeIdx if current range is past
+      while (
+        rangeIdx < excludeRanges.length &&
+        excludeRanges[rangeIdx]!.end <= absPos
+      ) {
+        rangeIdx++;
+      }
+
+      // Check if inside current range
+      if (
+        !inBlockComment &&
+        rangeIdx < excludeRanges.length &&
+        absPos >= excludeRanges[rangeIdx]!.start
+      ) {
+        // We are inside a string/char literal.
+        // Skip until end of range or end of line
+        const rangeEnd = excludeRanges[rangeIdx]!.end;
+        const dist = rangeEnd - absPos;
+        const skip = Math.min(dist, line.length - col);
+        col += skip;
+        continue;
+      }
+
       // Check for block comment start
       if (!inBlockComment && line.substring(col, col + 2) === "/#") {
         inBlockComment = true;

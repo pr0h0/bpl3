@@ -86,9 +86,30 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
       stmt.condition.location,
     );
   }
-  this.checkStatement(stmt.thenBranch);
+
+  // Check then branch
+  if (stmt.thenBranch) {
+    if (stmt.thenBranch.kind === "Block") {
+      checkBlock.call(this, stmt.thenBranch as AST.BlockStmt, true);
+    } else {
+      this.currentScope = this.currentScope.enterScope();
+      this.checkStatement(stmt.thenBranch);
+      this.currentScope = this.currentScope.exitScope();
+    }
+  }
+
+  // Check else branch
   if (stmt.elseBranch) {
-    this.checkStatement(stmt.elseBranch);
+    if (stmt.elseBranch.kind === "Block") {
+      checkBlock.call(this, stmt.elseBranch as AST.BlockStmt, true);
+    } else if (stmt.elseBranch.kind === "If") {
+      // Else if - no new scope needed for the 'if' itself as it handles its own scopes
+      this.checkStatement(stmt.elseBranch);
+    } else {
+      this.currentScope = this.currentScope.enterScope();
+      this.checkStatement(stmt.elseBranch);
+      this.currentScope = this.currentScope.exitScope();
+    }
   }
 }
 
@@ -120,9 +141,33 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
     this.checkExpression(stmt.step);
   }
 
-  checkBlock.call(this, stmt.body, true);
+  if (stmt.body) {
+    if (stmt.body.kind === "Block") {
+      checkBlock.call(this, stmt.body as AST.BlockStmt, true);
+    } else {
+      this.currentScope = this.currentScope.enterScope();
+      this.checkStatement(stmt.body);
 
-  // Check for unused variables in the loop scope
+      // Check for unused variables in the loop body scope
+      const unused = this.currentScope.getUnusedVariables();
+      for (const symbol of unused) {
+        if (symbol.name.startsWith("_")) continue;
+        const error = new CompilerError(
+          `Unused variable '${symbol.name}'`,
+          "Variable is declared but never used.",
+          symbol.declaration.location,
+        );
+        if (this.collectAllErrors) {
+          this.errors.push(error);
+        } else {
+          throw error;
+        }
+      }
+      this.currentScope = this.currentScope.exitScope();
+    }
+  }
+
+  // Check for unused variables in the loop scope (init vars)
   const unused = this.currentScope.getUnusedVariables();
   for (const symbol of unused) {
     if (symbol.name.startsWith("_")) continue;

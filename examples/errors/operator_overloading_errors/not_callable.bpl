@@ -10,9 +10,9 @@ struct Point {
 
 frame main() ret int {
     local p: Point = Point { x: 1, y: 2 };
-    
+
     # ERROR: Point doesn't have __call__ operator
-    local result: int = p(5);  # Should error: type 'Point' is not callable
-    
+    local result: int = p(5); # Should error: type 'Point' is not callable
+
     return 0;
 }

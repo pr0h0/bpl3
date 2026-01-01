@@ -7,7 +7,7 @@ struct Container<T> {
     }
 }
 
-struct IntContainer : Container<int> {
+struct IntContainer: Container<int> {
     id: int,
 }
 
