@@ -168,7 +168,7 @@ describe("PackageManager", () => {
 
       // Create a new PackageManager instance after changing directory
       const localPM = new PackageManager();
-      localPM.install(tarballPath, { global: false });
+      localPM.install(tarballPath, { global: false, verbose: false });
 
       const installedPath = path.join(
         installDir,
@@ -197,7 +197,7 @@ describe("PackageManager", () => {
       fs.mkdirSync(installDir);
       process.chdir(installDir);
 
-      packageManager.install(tarballPath, { global: false });
+      packageManager.install(tarballPath, { global: false, verbose: false });
 
       const packages = packageManager.list({ global: false });
 
@@ -229,7 +229,7 @@ describe("PackageManager", () => {
       fs.mkdirSync(installDir);
       process.chdir(installDir);
 
-      packageManager.install(tarballPath, { global: false });
+      packageManager.install(tarballPath, { global: false, verbose: false });
 
       // Verify it's installed
       let packages = packageManager.list({ global: false });
@@ -281,7 +281,7 @@ describe("PackageManager", () => {
 
       // Create a new PackageManager instance after changing directory
       const localPM = new PackageManager();
-      localPM.install(tarballPath, { global: false });
+      localPM.install(tarballPath, { global: false, verbose: false });
 
       const resolved = localPM.resolvePackage("resolve-test-pkg", projectDir);
 

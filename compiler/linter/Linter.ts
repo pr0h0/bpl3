@@ -34,7 +34,7 @@ export class Linter {
       report: (
         message,
         node,
-        severity = DiagnosticSeverity.Warning,
+        _severity = DiagnosticSeverity.Warning,
         code = "LINT",
       ) => {
         const error = new CompilerError(

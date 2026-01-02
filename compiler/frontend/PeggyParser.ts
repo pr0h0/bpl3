@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "fs";
-import { dirname, resolve } from "path";
 import * as peggy from "peggy";
 
 import { resolveBplPath, getBplHome } from "../common/PathResolver";
@@ -60,8 +59,8 @@ function toSourceLocation(
 export function parseWithPeggy(source: string, filePath: string): AST.Program {
   try {
     const parser: peggy.Parser = loadParser();
-    const comments: any[] = [];
-    const errors: any[] = [];
+    const comments: AST.Token[] = [];
+    const errors: Array<{ message: string; location: SourceLocation }> = [];
     const program = parser.parse(source, {
       filePath,
       comments,
@@ -69,14 +68,14 @@ export function parseWithPeggy(source: string, filePath: string): AST.Program {
     }) as AST.Program;
     program.comments = comments;
     if (errors.length > 0) {
-      (program as any).errors = errors.map(
-        (e: any) =>
+      program.errors = errors.map(
+        (e: { message: string; location: SourceLocation }) =>
           new CompilerError(e.message, "Fix the syntax error.", e.location),
       );
     }
     return program;
   } catch (error: unknown) {
-    const err = error as (Error & { location?: any }) | unknown;
+    const err = error as (Error & { location?: SourceLocation }) | unknown;
     if (isPeggySyntaxError(err)) {
       const loc = err.location as {
         start: { line: number; column: number };
@@ -103,15 +102,15 @@ function isPeggySyntaxError(e: unknown): e is {
     end: { line: number; column: number };
   };
 } {
+  if (!e || typeof e !== "object") return false;
+  const obj = e as Record<string, unknown>;
   return (
-    !!e &&
-    typeof e === "object" &&
-    "message" in e &&
-    typeof (e as any).message === "string" &&
-    "location" in e &&
-    (e as any).location &&
-    typeof (e as any).location === "object" &&
-    "start" in (e as any).location &&
-    "end" in (e as any).location
+    "message" in obj &&
+    typeof obj.message === "string" &&
+    "location" in obj &&
+    obj.location !== null &&
+    typeof obj.location === "object" &&
+    "start" in (obj.location as Record<string, unknown>) &&
+    "end" in (obj.location as Record<string, unknown>)
   );
 }

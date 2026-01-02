@@ -1,0 +1,2130 @@
+bun test v1.3.3 (274e01c7)
+
+tests/DebugStructReturn.test.ts:
+(pass) Debug Struct Return > should parse struct return in match [314.90ms]
+
+tests/OOP.test.ts:
+(pass) Object Oriented Programming > should handle basic inheritance and field access [562.48ms]
+(pass) Object Oriented Programming > should handle method overriding (shadowing) [542.97ms]
+Polymorphism Output: Woof!
+
+(pass) Object Oriented Programming > should handle polymorphism via pointers (if vtables exist) [520.11ms]
+(pass) Object Oriented Programming > should handle 'super' calls (if supported) [528.57ms]
+
+tests/Integration.test.ts:
+(pass) Integration Tests > should run example: array_bounds_manual [519.13ms]
+(pass) Integration Tests > should run example: array_functional_methods [1175.27ms]
+(pass) Integration Tests > should run example: array_indexing_expression [632.76ms]
+(pass) Integration Tests > should run example: array_indexing_variable [916.36ms]
+(pass) Integration Tests > should run example: array_multidimensional [641.69ms]
+(pass) Integration Tests > should run example: array_of_pointers [812.03ms]
+(pass) Integration Tests > should run example: array_of_structs [945.53ms]
+(pass) Integration Tests > should run example: array_operations [869.24ms]
+(pass) Integration Tests > should run example: array_operators [1050.47ms]
+(pass) Integration Tests > should run example: array_passing [614.97ms]
+(pass) Integration Tests > should run example: array_pointer_arithmetic [712.19ms]
+(pass) Integration Tests > should run example: arrays [718.37ms]
+(pass) Integration Tests > should run example: asm_clobbers [853.87ms]
+(pass) Integration Tests > should run example: asm_flavors [952.98ms]
+(pass) Integration Tests > should run example: asm_flavors_test [737.18ms]
+(pass) Integration Tests > should run example: asm_interp_test [558.42ms]
+(pass) Integration Tests > should run example: asm_test [513.96ms]
+(pass) Integration Tests > should run example: asm_x86_test [533.25ms]
+(pass) Integration Tests > should run example: assignment_variations [501.37ms]
+(pass) Integration Tests > should run example: bitwise_operations [514.99ms]
+(pass) Integration Tests > should run example: boolean_expressions [555.61ms]
+(pass) Integration Tests > should run example: bpl_db [1460.74ms]
+(pass) Integration Tests > should run example: bpl_db/library_system [1489.59ms]
+(pass) Integration Tests > should run example: bpl_db/persistence_test [1379.96ms]
+(pass) Integration Tests > should run example: brace_less [542.43ms]
+(pass) Integration Tests > should run example: break_statement [529.09ms]
+(pass) Integration Tests > should run example: bug_032_nested_pattern [678.47ms]
+(pass) Integration Tests > should run example: bug_033_array_ctor [539.37ms]
+(pass) Integration Tests > should run example: bug_036_shift_overflow [529.44ms]
+(pass) Integration Tests > should run example: bug_037_float_cast_overflow [520.61ms]
+(pass) Integration Tests > should run example: bug_041_struct_alignment [535.94ms]
+(pass) Integration Tests > should run example: bug_043_lambda_inference [531.17ms]
+(pass) Integration Tests > should run example: bug_044_generic_recursion [532.84ms]
+(pass) Integration Tests > should run example: c_style_loop [550.62ms]
+(pass) Integration Tests > should run example: capturing_lambda [546.77ms]
+(pass) Integration Tests > should run example: casts [516.52ms]
+(pass) Integration Tests > should run example: collatz [527.16ms]
+(pass) Integration Tests > should run example: collections/linked_list_example [727.72ms]
+(pass) Integration Tests > should run example: collections/priority_queue_example [840.49ms]
+(pass) Integration Tests > should run example: collections/queue_example [866.89ms]
+(pass) Integration Tests > should run example: complex_data_structures [541.12ms]
+(pass) Integration Tests > should run example: complex_ternary [503.48ms]
+(pass) Integration Tests > should run example: compound_operators [562.88ms]
+(pass) Integration Tests > should run example: comprehensive_features [546.63ms]
+(pass) Integration Tests > should run example: const_args_syntax [546.62ms]
+(pass) Integration Tests > should run example: const_correctness [519.95ms]
+(pass) Integration Tests > should run example: const_test [551.69ms]
+(pass) Integration Tests > should run example: const_test/const_failed [430.98ms]
+(pass) Integration Tests > should run example: constructor_destructor [574.53ms]
+(pass) Integration Tests > should run example: continue [509.06ms]
+(pass) Integration Tests > should run example: control_flow_do_while_sim [530.91ms]
+(pass) Integration Tests > should run example: control_flow_early_return [545.72ms]
+(pass) Integration Tests > should run example: control_flow_empty_block [526.90ms]
+(pass) Integration Tests > should run example: control_flow_if_complex [501.73ms]
+(pass) Integration Tests > should run example: control_flow_infinite_break [541.44ms]
+(pass) Integration Tests > should run example: control_flow_nested_if [576.21ms]
+(pass) Integration Tests > should run example: control_flow_nested_loops [571.98ms]
+(pass) Integration Tests > should run example: control_flow_nested_switch [492.84ms]
+(pass) Integration Tests > should run example: control_flow_short_circuit [477.61ms]
+(pass) Integration Tests > should run example: control_flow_switch_complex [515.72ms]
+(pass) Integration Tests > should run example: control_flow_ternary_nested [549.25ms]
+(pass) Integration Tests > should run example: control_flow_while_sim [531.45ms]
+(pass) Integration Tests > should run example: deep_nested_tuples [562.27ms]
+(pass) Integration Tests > should run example: defer_edge_cases [574.97ms]
+(pass) Integration Tests > should run example: defer_test [546.83ms]
+(pass) Integration Tests > should run example: dungeon_crawler [1008.62ms]
+(pass) Integration Tests > should run example: dwarf_test [542.32ms]
+(pass) Integration Tests > should run example: dx_test [907.39ms]
+(pass) Integration Tests > should run example: enum_chaining_test [1139.30ms]
+(pass) Integration Tests > should run example: enum_complex_match [494.79ms]
+(pass) Integration Tests > should run example: enum_equality [522.21ms]
+(pass) Integration Tests > should run example: enum_exhaustiveness [530.74ms]
+(pass) Integration Tests > should run example: enum_generics [668.14ms]
+(pass) Integration Tests > should run example: enum_guards_and_typematch [545.84ms]
+(pass) Integration Tests > should run example: enum_guards_comprehensive [577.50ms]
+(pass) Integration Tests > should run example: enum_imports [698.57ms]
+(pass) Integration Tests > should run example: enum_imports/destructuring [682.95ms]
+(pass) Integration Tests > should run example: enum_imports/import_all [677.38ms]
+(pass) Integration Tests > should run example: enum_imports/non-exhaustive [425.88ms]
+(pass) Integration Tests > should run example: enum_imports/wildcard [535.55ms]
+(pass) Integration Tests > should run example: enum_imports_all [637.11ms]
+(pass) Integration Tests > should run example: enum_imports_basic [662.85ms]
+(pass) Integration Tests > should run example: enum_imports_destructuring [630.42ms]
+(pass) Integration Tests > should run example: enum_imports_simple [641.23ms]
+(pass) Integration Tests > should run example: enum_imports_wildcard [506.79ms]
+(pass) Integration Tests > should run example: enum_methods_comprehensive [509.38ms]
+(pass) Integration Tests > should run example: enum_methods_simple [516.70ms]
+(pass) Integration Tests > should run example: enum_methods_test [519.42ms]
+(pass) Integration Tests > should run example: enum_mixed_variants [529.48ms]
+(pass) Integration Tests > should run example: enum_nested_match [513.64ms]
+(pass) Integration Tests > should run example: enum_nested_patterns [497.10ms]
+(pass) Integration Tests > should run example: enum_pattern_guards [673.54ms]
+(pass) Integration Tests > should run example: enum_recursive [499.02ms]
+(pass) Integration Tests > should run example: enum_recursive_debug [524.08ms]
+(pass) Integration Tests > should run example: enum_recursive_minimal [511.20ms]
+(pass) Integration Tests > should run example: enum_struct_variants [545.77ms]
+(pass) Integration Tests > should run example: enum_test [727.30ms]
+(pass) Integration Tests > should run example: enum_test/all_variants [839.98ms]
+(pass) Integration Tests > should run example: enum_test/data_variants [737.29ms]
+(pass) Integration Tests > should run example: enum_test/enum_return [630.90ms]
+(pass) Integration Tests > should run example: enum_test/simple_tuple [829.76ms]
+(pass) Integration Tests > should run example: enum_test/unit_only [900.01ms]
+(pass) Integration Tests > should run example: enum_type_match [912.04ms]
+(pass) Integration Tests > should run example: enum_typematch_comprehensive [560.03ms]
+(pass) Integration Tests > should run example: enum_with_methods [556.04ms]
+(pass) Integration Tests > should run example: error_handling [576.66ms]
+(pass) Integration Tests > should run example: error_test [433.16ms]
+(pass) Integration Tests > should run example: errors_basic [460.87ms]
+(pass) Integration Tests > should run example: ffi_extern_strlen [538.23ms]
+(pass) Integration Tests > should run example: ffi_extern_struct_param [554.58ms]
+(pass) Integration Tests > should run example: ffi_extern_with_type [581.81ms]
+(pass) Integration Tests > should run example: ffi_mixed_functions [539.29ms]
+(pass) Integration Tests > should run example: ffi_multifile [660.03ms]
+(pass) Integration Tests > should run example: ffi_multiple_externs [516.56ms]
+(pass) Integration Tests > should run example: ffi_variadic_extern [508.35ms]
+(pass) Integration Tests > should run example: fibonacci [536.98ms]
+(pass) Integration Tests > should run example: float_operations [554.51ms]
+(pass) Integration Tests > should run example: func_implicit_return [525.80ms]
+(pass) Integration Tests > should run example: func_lambda_closure_mut [543.67ms]
+(pass) Integration Tests > should run example: func_lambda_immediate [536.46ms]
+(pass) Integration Tests > should run example: func_lambda_nested [534.01ms]
+(pass) Integration Tests > should run example: func_mutual_recursion [519.37ms]
+(pass) Integration Tests > should run example: func_nested_calls [552.40ms]
+(pass) Integration Tests > should run example: func_overloading_basic [545.80ms]
+(pass) Integration Tests > should run example: func_params_large [533.70ms]
+(pass) Integration Tests > should run example: func_params_struct_ptr [520.95ms]
+(pass) Integration Tests > should run example: func_params_struct_val [534.25ms]
+(pass) Integration Tests > should run example: func_pointers_array [552.24ms]
+(pass) Integration Tests > should run example: func_pointers_as_args [531.67ms]
+(pass) Integration Tests > should run example: func_pointers_basic [515.99ms]
+(pass) Integration Tests > should run example: func_pointers_return [561.34ms]
+(pass) Integration Tests > should run example: func_recursion_factorial [524.20ms]
+(pass) Integration Tests > should run example: func_recursion_fibonacci [490.88ms]
+(pass) Integration Tests > should run example: func_return_struct [501.10ms]
+(pass) Integration Tests > should run example: func_return_struct_ptr [502.66ms]
+(pass) Integration Tests > should run example: func_variadic_call [560.72ms]
+(pass) Integration Tests > should run example: func_void_return [519.28ms]
+(pass) Integration Tests > should run example: generic_array_wrapper [522.50ms]
+(pass) Integration Tests > should run example: generic_deep_instantiation [516.07ms]
+(pass) Integration Tests > should run example: generic_enum_option [668.44ms]
+(pass) Integration Tests > should run example: generic_enum_result [502.72ms]
+(pass) Integration Tests > should run example: generic_func_explicit [537.75ms]
+(pass) Integration Tests > should run example: generic_func_inference [524.58ms]
+(pass) Integration Tests > should run example: generic_inheritance [683.50ms]
+(pass) Integration Tests > should run example: generic_inheritance_simple [629.85ms]
+(pass) Integration Tests > should run example: generic_lambda_capture [522.77ms]
+(pass) Integration Tests > should run example: generic_max [551.33ms]
+(pass) Integration Tests > should run example: generic_multiple_params [528.27ms]
+(pass) Integration Tests > should run example: generic_nested_call [511.42ms]
+(pass) Integration Tests > should run example: generic_struct_method_param [506.83ms]
+(pass) Integration Tests > should run example: generic_struct_nested_types [536.37ms]
+(pass) Integration Tests > should run example: generic_struct_return [557.74ms]
+(pass) Integration Tests > should run example: generic_swap [537.80ms]
+(pass) Integration Tests > should run example: generic_type_alias [522.51ms]
+(pass) Integration Tests > should run example: generic_unused_param [511.57ms]
+(pass) Integration Tests > should run example: generics [562.84ms]
+(pass) Integration Tests > should run example: generics_advanced [544.40ms]
+(pass) Integration Tests > should run example: generics_aliases [531.35ms]
+(pass) Integration Tests > should run example: generics_array_struct [567.68ms]
+(pass) Integration Tests > should run example: generics_constraints [561.89ms]
+(pass) Integration Tests > should run example: generics_enums [692.94ms]
+(pass) Integration Tests > should run example: generics_function_pointers [548.61ms]
+(pass) Integration Tests > should run example: generics_lambda [564.43ms]
+(pass) Integration Tests > should run example: generics_map [603.99ms]
+(pass) Integration Tests > should run example: generics_methods [538.45ms]
+(pass) Integration Tests > should run example: generics_nested [522.12ms]
+(pass) Integration Tests > should run example: generics_no_inference [546.42ms]
+(pass) Integration Tests > should run example: generics_recursion [759.57ms]
+(pass) Integration Tests > should run example: generics_test [546.34ms]
+(pass) Integration Tests > should run example: generics_wildcard_constraints [532.53ms]
+(pass) Integration Tests > should run example: generics_wildcard_inheritance [514.77ms]
+(pass) Integration Tests > should run example: globals [498.42ms]
+(pass) Integration Tests > should run example: hello-world [514.26ms]
+(pass) Integration Tests > should run example: implicit_ctor [518.82ms]
+(pass) Integration Tests > should run example: implicit_primitive_methods [1108.16ms]
+(pass) Integration Tests > should run example: import_export_mixed [641.02ms]
+(pass) Integration Tests > should run example: import_export_multiple_stmts [635.99ms]
+(pass) Integration Tests > should run example: import_export_test [679.17ms]
+(pass) Integration Tests > should run example: import_export_types [692.36ms]
+(pass) Integration Tests > should run example: internal_error_structs [827.55ms]
+(pass) Integration Tests > should run example: intrinsics_demo [804.36ms]
+(pass) Integration Tests > should run example: lambda_arg [632.46ms]
+(pass) Integration Tests > should run example: lambda_argument [520.47ms]
+(pass) Integration Tests > should run example: lambda_basic [554.05ms]
+(pass) Integration Tests > should run example: lambda_capture [524.65ms]
+(pass) Integration Tests > should run example: lambda_capture_by_value [536.88ms]
+(pass) Integration Tests > should run example: lambda_capture_test [531.77ms]
+(pass) Integration Tests > should run example: lambda_complex_capture [528.73ms]
+(pass) Integration Tests > should run example: lambda_enum_match [580.08ms]
+(pass) Integration Tests > should run example: lambda_global_assign [553.15ms]
+(pass) Integration Tests > should run example: lambda_nested [533.81ms]
+(pass) Integration Tests > should run example: lambda_return [566.01ms]
+(pass) Integration Tests > should run example: lambda_test [570.11ms]
+(pass) Integration Tests > should run example: lint_test [526.84ms]
+(pass) Integration Tests > should run example: logic_bitwise_precedence [561.44ms]
+(pass) Integration Tests > should run example: logic_bool_cast [535.07ms]
+(pass) Integration Tests > should run example: logic_float_compare [566.36ms]
+(pass) Integration Tests > should run example: logic_not_operator [548.90ms]
+(pass) Integration Tests > should run example: logical [537.28ms]
+(pass) Integration Tests > should run example: long_primitive [1215.83ms]
+(pass) Integration Tests > should run example: loops [651.24ms]
+(pass) Integration Tests > should run example: lvalue_calls [1038.42ms]
+(pass) Integration Tests > should run example: match_complex [911.91ms]
+(pass) Integration Tests > should run example: match_explicit_return [769.39ms]
+(pass) Integration Tests > should run example: match_guards_test [757.73ms]
+(pass) Integration Tests > should run example: match_type_demo [500.96ms]
+(pass) Integration Tests > should run example: match_type_future [708.99ms]
+(pass) Integration Tests > should run example: match_type_generics [698.69ms]
+(pass) Integration Tests > should run example: match_type_test [703.51ms]
+(pass) Integration Tests > should run example: memory_malloc_free [557.69ms]
+(pass) Integration Tests > should run example: memory_memcpy_sim [552.05ms]
+(pass) Integration Tests > should run example: memory_memset_sim [540.31ms]
+(pass) Integration Tests > should run example: mixed_arithmetic [542.18ms]
+(pass) Integration Tests > should run example: mixed_features [538.93ms]
+(pass) Integration Tests > should run example: module_resolution [695.79ms]
+(pass) Integration Tests > should run example: modulo [540.73ms]
+(pass) Integration Tests > should run example: more_primitives [697.95ms]
+(pass) Integration Tests > should run example: multi_inheritance [566.49ms]
+(pass) Integration Tests > should run example: multiple_errors_demo [418.30ms]
+(pass) Integration Tests > should run example: nested_lambda [550.59ms]
+(pass) Integration Tests > should run example: nested_structures [516.00ms]
+(pass) Integration Tests > should run example: nested_tuple_matrix [534.39ms]
+(pass) Integration Tests > should run example: null_access_debug [560.63ms]
+(pass) Integration Tests > should run example: null_access_exception [514.16ms]
+(pass) Integration Tests > should run example: null_assignment_patterns [572.39ms]
+(pass) Integration Tests > should run example: null_complex_expressions [585.52ms]
+(pass) Integration Tests > should run example: null_debug_info [549.20ms]
+(pass) Integration Tests > should run example: null_edge_cases [540.45ms]
+(pass) Integration Tests > should run example: null_function_params [538.87ms]
+(pass) Integration Tests > should run example: null_handling [535.71ms]
+(pass) Integration Tests > should run example: null_literal_check [512.49ms]
+(pass) Integration Tests > should run example: null_mem_test [523.95ms]
+(pass) Integration Tests > should run example: null_object_equality [543.38ms]
+(pass) Integration Tests > should run example: null_object_trap_demo [558.52ms]
+(pass) Integration Tests > should run example: null_param_debug [531.41ms]
+(pass) Integration Tests > should run example: null_pointer_compat [555.74ms]
+(pass) Integration Tests > should run example: null_return_values [519.31ms]
+(pass) Integration Tests > should run example: null_simple_check [512.39ms]
+(pass) Integration Tests > should run example: null_size_debug [500.01ms]
+(pass) Integration Tests > should run example: objects_inheritance [531.88ms]
+(pass) Integration Tests > should run example: objects_methods [528.95ms]
+(pass) Integration Tests > should run example: operator_overloading [578.15ms]
+(pass) Integration Tests > should run example: operator_overloading_arithmetic [588.41ms]
+(pass) Integration Tests > should run example: operator_overloading_bitwise [573.09ms]
+(pass) Integration Tests > should run example: operator_overloading_comprehensive [572.96ms]
+(pass) Integration Tests > should run example: operator_overloading_generic [707.24ms]
+(pass) Integration Tests > should run example: operator_overloading_minimal [566.58ms]
+(pass) Integration Tests > should run example: operator_overloading_no_ops [545.17ms]
+(pass) Integration Tests > should run example: operator_overloading_simple [534.73ms]
+(pass) Integration Tests > should run example: operator_overloading_stack_demo [566.54ms]
+(pass) Integration Tests > should run example: operator_overloading_workaround [532.47ms]
+(pass) Integration Tests > should run example: overloading/generics_overload [515.60ms]
+(pass) Integration Tests > should run example: overloading/import_overload [675.72ms]
+(pass) Integration Tests > should run example: overloading/struct_methods [541.75ms]
+(pass) Integration Tests > should run example: overloading_basic [564.96ms]
+(pass) Integration Tests > should run example: pointer_arg_mutation [527.31ms]
+(pass) Integration Tests > should run example: pointer_arithmetic_bytes [513.48ms]
+(pass) Integration Tests > should run example: pointer_arithmetic_struct [559.99ms]
+(pass) Integration Tests > should run example: pointer_cast_int [526.40ms]
+(pass) Integration Tests > should run example: pointer_comparison [530.53ms]
+(pass) Integration Tests > should run example: pointer_double_deref [554.33ms]
+(pass) Integration Tests > should run example: pointer_edge_cases [530.20ms]
+(pass) Integration Tests > should run example: pointer_null_check [530.65ms]
+(pass) Integration Tests > should run example: pointer_struct_access [540.12ms]
+(pass) Integration Tests > should run example: pointer_subscription [571.89ms]
+(pass) Integration Tests > should run example: pointer_to_array_type [535.51ms]
+(pass) Integration Tests > should run example: pointer_void_cast [566.08ms]
+(pass) Integration Tests > should run example: pointers [550.77ms]
+(pass) Integration Tests > should run example: pointers_advanced [557.33ms]
+(pass) Integration Tests > should run example: primitives [553.85ms]
+(pass) Integration Tests > should run example: recursive_algorithms [574.82ms]
+(pass) Integration Tests > should run example: result_pattern_demo [510.50ms]
+(pass) Integration Tests > should run example: result_test [1129.70ms]
+(pass) Integration Tests > should run example: return_lambda [529.48ms]
+(pass) Integration Tests > should run example: root_type_test [707.77ms]
+(pass) Integration Tests > should run example: scope_block_shadowing [524.38ms]
+(pass) Integration Tests > should run example: scope_global_local [552.93ms]
+(pass) Integration Tests > should run example: scope_loop_variable [552.16ms]
+(pass) Integration Tests > should run example: scope_param_shadowing [519.22ms]
+(pass) Integration Tests > should run example: scope_shadowing_test [557.48ms]
+(pass) Integration Tests > should run example: simple_lambda [530.47ms]
+(pass) Integration Tests > should run example: sizeof [503.73ms]
+(pass) Integration Tests > should run example: spec_import [667.96ms]
+(pass) Integration Tests > should run example: spec_test [423.11ms]
+(pass) Integration Tests > should run example: specs/basic_implementation [671.57ms]
+(pass) Integration Tests > should run example: specs/error_missing_method [421.42ms]
+(pass) Integration Tests > should run example: specs/error_signature_mismatch [425.30ms]
+(pass) Integration Tests > should run example: specs/generic_spec [539.50ms]
+(pass) Integration Tests > should run example: specs/inheritance_and_specs [525.43ms]
+(pass) Integration Tests > should run example: specs/multiple_specs [548.62ms]
+(pass) Integration Tests > should run example: stack_trace_demo [640.94ms]
+(pass) Integration Tests > should run example: stack_trace_error [661.90ms]
+(pass) Integration Tests > should run example: stack_trace_uncaught [647.56ms]
+(pass) Integration Tests > should run example: static_methods [549.80ms]
+(pass) Integration Tests > should run example: stdlib_algorithm [820.57ms]
+(pass) Integration Tests > should run example: stdlib_args [676.63ms]
+(pass) Integration Tests > should run example: stdlib_array_operators [606.50ms]
+(pass) Integration Tests > should run example: stdlib_assert [697.96ms]
+(pass) Integration Tests > should run example: stdlib_demo [917.51ms]
+(pass) Integration Tests > should run example: stdlib_fmt [685.94ms]
+(pass) Integration Tests > should run example: stdlib_fs [701.40ms]
+(pass) Integration Tests > should run example: stdlib_json [839.62ms]
+(pass) Integration Tests > should run example: stdlib_log [972.30ms]
+(pass) Integration Tests > should run example: stdlib_map_basic [1608.96ms]
+(pass) Integration Tests > should run example: stdlib_map_set [1588.81ms]
+(pass) Integration Tests > should run example: stdlib_math_basic [1175.73ms]
+(pass) Integration Tests > should run example: stdlib_operator_overloading [1464.25ms]
+(pass) Integration Tests > should run example: stdlib_option_result [726.09ms]
+(pass) Integration Tests > should run example: stdlib_path [729.01ms]
+(pass) Integration Tests > should run example: stdlib_rand_math [718.63ms]
+(pass) Integration Tests > should run example: stdlib_range [675.19ms]
+(pass) Integration Tests > should run example: stdlib_stack_queue [891.76ms]
+(pass) Integration Tests > should run example: stdlib_string_concat_sim [1195.14ms]
+(pass) Integration Tests > should run example: stdlib_string_operators [725.36ms]
+(pass) Integration Tests > should run example: stdlib_string_utils [734.47ms]
+(pass) Integration Tests > should run example: stdlib_stringbuilder [735.50ms]
+(pass) Integration Tests > should run example: stdlib_time [720.09ms]
+(pass) Integration Tests > should run example: stdlib_unified [1450.47ms]
+(pass) Integration Tests > should run example: stdlib_utf8 [669.98ms]
+(pass) Integration Tests > should run example: stdlib_vec [754.59ms]
+(pass) Integration Tests > should run example: stdlib_vec2_operators [712.93ms]
+(pass) Integration Tests > should run example: stdlib_vec3_operators [750.90ms]
+(pass) Integration Tests > should run example: stdlib_vector_basic [1167.26ms]
+(pass) Integration Tests > should run example: string_char_operations [574.75ms]
+(pass) Integration Tests > should run example: string_interpolation [1177.27ms]
+(pass) Integration Tests > should run example: string_interpolation_advanced [1181.79ms]
+(pass) Integration Tests > should run example: string_literal_operators [673.01ms]
+(pass) Integration Tests > should run example: struct_array_field [521.14ms]
+(pass) Integration Tests > should run example: struct_constructor [519.20ms]
+(pass) Integration Tests > should run example: struct_empty [529.39ms]
+(pass) Integration Tests > should run example: struct_fields [498.12ms]
+(pass) Integration Tests > should run example: struct_generic_field [502.20ms]
+(pass) Integration Tests > should run example: struct_generic_inheritance [502.24ms]
+(pass) Integration Tests > should run example: struct_generic_method [521.61ms]
+(pass) Integration Tests > should run example: struct_generic_method_inference [503.64ms]
+(pass) Integration Tests > should run example: struct_inheritance [511.54ms]
+(pass) Integration Tests > should run example: struct_inheritance_deep [493.09ms]
+(pass) Integration Tests > should run example: struct_inheritance_override [552.35ms]
+(pass) Integration Tests > should run example: struct_large [561.36ms]
+(pass) Integration Tests > should run example: struct_literal_to_pointer [544.13ms]
+(pass) Integration Tests > should run example: struct_method_chaining [560.75ms]
+(pass) Integration Tests > should run example: struct_method_ptr_this [536.88ms]
+(pass) Integration Tests > should run example: struct_methods [532.06ms]
+(pass) Integration Tests > should run example: struct_nested_access [521.42ms]
+(pass) Integration Tests > should run example: struct_nested_init [541.53ms]
+(pass) Integration Tests > should run example: struct_pointer_field [536.63ms]
+(pass) Integration Tests > should run example: struct_self_ref_method [517.25ms]
+(pass) Integration Tests > should run example: struct_size_check [522.69ms]
+(pass) Integration Tests > should run example: struct_static_method [531.20ms]
+(pass) Integration Tests > should run example: struct_super_init [544.73ms]
+(pass) Integration Tests > should run example: struct_tuple_field [519.31ms]
+(pass) Integration Tests > should run example: struct_union_sim [508.96ms]
+(pass) Integration Tests > should run example: structs [571.62ms]
+(pass) Integration Tests > should run example: switch [550.19ms]
+(pass) Integration Tests > should run example: task_manager [833.56ms]
+(pass) Integration Tests > should run example: ternary_chains [566.03ms]
+(pass) Integration Tests > should run example: ternary_edge_cases [536.60ms]
+(pass) Integration Tests > should run example: ternary_operator [594.05ms]
+(pass) Integration Tests > should run example: test_ffi/multifile [628.12ms]
+(pass) Integration Tests > should run example: test_null_pointer [667.72ms]
+(pass) Integration Tests > should run example: test_package_import [333.72ms]
+(pass) Integration Tests > should run example: test_zero_comprehensive [570.03ms]
+(pass) Integration Tests > should run example: tuple_function_returns [522.65ms]
+(pass) Integration Tests > should run example: tuple_mixed_types [554.71ms]
+(pass) Integration Tests > should run example: tuple_operations [548.44ms]
+(pass) Integration Tests > should run example: tuple_swap_basic [533.53ms]
+(pass) Integration Tests > should run example: type_aliases [508.48ms]
+(pass) Integration Tests > should run example: type_match [703.28ms]
+(pass) Integration Tests > should run example: type_narrowing [529.86ms]
+(pass) Integration Tests > should run example: type_reflection/generic_inheritance [683.76ms]
+(pass) Integration Tests > should run example: type_reflection/generics_check [678.30ms]
+(pass) Integration Tests > should run example: type_reflection/inheritance_match [643.47ms]
+(pass) Integration Tests > should run example: type_reflection/match_type [670.88ms]
+(pass) Integration Tests > should run example: type_reflection/polymorphism [656.82ms]
+(pass) Integration Tests > should run example: unused_variables [406.73ms]
+(pass) Integration Tests > should run example: value_vs_pointer [518.01ms]
+(pass) Integration Tests > should run example: variadic_homogeneous [521.99ms]
+(pass) Integration Tests > should run example: variadic_native_demo [672.77ms]
+(pass) Integration Tests > should run example: variadic_structs_demo [651.60ms]
+(pass) Integration Tests > should run example: variadic_syntax [667.91ms]
+(pass) Integration Tests > should run example: variadic_test [664.99ms]
+(pass) Integration Tests > should run example: void_functions [540.00ms]
+(pass) Integration Tests > should run example: void_pointers [520.96ms]
+(pass) Integration Tests > should run example: zero_valued_struct [553.18ms]
+
+tests/CodeGeneratorExtended.test.ts:
+(pass) CodeGenerator - Extended Tests > Control Flow > should generate IR for if statement [151.60ms]
+(pass) CodeGenerator - Extended Tests > Control Flow > should generate IR for if-else statement [91.71ms]
+(pass) CodeGenerator - Extended Tests > Control Flow > should generate IR for while loop [72.38ms]
+(pass) CodeGenerator - Extended Tests > Control Flow > should generate IR for infinite loop with break [89.51ms]
+(pass) CodeGenerator - Extended Tests > Control Flow > should generate IR for switch statement [65.24ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for addition [74.81ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for subtraction [65.19ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for multiplication [61.70ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for division [61.62ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for comparison operations [58.63ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for logical AND [55.17ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for logical OR [55.11ms]
+(pass) CodeGenerator - Extended Tests > Arithmetic and Logical Operations > should generate IR for bitwise operations [59.86ms]
+(pass) CodeGenerator - Extended Tests > Pointer and Array Operations > should generate IR for pointer dereference [55.84ms]
+(pass) CodeGenerator - Extended Tests > Pointer and Array Operations > should generate IR for address-of operator [60.92ms]
+(pass) CodeGenerator - Extended Tests > Pointer and Array Operations > should generate IR for array access [52.40ms]
+(pass) CodeGenerator - Extended Tests > Pointer and Array Operations > should generate IR for array assignment [54.54ms]
+(pass) CodeGenerator - Extended Tests > Pointer and Array Operations > should generate IR for pointer arithmetic [64.81ms]
+(pass) CodeGenerator - Extended Tests > Struct Operations > should generate struct type definition [64.46ms]
+(pass) CodeGenerator - Extended Tests > Struct Operations > should generate IR for struct member access [74.58ms]
+(pass) CodeGenerator - Extended Tests > Struct Operations > should generate IR for struct member assignment [56.43ms]
+(pass) CodeGenerator - Extended Tests > Struct Operations > should generate IR for struct method call [54.58ms]
+(pass) CodeGenerator - Extended Tests > Function Calls > should generate IR for function call with arguments [62.61ms]
+(pass) CodeGenerator - Extended Tests > Function Calls > should generate IR for void function call [64.53ms]
+(pass) CodeGenerator - Extended Tests > Function Calls > should generate IR for recursive function [61.22ms]
+(pass) CodeGenerator - Extended Tests > Type Casting > should generate IR for integer to float cast [56.48ms]
+(pass) CodeGenerator - Extended Tests > Type Casting > should generate IR for float to integer cast [59.92ms]
+(pass) CodeGenerator - Extended Tests > Type Casting > should generate IR for pointer cast [61.34ms]
+(pass) CodeGenerator - Extended Tests > Literal Values > should generate IR for integer literals [60.78ms]
+(pass) CodeGenerator - Extended Tests > Literal Values > should generate IR for float literals [63.70ms]
+(pass) CodeGenerator - Extended Tests > Literal Values > should generate IR for boolean literals [60.67ms]
+(pass) CodeGenerator - Extended Tests > Literal Values > should generate IR for nullptr pointer [52.11ms]
+(pass) CodeGenerator - Extended Tests > Literal Values > should generate IR for string literals [58.20ms]
+(pass) CodeGenerator - Extended Tests > Variable Declarations > should generate IR for local variable [49.42ms]
+(pass) CodeGenerator - Extended Tests > Variable Declarations > should generate IR for uninitialized variable [52.92ms]
+(pass) CodeGenerator - Extended Tests > Compound Assignments > should generate IR for += operator [57.32ms]
+(pass) CodeGenerator - Extended Tests > Compound Assignments > should generate IR for -= operator [58.26ms]
+(pass) CodeGenerator - Extended Tests > Compound Assignments > should generate IR for *= operator [57.92ms]
+(pass) CodeGenerator - Extended Tests > Ternary Operator > should generate IR for ternary expression [55.74ms]
+(pass) CodeGenerator - Extended Tests > Ternary Operator > should generate IR for nested ternary [51.15ms]
+(pass) CodeGenerator - Extended Tests > Sizeof Operator > should generate IR for sizeof with type [59.34ms]
+(pass) CodeGenerator - Extended Tests > Sizeof Operator > should generate IR for sizeof with struct [53.25ms]
+(pass) CodeGenerator - Extended Tests > Generic Function Monomorphization > should generate monomorphized functions for each type [52.10ms]
+(pass) CodeGenerator - Extended Tests > Generic Function Monomorphization > should not duplicate monomorphized functions [57.14ms]
+(pass) CodeGenerator - Extended Tests > Inheritance and Virtual Methods > should generate IR for inherited member access [53.74ms]
+(pass) CodeGenerator - Extended Tests > External Function Declarations > should generate declaration for extern functions [58.28ms]
+(pass) CodeGenerator - Extended Tests > Optimization Hints > should generate efficient code for constant folding [51.15ms]
+(pass) CodeGenerator - Extended Tests > Optimization Hints > should generate efficient code for dead code elimination [57.56ms]
+(pass) CodeGenerator - Extended Tests > Complex Expressions > should generate IR for operator precedence [58.45ms]
+(pass) CodeGenerator - Extended Tests > Complex Expressions > should generate IR for complex boolean expressions [56.24ms]
+
+tests/Sizeof.test.ts:
+(pass) Sizeof Extended > should parse and compile sizeof<Type>() [50.61ms]
+(pass) Sizeof Extended > should parse and compile sizeof(Type) [52.73ms]
+(pass) Sizeof Extended > should parse and compile sizeof(variable) [53.56ms]
+(pass) Sizeof Extended > should parse and compile sizeof(expression) [58.91ms]
+(pass) Sizeof Extended > should parse and compile sizeof(LambdaType) [51.61ms]
+(pass) Sizeof Extended > should format sizeof<Type>() correctly [2.28ms]
+(pass) Sizeof Extended > should format sizeof(Type) correctly [0.72ms]
+(pass) Sizeof Extended > should format sizeof(variable) correctly [0.87ms]
+
+tests/ParserRecovery.test.ts:
+(pass) Parser Error Recovery > should collect multiple syntax errors [1.59ms]
+(pass) Parser Error Recovery > should stop at first error if collectAllErrors is false [0.84ms]
+
+tests/CodeGen_DivZero.test.ts:
+(pass) CodeGen - Division By Zero > should generate zero check for division [51.65ms]
+(pass) CodeGen - Division By Zero > should generate zero check for modulo [51.33ms]
+
+tests/Examples.test.ts:
+(pass) Examples Compilation > HTTP Server compiles [770.17ms]
+(pass) Examples Compilation > Task Manager compiles [1189.94ms]
+(pass) Examples Compilation > Collatz compiles [620.69ms]
+(pass) Examples Compilation > Fibonacci compiles [856.04ms]
+(pass) Examples Compilation > Complex Data Structures compiles [968.63ms]
+
+tests/CodeGen_StackOverflow.test.ts:
+(pass) CodeGen - Stack Overflow > should generate stack depth check [87.40ms]
+
+tests/TypeCheckerConstraints.test.ts:
+(pass) TypeChecker - Generic Constraints > should accept generic function call satisfying constraint [90.69ms]
+(pass) TypeChecker - Generic Constraints > should reject generic function call violating constraint [111.95ms]
+(pass) TypeChecker - Generic Constraints > should reject generic function call with primitive type violating constraint [102.61ms]
+(pass) TypeChecker - Generic Constraints > should accept generic function call with primitive type satisfying constraint [71.00ms]
+(pass) TypeChecker - Generic Constraints > should accept generic function call with subclass satisfying constraint [70.32ms]
+(pass) TypeChecker - Generic Constraints > should validate constraints on struct instantiation [67.15ms]
+(pass) TypeChecker - Generic Constraints > should validate constraints on type alias instantiation [69.77ms]
+(pass) TypeChecker - Generic Constraints > should handle multiple generic parameters with constraints [57.86ms]
+(pass) TypeChecker - Generic Constraints > should handle nested generic constraints [58.17ms]
+(pass) TypeChecker - Generic Constraints > should allow valid nested generic constraints [54.78ms]
+(pass) TypeChecker - Generic Constraints > should reject generic method in generic struct with same generic parameter name [48.99ms]
+
+tests/EnumMatch.test.ts:
+(pass) Enums and Pattern Matching > should handle simple enums and matching [536.81ms]
+(pass) Enums and Pattern Matching > should handle enums with data (tuple variants) [542.91ms]
+(pass) Enums and Pattern Matching > should handle generic enums (Option<T>) [701.47ms]
+Exhaustiveness check PASSED (compilation failed as expected).
+(pass) Enums and Pattern Matching > should check exhaustiveness (if implemented) [432.91ms]
+
+tests/MultipleErrors.test.ts:
+(pass) Multiple errors in one pass > reports both syntax and semantic errors together when collectAllErrors is enabled [51.83ms]
+
+tests/PlaygroundExamples.test.ts:
+
+📚 Testing 54 examples...
+
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 1: Hello World [281.93ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 2: Variables [272.76ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 3: Basic Math [261.17ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 4: If Statements [256.58ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 5: While Loops [277.22ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 6: Loop Patterns [282.46ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 7: Functions (Frames) [246.85ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 8: Structs [242.32ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 9: Pointers [252.76ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 10: Arrays [267.39ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 11: Strings [248.77ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 12: Boolean Logic [259.35ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 13: Switch Statements [255.23ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 14: Recursion [261.13ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 15: Type Casting [255.87ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 16: Ternary Operator [252.36ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 17: Bitwise Operations [237.45ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 18: Sizeof Operator [252.42ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 19: Struct Methods [250.56ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 20: Command-line Arguments [243.85ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 21: Standard Input [241.84ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 22: Global Variables [255.18ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 23: Type Aliases [261.97ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 24: Multi-dimensional Arrays [267.68ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 25: Fibonacci Sequence [242.20ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 26: Generics - Basic [253.01ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 27: Generics - Structs [243.21ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 28: Standard Library Imports [257.29ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 29: Export - Module Definition [245.67ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 30: Import from Project Files [246.78ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 31: Enumerations [261.25ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 32: Function Pointers [267.70ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 33: Dynamic Arrays [248.11ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 34: Memory Management [270.03ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 35: Advanced Type Aliases [245.71ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 36: Multiple Inheritance [261.53ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 37: Exception Handling [269.98ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 38: Static Methods and Variables [264.46ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 39: Nested Structs [250.92ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 40: Bit Manipulation Advanced [255.82ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 41: Generic Enums [247.58ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 42: Operator Overloading [249.16ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 43: Advanced Pattern Matching [268.45ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 44: Tuple Destructuring [248.65ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 45: Result Type Pattern [271.89ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 46: Option Type Pattern [258.52ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 47: Builder Pattern [265.29ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 48: Generic Functions [267.31ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 49: Generic Containers [275.40ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 50: Smart Pointers Pattern [267.33ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 51: Result Pattern [257.64ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 52: Type Matching [292.05ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 53: Lambda Expressions [265.49ms]
+Unhandled statement kind: Extern
+(pass) BPL Playground Examples > Example 54: Advanced String Interpolation [678.97ms]
+
+📊 Test Summary:
+============================================================
+✅ 1. Hello World
+✅ 2. Variables
+✅ 3. Basic Math
+✅ 4. If Statements
+✅ 5. While Loops
+✅ 6. Loop Patterns
+✅ 7. Functions (Frames)
+✅ 8. Structs
+✅ 9. Pointers
+✅ 10. Arrays
+✅ 11. Strings
+✅ 12. Boolean Logic
+✅ 13. Switch Statements
+✅ 14. Recursion
+✅ 15. Type Casting
+✅ 16. Ternary Operator
+✅ 17. Bitwise Operations
+✅ 18. Sizeof Operator
+✅ 19. Struct Methods
+✅ 20. Command-line Arguments
+✅ 21. Standard Input
+✅ 22. Global Variables
+✅ 23. Type Aliases
+✅ 24. Multi-dimensional Arrays
+✅ 25. Fibonacci Sequence
+✅ 26. Generics - Basic
+✅ 27. Generics - Structs
+✅ 28. Standard Library Imports
+✅ 29. Export - Module Definition
+✅ 30. Import from Project Files
+✅ 31. Enumerations
+✅ 32. Function Pointers
+✅ 33. Dynamic Arrays
+✅ 34. Memory Management
+✅ 35. Advanced Type Aliases
+✅ 36. Multiple Inheritance
+✅ 37. Exception Handling
+✅ 38. Static Methods and Variables
+✅ 39. Nested Structs
+✅ 40. Bit Manipulation Advanced
+✅ 41. Generic Enums
+✅ 42. Operator Overloading
+✅ 43. Advanced Pattern Matching
+✅ 44. Tuple Destructuring
+✅ 45. Result Type Pattern
+✅ 46. Option Type Pattern
+✅ 47. Builder Pattern
+✅ 48. Generic Functions
+✅ 49. Generic Containers
+✅ 50. Smart Pointers Pattern
+✅ 51. Result Pattern
+✅ 52. Type Matching
+✅ 53. Lambda Expressions
+✅ 54. Advanced String Interpolation
+============================================================
+
+📈 Results: 54 passed, 0 failed out of 54
+
+tests/Struct.frontend.test.ts:
+(pass) Struct Frontend > should lex struct tokens correctly [2.67ms]
+(pass) Struct Frontend > should parse struct declaration [2.47ms]
+(pass) Struct Frontend > should parse struct inheritance [8.93ms]
+
+tests/Defer.test.ts:
+(pass) Defer Statement > should parse defer statement [1.96ms]
+(pass) Defer Statement > should format defer statement [0.74ms]
+(pass) Defer Statement > should format defer block [0.68ms]
+
+tests/OperatorOverloadingUser.test.ts:
+(pass) User Operator Overloading > Arithmetic operators [542.11ms]
+(pass) User Operator Overloading > Comparison operators [514.14ms]
+
+tests/BugFix_SizeofVoid.test.ts:
+(pass) Bug Fix - Sizeof Void > should reject sizeof<void>() [60.72ms]
+
+tests/PointerEdgeCases.test.ts:
+(pass) Pointer Edge Cases > should allow indexing a pointer (dynamic array access) [55.86ms]
+(pass) Pointer Edge Cases > should allow pointer arithmetic (addition) [54.73ms]
+(pass) Pointer Edge Cases > should allow pointer arithmetic (subtraction) [53.23ms]
+(pass) Pointer Edge Cases > should allow pointer difference [46.27ms]
+(pass) Pointer Edge Cases > should allow dereferencing a pointer [46.13ms]
+(pass) Pointer Edge Cases > should allow taking address of a variable [45.46ms]
+(pass) Pointer Edge Cases > should allow accessing struct field via pointer [45.27ms]
+(pass) Pointer Edge Cases > should allow explicit dereference and field access [53.86ms]
+(pass) Pointer Edge Cases > should allow indexing via type alias [46.09ms]
+(pass) Pointer Edge Cases > should allow indexing generic pointer [46.28ms]
+(pass) Pointer Edge Cases > should allow assigning to pointer index [45.20ms]
+(pass) Pointer Edge Cases > should allow indexing pointer to pointer [48.34ms]
+
+tests/Parser.test.ts:
+(pass) Parser > should parse a simple function declaration [0.58ms]
+(pass) Parser > should parse a struct declaration [0.68ms]
+(pass) Parser > should parse variable declarations [2.32ms]
+
+tests/MatchExplicitReturnExtended.test.ts:
+(pass) Match Explicit Return Extended > should handle void match with explicit return [50.03ms]
+(pass) Match Explicit Return Extended > should reject value return in void match [49.21ms]
+(pass) Match Explicit Return Extended > should handle control flow inside match arm [54.27ms]
+(pass) Match Explicit Return Extended > should handle unreachable code after return [47.99ms]
+(pass) Match Explicit Return Extended > should handle returning structs from match [46.25ms]
+
+tests/TypeChecker.test.ts:
+(pass) TypeChecker > should pass for valid struct method access [41.12ms]
+(pass) TypeChecker > should fail when accessing static method on instance [43.05ms]
+(pass) TypeChecker > should fail when accessing instance method on type [51.89ms]
+(pass) TypeChecker > should fail if 'this' type mismatch [49.76ms]
+
+tests/FormatterExtended.test.ts:
+(pass) Formatter - Extended Tests > Generics with Constraints > should format generic function with constraints [1.73ms]
+(pass) Formatter - Extended Tests > Generics with Constraints > should format generic struct with constraints [0.71ms]
+(pass) Formatter - Extended Tests > Generics with Constraints > should format generic type alias with constraints [0.59ms]
+(pass) Formatter - Extended Tests > Generics with Constraints > should format multiple generic parameters with constraints [0.56ms]
+(pass) Formatter - Extended Tests > Generics with Constraints > should format mixed generic parameters (some with constraints, some without) [0.38ms]
+(pass) Formatter - Extended Tests > Spec Declarations > should format simple spec [0.77ms]
+(pass) Formatter - Extended Tests > Spec Declarations > should format spec with inheritance [0.54ms]
+(pass) Formatter - Extended Tests > Spec Declarations > should format spec with generics [0.47ms]
+
+tests/FunctionPointers.test.ts:
+(pass) Function Pointers > should handle basic function pointers [547.55ms]
+(pass) Function Pointers > should handle function pointers in structs [561.67ms]
+
+tests/Generics.frontend.test.ts:
+(pass) Generics Frontend > should parse generic struct [2.49ms]
+(pass) Generics Frontend > should parse generic function [0.91ms]
+(pass) Generics Frontend > should parse generic spec [0.80ms]
+(pass) Generics Frontend > should parse lambda in generic function [1.30ms]
+(pass) Generics Frontend > should parse generic inheritance [0.84ms]
+
+tests/MoreRuntimeEdgeCases.test.ts:
+(pass) More Runtime Edge Cases > Logical Operators > should reject logical AND with integer [58.27ms]
+(pass) More Runtime Edge Cases > Logical Operators > should reject logical OR with string [53.29ms]
+(pass) More Runtime Edge Cases > Unary Operators > should reject logical NOT on integer [51.11ms]
+(pass) More Runtime Edge Cases > Unary Operators > should reject bitwise NOT on float [49.48ms]
+(pass) More Runtime Edge Cases > Unary Operators > should reject negation on string [65.39ms]
+(pass) More Runtime Edge Cases > String Operations > should reject string subtraction [64.95ms]
+(pass) More Runtime Edge Cases > String Operations > should reject string multiplication [57.05ms]
+(pass) More Runtime Edge Cases > Array Literals > should reject inconsistent types in array literal [85.71ms]
+(pass) More Runtime Edge Cases > Assignments > should reject assignment to r-value (literal) [78.09ms]
+(pass) More Runtime Edge Cases > Assignments > should reject assignment to r-value (expression) [79.70ms]
+(pass) More Runtime Edge Cases > Bitwise Shifts > should reject shift by float [73.08ms]
+(pass) More Runtime Edge Cases > Generics > should reject generic instantiation with wrong number of args [96.69ms]
+
+tests/StructVTable.test.ts:
+(pass) Struct Layout and VTable Code Generation > should generate correct layout for simple struct [71.02ms]
+(pass) Struct Layout and VTable Code Generation > should generate correct layout for inherited struct [64.13ms]
+(pass) Struct Layout and VTable Code Generation > should generate vtable for struct with methods [104.46ms]
+(pass) Struct Layout and VTable Code Generation > should generate correct vtable entries for overrides [82.11ms]
+(pass) Struct Layout and VTable Code Generation > should perform dynamic dispatch [53.33ms]
+
+tests/PackageManagerCLI.test.ts:
+(pass) Package Manager CLI > init command > should create bpl.json file [90.23ms]
+(pass) Package Manager CLI > init command > should fail if bpl.json already exists [82.14ms]
+(pass) Package Manager CLI > pack command > should create package tarball [102.63ms]
+(pass) Package Manager CLI > pack command > should fail without bpl.json [108.53ms]
+(pass) Package Manager CLI > install command > should install package locally [195.57ms]
+(pass) Package Manager CLI > list command > should list installed packages [314.95ms]
+(pass) Package Manager CLI > list command > should show message when no packages installed [90.65ms]
+(pass) Package Manager CLI > uninstall command > should uninstall installed package [520.48ms]
+(pass) Package Manager CLI > uninstall command > should support remove alias [306.31ms]
+(pass) Package Manager CLI > uninstall command > should fail when uninstalling non-existent package [101.22ms]
+(pass) Package Manager CLI > Package import integration > should compile code that imports from installed package [1237.79ms]
+
+tests/StringEscaping.test.ts:
+(pass) String Escaping > should handle escaped interpolation start in interpolated string [4.51ms]
+(pass) String Escaping > should handle literal ${ in normal string [0.92ms]
+
+tests/ParserLambda.test.ts:
+(pass) Parser - Lambda Expressions > should parse simple lambda [1.36ms]
+(pass) Parser - Lambda Expressions > should parse lambda without return type [1.53ms]
+(pass) Parser - Lambda Expressions > should parse lambda with multiple params [1.35ms]
+(pass) Parser - Lambda Expressions > should parse lambda with no params [1.11ms]
+(pass) Parser - Lambda Expressions > should parse lambda passed as argument [1.83ms]
+(pass) Parser - Lambda Expressions > should parse lambda with explicit void args [1.22ms]
+(pass) Parser - Lambda Expressions > should parse lambda with void args and no return type [0.97ms]
+(pass) Parser - Lambda Expressions > should parse lambda with empty args and no return type [1.15ms]
+(pass) Parser - Lambda Expressions > should parse lambda with underscore param [1.52ms]
+
+tests/GrammarParser.test.ts:
+(pass) GrammarParser > should parse grammar.bpl file correctly [3.67ms]
+(pass) GrammarParser > should handle complex rules with quotes and comments [1.24ms]
+
+tests/ExamplesFuzz.test.ts:
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle nested ternary operators correctly [815.71ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle pointer arithmetic on structs [671.17ms]
+TrailingCommaCall SUCCEEDED (feature exists!)
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle trailing commas in function calls [484.46ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle trailing commas in struct literals [474.00ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle complex array indexing [559.93ms]
+Struct definition allows missing trailing comma.
+(pass) Examples Fuzzing & Syntax Edge Cases > should require trailing comma in struct definition (Strictness Check) [576.14ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle basic generics (via helper) [586.63ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle operator overloading (via __add__ with pointers) [636.74ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle nested generics [602.86ms]
+(pass) Examples Fuzzing & Syntax Edge Cases > should handle struct method calls [670.24ms]
+
+tests/AdvancedRuntime.test.ts:
+(pass) Advanced Runtime Values > should handle bitwise operations correctly [558.65ms]
+(pass) Advanced Runtime Values > should handle integer casting and truncation [583.23ms]
+(pass) Advanced Runtime Values > should handle array indexing [594.51ms]
+(pass) Advanced Runtime Values > should handle pointer dereferencing [492.93ms]
+(pass) Advanced Runtime Values > should handle string operations [509.75ms]
+(pass) Advanced Runtime Values > should handle char literals [502.13ms]
+DivZero ExitCode: 1
+DivZero Stderr: 
+(pass) Advanced Runtime Values > should handle division by zero [652.89ms]
+StackOverflow ExitCode: 1
+(pass) Advanced Runtime Values > should handle infinite recursion (stack overflow) [554.33ms]
+(pass) Advanced Runtime Values > should handle float to int casting [603.66ms]
+Modulus Output: 1
+-1
+
+(pass) Advanced Runtime Values > should handle modulus operator [541.62ms]
+
+tests/FormatterPrecedence.test.ts:
+(pass) Formatter Precedence > should format '1 + 2 as long' without parens (as binds looser) [2.07ms]
+(pass) Formatter Precedence > should format '1 + (2 as long)' with parens [0.54ms]
+(pass) Formatter Precedence > should format 'x < y is bool' without parens (< binds tighter) [0.57ms]
+(pass) Formatter Precedence > should format 'x == y is bool' with parens around y is bool? No. [0.50ms]
+(pass) Formatter Precedence > should format '(x == y) is bool' with parens [0.72ms]
+(pass) Formatter Precedence > should format chained 'as' conversions [0.68ms]
+(pass) Formatter Precedence > should preserve parens in '(1 + 2) as long' (formatter respects user parens) [0.64ms]
+(pass) Formatter Precedence > should keep parens in '1 + (2 as long)' [0.64ms]
+(pass) Formatter Precedence > should handle various numeric types in casts [1.98ms]
+
+tests/CodeGen_BoundsCheck.test.ts:
+(pass) CodeGen - Bounds Check > should generate bounds check for fixed-size array access [53.20ms]
+
+tests/FFI.test.ts:
+(pass) FFI (Foreign Function Interface) > should call standard libc functions [473.42ms]
+(pass) FFI (Foreign Function Interface) > should handle variadic functions [465.97ms]
+(pass) FFI (Foreign Function Interface) > should handle passing pointers to structs to extern functions [431.75ms]
+
+tests/EnumMethods.test.ts:
+(pass) Enum Methods > should parse enum with methods [2.15ms]
+(pass) Enum Methods > should type check enum method call [43.19ms]
+(pass) Enum Methods > should fail if method is not defined [41.45ms]
+
+tests/FormatterLambda.test.ts:
+(pass) Formatter - Lambda Expressions > should format simple lambda [2.80ms]
+(pass) Formatter - Lambda Expressions > should format lambda without return type [0.69ms]
+(pass) Formatter - Lambda Expressions > should format lambda with multiple params [0.77ms]
+(pass) Formatter - Lambda Expressions > should format lambda with no params [0.70ms]
+
+tests/MatchExhaustivenessGuards.test.ts:
+(pass) Match Exhaustiveness with Guards > should fail if a variant is only covered by a guarded arm [41.13ms]
+(pass) Match Exhaustiveness with Guards > should pass if a variant is covered by a guarded arm AND a fallback arm [42.81ms]
+(pass) Match Exhaustiveness with Guards > should pass if there is a wildcard fallback [43.27ms]
+
+tests/ASTNodeCoverage.test.ts:
+(pass) AST Node Coverage & Edge Cases > Binary Expressions > should reject modulo on floats [43.61ms]
+(pass) AST Node Coverage & Edge Cases > Binary Expressions > should reject bitwise ops on floats [46.11ms]
+(pass) AST Node Coverage & Edge Cases > Binary Expressions > should reject comparing struct equality (unless supported) [45.40ms]
+(pass) AST Node Coverage & Edge Cases > Constants > should reject assignment to const [55.54ms]
+(pass) AST Node Coverage & Edge Cases > Casts > should allow casting array to pointer [47.25ms]
+(pass) AST Node Coverage & Edge Cases > Casts > should reject casting struct to unrelated struct [44.47ms]
+(pass) AST Node Coverage & Edge Cases > Struct Literals > should reject struct literal with missing fields [42.47ms]
+(pass) AST Node Coverage & Edge Cases > Struct Literals > should reject struct literal with extra fields [46.08ms]
+(pass) AST Node Coverage & Edge Cases > Switch > should reject switch on float [40.67ms]
+(pass) AST Node Coverage & Edge Cases > Sizeof > should allow sizeof basic types [40.17ms]
+(pass) AST Node Coverage & Edge Cases > Sizeof > should reject sizeof void [41.44ms]
+(pass) AST Node Coverage & Edge Cases > Function Calls > should reject calling non-function [43.71ms]
+(pass) AST Node Coverage & Edge Cases > Function Calls > should reject wrong argument count [46.49ms]
+(pass) AST Node Coverage & Edge Cases > Function Calls > should reject wrong argument type [41.25ms]
+(pass) AST Node Coverage & Edge Cases > Indexing > should reject indexing with float [42.83ms]
+(pass) AST Node Coverage & Edge Cases > Member Access > should reject member access on non-struct [43.65ms]
+
+tests/ComplexNestedTypes.test.ts:
+(pass) Complex Nested Types > should handle array of structs with arrays [435.74ms]
+
+tests/Lexer.test.ts:
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'frame' keyword [0.15ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'struct' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'if' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'else' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'loop' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'return' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'break' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'continue' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'switch' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'case' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'default' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'local' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'ret' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'import' keyword [0.07ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'export' keyword [0.14ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'from' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'as' keyword [0.05ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'type' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'cast' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'sizeof' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'true' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'false' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'nullptr' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'this' keyword [0.04ms]
+(pass) Lexer - Extended Tests > Keywords > should tokenize 'extern' keyword [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '+' operator [0.04ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '-' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '*' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '/' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '%' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '+=' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '-=' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '*=' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '/=' operator [0.04ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '==' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '!=' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '<' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '>' operator [0.09ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '<=' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '>=' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '&&' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '||' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '!' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '&' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '|' operator [0.03ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '^' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '~' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '<<' operator [0.02ms]
+(pass) Lexer - Extended Tests > Operators > should tokenize '>>' operator [0.02ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize '(' delimiter [0.03ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize ')' delimiter [0.03ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize '{' delimiter [0.05ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize '}' delimiter [0.03ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize '[' delimiter [0.08ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize ']' delimiter [0.04ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize ',' delimiter [0.02ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize ';' delimiter [0.02ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize ':' delimiter [0.02ms]
+(pass) Lexer - Extended Tests > Delimiters > should tokenize '.' delimiter [0.03ms]
+(pass) Lexer - Extended Tests > Identifiers > should tokenize simple identifier [0.04ms]
+(pass) Lexer - Extended Tests > Identifiers > should tokenize identifier with underscores [0.03ms]
+(pass) Lexer - Extended Tests > Identifiers > should tokenize identifier with numbers [0.03ms]
+(pass) Lexer - Extended Tests > Identifiers > should tokenize camelCase identifier [0.03ms]
+(pass) Lexer - Extended Tests > Identifiers > should tokenize PascalCase identifier [0.03ms]
+(pass) Lexer - Extended Tests > Number Literals > should tokenize decimal integer [0.04ms]
+(pass) Lexer - Extended Tests > Number Literals > should tokenize hexadecimal integer [0.06ms]
+(pass) Lexer - Extended Tests > Number Literals > should tokenize binary integer [0.03ms]
+(pass) Lexer - Extended Tests > Number Literals > should tokenize octal integer [0.03ms]
+(pass) Lexer - Extended Tests > Number Literals > should tokenize float with decimal point [0.03ms]
+(pass) Lexer - Extended Tests > String Literals > should tokenize simple string [0.04ms]
+(pass) Lexer - Extended Tests > String Literals > should tokenize string with escape sequences [0.03ms]
+(pass) Lexer - Extended Tests > String Literals > should tokenize string with quotes [0.03ms]
+(pass) Lexer - Extended Tests > String Literals > should tokenize empty string [0.03ms]
+(pass) Lexer - Extended Tests > Character Literals > should tokenize simple character [0.05ms]
+(pass) Lexer - Extended Tests > Character Literals > should tokenize escaped character [0.06ms]
+(pass) Lexer - Extended Tests > Character Literals > should tokenize tab character [0.03ms]
+(pass) Lexer - Extended Tests > Comments > should skip single-line comments [0.05ms]
+(pass) Lexer - Extended Tests > Comments > should skip multi-line comments [0.04ms]
+(pass) Lexer - Extended Tests > Comments > should handle nested comments if supported [0.07ms]
+(pass) Lexer - Extended Tests > Whitespace Handling > should skip spaces [0.04ms]
+(pass) Lexer - Extended Tests > Whitespace Handling > should skip tabs [0.03ms]
+(pass) Lexer - Extended Tests > Whitespace Handling > should skip newlines [0.03ms]
+(pass) Lexer - Extended Tests > Whitespace Handling > should skip carriage returns [0.03ms]
+(pass) Lexer - Extended Tests > Complex Expressions > should tokenize arithmetic expression [0.06ms]
+(pass) Lexer - Extended Tests > Complex Expressions > should tokenize function call [0.06ms]
+(pass) Lexer - Extended Tests > Complex Expressions > should tokenize array access [0.05ms]
+(pass) Lexer - Extended Tests > Complex Expressions > should tokenize member access [0.05ms]
+(pass) Lexer - Extended Tests > Type Annotations > should tokenize simple type [0.04ms]
+(pass) Lexer - Extended Tests > Type Annotations > should tokenize pointer type [0.05ms]
+(pass) Lexer - Extended Tests > Type Annotations > should tokenize array type [0.06ms]
+(pass) Lexer - Extended Tests > Generic Syntax > should tokenize generic type parameter [0.05ms]
+(pass) Lexer - Extended Tests > Generic Syntax > should tokenize multiple generic parameters [0.06ms]
+(pass) Lexer - Extended Tests > Error Cases > should handle invalid characters gracefully [0.11ms]
+(pass) Lexer - Extended Tests > Error Cases > should handle unterminated string [0.11ms]
+(pass) Lexer - Extended Tests > Error Cases > should handle unterminated character literal [0.08ms]
+(pass) Lexer - Extended Tests > Error Cases > should handle invalid number format [0.07ms]
+(pass) Lexer - Extended Tests > Position Tracking > should track line numbers correctly [0.07ms]
+(pass) Lexer - Extended Tests > Position Tracking > should track column numbers correctly [0.05ms]
+(pass) Lexer - Extended Tests > Edge Cases > should handle empty input [0.06ms]
+(pass) Lexer - Extended Tests > Edge Cases > should handle only whitespace [0.03ms]
+(pass) Lexer - Extended Tests > Edge Cases > should handle only comments [0.06ms]
+(pass) Lexer - Extended Tests > Edge Cases > should distinguish between similar operators [0.07ms]
+
+tests/StringInterpolationAdvanced.test.ts:
+(pass) String Interpolation Advanced > should parse complex expressions inside interpolation [1.22ms]
+(pass) String Interpolation Advanced > should parse nested interpolated strings [0.88ms]
+(pass) String Interpolation Advanced > should parse deeply nested interpolated strings (10 levels) [1.15ms]
+(pass) String Interpolation Advanced > should parse interpolation with struct literal [0.62ms]
+(pass) String Interpolation Advanced > should parse interpolation with match expression [0.99ms]
+(pass) String Interpolation Advanced > should parse interpolation with array literal [0.61ms]
+(pass) String Interpolation Advanced > should parse interpolation with pointer operations [0.44ms]
+(pass) String Interpolation Advanced > should parse interpolation with enum variant [0.46ms]
+(pass) String Interpolation Advanced > should parse interpolation with ternary operator [0.60ms]
+(pass) String Interpolation Advanced > should parse interpolation with function call [0.43ms]
+(pass) String Interpolation Advanced > should parse interpolation with arithmetic addition [0.38ms]
+(pass) String Interpolation Advanced > should parse interpolation with struct addition (operator overloading) [0.36ms]
+(pass) String Interpolation Advanced > should fail on unterminated interpolation [0.13ms]
+(pass) String Interpolation Advanced > should fail on unclosed string [0.06ms]
+
+tests/BugFixes.test.ts:
+(pass) Bug Fixes > BUG-023: should allow struct definition without trailing comma [476.54ms]
+(pass) Bug Fixes > BUG-025: should allow trailing commas in function calls [463.67ms]
+(pass) Bug Fixes > BUG-024: should allow generic struct literals [461.32ms]
+(pass) Bug Fixes > BUG-029: should allow calling function pointer field directly [947.30ms]
+
+tests/PackageManager.test.ts:
+(pass) PackageManager > Package Initialization > should create a valid bpl.json manifest [3.35ms]
+(pass) PackageManager > Package Initialization > should throw error for missing name field [0.89ms]
+(pass) PackageManager > Package Initialization > should throw error for missing version field [0.67ms]
+(pass) PackageManager > Package Initialization > should validate semantic version format [0.59ms]
+Packing test-pkg@1.0.0...
+  Including 1 source files
+✓ Package created: test-pkg-1.0.0.tgz
+  Size: 0.25 KB
+(pass) PackageManager > Package Creation > should create a package tarball [9.79ms]
+Packing multi-file-pkg@1.0.0...
+  Including 2 source files
+✓ Package created: multi-file-pkg-1.0.0.tgz
+  Size: 0.29 KB
+(pass) PackageManager > Package Creation > should include all source files in package [8.61ms]
+Packing exclude-test@1.0.0...
+  Including 1 source files
+✓ Package created: exclude-test-1.0.0.tgz
+  Size: 0.25 KB
+(pass) PackageManager > Package Creation > should exclude node_modules and bpl_modules from package [6.21ms]
+Packing local-test-pkg@1.0.0...
+  Including 1 source files
+✓ Package created: local-test-pkg-1.0.0.tgz
+  Size: 0.24 KB
+Installing local-test-pkg@1.0.0...
+✓ Installed local-test-pkg@1.0.0
+(pass) PackageManager > Package Installation > should install package locally [12.73ms]
+Packing list-test-pkg@2.0.0...
+  Including 1 source files
+✓ Package created: list-test-pkg-2.0.0.tgz
+  Size: 0.25 KB
+Installing list-test-pkg@2.0.0...
+✓ Installed list-test-pkg@2.0.0
+(pass) PackageManager > Package Installation > should list installed packages [17.38ms]
+(pass) PackageManager > Package Installation > should return empty list when no packages installed [0.26ms]
+Packing uninstall-test-pkg@1.0.0...
+  Including 1 source files
+✓ Package created: uninstall-test-pkg-1.0.0.tgz
+  Size: 0.24 KB
+Installing uninstall-test-pkg@1.0.0...
+✓ Installed uninstall-test-pkg@1.0.0
+Uninstalling uninstall-test-pkg@1.0.0...
+✓ Uninstalled uninstall-test-pkg@1.0.0
+(pass) PackageManager > Package Uninstallation > should uninstall a locally installed package [18.23ms]
+(pass) PackageManager > Package Uninstallation > should throw error when uninstalling non-existent package [0.54ms]
+(pass) PackageManager > Package Uninstallation > should throw error for invalid package directory [0.74ms]
+Packing resolve-test-pkg@1.0.0...
+  Including 1 source files
+✓ Package created: resolve-test-pkg-1.0.0.tgz
+  Size: 0.24 KB
+Installing resolve-test-pkg@1.0.0...
+✓ Installed resolve-test-pkg@1.0.0
+(pass) PackageManager > Package Resolution > should resolve local package import [14.01ms]
+(pass) PackageManager > Package Resolution > should return nullptr for non-existent package [0.17ms]
+(pass) PackageManager > Package Manifest Validation > should accept valid package names [0.30ms]
+(pass) PackageManager > Package Manifest Validation > should accept valid semantic versions [0.24ms]
+(pass) PackageManager > Package Manifest Validation > should reject invalid semantic versions [0.38ms]
+(pass) PackageManager > Package Hash Calculation > should calculate consistent hash for same content [0.30ms]
+(pass) PackageManager > Package Hash Calculation > should calculate different hash for different content [0.24ms]
+
+tests/BugFix_Cast.test.ts:
+(pass) Bug Fix - Invalid Casts > should reject cast from i32 to string [85.67ms]
+
+tests/StringInterpolation.test.ts:
+(pass) String Interpolation > should parse basic string interpolation [3.78ms]
+(pass) String Interpolation > should parse expression interpolation [1.20ms]
+(pass) String Interpolation > should parse nested interpolation [1.15ms]
+(pass) String Interpolation > should handle empty interpolation [0.91ms]
+(pass) String Interpolation > should handle only expression [1.32ms]
+
+tests/StructAlignment.test.ts:
+(pass) Struct Alignment & Padding > should align fields correctly [808.67ms]
+
+tests/TypeNarrowing.test.ts:
+(pass) Type Narrowing (as/is) > Parser > should parse 'as' expression [0.95ms]
+(pass) Type Narrowing (as/is) > Parser > should parse 'is' expression [1.03ms]
+(pass) Type Narrowing (as/is) > Parser > should handle precedence correctly [0.67ms]
+(pass) Type Narrowing (as/is) > Parser > should handle chained 'as' [1.10ms]
+(pass) Type Narrowing (as/is) > TypeChecker > should allow valid 'as' casts [76.44ms]
+(pass) Type Narrowing (as/is) > TypeChecker > should allow valid 'is' checks [75.49ms]
+(pass) Type Narrowing (as/is) > TypeChecker > should reject invalid 'as' casts [1.37ms]
+(pass) Type Narrowing (as/is) > TypeChecker > should reject 'is' with undefined type [78.65ms]
+(pass) Type Narrowing (as/is) > TypeChecker > should resolve 'is' result to bool [47.20ms]
+(pass) Type Narrowing (as/is) > CodeGenerator > should generate code for 'as' cast [44.45ms]
+(pass) Type Narrowing (as/is) > CodeGenerator > should generate code for 'is' check [47.28ms]
+(pass) Type Narrowing (as/is) > CodeGenerator > should generate code for 'is' check with different types [52.48ms]
+(pass) Type Narrowing (as/is) > Complex Scenarios > Formatter > should format 'as' without parentheses [0.85ms]
+(pass) Type Narrowing (as/is) > Complex Scenarios > Formatter > should format chained 'as' without parentheses [0.75ms]
+(pass) Type Narrowing (as/is) > Complex Scenarios > Structs and Inheritance > should allow casting struct to parent [51.88ms]
+(pass) Type Narrowing (as/is) > Complex Scenarios > Structs and Inheritance > should check 'is' with inheritance [53.18ms]
+(pass) Type Narrowing (as/is) > Complex Scenarios > Specs > should check 'is' with specs [49.68ms]
+(pass) Type Narrowing (as/is) > Complex Scenarios > Enums > should check 'is' with enums [78.69ms]
+
+tests/FormatterInterpolation.test.ts:
+(pass) Formatter - String Interpolation > should format simple interpolated string [2.45ms]
+(pass) Formatter - String Interpolation > should format interpolated string with expression [8.18ms]
+(pass) Formatter - String Interpolation > should format interpolated string with multiple parts [1.95ms]
+(pass) Formatter - String Interpolation > should format interpolated string with escaped characters [1.74ms]
+(pass) Formatter - String Interpolation > should format interpolated string with escaped interpolation start [1.90ms]
+(pass) Formatter - String Interpolation > should format interpolated string with quotes [1.76ms]
+(pass) Formatter - String Interpolation > should format interpolated string with nested expressions [1.99ms]
+
+tests/EnumScope.test.ts:
+(pass) Enum Match with Outer Scope Variables > struct variant with outer scope variable [216.60ms]
+(pass) Enum Match with Outer Scope Variables > tuple variant with outer scope variable [138.76ms]
+(pass) Enum Match with Outer Scope Variables > multiple matches with multiple scope variables [124.25ms]
+(pass) Enum Match with Outer Scope Variables > complex expressions with outer scope variables [113.24ms]
+
+tests/ErrorMessaging.test.ts:
+(pass) Enhanced Error Messaging > should format error with location information [0.61ms]
+(pass) Enhanced Error Messaging > should format error with code snippet [0.32ms]
+(pass) Enhanced Error Messaging > should format multiple errors with summary [0.21ms]
+(pass) Enhanced Error Messaging > should support severity levels [0.10ms]
+(pass) Enhanced Error Messaging > should support related locations [0.13ms]
+(pass) Enhanced Error Messaging > should gracefully handle missing source files [0.05ms]
+(pass) Enhanced Error Messaging > should support JSON output for IDE integration [0.21ms]
+(pass) Enhanced Error Messaging > should format errors without ANSI colors when requested [0.12ms]
+(pass) Enhanced Error Messaging > should show diagnostic severity in output [0.12ms]
+
+tests/BugFixes_Batch2.test.ts:
+(pass) Bug Fixes Batch 2 > BUG-094: should reject generic instantiation with void [47.21ms]
+(pass) Bug Fixes Batch 2 > BUG-095: should reject generic array of void [44.61ms]
+(pass) Bug Fixes Batch 2 > should allow generic instantiation with *void [45.81ms]
+
+tests/CLI.test.ts:
+(pass) CLI Tests > should lint files and report errors [274.98ms]
+(pass) CLI Tests > should report enhanced errors with codes [481.35ms]
+(pass) CLI Tests > should compile with --dwarf flag and generate debug metadata [580.02ms]
+(pass) CLI Tests > should format files [239.95ms]
+
+tests/Lambda.runtime.test.ts:
+(pass) Lambda Runtime > should execute simple lambda [444.33ms]
+(pass) Lambda Runtime > should capture variables [454.96ms]
+(pass) Lambda Runtime > should handle nested lambdas [444.50ms]
+(pass) Lambda Runtime > should pass lambda as argument [437.00ms]
+(pass) Lambda Runtime > should return lambda from function [480.58ms]
+
+tests/ParserExtended.test.ts:
+(pass) Parser - Extended Tests > Expressions > should parse binary expressions with correct precedence [0.54ms]
+(pass) Parser - Extended Tests > Expressions > should parse unary expressions [0.45ms]
+(pass) Parser - Extended Tests > Expressions > should parse ternary operator [0.44ms]
+(pass) Parser - Extended Tests > Expressions > should parse nested ternary operators [0.52ms]
+(pass) Parser - Extended Tests > Expressions > should parse cast expressions [0.43ms]
+(pass) Parser - Extended Tests > Expressions > should parse sizeof expressions [0.48ms]
+(pass) Parser - Extended Tests > Expressions > should parse array subscript [0.53ms]
+(pass) Parser - Extended Tests > Expressions > should parse member access [0.46ms]
+(pass) Parser - Extended Tests > Expressions > should parse member access [0.40ms]
+(pass) Parser - Extended Tests > Expressions > should parse compound assignment operators [0.67ms]
+(pass) Parser - Extended Tests > Expressions > should parse function calls with multiple arguments [0.55ms]
+(pass) Parser - Extended Tests > Expressions > should parse generic function calls [0.85ms]
+(pass) Parser - Extended Tests > Statements > should parse if statements [0.98ms]
+(pass) Parser - Extended Tests > Statements > should parse if-else statements [0.74ms]
+(pass) Parser - Extended Tests > Statements > should parse if-else-if chains [0.86ms]
+(pass) Parser - Extended Tests > Statements > should parse loop statements [0.61ms]
+(pass) Parser - Extended Tests > Statements > should parse loop with condition [0.73ms]
+(pass) Parser - Extended Tests > Statements > should parse for-style loops [0.85ms]
+(pass) Parser - Extended Tests > Statements > should parse switch statements [1.21ms]
+(pass) Parser - Extended Tests > Statements > should parse return statements [0.57ms]
+(pass) Parser - Extended Tests > Statements > should parse break and continue [0.60ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse basic type aliases [0.29ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse struct type aliases [0.24ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse nested type aliases [0.27ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse struct with inheritance [0.28ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse nested structs [0.32ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse generic structs [0.24ms]
+(pass) Parser - Extended Tests > Type Declarations > should parse generic structs with multiple type parameters [0.26ms]
+(pass) Parser - Extended Tests > Function Declarations > should parse generic functions [0.38ms]
+(pass) Parser - Extended Tests > Function Declarations > should parse variadic functions [0.30ms]
+(pass) Parser - Extended Tests > Function Declarations > should parse function with no return type (void) [0.27ms]
+(pass) Parser - Extended Tests > Function Declarations > should parse function overloads [0.47ms]
+(pass) Parser - Extended Tests > Function Declarations > should parse struct methods [0.47ms]
+(pass) Parser - Extended Tests > Function Declarations > should parse static methods [0.52ms]
+(pass) Parser - Extended Tests > Import/Export > should parse import statements [0.32ms]
+(pass) Parser - Extended Tests > Import/Export > should parse export statements [0.83ms]
+(pass) Parser - Extended Tests > Import/Export > should parse multiple imports from same module [0.41ms]
+(pass) Parser - Extended Tests > Array and Pointer Types > should parse array types [0.35ms]
+(pass) Parser - Extended Tests > Array and Pointer Types > should parse multi-dimensional arrays [0.28ms]
+(pass) Parser - Extended Tests > Array and Pointer Types > should parse pointer types [0.22ms]
+(pass) Parser - Extended Tests > Array and Pointer Types > should parse double pointers [0.22ms]
+(pass) Parser - Extended Tests > Array and Pointer Types > should parse array of pointers [0.27ms]
+(pass) Parser - Extended Tests > Literals > should parse integer literals [0.61ms]
+(pass) Parser - Extended Tests > Literals > should parse float literals [0.65ms]
+(pass) Parser - Extended Tests > Literals > should parse string literals [0.69ms]
+(pass) Parser - Extended Tests > Literals > should parse character literals [0.85ms]
+(pass) Parser - Extended Tests > Literals > should parse boolean literals [0.58ms]
+(pass) Parser - Extended Tests > Literals > should parse nullptr literal [0.36ms]
+(pass) Parser - Extended Tests > Literals > should parse array literals [0.53ms]
+(pass) Parser - Extended Tests > Error Recovery > should report error on missing semicolon [0.77ms]
+(pass) Parser - Extended Tests > Error Recovery > should report error on mismatched braces [0.99ms]
+(pass) Parser - Extended Tests > Error Recovery > should report error on invalid type syntax [0.52ms]
+
+tests/BitwiseEdgeCases.test.ts:
+(pass) Bitwise Edge Cases > should handle shift operations [449.20ms]
+
+tests/MatchComplex.test.ts:
+(pass) Complex Match Expressions > Match with guards on Enum [454.65ms]
+(pass) Complex Match Expressions > Match with Enum Data (Tagged Union) [442.54ms]
+
+tests/Struct.runtime.test.ts:
+(pass) Struct Runtime > should create struct and access fields [449.57ms]
+(pass) Struct Runtime > should call struct methods [450.74ms]
+(pass) Struct Runtime > should handle inheritance and dynamic dispatch [458.58ms]
+
+tests/CodeGenerator.test.ts:
+(pass) CodeGenerator > should generate code for a simple function [45.52ms]
+(pass) CodeGenerator > should generate code for arithmetic [41.98ms]
+(pass) CodeGenerator > should generate code for struct methods [45.65ms]
+
+tests/ConstCorrectness.test.ts:
+(pass) Const Correctness > should parse Func<void>(const int) [43.89ms]
+(pass) Const Correctness > should parse |x: const int| lambda [43.03ms]
+(pass) Const Correctness > should fail assignment to const param in lambda [40.76ms]
+(pass) Const Correctness > should fail assignment to const local in lambda [42.81ms]
+(pass) Const Correctness > should fail assignment to captured const variable [44.72ms]
+
+tests/ErrorFormattingDemo.test.ts:
+
+📁 Created temporary directory: /tmp/bpl-error-demo-BMJ68V
+
+
+🔴 ERROR: Unknown Token
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[unknown_token.bpl:2:3]: Unexpected syntax: 'local x: int = 10$$$'
+
+     1 | frame main() {
+     2 |   local x: int = 10$$$;
+       |    ^^^^^^^^^^^^^^^^^^^^^
+     3 | }
+
+help: Fix the syntax error.
+
+1 error
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Unknown/unexpected token [1.34ms]
+
+🔴 ERROR: Missing Semicolon
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[missing_semicolon.bpl:2:3]: Unexpected syntax: 'local x: int = 10
+  local y: int = 20'
+
+     1 | frame main() {
+     2 |   local x: int = 10
+     3 |   local y: int = 20;
+       |    ^^^^^^^^^^^^^^^^^^
+     4 |   println(x);
+     5 | }
+
+help: Fix the syntax error.
+
+1 error
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Missing semicolon [0.98ms]
+
+🔴 ERROR: Type Mismatch
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[E001][type_mismatch.bpl:7:3]: Type mismatch: cannot assign double to f64
+
+     5 | frame main() {
+     6 |   local x: i32 = 10;
+     7 |   local y: f64 = 3.14;
+       |    ^^^^^^^^^^^^^^^^^^^^
+     8 |   local result: i32 = add(x, y);
+     9 |   println(result);
+
+help: Ensure the initializer type matches the declared type.
+
+error[type_mismatch.bpl:8:30]: Undefined symbol 'y'
+
+     6 |   local x: i32 = 10;
+     7 |   local y: f64 = 3.14;
+     8 |   local result: i32 = add(x, y);
+       |                               ^
+     9 |   println(result);
+    10 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[type_mismatch.bpl:9:3]: Undefined symbol 'println'
+
+     7 |   local y: f64 = 3.14;
+     8 |   local result: i32 = add(x, y);
+     9 |   println(result);
+       |    ^^^^^^^
+    10 | }
+
+help: Ensure the variable or function is declared before use.
+
+3 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Type mismatch [39.74ms]
+
+🔴 ERROR: Undefined Variable
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[undefined_var.bpl:3:18]: Undefined symbol 'z'
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+     3 |   local y: int = z + 5;
+       |                   ^
+     4 |   println(x + y);
+     5 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[undefined_var.bpl:4:3]: Undefined symbol 'println'
+
+     2 |   local x: int = 10;
+     3 |   local y: int = z + 5;
+     4 |   println(x + y);
+       |    ^^^^^^^
+     5 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[undefined_var.bpl:2:3]: Unused variable 'x'
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+       |    ^^^^^^^^^^^^^^^^^^
+     3 |   local y: int = z + 5;
+     4 |   println(x + y);
+
+help: Variable is declared but never used.
+
+3 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Undefined variable [43.14ms]
+
+🔴 ERROR: Invalid Struct Member
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[invalid_member.bpl:8:3]: Undefined symbol 'println'
+
+     6 | frame main() {
+     7 |   local p: Person = Person { name: "Alice", age: 30 };
+     8 |   println(p.nonexistent);
+       |    ^^^^^^^
+     9 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[invalid_member.bpl:7:3]: Unused variable 'p'
+
+     5 | 
+     6 | frame main() {
+     7 |   local p: Person = Person { name: "Alice", age: 30 };
+       |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     8 |   println(p.nonexistent);
+     9 | }
+
+help: Variable is declared but never used.
+
+2 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Invalid struct member access [47.85ms]
+
+🔴 ERROR: Function Argument Mismatch
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[arg_mismatch.bpl:2:3]: Undefined symbol 'println'
+
+     1 | frame greet(name: string, age: i32) ret void {
+     2 |   println("Hello, " + name);
+       |    ^^^^^^^
+     3 | }
+     4 | 
+
+help: Ensure the variable or function is declared before use.
+
+error[arg_mismatch.bpl:1:13]: Unused variable 'name'
+
+     1 | frame greet(name: string, age: i32) ret void {
+       |              ^^^^^^^^^^^^
+     2 |   println("Hello, " + name);
+     3 | }
+
+help: Variable is declared but never used.
+
+error[arg_mismatch.bpl:1:27]: Unused variable 'age'
+
+     1 | frame greet(name: string, age: i32) ret void {
+       |                            ^^^^^^^^
+     2 |   println("Hello, " + name);
+     3 | }
+
+help: Variable is declared but never used.
+
+error[arg_mismatch.bpl:6:3]: No matching function for call to 'greet' with 1 arguments.
+
+     4 | 
+     5 | frame main() {
+     6 |   greet("Alice");
+       |    ^^^^^^^^^^^^^^
+     7 |   greet("Bob", 25, "extra");
+     8 | }
+
+help: Available overloads:
+Func<void>(*i8, i32)
+
+error[arg_mismatch.bpl:7:3]: No matching function for call to 'greet' with 3 arguments.
+
+     5 | frame main() {
+     6 |   greet("Alice");
+     7 |   greet("Bob", 25, "extra");
+       |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+     8 | }
+
+help: Available overloads:
+Func<void>(*i8, i32)
+
+5 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Function argument count mismatch [45.96ms]
+
+🔴 ERROR: Invalid Array Access Type
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[E001][array_type_error.bpl:3:3]: Type mismatch: cannot assign i32 to *i8
+
+     1 | frame main() {
+     2 |   local arr: i32[5] = [1, 2, 3, 4, 5];
+     3 |   local x: string = arr[0];
+       |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+     4 |   println(x);
+     5 | }
+
+help: Ensure the initializer type matches the declared type.
+
+error[array_type_error.bpl:4:3]: Undefined symbol 'println'
+
+     2 |   local arr: i32[5] = [1, 2, 3, 4, 5];
+     3 |   local x: string = arr[0];
+     4 |   println(x);
+       |    ^^^^^^^
+     5 | }
+
+help: Ensure the variable or function is declared before use.
+
+2 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Invalid array access [45.88ms]
+
+🔴 ERROR: Duplicate Declaration
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[duplicate_decl.bpl:3:3]: Variable 'x' is already declared in this scope
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+     3 |   local x: int = 20;
+       |    ^^^^^^^^^^^^^^^^^^
+     4 |   println(x);
+     5 | }
+
+help: Cannot redeclare 'x' in the same scope.
+
+error[duplicate_decl.bpl:4:3]: Undefined symbol 'println'
+
+     2 |   local x: int = 10;
+     3 |   local x: int = 20;
+     4 |   println(x);
+       |    ^^^^^^^
+     5 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[duplicate_decl.bpl:2:3]: Unused variable 'x'
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+       |    ^^^^^^^^^^^^^^^^^^
+     3 |   local x: int = 20;
+     4 |   println(x);
+
+help: Variable is declared but never used.
+
+3 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Duplicate declarations [44.14ms]
+
+🔴 ERROR: Invalid Return Type
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[invalid_return.bpl:2:3]: Return type mismatch: expected i32, got *i8
+
+     1 | frame getValue() ret i32 {
+     2 |   return "not a number";
+       |    ^^^^^^^^^^^^^^^^^^^^^^
+     3 | }
+     4 | 
+
+help: Ensure the returned value matches the function's return type.
+
+error[invalid_return.bpl:7:3]: Undefined symbol 'println'
+
+     5 | frame main() {
+     6 |   local x: i32 = getValue();
+     7 |   println(x);
+       |    ^^^^^^^
+     8 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[invalid_return.bpl:6:3]: Unused variable 'x'
+
+     4 | 
+     5 | frame main() {
+     6 |   local x: i32 = getValue();
+       |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+     7 |   println(x);
+     8 | }
+
+help: Variable is declared but never used.
+
+3 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Invalid return type [46.50ms]
+
+🔴 ERROR: Missing Closing Brace
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[missing_brace.bpl:1:1]: Unexpected syntax: 'frame main() {
+  local x: int = 10'
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+       |  ^^^^^^^^^^^^^^^^^^^^
+     3 |   println(x);
+
+help: Fix the syntax error.
+
+1 error
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > ERROR: Missing closing brace [0.84ms]
+
+🟡 DEMO: Error with Full Context
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[demo_error.bpl:2:3]: Unexpected syntax: '// Line 2: comment
+  local sum: i32 = a + b'
+
+     1 | frame calculate(a: i32, b: i32) ret i32 {
+     2 |   // Line 2: comment
+     3 |   local sum: i32 = a + b;
+       |    ^^^^^^^^^^^^^^^^^^^^^^^
+     4 |   local diff: i32 = a - b;
+     5 |   local product: i32 = a * b_undefined;  // ERROR: undefined variable
+
+help: Fix the syntax error.
+
+1 error
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > DEMO: Error with context lines and proper formatting [1.22ms]
+
+🟠 DEMO: Multiple Related Errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[multi_errors.bpl:3:22]: Undefined symbol 'undefined1'
+
+     1 | frame process() ret void {
+     2 |   local x: int = 10;
+     3 |   local y: int = x + undefined1;
+       |                       ^^^^^^^^^^
+     4 |   local z: int = y + undefined2;
+     5 |   println(z);
+
+help: Ensure the variable or function is declared before use.
+
+error[multi_errors.bpl:4:18]: Undefined symbol 'y'
+
+     2 |   local x: int = 10;
+     3 |   local y: int = x + undefined1;
+     4 |   local z: int = y + undefined2;
+       |                   ^
+     5 |   println(z);
+     6 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[multi_errors.bpl:5:3]: Undefined symbol 'println'
+
+     3 |   local y: int = x + undefined1;
+     4 |   local z: int = y + undefined2;
+     5 |   println(z);
+       |    ^^^^^^^
+     6 | }
+     7 | 
+
+help: Ensure the variable or function is declared before use.
+
+3 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > 🟠 DEMO: Multiple related errors with hint messages [51.62ms]
+
+💡 DEMO: Error with Hint/Suggestion
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[error_with_hint.bpl:3:25]: Unexpected syntax: '// Type mismatch - trying to assign i32 to string
+  println(y)'
+
+     1 | frame main() {
+     2 |   local x: i32 = 42;
+     3 |   local y: string = x;  // Type mismatch - trying to assign i32 to string
+     4 |   println(y);
+       |                          ^
+     5 | }
+
+help: Consider casting the value using 'cast<string>(x)' or using string conversion
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > DEMO: Error with hint and suggestion [0.95ms]
+
+🔗 DEMO: Error with Related Locations
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[main.bpl:4:18]: Type mismatch in function call
+
+     2 | 
+     3 | frame main() {
+     4 |   local result: i32 = calc(10, 20);
+       |                   ^^^^^^^^^^^^
+     5 |   println(result);
+     6 | }
+
+help: Expected type i32 but got f64
+
+related locations:
+  main.bpl:1:9: Function imported from here
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > DEMO: Error with related locations (cross-reference) [0.37ms]
+
+📋 DEMO: Comprehensive Error Report
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+error[comprehensive.bpl:3:18]: Undefined symbol 'undefined_var'
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+     3 |   local y: int = undefined_var;
+       |                   ^^^^^^^^^^^^^
+     4 |   local z: i32 = "string";
+     5 |   println(x + y + z);
+
+help: Ensure the variable or function is declared before use.
+
+error[E001][comprehensive.bpl:4:3]: Type mismatch: cannot assign *i8 to i32
+
+     2 |   local x: int = 10;
+     3 |   local y: int = undefined_var;
+     4 |   local z: i32 = "string";
+       |    ^^^^^^^^^^^^^^^^^^^^^^^^
+     5 |   println(x + y + z);
+     6 | }
+
+help: Ensure the initializer type matches the declared type.
+
+error[comprehensive.bpl:5:3]: Undefined symbol 'println'
+
+     3 |   local y: int = undefined_var;
+     4 |   local z: i32 = "string";
+     5 |   println(x + y + z);
+       |    ^^^^^^^
+     6 | }
+
+help: Ensure the variable or function is declared before use.
+
+error[comprehensive.bpl:2:3]: Unused variable 'x'
+
+     1 | frame main() {
+     2 |   local x: int = 10;
+       |    ^^^^^^^^^^^^^^^^^^
+     3 |   local y: int = undefined_var;
+     4 |   local z: i32 = "string";
+
+help: Variable is declared but never used.
+
+4 errors
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(pass) Error Formatting Demo > DEMO: Comprehensive error summary report [49.32ms]
+
+tests/ComplexTypeNarrowing.test.ts:
+(pass) Complex Type Narrowing > Formatter > should format 'as' without parentheses [1.47ms]
+(pass) Complex Type Narrowing > Formatter > should format chained 'as' without parentheses [0.60ms]
+(pass) Complex Type Narrowing > Structs and Inheritance > should allow casting struct to parent [41.64ms]
+(pass) Complex Type Narrowing > Structs and Inheritance > should check 'is' with inheritance [39.38ms]
+(pass) Complex Type Narrowing > Specs > should check 'is' with specs [43.28ms]
+(pass) Complex Type Narrowing > Enums > should check 'is' with enums [47.56ms]
+
+tests/MatchNoImplicitReturn.test.ts:
+(pass) Match No Implicit Return > should fail if match arm block has no explicit return when type is expected [48.26ms]
+(pass) Match No Implicit Return > should pass if match arm block has explicit return [42.00ms]
+(pass) Match No Implicit Return > should pass if match arm is an expression [48.11ms]
+
+tests/Variadic.test.ts:
+(pass) Variadic Functions > should support homogeneous variadics with explicit count [44.82ms]
+(pass) Variadic Functions > should fail if homogeneous variadic arguments have wrong type [41.26ms]
+(pass) Variadic Functions > should support heterogeneous variadics (Any) [46.62ms]
+(pass) Variadic Functions > should fail if variadic function does not have count parameter [41.84ms]
+(pass) Variadic Functions > should fail if count parameter is not int [43.64ms]
+(pass) Variadic Functions > should fail if non-variadic arguments are missing [45.91ms]
+(pass) Variadic Functions > should support empty variadic arguments [47.32ms]
+
+tests/GenericsConstraints.test.ts:
+(pass) Generics Constraints > Basic constraint enforcement [360.15ms]
+(pass) Generics Constraints > Valid constraint usage [458.75ms]
+
+tests/OperatorOverloading.test.ts:
+(pass) Operator Overloading Tests > Positive Tests - Should Compile and Run > should handle basic arithmetic operators (+, -, *, /, %) [475.85ms]
+(pass) Operator Overloading Tests > Positive Tests - Should Compile and Run > should handle bitwise operators (&, |, ^, ~, <<, >>) [446.02ms]
+(pass) Operator Overloading Tests > Positive Tests - Should Compile and Run > should handle comparison operators (<, <=, >, >=, ==, !=) [453.51ms]
+(pass) Operator Overloading Tests > Positive Tests - Should Compile and Run > should handle unary operators (-, ~, +) [458.02ms]
+(pass) Operator Overloading Tests > Positive Tests - Should Compile and Run > should handle callable operator (__call__) [511.13ms]
+(pass) Operator Overloading Tests > Positive Tests - Should Compile and Run > should handle complex number arithmetic [470.64ms]
+(pass) Operator Overloading Tests > Negative Tests - Should Fail Compilation > should reject operator overload with wrong number of parameters [600.93ms]
+(pass) Operator Overloading Tests > Negative Tests - Should Fail Compilation > should reject operator overload with wrong return type for comparison [468.81ms]
+(pass) Operator Overloading Tests > Negative Tests - Should Fail Compilation > should reject use of operator without overload [439.50ms]
+(pass) Operator Overloading Tests > Negative Tests - Should Fail Compilation > should reject static operator overload [493.19ms]
+(pass) Operator Overloading Tests > Negative Tests - Should Fail Compilation > should reject calling non-callable object [540.41ms]
+(pass) Operator Overloading Tests > Edge Cases > should handle operator overload with complex types [814.70ms]
+(pass) Operator Overloading Tests > Edge Cases > should handle chained operator calls [1006.91ms]
+(pass) Operator Overloading Tests > Edge Cases > should handle operator precedence correctly [813.42ms]
+
+tests/EdgeCases.test.ts:
+(pass) Edge Cases and Error Handling > Nullptr and Undefined Handling > should handle nullptr pointer assignment [45.88ms]
+(pass) Edge Cases and Error Handling > Nullptr and Undefined Handling > should reject nullptr assignment to non-pointer [44.94ms]
+(pass) Edge Cases and Error Handling > Nullptr and Undefined Handling > should handle nullptr in comparisons [46.02ms]
+(pass) Edge Cases and Error Handling > Nullptr and Undefined Handling > should handle nullptr in ternary operator [51.48ms]
+(pass) Edge Cases and Error Handling > Type System Edge Cases > should handle void* to specific pointer cast [60.24ms]
+(pass) Edge Cases and Error Handling > Type System Edge Cases > should handle pointer to integer cast [58.00ms]
+(pass) Edge Cases and Error Handling > Type System Edge Cases > should handle integer to pointer cast [57.66ms]
+(pass) Edge Cases and Error Handling > Type System Edge Cases > should handle deeply nested generic types [49.73ms]
+(pass) Edge Cases and Error Handling > Type System Edge Cases > should handle function pointer types [49.62ms]
+(pass) Edge Cases and Error Handling > Integer Overflow and Underflow > should handle maximum integer values [54.63ms]
+(pass) Edge Cases and Error Handling > Integer Overflow and Underflow > should handle minimum integer values [54.95ms]
+(pass) Edge Cases and Error Handling > Integer Overflow and Underflow > should handle unsigned integer max [51.76ms]
+(pass) Edge Cases and Error Handling > Float Special Values > should handle infinity [39.58ms]
+(pass) Edge Cases and Error Handling > Float Special Values > should handle negative infinity [49.88ms]
+(pass) Edge Cases and Error Handling > Float Special Values > should handle very small floats [48.98ms]
+(pass) Edge Cases and Error Handling > Float Special Values > should handle very large floats [47.72ms]
+(pass) Edge Cases and Error Handling > String Edge Cases > should handle empty string [49.12ms]
+(pass) Edge Cases and Error Handling > String Edge Cases > should handle string with escape sequences [57.48ms]
+(pass) Edge Cases and Error Handling > String Edge Cases > should handle string with quotes [46.03ms]
+(pass) Edge Cases and Error Handling > String Edge Cases > should handle string with backslashes [47.85ms]
+(pass) Edge Cases and Error Handling > String Edge Cases > should handle long strings [50.42ms]
+(pass) Edge Cases and Error Handling > Array Edge Cases > should handle zero-length arrays [0.09ms]
+(pass) Edge Cases and Error Handling > Array Edge Cases > should handle very large arrays [51.56ms]
+(pass) Edge Cases and Error Handling > Array Edge Cases > should handle multi-dimensional arrays [51.49ms]
+(pass) Edge Cases and Error Handling > Array Edge Cases > should handle array of pointers [47.89ms]
+(pass) Edge Cases and Error Handling > Array Edge Cases > should handle pointer to array [0.08ms]
+(pass) Edge Cases and Error Handling > Pointer Arithmetic Edge Cases > should handle pointer subtraction [53.08ms]
+(pass) Edge Cases and Error Handling > Pointer Arithmetic Edge Cases > should handle pointer comparison [50.75ms]
+(pass) Edge Cases and Error Handling > Pointer Arithmetic Edge Cases > should handle double pointer dereference [59.49ms]
+(pass) Edge Cases and Error Handling > Pointer Arithmetic Edge Cases > should handle address of array element [52.54ms]
+(pass) Edge Cases and Error Handling > Struct Edge Cases > should handle empty struct [46.45ms]
+(pass) Edge Cases and Error Handling > Struct Edge Cases > should handle struct with single field [49.63ms]
+(pass) Edge Cases and Error Handling > Struct Edge Cases > should handle nested structs [52.16ms]
+(pass) Edge Cases and Error Handling > Struct Edge Cases > should handle struct with array field [62.44ms]
+(pass) Edge Cases and Error Handling > Struct Edge Cases > should handle struct with pointer field [57.82ms]
+(pass) Edge Cases and Error Handling > Function Edge Cases > should handle function with no parameters [58.48ms]
+(pass) Edge Cases and Error Handling > Function Edge Cases > should handle function with many parameters [51.56ms]
+(pass) Edge Cases and Error Handling > Function Edge Cases > should handle deeply recursive function [49.22ms]
+(pass) Edge Cases and Error Handling > Function Edge Cases > should handle mutually recursive functions [45.16ms]
+(pass) Edge Cases and Error Handling > Function Edge Cases > should handle function returning void [49.24ms]
+(pass) Edge Cases and Error Handling > Control Flow Edge Cases > should handle infinite loop [50.77ms]
+(pass) Edge Cases and Error Handling > Control Flow Edge Cases > should handle deeply nested if statements [54.19ms]
+(pass) Edge Cases and Error Handling > Control Flow Edge Cases > should handle switch with no cases [51.69ms]
+(pass) Edge Cases and Error Handling > Control Flow Edge Cases > should handle switch with many cases [52.65ms]
+(pass) Edge Cases and Error Handling > Control Flow Edge Cases > should handle multiple break statements [61.08ms]
+(pass) Edge Cases and Error Handling > Control Flow Edge Cases > should handle multiple return statements [56.12ms]
+(pass) Edge Cases and Error Handling > Expression Complexity > should handle very long expressions [50.94ms]
+(pass) Edge Cases and Error Handling > Expression Complexity > should handle deeply nested parentheses [47.73ms]
+(pass) Edge Cases and Error Handling > Expression Complexity > should handle chained function calls [54.42ms]
+(pass) Edge Cases and Error Handling > Expression Complexity > should handle chained member access [46.66ms]
+(pass) Edge Cases and Error Handling > Expression Complexity > should handle mixed operators with complex precedence [53.99ms]
+(pass) Edge Cases and Error Handling > Variable Shadowing > should handle variable shadowing in nested scopes [46.95ms]
+(pass) Edge Cases and Error Handling > Variable Shadowing > should handle parameter shadowing [47.87ms]
+(pass) Edge Cases and Error Handling > Generic Edge Cases > should handle generic function with multiple type parameters [51.13ms]
+(pass) Edge Cases and Error Handling > Generic Edge Cases > should handle generic struct with generic method [53.64ms]
+(pass) Edge Cases and Error Handling > Memory Safety Edge Cases > should handle returning address of local variable [56.66ms]
+(pass) Edge Cases and Error Handling > Memory Safety Edge Cases > should handle dangling pointer [51.32ms]
+
+tests/BugFixes_Batch3.test.ts:
+(pass) Bug Fixes Batch 3 > BUG-096: should support parentheses in type declarations [48.85ms]
+(pass) Bug Fixes Batch 3 > BUG-098: should support array of tuples [50.22ms]
+(pass) Bug Fixes Batch 3 > BUG-085: should support sizeof<int[10]>() [48.82ms]
+
+tests/Lambda.frontend.test.ts:
+(pass) Lambda Frontend > should lex lambda tokens correctly [1.92ms]
+(pass) Lambda Frontend > should parse lambda expression [1.16ms]
+
+tests/Enum.test.ts:
+(pass) Enum Parser > should parse enum with unit variants [1.00ms]
+(pass) Enum Parser > should parse enum with tuple variants [0.88ms]
+(pass) Enum Parser > should parse enum with struct variants [0.95ms]
+(pass) Enum Parser > should parse generic enum [0.75ms]
+(pass) Enum Parser > should parse match expression [1.32ms]
+(pass) Enum Type Checker - Valid Cases > should accept unit variant construction [54.48ms]
+(pass) Enum Type Checker - Valid Cases > should accept tuple variant construction [53.84ms]
+(pass) Enum Type Checker - Valid Cases > should accept enum as function parameter [56.33ms]
+(pass) Enum Type Checker - Valid Cases > should accept enum as return type [52.82ms]
+(pass) Enum Type Checker - Valid Cases > should accept match expression with all variants [50.69ms]
+(pass) Enum Type Checker - Valid Cases > should accept nested match expressions [47.97ms]
+(pass) Enum Type Checker - Valid Cases > should accept enum used with struct methods [52.06ms]
+(pass) Enum Type Checker - Error Cases > should reject undefined enum type [48.37ms]
+(pass) Enum Type Checker - Error Cases > should reject undefined enum variant [48.29ms]
+(pass) Enum Type Checker - Error Cases > should reject tuple variant with wrong number of arguments [44.15ms]
+(pass) Enum Type Checker - Error Cases > should reject tuple variant with wrong argument types [48.50ms]
+(pass) Enum Type Checker - Error Cases > should reject unit variant with arguments [48.87ms]
+(pass) Enum Type Checker - Error Cases > should reject enum variant as standalone value [58.24ms]
+(pass) Enum Type Checker - Error Cases > should reject incomplete match expression [0.13ms]
+(pass) Enum Type Checker - Error Cases > should reject wrong enum type in match [55.28ms]
+(pass) Enum Type Checker - Error Cases > should reject duplicate variant names in enum [0.12ms]
+(pass) Enum Type Checker - Error Cases > should reject using enum variant without enum name [52.25ms]
+(pass) Enum Type Checker - Error Cases > should reject assigning wrong enum type [50.62ms]
+(pass) Enum Type Checker - Error Cases > should reject tuple variant without call syntax [0.06ms]
+(pass) Enum Integration Tests > should handle complex enum usage [51.06ms]
+(pass) Enum Integration Tests > should handle multiple enums in same scope [54.08ms]
+(pass) Enum Integration Tests > should handle enum in conditional expressions [55.02ms]
+(pass) Enum Pattern Destructuring > should accept tuple pattern destructuring with two variables [58.19ms]
+(pass) Enum Pattern Destructuring > should accept tuple pattern destructuring with arithmetic [55.58ms]
+(pass) Enum Pattern Destructuring > should accept multiple tuple patterns in same match [57.33ms]
+(pass) Enum Pattern Destructuring > should accept wildcard in tuple pattern [52.42ms]
+(pass) Enum Pattern Destructuring > should accept nested destructuring with multiple tuple variants [61.44ms]
+(pass) Enum Pattern Destructuring > should accept pattern variables in complex expressions [57.27ms]
+(pass) Enum Pattern Destructuring > should accept different variable names in different match arms [51.89ms]
+(pass) Enum Pattern Destructuring > should reject wrong number of bindings in tuple pattern [52.22ms]
+(pass) Enum Pattern Destructuring > should reject too many bindings in tuple pattern [53.53ms]
+(pass) Enum Pattern Destructuring > should reject tuple pattern on unit variant [45.03ms]
+(pass) Enum Pattern Destructuring > should accept destructuring with string type [44.92ms]
+(pass) Enum Match Expression Edge Cases > should accept match with wildcard pattern [50.41ms]
+(pass) Enum Match Expression Edge Cases > should accept match with all wildcards except one [54.69ms]
+(pass) Enum Match Expression Edge Cases > should handle match expression as function argument [52.80ms]
+(pass) Enum Match Expression Edge Cases > should handle match in binary expression [58.46ms]
+(pass) Enum Match Expression Edge Cases > should reject match on non-enum type [54.75ms]
+(pass) Enum Match Expression Edge Cases > should reject match arms with inconsistent return types [46.31ms]
+(pass) Enum Match Expression Edge Cases > should reject empty match expression [50.65ms]
+(pass) Enum with Complex Types > should accept enum variant with pointer type [53.03ms]
+(pass) Enum with Complex Types > should accept enum variant with array type [54.87ms]
+(pass) Enum with Complex Types > should accept enum variant with multiple different types [58.88ms]
+(pass) Enum with Complex Types > should accept destructuring mixed types [55.13ms]
+(pass) Enum Negative Cases > should reject enum with no variants [0.66ms]
+(pass) Enum Negative Cases > should reject enum variant shadowing [51.22ms]
+(pass) Enum Negative Cases > should reject match without all variants and no wildcard [56.26ms]
+(pass) Enum Negative Cases > should reject duplicate patterns in match [0.07ms]
+(pass) Enum Negative Cases > should reject accessing enum variant as value without construction [60.28ms]
+(pass) Enum Negative Cases > should reject pattern with wrong enum name [61.29ms]
+(pass) Enum Negative Cases > should reject mixing pattern types incorrectly [45.56ms]
+(pass) Enum Struct Variant Construction > should parse struct variant construction syntax [1.04ms]
+(pass) Enum Struct Variant Construction > should accept struct variant with single field [55.40ms]
+(pass) Enum Struct Variant Construction > should accept struct variant with multiple fields [55.09ms]
+(pass) Enum Struct Variant Construction > should accept struct variant in match pattern [52.28ms]
+(pass) Enum Struct Variant Construction > should accept struct variant with multiple fields in pattern [57.10ms]
+(pass) Enum Struct Variant Construction > should reject struct variant with wrong field name [61.55ms]
+(pass) Enum Struct Variant Construction > should reject struct variant with wrong field type [61.40ms]
+(pass) Enum Struct Variant Construction > should reject struct variant construction on non-struct variant [52.40ms]
+(pass) Enum Struct Variant Construction > should reject struct variant construction on tuple variant [61.58ms]
+(pass) Enum Exhaustiveness Checking > should accept exhaustive match with all variants [59.95ms]
+(pass) Enum Exhaustiveness Checking > should accept match with wildcard [52.97ms]
+(pass) Enum Exhaustiveness Checking > should reject non-exhaustive match missing one variant [55.73ms]
+(pass) Enum Exhaustiveness Checking > should reject non-exhaustive match missing multiple variants [52.41ms]
+(pass) Enum Exhaustiveness Checking > should accept exhaustive match with mixed variant types [54.58ms]
+(pass) Enum Generic Instantiation > should parse generic enum declaration [0.88ms]
+(pass) Enum Generic Instantiation > should accept generic enum with inferred type parameters [64.03ms]
+(pass) Enum Import/Export > should parse enum export statements [0.59ms]
+(pass) Enum Import/Export > should accept enum import statements [0.67ms]
+(pass) Enum Import/Export > should accept multiple enum imports [0.67ms]
+(pass) Enum Import/Export > should accept import all for enums [0.76ms]
+(pass) Enum Methods > should parse enum with methods [1.03ms]
+(pass) Enum Methods > should accept calling enum methods [70.72ms]
+(pass) Enum Methods > should reject undefined enum method [59.37ms]
+(pass) Enum Pattern Guards > should parse pattern guard with condition [58.68ms]
+(pass) Enum Pattern Guards > should accept multiple guards for same variant [54.28ms]
+(pass) Enum Pattern Guards > should accept guard with complex condition [60.62ms]
+(pass) Enum Pattern Guards > should reject guard with non-boolean condition [57.87ms]
+(pass) Enum Pattern Guards > should allow guards with wildcard fallback [57.03ms]
+(pass) Enum Pattern Guards > should check exhaustiveness with guards [49.79ms]
+(pass) Enum Type Matching with match<Type> > should parse match<Type> expression [57.92ms]
+(pass) Enum Type Matching with match<Type> > should check variant type correctly [54.00ms]
+(pass) Enum Type Matching with match<Type> > should work with multiple checks [61.83ms]
+(pass) Enum Type Matching with match<Type> > should work in logical expressions [57.10ms]
+(pass) Enum Type Matching with match<Type> > should return boolean type [55.78ms]
+(pass) Enum Type Matching with match<Type> > should work with all enum variants [62.58ms]
+(pass) Combined Guards and Type Matching > should combine type matching with pattern guards [50.43ms]
+(pass) Combined Guards and Type Matching > should use type matching for early returns [56.24ms]
+
+tests/BugFix_StringSubtraction.test.ts:
+(pass) Bug Fix - String Subtraction > should reject subtraction on string [52.31ms]
+
+tests/MatchExplicitReturn.test.ts:
+(pass) Match Explicit Return > should accept explicit return in match arm block [63.24ms]
+(pass) Match Explicit Return > should reject mismatched return types in match arm [1.46ms]
+(pass) Match Explicit Return > should reject return type mismatch with other arms [1.55ms]
+(pass) Match Explicit Return > should handle nested matches with explicit returns [57.07ms]
+(pass) Match Explicit Return > should reject mixed implicit and explicit returns [1.73ms]
+
+tests/BugHunting.test.ts:
+(pass) Bug Hunting - Edge Cases > 1. Primitive Types & Limits > should reject integer overflow for i8 [52.15ms]
+(pass) Bug Hunting - Edge Cases > 1. Primitive Types & Limits > should reject integer overflow for i32 [51.41ms]
+(pass) Bug Hunting - Edge Cases > 1. Primitive Types & Limits > should reject division by zero in constant folding [55.66ms]
+(pass) Bug Hunting - Edge Cases > 2. Control Flow Edge Cases > should reject if statement with non-boolean condition (int) [64.31ms]
+(pass) Bug Hunting - Edge Cases > 2. Control Flow Edge Cases > should reject if statement with non-boolean condition (string) [57.27ms]
+(pass) Bug Hunting - Edge Cases > 2. Control Flow Edge Cases > should reject break outside loop [56.42ms]
+(pass) Bug Hunting - Edge Cases > 2. Control Flow Edge Cases > should reject continue outside loop [48.87ms]
+(pass) Bug Hunting - Edge Cases > 3. Structs & Recursion > should reject self-referential struct without pointer [53.15ms]
+(pass) Bug Hunting - Edge Cases > 3. Structs & Recursion > should accept self-referential struct with pointer [57.65ms]
+(pass) Bug Hunting - Edge Cases > 4. Functions > should reject function with duplicate parameter names [66.51ms]
+(pass) Bug Hunting - Edge Cases > 4. Functions > should reject void function returning value [53.88ms]
+(pass) Bug Hunting - Edge Cases > 4. Functions > should reject non-void function missing return [58.56ms]
+(pass) Bug Hunting - Edge Cases > 5. Enums & Matching > should reject empty match on enum [60.90ms]
+(pass) Bug Hunting - Edge Cases > 5. Enums & Matching > should reject match on non-enum type [105.82ms]
+(pass) Bug Hunting - Edge Cases > 5. Enums & Matching > should reject non-exhaustive match [61.56ms]
+(pass) Bug Hunting - Edge Cases > 6. Arrays > should reject array size 0 [50.54ms]
+(pass) Bug Hunting - Edge Cases > 6. Arrays > should reject negative array size [55.52ms]
+(pass) Bug Hunting - Edge Cases > 7. Switch Statements > should reject duplicate cases in switch [60.18ms]
+(pass) Bug Hunting - Edge Cases > 8. Variable Shadowing > should reject shadowing in same scope [55.59ms]
+(pass) Bug Hunting - Edge Cases > 9. Unreachable Code & Unused Variables > should warn or error on unreachable code after return [50.49ms]
+(pass) Bug Hunting - Edge Cases > 9. Unreachable Code & Unused Variables > should warn or error on unused variable [50.07ms]
+(pass) Bug Hunting - Edge Cases > 10. Type Casting > should reject invalid cast from int to string [47.61ms]
+(pass) Bug Hunting - Edge Cases > 10. Type Casting > should reject invalid cast from struct to int [66.67ms]
+(pass) Bug Hunting - Edge Cases > 6. Array Edge Cases > should reject zero-sized arrays [66.27ms]
+
+tests/TypeCheckerExtended.test.ts:
+(pass) TypeChecker - Extended Tests > Type Compatibility > should accept compatible integer types [54.60ms]
+(pass) TypeChecker - Extended Tests > Type Compatibility > should reject incompatible types [51.24ms]
+(pass) TypeChecker - Extended Tests > Type Compatibility > should allow pointer to *void assignment [52.65ms]
+(pass) TypeChecker - Extended Tests > Type Compatibility > should allow array to pointer decay [53.00ms]
+(pass) TypeChecker - Extended Tests > Function Overloading > should resolve correct overload by parameter types [51.25ms]
+(pass) TypeChecker - Extended Tests > Function Overloading > should resolve overload by parameter count [47.04ms]
+(pass) TypeChecker - Extended Tests > Function Overloading > should fail on ambiguous overload [0.05ms]
+(pass) TypeChecker - Extended Tests > Generics > should instantiate generic function with concrete type [55.11ms]
+(pass) TypeChecker - Extended Tests > Generics > should instantiate generic struct [51.44ms]
+(pass) TypeChecker - Extended Tests > Generics > should fail on type mismatch in generic instantiation [58.58ms]
+(pass) TypeChecker - Extended Tests > Generics > should support nested generic types [48.67ms]
+(pass) TypeChecker - Extended Tests > Inheritance > should allow accessing parent members [59.58ms]
+(pass) TypeChecker - Extended Tests > Inheritance > should allow calling parent methods [50.60ms]
+(pass) TypeChecker - Extended Tests > Inheritance > should allow method override [47.51ms]
+(pass) TypeChecker - Extended Tests > Inheritance > should support multiple inheritance [53.62ms]
+(pass) TypeChecker - Extended Tests > Type Inference > should infer expression types [61.35ms]
+(pass) TypeChecker - Extended Tests > Type Inference > should infer ternary expression type [49.04ms]
+(pass) TypeChecker - Extended Tests > Type Inference > should fail on ternary type mismatch [50.34ms]
+(pass) TypeChecker - Extended Tests > Array and Pointer Operations > should allow array element access [46.05ms]
+(pass) TypeChecker - Extended Tests > Array and Pointer Operations > should allow pointer arithmetic [48.47ms]
+(pass) TypeChecker - Extended Tests > Array and Pointer Operations > should fail on pointer arithmetic with non-integer [53.23ms]
+(pass) TypeChecker - Extended Tests > Array and Pointer Operations > should allow address-of operator [54.68ms]
+(pass) TypeChecker - Extended Tests > Array and Pointer Operations > should allow dereference operator [54.77ms]
+(pass) TypeChecker - Extended Tests > Return Type Checking > should accept matching return type [47.58ms]
+(pass) TypeChecker - Extended Tests > Return Type Checking > should reject mismatched return type [54.46ms]
+(pass) TypeChecker - Extended Tests > Return Type Checking > should require return statement in non-void function [0.10ms]
+(pass) TypeChecker - Extended Tests > Return Type Checking > should allow void functions without return [46.43ms]
+(pass) TypeChecker - Extended Tests > Operator Type Checking > should allow arithmetic on numbers [59.82ms]
+(pass) TypeChecker - Extended Tests > Operator Type Checking > should reject arithmetic on incompatible types [54.61ms]
+(pass) TypeChecker - Extended Tests > Operator Type Checking > should allow comparison operators on compatible types [59.26ms]
+(pass) TypeChecker - Extended Tests > Operator Type Checking > should allow logical operators on booleans [67.85ms]
+(pass) TypeChecker - Extended Tests > Operator Type Checking > should allow bitwise operators on integers [61.26ms]
+(pass) TypeChecker - Extended Tests > Struct Member Access > should allow accessing existing members [51.05ms]
+(pass) TypeChecker - Extended Tests > Struct Member Access > should reject accessing non-existent members [56.36ms]
+(pass) TypeChecker - Extended Tests > Struct Member Access > should allow method calls on structs [46.36ms]
+(pass) TypeChecker - Extended Tests > Cast Operations > should allow valid casts [58.96ms]
+(pass) TypeChecker - Extended Tests > Cast Operations > should allow pointer casts [50.20ms]
+(pass) TypeChecker - Extended Tests > Cast Operations > should allow casting between integer types [56.27ms]
+(pass) TypeChecker - Extended Tests > Variable Scoping > should allow accessing variables in same scope [54.96ms]
+(pass) TypeChecker - Extended Tests > Variable Scoping > should allow accessing variables in outer scope [53.06ms]
+(pass) TypeChecker - Extended Tests > Variable Scoping > should reject accessing variables from inner scope [68.35ms]
+(pass) TypeChecker - Extended Tests > Import/Export Type Checking > should type-check imported functions [47.82ms]
+(pass) TypeChecker - Extended Tests > Nullptr Safety > should allow nullptr assignment to pointers [50.06ms]
+(pass) TypeChecker - Extended Tests > Nullptr Safety > should reject nullptr assignment to non-pointers [51.59ms]
+(pass) TypeChecker - Extended Tests > Loop Type Checking > should type-check loop conditions [49.09ms]
+(pass) TypeChecker - Extended Tests > Loop Type Checking > should allow break and continue in loops [49.88ms]
+(pass) TypeChecker - Extended Tests > Switch Statement Type Checking > should type-check switch expression and cases [49.58ms]
+(pass) TypeChecker - Extended Tests > Switch Statement Type Checking > should reject non-constant case values [0.05ms]
+
+tests/RuntimeValues.test.ts:
+(pass) Runtime Values & Logic > should calculate integer arithmetic correctly [575.08ms]
+(pass) Runtime Values & Logic > should respect operator precedence [642.70ms]
+(pass) Runtime Values & Logic > should handle float arithmetic [655.11ms]
+(pass) Runtime Values & Logic > should handle short-circuit logic [589.62ms]
+(pass) Runtime Values & Logic > should handle loops correctly [566.59ms]
+(pass) Runtime Values & Logic > should handle struct passing by value [591.35ms]
+
+tests/Memory.test.ts:
+(pass) Memory Operations > should handle sizeof operator [553.14ms]
+(pass) Memory Operations > should handle malloc and free [543.34ms]
+(pass) Memory Operations > should handle pointer casting [511.18ms]
+(pass) Memory Operations > should handle nullptr pointer checks [525.96ms]
+
+tests/ModuleResolver.test.ts:
+(pass) ModuleResolver > should resolve a single module without imports [0.98ms]
+(pass) ModuleResolver > should resolve modules with linear dependencies [1.63ms]
+(pass) ModuleResolver > should detect circular dependencies [42.50ms]
+(pass) ModuleResolver > should handle diamond dependencies [2.94ms]
+(pass) ModuleResolver > should fail on missing module [9.92ms]
+
+tests/BugFix_StructLiteral.test.ts:
+(pass) Bug Fix - Struct Literals > should reject struct literal with missing fields [45.22ms]
+
+tests/Lambda.test.ts:
+(pass) Lambda Code Generation > should generate code for a simple non-capturing lambda [44.69ms]
+(pass) Lambda Code Generation > should generate code for a capturing lambda [47.71ms]
+(pass) Lambda Code Generation > should handle nested lambdas [48.34ms]
+(pass) Lambda Code Generation > should pass lambda as argument [47.28ms]
+(pass) Lambda Code Generation > should return lambda from function [48.14ms]
+
+tests/fuzz.test.ts:
+Starting fuzzer for 1000 iterations...
+Generating 20-100 tokens per iteration.
+
+--- Fuzzer Results ---
+Total Iterations: 1000
+Passed (Valid Code Generated?): 0
+Caught Expected Errors: 1000
+Crashes (Unhandled Exceptions): 0
+(pass) Compiler Fuzzing > should handle 1000 random token sequences gracefully [415.17ms]
+
+tests/BugFixes_Batch4.test.ts:
+(pass) BugFixes Batch 4 > BUG-097: Array of function types should allocate correct size [107.41ms]
+(pass) BugFixes Batch 4 > BUG-099: Generic function type aliases substitution [103.20ms]
+(pass) BugFixes Batch 4 > BUG-100: Generic struct type aliases argument count check [53.34ms]
+
+tests/TypeReflection.test.ts:
+(pass) Type Reflection Tests > should compile and run polymorphism [666.73ms]
+(pass) Type Reflection Tests > should compile and run generics_check [673.49ms]
+(pass) Type Reflection Tests > should compile and run match_type [683.37ms]
+(pass) Type Reflection Tests > should compile and run inheritance_match [689.74ms]
+(pass) Type Reflection Tests > should compile and run generic_inheritance [704.81ms]
+
+tests/BugFixes_Batch1.test.ts:
+(pass) Bug Fixes Batch 1 > BUG-056: should reject duplicate enum variants [47.25ms]
+(pass) Bug Fixes Batch 1 > BUG-059: should reject void as function argument [44.53ms]
+(pass) Bug Fixes Batch 1 > BUG-060: should reject array of void [49.31ms]
+(pass) Bug Fixes Batch 1 > BUG-093: should reject struct field of type void [48.30ms]
+(pass) Bug Fixes Batch 1 > should allow *void pointers [58.65ms]
+
+tests/ASTValidator.test.ts:
+(pass) AST Validator - Extended Tests > Program Structure > should have valid program node [0.80ms]
+(pass) AST Validator - Extended Tests > Program Structure > should contain all top-level declarations [5.09ms]
+(pass) AST Validator - Extended Tests > Program Structure > should maintain declaration order [0.97ms]
+(pass) AST Validator - Extended Tests > Function Declaration AST > should have correct function structure [0.77ms]
+(pass) AST Validator - Extended Tests > Function Declaration AST > should parse function parameters correctly [0.56ms]
+(pass) AST Validator - Extended Tests > Function Declaration AST > should handle generic function type parameters [0.50ms]
+(pass) AST Validator - Extended Tests > Function Declaration AST > should parse variadic function parameters [0.34ms]
+(pass) AST Validator - Extended Tests > Function Declaration AST > should parse function body statements [0.71ms]
+(pass) AST Validator - Extended Tests > Struct Declaration AST > should have correct struct structure [0.64ms]
+(pass) AST Validator - Extended Tests > Struct Declaration AST > should parse struct fields correctly [0.95ms]
+(pass) AST Validator - Extended Tests > Struct Declaration AST > should handle struct inheritance [0.61ms]
+(pass) AST Validator - Extended Tests > Struct Declaration AST > should handle struct with parent [0.54ms]
+(pass) AST Validator - Extended Tests > Struct Declaration AST > should parse struct methods [0.85ms]
+(pass) AST Validator - Extended Tests > Struct Declaration AST > should handle generic structs [0.30ms]
+(pass) AST Validator - Extended Tests > Variable Declaration AST > should parse local variable correctly [0.32ms]
+(pass) AST Validator - Extended Tests > Variable Declaration AST > should parse uninitialized variable [0.29ms]
+(pass) AST Validator - Extended Tests > Variable Declaration AST > should parse array variable [0.34ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse binary expression with correct structure [0.39ms]
+(pass) AST Validator - Extended Tests > Expression AST > should preserve operator precedence in AST [0.50ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse unary expression correctly [0.45ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse ternary expression correctly [0.39ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse function call expression [0.32ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse member access expression [0.25ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse array subscript expression [0.32ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse cast expression [0.35ms]
+(pass) AST Validator - Extended Tests > Expression AST > should parse sizeof expression [0.43ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse if statement correctly [0.65ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse if-else statement [0.81ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse loop statement [0.85ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse switch statement [0.96ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse return statement [0.49ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse break statement [0.54ms]
+(pass) AST Validator - Extended Tests > Statement AST > should parse continue statement [0.59ms]
+(pass) AST Validator - Extended Tests > Type Annotations > should preserve simple type annotations [0.59ms]
+(pass) AST Validator - Extended Tests > Type Annotations > should preserve pointer type annotations [0.39ms]
+(pass) AST Validator - Extended Tests > Type Annotations > should preserve array type annotations [0.40ms]
+(pass) AST Validator - Extended Tests > Type Annotations > should preserve generic type annotations [0.39ms]
+(pass) AST Validator - Extended Tests > Source Location Information > should track line numbers for declarations [0.39ms]
+(pass) AST Validator - Extended Tests > Source Location Information > should track column numbers [0.26ms]
+(pass) AST Validator - Extended Tests > Import/Export AST > should parse import statement [0.24ms]
+(pass) AST Validator - Extended Tests > Import/Export AST > should parse export statement [0.34ms]
+(pass) AST Validator - Extended Tests > AST Node Relationships > should maintain parent-child relationships [0.53ms]
+(pass) AST Validator - Extended Tests > AST Node Relationships > should nest expressions correctly [0.72ms]
+(pass) AST Validator - Extended Tests > Edge Cases > should handle empty program [0.36ms]
+(pass) AST Validator - Extended Tests > Edge Cases > should handle empty function body [0.47ms]
+(pass) AST Validator - Extended Tests > Edge Cases > should handle empty struct [0.22ms]
+(pass) AST Validator - Extended Tests > Edge Cases > should handle complex nested structures [0.73ms]
+
+tests/Intrinsics.test.ts:
+(pass) Intrinsics > Math Intrinsics [687.04ms]
+(pass) Intrinsics > Bit Manipulation Intrinsics [653.38ms]
+(pass) Intrinsics > Memory Intrinsics [696.22ms]
+(pass) Intrinsics > New Intrinsics (fma, stack, frame) [651.60ms]
+
+tests/NullHandling.test.ts:
+(pass) Nullptr Handling > Nullptr assignment and check [520.43ms]
+(pass) Nullptr Handling > Nullptr dereference (should crash/error) [417.19ms]
+
+tests/ControlFlow.test.ts:
+(pass) Control Flow > should handle break in nested loops [539.88ms]
+(pass) Control Flow > should handle continue in loops [541.41ms]
+(pass) Control Flow > should handle return from nested structures [540.58ms]
+(pass) Control Flow > should handle switch statements [528.06ms]
+(pass) Control Flow > should handle switch fallthrough (if supported) or lack thereof [499.06ms]
+
+tests/Stdlib.test.ts:
+(pass) Standard Library > Array<i32> basic operations [759.65ms]
+(pass) Standard Library > Map<i32, i32> basic operations [855.46ms]
+(pass) Standard Library > Array<i32> resizing [750.48ms]
+(pass) Standard Library > Set<i32> basic operations [899.46ms]
+(pass) Standard Library > Result<i32, i32> basic operations [689.00ms]
+(pass) Standard Library > String basic operations [613.66ms]
+(pass) Standard Library > Stack<i32> and Queue<i32> basic operations [860.43ms]
+(pass) Standard Library > Algorithm basic operations [817.47ms]
+(pass) Standard Library > FS basic operations [685.91ms]
+(pass) Standard Library > LinkedList<i32> basic operations [723.28ms]
+(pass) Standard Library > PriorityQueue<i32> basic operations [849.94ms]
+
+ 1323 pass
+ 0 fail
+ 4014 expect() calls
+Ran 1323 tests across 88 files. [346.67s]

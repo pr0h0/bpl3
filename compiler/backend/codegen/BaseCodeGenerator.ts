@@ -7,6 +7,79 @@ import {
   createNullAccessErrorDecl,
 } from "../../middleend/BuiltinTypes";
 
+/**
+ * Get the LLVM datalayout string for a given target triple.
+ * Falls back to x86_64-linux if no specific layout is known.
+ */
+export function getDataLayoutForTarget(target?: string): string {
+  if (!target) {
+    // Default to x86_64-linux-gnu
+    return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+  }
+
+  const normalizedTarget = target.toLowerCase();
+
+  // x86_64 Linux
+  if (
+    normalizedTarget.includes("x86_64") &&
+    normalizedTarget.includes("linux")
+  ) {
+    return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+  }
+
+  // x86_64 macOS (Darwin)
+  if (
+    normalizedTarget.includes("x86_64") &&
+    (normalizedTarget.includes("darwin") || normalizedTarget.includes("macos"))
+  ) {
+    return "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
+  }
+
+  // ARM64/AArch64 Linux
+  if (
+    (normalizedTarget.includes("aarch64") ||
+      normalizedTarget.includes("arm64")) &&
+    normalizedTarget.includes("linux")
+  ) {
+    return "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
+  }
+
+  // ARM64/AArch64 macOS (Apple Silicon)
+  if (
+    (normalizedTarget.includes("aarch64") ||
+      normalizedTarget.includes("arm64")) &&
+    (normalizedTarget.includes("darwin") || normalizedTarget.includes("macos"))
+  ) {
+    return "e-m:o-i64:64-i128:128-n32:64-S128";
+  }
+
+  // x86 (32-bit) Linux
+  if (normalizedTarget.includes("i686") && normalizedTarget.includes("linux")) {
+    return "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128";
+  }
+
+  // Windows x86_64
+  if (
+    normalizedTarget.includes("x86_64") &&
+    normalizedTarget.includes("windows")
+  ) {
+    return "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
+  }
+
+  // WASM32
+  if (normalizedTarget.includes("wasm32")) {
+    return "e-m:e-p:32:32-i64:64-n32:64-S128";
+  }
+
+  // WASM64
+  if (normalizedTarget.includes("wasm64")) {
+    return "e-m:e-p:64:64-i64:64-n32:64-S128";
+  }
+
+  // Default fallback to x86_64-linux
+  return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+}
+
 export class BaseCodeGenerator {
   protected stdLibPath?: string;
   protected useLinkOnceOdrForStdLib: boolean = false;

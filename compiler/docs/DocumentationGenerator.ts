@@ -41,11 +41,11 @@ export class DocumentationGenerator {
       if (stmt.kind === "Import") {
         const importStmt = stmt as AST.ImportStmt;
         const dir = path.dirname(filePath);
-        let importPath = importStmt.source;
+        const importPath = importStmt.source;
 
         // Simple resolution for relative paths
         if (importPath.startsWith(".")) {
-          let resolved = path.resolve(dir, importPath);
+          const resolved = path.resolve(dir, importPath);
           this.processFile(resolved);
         }
       }

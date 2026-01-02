@@ -12,7 +12,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { CompilerError } from "../common/CompilerError";
-import type * as AST from "../common/AST";
+import { compilerLog } from "../common/Logger";
 
 export interface CachedModule {
   path: string;
@@ -69,8 +69,8 @@ export class ModuleCache {
           version: parsed.version || "1.0.0",
           modules: new Map(Object.entries(parsed.modules || {})),
         };
-      } catch (e) {
-        console.warn("Failed to load cache manifest, creating new one");
+      } catch (_e) {
+        compilerLog.warn("Failed to load cache manifest, creating new one");
       }
     }
     return {
@@ -148,13 +148,13 @@ export class ModuleCache {
     const cached = this.manifest.modules.get(modulePath);
     if (cached && cached.hash === hash && fs.existsSync(cached.objectFile)) {
       if (verbose) {
-        console.log(`  Using cached: ${path.basename(modulePath)}`);
+        compilerLog.info(`Using cached: ${path.basename(modulePath)}`);
       }
       return cached.objectFile;
     }
 
     if (verbose) {
-      console.log(`  Compiling: ${path.basename(modulePath)}`);
+      compilerLog.info(`Compiling: ${path.basename(modulePath)}`);
     }
 
     // Write LLVM IR to temporary file
@@ -190,7 +190,7 @@ export class ModuleCache {
     // Clean up temporary LLVM IR file
     try {
       fs.unlinkSync(llFilePath);
-    } catch (e) {
+    } catch (_e) {
       // Ignore cleanup errors
     }
 
@@ -216,7 +216,7 @@ export class ModuleCache {
     target?: string,
   ): void {
     if (verbose) {
-      console.log(`Linking ${objectFiles.length} modules...`);
+      compilerLog.info(`Linking ${objectFiles.length} modules...`);
     }
 
     const clangArgs = [...objectFiles, "-o", outputPath];

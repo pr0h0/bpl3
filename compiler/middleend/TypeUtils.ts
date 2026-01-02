@@ -4,7 +4,8 @@
  */
 
 import * as AST from "../common/AST";
-import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import type { SourceLocation } from "../common/CompilerError";
+import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import type { SymbolTable } from "./SymbolTable";
 
@@ -76,6 +77,21 @@ export const KNOWN_TYPES = [
   "void",
   "string",
 ];
+
+/**
+ * Type aliases mapping BPL type names to their canonical LLVM-style names
+ */
+export const TYPE_ALIASES: Readonly<Record<string, string>> = {
+  long: "i64",
+  ulong: "u64",
+  int: "i32",
+  uint: "u32",
+  short: "i16",
+  ushort: "u16",
+  char: "i8",
+  uchar: "u8",
+  bool: "i1",
+};
 
 /**
  * Type utilities class providing static methods for type operations
@@ -215,18 +231,7 @@ export class TypeUtils {
    * Get the size in bits of an integer type (including bool/i1)
    */
   static getIntegerBits(typeName: string): number {
-    const aliases: { [key: string]: string } = {
-      long: "i64",
-      ulong: "u64",
-      int: "i32",
-      uint: "u32",
-      short: "i16",
-      ushort: "u16",
-      char: "i8",
-      uchar: "u8",
-      bool: "i1",
-    };
-    const name = aliases[typeName] || typeName;
+    const name = TYPE_ALIASES[typeName] || typeName;
     if (name === "i1") return 1;
     if (name === "i8" || name === "u8") return 8;
     if (name === "i16" || name === "u16") return 16;
@@ -571,10 +576,12 @@ export class TypeComparison {
       (rt1.kind === "FunctionType" || rt1.kind === "LambdaType") &&
       (rt2.kind === "FunctionType" || rt2.kind === "LambdaType")
     ) {
-      console.error(`Checking compatibility: ${rt1.kind} vs ${rt2.kind}`);
+      typeCheckerLog.debug(
+        `Checking compatibility: ${rt1.kind} vs ${rt2.kind}`,
+      );
       // Func <- Lambda : Error (unless stateless, but that's handled by checkLambda returning Func)
       if (rt1.kind === "FunctionType" && rt2.kind === "LambdaType") {
-        console.error("Func <- Lambda is not allowed");
+        typeCheckerLog.debug("Func <- Lambda is not allowed");
         return false;
       }
 
@@ -582,16 +589,16 @@ export class TypeComparison {
       const f2 = rt2 as AST.FunctionTypeNode | AST.LambdaTypeNode;
 
       if (!this.areTypesCompatible(f1.returnType, f2.returnType)) {
-        console.error("Return types incompatible");
+        typeCheckerLog.debug("Return types incompatible");
         return false;
       }
       if (f1.paramTypes.length !== f2.paramTypes.length) {
-        console.error("Param length mismatch");
+        typeCheckerLog.debug("Param length mismatch");
         return false;
       }
       for (let i = 0; i < f1.paramTypes.length; i++) {
         if (!this.areTypesCompatible(f1.paramTypes[i]!, f2.paramTypes[i]!)) {
-          console.error(`Param ${i} incompatible`);
+          typeCheckerLog.debug(`Param ${i} incompatible`);
           return false;
         }
       }
@@ -795,10 +802,11 @@ export class TypeSubstitution {
         ),
       };
     } else if (type.kind === "MetaType") {
+      const metaType = type as AST.MetaType;
       return {
         ...type,
-        type: TypeSubstitution.substituteType((type as any).type, map),
-      } as any;
+        type: TypeSubstitution.substituteType(metaType.type, map),
+      } as AST.MetaType;
     }
 
     return type;

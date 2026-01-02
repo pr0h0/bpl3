@@ -13,6 +13,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { CompilerError } from "../common/CompilerError";
+import { compilerLog } from "../common/Logger";
 import { LinkerSymbolTable, type ObjectFileSymbol } from "./LinkerSymbolTable";
 
 export class ObjectFileParser {
@@ -58,8 +59,8 @@ export class ObjectFileParser {
       /^@([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:internal|external|weak|global|private)?\s*/gm;
 
     const globalMatches = content.matchAll(globalRegex);
-    for (const match of globalMatches) {
-      const name = match[1]!;
+    for (const globalMatch of globalMatches) {
+      const name = globalMatch[1]!;
       // Don't add if already in symbols (avoid duplicates)
       if (!symbols.find((s) => s.name === name)) {
         symbols.push({
@@ -103,8 +104,8 @@ export class ObjectFileParser {
       });
 
       if (result.error) {
-        console.warn(
-          `Warning: Could not parse ELF object with nm: ${result.error.message}`,
+        compilerLog.warn(
+          `Could not parse ELF object with nm: ${result.error.message}`,
         );
         return [];
       }
@@ -148,7 +149,7 @@ export class ObjectFileParser {
 
       return symbols;
     } catch (e) {
-      console.warn(`Warning: Could not use nm tool: ${e}`);
+      compilerLog.warn(`Could not use nm tool: ${e}`);
       return [];
     }
   }
@@ -177,19 +178,18 @@ export class ObjectFileParser {
       return this.parseLLVMIR(filePath);
     } else if (ext === ".o" || ext === ".obj" || ext === ".a") {
       return this.parseELFObject(filePath);
-    } else {
-      throw new CompilerError(
-        `Unsupported object file format: ${ext} (supported: .ll, .o, .obj, .a)`,
-        "Use a supported file format.",
-        {
-          file: filePath,
-          startLine: 0,
-          startColumn: 0,
-          endLine: 0,
-          endColumn: 0,
-        },
-      );
     }
+    throw new CompilerError(
+      `Unsupported object file format: ${ext} (supported: .ll, .o, .obj, .a)`,
+      "Use a supported file format.",
+      {
+        file: filePath,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+    );
   }
 
   /**
@@ -203,7 +203,7 @@ export class ObjectFileParser {
       const symbols = this.parseObjectFile(filePath);
       linkerSymbolTable.registerObjectFile(filePath, symbols);
     } catch (e) {
-      console.warn(`Warning: Could not register object file ${filePath}: ${e}`);
+      compilerLog.warn(`Could not register object file ${filePath}: ${e}`);
     }
   }
 }

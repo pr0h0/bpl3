@@ -1,6 +1,4 @@
 import { existsSync } from "fs";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
 
 import { resolveBplPath, getBplHome } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";

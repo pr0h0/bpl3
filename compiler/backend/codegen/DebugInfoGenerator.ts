@@ -1,4 +1,46 @@
 import * as path from "path";
+import { spawnSync } from "child_process";
+
+/** Cached clang version string */
+let cachedClangVersion: string | null = null;
+
+/**
+ * Get the clang version for DWARF producer string.
+ * Caches the result for subsequent calls.
+ */
+function getClangVersion(): string {
+  if (cachedClangVersion !== null) {
+    return cachedClangVersion;
+  }
+
+  try {
+    const result = spawnSync("clang", ["--version"], {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    if (result.status === 0 && result.stdout) {
+      // Parse output like "clang version 17.0.6 (Fedora 17.0.6-2.fc39)" or "Debian clang version 21.1.6 (3)"
+      const match = result.stdout.match(
+        /(?:clang|Debian clang|Apple clang)\s+version\s+([^\s]+)/i,
+      );
+      if (match) {
+        cachedClangVersion = `clang version ${match[1]}`;
+        return cachedClangVersion;
+      }
+      // Fallback: use first line
+      const firstLine = result.stdout.split("\n")[0]?.trim();
+      if (firstLine) {
+        cachedClangVersion = firstLine;
+        return cachedClangVersion;
+      }
+    }
+  } catch {
+    // Ignore errors, fallback to default
+  }
+
+  cachedClangVersion = "BPL compiler";
+  return cachedClangVersion;
+}
 
 export class DebugInfoGenerator {
   private nextId: number = 1;
@@ -50,17 +92,15 @@ export class DebugInfoGenerator {
     return id;
   }
 
-  public createCompileUnit(
-    // TODO: make it dynamic
-    producer: string = "Debian clang version 21.1.6 (3)",
-  ): number {
+  public createCompileUnit(producer?: string): number {
     // !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "BPL", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
     // We'll use DW_LANG_C99 (12) as a placeholder or similar.
 
+    const actualProducer = producer || getClangVersion();
     const fileId = this.getFileNodeId(this.filename);
-    const enumsId = this.addNode("!{}"); // Empty enums list for now
+    const _enumsId = this.addNode("!{}"); // Empty enums list for now
 
-    const content = `distinct !DICompileUnit(language: DW_LANG_C, file: !${fileId}, producer: "${producer}", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)`;
+    const content = `distinct !DICompileUnit(language: DW_LANG_C, file: !${fileId}, producer: "${actualProducer}", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)`;
 
     this.compileUnitId = this.addNode(content);
     return this.compileUnitId;
@@ -104,7 +144,7 @@ export class DebugInfoGenerator {
   ): number {
     // !5 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 1, type: !6, isLocal: false, isDefinition: true, scopeLine: 1, flags: DIFlagPrototyped, isOptimized: false, unit: !0, retainedNodes: !2)
     const fileId = this.getFileNodeId(filePath);
-    const retainedNodesId = this.addNode("!{}");
+    const _retainedNodesId = this.addNode("!{}");
 
     const content = `distinct !DISubprogram(name: "${name}", scope: !${fileId}, file: !${fileId}, line: ${line}, type: !${typeId}, scopeLine: ${line}, spFlags: DISPFlagDefinition, unit: !${this.compileUnitId})`;
 
@@ -214,15 +254,17 @@ export class DebugInfoGenerator {
     return this.addNode(content);
   }
 
-  public createGlobalVariable(
-    name: string,
-    linkageName: string,
-    fileId: number,
-    line: number,
-    typeId: number,
-    isLocal: boolean,
-    isDefinition: boolean,
-  ): number {
+  public createGlobalVariable(options: {
+    name: string;
+    linkageName: string;
+    fileId: number;
+    line: number;
+    typeId: number;
+    isLocal: boolean;
+    isDefinition: boolean;
+  }): number {
+    const { name, linkageName, fileId, line, typeId, isLocal, isDefinition } =
+      options;
     const type = typeId === 0 ? "null" : `!${typeId}`;
     // Use the file node as scope if available, otherwise compile unit
     const scopeId = this.compileUnitId;

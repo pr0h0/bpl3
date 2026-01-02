@@ -100,8 +100,8 @@ export class ASTPrinter {
     return output;
   }
 
-  private isNode(obj: any): obj is AST.ASTNode {
-    return obj && typeof obj === "object" && "kind" in obj;
+  private isNode(obj: unknown): obj is AST.ASTNode {
+    return !!obj && typeof obj === "object" && "kind" in obj;
   }
 
   private typeToString(type: AST.TypeNode): string {

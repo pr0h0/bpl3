@@ -5,12 +5,12 @@ import {
   createBoolStructDecl,
   createDoubleStructDecl,
   createStringStructDecl,
-  PRIMITIVE_STRUCT_MAP,
 } from "../middleend/BuiltinTypes";
-import { TokenType } from "../frontend/TokenType";
 import { StatementGenerator } from "./codegen/StatementGenerator";
 import { CompilerError } from "../common/CompilerError";
+import { codeGenLog } from "../common/Logger";
 import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
+import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 
 export class CodeGenerator extends StatementGenerator {
   constructor(
@@ -498,8 +498,8 @@ export class CodeGenerator extends StatementGenerator {
 
     let header = "";
     if (this.target) {
-      // TODO: Check if it can be dynamic
-      header += `target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"\n`;
+      const datalayout = getDataLayoutForTarget(this.target);
+      header += `target datalayout = "${datalayout}"\n`;
       header += `target triple = "${this.target}"\n`;
     }
     if (this.currentFilePath) {
@@ -531,7 +531,7 @@ export class CodeGenerator extends StatementGenerator {
     try {
       const fs = require("fs");
       fs.writeFileSync("ir.ll", result);
-    } catch (e) {}
+    } catch (_e) {}
 
     return result;
   }
@@ -582,7 +582,7 @@ export class CodeGenerator extends StatementGenerator {
         this.generateAsm(node as AST.AsmBlockStmt);
         break;
       default:
-        console.warn(`Unhandled top-level node kind: ${node.kind}`);
+        codeGenLog.warn(`Unhandled top-level node kind: ${node.kind}`);
         break;
     }
   }
@@ -627,18 +627,16 @@ export class CodeGenerator extends StatementGenerator {
           decl.location,
         );
       }
-    } else {
-      if (
-        type === "i64" ||
-        type === "i32" ||
-        type === "i16" ||
-        type === "i8" ||
-        type === "i1"
-      )
-        init = "0";
-      else if (type === "double") init = "0.0";
-      else if (type.endsWith("*")) init = "null";
-    }
+    } else if (
+      type === "i64" ||
+      type === "i32" ||
+      type === "i16" ||
+      type === "i8" ||
+      type === "i1"
+    )
+      init = "0";
+    else if (type === "double") init = "0.0";
+    else if (type.endsWith("*")) init = "null";
     const keyword = decl.isConst ? "constant" : "global";
 
     let dbgSuffix = "";
@@ -646,15 +644,15 @@ export class CodeGenerator extends StatementGenerator {
       const typeNode = decl.typeAnnotation!;
       const typeId = this.getDwarfTypeId(typeNode);
       const fileId = this.debugInfoGenerator.getFileNodeId(decl.location.file);
-      const globalVarId = this.debugInfoGenerator.createGlobalVariable(
-        decl.name,
-        decl.name,
+      const globalVarId = this.debugInfoGenerator.createGlobalVariable({
+        name: decl.name,
+        linkageName: decl.name,
         fileId,
-        decl.location.startLine,
+        line: decl.location.startLine,
         typeId,
-        false,
-        true,
-      );
+        isLocal: false,
+        isDefinition: true,
+      });
       dbgSuffix = `, !dbg !${globalVarId}`;
     }
 

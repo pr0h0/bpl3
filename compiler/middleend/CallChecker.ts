@@ -265,7 +265,7 @@ export function checkCall(
       effectiveFuncType.declaration &&
       effectiveFuncType.declaration.kind === "FunctionDecl"
     ) {
-      const decl = effectiveFuncType.declaration as AST.FunctionDecl;
+      const funcDecl = effectiveFuncType.declaration as AST.FunctionDecl;
 
       // Check if explicit variadic pattern
       let isExplicitVariadic = false;
@@ -299,7 +299,7 @@ export function checkCall(
           ? { ...effectiveFuncType, isVariadic: true }
           : effectiveFuncType;
 
-        packVariadicArguments.call(this, expr, decl, typeForPacking);
+        packVariadicArguments.call(this, expr, funcDecl, typeForPacking);
 
         // Re-compute argTypes
         const newArgTypes = expr.args.map((arg) => this.checkExpression(arg));
@@ -636,7 +636,7 @@ export function checkMember(
   // Handle enum variant access
   if ((effectiveObjectType as any).kind === "MetaType") {
     const innerType = (effectiveObjectType as any).type as AST.BasicTypeNode;
-    let symbol = this.currentScope.resolve(innerType.name);
+    const symbol = this.currentScope.resolve(innerType.name);
     let decl = innerType.resolvedDeclaration;
 
     if (!decl && symbol) {
@@ -842,8 +842,9 @@ export function checkMember(
           const method = compatibleMethods[0];
 
           // Resolve types in module context first
-          let { returnType, paramTypes: allParamTypes } =
+          const { returnType: initReturnType, paramTypes: allParamTypes } =
             resolveMethodTypesInModuleContext(this, method);
+          let returnType = initReturnType;
 
           // Strip 'this' parameter
           let paramTypes = allParamTypes.slice(1);
@@ -869,8 +870,11 @@ export function checkMember(
           const first = compatibleMethods[0];
 
           // Resolve types in module context first
-          let { returnType: firstReturnType, paramTypes: allFirstParamTypes } =
-            resolveMethodTypesInModuleContext(this, first);
+          const {
+            returnType: initFirstReturnType,
+            paramTypes: allFirstParamTypes,
+          } = resolveMethodTypesInModuleContext(this, first);
+          let firstReturnType = initFirstReturnType;
           let firstParamTypes = allFirstParamTypes.slice(1);
 
           if (genericMap && genericMap.size > 0) {
@@ -887,8 +891,9 @@ export function checkMember(
             location: expr.location,
             overloads: compatibleMethods.map((m) => {
               // Resolve types in module context first
-              let { returnType: ret, paramTypes: allParams } =
+              const { returnType: initRet, paramTypes: allParams } =
                 resolveMethodTypesInModuleContext(this, m);
+              let ret = initRet;
               let params = allParams.slice(1);
 
               if (genericMap && genericMap.size > 0) {

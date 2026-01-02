@@ -112,7 +112,7 @@ export class ImportHandler {
     const moduleResolver = new ModuleResolver();
     try {
       importPath = moduleResolver.resolveModulePath(stmt.source, currentFile);
-    } catch (e) {
+    } catch (_e) {
       // Ignore error, will handle below
     }
 
@@ -141,20 +141,18 @@ export class ImportHandler {
           stmt.location,
         );
       }
-    } else {
+    } else if (!importPath) {
       // If not skipping, use the resolved path or fallback to simple resolution
-      if (!importPath) {
-        if (stmt.source === "std") {
-          const stdLibPath = getLibPath();
-          importPath = path.join(stdLibPath, "std.bpl");
-        } else if (stmt.source.startsWith("std/")) {
-          const stdLibPath = getLibPath();
-          const relativePath = stmt.source.substring(4);
-          importPath = path.join(stdLibPath, relativePath);
-        } else {
-          const currentDir = path.dirname(currentFile);
-          importPath = path.resolve(currentDir, stmt.source);
-        }
+      if (stmt.source === "std") {
+        const stdLibPath = getLibPath();
+        importPath = path.join(stdLibPath, "std.bpl");
+      } else if (stmt.source.startsWith("std/")) {
+        const stdLibPath = getLibPath();
+        const relativePath = stmt.source.substring(4);
+        importPath = path.join(stdLibPath, relativePath);
+      } else {
+        const currentDir = path.dirname(currentFile);
+        importPath = path.resolve(currentDir, stmt.source);
       }
     }
 
@@ -294,7 +292,7 @@ export class ImportHandler {
           this.defineImportedSymbol(name, symbol, this.ctx.globalScope);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // console.log("Error loading implicit primitives:", e);
     }
   }

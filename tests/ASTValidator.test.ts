@@ -483,7 +483,7 @@ describe("AST Validator - Extended Tests", () => {
       const func = ast.statements[0];
       if (func?.kind === "FunctionDecl") {
         const loopStmt = func.body.statements[0];
-        if (loopStmt?.kind === "Loop") {
+        if (loopStmt?.kind === "Loop" && loopStmt.body.kind === "Block") {
           const breakStmt = loopStmt.body.statements[0];
           expect(breakStmt?.kind).toBe("Break");
         }
@@ -500,7 +500,7 @@ describe("AST Validator - Extended Tests", () => {
       const func = ast.statements[0];
       if (func?.kind === "FunctionDecl") {
         const loopStmt = func.body.statements[0];
-        if (loopStmt?.kind === "Loop") {
+        if (loopStmt?.kind === "Loop" && loopStmt.body.kind === "Block") {
           const continueStmt = loopStmt.body.statements[0];
           expect(continueStmt?.kind).toBe("Continue");
         }

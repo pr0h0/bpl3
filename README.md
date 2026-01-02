@@ -537,11 +537,23 @@ See the [Standard Library documentation](docs/28-stdlib-io.md) for complete API 
 ```
 bpl3/
 ├── compiler/           # Compiler implementation
-│   ├── frontend/       # Lexer and parser
-│   ├── middleend/      # Type checker, module resolver
+│   ├── frontend/       # Lexer (Peggy) and parser
+│   ├── middleend/      # Type checker, module resolver, linker
 │   ├── backend/        # LLVM IR code generation
+│   │   └── codegen/    # Generators for expressions, types, etc.
 │   ├── formatter/      # Code formatter
-│   └── common/         # AST definitions, errors
+│   ├── linter/         # Code linting
+│   ├── docs/           # Documentation generator
+│   └── common/         # Shared utilities
+│       ├── AST.ts      # AST definitions
+│       ├── CompilerError.ts # Error handling
+│       ├── Config.ts   # Centralized configuration
+│       ├── Logger.ts   # Structured logging
+│       └── ...         # Path resolution, source management
+├── cli/                # Command-line interface
+│   ├── index.ts        # CLI entry point
+│   ├── commands/       # Subcommand handlers
+│   └── completions/    # Shell completions
 ├── docs/               # Comprehensive documentation
 │   ├── 01-introduction.md
 │   ├── 02-installation.md
@@ -566,9 +578,10 @@ bpl3/
 │   ├── Integration.test.ts
 │   ├── Parser.test.ts
 │   └── ...
+├── benchmark/          # Performance benchmarks
 ├── vscode-ext/         # VS Code extension
 ├── playground/         # Web playground (optional)
-├── index.ts            # CLI entry point
+├── index.ts            # Main entry point
 ├── LANGUAGE_SPEC.md    # Language specification
 └── README.md           # This file
 ```
@@ -697,9 +710,16 @@ Coming soon!
 
 ## 🚦 Roadmap
 
-### Current Status: Alpha
+### Current Status: Beta
 
-BPL is under active development. Current features are stable, but the language may evolve.
+BPL is under active development. The compiler is stable with **1,323 tests passing** across 88 test files.
+
+**Build Status:**
+
+- ✅ 1,323 tests passing (100%)
+- ✅ 0 ESLint errors/warnings
+- ✅ 0 TypeScript errors
+- ✅ 100+ working examples
 
 ### Completed ✅
 
@@ -713,15 +733,19 @@ BPL is under active development. Current features are stable, but the language m
 - [x] Cross-compilation support
 - [x] Standard library (20+ modules)
 - [x] VS Code extension
-- [x] Comprehensive test suite
+- [x] Comprehensive test suite (1,323 tests)
 - [x] Documentation (50+ pages)
+- [x] Enum types with pattern matching
+- [x] String interpolation
+- [x] Lambda expressions
+- [x] Tuple destructuring (including nested)
+- [x] Operator overloading (24 operators)
+- [x] Intrinsics (math, bit manipulation, memory)
 
 ### In Progress 🚧
 
-- [ ] Ownership and borrowing system (Rust-style)
+- [ ] IDE integrations (beyond VS Code)
 - [ ] More stdlib modules (networking, threads)
-- [ ] Language server protocol (LSP)
-- [ ] Debugger integration (LLDB)
 - [ ] Optimization passes
 
 ### Planned 📋

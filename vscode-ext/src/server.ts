@@ -21,6 +21,9 @@ import {
   CodeActionKind,
   CodeLens,
   InsertTextFormat,
+  type InitializeParams,
+  type TextDocumentPositionParams,
+  type InitializeResult,
 } from "vscode-languageserver/node";
 
 import { DocParser } from "../../compiler/common/DocParser";
@@ -31,12 +34,6 @@ import { CompilerError } from "../../compiler/common/CompilerError";
 import { Formatter } from "../../compiler/formatter/Formatter";
 import { Parser } from "../../compiler/frontend/Parser";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
-
-import type {
-  InitializeParams,
-  TextDocumentPositionParams,
-  InitializeResult,
-} from "vscode-languageserver/node";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -81,7 +78,7 @@ const documentAnalysis = new Map<string, AnalysisResult>();
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
+let _hasDiagnosticRelatedInformationCapability = false; // reserved for future use
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -94,7 +91,7 @@ connection.onInitialize((params: InitializeParams) => {
   hasWorkspaceFolderCapability = !!(
     capabilities.workspace && !!capabilities.workspace.workspaceFolders
   );
-  hasDiagnosticRelatedInformationCapability = !!(
+  _hasDiagnosticRelatedInformationCapability = !!(
     capabilities.textDocument &&
     capabilities.textDocument.publishDiagnostics &&
     capabilities.textDocument.publishDiagnostics.relatedInformation
@@ -164,9 +161,8 @@ connection.onDidChangeConfiguration((change) => {
     // Reset all cached document settings
     documentSettings.clear();
   } else {
-    globalSettings = <ExampleSettings>(
-      (change.settings.bplLanguageServer || defaultSettings)
-    );
+    globalSettings = (change.settings.bplLanguageServer ||
+      defaultSettings) as ExampleSettings;
   }
 
   // Revalidate all open text documents
@@ -303,7 +299,7 @@ function watchFileForChanges(filePath: string): void {
 }
 
 // Load and parse an imported module with caching
-function loadImportedModuleWithCache(
+function _loadImportedModuleWithCache(
   importPath: string,
   currentDir: string,
 ): { text: string; program: AST.Program } | null {
@@ -343,7 +339,7 @@ function loadImportedModuleWithCache(
 }
 
 // Check if an import error should be suppressed (only for valid std/* imports)
-function shouldSuppressImportError(
+function _shouldSuppressImportError(
   errorMessage: string,
   documentText: string,
   documentUri: string,
@@ -516,7 +512,7 @@ connection.onCompletion(
     if (!document) return [];
 
     const text = document.getText();
-    const offset = document.offsetAt(textDocumentPosition.position);
+    const _offset = document.offsetAt(textDocumentPosition.position);
     const lineText = text.split("\n")[textDocumentPosition.position.line] || "";
     const charBefore = lineText[textDocumentPosition.position.character - 1];
 
@@ -555,8 +551,9 @@ connection.onCompletion(
           // Check if varName is a variable in scope
           const line = textDocumentPosition.position.line + 1;
           const col = textDocumentPosition.position.character - 1;
-          const path = findNodeAtPosition(analysis.program, line, col);
-          const node = path.length > 0 ? path[path.length - 1] : null;
+          const nodePath = findNodeAtPosition(analysis.program, line, col);
+          const node =
+            nodePath.length > 0 ? nodePath[nodePath.length - 1] : null;
 
           if (node) {
             if (node.kind === "Identifier") {
@@ -842,7 +839,9 @@ function traverseLocals(
       traverseLocals((stmt as AST.BlockStmt).statements, cb);
     } else if (stmt.kind === "If") {
       const ifStmt = stmt as AST.IfStmt;
-      traverseLocals(ifStmt.thenBranch.statements, cb);
+      if (ifStmt.thenBranch.kind === "Block") {
+        traverseLocals((ifStmt.thenBranch as AST.BlockStmt).statements, cb);
+      }
       if (ifStmt.elseBranch) {
         if (ifStmt.elseBranch.kind === "Block") {
           traverseLocals((ifStmt.elseBranch as AST.BlockStmt).statements, cb);
@@ -852,7 +851,10 @@ function traverseLocals(
         }
       }
     } else if (stmt.kind === "Loop") {
-      traverseLocals((stmt as AST.LoopStmt).body.statements, cb);
+      const loopStmt = stmt as AST.LoopStmt;
+      if (loopStmt.body.kind === "Block") {
+        traverseLocals((loopStmt.body as AST.BlockStmt).statements, cb);
+      }
     }
   }
 }
@@ -1000,7 +1002,7 @@ function findSymbolDefinition(
     `\\b(frame|struct|enum|local|global|type|extern|spec)\\s+${word}\\b`,
     "g",
   );
-  let match = definitionRegex.exec(text);
+  const match = definitionRegex.exec(text);
   if (match) {
     const startPos = document.positionAt(match.index);
     const endPos = document.positionAt(match.index + match[0].length);
@@ -1008,11 +1010,11 @@ function findSymbolDefinition(
     const matchType = match[1];
     let lineContent = "";
     const lines = text.split(/\r?\n/);
-    let currentLineIdx = startPos.line;
+    const currentLineIdx = startPos.line;
 
     // Special handling for 'frame': Always show just the signature, never the body
     if (matchType === "frame") {
-      let collectedLines: string[] = [];
+      const collectedLines: string[] = [];
       const maxLines = 10;
 
       for (let i = 0; i < maxLines; i++) {
@@ -1045,7 +1047,7 @@ function findSymbolDefinition(
     ) {
       let braceCount = 0;
       let foundStartBrace = false;
-      let collectedLines: string[] = [];
+      const collectedLines: string[] = [];
       const maxLines = 100;
       let inMethod = false;
       let methodBraceCount = 0;
@@ -1167,11 +1169,11 @@ function findSymbolDefinition(
           const matchType = defMatch[1];
           let lineContent = "";
           const lines = importedText.split(/\r?\n/);
-          let currentLineIdx = startPos.line;
+          const currentLineIdx = startPos.line;
 
           // Special handling for 'frame': Always show just the signature, never the body
           if (matchType === "frame") {
-            let collectedLines: string[] = [];
+            const collectedLines: string[] = [];
             const maxLines = 10;
 
             for (let i = 0; i < maxLines; i++) {
@@ -1203,7 +1205,7 @@ function findSymbolDefinition(
           ) {
             let braceCount = 0;
             let foundStartBrace = false;
-            let collectedLines: string[] = [];
+            const collectedLines: string[] = [];
             const maxLines = 100;
             let inMethod = false;
             let methodBraceCount = 0;
@@ -1400,8 +1402,8 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
   if (analysis) {
     const line = params.position.line + 1;
     const column = params.position.character + 1;
-    const path = findNodeAtPosition(analysis.program, line, column);
-    const node = path.length > 0 ? path[path.length - 1] : null;
+    const nodePath = findNodeAtPosition(analysis.program, line, column);
+    const node = nodePath.length > 0 ? nodePath[nodePath.length - 1] : null;
 
     if (node) {
       // 1. Check if hovering a parameter definition in FunctionDecl
@@ -1433,8 +1435,8 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
       }
 
       // 2. Check if hovering an argument in a CallExpr
-      if (path.length >= 2) {
-        const parent = path[path.length - 2];
+      if (nodePath.length >= 2) {
+        const parent = nodePath[nodePath.length - 2];
         if (parent && parent.kind === "Call") {
           const call = parent as AST.CallExpr;
           // Find which arg index
@@ -1618,7 +1620,7 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
   const def = findSymbolDefinition(document, word);
   if (def) {
     // Check if this is a spec definition to add special formatting
-    let displayValue = def.lineContent;
+    const displayValue = def.lineContent;
     let additionalInfo = `Defined in: \`${path.basename(fileURLToPath(def.uri))}\``;
 
     if (def.lineContent.trimStart().startsWith("spec")) {
@@ -1893,10 +1895,10 @@ function getWordAtPosition(
 
 function findAllReferences(
   word: string,
-  documents: TextDocuments<TextDocument>,
+  docs: TextDocuments<TextDocument>,
 ): Location[] {
   const locations: Location[] = [];
-  documents.all().forEach((doc) => {
+  docs.all().forEach((doc) => {
     const text = doc.getText();
     const regex = new RegExp(`\\b${word}\\b`, "g");
     let match;
@@ -2054,7 +2056,7 @@ connection.onCodeAction((params) => {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore fs errors
       }
     }
@@ -2097,7 +2099,7 @@ connection.onCodeAction((params) => {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore fs errors
       }
     }
@@ -2167,16 +2169,16 @@ function findNodeAtPosition(
     if (Array.isArray(child)) {
       for (const item of child) {
         if (item && typeof item === "object" && item.kind) {
-          const path = findNodeAtPosition(item, line, column);
-          if (path.length > 0) {
-            return [node, ...path];
+          const childPath = findNodeAtPosition(item, line, column);
+          if (childPath.length > 0) {
+            return [node, ...childPath];
           }
         }
       }
     } else if (child && typeof child === "object" && child.kind) {
-      const path = findNodeAtPosition(child, line, column);
-      if (path.length > 0) {
-        return [node, ...path];
+      const childPath = findNodeAtPosition(child, line, column);
+      if (childPath.length > 0) {
+        return [node, ...childPath];
       }
     }
   }
