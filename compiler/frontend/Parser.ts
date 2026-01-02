@@ -1,5 +1,4 @@
 import * as AST from "../common/AST";
-import type { CompilerError } from "../common/CompilerError";
 import { parseWithPeggy } from "./PeggyParser";
 import { Token } from "./Token";
 import { TokenType } from "./TokenType";
@@ -50,12 +49,8 @@ export class Parser {
       const result = { ...ast, comments };
 
       // Check for syntax errors from error recovery
-      if (
-        throwOnError &&
-        (ast as any).errors &&
-        (ast as any).errors.length > 0
-      ) {
-        const errors = (ast as any).errors as CompilerError[];
+      if (throwOnError && ast.errors && ast.errors.length > 0) {
+        const errors = ast.errors;
         // If we want to report all errors, we might need a way to pass them up.
         // For now, throw the first one to stop compilation.
         throw errors[0];
@@ -65,8 +60,8 @@ export class Parser {
     }
 
     // Check for syntax errors from error recovery
-    if (throwOnError && (ast as any).errors && (ast as any).errors.length > 0) {
-      const errors = (ast as any).errors as CompilerError[];
+    if (throwOnError && ast.errors && ast.errors.length > 0) {
+      const errors = ast.errors;
       throw errors[0];
     }
 

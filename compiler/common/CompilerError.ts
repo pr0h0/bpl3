@@ -1,12 +1,27 @@
+/**
+ * Compiler Error Handling
+ *
+ * Provides structured error reporting with source locations,
+ * code snippets, hints, and related error locations.
+ */
+
 import * as fs from "fs";
 import * as path from "path";
 import { SourceManager } from "./SourceManager";
 
+/**
+ * Source code location information
+ */
 export interface SourceLocation {
+  /** File path or virtual path */
   file: string;
+  /** Starting line number (1-indexed) */
   startLine: number;
+  /** Starting column number (1-indexed) */
   startColumn: number;
+  /** Ending line number (1-indexed) */
   endLine: number;
+  /** Ending column number (1-indexed) */
   endColumn: number;
 }
 
@@ -21,28 +36,61 @@ export enum DiagnosticSeverity {
 }
 
 /**
- * Diagnostic message with context information
+ * Diagnostic message with full context information.
+ * Used for IDE integration and structured error reporting.
  */
 export interface Diagnostic {
+  /** Severity level of the diagnostic */
   severity: DiagnosticSeverity;
+  /** Source location where the issue occurred */
   location: SourceLocation;
+  /** Human-readable error message */
   message: string;
+  /** Optional hint for fixing the issue */
   hint?: string;
+  /** Related locations that provide additional context */
   relatedLocations?: {
     message: string;
     location: SourceLocation;
   }[];
 }
 
+/**
+ * Structured compiler error with rich context information.
+ *
+ * Provides:
+ * - Source code snippets with line highlighting
+ * - Error location in file:line:column format
+ * - Hints for fixing the issue
+ * - Related error locations for multi-location errors
+ *
+ * @example
+ * ```typescript
+ * throw new CompilerError(
+ *   "Type mismatch: expected 'int', got 'string'",
+ *   "Consider using parseInt() to convert the value",
+ *   { file: "main.bpl", startLine: 10, startColumn: 5, endLine: 10, endColumn: 15 }
+ * );
+ * ```
+ */
 export class CompilerError extends Error {
   private sourceLines: string[] | null = null;
   private severity: DiagnosticSeverity = DiagnosticSeverity.Error;
+  /** Related error locations for multi-location diagnostics */
   public relatedLocations: Array<{
     message: string;
     location: SourceLocation;
   }> = [];
+  /** Optional error code for categorization */
   public code?: string;
 
+  /**
+   * Create a new compiler error
+   * @param message - The error message
+   * @param hint - A helpful hint for resolving the error
+   * @param location - Source location where the error occurred
+   * @param code - Optional error code for categorization
+   */
   constructor(
     public message: string,
     public hint: string,

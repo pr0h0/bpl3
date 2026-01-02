@@ -5,9 +5,9 @@
 
 import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
+import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
-import type { Symbol } from "./SymbolTable";
-import { SymbolTable } from "./SymbolTable";
+import { type Symbol, SymbolTable } from "./SymbolTable";
 import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
@@ -40,7 +40,7 @@ export function checkLiteral(
         } else {
           name = "long";
         }
-      } catch (e) {
+      } catch (_e) {
         // Fallback or error if BigInt parsing fails (shouldn't happen with valid grammar, but good for fuzzing)
         throw new CompilerError(
           `Invalid integer literal: ${expr.raw}`,
@@ -367,9 +367,9 @@ export function checkIdentifier(
     return this.resolveType(symbol.type, false);
   }
 
-  console.error(
-    `DEBUG: Symbol '${expr.name}' has no type! Kind: ${symbol.kind}`,
-  );
+  typeCheckerLog.debug(`Symbol '${expr.name}' has no type!`, {
+    kind: symbol.kind,
+  });
   return symbol.type;
 }
 
@@ -683,7 +683,7 @@ export function checkUnary(
   if (op === TokenType.Ampersand) {
     if (operandType.kind === "BasicType") {
       if (!operandType)
-        console.error("DEBUG: operandType is undefined in Ampersand check");
+        typeCheckerLog.debug("operandType is undefined in Ampersand check");
 
       const result: AST.BasicTypeNode = {
         ...operandType,
@@ -720,7 +720,7 @@ export function checkUnary(
     if (operandType.kind === "BasicType") {
       if (operandType.pointerDepth > 0) {
         if (!operandType)
-          console.error("DEBUG: operandType is undefined in Star check 1");
+          typeCheckerLog.debug("operandType is undefined in Star check 1");
         return {
           ...operandType,
           pointerDepth: operandType.pointerDepth - 1,
@@ -729,7 +729,7 @@ export function checkUnary(
       if (operandType.arrayDimensions.length > 0) {
         // Dereferencing array gives element type
         if (!operandType)
-          console.error("DEBUG: operandType is undefined in Star check 2");
+          typeCheckerLog.debug("operandType is undefined in Star check 2");
         return {
           ...operandType,
           arrayDimensions: operandType.arrayDimensions.slice(1),
@@ -1477,6 +1477,10 @@ export function checkLambda(
   // 3. Check body
   const checker = this as any;
   const prevReturnType = checker.currentFunctionReturnType;
+  const prevInDefer = checker.inDefer; // Save defer state - lambda has its own return semantics
+
+  // Lambda body allows returns with values, even if we're inside a defer block
+  checker.inDefer = false;
 
   if (expr.returnType) {
     checker.currentFunctionReturnType = this.resolveType(expr.returnType);
@@ -1503,9 +1507,10 @@ export function checkLambda(
     this.checkBlock(expr.body, false); // false because we already created the scope
   } finally {
     checker.matchContext = savedMatchContext;
+    checker.inDefer = prevInDefer; // Restore defer state
   }
 
-  let returnType = checker.currentFunctionReturnType;
+  const returnType = checker.currentFunctionReturnType;
 
   // Restore scope and return type
   this.currentScope = previousScope;

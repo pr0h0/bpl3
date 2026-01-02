@@ -121,32 +121,25 @@ export class OverloadResolver {
       if (ft.isVariadic) {
         if (decl.kind === "Extern") {
           if (argTypes.length < ft.paramTypes.length) continue;
-        } else {
+        } else if (argTypes.length < ft.paramTypes.length - 2) {
           // BPL Variadic: (fixed..., variadic, count)
           // User provides fixed... + variadic args
           // So min args = paramTypes.length - 2
-          if (argTypes.length < ft.paramTypes.length - 2) continue;
+          continue;
         }
-      } else {
-        if (ft.paramTypes.length !== argTypes.length) {
-          // Check for explicit variadic signature: (..., args: *Any, count: int)
-          const len = ft.paramTypes.length;
-          if (len >= 2) {
-            const lastParam = ft.paramTypes[len - 1]!;
-            const secondLastParam = ft.paramTypes[len - 2]!;
-
-            if (
-              this.isIntType(lastParam) &&
-              this.isPointerToAny(secondLastParam)
-            ) {
-              if (argTypes.length >= len - 2) {
-                isExplicitVariadic = true;
-              }
-            }
-          }
-
-          if (!isExplicitVariadic) continue;
+      } else if (ft.paramTypes.length !== argTypes.length) {
+        // Check for explicit variadic signature: (..., args: *Any, count: int)
+        const len = ft.paramTypes.length;
+        if (
+          len >= 2 &&
+          this.isIntType(ft.paramTypes[len - 1]!) &&
+          this.isPointerToAny(ft.paramTypes[len - 2]!) &&
+          argTypes.length >= len - 2
+        ) {
+          isExplicitVariadic = true;
         }
+
+        if (!isExplicitVariadic) continue;
       }
 
       if (genericArgs.length > 0) {
@@ -154,16 +147,16 @@ export class OverloadResolver {
         if (decl.kind !== "FunctionDecl") continue;
         if (decl.genericParams.length !== genericArgs.length) continue;
         viableCandidates.push({ symbol: c, isExplicitVariadic });
+      } else if (
+        decl.kind === "FunctionDecl" &&
+        decl.genericParams.length > 0
+      ) {
+        // Generic inference is disabled by user request.
+        // Only explicit generic arguments are allowed.
+        continue;
       } else {
-        // No explicit generics
-        if (decl.kind === "FunctionDecl" && decl.genericParams.length > 0) {
-          // Generic inference is disabled by user request.
-          // Only explicit generic arguments are allowed.
-          continue;
-        } else {
-          // Non-generic
-          viableCandidates.push({ symbol: c, isExplicitVariadic });
-        }
+        // Non-generic
+        viableCandidates.push({ symbol: c, isExplicitVariadic });
       }
     }
 
@@ -351,12 +344,14 @@ export class OverloadResolver {
     }
 
     // Prefer exact matches, then widening, then compatible
-    const matched =
-      exactMatches.length > 0
-        ? exactMatches
-        : wideningMatches.length > 0
-          ? wideningMatches
-          : compatibleMatches;
+    let matched: typeof substitutedCandidates;
+    if (exactMatches.length > 0) {
+      matched = exactMatches;
+    } else if (wideningMatches.length > 0) {
+      matched = wideningMatches;
+    } else {
+      matched = compatibleMatches;
+    }
 
     if (matched.length > 1) {
       // Sort to prefer non-generic functions
@@ -423,12 +418,14 @@ export class OverloadResolver {
       if (symbol) {
         if (
           symbol.kind === "Struct" &&
-          (symbol.declaration as any).kind === "StructDecl"
+          symbol.declaration &&
+          symbol.declaration.kind === "StructDecl"
         ) {
           decl = symbol.declaration as AST.StructDecl;
         } else if (
           symbol.kind === "Enum" &&
-          (symbol.declaration as any).kind === "EnumDecl"
+          symbol.declaration &&
+          symbol.declaration.kind === "EnumDecl"
         ) {
           decl = symbol.declaration as AST.EnumDecl;
         }

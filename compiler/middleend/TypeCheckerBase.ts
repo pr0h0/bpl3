@@ -8,13 +8,17 @@ import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
-import type { Symbol, SymbolKind } from "./SymbolTable";
-import { SymbolTable } from "./SymbolTable";
+import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import {
   initializeBuiltinsInScope,
   PRIMITIVE_STRUCT_MAP,
 } from "./BuiltinTypes";
-import { TypeUtils, TypeSubstitution, NUMERIC_TYPES } from "./TypeUtils";
+import {
+  TypeUtils,
+  TypeSubstitution,
+  NUMERIC_TYPES,
+  TYPE_ALIASES,
+} from "./TypeUtils";
 
 /**
  * Base class for TypeChecker with shared state and utility methods
@@ -637,18 +641,8 @@ export abstract class TypeCheckerBase {
       // Exact name match or inheritance
       if (rt1.name !== rt2.name) {
         // Check aliases
-        const aliases: { [key: string]: string } = {
-          long: "i64",
-          ulong: "u64",
-          int: "i32",
-          uint: "u32",
-          short: "i16",
-          ushort: "u16",
-          char: "i8",
-          uchar: "u8",
-        };
-        const n1 = aliases[rt1.name] || rt1.name;
-        const n2 = aliases[rt2.name] || rt2.name;
+        const n1 = TYPE_ALIASES[rt1.name] || rt1.name;
+        const n2 = TYPE_ALIASES[rt2.name] || rt2.name;
         const isAlias = n1 === n2;
 
         if (

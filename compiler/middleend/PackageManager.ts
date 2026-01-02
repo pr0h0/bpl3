@@ -11,6 +11,8 @@ import * as os from "os";
 import * as path from "path";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { compilerLog } from "../common/Logger";
+import type { PackageOptionsGlobal, PackageOptionsVerbose } from "../../cli";
 
 export interface PackageManifest {
   name: string;
@@ -214,7 +216,7 @@ export class PackageManager {
     const tarballName = `${manifest.name}-${manifest.version}.tgz`;
     const tarballPath = path.join(outputPath, tarballName);
 
-    console.log(`Packing ${manifest.name}@${manifest.version}...`);
+    compilerLog.info(`Packing ${manifest.name}@${manifest.version}...`);
 
     // Get files to include
     const files = this.getAllBplFiles(packageDir);
@@ -234,7 +236,7 @@ export class PackageManager {
       );
     }
 
-    console.log(`  Including ${files.length} source files`);
+    compilerLog.info(`Including ${files.length} source files`);
 
     // Create a temporary directory for packing
     const tempDir = path.join(os.tmpdir(), `bpl-pack-${Date.now()}`);
@@ -285,12 +287,12 @@ export class PackageManager {
         );
       }
 
-      console.log(`✓ Package created: ${tarballName}`);
+      compilerLog.info(`✓ Package created: ${tarballName}`);
 
       // Calculate and display size
       const stats = fs.statSync(tarballPath);
       const sizeKB = (stats.size / 1024).toFixed(2);
-      console.log(`  Size: ${sizeKB} KB`);
+      compilerLog.info(`Size: ${sizeKB} KB`);
 
       return tarballPath;
     } finally {
@@ -304,7 +306,7 @@ export class PackageManager {
    */
   install(
     packageSource: string,
-    options: { global?: boolean; verbose?: boolean } = {},
+    options: PackageOptionsVerbose = { verbose: false, global: false },
   ): void {
     const targetDir = options.global
       ? this.globalPackageDir
@@ -345,7 +347,7 @@ export class PackageManager {
     }
 
     if (options.verbose) {
-      console.log(`Installing from: ${tarballPath}`);
+      compilerLog.info(`Installing from: ${tarballPath}`);
     }
 
     // Extract to temporary directory first
@@ -380,7 +382,7 @@ export class PackageManager {
       const packageDir = path.join(tempDir, "package");
       const manifest = this.loadManifest(packageDir);
 
-      console.log(`Installing ${manifest.name}@${manifest.version}...`);
+      compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
 
       // Create target directory
       const installPath = path.join(targetDir, manifest.name);
@@ -394,10 +396,10 @@ export class PackageManager {
       fs.mkdirSync(path.dirname(installPath), { recursive: true });
       this.copyDir(packageDir, installPath);
 
-      console.log(`✓ Installed ${manifest.name}@${manifest.version}`);
+      compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
 
       if (options.global) {
-        console.log(`  Location: ${installPath}`);
+        compilerLog.info(`Location: ${installPath}`);
       }
     } finally {
       // Clean up temp directory
@@ -408,7 +410,10 @@ export class PackageManager {
   /**
    * Uninstall a package
    */
-  uninstall(packageName: string, options: { global?: boolean } = {}): void {
+  uninstall(
+    packageName: string,
+    options: PackageOptionsGlobal = { global: false },
+  ): void {
     const targetDir = options.global
       ? this.globalPackageDir
       : this.localPackageDir;
@@ -448,18 +453,18 @@ export class PackageManager {
 
     const manifest = this.loadManifest(packagePath);
 
-    console.log(`Uninstalling ${manifest.name}@${manifest.version}...`);
+    compilerLog.info(`Uninstalling ${manifest.name}@${manifest.version}...`);
 
     // Remove the package directory
     fs.rmSync(packagePath, { recursive: true, force: true });
 
-    console.log(`✓ Uninstalled ${manifest.name}@${manifest.version}`);
+    compilerLog.info(`✓ Uninstalled ${manifest.name}@${manifest.version}`);
   }
 
   /**
    * List installed packages
    */
-  list(options: { global?: boolean } = {}): PackageInfo[] {
+  list(options: PackageOptionsGlobal = { global: false }): PackageInfo[] {
     const searchDir = options.global
       ? this.globalPackageDir
       : this.localPackageDir;
@@ -485,7 +490,7 @@ export class PackageManager {
             path: packagePath,
             hash,
           });
-        } catch (e) {
+        } catch (_e) {
           // Skip invalid packages
         }
       }
@@ -538,7 +543,7 @@ export class PackageManager {
       }
 
       return null;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }

@@ -189,7 +189,7 @@ export class Formatter {
     return output;
   }
 
-  private formatDestructPattern(pattern: any): string {
+  private formatDestructPattern(pattern: AST.DestructuringPattern): string {
     if (Array.isArray(pattern)) {
       // Nested array or list of targets
       return `(${pattern
@@ -197,13 +197,17 @@ export class Formatter {
           if (Array.isArray(item)) {
             // Nested destructuring
             return this.formatDestructPattern(item);
-          } else if (typeof item === "object" && item.name) {
+          } else if (typeof item === "object" && "name" in item) {
             // Single target
             return `${item.name}${item.type ? `: ${this.formatType(item.type)}` : ""}`;
           }
           return "";
         })
         .join(", ")})`;
+    }
+    // Single target
+    if (typeof pattern === "object" && "name" in pattern) {
+      return `${pattern.name}${pattern.type ? `: ${this.formatType(pattern.type)}` : ""}`;
     }
     return "";
   }
@@ -670,7 +674,7 @@ export class Formatter {
         const oldIndent = this.indentLevel;
         this.indentLevel = 0;
         // We need to handle comments carefully, but for now assume simple init
-        let initStr = this.formatStatement(stmt.init).trim();
+        const initStr = this.formatStatement(stmt.init).trim();
         this.indentLevel = oldIndent;
         output += initStr;
       } else {
@@ -687,11 +691,9 @@ export class Formatter {
 
       if (stmt.step) {
         output += this.formatExpression(this.unwrapGroup(stmt.step));
-      } else {
+      } else if (output.endsWith(" ")) {
         // If no step, remove the trailing space if it exists
-        if (output.endsWith(" ")) {
-          output = output.slice(0, -1);
-        }
+        output = output.slice(0, -1);
       }
 
       // If both condition and step are missing, we might have "; ;" which looks weird.
@@ -793,10 +795,9 @@ export class Formatter {
     const indent = this.getIndent();
     if (stmt.statement.kind === "Block") {
       return `${indent}defer ${this.formatBlock(stmt.statement as AST.BlockStmt, false)}`;
-    } else {
-      const inner = this.formatStatement(stmt.statement).trimStart();
-      return `${indent}defer ${inner}`;
     }
+    const inner = this.formatStatement(stmt.statement).trimStart();
+    return `${indent}defer ${inner}`;
   }
 
   private formatSwitch(stmt: AST.SwitchStmt): string {
@@ -1031,9 +1032,8 @@ export class Formatter {
     const wrappedOperand = operandIsComplex ? `(${operandStr})` : operandStr;
     if (expr.isPrefix) {
       return `${expr.operator.lexeme}${wrappedOperand}`;
-    } else {
-      return `${wrappedOperand}${expr.operator.lexeme}`;
     }
+    return `${wrappedOperand}${expr.operator.lexeme}`;
   }
 
   private formatCall(expr: AST.CallExpr): string {
@@ -1081,9 +1081,8 @@ export class Formatter {
       target.kind === "MetaType"
     ) {
       return `sizeof<${this.formatType(target as AST.TypeNode)}>()`;
-    } else {
-      return `sizeof(${this.formatExpression(target as AST.Expression)})`;
     }
+    return `sizeof(${this.formatExpression(target as AST.Expression)})`;
   }
 
   private formatTypeMatch(expr: AST.TypeMatchExpr): string {

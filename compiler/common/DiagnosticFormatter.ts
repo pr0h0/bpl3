@@ -138,9 +138,8 @@ function formatDiagnosticLine(
   if (isErrorLine && colorize) {
     const marker = `${COLORS.red}>${COLORS.reset}`;
     return `${marker} ${lineStr} | ${truncated}`;
-  } else {
-    return `  ${lineStr} | ${truncated}`;
   }
+  return `  ${lineStr} | ${truncated}`;
 }
 
 /**

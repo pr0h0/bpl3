@@ -2,6 +2,9 @@ import { Token } from "../frontend/Token";
 
 import type { SourceLocation } from "./CompilerError";
 
+// Re-export Token for convenience
+export { Token };
+
 export interface ASTNode {
   kind: string;
   location: SourceLocation;
@@ -117,7 +120,7 @@ export interface AsExpr extends ASTNode {
 
 export interface LiteralExpr extends ASTNode {
   kind: "Literal";
-  value: any;
+  value: string | number | boolean | bigint | null;
   raw: string;
   type: "string" | "number" | "bool" | "char" | "null" | "nullptr" | "unit";
 }
@@ -219,6 +222,13 @@ export interface EnumStructVariantExpr extends ASTNode {
   enumName: string;
   variantName: string;
   fields: { name: string; value: Expression }[];
+  /** Type checker metadata for code generation */
+  enumVariantInfo?: {
+    enumDecl: EnumDecl;
+    variant: EnumVariant;
+    variantIndex: number;
+    genericArgs: TypeNode[];
+  };
 }
 
 export interface CastExpr extends ASTNode {
@@ -370,11 +380,20 @@ export interface Parameter extends ASTNode {
   isVariadic?: boolean;
 }
 
+/** A single destructuring target with name and optional type */
+export interface DestructuringTarget {
+  name: string;
+  type?: TypeNode;
+}
+
+/** Recursive type for nested destructuring patterns */
+export type DestructuringPattern = DestructuringTarget | DestructuringPattern[];
+
 export interface VariableDecl extends ASTNode {
   kind: "VariableDecl";
   isGlobal: boolean;
   isConst: boolean;
-  name: string | { name: string; type?: TypeNode }[]; // Simple name or destructuring
+  name: string | DestructuringTarget[]; // Simple name or destructuring
   typeAnnotation?: TypeNode;
   initializer?: Expression;
 }
@@ -585,6 +604,8 @@ export interface Program extends ASTNode {
   kind: "Program";
   statements: Statement[];
   comments?: Token[];
+  /** Parser errors collected during error recovery */
+  errors?: import("./CompilerError").CompilerError[];
 }
 
 export interface MetaType extends ASTNode {

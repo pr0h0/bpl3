@@ -3,23 +3,13 @@
  * Extends TypeCheckerBase and uses modular checker functions
  */
 
-import * as fs from "fs";
-import * as path from "path";
-
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
-import type { Symbol } from "./SymbolTable";
-import { SymbolTable } from "./SymbolTable";
+import { type Symbol, SymbolTable } from "./SymbolTable";
 import { TypeCheckerBase } from "./TypeCheckerBase";
-import {
-  TypeUtils,
-  TypeSubstitution,
-  INTEGER_TYPES,
-  KNOWN_TYPES,
-  NUMERIC_TYPES,
-} from "./TypeUtils";
-import { OPERATOR_METHOD_MAP, OverloadResolver } from "./OverloadResolver";
+import { KNOWN_TYPES } from "./TypeUtils";
+import { OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
 import type { CheckerContext } from "./CheckerContext";
 
@@ -799,7 +789,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
                 resolvedDeclaration: typeStruct.resolvedDeclaration,
               });
             }
-          } catch (e) {
+          } catch (_e) {
             // Type struct not found (e.g. std not imported), ignore
           }
         }
@@ -1142,7 +1132,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     // Store variant info for code generation
-    (expr as any).enumVariantInfo = {
+    expr.enumVariantInfo = {
       enumDecl,
       variant,
       variantIndex: enumDecl.variants.indexOf(variant),
@@ -1270,7 +1260,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
       // Multiple matches
       const result = validCandidates[0]!;
-      (result as any).overloads = validCandidates;
+      result.overloads = validCandidates;
       return result;
     }
 
@@ -1426,7 +1416,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         const bindingType: AST.TypeNode = {
           kind: "BasicType",
           name: typeName,
-          genericArgs: [], // TODO: Support generic types in match?
+          genericArgs: [], // Generic enums are matched via their specialized types
           pointerDepth: 0,
           arrayDimensions: [],
           location: pattern.location,
@@ -1439,17 +1429,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           bindingName,
           "Variable",
           resolvedBindingType,
-          pattern as any,
+          pattern,
         );
 
         return;
-      } else {
-        throw new CompilerError(
-          "Invalid pattern for type matching",
-          "Only Type(variable) or _ patterns are supported for Any matching.",
-          pattern.location,
-        );
       }
+      throw new CompilerError(
+        "Invalid pattern for type matching",
+        "Only Type(variable) or _ patterns are supported for Any matching.",
+        pattern.location,
+      );
     }
 
     if (pattern.kind === "PatternEnum") {

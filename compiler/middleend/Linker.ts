@@ -12,6 +12,7 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 
 import { CompilerError } from "../common/CompilerError";
+import { compilerLog } from "../common/Logger";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import { ObjectFileParser } from "./ObjectFileParser";
 
@@ -57,7 +58,7 @@ export class Linker {
   link(options: LinkOptions): boolean {
     try {
       if (options.verbose) {
-        console.log("[Linker] Starting linking process...");
+        compilerLog.info("Starting linking process...");
       }
 
       // Merge all LLVM IR files
@@ -66,8 +67,8 @@ export class Linker {
       // Register symbols from object files
       if (options.objectFiles && options.objectFiles.length > 0) {
         if (options.verbose) {
-          console.log(
-            `[Linker] Registering ${options.objectFiles.length} object file(s)...`,
+          compilerLog.info(
+            `Registering ${options.objectFiles.length} object file(s)...`,
           );
         }
 
@@ -78,11 +79,11 @@ export class Linker {
               this.linkerSymbolTable,
             );
             if (options.verbose) {
-              console.log(`  Registered: ${objFile}`);
+              compilerLog.info(`  Registered: ${objFile}`);
             }
           } catch (e) {
             if (options.verbose) {
-              console.warn(`  Warning: Could not register ${objFile}: ${e}`);
+              compilerLog.warn(`Could not register ${objFile}: ${e}`);
             }
           }
         }
@@ -90,26 +91,26 @@ export class Linker {
 
       // Verify all symbols are available
       if (options.verbose) {
-        console.log("[Linker] Verifying symbols...");
+        compilerLog.info("Verifying symbols...");
       }
 
       const errors = this.linkerSymbolTable.verifySymbols();
       if (errors.length > 0) {
-        console.error("Linker errors:");
+        compilerLog.error("Linker errors:");
         for (const error of errors) {
-          console.error(`  ${error.message}`);
+          compilerLog.error(`  ${error.message}`);
         }
         return false;
       }
 
       // Compile with clang
       if (options.verbose) {
-        console.log("[Linker] Compiling to executable with clang...");
+        compilerLog.info("Compiling to executable with clang...");
       }
 
       return this.compileWithClang(mergedIR, options);
     } catch (e) {
-      console.error(`Linker error: ${e}`);
+      compilerLog.error(`Linker error: ${e}`);
       return false;
     }
   }
@@ -142,7 +143,7 @@ export class Linker {
 
     for (const irFile of irFiles) {
       if (!fs.existsSync(irFile)) {
-        console.warn(`Warning: IR file not found: ${irFile}`);
+        compilerLog.warn(`IR file not found: ${irFile}`);
         continue;
       }
 
@@ -165,7 +166,7 @@ export class Linker {
     }
 
     if (verbose) {
-      console.log(`[Linker] Merging ${modules.length} LLVM IR file(s)...`);
+      compilerLog.info(`Merging ${modules.length} LLVM IR file(s)...`);
     }
 
     // Simple merge: combine all declarations and definitions
@@ -184,7 +185,7 @@ export class Linker {
       fs.writeFileSync(tmpIRFile, mergedIR);
 
       if (options.verbose) {
-        console.log(`[Linker] Merged IR written to: ${tmpIRFile}`);
+        compilerLog.info(`Merged IR written to: ${tmpIRFile}`);
       }
 
       // Build clang command
@@ -241,7 +242,7 @@ export class Linker {
       }
 
       if (options.verbose) {
-        console.log("[Linker] Running: clang " + clangArgs.join(" "));
+        compilerLog.info("Running: clang " + clangArgs.join(" "));
       }
 
       // Run clang
@@ -251,13 +252,13 @@ export class Linker {
 
       if (result.status !== 0) {
         if (!options.verbose && result.stderr) {
-          console.error(result.stderr.toString());
+          compilerLog.error(result.stderr.toString());
         }
         return false;
       }
 
       if (options.verbose) {
-        console.log(`[Linker] Successfully created: ${options.outputPath}`);
+        compilerLog.info(`Successfully created: ${options.outputPath}`);
       }
 
       return true;
@@ -266,9 +267,9 @@ export class Linker {
       if (fs.existsSync(tmpIRFile)) {
         try {
           fs.unlinkSync(tmpIRFile);
-        } catch (e) {
+        } catch (_e) {
           if (options.verbose) {
-            console.warn(`Could not clean up temporary file: ${tmpIRFile}`);
+            compilerLog.warn(`Could not clean up temporary file: ${tmpIRFile}`);
           }
         }
       }

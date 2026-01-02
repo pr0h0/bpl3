@@ -10,7 +10,7 @@
  */
 
 import * as AST from "../common/AST";
-import { CompilerError } from "../common/CompilerError";
+import { CompilerError, type SourceLocation } from "../common/CompilerError";
 
 export interface SymbolInfo {
   /** Symbol name */
@@ -35,7 +35,7 @@ export interface SymbolInfo {
   isExtern?: boolean;
 
   /** Source location for error reporting */
-  location?: any;
+  location?: SourceLocation;
 
   /** Overloaded definitions for functions */
   overloads?: SymbolInfo[];
@@ -52,7 +52,7 @@ export class LinkerSymbolTable {
   private symbols: Map<string, SymbolInfo> = new Map();
 
   /** Undefined symbol references: name -> locations where referenced */
-  private undefinedReferences: Map<string, any[]> = new Map();
+  private undefinedReferences: Map<string, SourceLocation[]> = new Map();
 
   /** Object file symbols for linking */
   private objectFileSymbols: Map<string, ObjectFileSymbol[]> = new Map();
@@ -99,12 +99,14 @@ export class LinkerSymbolTable {
   /**
    * Reference a symbol (may be undefined)
    */
-  referenceSymbol(name: string, location?: any): void {
+  referenceSymbol(name: string, location?: SourceLocation): void {
     if (!this.symbols.has(name)) {
       if (!this.undefinedReferences.has(name)) {
         this.undefinedReferences.set(name, []);
       }
-      this.undefinedReferences.get(name)!.push(location);
+      if (location) {
+        this.undefinedReferences.get(name)!.push(location);
+      }
     }
   }
 
@@ -148,14 +150,16 @@ export class LinkerSymbolTable {
     for (const [name, locations] of this.undefinedReferences.entries()) {
       if (!this.symbols.has(name)) {
         const location = locations[0];
-        errors.push(
-          new CompilerError(
-            `Undefined symbol: ${name}`,
-            `Symbol '${name}' is referenced but not defined. ` +
-              `Did you mean to import it from a module or declare it with 'extern'?`,
-            location,
-          ),
-        );
+        if (location) {
+          errors.push(
+            new CompilerError(
+              `Undefined symbol: ${name}`,
+              `Symbol '${name}' is referenced but not defined. ` +
+                `Did you mean to import it from a module or declare it with 'extern'?`,
+              location,
+            ),
+          );
+        }
       }
     }
 

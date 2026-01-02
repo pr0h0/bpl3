@@ -1,12 +1,16 @@
 import * as path from "path";
-import { window, workspace, commands, type Terminal } from "vscode";
-import { LanguageClient, TransportKind } from "vscode-languageclient/node";
-
-import type { ExtensionContext } from "vscode";
-
-import type {
-  LanguageClientOptions,
-  ServerOptions,
+import {
+  window,
+  workspace,
+  commands,
+  type Terminal,
+  type ExtensionContext,
+} from "vscode";
+import {
+  LanguageClient,
+  TransportKind,
+  type LanguageClientOptions,
+  type ServerOptions,
 } from "vscode-languageclient/node";
 
 let client: LanguageClient;
@@ -74,7 +78,7 @@ export async function activate(context: ExtensionContext) {
   const config = workspace.getConfiguration();
   const enabled = config.get<boolean>("bplLanguageServer.formatOnSave", true);
   if (enabled) {
-    const currentLanguages = config.get<string[]>(
+    const _currentLanguages = config.get<string[]>(
       "editor.formatOnSaveAllowList",
     );
     // Prefer per-language setting; if unavailable, set global formatOnSave true

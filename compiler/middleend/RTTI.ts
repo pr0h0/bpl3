@@ -79,11 +79,12 @@ export class RTTI {
         types,
       };
     } else if (type.kind === "MetaType") {
-      const inner = this.canonicalizeType((type as any).type);
+      const metaType = type as AST.MetaType;
+      const inner = this.canonicalizeType(metaType.type);
       return {
         ...type,
         type: inner,
-      } as any;
+      } as AST.MetaType;
     }
     return type;
   }

@@ -34,7 +34,7 @@ export function getBplHome(): string {
       if (stats.isSymbolicLink()) {
         execPath = realpathSync(execPath);
       }
-    } catch (e) {
+    } catch (_e) {
       // If realpath fails, continue with original path
     }
   }

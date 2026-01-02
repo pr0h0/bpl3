@@ -12,12 +12,12 @@
  * - Proper symbol resolution across module boundaries
  */
 
-import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
 import { getLibPath } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";
+import { compilerLog } from "../common/Logger";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { PackageManager } from "./PackageManager";
@@ -61,7 +61,7 @@ export class ModuleResolver {
     // Use PathResolver to get the standard library path from BPL_HOME
     this.stdLibPath = options.stdLibPath || getLibPath();
     if (!this.stdLibPath) {
-      console.error("stdLibPath is undefined!");
+      compilerLog.error("stdLibPath is undefined!");
     }
     this.searchPaths = options.searchPaths || [];
   }
@@ -76,7 +76,7 @@ export class ModuleResolver {
     if (fs.existsSync(normalized)) {
       try {
         normalized = fs.realpathSync(normalized);
-      } catch (e) {
+      } catch (_e) {
         // If realpath fails, continue with normalized path
       }
     }
@@ -215,7 +215,7 @@ export class ModuleResolver {
         const result = this.tryResolveWithExtensions(packagePath);
         if (result) return result;
       }
-    } catch (e) {
+    } catch (_e) {
       // Package not found, continue with other search paths
     }
 
@@ -315,8 +315,9 @@ export class ModuleResolver {
   /**
    * Topological sort of modules based on dependencies
    * Returns modules in order they should be type-checked
+   * @internal Reserved for future use
    */
-  private topologicalSort(entryPoint: string): string[] {
+  private _topologicalSort(entryPoint: string): string[] {
     const sorted: string[] = [];
     const visited = new Set<string>();
     const visiting = new Set<string>();

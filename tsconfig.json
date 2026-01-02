@@ -20,7 +20,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
 
-    // Some stricter flags (disabled by default)
+    // Stricter flags - enable after refactoring is complete
+    // TODO: Enable these post-refactoring to catch dead code
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false

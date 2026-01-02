@@ -15,6 +15,7 @@ import { resolveBplPath } from "./common/PathResolver";
 import { CodeGenerator } from "./backend/CodeGenerator";
 import { ASTPrinter } from "./common/ASTPrinter";
 import { CompilerError } from "./common/CompilerError";
+import { compilerLog } from "./common/Logger";
 import { Formatter } from "./formatter/Formatter";
 import { lexWithGrammar } from "./frontend/GrammarLexer";
 import { Parser } from "./frontend/Parser";
@@ -73,7 +74,7 @@ export class Compiler {
 
       // 1. Frontend: Lexing
       if (this.options.verbose) {
-        console.log("[Frontend] Lexical Analysis...");
+        compilerLog.info("Lexical Analysis...");
       }
       const tokens = lexWithGrammar(sourceCode, this.options.filePath);
 
@@ -86,23 +87,22 @@ export class Compiler {
 
       // 2. Frontend: Parsing
       if (this.options.verbose) {
-        console.log("[Frontend] Syntax Analysis...");
+        compilerLog.info("Syntax Analysis...");
       }
       const parser = new Parser(sourceCode, this.options.filePath, tokens);
       const ast = parser.parse(true, !this.options.collectAllErrors);
 
       // Check for parser errors
-      if ((ast as any).errors && (ast as any).errors.length > 0) {
-        const errors = (ast as any).errors as CompilerError[];
+      if (ast.errors && ast.errors.length > 0) {
+        const errors = ast.errors;
         if (this.options.collectAllErrors) {
           return {
             success: false,
             errors: errors,
             ast: ast,
           };
-        } else {
-          throw errors[0];
         }
+        throw errors[0];
       }
 
       if (this.options.emitType === "ast") {
@@ -124,7 +124,7 @@ export class Compiler {
 
       // 3. Middleend: Type Checking
       if (this.options.verbose) {
-        console.log("[Middleend] Semantic Analysis...");
+        compilerLog.info("Semantic Analysis...");
       }
       const typeChecker = new TypeChecker({
         collectAllErrors: this.options.collectAllErrors,
@@ -137,7 +137,7 @@ export class Compiler {
 
       // 4. Backend: Code Generation
       if (this.options.verbose) {
-        console.log("[Backend] Code Generation...");
+        compilerLog.info("Code Generation...");
       }
       const codeGenerator = new CodeGenerator({
         target: this.options.target,
@@ -152,7 +152,7 @@ export class Compiler {
         this.options.libraryPaths
       ) {
         if (this.options.verbose) {
-          console.log("[Linker] Linking with object files...");
+          compilerLog.info("Linking with object files...");
         }
 
         const irFile = this.options.outputPath || "temp.ll";
@@ -211,7 +211,7 @@ export class Compiler {
   private compileWithModuleResolution(): CompilationResult {
     try {
       if (this.options.verbose) {
-        console.log("[Module Resolution] Resolving dependencies...");
+        compilerLog.info("Resolving dependencies...");
       }
 
       // 1. Resolve all modules
@@ -219,15 +219,15 @@ export class Compiler {
       const modules = resolver.resolveModules(this.options.filePath);
 
       if (this.options.verbose) {
-        console.log(`[Module Resolution] Found ${modules.length} modules`);
+        compilerLog.info(`Found ${modules.length} modules`);
         for (const mod of modules) {
-          console.log(`  - ${mod.path}`);
+          compilerLog.debug(`  - ${mod.path}`);
         }
       }
 
       // 2. Type check all modules in dependency order
       if (this.options.verbose) {
-        console.log("[Middleend] Type checking modules...");
+        compilerLog.info("Type checking modules...");
       }
 
       const typeChecker = new TypeChecker({
@@ -242,7 +242,7 @@ export class Compiler {
 
       for (const module of modules) {
         if (this.options.verbose) {
-          console.log(`  Checking: ${path.basename(module.path)}`);
+          compilerLog.debug(`Checking: ${path.basename(module.path)}`);
         }
         typeChecker.setCurrentModulePath(module.path);
         typeChecker.checkProgram(module.ast, module.path);
@@ -256,7 +256,7 @@ export class Compiler {
 
       // Check for undefined symbols (linker verification)
       if (this.options.verbose) {
-        console.log("[Linker] Verifying symbols...");
+        compilerLog.info("Verifying symbols...");
       }
       const linkerSymbolTable = typeChecker.getLinkerSymbolTable();
       const linkerErrors = linkerSymbolTable.verifySymbols();
@@ -331,7 +331,7 @@ export class Compiler {
       };
 
       if (this.options.verbose) {
-        console.log("[Backend] Generating code...");
+        compilerLog.info("Generating code...");
       }
 
       const stdLibPath = path.resolve(resolveBplPath("lib"));
@@ -371,7 +371,7 @@ export class Compiler {
       const cache = new ModuleCache(projectRoot);
 
       if (this.options.verbose) {
-        console.log("[Module Cache] Resolving dependencies...");
+        compilerLog.info("Resolving dependencies (cached)...");
       }
 
       // 1. Resolve all modules
@@ -379,7 +379,7 @@ export class Compiler {
       const modules = resolver.resolveModules(this.options.filePath);
 
       if (this.options.verbose) {
-        console.log(`[Module Cache] Found ${modules.length} modules`);
+        compilerLog.info(`Found ${modules.length} modules`);
       }
 
       // 2. Type check all modules in dependency order
@@ -439,7 +439,7 @@ export class Compiler {
         .join("\n");
 
       if (this.options.verbose) {
-        console.log("[Module Cache] Compiling modules...");
+        compilerLog.info("Compiling modules...");
       }
 
       const codeGenerator = new CodeGenerator({
@@ -464,7 +464,7 @@ export class Compiler {
         this.options.filePath.replace(/\.[^/.]+$/, "");
 
       if (this.options.verbose) {
-        console.log("[Module Cache] Linking modules...");
+        compilerLog.info("Linking modules...");
       }
 
       cache.linkModules(
@@ -476,8 +476,8 @@ export class Compiler {
 
       if (this.options.verbose) {
         const stats = cache.getStats();
-        console.log(
-          `[Module Cache] Cache stats: ${stats.totalModules} modules, ${(
+        compilerLog.info(
+          `Cache stats: ${stats.totalModules} modules, ${(
             stats.cacheSize / 1024
           ).toFixed(2)} KB`,
         );
@@ -519,3 +519,8 @@ export * as AST from "./common/AST";
 export { Token } from "./frontend/Token";
 export { TokenType } from "./frontend/TokenType";
 export { SymbolTable } from "./middleend/SymbolTable";
+export { DiagnosticFormatter } from "./common/DiagnosticFormatter";
+export { Linter } from "./linter/Linter";
+export { PackageManager } from "./middleend/PackageManager";
+export { SourceManager } from "./common/SourceManager";
+export { resolveBplPath } from "./common/PathResolver";

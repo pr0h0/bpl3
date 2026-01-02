@@ -431,9 +431,9 @@ export function checkVariableDecl(
     if (initType && initType.kind === "TupleType") {
       const tupleType = initType as AST.TupleTypeNode;
 
-      const flattenNames = (targets: any[]): string[] => {
+      const flattenNames = (innerTargets: any[]): string[] => {
         const result: string[] = [];
-        for (const t of targets) {
+        for (const t of innerTargets) {
           if (Array.isArray(t)) {
             result.push(...flattenNames(t));
           } else if (typeof t === "string") {
@@ -448,12 +448,12 @@ export function checkVariableDecl(
       const names = flattenNames(decl.name);
 
       const assignTypes = (
-        names: string[],
+        nameList: string[],
         types: AST.TypeNode[],
         explicit: (AST.TypeNode | undefined)[],
       ): void => {
-        for (let i = 0; i < names.length; i++) {
-          const name = names[i]!;
+        for (let i = 0; i < nameList.length; i++) {
+          const name = nameList[i]!;
           const inferredType = types[i];
           const explicitType = explicit[i];
 

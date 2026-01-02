@@ -11,7 +11,7 @@ export interface ParsedDoc {
 export class DocParser {
   public static parse(doc: string): ParsedDoc {
     const lines = doc.split(/\r?\n/);
-    let descriptionLines: string[] = [];
+    const descriptionLines: string[] = [];
     const sections: DocSection[] = [];
 
     let currentSection: DocSection | null = null;
@@ -30,12 +30,10 @@ export class DocParser {
           title: headerMatch[2]?.trim() || "",
           content: "",
         };
+      } else if (currentSection) {
+        currentSection.content += line + "\n";
       } else {
-        if (currentSection) {
-          currentSection.content += line + "\n";
-        } else {
-          descriptionLines.push(line);
-        }
+        descriptionLines.push(line);
       }
     }
 

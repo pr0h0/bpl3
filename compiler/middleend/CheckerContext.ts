@@ -1,7 +1,6 @@
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
-import type { Symbol, SymbolKind } from "./SymbolTable";
-import { SymbolTable } from "./SymbolTable";
+import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 
 /**
  * Unified context interface for all checker modules.
