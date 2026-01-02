@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "sizeof<int>() = 4",
+    "sizeof<int[10]>() = 40",
+    "sizeof<Arr>() = 40",
+    "sizeof<*int>() = 8",
+    "sizeof<*Arr>() = 8",
+    "sizeof<PtrInt>() = 8",
+    "sizeof<*PtrInt>() = 8"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

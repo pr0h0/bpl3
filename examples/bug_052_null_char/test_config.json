@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "String: Hello.",
+    "Length via strlen: 5",
+    "Char at [0]: H (72)",
+    "Char at [5]: \u0000 (0)",
+    "Char at [6]: W (87)"
+  ]
+}

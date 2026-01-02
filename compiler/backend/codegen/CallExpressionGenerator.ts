@@ -8,6 +8,7 @@ import { codeGenLog } from "../../common/Logger";
 import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
 import { BinaryExpressionGenerator } from "./BinaryExpressionGenerator";
 import { RTTI } from "../../middleend/RTTI";
+import { getIntegerBitWidth } from "./utils";
 
 export abstract class CallExpressionGenerator extends BinaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
@@ -798,11 +799,55 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
           let byteOffset = 0;
           for (let i = 0; i < expr.args.length; i++) {
-            const argValue = this.generateExpression(expr.args[i]!);
+            let argValue = this.generateExpression(expr.args[i]!);
             const argType = this.resolveType(expr.args[i]!.resolvedType!);
-            const argSize = this.getTypeSize(argType);
+            const _argSize = this.getTypeSize(argType);
 
-            const alignment = this.getAlignmentForSize(argSize);
+            // Get expected field type from variant definition
+            const tupleVariant = variant.dataType as AST.EnumVariantTuple;
+            let fieldTypeNode = tupleVariant.types[i]!;
+
+            // Substitute generic type parameters if enum is generic
+            if (expr.resolvedType && expr.resolvedType.kind === "BasicType") {
+              const enumTypeNode = expr.resolvedType as AST.BasicTypeNode;
+              if (
+                enumTypeNode.genericArgs &&
+                enumTypeNode.genericArgs.length > 0 &&
+                _enumDecl.genericParams &&
+                _enumDecl.genericParams.length > 0
+              ) {
+                // Build context map for generic substitution
+                const contextMap = new Map<string, AST.TypeNode>();
+                for (let j = 0; j < _enumDecl.genericParams.length; j++) {
+                  contextMap.set(
+                    _enumDecl.genericParams[j]!.name,
+                    enumTypeNode.genericArgs[j]!,
+                  );
+                }
+                fieldTypeNode = this.substituteType(fieldTypeNode, contextMap);
+              }
+            }
+
+            const expectedFieldType = this.resolveType(fieldTypeNode);
+
+            // Truncate if necessary (e.g., i32 -> i8)
+            if (argType !== expectedFieldType) {
+              const argTypeSize = getIntegerBitWidth(argType);
+              const expectedSize = getIntegerBitWidth(expectedFieldType);
+              if (argTypeSize > expectedSize) {
+                const truncReg = this.newRegister();
+                this.emit(
+                  `  ${truncReg} = trunc ${argType} ${argValue} to ${expectedFieldType}`,
+                );
+                argValue = truncReg;
+              }
+            }
+
+            // Use the expected field type for storage
+            const storeType = expectedFieldType;
+            const storeSize = this.getTypeSize(storeType);
+
+            const alignment = this.getAlignmentForSize(storeSize);
             if (byteOffset % alignment !== 0) {
               byteOffset = Math.ceil(byteOffset / alignment) * alignment;
             }
@@ -812,7 +857,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             if (byteOffset === 0) {
               storePtr = this.newRegister();
               this.emit(
-                `  ${storePtr} = bitcast i8* ${bytePtr} to ${argType}*`,
+                `  ${storePtr} = bitcast i8* ${bytePtr} to ${storeType}*`,
               );
             } else {
               const offsetPtr = this.newRegister();
@@ -821,16 +866,16 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
               );
               storePtr = this.newRegister();
               this.emit(
-                `  ${storePtr} = bitcast i8* ${offsetPtr} to ${argType}*`,
+                `  ${storePtr} = bitcast i8* ${offsetPtr} to ${storeType}*`,
               );
             }
 
             // Store the value
             this.emit(
-              `  store ${argType} ${argValue}, ${argType}* ${storePtr}`,
+              `  store ${storeType} ${argValue}, ${storeType}* ${storePtr}`,
             );
 
-            byteOffset += argSize;
+            byteOffset += storeSize;
           }
         }
         // EnumVariantStruct is handled via StructLiteral path in ExpressionGenerator.ts
@@ -1167,7 +1212,27 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       }
 
       if ((objType as any).kind === "ModuleType") {
-        funcName = memberExpr.property;
+        // Module function call (namespace import)
+        // Use mangled name based on function signature
+        if (
+          expr.resolvedDeclaration &&
+          expr.resolvedDeclaration.kind === "FunctionDecl"
+        ) {
+          const funcDecl = expr.resolvedDeclaration as AST.FunctionDecl;
+          const funcDeclType = funcDecl.resolvedType as AST.FunctionTypeNode;
+          funcName = this.getMangledName(funcDecl.name, funcDeclType);
+        } else if (
+          expr.resolvedType &&
+          expr.resolvedType.kind === "FunctionType"
+        ) {
+          // Fallback: use function name with type-based mangling
+          funcName = this.getMangledName(
+            memberExpr.property,
+            expr.resolvedType as AST.FunctionTypeNode,
+          );
+        } else {
+          funcName = memberExpr.property;
+        }
       } else {
         let structName = "";
         let ownerDecl: AST.StructDecl | null = null;
@@ -2176,6 +2241,13 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     const isExtern =
       expr.resolvedDeclaration && expr.resolvedDeclaration.kind === "Extern";
 
+    // Check if this is a module function call (namespace import)
+    const isModuleFunction =
+      callee.kind === "Member" &&
+      (callee as AST.MemberExpr).object.resolvedType &&
+      ((callee as AST.MemberExpr).object.resolvedType as any).kind ===
+        "ModuleType";
+
     if (isVariadic && !isExtern && !(expr as any).variadicPacked) {
       // BPL Variadic Logic
       let fixedCount = 0;
@@ -2321,8 +2393,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     const retType = this.resolveType(expr.resolvedType!);
 
-    // Ensure external function is declared
-    if (callTarget.startsWith("@") && isExtern) {
+    // Ensure external or module function is declared
+    if (callTarget.startsWith("@") && (isExtern || isModuleFunction)) {
       const targetName = callTarget.substring(1);
       if (
         !this.declaredFunctions.has(targetName) &&

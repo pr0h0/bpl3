@@ -38,6 +38,9 @@ export abstract class TypeCheckerBase {
   public loopDepth: number = 0;
   public inDefer: boolean = false;
 
+  // Track type alias resolution to detect cycles
+  private typeAliasResolutionStack: Set<string> = new Set();
+
   constructor(
     options: {
       skipImportResolution?: boolean;
@@ -258,97 +261,115 @@ export abstract class TypeCheckerBase {
           return type;
         }
 
-        const decl = resolvedSymbol.declaration as AST.TypeAliasDecl;
-        if (decl && decl.genericParams && decl.genericParams.length > 0) {
-          // Generic Alias Substitution
-          if (type.genericArgs.length !== decl.genericParams.length) {
-            throw new CompilerError(
-              `Generic alias '${type.name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
-              "Check generic argument count.",
-              type.location,
+        // Detect recursive type alias cycles
+        if (this.typeAliasResolutionStack.has(type.name)) {
+          const cycle = Array.from(this.typeAliasResolutionStack).join(" -> ");
+          throw new CompilerError(
+            `Recursive type alias '${type.name}' detected`,
+            `Cycle: ${cycle} -> ${type.name}. Type aliases cannot reference themselves directly or indirectly without a pointer indirection.`,
+            type.location,
+          );
+        }
+
+        this.typeAliasResolutionStack.add(type.name);
+        try {
+          const decl = resolvedSymbol.declaration as AST.TypeAliasDecl;
+          if (decl && decl.genericParams && decl.genericParams.length > 0) {
+            // Generic Alias Substitution
+            if (type.genericArgs.length !== decl.genericParams.length) {
+              throw new CompilerError(
+                `Generic alias '${type.name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
+                "Check generic argument count.",
+                type.location,
+              );
+            }
+
+            const typeMap = new Map<string, AST.TypeNode>();
+            for (let i = 0; i < decl.genericParams.length; i++) {
+              typeMap.set(
+                decl.genericParams[i]!.name,
+                this.resolveType(type.genericArgs[i]!, checkConstraints),
+              );
+            }
+
+            const substituted = this.substituteType(
+              resolvedSymbol.type,
+              typeMap,
             );
+            const resolvedSubstituted = this.resolveType(
+              substituted,
+              checkConstraints,
+            );
+
+            if (resolvedSubstituted.kind === "BasicType") {
+              return {
+                ...resolvedSubstituted,
+                pointerDepth:
+                  resolvedSubstituted.pointerDepth + type.pointerDepth,
+                arrayDimensions: [
+                  ...resolvedSubstituted.arrayDimensions,
+                  ...type.arrayDimensions,
+                ],
+                location: type.location,
+                aliasDeclaration: decl,
+              };
+            }
+            return resolvedSubstituted;
           }
 
-          const typeMap = new Map<string, AST.TypeNode>();
-          for (let i = 0; i < decl.genericParams.length; i++) {
-            typeMap.set(
-              decl.genericParams[i]!.name,
-              this.resolveType(type.genericArgs[i]!, checkConstraints),
-            );
-          }
-
-          const substituted = this.substituteType(resolvedSymbol.type, typeMap);
-          const resolvedSubstituted = this.resolveType(
-            substituted,
+          const resolvedBase = this.resolveType(
+            resolvedSymbol.type,
             checkConstraints,
           );
 
-          if (resolvedSubstituted.kind === "BasicType") {
-            return {
-              ...resolvedSubstituted,
-              pointerDepth:
-                resolvedSubstituted.pointerDepth + type.pointerDepth,
+          if (resolvedBase.kind === "BasicType") {
+            const result: AST.BasicTypeNode = {
+              ...resolvedBase,
+              genericArgs: [
+                ...resolvedBase.genericArgs,
+                ...type.genericArgs.map((t) =>
+                  this.resolveType(t, checkConstraints),
+                ),
+              ],
+              pointerDepth: resolvedBase.pointerDepth + type.pointerDepth,
               arrayDimensions: [
-                ...resolvedSubstituted.arrayDimensions,
+                ...resolvedBase.arrayDimensions,
                 ...type.arrayDimensions,
               ],
               location: type.location,
+              isConst: type.isConst || resolvedBase.isConst,
               aliasDeclaration: decl,
             };
+            return result;
           }
-          return resolvedSubstituted;
-        }
 
-        const resolvedBase = this.resolveType(
-          resolvedSymbol.type,
-          checkConstraints,
-        );
-
-        if (resolvedBase.kind === "BasicType") {
-          const result: AST.BasicTypeNode = {
-            ...resolvedBase,
-            genericArgs: [
-              ...resolvedBase.genericArgs,
-              ...type.genericArgs.map((t) =>
-                this.resolveType(t, checkConstraints),
-              ),
-            ],
-            pointerDepth: resolvedBase.pointerDepth + type.pointerDepth,
-            arrayDimensions: [
-              ...resolvedBase.arrayDimensions,
-              ...type.arrayDimensions,
-            ],
-            location: type.location,
-            isConst: type.isConst || resolvedBase.isConst,
-            aliasDeclaration: decl,
-          };
-          return result;
-        }
-
-        // Propagate array dimensions for other types (FunctionType, TupleType, LambdaType)
-        if (
-          resolvedBase.kind === "FunctionType" ||
-          resolvedBase.kind === "TupleType" ||
-          resolvedBase.kind === "LambdaType"
-        ) {
-          const result = { ...resolvedBase } as any;
-          if (type.arrayDimensions && type.arrayDimensions.length > 0) {
-            result.arrayDimensions = [
-              ...(result.arrayDimensions || []),
-              ...type.arrayDimensions,
-            ];
+          // Propagate array dimensions for other types (FunctionType, TupleType, LambdaType)
+          if (
+            resolvedBase.kind === "FunctionType" ||
+            resolvedBase.kind === "TupleType" ||
+            resolvedBase.kind === "LambdaType"
+          ) {
+            const result = { ...resolvedBase } as any;
+            if (type.arrayDimensions && type.arrayDimensions.length > 0) {
+              result.arrayDimensions = [
+                ...(result.arrayDimensions || []),
+                ...type.arrayDimensions,
+              ];
+            }
+            if ("isConst" in type && type.isConst) {
+              result.isConst = true;
+            }
+            return result as AST.TypeNode;
           }
+
+          // Propagate const for other types
           if ("isConst" in type && type.isConst) {
-            result.isConst = true;
+            return { ...resolvedBase, isConst: true } as AST.TypeNode;
           }
-          return result as AST.TypeNode;
+          return resolvedBase;
+        } finally {
+          this.typeAliasResolutionStack.delete(type.name);
         }
-
-        // Propagate const for other types
-        if ("isConst" in type && type.isConst) {
-          return { ...resolvedBase, isConst: true } as AST.TypeNode;
-        }
-        return resolvedBase;
       }
     } else if (type.kind === "FunctionType") {
       return {

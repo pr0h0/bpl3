@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "Testing namespace imports",
+    "Helper called",
+    "Result: 30"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

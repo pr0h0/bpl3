@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "Arrays are equal",
+    "Arrays are not equal (correct)",
+    "SUCCESS"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

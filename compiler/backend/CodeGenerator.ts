@@ -375,6 +375,8 @@ export class CodeGenerator extends StatementGenerator {
     this.declaredFunctions.add("exit");
     this.emitDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
     this.declaredFunctions.add("memcmp");
+    this.emitDeclaration("declare i32 @strcmp(i8*, i8*)");
+    this.declaredFunctions.add("strcmp");
 
     // StackOverflowError struct
     if (

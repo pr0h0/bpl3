@@ -682,6 +682,107 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /**
+   * Detect cycles in struct field types that would cause infinite size
+   */
+  private detectStructCycle(
+    startName: string,
+    decl: AST.StructDecl,
+    visited: Set<string> = new Set(),
+    path: string[] = [],
+  ): void {
+    if (visited.has(decl.name)) {
+      // Found a cycle
+      const cyclePath = [...path, decl.name].join(" -> ");
+      throw new CompilerError(
+        `Struct '${startName}' has infinite size due to recursive field types`,
+        `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
+        decl.location,
+      );
+    }
+
+    visited.add(decl.name);
+    path.push(decl.name);
+
+    for (const member of decl.members) {
+      if (member.kind === "StructField") {
+        const fieldType = member.type;
+
+        // Only check non-pointer, non-array types
+        if (
+          fieldType.kind === "BasicType" &&
+          fieldType.pointerDepth === 0 &&
+          fieldType.arrayDimensions.length === 0
+        ) {
+          // Try to resolve the field's struct
+          const symbol = this.currentScope.resolve(fieldType.name);
+          if (symbol && symbol.kind === "Struct") {
+            const fieldStructDecl = symbol.declaration as AST.StructDecl;
+            this.detectStructCycle(
+              startName,
+              fieldStructDecl,
+              new Set(visited),
+              [...path],
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Detect cycles in enum variant types that would cause infinite size
+   */
+  private detectEnumCycle(
+    startName: string,
+    decl: AST.EnumDecl,
+    visited: Set<string> = new Set(),
+    path: string[] = [],
+  ): void {
+    if (visited.has(decl.name)) {
+      // Found a cycle
+      const cyclePath = [...path, decl.name].join(" -> ");
+      throw new CompilerError(
+        `Enum '${startName}' has infinite size due to recursive variant types`,
+        `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
+        decl.location,
+      );
+    }
+
+    visited.add(decl.name);
+    path.push(decl.name);
+
+    for (const variant of decl.variants) {
+      if (variant.dataType) {
+        let typesToCheck: AST.TypeNode[] = [];
+
+        if (variant.dataType.kind === "EnumVariantTuple") {
+          typesToCheck = variant.dataType.types;
+        } else if (variant.dataType.kind === "EnumVariantStruct") {
+          typesToCheck = variant.dataType.fields.map((f) => f.type);
+        }
+
+        for (const type of typesToCheck) {
+          // Only check non-pointer, non-array types
+          if (
+            type.kind === "BasicType" &&
+            type.pointerDepth === 0 &&
+            type.arrayDimensions.length === 0
+          ) {
+            // Try to resolve the variant's enum
+            const symbol = this.currentScope.resolve(type.name);
+            if (symbol && symbol.kind === "Enum") {
+              const fieldEnumDecl = symbol.declaration as AST.EnumDecl;
+              this.detectEnumCycle(startName, fieldEnumDecl, new Set(visited), [
+                ...path,
+              ]);
+            }
+          }
+        }
+      }
+    }
+  }
+
   private checkStructBody(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
@@ -718,6 +819,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         fieldNames.add(member.name);
       }
     }
+
+    // Check for infinite size cycles in struct fields
+    this.detectStructCycle(decl.name, decl);
 
     // Add generic params
     for (const gp of decl.genericParams) {
@@ -862,6 +966,24 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         };
         member.resolvedType = functionType;
 
+        // Validate destructor signature
+        if (member.name === "destroy") {
+          // Check if first parameter (this) is a pointer
+          if (member.params.length > 0) {
+            const thisParam = member.params[0]!;
+            const thisType = this.resolveType(thisParam.type);
+            if (thisType.kind === "BasicType" && thisType.pointerDepth === 0) {
+              this.addError(
+                new CompilerError(
+                  `Destructor 'destroy' must take a pointer receiver, not a value`,
+                  `Change parameter type from '${thisParam.name}: ${decl.name}' to '${thisParam.name}: *${decl.name}'`,
+                  thisParam.location,
+                ),
+              );
+            }
+          }
+        }
+
         this.checkFunctionBody(member, decl);
       }
     }
@@ -888,6 +1010,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
       variantNames.add(variant.name);
     }
+
+    // Check for infinite size cycles in enum variants
+    this.detectEnumCycle(decl.name, decl);
 
     // Add generic params
     for (const gp of decl.genericParams) {

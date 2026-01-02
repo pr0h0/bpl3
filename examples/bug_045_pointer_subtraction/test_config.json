@@ -1,0 +1,7 @@
+{
+  "expectedOutput": [
+    "ptr1 points to: 50",
+    "ptr2 points to: 20",
+    "Difference: 3 elements"
+  ]
+}

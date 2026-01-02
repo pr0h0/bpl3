@@ -837,6 +837,12 @@ export abstract class StatementGenerator extends AsmGenerator {
       condType = "i32";
     }
 
+    // Handle string switch by converting to if-else chain with strcmp
+    if (condType === "i8*") {
+      this.generateStringSwitch(stmt, cond);
+      return;
+    }
+
     const endLabel = this.newLabel("switch.end");
     const defaultLabel = stmt.defaultCase
       ? this.newLabel("switch.default")
@@ -869,6 +875,72 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
     }
 
+    if (stmt.defaultCase) {
+      this.emit(`${defaultLabel}:`);
+      this.generateBlock(stmt.defaultCase);
+      if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+        this.emit(`  br label %${endLabel}`);
+      }
+    }
+
+    this.emit(`${endLabel}:`);
+  }
+
+  /**
+   * Generate string switch as if-else chain with strcmp
+   */
+  private generateStringSwitch(stmt: AST.SwitchStmt, cond: string) {
+    const endLabel = this.newLabel("switch.end");
+    const caseLabels: { value: string; label: string; body: AST.BlockStmt }[] =
+      [];
+
+    // Generate case labels and values
+    for (const caseStmt of stmt.cases) {
+      if (caseStmt.value.kind !== "Literal") {
+        throw this.createError("Switch case values must be literals", caseStmt);
+      }
+      const val = this.generateLiteral(caseStmt.value as AST.LiteralExpr);
+      const label = this.newLabel("switch.case");
+      caseLabels.push({ value: val, label, body: caseStmt.body });
+    }
+
+    const defaultLabel = stmt.defaultCase
+      ? this.newLabel("switch.default")
+      : endLabel;
+
+    // Generate if-else chain
+    for (let i = 0; i < caseLabels.length; i++) {
+      const c = caseLabels[i]!;
+      const nextLabel =
+        i < caseLabels.length - 1
+          ? this.newLabel("switch.check")
+          : defaultLabel;
+
+      // Call strcmp
+      const cmpReg = this.newRegister();
+      this.emit(`  ${cmpReg} = call i32 @strcmp(i8* ${cond}, i8* ${c.value})`);
+
+      // Check if equal (strcmp returns 0 for equal)
+      const eqReg = this.newRegister();
+      this.emit(`  ${eqReg} = icmp eq i32 ${cmpReg}, 0`);
+
+      // Branch to case body or next check
+      this.emit(`  br i1 ${eqReg}, label %${c.label}, label %${nextLabel}`);
+
+      // Generate case body
+      this.emit(`${c.label}:`);
+      this.generateBlock(c.body);
+      if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+        this.emit(`  br label %${endLabel}`);
+      }
+
+      // Continue with next check if not the last case
+      if (i < caseLabels.length - 1) {
+        this.emit(`${nextLabel}:`);
+      }
+    }
+
+    // Generate default case
     if (stmt.defaultCase) {
       this.emit(`${defaultLabel}:`);
       this.generateBlock(stmt.defaultCase);

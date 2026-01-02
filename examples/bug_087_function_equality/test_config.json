@@ -1,0 +1,7 @@
+{
+  "expectedOutput": [
+    "func1 == func2: true",
+    "func1 == func3: false",
+    "func1 != func3: true"
+  ]
+}

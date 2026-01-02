@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "p[0] = 42",
+    "p[1] = 99",
+    "sizeof<Arr>() = 40",
+    "sizeof<*Arr>() = 8"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

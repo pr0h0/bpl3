@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "Hex escapes: ABC",
+    "Mixed: Hello World",
+    "Newline via hex: Start",
+    "End",
+    "Tab via hex: A\tB"
+  ]
+}

@@ -443,6 +443,36 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     leftType: string,
     rightType: string,
   ): string | null {
+    // ptr - ptr (pointer subtraction)
+    if (
+      leftType.endsWith("*") &&
+      rightType.endsWith("*") &&
+      expr.operator.type === TokenType.Minus
+    ) {
+      // Convert both pointers to integers
+      const leftInt = this.newRegister();
+      const rightInt = this.newRegister();
+      this.emit(`  ${leftInt} = ptrtoint ${leftType} ${leftRaw} to i64`);
+      this.emit(`  ${rightInt} = ptrtoint ${rightType} ${rightRaw} to i64`);
+
+      // Subtract
+      const diff = this.newRegister();
+      this.emit(`  ${diff} = sub i64 ${leftInt}, ${rightInt}`);
+
+      // Get element size using sizeof
+      const elementType = leftType.slice(0, -1); // Remove trailing *
+      const sizeofReg = this.newRegister();
+      this.emit(
+        `  ${sizeofReg} = ptrtoint ${elementType}* getelementptr (${elementType}, ${elementType}* null, i32 1) to i64`,
+      );
+
+      // Divide difference by element size to get number of elements
+      const result = this.newRegister();
+      this.emit(`  ${result} = sdiv i64 ${diff}, ${sizeofReg}`);
+
+      return result;
+    }
+
     // ptr + int or ptr - int
     if (leftType.endsWith("*") && this.isIntegerType(rightType)) {
       let right = rightRaw;
@@ -532,9 +562,49 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         op = this.getDivisionOp(isFloat, isUnsigned, right, rightType);
         break;
       case TokenType.EqualEqual:
+        // Check for array equality
+        if (expr.left.resolvedType?.kind === "BasicType") {
+          const leftBasic = expr.left.resolvedType as AST.BasicTypeNode;
+          if (
+            leftBasic.arrayDimensions.length > 0 &&
+            leftBasic.pointerDepth === 0
+          ) {
+            return this.generateArrayEquality(
+              expr,
+              left,
+              right,
+              leftType,
+              true,
+            );
+          }
+        }
+        // Check for tuple equality
+        if (expr.left.resolvedType?.kind === "TupleType") {
+          return this.generateTupleEquality(expr, left, right, leftType, true);
+        }
         op = isFloat ? "fcmp oeq" : "icmp eq";
         break;
       case TokenType.BangEqual:
+        // Check for array inequality
+        if (expr.left.resolvedType?.kind === "BasicType") {
+          const leftBasic = expr.left.resolvedType as AST.BasicTypeNode;
+          if (
+            leftBasic.arrayDimensions.length > 0 &&
+            leftBasic.pointerDepth === 0
+          ) {
+            return this.generateArrayEquality(
+              expr,
+              left,
+              right,
+              leftType,
+              false,
+            );
+          }
+        }
+        // Check for tuple inequality
+        if (expr.left.resolvedType?.kind === "TupleType") {
+          return this.generateTupleEquality(expr, left, right, leftType, false);
+        }
         op = isFloat ? "fcmp one" : "icmp ne";
         break;
       case TokenType.Less:
@@ -644,6 +714,175 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     this.emitThrow(errorStruct, "%struct.DivisionByZeroError");
 
     this.emit(`${okLabel}:`);
+  }
+
+  /**
+   * Generate array equality comparison using memcmp
+   */
+  private generateArrayEquality(
+    expr: AST.BinaryExpr,
+    left: string,
+    right: string,
+    arrayType: string,
+    isEqual: boolean,
+  ): string {
+    // Get array size from type (e.g., "[5 x i32]" -> 5 elements)
+    const match = arrayType.match(/\[(\d+) x (.+)\]/);
+    if (!match) {
+      throw this.createError(
+        "Cannot parse array type for equality comparison",
+        expr,
+        `Expected array type in format [N x T], got ${arrayType}`,
+      );
+    }
+    const elemCount = parseInt(match[1]!, 10);
+    const elemType = match[2]!;
+
+    // Calculate size in bytes
+    const elemSize = this.getTypeSize(elemType);
+    const totalBytes = elemCount * elemSize;
+
+    // Spill arrays to stack to get addresses
+    const leftPtr = this.newRegister();
+    this.emit(`  ${leftPtr} = alloca ${arrayType}`);
+    this.emit(`  store ${arrayType} ${left}, ${arrayType}* ${leftPtr}`);
+
+    const rightPtr = this.newRegister();
+    this.emit(`  ${rightPtr} = alloca ${arrayType}`);
+    this.emit(`  store ${arrayType} ${right}, ${arrayType}* ${rightPtr}`);
+
+    // Cast to i8* for memcmp
+    const leftBytes = this.newRegister();
+    this.emit(`  ${leftBytes} = bitcast ${arrayType}* ${leftPtr} to i8*`);
+
+    const rightBytes = this.newRegister();
+    this.emit(`  ${rightBytes} = bitcast ${arrayType}* ${rightPtr} to i8*`);
+
+    // Call memcmp
+    const cmpResult = this.newRegister();
+    this.emit(
+      `  ${cmpResult} = call i32 @memcmp(i8* ${leftBytes}, i8* ${rightBytes}, i64 ${totalBytes})`,
+    );
+
+    // Compare result with 0
+    const result = this.newRegister();
+    const cmpOp = isEqual ? "eq" : "ne";
+    this.emit(`  ${result} = icmp ${cmpOp} i32 ${cmpResult}, 0`);
+
+    return result;
+  }
+
+  /**
+   * Generate tuple equality comparison (member-wise)
+   */
+  private generateTupleEquality(
+    expr: AST.BinaryExpr,
+    left: string,
+    right: string,
+    tupleType: string,
+    isEqual: boolean,
+  ): string {
+    const tupleTypeNode = expr.left.resolvedType as AST.TupleTypeNode;
+    const numElements = tupleTypeNode.types.length;
+
+    if (numElements === 0) {
+      // Empty tuple is always equal
+      return isEqual ? "1" : "0";
+    }
+
+    if (numElements === 1) {
+      // Single element - direct comparison
+      const elemType = this.resolveType(tupleTypeNode.types[0]!);
+      const leftElem = this.newRegister();
+      this.emit(`  ${leftElem} = extractvalue ${tupleType} ${left}, 0`);
+      const rightElem = this.newRegister();
+      this.emit(`  ${rightElem} = extractvalue ${tupleType} ${right}, 0`);
+
+      const isFloat = elemType === "double" || elemType === "float";
+      let cmpOp: string;
+      if (isEqual) {
+        cmpOp = isFloat ? "fcmp oeq" : "icmp eq";
+      } else {
+        cmpOp = isFloat ? "fcmp one" : "icmp ne";
+      }
+      const result = this.newRegister();
+      this.emit(`  ${result} = ${cmpOp} ${elemType} ${leftElem}, ${rightElem}`);
+      return result;
+    }
+
+    // Multi-element tuple: use short-circuit evaluation
+    const finalLabel = this.newLabel("tuple_cmp_end");
+    const _startLabel = this.getCurrentLabel(); // Block where we start
+
+    // Build a chain of comparisons with short-circuit evaluation
+    const phiInputs: Array<{ value: string; block: string }> = [];
+
+    for (let i = 0; i < numElements; i++) {
+      const elemType = this.resolveType(tupleTypeNode.types[i]!);
+
+      // Extract elements
+      const leftElem = this.newRegister();
+      this.emit(`  ${leftElem} = extractvalue ${tupleType} ${left}, ${i}`);
+      const rightElem = this.newRegister();
+      this.emit(`  ${rightElem} = extractvalue ${tupleType} ${right}, ${i}`);
+
+      // Compare elements
+      const isFloat = elemType === "double" || elemType === "float";
+      const cmpOp = isFloat ? "fcmp oeq" : "icmp eq";
+      const cmpResult = this.newRegister();
+      this.emit(
+        `  ${cmpResult} = ${cmpOp} ${elemType} ${leftElem}, ${rightElem}`,
+      );
+
+      if (i < numElements - 1) {
+        // Not the last element - short circuit if comparison fails/succeeds
+        const nextLabel = this.newLabel(`tuple_cmp_${i + 1}`);
+        const currentBlock = this.getCurrentLabel();
+
+        if (isEqual) {
+          // For ==: if elements not equal, entire tuple is not equal (result = false)
+          this.emit(
+            `  br i1 ${cmpResult}, label %${nextLabel}, label %${finalLabel}`,
+          );
+          phiInputs.push({ value: "0", block: currentBlock });
+        } else {
+          // For !=: if elements not equal, entire tuple is not equal (result = true)
+          this.emit(
+            `  br i1 ${cmpResult}, label %${finalLabel}, label %${nextLabel}`,
+          );
+          phiInputs.push({ value: "1", block: currentBlock });
+        }
+
+        this.emit(`${nextLabel}:`);
+      } else {
+        // Last element - use its comparison result (or inverted for !=)
+        const currentBlock = this.getCurrentLabel();
+
+        if (isEqual) {
+          // For ==: last element comparison determines result
+          phiInputs.push({ value: cmpResult, block: currentBlock });
+        } else {
+          // For !=: invert last comparison (all equal means not-not-equal = false)
+          const inverted = this.newRegister();
+          this.emit(`  ${inverted} = xor i1 ${cmpResult}, 1`);
+          phiInputs.push({ value: inverted, block: currentBlock });
+        }
+
+        this.emit(`  br label %${finalLabel}`);
+      }
+    }
+
+    // Merge block
+    this.emit(`${finalLabel}:`);
+    const result = this.newRegister();
+
+    // Build phi node with correct predecessors
+    const phiParts = phiInputs.map(
+      (input) => `[ ${input.value}, %${input.block} ]`,
+    );
+    this.emit(`  ${result} = phi i1 ${phiParts.join(", ")}`);
+
+    return result;
   }
 
   /**
@@ -907,5 +1146,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return notCmp;
     }
     return cmp;
+  }
+
+  protected getCurrentLabel(): string {
+    // Find the last emitted label by scanning backwards
+    for (let i = this.output.length - 1; i >= 0; i--) {
+      const line = this.output[i]!.trim();
+      if (line.endsWith(":") && !line.includes(" ")) {
+        return line.slice(0, -1); // Remove the ':'
+      }
+    }
+    return "entry"; // fallback
   }
 }

@@ -749,6 +749,81 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       return val;
     }
 
+    // Struct slicing: Child -> Parent (extract parent fields only)
+    if (
+      srcType.startsWith("%struct.") &&
+      destType.startsWith("%struct.") &&
+      srcTypeNode.kind === "BasicType" &&
+      destTypeNode.kind === "BasicType"
+    ) {
+      // Extract struct names
+      const srcStructName = srcType.substring(8); // Remove "%struct."
+      const destStructName = destType.substring(8);
+
+      // Get struct declarations
+      const srcStruct = this.structMap.get(srcStructName);
+      const destStruct = this.structMap.get(destStructName);
+
+      if (srcStruct && destStruct) {
+        // Check if this is a parent-child relationship
+        // If destStruct is a parent of srcStruct, we need to extract only parent fields
+        const destLayout = this.structLayouts.get(destStructName);
+        const srcLayout = this.structLayouts.get(srcStructName);
+
+        if (destLayout && srcLayout) {
+          // Build the parent struct by extracting fields one by one
+          let resultReg = "undef";
+
+          // Extract each field from the child struct and insert into parent
+          for (const [fieldName, destIndex] of destLayout.entries()) {
+            // Handle vtable separately - use parent's vtable, not child's
+            if (fieldName === "__vtable__") {
+              // Get the parent's vtable
+              const vtableEntries = this.vtableLayouts.get(destStructName);
+              if (vtableEntries && vtableEntries.length > 0) {
+                const vtablePtr = this.newRegister();
+                this.emit(
+                  `  ${vtablePtr} = bitcast [${vtableEntries.length} x i8*]* @${destStructName}_vtable to i8*`,
+                );
+                const nextReg = this.newRegister();
+                this.emit(
+                  `  ${nextReg} = insertvalue ${destType} ${resultReg}, i8* ${vtablePtr}, ${destIndex}`,
+                );
+                resultReg = nextReg;
+              }
+              continue;
+            }
+
+            const srcIndex = srcLayout.get(fieldName);
+            if (srcIndex !== undefined) {
+              // Extract field from source
+              const fieldReg = this.newRegister();
+              this.emit(
+                `  ${fieldReg} = extractvalue ${srcType} ${val}, ${srcIndex}`,
+              );
+
+              // Determine field type by looking up the field in the dest struct
+              const destField = this.getAllStructFields(destStruct).find(
+                (f) => f.name === fieldName,
+              );
+              const fieldType = destField
+                ? this.resolveType(destField.type)
+                : "i8*";
+
+              // Insert into destination
+              const nextReg = this.newRegister();
+              this.emit(
+                `  ${nextReg} = insertvalue ${destType} ${resultReg}, ${fieldType} ${fieldReg}, ${destIndex}`,
+              );
+              resultReg = nextReg;
+            }
+          }
+
+          return resultReg;
+        }
+      }
+    }
+
     // Enum/Struct casts (e.g. Option -> Option<i32>)
     if (
       (srcType.startsWith("%enum.") || srcType.startsWith("%struct.")) &&
@@ -759,12 +834,82 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       this.emit(`  ${tag} = extractvalue ${srcType} ${val}, 0`);
 
       // Create destination value with the same tag
-      const destWithTag = this.newRegister();
+      let destValue = this.newRegister();
       this.emit(
-        `  ${destWithTag} = insertvalue ${destType} undef, i32 ${tag}, 0`,
+        `  ${destValue} = insertvalue ${destType} undef, i32 ${tag}, 0`,
       );
 
-      return destWithTag;
+      // If both enums have data payloads (index 1), copy the data as well
+      if (srcType.startsWith("%enum.") && destType.startsWith("%enum.")) {
+        const srcEnumName = srcType.substring(6);
+        const destEnumName = destType.substring(6);
+        const srcDataSize = this.enumDataSizes.get(srcEnumName) || 0;
+        const destDataSize = this.enumDataSizes.get(destEnumName) || 0;
+
+        // Copy data if both enums have data payloads
+        if (srcDataSize > 0 && destDataSize > 0) {
+          // Extract data array from source (index 1)
+          const srcData = this.newRegister();
+          this.emit(`  ${srcData} = extractvalue ${srcType} ${val}, 1`);
+
+          // Bitcast data arrays to match types if sizes differ
+          if (srcDataSize === destDataSize) {
+            // Same size, insert directly
+            const destWithData = this.newRegister();
+            this.emit(
+              `  ${destWithData} = insertvalue ${destType} ${destValue}, [${destDataSize} x i8] ${srcData}, 1`,
+            );
+            destValue = destWithData;
+          } else {
+            // Different sizes - copy byte-by-byte via memory
+            const srcPtr = this.allocateStack(
+              `enum_cast_src_${this.labelCount++}`,
+              srcType,
+            );
+            this.emit(`  store ${srcType} ${val}, ${srcType}* ${srcPtr}`);
+
+            const srcDataPtr = this.newRegister();
+            this.emit(
+              `  ${srcDataPtr} = getelementptr inbounds ${srcType}, ${srcType}* ${srcPtr}, i32 0, i32 1`,
+            );
+            const srcDataI8Ptr = this.newRegister();
+            this.emit(
+              `  ${srcDataI8Ptr} = bitcast [${srcDataSize} x i8]* ${srcDataPtr} to i8*`,
+            );
+
+            const destPtr = this.allocateStack(
+              `enum_cast_dest_${this.labelCount++}`,
+              destType,
+            );
+            this.emit(
+              `  store ${destType} ${destValue}, ${destType}* ${destPtr}`,
+            );
+
+            const destDataPtr = this.newRegister();
+            this.emit(
+              `  ${destDataPtr} = getelementptr inbounds ${destType}, ${destType}* ${destPtr}, i32 0, i32 1`,
+            );
+            const destDataI8Ptr = this.newRegister();
+            this.emit(
+              `  ${destDataI8Ptr} = bitcast [${destDataSize} x i8]* ${destDataPtr} to i8*`,
+            );
+
+            // Copy min(srcDataSize, destDataSize) bytes
+            const copySize = Math.min(srcDataSize, destDataSize);
+            this.emit(
+              `  call void @llvm.memcpy.p0i8.p0i8.i64(i8* ${destDataI8Ptr}, i8* ${srcDataI8Ptr}, i64 ${copySize}, i1 false)`,
+            );
+
+            const finalValue = this.newRegister();
+            this.emit(
+              `  ${finalValue} = load ${destType}, ${destType}* ${destPtr}`,
+            );
+            destValue = finalValue;
+          }
+        }
+      }
+
+      return destValue;
     }
 
     throw new CompilerError(

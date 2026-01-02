@@ -371,11 +371,97 @@ function parseNumber(raw: string): number {
 
 function decodeString(raw: string): string {
   // raw includes surrounding quotes
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw.slice(1, -1);
+  // Remove the quotes first
+  const inner = raw.slice(1, -1);
+
+  // Manually process escape sequences
+  let result = "";
+  let i = 0;
+
+  while (i < inner.length) {
+    if (inner[i] === "\\") {
+      if (i + 1 >= inner.length) {
+        result += "\\";
+        i++;
+        continue;
+      }
+
+      const nextChar = inner[i + 1]!;
+
+      switch (nextChar) {
+        case "n":
+          result += "\n";
+          i += 2;
+          break;
+        case "t":
+          result += "\t";
+          i += 2;
+          break;
+        case "r":
+          result += "\r";
+          i += 2;
+          break;
+        case "0":
+          result += "\0";
+          i += 2;
+          break;
+        case "\\":
+          result += "\\";
+          i += 2;
+          break;
+        case "'":
+          result += "'";
+          i += 2;
+          break;
+        case '"':
+          result += '"';
+          i += 2;
+          break;
+        case "x": {
+          // Hex escape: \xHH
+          if (i + 3 < inner.length) {
+            const hex = inner.slice(i + 2, i + 4);
+            const code = parseInt(hex, 16);
+            if (!isNaN(code)) {
+              result += String.fromCharCode(code);
+              i += 4;
+              break;
+            }
+          }
+          // Invalid hex escape, keep as-is
+          result += "\\x";
+          i += 2;
+          break;
+        }
+        case "u": {
+          // Unicode escape: \uHHHH
+          if (i + 5 < inner.length) {
+            const hex = inner.slice(i + 2, i + 6);
+            const code = parseInt(hex, 16);
+            if (!isNaN(code)) {
+              result += String.fromCharCode(code);
+              i += 6;
+              break;
+            }
+          }
+          // Invalid unicode escape, keep as-is
+          result += "\\u";
+          i += 2;
+          break;
+        }
+        default:
+          // Unknown escape, keep backslash
+          result += "\\" + nextChar;
+          i += 2;
+          break;
+      }
+    } else {
+      result += inner[i]!;
+      i++;
+    }
   }
+
+  return result;
 }
 
 function decodeChar(raw: string): number {

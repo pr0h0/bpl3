@@ -1,0 +1,12 @@
+{
+  "expectedOutput": [
+    "Tuples are equal",
+    "Tuples are not equal (correct)",
+    "Float tuples are equal",
+    "Float tuples are not equal (correct)",
+    "SUCCESS"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

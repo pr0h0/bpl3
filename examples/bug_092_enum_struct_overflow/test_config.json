@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "Tests passed: 5, failed: 0",
+    "SUCCESS: All buffer overflow tests passed"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

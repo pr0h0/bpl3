@@ -3,6 +3,7 @@ import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
 import { UnaryExpressionGenerator } from "./UnaryExpressionGenerator";
+import { getIntegerBitWidth } from "./utils";
 
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
@@ -619,6 +620,29 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
     }
 
+    // Handle tuple element access (e.g., tuple.0, tuple.1)
+    if (expr.object.resolvedType?.kind === "TupleType") {
+      const tupleIndex = Number.parseInt(expr.property, 10);
+      if (!Number.isNaN(tupleIndex)) {
+        const tupleType = expr.object.resolvedType as AST.TupleTypeNode;
+        if (tupleIndex < 0 || tupleIndex >= tupleType.types.length) {
+          throw new CompilerError(
+            `Tuple index ${tupleIndex} out of bounds for tuple with ${tupleType.types.length} elements`,
+            "Check the tuple index.",
+            expr.location,
+          );
+        }
+
+        const tupleVal = this.generateExpression(expr.object);
+        const llvmTupleType = this.resolveType(tupleType);
+        const reg = this.newRegister();
+        this.emit(
+          `  ${reg} = extractvalue ${llvmTupleType} ${tupleVal}, ${tupleIndex}`,
+        );
+        return reg;
+      }
+    }
+
     if (expr.object.kind === "Call") {
       const callType = expr.object.resolvedType as
         | AST.BasicTypeNode
@@ -904,6 +928,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       (a, b) => a[1] - b[1],
     );
 
+    // Get struct definition for field type info
+    const baseStructName = expr.structName;
+    const baseStructDef = this.structMap.get(baseStructName);
+
     for (const [fieldName, fieldIndex] of sortedFields) {
       if (fieldName === "__vtable__") {
         const vtableGlobal = this.vtableGlobalNames.get(structName);
@@ -933,9 +961,47 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           val = "zeroinitializer";
         }
 
+        // Get expected field type from struct definition for type checking
+        let expectedFieldType = fieldType; // Default to expression type
+        if (baseStructDef) {
+          const fieldDef = baseStructDef.members.find(
+            (m): m is AST.StructField =>
+              m.kind === "StructField" && m.name === fieldName,
+          );
+          if (fieldDef) {
+            // Resolve the field's declared type (may be generic)
+            let fieldTypeNode = fieldDef.type;
+
+            // Handle generic type substitution
+            if (basicType.genericArgs && basicType.genericArgs.length > 0) {
+              const typeParams = baseStructDef.genericParams || [];
+              const contextMap = new Map<string, AST.TypeNode>();
+              for (let i = 0; i < typeParams.length; i++) {
+                contextMap.set(typeParams[i]!.name, basicType.genericArgs[i]!);
+              }
+              fieldTypeNode = this.substituteType(fieldTypeNode, contextMap);
+            }
+
+            expectedFieldType = this.resolveType(fieldTypeNode);
+          }
+        }
+
+        // Truncate if necessary (e.g., i32 -> i8)
+        if (fieldType !== expectedFieldType) {
+          const valSize = getIntegerBitWidth(fieldType);
+          const expectedSize = getIntegerBitWidth(expectedFieldType);
+          if (valSize > expectedSize) {
+            const truncReg = this.newRegister();
+            this.emit(
+              `  ${truncReg} = trunc ${fieldType} ${val} to ${expectedFieldType}`,
+            );
+            val = truncReg;
+          }
+        }
+
         const nextVal = this.newRegister();
         this.emit(
-          `  ${nextVal} = insertvalue ${type} ${structVal}, ${fieldType} ${val}, ${fieldIndex}`,
+          `  ${nextVal} = insertvalue ${type} ${structVal}, ${expectedFieldType} ${val}, ${fieldIndex}`,
         );
         structVal = nextVal;
       }

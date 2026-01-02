@@ -237,20 +237,57 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
     }
 
     let addr: string;
-    if (hasArrayDims) {
-      addr = this.generateArrayIndexAddress(
-        indexExpr,
-        objectAddr,
-        indexVal,
-        objType,
-      );
-    } else if (objType.kind === "BasicType" && objType.pointerDepth > 0) {
-      addr = this.generatePointerIndexAddress(
+    const isPointer = objType.kind === "BasicType" && objType.pointerDepth > 0;
+
+    // Determine if this is truly a pointer-to-array or just an array-of-pointers
+    // - Array of pointers like [2 x i32*]: pointerDepth=1, arrayDimensions=[2], LLVM=[2 x i32*]
+    // - Pointer to array like [2 x i32]*: pointerDepth=1, arrayDimensions=[2], LLVM=[2 x i32]*
+    // The difference is: pointer-to-array LLVM type ends with ]*
+
+    const llvmType = isPointer ? this.resolveType(objType) : null;
+    const pointerToArray = isPointer && llvmType && llvmType.endsWith("]*");
+
+    if (isPointer && !pointerToArray) {
+      // True single-level pointer (could be pointer to element or array of pointers)
+      // This includes both:
+      // - Regular pointers: int* -> direct GEP
+      // - Array of pointers: [2 x i32*] -> GEP on array stored locally
+      // We'll handle both in generatePointerIndexAddress or generateArrayIndexAddress
+
+      if (hasArrayDims) {
+        // Array of pointers - treat as array (no load needed)
+        addr = this.generateArrayIndexAddress(
+          indexExpr,
+          objectAddr,
+          indexVal,
+          objType,
+        );
+      } else {
+        // Regular pointer - load and GEP
+        addr = this.generatePointerIndexAddress(
+          indexExpr,
+          objectAddr,
+          indexVal,
+          objType,
+          skipNullObjectCheck,
+        );
+      }
+    } else if (pointerToArray) {
+      // True pointer-to-array case
+      addr = this.generatePointerToArrayIndexAddress(
         indexExpr,
         objectAddr,
         indexVal,
         objType,
         skipNullObjectCheck,
+      );
+    } else if (hasArrayDims) {
+      // Array case (no pointer)
+      addr = this.generateArrayIndexAddress(
+        indexExpr,
+        objectAddr,
+        indexVal,
+        objType,
       );
     } else {
       throw new CompilerError(
@@ -328,6 +365,40 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
     const addr = this.newRegister();
     this.emit(
       `  ${addr} = getelementptr inbounds ${elemType}, ${ptrType} ${ptrReg}, i64 ${indexVal}`,
+    );
+    return addr;
+  }
+
+  private generatePointerToArrayIndexAddress(
+    indexExpr: AST.IndexExpr,
+    objectAddr: string,
+    indexVal: string,
+    objType: AST.BasicTypeNode,
+    skipNullObjectCheck: boolean,
+  ): string {
+    // For pointer-to-array like [10 x i32]*
+    // Load the pointer, then GEP with 0 and the index
+    const ptrReg = this.newRegister();
+    const ptrType = this.resolveType(objType);
+    this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
+
+    if (!skipNullObjectCheck) {
+      this.emitNullPointerCheck(
+        ptrReg,
+        ptrType,
+        indexExpr.location,
+        "pointer_index",
+        "Attempted to index null pointer",
+      );
+    }
+
+    // Get the underlying array type (remove the trailing *)
+    const arrayType = ptrType.slice(0, -1); // Remove trailing *
+    const _elemType = this.resolveType(indexExpr.resolvedType!);
+    const addr = this.newRegister();
+    // GEP with 0 to dereference the pointer, then index into the array
+    this.emit(
+      `  ${addr} = getelementptr inbounds ${arrayType}, ${ptrType} ${ptrReg}, i64 0, i64 ${indexVal}`,
     );
     return addr;
   }

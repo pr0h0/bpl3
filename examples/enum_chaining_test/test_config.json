@@ -13,7 +13,7 @@
     "Testing call and return...",
     "Call/Return OK",
     "Testing nested...",
-    "Nested None"
+    "Nested value: 40"
   ],
   "args": [],
   "env": {},

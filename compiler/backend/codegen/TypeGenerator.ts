@@ -1406,6 +1406,19 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           if (!enumDecl) enumDecl = this.enumDeclMap.get(basicType.name);
           if (!specDecl) specDecl = this.specMap.get(basicType.name);
 
+          // If not found and name contains a dot (qualified name), try stripping namespace
+          if (
+            !structDecl &&
+            !enumDecl &&
+            !specDecl &&
+            basicType.name.includes(".")
+          ) {
+            const simpleName = basicType.name.split(".").pop()!;
+            if (!structDecl) structDecl = this.structMap.get(simpleName);
+            if (!enumDecl) enumDecl = this.enumDeclMap.get(simpleName);
+            if (!specDecl) specDecl = this.specMap.get(simpleName);
+          }
+
           // Check for placeholders in instantiatedArgs
           const hasPlaceholders = instantiatedArgs.some((arg) => {
             if (arg.kind === "BasicType") {
@@ -1513,9 +1526,24 @@ export abstract class TypeGenerator extends StructEnumGenerator {
                 llvmType = `%enum.${basicType.name}`;
               } else if (this.specMap.has(basicType.name)) {
                 llvmType = "{ i8*, i8* }";
+              } else if (basicType.name.includes(".")) {
+                // If not found and name contains a dot (qualified name), try stripping namespace
+                const simpleName = basicType.name.split(".").pop()!;
+                if (this.enumVariants.has(simpleName)) {
+                  llvmType = `%enum.${simpleName}`;
+                } else if (this.enumDeclMap.has(simpleName)) {
+                  llvmType = `%enum.${simpleName}`;
+                } else if (this.specMap.has(simpleName)) {
+                  llvmType = "{ i8*, i8* }";
+                } else if (this.structMap.has(simpleName)) {
+                  llvmType = `%struct.${simpleName}`;
+                } else {
+                  llvmType = `%struct.${basicType.name}`;
+                }
               } else {
                 llvmType = `%struct.${basicType.name}`;
               }
+
               break;
           }
         }

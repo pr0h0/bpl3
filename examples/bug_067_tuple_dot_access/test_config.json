@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "First element: 42",
+    "Second element: hello",
+    "Triple sum: 60",
+    "Nested first element: 7",
+    "Nested second element: world",
+    "Nested bool element: 1"
+  ]
+}
