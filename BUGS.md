@@ -112,6 +112,8 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-099 | Generics            | Generic function type aliases fail substitution (generates invalid LLVM IR with `%struct.T`).                            | Fixed    | Fixed by correctly substituting generic parameters in function type aliases in TypeCheckerBase.                                                                                                                                                                                          |
 | BUG-100 | Generics            | Generic struct type aliases fail argument count check (e.g., `B<int>` where `B<T>=Box<T>` claims 2 args).                | Fixed    | Fixed by correctly populating typeAliasMap in CodeGenerator.                                                                                                                                                                                                                             |
 | BUG-101 | Tuples              | Nested tuple destructuring generated invalid LLVM IR (used outer tuple type instead of inner).                           | Fixed    | Fixed by using correct nestedTupleType/nestedTupleVal parameters in extractvalue instruction in StatementGenerator.                                                                                                                                                                      |
+| BUG-102 | Enums               | Qualified name resolution in type lookups fails for nested generic enums with namespaces.                                | Fixed    | Fixed by adding namespace-aware fallback in TypeGenerator.resolveType() to strip namespace prefix when direct lookup fails.                                                                                                                                                              |
+| BUG-103 | Enums               | Enum-to-enum casting only copies discriminant tag, losing data payload.                                                  | Fixed    | Fixed by enhancing emitCast() in UnaryExpressionGenerator to copy both tag and data fields using extractvalue/insertvalue for same-size data, memcpy for different sizes.                                                                                                                |
 
 ## Details
 
@@ -435,7 +437,20 @@ if (b1 != b2) { ... } // Generates invalid LLVM IR
 
 ### BUG-032: Nested Enum Pattern Matching with Qualified Names
 
-When pattern matching on nested enums with qualified names (e.g., `Option<Option<int>>`), the inner enum value is not extracted correctly from the outer variant's data.
+**Status**: ✅ FIXED
+
+**Description**: When pattern matching on nested enums with qualified names (e.g., `Option<Option<int>>`), the inner enum value was not extracted correctly from the outer variant's data.
+
+**Root Cause**: This issue was caused by two separate bugs:
+
+1. BUG-102: Qualified name resolution failing in TypeGenerator (e.g., "std.Option" not found when only "Option" was in the maps)
+2. BUG-103: Enum-to-enum casting only copying the discriminant tag, losing the data payload
+
+**Fix**: Both underlying issues have been resolved (see BUG-102 and BUG-103 for detailed fixes).
+
+**Testing**: Examples/enum_chaining_test/main.bpl now compiles and runs successfully, correctly printing "Nested value: 40".
+
+**Reproduction** (now fixed):
 
 ```bpl
 import * as std from "std";
@@ -445,21 +460,16 @@ frame test_nested() {
 
     match (nested) {
         std.Option<std.Option<int>>.Some(inner) => {
-            // inner should be Option<int>.Some(40)
+            // inner is correctly Option<int>.Some(40)
             match (inner) {
-                std.Option<int>.Some(v) => printf("Value: %d\n", v),  // Should print 40
-                std.Option<int>.None => printf("None\n"),              // Incorrectly matches this
+                std.Option<int>.Some(v) => printf("Value: %d\n", v),  // Now correctly prints 40
+                std.Option<int>.None => printf("None\n"),
             };
         },
         std.Option<std.Option<int>>.None => { printf("Outer None\n"); },
     };
 }
 ```
-
-**Expected:** Prints "Value: 40"
-**Actual:** Prints "None" (inner value is not extracted correctly)
-
-**Workaround:** Use non-qualified names (`Option` instead of `std.Option`) if the pattern is in the same module.
 
 ### BUG-033: Implicit Constructors for Arrays
 
@@ -1081,5 +1091,100 @@ type Arr = int[10];
 frame main() {
   local p: *Arr = cast<*Arr>(malloc(sizeof<Arr>()));
   p[0] = 42;
+}
+```
+
+### BUG-102: Qualified Name Resolution in Nested Generic Enums
+
+**Status**: ✅ FIXED
+
+**Category**: Enums
+**Description**: When using nested generic enums with qualified names (e.g., `std.Option<std.Option<int>>`), the type resolution in the LLVM IR generator failed because it looked up "std.Option" but the internal type maps only contained "Option".
+**Root Cause**: The `resolveType()` method in TypeGenerator only performed direct lookups in `enumDeclMap` and `structDeclMap` without handling namespace-qualified names. When a qualified name like "std.Option" was provided, the lookup failed and returned an opaque struct type, causing invalid LLVM IR generation.
+**Fix**: Added namespace-aware fallback logic in `TypeGenerator.resolveType()`:
+
+1. When a type lookup fails, check if the name contains a namespace separator (`.`)
+2. Strip the namespace prefix and retry the lookup with just the base name
+3. Applied to both generic and non-generic type resolution paths
+
+**Implementation**:
+
+- Modified `resolveType()` in TypeGenerator.ts at two locations (generic and non-generic branches)
+- Added code to detect qualified names, extract base name, and retry lookup
+- Preserved all existing behavior for non-qualified names
+
+**Testing**: Examples/enum_chaining_test/main.bpl now compiles and runs successfully with nested qualified enum types like `std.Option<std.Option<int>>`.
+
+**Reproduction** (now fixed):
+
+```bpl
+import * as std from "std";
+
+frame main() {
+    # Nested generic enum with qualified names
+    local nested: std.Option<std.Option<int>> =
+        std.Option<std.Option<int>>.Some(std.Option<int>.Some(40));
+
+    match (nested) {
+        std.Option<std.Option<int>>.Some(inner) => {
+            match (inner) {
+                std.Option<int>.Some(v) => printf("Nested value: %d\n", v),
+                std.Option<int>.None => printf("Nested None\n"),
+            };
+        },
+        std.Option<std.Option<int>>.None => printf("Outer None\n"),
+    };
+}
+```
+
+### BUG-103: Enum-to-Enum Casting Data Loss
+
+**Status**: ✅ FIXED
+
+**Category**: Enums
+**Description**: When casting from one enum type to another (e.g., assigning `Option<int>` to `Option<Option<int>>`), only the discriminant tag was copied, losing the data payload stored in the enum's data array.
+**Root Cause**: The `emitCast()` function in UnaryExpressionGenerator only extracted and inserted the tag field (index 0) for enum-to-enum casts. It ignored the data field (index 1), which contains the actual payload for tuple/struct variants.
+**Fix**: Enhanced `emitCast()` in UnaryExpressionGenerator to handle enum data payload copying:
+
+1. Extract both tag (index 0) and data array (index 1) from source enum
+2. Check if source and target data arrays have same size
+3. If same size: Use extractvalue/insertvalue to copy data directly
+4. If different sizes: Use memcpy to copy data, handling truncation or extension
+5. Insert both tag and data into target enum struct
+
+**Implementation**:
+
+- Modified `emitCast()` in UnaryExpressionGenerator.ts around line 827-900
+- Added logic to detect enum-to-enum casts with data fields
+- Used LLVM extractvalue/insertvalue instructions for efficient copying
+- Added memcpy fallback for different-sized data arrays
+- Preserved existing behavior for non-enum casts
+
+**Testing**: Examples/enum_chaining_test/main.bpl now correctly preserves nested enum values during assignment and pattern matching.
+
+**Reproduction** (now fixed):
+
+```bpl
+import * as std from "std";
+
+frame main() {
+    # Create inner enum with value
+    local inner: std.Option<int> = std.Option<int>.Some(40);
+
+    # Wrap it in outer enum - data payload should be preserved
+    local outer: std.Option<std.Option<int>> =
+        std.Option<std.Option<int>>.Some(inner);
+
+    # Extract and verify the nested value
+    match (outer) {
+        std.Option<std.Option<int>>.Some(inner_extracted) => {
+            match (inner_extracted) {
+                # This now correctly prints 40 instead of garbage/None
+                std.Option<int>.Some(v) => printf("Value: %d\n", v),
+                std.Option<int>.None => printf("None\n"),
+            };
+        },
+        std.Option<std.Option<int>>.None => printf("Outer None\n"),
+    };
 }
 ```

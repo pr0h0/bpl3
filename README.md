@@ -712,11 +712,11 @@ Coming soon!
 
 ### Current Status: Beta
 
-BPL is under active development. The compiler is stable with **1,323 tests passing** across 88 test files.
+BPL is under active development. The compiler is stable with **1,342 tests passing** across 88 test files.
 
 **Build Status:**
 
-- ✅ 1,323 tests passing (100%)
+- ✅ 1,342 tests passing (100%)
 - ✅ 0 ESLint errors/warnings
 - ✅ 0 TypeScript errors
 - ✅ 100+ working examples
@@ -733,7 +733,7 @@ BPL is under active development. The compiler is stable with **1,323 tests passi
 - [x] Cross-compilation support
 - [x] Standard library (20+ modules)
 - [x] VS Code extension
-- [x] Comprehensive test suite (1,323 tests)
+- [x] Comprehensive test suite (1,342 tests)
 - [x] Documentation (50+ pages)
 - [x] Enum types with pattern matching
 - [x] String interpolation

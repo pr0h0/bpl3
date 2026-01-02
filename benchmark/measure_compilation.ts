@@ -45,7 +45,7 @@ function measure(name: string, filePath: string) {
   console.log(`Benchmarking: ${name}`);
 
   const start = process.hrtime.bigint();
-  const result = spawnSync("bun", [COMPILER_PATH, filePath, "--emit", "llvm"], {
+  const result = spawnSync("bun", [COMPILER_PATH, filePath], {
     encoding: "utf-8",
   });
   const end = process.hrtime.bigint();
