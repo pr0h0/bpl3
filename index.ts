@@ -16,8 +16,17 @@ import {
   registerPackageCommands,
   registerCompletionCommand,
   registerDocsCommand,
+  registerRunCommand,
+  registerDevCommand,
+  registerBuildCommand,
+  registerCheckCommand,
+  registerNewCommand,
+  registerCleanCommand,
 } from "./cli";
 import type { CompileOptions } from "./cli/types";
+import { Logger } from "./compiler/common/Logger";
+
+const log = new Logger("CLI");
 
 const program = new Command();
 const packageJson = require("./package.json");
@@ -41,7 +50,7 @@ program
   .option("--stdin", "read BPL code from stdin")
   .option("-o, --output <file>", "output file path")
   .option("--emit <type>", "emit type: llvm, ast, tokens, formatted", "llvm")
-  .option("-g, --dwarf", "generate DWARF debug information")
+  .option("-d, --dwarf", "generate DWARF debug information")
   .option(
     "--target <triple>",
     "target triple for clang (e.g. x86_64-pc-windows-gnu)",
@@ -56,42 +65,46 @@ program
   .option("-l, --lib <lib...>", "libraries to link with")
   .option("-L, --lib-path <path...>", "library search paths")
   .option("--object <file...>", "object files to link (.o, .ll, etc.)")
-  .option("--run", "run the generated code")
   .option("-v, --verbose", "enable verbose output")
+  .option("-q, --quiet", "suppress non-error output")
   .option("--cache", "enable incremental compilation with module caching")
-  .option("--write", "write formatted output back to file (only for formatted)")
   .option("--no-prelude", "do not load implicit primitives")
+  .option("-O <level>", "optimization level: 0, 1, 2, or 3", "0")
+  .option("--debug", "generate debug information (DWARF, alias for --dwarf)")
+  .option("--time", "show compilation time statistics")
+  .option("--json", "output in JSON format")
+  .option("--color", "force colored output")
+  .option("--no-color", "disable colored output")
   .action((files: string[] | undefined, options: CompileOptions) => {
-    // Handle --eval option
-    if ((options as any).eval) {
-      processCode((options as any).eval, "eval-42069", options);
+    // Handle --eval flag
+    if (options.eval) {
+      processCode(options.eval, "<eval>", options);
       return;
     }
 
-    // Handle --stdin option
+    // Handle --stdin flag
     if (options.stdin) {
-      let stdinData = "";
-      process.stdin.setEncoding("utf-8");
-
-      process.stdin.on("data", (chunk) => {
-        stdinData += chunk;
-      });
-
+      const chunks: Buffer[] = [];
+      process.stdin.on("data", (chunk) => chunks.push(chunk));
       process.stdin.on("end", () => {
-        processCode(stdinData, "stdin-42069", options);
+        const code = Buffer.concat(chunks).toString("utf8");
+        processCode(code, "<stdin>", options);
       });
-
       return;
     }
 
-    // Handle regular file arguments
     if (!files || files.length === 0) {
-      console.error("Error: No input files specified");
+      log.error("No input files specified");
       process.exit(1);
     }
 
     // TypeScript needs this assertion after the exit check
     const fileList = files as [string, ...string[]];
+
+    // Handle debug flag as alias for dwarf
+    if (options.debug) {
+      options.dwarf = true;
+    }
 
     // Handle multiple files for formatting
     if (options.emit === "formatted") {
@@ -100,7 +113,7 @@ program
         try {
           processFile(filePath, options);
         } catch (e) {
-          console.error(`Error processing ${filePath}: ${e}`);
+          log.error(`Error processing ${filePath}:`, { error: String(e) });
           hasError = true;
         }
       }
@@ -123,11 +136,17 @@ program
 // ============================================================================
 
 // Register all subcommands from cli/commands/
+registerRunCommand(program);
+registerDevCommand(program);
+registerBuildCommand(program);
+registerCheckCommand(program);
 registerFormatCommand(program);
 registerLintCommand(program);
 registerPackageCommands(program);
 registerCompletionCommand(program);
 registerDocsCommand(program);
+registerNewCommand(program);
+registerCleanCommand(program);
 
 // ============================================================================
 // Parse and Execute

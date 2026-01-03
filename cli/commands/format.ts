@@ -7,6 +7,9 @@ import * as fs from "fs";
 import { Command } from "commander";
 import { Parser, Formatter, lexWithGrammar } from "../../compiler";
 import type { FormatOptions } from "../types";
+import { Logger } from "../../compiler/common/Logger";
+
+const log = new Logger("Format");
 
 /**
  * Register the format command
@@ -19,7 +22,7 @@ export function registerFormatCommand(program: Command): void {
     .option("-v, --verbose", "enable verbose output")
     .action((files: string[], options: FormatOptions) => {
       if (!files || files.length === 0) {
-        console.error("Error: No files specified.");
+        log.error("No files specified.");
         process.exit(1);
       }
 
@@ -31,7 +34,7 @@ export function registerFormatCommand(program: Command): void {
         totalFiles++;
         try {
           if (!fs.existsSync(filePath)) {
-            console.error(`Error: File not found: ${filePath}`);
+            log.error(`File not found: ${filePath}`);
             hasError = true;
             continue;
           }
@@ -47,15 +50,15 @@ export function registerFormatCommand(program: Command): void {
             if (content !== formatted) {
               fs.writeFileSync(filePath, formatted);
               updatedFiles++;
-              console.log(`${filePath} \x1b[37m(changed)\x1b[0m`);
+              log.info(`${filePath} (changed)`);
             } else {
-              console.log(`${filePath} \x1b[90m(unchanged)\x1b[0m`);
+              log.debug(`${filePath} (unchanged)`);
             }
           } else {
             console.log(formatted);
           }
         } catch (e) {
-          console.error(
+          log.error(
             `Error processing ${filePath}: ${e instanceof Error ? e.message : e}`,
           );
           hasError = true;
@@ -63,7 +66,7 @@ export function registerFormatCommand(program: Command): void {
       }
 
       if (options.write) {
-        console.log(`\nFormatted ${totalFiles} files, ${updatedFiles} updated`);
+        log.info(`Formatted ${totalFiles} files, ${updatedFiles} updated`);
       }
 
       if (hasError) process.exit(1);

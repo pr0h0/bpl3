@@ -6,6 +6,9 @@
 import * as fs from "fs";
 import { Command } from "commander";
 import { DocumentationGenerator } from "../../compiler/docs/DocumentationGenerator";
+import { Logger } from "../../compiler/common/Logger";
+
+const log = new Logger("Docs");
 
 /**
  * Register the docs command
@@ -27,10 +30,10 @@ export function registerDocsCommand(program: Command): void {
         const outputPath = options.output || globalOpts.output || "docs.md";
 
         fs.writeFileSync(outputPath, markdown);
-        console.log(`Documentation generated at ${outputPath}`);
+        log.info(`Documentation generated at ${outputPath}`);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error("Error generating documentation:", message);
+        log.error("Error generating documentation:", { error: message });
         process.exit(1);
       }
     });

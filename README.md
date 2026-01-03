@@ -51,6 +51,7 @@ frame main() ret int {
 
 - **Clear Error Messages**: Helpful compiler diagnostics with location information
 - **Built-in Formatter**: Automatic code formatting for consistent style
+- **Watch Mode**: Automatic recompilation on file changes for rapid development
 - **Package Manager**: Easy dependency management with `bpl install`
 - **Cross-Platform**: Compile for Linux, macOS, Windows, ARM, and more
 - **Editor Integration**: VS Code extension with syntax highlighting
@@ -119,7 +120,13 @@ frame main() ret int {
 Compile and run:
 
 ```bash
-bpl hello.bpl --run
+bpl run hello.bpl
+```
+
+Or just compile:
+
+```bash
+bpl hello.bpl -o hello
 ```
 
 ### Run code without a file
@@ -129,13 +136,13 @@ You can execute snippets or piped input directly:
 - Evaluate a snippet from the command line:
 
   ```bash
-  bpl -e 'frame main() ret int { return 0; }' --run
+  bpl -e 'frame main() ret int { return 0; }'
   ```
 
 - Compile from stdin (helpful with `cat`/pipes):
 
   ```bash
-  cat examples/hello-world/main.bpl | bpl --stdin --run
+  cat examples/hello-world/main.bpl | bpl --stdin
   ```
 
 `--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`; diagnostics show `<eval>`/`<stdin>` in locations.
@@ -287,39 +294,166 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 
 ## 💻 Command Line Interface
 
-### Compilation Options
+### Quick Reference
+
+```bash
+# Compile and run a program
+bpl run main.bpl
+
+# Development mode with watch and auto-run
+bpl dev main.bpl
+
+# Build an executable
+bpl build main.bpl -o myprogram
+
+# Type check without code generation (fast)
+bpl check main.bpl
+
+# Create a new project
+bpl new my-project
+
+# Format code
+bpl format main.bpl -w
+
+# Clean build artifacts
+bpl clean
+```
+
+### Core Commands
+
+#### `bpl run <file> [args...]`
+
+Compile and execute a BPL program in one step:
+
+```bash
+# Run a program
+bpl run main.bpl
+
+# Pass arguments to the program
+bpl run main.bpl arg1 arg2
+
+# Run with optimization
+bpl run main.bpl -O 2
+
+# Run with timing statistics
+bpl run main.bpl --time
+```
+
+#### `bpl dev <file> [args...]`
+
+Development mode with automatic recompilation and execution:
+
+```bash
+# Watch and run on changes
+bpl dev main.bpl
+
+# Clear screen on each recompile
+bpl dev main.bpl --clear
+
+# Watch but only compile (don't run)
+bpl dev main.bpl --no-run
+```
+
+#### `bpl build <file>`
+
+Explicitly compile a program:
 
 ```bash
 # Basic compilation (generates LLVM IR)
-bpl main.bpl
-
-# Compile and run immediately
-bpl main.bpl --run
+bpl build main.bpl
 
 # Specify output filename
-bpl main.bpl -o myprogram
+bpl build main.bpl -o myprogram
 
 # Verbose output
-bpl main.bpl -v
+bpl build main.bpl -v
 
 # Enable incremental compilation
-bpl main.bpl --cache --run
+bpl build main.bpl --cache
+```
+
+#### `bpl check <files...>`
+
+Fast type checking without code generation:
+
+```bash
+# Check a single file
+bpl check main.bpl
+
+# Check multiple files
+bpl check src/*.bpl
+
+# JSON output for tooling
+bpl check main.bpl --json
+```
+
+#### `bpl new <name>`
+
+Create a new BPL project with standard structure:
+
+```bash
+# Create new project
+bpl new my-project
+cd my-project
+bpl run main.bpl
+```
+
+This creates:
+
+- `bpl.json` - Package manifest
+- `main.bpl` - Entry point with Hello World
+- `lib/` - Local library directory
+- `README.md` - Project documentation
+- `.gitignore` - Git ignore rules
+
+#### `bpl clean`
+
+Remove build artifacts:
+
+```bash
+# Remove all build artifacts
+bpl clean
+
+# Dry run (show what would be deleted)
+bpl clean --dry-run
+
+# Verbose output
+bpl clean -v
+```
+
+### Compilation Options
+
+#### Global Flags
+
+These work with any command:
+
+```bash
+-v, --verbose          Enable verbose output
+-q, --quiet            Suppress non-error output
+-O <level>             Optimization level: 0, 1, 2, or 3
+--debug, -d            Generate DWARF debug information
+--time                 Show compilation time statistics
+--cache                Enable incremental compilation
+--color/--no-color     Force/disable colored output
+--json                 Output in JSON format (for check command)
 ```
 
 ### Emit Options
 
+Control what the compiler outputs:
+
 ```bash
 # Emit LLVM IR (default)
-bpl main.bpl --emit llvm
+bpl build main.bpl --emit llvm
 
 # Emit AST as JSON
-bpl main.bpl --emit ast
+bpl build main.bpl --emit ast
 
 # Emit tokens
-bpl main.bpl --emit tokens
+bpl build main.bpl --emit tokens
 
-# Emit formatted source code
-bpl main.bpl --emit formatted
+# Format source code
+bpl format main.bpl
 ```
 
 ### Cross-Compilation
@@ -328,19 +462,19 @@ Compile for different platforms and architectures:
 
 ```bash
 # Cross-compile for ARM64 Linux
-bpl main.bpl --target aarch64-unknown-linux-gnu --march=armv8-a
+bpl build main.bpl --target aarch64-unknown-linux-gnu --march=armv8-a
 
 # Cross-compile for Windows x64
-bpl main.bpl --target x86_64-pc-windows-gnu
+bpl build main.bpl --target x86_64-pc-windows-gnu
 
 # Cross-compile for macOS ARM64
-bpl main.bpl --target arm64-apple-darwin
+bpl build main.bpl --target arm64-apple-darwin
 
 # Specify sysroot for cross-compilation
-bpl main.bpl --target aarch64-unknown-linux-gnu --sysroot /opt/sysroots/aarch64
+bpl build main.bpl --target aarch64-unknown-linux-gnu --sysroot /opt/sysroots/aarch64
 
 # Pass additional flags to clang
-bpl main.bpl --clang-flag=-O3 --clang-flag=-static
+bpl build main.bpl --clang-flag=-O3 --clang-flag=-static
 ```
 
 **Supported target triples:**

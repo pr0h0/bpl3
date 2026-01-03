@@ -11,6 +11,9 @@ import type {
   PackageOptionsOutput,
   PackageOptionsVerbose,
 } from "../types";
+import { Logger } from "../../compiler/common/Logger";
+
+const log = new Logger("Package");
 
 /**
  * Register all package management commands
@@ -26,9 +29,9 @@ export function registerPackageCommands(program: Command): void {
         const packageDir = dir || process.cwd();
         const pm = new PackageManager();
         const tarball = pm.pack(packageDir, options.output);
-        console.log(`\nPackage ready: ${tarball}`);
+        log.info(`Package ready: ${tarball}`);
       } catch (e) {
-        console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+        log.error(`${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
     });
@@ -46,7 +49,7 @@ export function registerPackageCommands(program: Command): void {
         if (!pkg) {
           // Install dependencies from bpl.json in current directory
           if (!fs.existsSync("bpl.json")) {
-            console.error("No bpl.json found in current directory");
+            log.error("No bpl.json found in current directory");
             process.exit(1);
           }
 
@@ -57,11 +60,11 @@ export function registerPackageCommands(program: Command): void {
           };
 
           if (Object.keys(deps).length === 0) {
-            console.log("No dependencies to install");
+            log.info("No dependencies to install");
             return;
           }
 
-          console.log(`Installing ${Object.keys(deps).length} dependencies...`);
+          log.info(`Installing ${Object.keys(deps).length} dependencies...`);
           for (const [name, version] of Object.entries(deps)) {
             pm.install(`${name}-${version}.tgz`, options);
           }
@@ -69,7 +72,7 @@ export function registerPackageCommands(program: Command): void {
           pm.install(pkg, options);
         }
       } catch (e) {
-        console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+        log.error(`${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
     });
@@ -85,24 +88,24 @@ export function registerPackageCommands(program: Command): void {
         const packages = pm.list(options);
 
         if (packages.length === 0) {
-          console.log("No packages installed");
+          log.info("No packages installed");
           return;
         }
 
-        console.log(
-          `\nInstalled packages (${options.global ? "global" : "local"}):\n`,
+        log.info(
+          `Installed packages (${options.global ? "global" : "local"}):\n`,
         );
         for (const pkg of packages) {
-          console.log(`  ${pkg.manifest.name}@${pkg.manifest.version}`);
+          log.info(`  ${pkg.manifest.name}@${pkg.manifest.version}`);
           if (pkg.manifest.description) {
-            console.log(`    ${pkg.manifest.description}`);
+            log.info(`    ${pkg.manifest.description}`);
           }
           if (pkg.path) {
-            console.log(`    Location: ${pkg.path}`);
+            log.info(`    Location: ${pkg.path}`);
           }
         }
       } catch (e) {
-        console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+        log.error(`${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
     });
@@ -115,9 +118,9 @@ export function registerPackageCommands(program: Command): void {
       try {
         const pm = new PackageManager();
         pm.init(process.cwd(), name);
-        console.log("Initialized new BPL project");
+        log.info("Initialized new BPL project");
       } catch (e) {
-        console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+        log.error(`${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
     });
@@ -132,9 +135,9 @@ export function registerPackageCommands(program: Command): void {
       try {
         const pm = new PackageManager();
         pm.uninstall(pkg, options);
-        console.log(`Uninstalled ${pkg}`);
+        log.info(`Uninstalled ${pkg}`);
       } catch (e) {
-        console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+        log.error(`${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
     });

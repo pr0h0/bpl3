@@ -13,7 +13,7 @@ function compileAndRun(sourceCode: string) {
   fs.writeFileSync(tempFile, sourceCode);
 
   try {
-    const result = spawnSync("bun", [BPL_CLI, tempFile, "--run"], {
+    const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
       encoding: "utf-8",
       cwd: __dirname,
     });
@@ -87,7 +87,7 @@ describe("Nullptr Handling", () => {
     fs.writeFileSync(tempFile, source);
 
     try {
-      const result = spawnSync("bun", [BPL_CLI, tempFile, "--run"], {
+      const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
         encoding: "utf-8",
         cwd: __dirname,
       });

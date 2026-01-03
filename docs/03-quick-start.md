@@ -36,7 +36,7 @@ frame main() ret int {
 
 ```bash
 # Compile and run in one command
-bpl hello.bpl --run
+bpl run hello.bpl
 ```
 
 You should see:
@@ -46,6 +46,18 @@ Hello, World!
 ```
 
 Congratulations! You've just written and run your first BPL program! 🎉
+
+### Alternative: Compile Only
+
+If you want to just compile without running:
+
+```bash
+# Compile to executable
+bpl build hello.bpl -o hello
+
+# Run the compiled binary
+./hello
+```
 
 ## Understanding the Code
 
@@ -382,15 +394,29 @@ See [Standard Library documentation](28-stdlib-io.md) for complete details.
 
 ## Interactive Development
 
-For quick experimentation, you can use the `--run` flag for immediate feedback:
+For quick experimentation and rapid iteration, BPL provides several options:
+
+### Watch Mode (Recommended)
+
+The `--watch` flag automatically recompiles your code when files change:
+
+```bash
+# Watch and run - recompiles on every save
+bpl mycode.bpl --watch --run
+```
+
+This is the recommended way to develop BPL programs as it provides instant feedback without manual recompilation.
+
+### Manual Compilation
+
+For quick one-off runs, use the `--run` flag:
 
 ```bash
 # Edit, compile, run in one command
 bpl mycode.bpl --run
-
-# Combine with watch tools for auto-recompilation (Unix-like systems)
-while inotifywait -e modify mycode.bpl; do bpl mycode.bpl --run; done
 ```
+
+See [Compiler Options](39-compiler-options.md) for more details on watch mode and other development features.
 
 ## Common Beginner Mistakes
 

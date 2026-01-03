@@ -6,6 +6,9 @@
 import { Command } from "commander";
 import { processFile, processCode } from "../CompilationRunner";
 import type { CompileOptions } from "../types";
+import { Logger } from "../../compiler/common/Logger";
+
+const log = new Logger("Compile");
 
 /**
  * Register compile command options and action on the main program
@@ -31,7 +34,7 @@ export function registerCompileCommand(program: Command): void {
 
     // Handle regular file arguments
     if (!files || files.length === 0) {
-      console.error("Error: No input files specified");
+      log.error("No input files specified");
       process.exit(1);
     }
 
@@ -44,7 +47,7 @@ export function registerCompileCommand(program: Command): void {
         try {
           processFile(filePath, options);
         } catch (e) {
-          console.error(`Error processing ${filePath}: ${e}`);
+          log.error(`Error processing ${filePath}: ${e}`);
           hasError = true;
         }
       }

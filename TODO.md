@@ -240,9 +240,18 @@
   - Description: Utilize multi-core processors to compile independent modules in parallel.
   - Implementation notes: Analyze dependency graph, use worker threads/processes, manage shared resources.
 
-- [5] **Watch Mode**
+- [x] **Watch Mode** ✅
+  - **Status:** COMPLETED (January 2026)
   - Description: Add `--watch` mode to CLI to recompile on file changes.
   - Implementation notes: Use file watcher, integrate with incremental compilation, debounce events.
+  - **What Was Implemented:**
+    - ✅ Created `cli/Watcher.ts` with file watching logic
+    - ✅ Added `--watch` flag to CLI
+    - ✅ Implemented debouncing (100ms) to prevent excessive recompilation
+    - ✅ Error recovery that continues watching after compilation failures
+    - ✅ Recursive watching of all `.bpl` files in directory tree
+    - ✅ Smart filtering (ignores node_modules, .git, bpl_modules)
+    - ✅ Documented in `docs/39-compiler-options.md` and `docs/03-quick-start.md`
 
 ### Medium Priority
 

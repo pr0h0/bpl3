@@ -21,10 +21,10 @@ _bpl_completion() {
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format init pack install list uninstall completion help lint"
+    local commands="format run dev build check lint init pack install list uninstall completion clean new help docs"
 
     # Global options (work with file arguments and commands)
-    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object --run -v --verbose --cache --write -h --help -V --version --dwarf"
+    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
 
     # Format command options
     local format_opts="-w --write -v --verbose"
@@ -198,12 +198,20 @@ _bpl() {
 
     local -a commands
     commands=(
+        'run:Compile and execute a BPL program'
+        'dev:Development mode with watch and auto-run'
+        'build:Compile a BPL program'
+        'check:Type check BPL files without generating code'
         'format:Format BPL source files'
+        'lint:Lint BPL source files'
+        'new:Create a new BPL project with standard structure'
+        'clean:Remove build artifacts and caches'
         'init:Initialize a new BPL package'
         'pack:Package a BPL project'
         'install:Install a BPL package'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
+        'docs:Generate documentation'
         'completion:Generate shell completion scripts'
         'help:Display help information'
     )
@@ -226,11 +234,19 @@ _bpl() {
         '-L[Library search paths]:path:_directories'
         '--lib-path[Library search paths]:path:_directories'
         '--object[Object files to link]:file:_files -g "*.{o,ll,bc}"'
-        '--run[Run the generated code]'
         '-v[Enable verbose output]'
         '--verbose[Enable verbose output]'
+        '-q[Suppress non-error output]'
+        '--quiet[Suppress non-error output]'
         '--cache[Enable incremental compilation with module caching]'
-        '--write[Write formatted output back to file]'
+        '-d[Generate DWARF debug information]'
+        '--dwarf[Generate DWARF debug information]'
+        '--debug[Generate DWARF debug information (alias for --dwarf)]'
+        '--time[Show compilation time statistics]'
+        '--json[Output in JSON format]'
+        '--color[Force colored output]'
+        '--no-color[Disable colored output]'
+        '-O[Optimization level]:level:(0 1 2 3)'
         '-h[Display help information]'
         '--help[Display help information]'
         '-V[Display version information]'

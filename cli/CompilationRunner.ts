@@ -20,6 +20,41 @@ import { diagnosticFormatter } from "./DiagnosticFormatter";
 import { compileBinaryAndRun } from "./BinaryRunner";
 import { getHostDefaults } from "./utils";
 import type { CompileOptions } from "./types";
+import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
+import { updateConfig } from "../compiler/common/Config";
+
+const log = new Logger("CompilationRunner");
+
+/**
+ * Apply CLI options to global configuration
+ */
+function applyOptions(options: CompileOptions): void {
+  // Handle quiet mode
+  if (options.quiet) {
+    setLogLevel(LogLevel.SILENT);
+  } else if (options.verbose) {
+    setLogLevel(LogLevel.DEBUG);
+  }
+
+  // Handle color override
+  if (options.color !== undefined) {
+    updateConfig({
+      features: { colorize: options.color },
+    });
+  }
+
+  // Handle debug flag (alias for dwarf)
+  if (options.debug) {
+    options.dwarf = true;
+  }
+
+  // Handle optimization level
+  if (options.O) {
+    updateConfig({
+      defaults: { optimization: options.O as any },
+    });
+  }
+}
 
 /**
  * Process a source file and compile it
@@ -29,15 +64,29 @@ export function processFile(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
+  applyOptions(options);
+
   try {
     if (!fs.existsSync(filePath)) {
-      console.error(`Error: File not found: ${filePath}`);
+      log.error(`File not found: ${filePath}`);
       process.exit(1);
     }
 
     const content = fs.readFileSync(filePath, "utf-8");
     processCodeInternal(content, filePath, options, programArgs);
   } catch (e) {
+    // If in watch mode, don't exit on error - just log it
+    if (options.watch) {
+      if (e instanceof CompilerError) {
+        console.error(diagnosticFormatter.formatError(e));
+      } else {
+        log.error(`${e}`);
+        if (e instanceof Error && e.stack && options.verbose) {
+          log.error(e.stack);
+        }
+      }
+      throw e; // Re-throw for watch mode to handle
+    }
     handleCompilationError(e, options);
   }
 }
@@ -67,9 +116,9 @@ function handleCompilationError(e: unknown, options: CompileOptions): never {
   if (e instanceof CompilerError) {
     console.error(diagnosticFormatter.formatError(e));
   } else {
-    console.error(`Error: ${e}`);
+    log.error(`${e}`);
     if (e instanceof Error && e.stack && options.verbose) {
-      console.error(e.stack);
+      log.error(e.stack);
     }
   }
   process.exit(1);
@@ -127,6 +176,9 @@ function compileWithModules(
     if (result.errors) {
       console.error(diagnosticFormatter.formatErrors(result.errors));
     }
+    if (options.watch) {
+      throw new Error("Compilation failed");
+    }
     process.exit(1);
   }
 
@@ -139,7 +191,7 @@ function compileWithModules(
   if (options.emit === "formatted" && result.output) {
     if (options.write) {
       fs.writeFileSync(filePath, result.output);
-      if (options.verbose) console.log(`Formatted ${filePath}`);
+      if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
       console.log(result.output);
     }
@@ -176,7 +228,7 @@ function compileWithModules(
     fs.writeFileSync(outputPath, result.output);
 
     if (options.verbose || (!options.run && options.emit === "llvm")) {
-      console.log(`LLVM IR written to ${outputPath}`);
+      log.info(`LLVM IR written to ${outputPath}`);
     }
 
     if (options.emit === "llvm" || options.run || !options.emit) {
@@ -195,14 +247,14 @@ function compileSingleFile(
   programArgs?: string[],
 ): void {
   // 1. Lexing
-  if (options.verbose) console.time("Lexing");
+  const endLexing = options.verbose ? log.time("Lexing") : () => {};
   let tokens: any[] = [];
   try {
     tokens = lexWithGrammar(content, filePath);
   } catch {
     // Lexer might fail on new syntax not yet in grammar.bpl
   }
-  if (options.verbose) console.timeEnd("Lexing");
+  endLexing();
 
   if (options.emit === "tokens") {
     console.log(JSON.stringify(tokens, null, 2));
@@ -210,10 +262,10 @@ function compileSingleFile(
   }
 
   // 2. Parsing
-  if (options.verbose) console.time("Parsing");
+  const endParsing = options.verbose ? log.time("Parsing") : () => {};
   const parser = new Parser(content, filePath, tokens);
   const ast = parser.parse(true);
-  if (options.verbose) console.timeEnd("Parsing");
+  endParsing();
 
   if (options.emit === "ast") {
     console.log(JSON.stringify(ast, null, 2));
@@ -225,7 +277,7 @@ function compileSingleFile(
     const formatted = formatter.format(ast);
     if (options.write) {
       fs.writeFileSync(filePath, formatted);
-      if (options.verbose) console.log(`Formatted ${filePath}`);
+      if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
       console.log(formatted);
     }
@@ -233,32 +285,37 @@ function compileSingleFile(
   }
 
   // 3. Type Checking
-  if (options.verbose) console.time("TypeChecking");
+  const endTypeChecking = options.verbose ? log.time("TypeChecking") : () => {};
   const typeChecker = new TypeChecker({
     skipImportResolution: options.prelude === false,
   });
   typeChecker.checkProgram(ast);
-  if (options.verbose) console.timeEnd("TypeChecking");
+  endTypeChecking();
 
   const typeErrors = typeChecker.getErrors();
   if (typeErrors.length > 0) {
     console.error(diagnosticFormatter.formatErrors(typeErrors));
+    if (options.watch) {
+      throw new Error("Type checking failed");
+    }
     process.exit(1);
   }
 
   if (options.verbose) {
-    console.log("Semantic analysis completed successfully.");
+    log.info("Semantic analysis completed successfully.");
   }
 
   // 4. Code Generation
-  if (options.verbose) console.time("CodeGeneration");
+  const endCodeGeneration = options.verbose
+    ? log.time("CodeGeneration")
+    : () => {};
   const hostDefaults = getHostDefaults();
   const generator = new CodeGenerator({
     target: options.target || hostDefaults.target,
     dwarf: options.dwarf,
   });
   const ir = generator.generate(ast, filePath);
-  if (options.verbose) console.timeEnd("CodeGeneration");
+  endCodeGeneration();
 
   // Write LLVM IR
   let irPath: string;
@@ -273,7 +330,7 @@ function compileSingleFile(
   fs.writeFileSync(irPath, ir);
 
   if (options.verbose || (!options.run && options.emit === "llvm")) {
-    console.log(`LLVM IR written to ${irPath}`);
+    log.info(`LLVM IR written to ${irPath}`);
   }
 
   // 5. Compile & Run

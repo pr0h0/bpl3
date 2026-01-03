@@ -23,7 +23,7 @@ export function runBpl(
   // We assume index.ts is in the root
   const indexTs = path.join(process.cwd(), "index.ts");
 
-  const result = spawnSync("bun", [indexTs, filePath, "--run"], {
+  const result = spawnSync("bun", [indexTs, "run", filePath], {
     encoding: "utf-8",
     cwd: process.cwd(),
   });

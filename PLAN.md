@@ -10,16 +10,48 @@ Priority levels: 0 = Highest Priority, 9 = Lowest Priority
 
 The following features are recommended for implementation next:
 
-### 1. **Watch Mode** [Priority 5] ⏱️ DX
+### 1. **Function Attributes (LLVM)** [Priority 3] 🔧 Optimization
 
-- **Why:** Improves developer feedback loop
-- **Impact:** Faster iteration during development
-- **Use cases:** Active development
+- **Why:** Low-effort way to unlock major compiler optimizations
+- **Impact:** Significant performance gains with minimal implementation cost
+- **Use cases:** Fine-grained control over inlining, branch prediction, optimization hints
+- **Complexity:** Low
+
+### 2. **Volatile Operations (LLVM)** [Priority 6] 🖥️ Systems Programming
+
+- **Why:** Essential for embedded systems and OS development
+- **Impact:** Enables memory-mapped I/O and hardware register access
+- **Use cases:** Embedded systems, device drivers, OS kernels
+- **Complexity:** Low
+
+### 3. **Parallel Compilation** [Priority 5] ⚡ Build Performance
+
+- **Why:** Dramatically faster builds for large projects
+- **Impact:** 2-8x faster compilation by utilizing multiple CPU cores
+- **Use cases:** Large projects, CI/CD pipelines
 - **Complexity:** Medium
 
 ---
 
 ## 📋 COMPLETED FEATURES
+
+## [5] ✅ Watch Mode (COMPLETED)
+
+**Description:** Add `--watch` mode to CLI to automatically recompile on file changes for rapid development.
+
+**Implementation Status:** ✅ Fully Implemented (January 2026)
+
+**What Was Implemented:**
+
+- ✅ **File Watcher**: Created `cli/Watcher.ts` with Bun's native `fs.watch()` for monitoring file changes.
+- ✅ **CLI Integration**: Added `-w, --watch` flag to main CLI command.
+- ✅ **Debouncing**: Implemented 100ms debounce to prevent excessive recompilation from rapid file saves.
+- ✅ **Error Recovery**: Continues watching even after compilation failures, displaying errors and waiting for fixes.
+- ✅ **Recursive Watching**: Monitors all `.bpl` files in the directory tree.
+- ✅ **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories.
+- ✅ **User Experience**: Colorized output with timestamps, success/failure indicators.
+- ✅ **Documentation**: Comprehensive docs in `docs/39-compiler-options.md` and `docs/03-quick-start.md`.
+- ✅ **Testing**: Verified error recovery, file change detection, and recompilation behavior.
 
 ## [3] ✅ Basic Package Management (COMPLETED)
 
@@ -680,25 +712,6 @@ There are several approaches to fix this:
 ## ⏳ PENDING FEATURES (PRIORITIZED)
 
 ### High Priority
-
-## [5] Watch Mode
-
-**Description:** Add a `--watch` mode to the CLI that monitors source files for changes and automatically recompiles affected modules. This improves the developer feedback loop.
-
-**Implementation Notes:**
-
-- Use file system watcher (e.g., `chokidar` or native APIs)
-- Integrate with incremental compilation system
-- Debounce change events to avoid redundant builds
-- Clear terminal and show status updates
-
-**Acceptance Criteria:**
-
-- `bpl build --watch` stays running and waits for changes
-- Modifying a file triggers a rebuild
-- Only affected modules are recompiled
-
----
 
 ## [6] Default and Named Arguments
 

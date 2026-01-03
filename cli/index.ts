@@ -17,6 +17,7 @@ export {
   compileBinaryAndRun,
 } from "./BinaryRunner";
 export { processFile, processCode } from "./CompilationRunner";
+export { watchMode } from "./Watcher";
 
 // Completions
 export { getBashCompletionScript, getZshCompletionScript } from "./completions";

@@ -24,6 +24,17 @@ export interface CompileOptions {
   prelude?: boolean;
   dwarf?: boolean;
   stdin?: boolean;
+  eval?: string;
+  watch?: boolean;
+  // New flags
+  quiet?: boolean;
+  json?: boolean;
+  color?: boolean;
+  time?: boolean;
+  debug?: boolean; // Alias for dwarf
+  clear?: boolean; // Clear screen on watch mode recompile
+  noRun?: boolean; // Compile only in watch mode, don't execute
+  O?: string; // Optimization level: "0", "1", "2", "3"
 }
 
 /**

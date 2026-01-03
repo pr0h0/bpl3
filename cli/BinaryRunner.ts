@@ -7,6 +7,9 @@ import { spawnSync } from "child_process";
 import * as path from "path";
 import type { CompileOptions } from "./types";
 import { getHostDefaults, normalizeArrayOption } from "./utils";
+import { Logger } from "../compiler/common/Logger";
+
+const log = new Logger("BinaryRunner");
 
 /**
  * Result of binary compilation
@@ -41,10 +44,10 @@ export function compileToBinary(
   const clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
 
   if (options.verbose) {
-    console.log("---------------------------------------------");
-    console.log(`Compiling LLVM IR to executable with clang...`);
-    console.log("---------------------------------------------");
-    console.log(`clang ${clangArgs.join(" ")}`);
+    log.info("---------------------------------------------");
+    log.info("Compiling LLVM IR to executable with clang...");
+    log.info("---------------------------------------------");
+    log.debug(`clang ${clangArgs.join(" ")}`);
   }
 
   const compileResult = spawnSync("clang", clangArgs, {
@@ -60,7 +63,7 @@ export function compileToBinary(
   }
 
   if (options.verbose) {
-    console.log(`Executable created: ${execPath}`);
+    log.info(`Executable created: ${execPath}`);
   }
 
   return {
@@ -78,9 +81,9 @@ export function runExecutable(
   verbose: boolean = false,
 ): RunResult {
   if (verbose) {
-    console.log("---------------------------------------------");
-    console.log(`Running executable: ${execPath}`);
-    console.log("---------------------------------------------");
+    log.info("---------------------------------------------");
+    log.info(`Running executable: ${execPath}`);
+    log.info("---------------------------------------------");
   }
 
   const runResult = spawnSync(execPath, programArgs, {
@@ -90,9 +93,9 @@ export function runExecutable(
   const exitCode = runResult.status ?? 1;
 
   if (verbose) {
-    console.log("---------------------------------------------");
+    log.info("---------------------------------------------");
     if (exitCode !== 0) {
-      console.error(`Program exited with code ${exitCode}`);
+      log.error(`Program exited with code ${exitCode}`);
     }
   }
 
@@ -113,7 +116,7 @@ export function compileBinaryAndRun(
   const compileResult = compileToBinary(irPath, options);
 
   if (!compileResult.success) {
-    console.error(compileResult.error);
+    log.error(compileResult.error || "Compilation failed");
     process.exit(1);
   }
 

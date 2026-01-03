@@ -17,7 +17,7 @@ function runBPL(source: string): {
   fs.writeFileSync(tempFile, source);
 
   try {
-    const result = spawnSync("bun", [COMPILER_PATH, tempFile, "--run"], {
+    const result = spawnSync("bun", [COMPILER_PATH, "run", tempFile], {
       encoding: "utf-8",
       env: { ...process.env, NO_COLOR: "1" },
     });

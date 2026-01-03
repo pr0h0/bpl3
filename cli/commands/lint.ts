@@ -8,6 +8,9 @@ import { Command } from "commander";
 import { Parser, Linter, CompilerError, lexWithGrammar } from "../../compiler";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { LintOptions } from "../types";
+import { Logger } from "../../compiler/common/Logger";
+
+const log = new Logger("Lint");
 
 /**
  * Register the lint command
@@ -19,7 +22,7 @@ export function registerLintCommand(program: Command): void {
     .option("-v, --verbose", "enable verbose output")
     .action((files: string[], _options: LintOptions) => {
       if (!files || files.length === 0) {
-        console.error("Error: No files specified.");
+        log.error("No files specified.");
         process.exit(1);
       }
 
@@ -29,7 +32,7 @@ export function registerLintCommand(program: Command): void {
       for (const file of files) {
         try {
           if (!fs.existsSync(file)) {
-            console.error(`Error: File not found: ${file}`);
+            log.error(`File not found: ${file}`);
             hasErrors = true;
             continue;
           }
@@ -49,7 +52,7 @@ export function registerLintCommand(program: Command): void {
           if (e instanceof CompilerError) {
             console.error(diagnosticFormatter.formatError(e));
           } else {
-            console.error(`Error processing ${file}: ${e}`);
+            log.error(`Error processing ${file}: ${e}`);
           }
         }
       }
