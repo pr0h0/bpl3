@@ -1265,8 +1265,8 @@ PatternBindingList
     }
 
 PatternBinding
-  = "_" { return "_"; }
-  / name:Identifier { return name.name; }
+  = "_" { return patternWildcard(location()); }
+  / name:Identifier { return patternIdentifier(name.name, location()); }
 
 PatternFieldList
   = head:PatternField tail:(_ "," _ PatternField)* _ ","? {
@@ -1351,6 +1351,7 @@ Parameter
          // Heterogeneous variadic: name: ...
          // We treat this as Any
          return {
+            kind: "Parameter",
             name: name.name,
             type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: makeLoc(location()) },
             isConst: !!isConstPrefix || !!isConstType,
@@ -1364,6 +1365,7 @@ Parameter
       }
 
       return {
+        kind: "Parameter",
         name: name.name,
         type,
         isConst: !!isConstPrefix || !!isConstType,

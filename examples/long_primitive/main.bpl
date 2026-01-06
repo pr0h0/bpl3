@@ -1,4 +1,5 @@
-# TODO: Remove explicit LONG import and import it implicitly
+# Long struct is implicitly available, but must be explicitly imported to use its methods
+# because long primitive doesn't auto-box to Long struct
 import [IO], [Long] from "std";
 
 frame main() {

@@ -1179,7 +1179,7 @@ export class Formatter {
         if (p.genericArgs && p.genericArgs.length > 0) {
           enumName += `<${p.genericArgs.map((t) => this.formatType(t)).join(", ")}>`;
         }
-        return `${enumName}.${p.variantName}(${p.bindings.join(", ")})`;
+        return `${enumName}.${p.variantName}(${p.bindings.map((b) => this.formatPattern(b)).join(", ")})`;
       }
 
       case "PatternEnumStruct": {

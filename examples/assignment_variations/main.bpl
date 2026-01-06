@@ -68,7 +68,7 @@ frame main() ret int {
     printf("arr: [%d, %d, %d]\n", arr[0], arr[1], arr[2]);
 
     local tup: (int, float) = 0;
-    local (t1, t2) = tup;
+    local (t1: int, t2: float) = tup;
     printf("tup: (%d, %.1f)\n", t1, t2);
 
     local f: float = 0;

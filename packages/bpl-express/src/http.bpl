@@ -34,9 +34,9 @@ struct Request {
 
     frame getParam(this: *Request, key: string) ret Option<string> {
         local i: int = 0;
-        local items = &this.params.items;
+        local items: *Array<Pair<string, string>> = &this.params.items;
         loop (i < items.len()) {
-            local p = items.get(i);
+            local p: Pair<string, string> = items.get(i);
             if (strcmp(p.key, key) == 0) {
                 return Option<string>.Some(p.value);
             }
@@ -74,10 +74,10 @@ struct Response {
         if (this.body_sent) {
             return;
         }
-        local header_buffer = malloc(1024);
+        local header_buffer: *char = malloc(1024);
         local status_msg: string = "OK";
 
-        local code = this.status_code;
+        local code: int = this.status_code;
 
         if (code == 404) {
             status_msg = "Not Found";
@@ -94,12 +94,11 @@ struct Response {
         if (this.status_code == 204) {
             status_msg = "No Content";
         }
-        local len = strlen(body);
+        local len: int = strlen(body);
 
         # Workaround for varargs crash: build string incrementally
-        local offset = 0;
-        local base_ptr = cast<long>(cast<*void>(header_buffer));
-
+        local offset: int = 0;
+        local base_ptr: long = cast<long>(cast<*void>(header_buffer));
         offset = offset + sprintf(cast<string>(cast<*void>(base_ptr + cast<long>(offset))), "HTTP/1.1 %d ", code);
         offset = offset + sprintf(cast<string>(cast<*void>(base_ptr + cast<long>(offset))), "%s\r\n", status_msg);
         offset = offset + sprintf(cast<string>(cast<*void>(base_ptr + cast<long>(offset))), "Content-Length: %ld\r\n", len);
@@ -108,7 +107,7 @@ struct Response {
 
         # Manually handle Content-Type to avoid MapIterator crash
         if (this.headers.has("Content-Type")) {
-            local ct_opt = this.headers.get("Content-Type");
+            local ct_opt: Option<string> = this.headers.get("Content-Type");
             match (ct_opt) {
                 Option.Some(val) => {
                     sprintf(header_buffer, "Content-Type: %s\r\n", val);

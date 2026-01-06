@@ -393,48 +393,52 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
       // Bind variable if needed
       if (pattern.kind === "PatternEnumTuple" && pattern.bindings.length > 0) {
-        const bindingName = pattern.bindings[0]!;
-        const typeName = pattern.variantName;
-        const bindingType = this.resolveType({
-          kind: "BasicType",
-          name: typeName,
-          genericArgs: [],
-          pointerDepth: 0,
-          arrayDimensions: [],
-          location: pattern.location,
-        });
+        const binding = pattern.bindings[0]!;
+        // Only create binding if not wildcard
+        if (binding.kind === "PatternIdentifier") {
+          const bindingName = binding.name;
+          const typeName = pattern.variantName;
+          const bindingType = this.resolveType({
+            kind: "BasicType",
+            name: typeName,
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: pattern.location,
+          });
 
-        // Cast data (u64) to target type
-        // If target type is smaller than 64-bit, truncate
-        // If target type is pointer, inttoptr
-        // If target type is float/double, bitcast
+          // Cast data (u64) to target type
+          // If target type is smaller than 64-bit, truncate
+          // If target type is pointer, inttoptr
+          // If target type is float/double, bitcast
 
-        const castVal = this.newRegister();
+          const castVal = this.newRegister();
 
-        if (bindingType === "double") {
-          this.emit(`  ${castVal} = bitcast i64 ${data} to double`);
-        } else if (bindingType === "float") {
-          // float is 32-bit, so we need to truncate first? Or bitcast lower 32 bits?
-          // Assuming data stores bits directly.
-          // For float, we might need to trunc to i32 then bitcast
-          const trunc = this.newRegister();
-          this.emit(`  ${trunc} = trunc i64 ${data} to i32`);
-          this.emit(`  ${castVal} = bitcast i32 ${trunc} to float`);
-        } else if (bindingType.endsWith("*")) {
-          this.emit(`  ${castVal} = inttoptr i64 ${data} to ${bindingType}`);
-        } else if (bindingType === "i64" || bindingType === "u64") {
-          // Integer types - no cast needed, just bitcast to be safe
-          this.emit(`  ${castVal} = bitcast i64 ${data} to ${bindingType}`);
-        } else {
-          // Integer types - truncate
-          this.emit(`  ${castVal} = trunc i64 ${data} to ${bindingType}`);
+          if (bindingType === "double") {
+            this.emit(`  ${castVal} = bitcast i64 ${data} to double`);
+          } else if (bindingType === "float") {
+            // float is 32-bit, so we need to truncate first? Or bitcast lower 32 bits?
+            // Assuming data stores bits directly.
+            // For float, we might need to trunc to i32 then bitcast
+            const trunc = this.newRegister();
+            this.emit(`  ${trunc} = trunc i64 ${data} to i32`);
+            this.emit(`  ${castVal} = bitcast i32 ${trunc} to float`);
+          } else if (bindingType.endsWith("*")) {
+            this.emit(`  ${castVal} = inttoptr i64 ${data} to ${bindingType}`);
+          } else if (bindingType === "i64" || bindingType === "u64") {
+            // Integer types - no cast needed, just bitcast to be safe
+            this.emit(`  ${castVal} = bitcast i64 ${data} to ${bindingType}`);
+          } else {
+            // Integer types - truncate
+            this.emit(`  ${castVal} = trunc i64 ${data} to ${bindingType}`);
+          }
+
+          // Store in variable
+          const varAddr = this.allocateStack(bindingName, bindingType);
+          this.emit(
+            `  store ${bindingType} ${castVal}, ${bindingType}* ${varAddr}`,
+          );
         }
-
-        // Store in variable
-        const varAddr = this.allocateStack(bindingName, bindingType);
-        this.emit(
-          `  store ${bindingType} ${castVal}, ${bindingType}* ${varAddr}`,
-        );
       }
 
       const result = this.generateMatchArmBody(arm.body);
@@ -871,7 +875,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     // For each binding, extract the value from the data array with proper byte offsets
     let byteOffset = 0;
     for (let i = 0; i < pattern.bindings.length; i++) {
-      const bindingName = pattern.bindings[i]!;
+      const binding = pattern.bindings[i]!;
       const bindingType = variant.dataType.types[i]!;
       const llvmType = this.resolveType(bindingType);
       const typeSize = this.getTypeSize(llvmType);
@@ -882,10 +886,12 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       }
 
       // Skip wildcard bindings (but still account for offset)
-      if (bindingName === "_") {
+      if (binding.kind === "PatternWildcard") {
         byteOffset += typeSize;
         continue;
       }
+
+      const bindingName = (binding as AST.PatternIdentifier).name;
 
       // Get pointer at the correct byte offset
       let elementPtr: string;

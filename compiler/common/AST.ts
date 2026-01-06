@@ -298,7 +298,7 @@ export interface PatternEnumTuple extends ASTNode {
   kind: "PatternEnumTuple";
   enumName: string;
   variantName: string;
-  bindings: string[];
+  bindings: Pattern[];
   genericArgs?: TypeNode[];
 }
 

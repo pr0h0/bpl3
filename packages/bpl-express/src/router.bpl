@@ -6,7 +6,7 @@ import strcmp, strncmp, strlen, printf, malloc, free from "./libc.bpl";
 export [Router];
 export [RouteHandler];
 
-type RouteHandler = Func<void>(*Request, *Response);
+type RouteHandler = Lambda<void>(*Request, *Response);
 
 struct Route {
     method: HttpMethod,
@@ -68,7 +68,7 @@ struct Router {
     frame handle(this: *Router, req: *Request, res: *Response) {
         local i: int = 0;
         loop (i < this.routes.len()) {
-            local route = this.routes.get(i);
+            local route: Route = this.routes.get(i);
             if (route.method == req.method) {
                 if (this.matchPath(route.path, req.path, &req.params)) {
                     route.handler(req, res);
@@ -84,8 +84,8 @@ struct Router {
         # Pass 1: Check match
         local r_idx: int = 0;
         local q_idx: int = 0;
-        local r_len = cast<int>(strlen(routePath));
-        local q_len = cast<int>(strlen(reqPath));
+        local r_len: int = cast<int>(strlen(routePath));
+        local q_len: int = cast<int>(strlen(reqPath));
 
         loop ((r_idx < r_len) && (q_idx < q_len)) {
             # Check for parameter
@@ -117,21 +117,19 @@ struct Router {
         loop ((r_idx < r_len) && (q_idx < q_len)) {
             if (routePath[r_idx] == ':') {
                 r_idx = r_idx + 1; # Skip ':'
-                local key_start = r_idx;
+                local key_start: int = r_idx;
                 loop ((r_idx < r_len) && (routePath[r_idx] != '/')) {
                     r_idx = r_idx + 1;
                 }
-                local key_len = r_idx - key_start;
-
-                local val_start = q_idx;
+                local key_len: int = r_idx - key_start;
+                local val_start: int = q_idx;
                 loop ((q_idx < q_len) && (reqPath[q_idx] != '/')) {
                     q_idx = q_idx + 1;
                 }
-                local val_len = q_idx - val_start;
-
+                local val_len: int = q_idx - val_start;
                 # Allocate and copy
-                local key_str = malloc(cast<ulong>(key_len + 1));
-                local val_str = malloc(cast<ulong>(val_len + 1));
+                local key_str: *char = malloc(cast<ulong>(key_len + 1));
+                local val_str: *char = malloc(cast<ulong>(val_len + 1));
 
                 local k: int = 0;
                 loop (k < key_len) {

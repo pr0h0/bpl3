@@ -54,7 +54,7 @@ frame main() ret int {
 - **Watch Mode**: Automatic recompilation on file changes for rapid development
 - **Package Manager**: Easy dependency management with `bpl install`
 - **Cross-Platform**: Compile for Linux, macOS, Windows, ARM, and more
-- **Editor Integration**: VS Code extension with syntax highlighting
+- **VS Code Extension**: Full language server with IntelliSense, go-to-definition, hover tooltips, and smart completions
 - **Incremental Compilation**: Fast rebuilds with module caching
 
 ## 📦 Installation

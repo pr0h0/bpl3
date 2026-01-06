@@ -408,7 +408,7 @@ export function checkVariableDecl(
   decl: AST.VariableDecl,
 ): void {
   if (Array.isArray(decl.name)) {
-    // Destructuring
+    // Destructuring - enforce explicit type annotations
     const flattenTargets = (
       targets: any[],
     ): { name: string; type?: AST.TypeNode }[] => {
@@ -424,6 +424,18 @@ export function checkVariableDecl(
     };
 
     const targets = flattenTargets(decl.name);
+
+    // Check that all non-underscore targets have explicit type annotations
+    for (const target of targets) {
+      if (target.name !== "_" && !target.type) {
+        throw new CompilerError(
+          `Missing type annotation for variable '${target.name}' in destructuring`,
+          "All variables in destructuring must have explicit type annotations. Add type annotations like: local (x: int, y: int) = tuple;",
+          decl.location,
+        );
+      }
+    }
+
     const initType = decl.initializer
       ? this.checkExpression(decl.initializer)
       : undefined;
@@ -496,9 +508,16 @@ export function checkVariableDecl(
   }
 
   // Single variable
-  let declaredType = decl.typeAnnotation
-    ? this.resolveType(decl.typeAnnotation)
-    : undefined;
+  // Enforce explicit type annotation (no type inference)
+  if (!decl.typeAnnotation) {
+    throw new CompilerError(
+      `Missing type annotation for variable '${decl.name}'`,
+      "Variables must have explicit type annotations. Add a type annotation like: local x: int = 1;",
+      decl.location,
+    );
+  }
+
+  const declaredType = this.resolveType(decl.typeAnnotation);
 
   // Check for void type (BUG-060)
   if (declaredType) {
@@ -628,8 +647,9 @@ export function checkVariableDecl(
             );
           }
         }
+        // Type annotation is required, so we already have declaredType
       } else {
-        declaredType = this.resolveType(initType);
+        // No declared type check needed since we enforce type annotations above
       }
     }
   }

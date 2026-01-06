@@ -26,7 +26,7 @@ struct App {
 
     frame listen(this: *App, port: int) {
         this.port = port;
-        local server_fd = socket(2, 1, 0); # AF_INET, SOCK_STREAM
+        local server_fd: int = socket(2, 1, 0); # AF_INET, SOCK_STREAM
         if (server_fd < 0) {
             printf("Socket failed\n");
             exit(1);
@@ -52,17 +52,17 @@ struct App {
 
         loop {
             local addrlen: uint = 16;
-            local new_socket = accept(server_fd, &address, &addrlen);
+            local new_socket: int = accept(server_fd, &address, &addrlen);
             if (new_socket < 0) {
                 continue;
             }
             local buffer: char[4096];
             memset(cast<*void>(&buffer[0]), 0, 4096);
-            local valread = read(new_socket, cast<string>(&buffer[0]), 4095);
+            local valread: long = read(new_socket, cast<string>(&buffer[0]), 4095);
 
             if (valread > 0) {
-                local req = this.parseRequest(cast<string>(&buffer[0]));
-                local res = Response.new(new_socket);
+                local req: Request = this.parseRequest(cast<string>(&buffer[0]));
+                local res: Response = Response.new(new_socket);
 
                 if (this.tryServeStatic(&req, &res)) {
                     close(new_socket);
@@ -81,18 +81,18 @@ struct App {
         if (req.method != HttpMethod.GET) {
             return false;
         }
-        local url_len = strlen(this.static_url);
+        local url_len: int = strlen(this.static_url);
         if (strncmp(req.path, this.static_url, url_len) != 0) {
             return false;
         }
         local file_path: char[1024];
-        local ptr = cast<string>(&file_path[0]);
+        local ptr: string = cast<string>(&file_path[0]);
         strcpy(ptr, this.static_dir);
 
-        local rel_path = req.path + url_len;
+        local rel_path: string = req.path + url_len;
 
         # Ensure slash
-        local dir_len = strlen(this.static_dir);
+        local dir_len: int = strlen(this.static_dir);
         if (dir_len > 0) {
             if (ptr[dir_len - 1] != '/') {
                 if (rel_path[0] != '/') {
@@ -103,22 +103,21 @@ struct App {
         strcat(ptr, rel_path);
 
         # If path ends with /, append index.html
-        local path_len = strlen(ptr);
+        local path_len: int = strlen(ptr);
         if (path_len > 0) {
             if (ptr[path_len - 1] == '/') {
                 strcat(ptr, "index.html");
             }
         }
-        local fd = open(ptr, 0);
+        local fd: int = open(ptr, 0);
         if (fd < 0) {
             return false;
         }
-        local size = lseek(fd, 0, 2);
+        local size: long = lseek(fd, 0, 2);
         lseek(fd, 0, 0);
 
-        local content = malloc(cast<ulong>(size + 1));
-        local bytes_read = read(fd, content, cast<ulong>(size));
-
+        local content: *char = malloc(cast<ulong>(size + 1));
+        local bytes_read: long = read(fd, content, cast<ulong>(size));
         if (bytes_read < 0) {
             free(content);
             close(fd);
@@ -140,7 +139,7 @@ struct App {
     }
 
     frame parseRequest(this: *App, raw: string) ret Request {
-        local req = Request.new();
+        local req: Request = Request.new();
 
         # Method
         if (strncmp(raw, "GET", 3) == 0) {
@@ -153,7 +152,7 @@ struct App {
             req.method = HttpMethod.DELETE;
         }
         # Body (find before modifying raw)
-        local body_sep = strstr(raw, "\r\n\r\n");
+        local body_sep: *char = strstr(raw, "\r\n\r\n");
         if (body_sep != nullptr) {
             req.body = body_sep + 4;
         } else {
@@ -161,13 +160,13 @@ struct App {
         }
 
         # Path
-        local space1 = strchr(raw, ' ');
+        local space1: *char = strchr(raw, ' ');
         if (space1 != nullptr) {
-            local path_start = space1 + 1;
-            local space2 = strchr(path_start, ' ');
+            local path_start: *char = space1 + 1;
+            local space2: *char = strchr(path_start, ' ');
             if (space2 != nullptr) {
                 # Null terminate path in place
-                local ptr = cast<*char>(space2);
+                local ptr: *char = cast<*char>(space2);
                 ptr[0] = 0;
                 req.path = path_start;
             }

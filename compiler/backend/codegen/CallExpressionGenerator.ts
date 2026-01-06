@@ -2328,32 +2328,16 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           this.emit(`  store %struct.Any ${anyVal}, %struct.Any* ${elemPtr}`);
         } else {
           // Homogeneous packing
-          // Implicit cast if needed (e.g. i32 to i64, or upcast)
-          // For now, assume types match or are compatible enough for bitcast/zext
-          // TODO: Use proper cast generation logic if types differ
-
+          // Use proper cast generation logic if types differ
           let finalVal = val;
           if (srcType !== elementType) {
-            // Simple promotion for primitives
-            if (
-              elementType === "double" &&
-              (srcType === "i32" || srcType === "i64")
-            ) {
-              const conv = this.newRegister();
-              this.emit(`  ${conv} = sitofp ${srcType} ${val} to double`);
-              finalVal = conv;
-            } else if (elementType === "i64" && srcType === "i32") {
-              const conv = this.newRegister();
-              this.emit(`  ${conv} = sext i32 ${val} to i64`);
-              finalVal = conv;
-            } else if (srcType !== elementType) {
-              // Try bitcast as last resort
-              const cast = this.newRegister();
-              this.emit(
-                `  ${cast} = bitcast ${srcType} ${val} to ${elementType}`,
-              );
-              finalVal = cast;
-            }
+            finalVal = this.emitCast(
+              val,
+              srcType,
+              elementType,
+              arg.resolvedType!,
+              variadicParamType!,
+            );
           }
 
           const elemPtr = this.newRegister();

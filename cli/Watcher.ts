@@ -18,7 +18,7 @@ function debounce<T extends (...args: any[]) => void>(
   fn: T,
   delay: number,
 ): (...args: Parameters<T>) => void {
-  let timeoutId: Timer | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
 
   return (...args: Parameters<T>) => {
     if (timeoutId) {

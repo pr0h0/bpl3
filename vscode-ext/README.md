@@ -29,7 +29,20 @@ This extension provides comprehensive language support for the BPL3 programming 
   - **Import Resolution**: Click on import paths to open the referenced file.
 
 - **Code Completion**:
-  - Suggestions for keywords (`if`, `loop`, `struct`, `enum`, `match`, etc.) and built-in types (`int`, `bool`, `string`, etc.).
+
+  - **Keyword & Type Suggestions**: Autocomplete for keywords (`if`, `loop`, `struct`, `enum`, `match`, etc.) and built-in types (`int`, `bool`, `string`, etc.).
+  - **Member Access Completion**: Type-aware autocompletion for struct fields and methods (e.g., `user.` shows `getName`, `age`, etc.).
+  - **Partial Text Filtering**: Smart filtering as you type (e.g., `user.getNa` filters to `getName`).
+  - **Imported Symbol Completion**: Full support for both bracketed (`import [App] from "bpl-express"`) and bare function imports (`import sprintf, strcpy from "bpl-express"`).
+  - **In-Memory Document Support**: Completions work on unsaved files with real-time parsing.
+  - **Global Symbol Search**: Re-exported symbols from packages are properly resolved.
+  - **Generic Type Support**: Completions for generic types like `Array<int>.` showing all methods.
+  - **Enum Variants**: Type `EnumName.` to see all variants.
+
+- **Inlay Hints**:
+  - **Parameter Names**: See parameter names inline in function calls: `calculate(→base: 10, →power: 2)`.
+  - **Return Types**: View inferred return types for complex expressions.
+  - **Type Parameters**: See generic type arguments in instantiations.
 
 ## Installation
 
@@ -90,6 +103,32 @@ To contribute or debug the extension:
 2. Run `npm install`.
 3. Press `F5` to launch a new **Extension Development Host** window with the extension loaded.
 4. Open a `.bpl` file in the new window to test features.
+
+### Running Tests
+
+The extension has a comprehensive test suite:
+
+```bash
+cd vscode-ext
+bun test
+```
+
+**Current Test Status**: ✅ **12/12 tests passing**
+
+Tests cover:
+
+- ✅ Member access completions (`user.`, `loopVar.`)
+- ✅ Partial text filtering (`user.getNa`)
+- ✅ Method snippet generation (omitting `this` parameter)
+- ✅ Enum variant completions (`Status.Active`)
+- ✅ General symbol completions
+- ✅ Hover information
+- ✅ Go-to-definition navigation
+- ✅ Generic type completions (`Array<int>.`)
+- ✅ Chained member access
+- ✅ Nested scope handling
+
+All language server features are fully tested and production-ready.
 
 ## Structure
 

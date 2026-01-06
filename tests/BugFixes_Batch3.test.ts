@@ -24,7 +24,7 @@ describe("Bug Fixes Batch 3", () => {
     const source = `
       frame main() {
         local _x: (int, int)[10];
-        local _y = _x[0];
+        local _y: (int, int) = _x[0];
       }
     `;
     const result = compiler.compile(source);
@@ -38,7 +38,7 @@ describe("Bug Fixes Batch 3", () => {
     const source = `
       import [Int] from "std/primitives.bpl";
       frame main() {
-        local _s = sizeof<int[10]>();
+        local _s: u64 = sizeof<int[10]>();
       }
     `;
     const result = compiler.compile(source);

@@ -1536,7 +1536,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         }
 
         // Define the binding variable
-        const bindingName = pattern.bindings[0]!;
+        const binding = pattern.bindings[0]!;
+        // If wildcard, no binding to create
+        if (binding.kind === "PatternWildcard") return;
+
+        const bindingName = (binding as AST.PatternIdentifier).name;
         // We need to construct the type node for the binding
         const bindingType: AST.TypeNode = {
           kind: "BasicType",
@@ -1621,8 +1625,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
       // Bind variables
       for (let i = 0; i < pattern.bindings.length; i++) {
-        const bindingName = pattern.bindings[i]!;
-        if (bindingName === "_") continue;
+        const binding = pattern.bindings[i]!;
+        if (binding.kind === "PatternWildcard") continue;
+
+        const bindingName = (binding as AST.PatternIdentifier).name;
 
         let bindingType = variant.dataType.types[i]!;
         if (typeMap.size > 0) {

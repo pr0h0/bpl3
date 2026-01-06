@@ -11,7 +11,6 @@ import {
   DidChangeConfigurationNotification,
   Hover,
   Location,
-  MarkupKind,
   ProposedFeatures,
   Range,
   TextDocuments,
@@ -26,8 +25,6 @@ import {
   type InitializeResult,
 } from "vscode-languageserver/node";
 
-import { DocParser } from "../../compiler/common/DocParser";
-
 // Compiler integration
 import * as AST from "../../compiler/common/AST";
 import { CompilerError } from "../../compiler/common/CompilerError";
@@ -35,12 +32,121 @@ import { Formatter } from "../../compiler/formatter/Formatter";
 import { Parser } from "../../compiler/frontend/Parser";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
+// Symbol index and module resolution services
+import { SymbolIndex, InlayHintProvider } from "./services";
+import { ASTResolver } from "./services/ASTResolver";
+import { ASTHoverHandler } from "./services/ASTHoverHandler";
+import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
+import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
+import { ASTRenameHandler } from "./services/ASTRenameHandler";
+import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
+import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
+import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
+import { SignatureHelpProvider } from "./services/SignatureHelpProvider";
+import { DocumentSymbolProvider } from "./services/DocumentSymbolProvider";
+import {
+  SemanticTokenProvider,
+  semanticTokensLegend,
+} from "./services/SemanticTokenProvider";
+import { CallHierarchyProvider } from "./services/CallHierarchyProvider";
+import { TypeHierarchyProvider } from "./services/TypeHierarchyProvider";
+import { WorkspaceSymbolProvider } from "./services/WorkspaceSymbolProvider";
+import { CodeLensProvider } from "./services/CodeLensProvider";
+import { DocumentLinkProvider } from "./services/DocumentLinkProvider";
+
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+
+// Global symbol index
+const symbolIndex = new SymbolIndex();
+
+// AST-based resolver (uses compiler's parser)
+const astResolver = new ASTResolver(symbolIndex);
+
+// AST-based hover handler
+const astHoverHandler = new ASTHoverHandler(astResolver, symbolIndex);
+
+// AST-based definition handler
+const astDefinitionHandler = new ASTDefinitionHandler(astResolver, symbolIndex);
+
+// AST-based completion handler
+const astCompletionHandler = new ASTCompletionHandler(astResolver, symbolIndex);
+
+// AST-based rename handler
+const astRenameHandler = new ASTRenameHandler(astResolver, symbolIndex);
+
+// Selection range provider for smart expand/shrink selection
+const selectionRangeProvider = new SelectionRangeProvider(astResolver);
+
+// Document highlight provider for highlighting symbol occurrences
+const documentHighlightProvider = new DocumentHighlightProvider(astResolver);
+
+// Folding range provider for smart code folding
+const foldingRangeProvider = new FoldingRangeProvider(astResolver);
+
+// Signature help provider for parameter hints
+const signatureHelpProvider = new SignatureHelpProvider(
+  astResolver,
+  symbolIndex,
+);
+
+// Document symbol provider for outline view
+const documentSymbolProvider = new DocumentSymbolProvider(astResolver);
+
+// Semantic token provider for dynamic syntax highlighting
+const semanticTokenProvider = new SemanticTokenProvider(astResolver);
+
+// Inlay hint provider for showing inferred types and parameter names
+const inlayHintProvider = new InlayHintProvider(astResolver, symbolIndex);
+
+// Call hierarchy provider for incoming/outgoing calls
+const callHierarchyProvider = new CallHierarchyProvider(
+  astResolver,
+  symbolIndex,
+);
+
+// Type hierarchy provider for struct inheritance
+const typeHierarchyProvider = new TypeHierarchyProvider(
+  astResolver,
+  symbolIndex,
+);
+
+// Workspace symbol provider for workspace-wide search
+const workspaceSymbolProvider = new WorkspaceSymbolProvider(
+  astResolver,
+  symbolIndex,
+);
+
+// Code lens provider for showing references and complexity
+const codeLensProvider = new CodeLensProvider(astResolver);
+
+// Document link provider for clickable imports
+const documentLinkProvider = new DocumentLinkProvider(astResolver);
+
+console.log("[Server] BPL Language Server initializing...");
+console.log("[Server] AST-based handlers initialized:");
+console.log("[Server]   - ASTResolver");
+console.log("[Server]   - ASTHoverHandler");
+console.log("[Server]   - ASTDefinitionHandler");
+console.log("[Server]   - ASTCompletionHandler");
+console.log("[Server]   - ASTRenameHandler");
+console.log("[Server]   - SelectionRangeProvider");
+console.log("[Server]   - DocumentHighlightProvider");
+console.log("[Server]   - FoldingRangeProvider");
+console.log("[Server]   - SignatureHelpProvider");
+console.log("[Server]   - InlayHintProvider");
+console.log("[Server]   - SignatureHelpProvider");
+console.log("[Server]   - DocumentSymbolProvider");
+console.log("[Server]   - SemanticTokenProvider");
+console.log("[Server]   - CallHierarchyProvider");
+console.log("[Server]   - TypeHierarchyProvider");
+console.log("[Server]   - WorkspaceSymbolProvider");
+console.log("[Server]   - CodeLensProvider");
+console.log("[Server]   - DocumentLinkProvider");
 
 interface AnalysisResult {
   program: AST.Program;
@@ -81,6 +187,7 @@ let hasWorkspaceFolderCapability = false;
 let _hasDiagnosticRelatedInformationCapability = false; // reserved for future use
 
 connection.onInitialize((params: InitializeParams) => {
+  console.log("[Server] onInitialize called");
   const capabilities = params.capabilities;
 
   // Does the client support the `workspace/configuration` request?
@@ -107,11 +214,33 @@ connection.onInitialize((params: InitializeParams) => {
       definitionProvider: true,
       hoverProvider: true,
       documentFormattingProvider: true,
-      renameProvider: true,
+      renameProvider: {
+        prepareProvider: true,
+      },
       referencesProvider: true,
       implementationProvider: true,
       codeActionProvider: true,
       codeLensProvider: {
+        resolveProvider: false,
+      },
+      selectionRangeProvider: true,
+      documentHighlightProvider: true,
+      foldingRangeProvider: true,
+      signatureHelpProvider: {
+        triggerCharacters: ["(", ","],
+        retriggerCharacters: [","],
+      },
+      documentSymbolProvider: true,
+      semanticTokensProvider: {
+        legend: semanticTokensLegend,
+        full: true,
+        range: false,
+      },
+      inlayHintProvider: true,
+      callHierarchyProvider: true,
+      typeHierarchyProvider: true,
+      workspaceSymbolProvider: true,
+      documentLinkProvider: {
         resolveProvider: false,
       },
     },
@@ -123,6 +252,10 @@ connection.onInitialize((params: InitializeParams) => {
       },
     };
   }
+  console.log(
+    "[Server] Server capabilities initialized:",
+    JSON.stringify(result.capabilities, null, 2),
+  );
   return result;
 });
 
@@ -163,6 +296,11 @@ connection.onDidChangeConfiguration((change) => {
   } else {
     globalSettings = (change.settings.bplLanguageServer ||
       defaultSettings) as ExampleSettings;
+
+    // Update symbol index with BPL_HOME
+    if (globalSettings.bplHome) {
+      symbolIndex.setBplHome(globalSettings.bplHome);
+    }
   }
 
   // Revalidate all open text documents
@@ -195,7 +333,7 @@ documents.onDidChangeContent((change) => {
   validateTextDocument(change.document);
 });
 
-function getTextForUri(
+function _getTextForUri(
   uri: string,
   openDocuments: TextDocuments<TextDocument>,
 ): string | null {
@@ -393,12 +531,22 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
   if (settings?.bplHome) {
     process.env.BPL_HOME = settings.bplHome;
+    symbolIndex.setBplHome(settings.bplHome);
   } else {
     // Auto-detect BPL_HOME if not set
     const libDir = findWorkspaceLibDir(currentDir);
     if (libDir) {
       process.env.BPL_HOME = path.dirname(libDir);
+      symbolIndex.setBplHome(path.dirname(libDir));
     }
+  }
+
+  // Index symbols from this file and its imports
+  try {
+    symbolIndex.indexFile(filePath, true);
+  } catch (e) {
+    // Silently fail on indexing errors
+    connection.console.error(`Failed to index ${filePath}: ${e}`);
   }
 
   const diagnostics: Diagnostic[] = [];
@@ -511,283 +659,12 @@ connection.onCompletion(
     const document = documents.get(textDocumentPosition.textDocument.uri);
     if (!document) return [];
 
-    const text = document.getText();
-    const _offset = document.offsetAt(textDocumentPosition.position);
-    const lineText = text.split("\n")[textDocumentPosition.position.line] || "";
-    const charBefore = lineText[textDocumentPosition.position.character - 1];
-
-    // 1. Member Access Completion (User.)
-    if (charBefore === ".") {
-      // Find the expression before the dot
-      // Handle generics and arrays: Array<int>. or arr[0].
-      let i = textDocumentPosition.position.character - 2;
-      let depth = 0;
-
-      while (i >= 0) {
-        const char = lineText[i];
-        if (char === ">") depth++;
-        else if (char === "<") depth--;
-        else if (char === "]") depth++;
-        else if (char === "[") depth--;
-        else if (char === ")") depth++;
-        else if (char === "(") depth--;
-
-        if (depth === 0 && !/[a-zA-Z0-9_]/.test(char || "")) break;
-        i--;
-      }
-
-      const varName = lineText
-        .substring(i + 1, textDocumentPosition.position.character - 1)
-        .trim();
-
-      if (varName) {
-        let typeName = varName;
-        let isStaticAccess = true; // Default to static access (Type.member)
-
-        const analysis = documentAnalysis.get(
-          textDocumentPosition.textDocument.uri,
-        );
-        if (analysis) {
-          // Check if varName is a variable in scope
-          const line = textDocumentPosition.position.line + 1;
-          const col = textDocumentPosition.position.character - 1;
-          const nodePath = findNodeAtPosition(analysis.program, line, col);
-          const node =
-            nodePath.length > 0 ? nodePath[nodePath.length - 1] : null;
-
-          if (node) {
-            if (node.kind === "Identifier") {
-              const ident = node as AST.IdentifierExpr;
-              if (ident.resolvedType) {
-                typeName = analysis.checker.typeToString(ident.resolvedType);
-                isStaticAccess = false; // Variable access (instance.member)
-              }
-            } else if (node.kind === "Index") {
-              const access = node as AST.IndexExpr;
-              if (access.resolvedType) {
-                typeName = analysis.checker.typeToString(access.resolvedType);
-                isStaticAccess = false;
-              }
-            } else if (node.kind === "Call") {
-              const call = node as AST.CallExpr;
-              if (call.resolvedType) {
-                typeName = analysis.checker.typeToString(call.resolvedType);
-                isStaticAccess = false;
-              }
-            } else if (node.kind === "Member") {
-              const access = node as AST.MemberExpr;
-              // If we are at the dot, we want the type of the object
-              if (access.object && access.object.resolvedType) {
-                typeName = analysis.checker.typeToString(
-                  access.object.resolvedType,
-                );
-                isStaticAccess = false;
-              }
-            }
-          }
-        }
-
-        // Fallback: If AST analysis failed (e.g. due to syntax errors), try to find type via regex
-        if (typeName === varName && isStaticAccess) {
-          // Check for 'this'
-          if (varName === "this") {
-            const structName = findEnclosingStruct(
-              text,
-              textDocumentPosition.position.line,
-            );
-            if (structName) {
-              typeName = structName;
-              isStaticAccess = false;
-            }
-          } else {
-            // Check for local/arg variable
-            const inferredType = findVariableType(
-              text,
-              varName,
-              textDocumentPosition.position.line,
-            );
-            if (inferredType) {
-              typeName = inferredType;
-              isStaticAccess = false;
-            }
-          }
-        }
-
-        // Normalize type name for lookup (handle generics and arrays)
-        let baseTypeName = typeName;
-        if (typeName.endsWith("[]")) {
-          baseTypeName = "Array";
-        } else if (typeName.includes("<")) {
-          baseTypeName = typeName.split("<")[0] || typeName;
-        }
-
-        // Find definition of baseTypeName
-        const typeDef = findSymbolDefinition(document, baseTypeName);
-        if (typeDef) {
-          // If the definition is in the current file, use the cached program if available
-          // to avoid parsing errors due to incomplete code
-          if (typeDef.uri === document.uri) {
-            const cachedAnalysis = documentAnalysis.get(document.uri);
-            if (cachedAnalysis && cachedAnalysis.program) {
-              const decl = cachedAnalysis.program.statements.find(
-                (s) =>
-                  (s.kind === "StructDecl" || s.kind === "EnumDecl") &&
-                  (s as any).name === baseTypeName,
-              );
-              if (decl) {
-                return getCompletionItemsFromDecl(
-                  decl,
-                  baseTypeName,
-                  isStaticAccess,
-                );
-              }
-            }
-          }
-
-          const fullText = getTextForUri(typeDef.uri, documents);
-          if (fullText) {
-            try {
-              // Parse the file to get AST
-              const parser = new Parser(fullText, fileURLToPath(typeDef.uri));
-              const program = parser.parse();
-
-              // Find the struct/enum declaration
-              const decl = program.statements.find(
-                (s) =>
-                  (s.kind === "StructDecl" || s.kind === "EnumDecl") &&
-                  (s as any).name === baseTypeName,
-              );
-
-              if (decl) {
-                return getCompletionItemsFromDecl(
-                  decl,
-                  baseTypeName,
-                  isStaticAccess,
-                );
-              }
-            } catch (e) {
-              connection.console.error(`Failed to parse definition file: ${e}`);
-            }
-          }
-        }
-      }
-      return [];
-    }
-
-    const keywords = [
-      "global",
-      "local",
-      "const",
-      "type",
-      "frame",
-      "ret",
-      "struct",
-      "enum",
-      "import",
-      "from",
-      "export",
-      "extern",
-      "asm",
-      "loop",
-      "if",
-      "else",
-      "break",
-      "continue",
-      "try",
-      "catch",
-      "return",
-      "throw",
-      "switch",
-      "case",
-      "default",
-      "cast",
-      "sizeof",
-      "match",
-      "null",
-      "nullptr",
-      "true",
-      "false",
-      "new",
-      "func",
-      "class",
-      "extends",
-      "implements",
-      "spec",
-    ];
-    const types = [
-      "int",
-      "uint",
-      "u8",
-      "u16",
-      "u32",
-      "u64",
-      "float",
-      "bool",
-      "char",
-      "void",
-      "any",
-      "Func",
-      "string",
-      "Self",
-      "Option",
-      "Result",
-    ];
-
-    const items: CompletionItem[] = [];
-
-    keywords.forEach((kw, index) => {
-      items.push({
-        label: kw,
-        kind: CompletionItemKind.Keyword,
-        data: index,
-      });
-    });
-
-    types.forEach((t, index) => {
-      items.push({
-        label: t,
-        kind: CompletionItemKind.Class,
-        data: keywords.length + index,
-      });
-    });
-
-    // Add local variables from AST analysis
-    const analysis = documentAnalysis.get(
-      textDocumentPosition.textDocument.uri,
-    );
-    if (analysis) {
-      // Traverse AST to find locals in scope at current position
-      // This is a simplified traversal.
-      // We can look at the checker's scope if we had position info in scopes.
-      // Instead, let's just collect all locals in the current function.
-      const line = textDocumentPosition.position.line + 1;
-      const currentFunc = findFunctionAtLine(analysis.program, line);
-      if (currentFunc) {
-        // Add params
-        currentFunc.params.forEach((p) => {
-          items.push({
-            label: p.name,
-            kind: CompletionItemKind.Variable,
-            detail: analysis.checker.typeToString(p.type),
-          });
-        });
-        // Add locals from body
-        // We need to traverse the body statements
-        traverseLocals(currentFunc.body.statements, (name, type) => {
-          items.push({
-            label: name,
-            kind: CompletionItemKind.Variable,
-            detail: type ? analysis.checker.typeToString(type) : "unknown",
-          });
-        });
-      }
-    }
-
-    return items;
+    console.log("[Server] Completion request - delegating to AST handler");
+    return astCompletionHandler.handle(textDocumentPosition, document);
   },
 );
 
-function findFunctionAtLine(
+function _findFunctionAtLine(
   program: AST.Program,
   line: number,
 ): AST.FunctionDecl | null {
@@ -820,6 +697,7 @@ function findFunctionAtLine(
   return null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function traverseLocals(
   stmts: AST.Statement[],
   cb: (name: string, type?: AST.TypeNode) => void,
@@ -859,7 +737,7 @@ function traverseLocals(
   }
 }
 
-function getCompletionItemsFromDecl(
+function _getCompletionItemsFromDecl(
   decl: AST.Statement,
   typeName: string,
   isStaticAccess: boolean,
@@ -991,7 +869,7 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
-function findSymbolDefinition(
+function _findSymbolDefinition(
   document: TextDocument,
   word: string,
 ): { uri: string; range: Range; lineContent: string } | null {
@@ -1295,586 +1173,159 @@ function findSymbolDefinition(
   return null;
 }
 
+// AST-based definition handler (replaces old regex-based implementation)
 connection.onDefinition(
   (params: TextDocumentPositionParams): Location | null => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
       return null;
     }
-    const text = document.getText();
-    const offset = document.offsetAt(params.position);
 
-    // Check if we are on an import string
-    const lines = text.split("\n");
-    const line = lines[params.position.line] ?? "";
-    // Matches:
-    // import A, [B] from "path"
-    // import [A], [B] from "path"
-    // import A from "path"
-    const importMatch =
-      /import\s+(?:(?:\w+|\[\s*\w+\s*\])(?:\s*,\s*(?:\w+|\[\s*\w+\s*\]))*\s+from\s+)["'](.+?)["']/.exec(
-        line,
-      );
-    if (importMatch) {
-      const importPath = importMatch[1] ?? "";
-      const startCol = line.indexOf(importPath || "");
-      const endCol = startCol + (importPath?.length ?? 0);
-
-      if (
-        params.position.character >= startCol &&
-        params.position.character <= endCol
-      ) {
-        // Resolve path (supports std/* alias)
-        const currentDir = path.dirname(fileURLToPath(document.uri));
-        const resolvedPath = resolveImportToFile(importPath, currentDir);
-        if (resolvedPath) {
-          return Location.create(
-            pathToFileURL(resolvedPath).toString(),
-            Range.create(0, 0, 0, 0),
-          );
-        }
-      }
-    }
-
-    // Simple word extraction
-    const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-    let match;
-    let word = "";
-    while ((match = wordRegex.exec(text)) !== null) {
-      if (offset >= match.index && offset <= match.index + match[0].length) {
-        word = match[0];
-        break;
-      }
-    }
-
-    if (!word) {
-      return null;
-    }
-
-    // Support navigating to struct method definitions `TypeName.method`
-    const lineText = lines[params.position.line] ?? "";
-    const dotIdx = lineText.lastIndexOf(".", params.position.character);
-    if (dotIdx > -1) {
-      // Extract type name left of dot
-      let j = dotIdx - 1;
-      while (j >= 0 && /[a-zA-Z0-9_]/.test(lineText[j] || "")) j--;
-      const typeName = lineText.substring(j + 1, dotIdx);
-      const structDef = findSymbolDefinition(document, typeName || "");
-      if (structDef) {
-        const structText = getTextForUri(structDef.uri, documents);
-        if (structText) {
-          const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const methodRegex = new RegExp(
-            `\\bframe\\s+${escapedWord}\\s*\\(`,
-            "m",
-          );
-          const m = methodRegex.exec(structText);
-          if (m) {
-            const structDoc = TextDocument.create(
-              structDef.uri,
-              "bpl",
-              1,
-              structText,
-            );
-            const startPos = structDoc.positionAt(m.index);
-            const endPos = structDoc.positionAt(m.index + m[0].length);
-            return Location.create(
-              structDef.uri,
-              Range.create(startPos, endPos),
-            );
-          }
-        }
-      }
-    }
-
-    const def = findSymbolDefinition(document, word);
-    if (def) {
-      return Location.create(def.uri, def.range);
-    }
-
-    return null;
+    // Use AST-based definition handler
+    return astDefinitionHandler.handle(params, document);
   },
 );
 
-connection.onHover((params: TextDocumentPositionParams): Hover | null => {
-  // Try AST-based hover first
-  const analysis = documentAnalysis.get(params.textDocument.uri);
-  if (analysis) {
-    const line = params.position.line + 1;
-    const column = params.position.character + 1;
-    const nodePath = findNodeAtPosition(analysis.program, line, column);
-    const node = nodePath.length > 0 ? nodePath[nodePath.length - 1] : null;
+// Semantic tokens provider for dynamic syntax highlighting
+connection.languages.semanticTokens.on((params) => {
+  const filePath = fileURLToPath(params.textDocument.uri);
+  console.log(`[SemanticTokens] Full tokens requested for ${filePath}`);
 
-    if (node) {
-      // 1. Check if hovering a parameter definition in FunctionDecl
-      if (node.kind === "FunctionDecl") {
-        const func = node as AST.FunctionDecl;
-        if (func.documentation) {
-          // Check if position is within a param
-          for (const param of func.params) {
-            if (
-              line >= param.location.startLine &&
-              line <= param.location.endLine &&
-              column >= param.location.startColumn &&
-              column <= param.location.endColumn
-            ) {
-              // Hovering this param
-              const parsed = DocParser.parse(func.documentation);
-              const argDoc = DocParser.getArgumentDoc(parsed, param.name);
-              if (argDoc) {
-                return {
-                  contents: {
-                    kind: MarkupKind.Markdown,
-                    value: `**Parameter** \`${param.name}: ${analysis.checker.typeToString(param.type)}\`\n\n${argDoc}`,
-                  },
-                };
-              }
-            }
-          }
-        }
-      }
+  const result = semanticTokenProvider.provideSemanticTokens(filePath);
+  return result || { data: [] };
+});
 
-      // 2. Check if hovering an argument in a CallExpr
-      if (nodePath.length >= 2) {
-        const parent = nodePath[nodePath.length - 2];
-        if (parent && parent.kind === "Call") {
-          const call = parent as AST.CallExpr;
-          // Find which arg index
-          const argIndex = call.args.indexOf(node as AST.Expression);
-          if (argIndex !== -1 && call.resolvedDeclaration) {
-            const funcDecl = call.resolvedDeclaration;
-            if (funcDecl.documentation && argIndex < funcDecl.params.length) {
-              const param = funcDecl.params[argIndex];
-              if (param) {
-                const paramName = param.name;
-                const parsed = DocParser.parse(funcDecl.documentation);
-                const argDoc = DocParser.getArgumentDoc(parsed, paramName);
-                if (argDoc) {
-                  return {
-                    contents: {
-                      kind: MarkupKind.Markdown,
-                      value: `**Argument** \`${paramName}\`\n\n${argDoc}`,
-                    },
-                  };
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // 3. General Documentation (Function, Struct, Enum, etc.)
-      if (node.documentation) {
-        const parsed = DocParser.parse(node.documentation);
-        let md = `**${(node as any).name || node.kind}**\n\n${parsed.description}`;
-        for (const section of parsed.sections) {
-          md += `\n\n## ${section.title}\n${section.content}`;
-        }
-        return { contents: { kind: MarkupKind.Markdown, value: md } };
-      }
-
-      // 4. Identifier resolving to documented declaration
-      if (node.kind === "Identifier") {
-        const ident = node as AST.IdentifierExpr;
-        if (
-          ident.resolvedDeclaration &&
-          ident.resolvedDeclaration.documentation
-        ) {
-          const parsed = DocParser.parse(
-            ident.resolvedDeclaration.documentation,
-          );
-          let md = `**${ident.name}**\n\n${parsed.description}`;
-          for (const section of parsed.sections) {
-            md += `\n\n## ${section.title}\n${section.content}`;
-          }
-          return { contents: { kind: MarkupKind.Markdown, value: md } };
-        }
-      }
-
-      if (node.kind === "LambdaExpression") {
-        const lambda = node as AST.LambdaExpr;
-        const typeStr = lambda.resolvedType
-          ? analysis.checker.typeToString(lambda.resolvedType)
-          : "unknown";
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: `**Lambda Expression**\n\nType: \`${typeStr}\``,
-          },
-        };
-      } else if (node.kind === "Identifier") {
-        const ident = node as AST.IdentifierExpr;
-        if (ident.resolvedType) {
-          const typeStr = analysis.checker.typeToString(ident.resolvedType);
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: `**${ident.name}**\n\nType: \`${typeStr}\``,
-            },
-          };
-        }
-      }
-    }
+// Inlay hints provider for showing inferred types and parameter names
+connection.languages.inlayHint.on((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return [];
   }
 
+  console.log(`[InlayHint] Hints requested for ${document.uri}`);
+  return inlayHintProvider.handle(params, document);
+});
+
+// Call hierarchy handlers
+connection.languages.callHierarchy.onPrepare((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) {
     return null;
   }
-  const text = document.getText();
-  const offset = document.offsetAt(params.position);
+  console.log(`[CallHierarchy] Prepare requested for ${document.uri}`);
+  return callHierarchyProvider.prepare(params, document);
+});
 
-  const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-  let match;
-  let foundMatch: RegExpExecArray | null = null;
-  let word = "";
-  while ((match = wordRegex.exec(text)) !== null) {
-    if (offset >= match.index && offset <= match.index + match[0].length) {
-      word = match[0];
-      foundMatch = match;
-      break;
-    }
+connection.languages.callHierarchy.onIncomingCalls((params) => {
+  console.log(`[CallHierarchy] Incoming calls requested`);
+  return callHierarchyProvider.getIncomingCalls(params.item);
+});
+
+connection.languages.callHierarchy.onOutgoingCalls((params) => {
+  console.log(`[CallHierarchy] Outgoing calls requested`);
+  return callHierarchyProvider.getOutgoingCalls(params.item);
+});
+
+// Type hierarchy handlers
+connection.languages.typeHierarchy.onPrepare((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return null;
   }
+  console.log(`[TypeHierarchy] Prepare requested for ${document.uri}`);
+  return typeHierarchyProvider.prepare(params, document);
+});
 
-  if (!word || !foundMatch) {
+connection.languages.typeHierarchy.onSupertypes((params) => {
+  console.log(`[TypeHierarchy] Supertypes requested`);
+  return typeHierarchyProvider.getSupertypes(params.item);
+});
+
+connection.languages.typeHierarchy.onSubtypes((params) => {
+  console.log(`[TypeHierarchy] Subtypes requested`);
+  return typeHierarchyProvider.getSubtypes(params.item);
+});
+
+// Workspace symbol handler for workspace-wide search
+connection.onWorkspaceSymbol((params) => {
+  console.log(`[WorkspaceSymbol] Search requested: "${params.query}"`);
+  return workspaceSymbolProvider.search(params);
+});
+
+// Code lens handler for showing references and complexity
+connection.onCodeLens((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return [];
+  }
+  console.log(`[CodeLens] Lenses requested for ${document.uri}`);
+  return codeLensProvider.provide(params, document);
+});
+
+// Document link handler for clickable imports
+connection.onDocumentLinks((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return [];
+  }
+  console.log(`[DocumentLink] Links requested for ${document.uri}`);
+  return documentLinkProvider.provide(params, document);
+});
+
+// AST-based hover handler (replaces old regex-based implementation)
+connection.onHover((params: TextDocumentPositionParams): Hover | null => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
     return null;
   }
 
-  const keywords = [
-    "global",
-    "local",
-    "const",
-    "type",
-    "frame",
-    "ret",
-    "struct",
-    "enum",
-    "spec",
-    "import",
-    "from",
-    "export",
-    "extern",
-    "asm",
-    "loop",
-    "if",
-    "else",
-    "break",
-    "continue",
-    "try",
-    "catch",
-    "return",
-    "throw",
-    "switch",
-    "case",
-    "default",
-    "cast",
-    "sizeof",
-    "match",
-    "null",
-    "nullptr",
-    "true",
-    "false",
-    "new",
-    "func",
-    "class",
-    "extends",
-    "implements",
-  ];
-  const types = [
-    "int",
-    "uint",
-    "u8",
-    "u16",
-    "u32",
-    "u64",
-    "float",
-    "bool",
-    "char",
-    "void",
-    "any",
-    "Func",
-    "string",
-    "Self",
-    "Option",
-    "Result",
-  ];
+  // Use AST-based hover handler
+  return astHoverHandler.handle(params, document);
+});
 
-  if (keywords.includes(word)) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: `**Keyword**: \`${word}\`\n\nStandard BPL keyword.`,
-      },
-    };
+// Selection range handler for smart expand/shrink selection
+connection.onSelectionRanges((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return null;
   }
+  return selectionRangeProvider.handle(params, document);
+});
 
-  if (types.includes(word)) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: `**Type**: \`${word}\`\n\nBuilt-in BPL type.`,
-      },
-    };
+// Document highlight handler for highlighting symbol occurrences
+connection.onDocumentHighlight((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return null;
   }
+  return documentHighlightProvider.handle(params, document);
+});
 
-  const def = findSymbolDefinition(document, word);
-  if (def) {
-    // Check if this is a spec definition to add special formatting
-    const displayValue = def.lineContent;
-    let additionalInfo = `Defined in: \`${path.basename(fileURLToPath(def.uri))}\``;
-
-    if (def.lineContent.trimStart().startsWith("spec")) {
-      // Parse spec to show method signatures
-      const lines = def.lineContent.split("\n");
-      const methods: string[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        // Match method signatures: frame methodName(params) ret Type;
-        if (trimmed.startsWith("frame ")) {
-          methods.push(trimmed);
-        }
-      }
-
-      if (methods.length > 0) {
-        additionalInfo =
-          `(interface) with ${methods.length} method${methods.length > 1 ? "s" : ""}\n\n` +
-          `Defined in: \`${path.basename(fileURLToPath(def.uri))}\``;
-      } else {
-        additionalInfo = `(interface)\n\nDefined in: \`${path.basename(fileURLToPath(def.uri))}\``;
-      }
-    } else if (def.lineContent.includes("enum")) {
-      additionalInfo = `(enum)\n\nDefined in: \`${path.basename(fileURLToPath(def.uri))}\``;
-    } else if (def.lineContent.includes("struct")) {
-      additionalInfo = `(struct)\n\nDefined in: \`${path.basename(fileURLToPath(def.uri))}\``;
-    }
-
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: ["```bpl", displayValue, "```", additionalInfo].join("\n"),
-      },
-    };
+// Folding range handler for smart code folding
+connection.onFoldingRanges((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return null;
   }
+  return foldingRangeProvider.handle(params, document);
+});
 
-  // Check for property access (obj.prop), enum variant (Enum.Variant), or this.field
-  if (foundMatch.index > 0 && text[foundMatch.index - 1] === ".") {
-    // Find the object/enum name (scan backwards)
-    let i = foundMatch.index - 2;
-    while (i >= 0 && /[a-zA-Z0-9_]/.test(text[i] || "")) {
-      i--;
-    }
-    const objName = text.substring(i + 1, foundMatch.index - 1);
-
-    if (objName) {
-      // Special handling for 'this' keyword
-      if (objName === "this") {
-        // Find the enclosing struct/class
-        const lines = text.split(/\r?\n/);
-        const currentLine = document.positionAt(offset).line;
-
-        // Search backwards for struct/class definition
-        let structName = "";
-        for (let lineIdx = currentLine; lineIdx >= 0; lineIdx--) {
-          const line = lines[lineIdx] || "";
-          const structMatch = /struct\s+([a-zA-Z_][a-zA-Z0-9_]*)/.exec(line);
-          if (structMatch) {
-            structName = structMatch[1] || "";
-            break;
-          }
-        }
-
-        if (structName) {
-          const structDef = findSymbolDefinition(document, structName);
-          if (structDef) {
-            // Find the field in struct definition
-            const memberRegex = new RegExp(
-              `\\b${word}\\s*:\\s*([a-zA-Z0-9_*]+)`,
-            );
-            const memberMatch = memberRegex.exec(structDef.lineContent);
-
-            if (memberMatch) {
-              const memberType = memberMatch[1];
-              return {
-                contents: {
-                  kind: MarkupKind.Markdown,
-                  value: `(property) \`${structName}.${word}\`: \`${memberType}\``,
-                },
-              };
-            }
-          }
-        }
-      }
-
-      // First, check if objName is an enum
-      const enumDef = findSymbolDefinition(document, objName);
-      if (enumDef && enumDef.lineContent.includes("enum")) {
-        // This is an enum variant access (e.g., Color.Red)
-        const variantName = word;
-
-        // Parse the enum definition to find the variant
-        const enumText = enumDef.lineContent;
-        const lines = enumText.split("\n");
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-
-          // Match variant with tuple payload: VariantName(Type1, Type2, ...)
-          const tupleVariantMatch = new RegExp(
-            `^${variantName}\\s*\\(([^)]*)\\)`,
-          ).exec(trimmedLine);
-
-          if (tupleVariantMatch) {
-            const payload = tupleVariantMatch[1]?.trim() || "";
-            return {
-              contents: {
-                kind: MarkupKind.Markdown,
-                value: [
-                  "```bpl",
-                  `${objName}.${variantName}(${payload})`,
-                  "```",
-                  `(enum variant) Tuple variant with payload`,
-                ].join("\n"),
-              },
-            };
-          }
-
-          // Match variant with struct payload: VariantName { field1: Type1, field2: Type2, ... }
-          const structVariantMatch = new RegExp(
-            `^${variantName}\\s*\\{([^}]*)\\}`,
-          ).exec(trimmedLine);
-
-          if (structVariantMatch) {
-            const fields = structVariantMatch[1]?.trim() || "";
-            return {
-              contents: {
-                kind: MarkupKind.Markdown,
-                value: [
-                  "```bpl",
-                  `${objName}.${variantName} { ${fields} }`,
-                  "```",
-                  `(enum variant) Struct variant with fields`,
-                ].join("\n"),
-              },
-            };
-          }
-
-          // Match unit variant (no payload): VariantName, or VariantName,
-          const unitVariantMatch = new RegExp(
-            `^${variantName}\\s*,?\\s*(?:#|$)`,
-          ).exec(trimmedLine);
-
-          if (unitVariantMatch) {
-            return {
-              contents: {
-                kind: MarkupKind.Markdown,
-                value: [
-                  "```bpl",
-                  `${objName}.${variantName}`,
-                  "```",
-                  `(enum variant) Unit variant`,
-                ].join("\n"),
-              },
-            };
-          }
-        }
-
-        // Variant found in enum but couldn't parse details
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: `(enum variant) \`${objName}.${variantName}\``,
-          },
-        };
-      }
-
-      // Not an enum, check for regular property access
-      // 1. Find definition of the object
-      const objDef = findSymbolDefinition(document, objName);
-      if (objDef) {
-        // 2. Extract type from definition
-        // Matches: local name : Type, global name : Type, name : Type (in args)
-        const typeMatch = /:\s*([a-zA-Z0-9_]+)/.exec(objDef.lineContent);
-        if (typeMatch) {
-          const typeName = typeMatch[1];
-
-          // 3. Find definition of the type (struct)
-          const structDef = findSymbolDefinition(document, typeName || "");
-          if (structDef) {
-            // 4. Find member in struct definition
-            // Matches: member : Type
-            const memberRegex = new RegExp(
-              `\\b${word}\\s*:\\s*([a-zA-Z0-9_]+)`,
-            );
-            const memberMatch = memberRegex.exec(structDef.lineContent);
-
-            if (memberMatch) {
-              const memberType = memberMatch[1];
-              return {
-                contents: {
-                  kind: MarkupKind.Markdown,
-                  value: `(property) \`${typeName}.${word}\`: \`${memberType}\``,
-                },
-              };
-            }
-
-            // 5. Also detect methods declared inside struct blocks using full file content for accuracy
-            const structText = getTextForUri(structDef.uri, documents);
-            if (structText) {
-              const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-              const methodRegex = new RegExp(
-                `^\\s*frame\\s+${escapedWord}\\s*\\([^)]*\\)`,
-                "m",
-              );
-              const methodMatch = methodRegex.exec(structText);
-              if (methodMatch) {
-                const signatureLine = methodMatch[0]?.trim() || `${word}()`;
-
-                // Check if this struct implements any specs
-                let specInfo = "";
-                const structDefLine =
-                  structDef.lineContent.split("\n")[0] || "";
-                const specMatch = /struct\s+\w+\s*:\s*([^{]+)/.exec(
-                  structDefLine,
-                );
-
-                if (specMatch) {
-                  const implementsList = specMatch[1]?.trim() || "";
-                  const specs = implementsList.split(",").map((s) => s.trim());
-
-                  // Check if any of these specs define this method
-                  for (const specName of specs) {
-                    const specDef = findSymbolDefinition(document, specName);
-                    if (
-                      specDef &&
-                      specDef.lineContent.includes(`frame ${word}`)
-                    ) {
-                      specInfo = `\n\n*Implements: \`${specName}.${word}\`*`;
-                      break;
-                    }
-                  }
-                }
-
-                return {
-                  contents: {
-                    kind: MarkupKind.Markdown,
-                    value: [
-                      "```bpl",
-                      signatureLine,
-                      "```",
-                      `(method) \`${typeName}.${word}\`${specInfo}`,
-                    ].join("\n"),
-                  },
-                };
-              }
-            }
-          }
-        }
-      }
-    }
+// Signature help handler for parameter hints
+connection.onSignatureHelp((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return null;
   }
+  return signatureHelpProvider.handle(params, document);
+});
 
-  return null;
+// Document symbols handler for outline view
+connection.onDocumentSymbol((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return null;
+  }
+  return documentSymbolProvider.handle(params, document);
 });
 
 function getWordAtPosition(
@@ -1893,7 +1344,7 @@ function getWordAtPosition(
   return null;
 }
 
-function findAllReferences(
+function _findAllReferences(
   word: string,
   docs: TextDocuments<TextDocument>,
 ): Location[] {
@@ -1917,32 +1368,55 @@ function findAllReferences(
   return locations;
 }
 
-connection.onRenameRequest((params) => {
+connection.onPrepareRename((params) => {
+  console.log("[Rename] Prepare rename request");
   const document = documents.get(params.textDocument.uri);
-  if (!document) return null;
+  if (!document) {
+    console.log("[Rename] Document not found");
+    return null;
+  }
 
-  const word = getWordAtPosition(document, params.position);
-  if (!word) return null;
+  try {
+    return astRenameHandler.prepareRename(params, document);
+  } catch (error) {
+    console.error("[Rename] Error in prepareRename:", error);
+    return null;
+  }
+});
 
-  const locations = findAllReferences(word, documents);
-  const changes: { [uri: string]: TextEdit[] } = {};
+connection.onRenameRequest((params) => {
+  console.log(
+    `[Rename] Rename request at ${params.textDocument.uri} line ${params.position.line} to "${params.newName}"`,
+  );
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    console.log("[Rename] Document not found");
+    return null;
+  }
 
-  locations.forEach((loc) => {
-    if (!changes[loc.uri]) changes[loc.uri] = [];
-    changes[loc.uri]!.push(TextEdit.replace(loc.range, params.newName));
-  });
-
-  return { changes };
+  try {
+    return astRenameHandler.rename(params, document);
+  } catch (error) {
+    console.error("[Rename] Error in rename:", error);
+    return null;
+  }
 });
 
 connection.onReferences((params) => {
+  console.log("[References] Find all references request");
   const document = documents.get(params.textDocument.uri);
-  if (!document) return null;
+  if (!document) {
+    console.log("[References] Document not found");
+    return null;
+  }
 
-  const word = getWordAtPosition(document, params.position);
-  if (!word) return null;
-
-  return findAllReferences(word, documents);
+  try {
+    // Use the scope-aware reference finder from ASTRenameHandler
+    return astRenameHandler.findAllReferences(params.position, document);
+  } catch (error) {
+    console.error("[References] Error finding references:", error);
+    return null;
+  }
 });
 
 connection.onImplementation((params) => {
@@ -1983,14 +1457,15 @@ connection.onCodeAction((params) => {
   if (!document) return [];
 
   const currentDir = path.dirname(fileURLToPath(document.uri));
+  const text = document.getText();
 
   for (const diagnostic of params.context.diagnostics) {
-    // Example: "Unknown type 'Result'" -> Import Result from std
+    // 1. Unknown type suggestions
     const unknownTypeMatch = /Unknown type '(\w+)'/.exec(diagnostic.message);
     if (unknownTypeMatch) {
       const typeName = unknownTypeMatch[1];
 
-      // 1. Check Standard Library
+      // Standard Library types
       if (
         typeName &&
         [
@@ -2022,7 +1497,7 @@ connection.onCodeAction((params) => {
         });
       }
 
-      // 2. Scan nearby files for exports
+      // Scan nearby files for exports
       try {
         const files = fs.readdirSync(currentDir);
         for (const file of files) {
@@ -2034,10 +1509,11 @@ connection.onCodeAction((params) => {
               path.join(currentDir, file),
               "utf-8",
             );
-            // Check for export [TypeName]
-            if (
-              new RegExp(`export\\s+\\[\\s*${typeName}\\s*\\]`).test(content)
-            ) {
+            // Check for export struct TypeName or export [TypeName]
+            const exportRegex = new RegExp(
+              `export\\s+(struct\\s+${typeName}\\b|\\[\\s*${typeName}\\s*\\])`,
+            );
+            if (exportRegex.test(content)) {
               actions.push({
                 title: `Import ${typeName} from ./${file}`,
                 kind: CodeActionKind.QuickFix,
@@ -2061,12 +1537,32 @@ connection.onCodeAction((params) => {
       }
     }
 
-    // Check for unknown function/variable
-    const unknownSymbolMatch = /Unknown symbol '(\w+)'/.exec(
+    // 2. Undefined symbol (function/variable) suggestions
+    const unknownSymbolMatch = /Undefined symbol '(\w+)'/.exec(
       diagnostic.message,
     );
     if (unknownSymbolMatch) {
       const symbolName = unknownSymbolMatch[1];
+
+      if (!symbolName) continue;
+
+      // Check if it's a common typo or similar name
+      const similarSymbols = findSimilarSymbols(symbolName, text);
+      for (const similar of similarSymbols) {
+        actions.push({
+          title: `Change to '${similar}'`,
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [params.textDocument.uri]: [
+                TextEdit.replace(diagnostic.range, similar),
+              ],
+            },
+          },
+        });
+      }
+
       // Scan nearby files for export symbolName
       try {
         const files = fs.readdirSync(currentDir);
@@ -2079,8 +1575,11 @@ connection.onCodeAction((params) => {
               path.join(currentDir, file),
               "utf-8",
             );
-            // Check for export symbolName
-            if (new RegExp(`export\\s+${symbolName}\\b`).test(content)) {
+            // Check for export frame symbolName or export symbolName
+            const exportRegex = new RegExp(
+              `export\\s+(frame\\s+${symbolName}\\b|${symbolName}\\b)`,
+            );
+            if (exportRegex.test(content)) {
               actions.push({
                 title: `Import ${symbolName} from ./${file}`,
                 kind: CodeActionKind.QuickFix,
@@ -2103,9 +1602,185 @@ connection.onCodeAction((params) => {
         // Ignore fs errors
       }
     }
+
+    // 3. Type mismatch suggestions
+    const typeMismatchMatch =
+      /Type mismatch.*expected '(\w+)'.*got '(\w+)'/.exec(diagnostic.message);
+    if (typeMismatchMatch) {
+      const expectedType = typeMismatchMatch[1];
+      const gotType = typeMismatchMatch[2];
+
+      // Suggest casting
+      if (expectedType && gotType) {
+        const _line = document.getText(
+          Range.create(
+            { line: diagnostic.range.start.line, character: 0 },
+            {
+              line: diagnostic.range.start.line,
+              character: Number.MAX_SAFE_INTEGER,
+            },
+          ),
+        );
+        const errorText = document.getText(diagnostic.range);
+
+        actions.push({
+          title: `Cast to ${expectedType}`,
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [params.textDocument.uri]: [
+                TextEdit.replace(
+                  diagnostic.range,
+                  `cast<${expectedType}>(${errorText})`,
+                ),
+              ],
+            },
+          },
+        });
+      }
+    }
+
+    // 4. Missing return statement
+    if (diagnostic.message.includes("Missing return statement")) {
+      actions.push({
+        title: "Add return statement",
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              TextEdit.insert(
+                diagnostic.range.start,
+                "    return; // TODO: Add return value\n",
+              ),
+            ],
+          },
+        },
+      });
+    }
+
+    // 5. Unused variable
+    if (diagnostic.message.includes("unused")) {
+      const unusedVarMatch = /'(\w+)'/.exec(diagnostic.message);
+      if (unusedVarMatch) {
+        const varName = unusedVarMatch[1];
+        actions.push({
+          title: `Prefix with '_' to mark as intentionally unused`,
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [params.textDocument.uri]: [
+                TextEdit.replace(diagnostic.range, `_${varName}`),
+              ],
+            },
+          },
+        });
+      }
+    }
+
+    // 6. Missing semicolon
+    if (
+      diagnostic.message.includes("Expected ';'") ||
+      diagnostic.message.includes("Missing semicolon")
+    ) {
+      actions.push({
+        title: "Add semicolon",
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              TextEdit.insert(diagnostic.range.end, ";"),
+            ],
+          },
+        },
+      });
+    }
+
+    // 7. Suggest null check
+    if (
+      diagnostic.message.includes("possibly null") ||
+      diagnostic.message.includes("may be null")
+    ) {
+      const errorText = document.getText(diagnostic.range);
+      actions.push({
+        title: "Add null check",
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              TextEdit.replace(
+                diagnostic.range,
+                `if (${errorText} != nullptr) {\n        // TODO: Handle non-null case\n    }`,
+              ),
+            ],
+          },
+        },
+      });
+    }
   }
   return actions;
 });
+
+/**
+ * Find similar symbol names using Levenshtein distance
+ */
+function findSimilarSymbols(target: string, text: string): string[] {
+  const symbols = new Set<string>();
+  const symbolRegex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
+  let match;
+
+  while ((match = symbolRegex.exec(text)) !== null) {
+    symbols.add(match[0]);
+  }
+
+  const similar: Array<{ name: string; distance: number }> = [];
+  for (const symbol of symbols) {
+    if (symbol === target) continue;
+    const distance = levenshteinDistance(target, symbol);
+    if (distance <= 2 && distance > 0) {
+      // Max 2 character difference
+      similar.push({ name: symbol, distance });
+    }
+  }
+
+  // Sort by distance and return top 3
+  similar.sort((a, b) => a.distance - b.distance);
+  return similar.slice(0, 3).map((s) => s.name);
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0]![j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i]![j] = matrix[i - 1]![j - 1]!;
+      } else {
+        const substitution = matrix[i - 1]![j - 1]! + 1;
+        const insertion = matrix[i]![j - 1]! + 1;
+        const deletion = matrix[i - 1]![j]! + 1;
+        matrix[i]![j] = Math.min(substitution, insertion, deletion);
+      }
+    }
+  }
+
+  return matrix[b.length]![a.length]!;
+}
 
 connection.onCodeLens((params) => {
   const document = documents.get(params.textDocument.uri);
@@ -2141,6 +1816,7 @@ documents.listen(connection);
 // Listen on the connection
 connection.listen();
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function findNodeAtPosition(
   node: AST.ASTNode,
   line: number,
@@ -2187,7 +1863,7 @@ function findNodeAtPosition(
   return [node];
 }
 
-function findEnclosingStruct(text: string, line: number): string | null {
+function _findEnclosingStruct(text: string, line: number): string | null {
   const lines = text.split(/\r?\n/);
   for (let i = line; i >= 0; i--) {
     const l = lines[i] || "";
@@ -2197,11 +1873,160 @@ function findEnclosingStruct(text: string, line: number): string | null {
   return null;
 }
 
+/**
+ * Resolve a chained expression to its type
+ * e.g., "todos.rows.get(i)" -> resolve todos -> Table -> rows field -> Array<Row> -> get method -> Row
+ */
+function resolveChainType(
+  expression: string,
+  text: string,
+  currentLine: number,
+  symbolIndexLocal: SymbolIndex,
+  depth = 0,
+): string | null {
+  // Prevent infinite recursion
+  if (depth > 5) {
+    console.log(`[resolveChainType] Max recursion depth reached`);
+    return null;
+  }
+
+  // Parse the expression to extract the chain
+  // Handle method calls by removing parentheses and arguments
+  const chain = expression;
+
+  // Split by dots, but respect parentheses
+  const parts: string[] = [];
+  let currentPart = "";
+  let parenDepth = 0;
+
+  for (let i = 0; i < chain.length; i++) {
+    const char = chain[i];
+    if (char === "(") parenDepth++;
+    else if (char === ")") parenDepth--;
+
+    if (char === "." && parenDepth === 0) {
+      if (currentPart) parts.push(currentPart.trim());
+      currentPart = "";
+    } else {
+      currentPart += char;
+    }
+  }
+  if (currentPart) parts.push(currentPart.trim());
+
+  if (parts.length === 0) return null;
+
+  console.log(`[resolveChainType] Parsing chain: ${parts.join(" -> ")}`);
+
+  // Start with the base variable
+  const baseVar = parts[0];
+  if (!baseVar) return null;
+
+  let currentType = findVariableType(text, baseVar, currentLine, depth + 1);
+  if (!currentType) {
+    console.log(`[resolveChainType] Base variable "${baseVar}" not found`);
+    return null;
+  }
+
+  console.log(`[resolveChainType] Base: ${baseVar} -> ${currentType}`);
+
+  // Resolve each part in the chain
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+
+    // Check if it's a method call (has parentheses)
+    const isMethodCall = part.includes("(");
+    const memberName = isMethodCall
+      ? part.substring(0, part.indexOf("("))
+      : part;
+
+    // Extract generic arguments before stripping (e.g., "Array<Row>" -> ["Row"])
+    const genericArgsMatch = currentType.match(/<(.+)>/);
+    const genericArgs =
+      genericArgsMatch && genericArgsMatch[1]
+        ? genericArgsMatch[1].split(",").map((a) => a.trim())
+        : [];
+
+    // Strip pointer, array, and generic markers to get base type name
+    const baseType = currentType
+      .replace(/^\*+/, "")
+      .replace(/\[\]$/, "")
+      .replace(/<.*>/, "");
+
+    const typeSymbols = symbolIndexLocal.findSymbol(baseType);
+    if (typeSymbols.length === 0) {
+      console.log(`[resolveChainType] Type "${baseType}" not found`);
+      return null;
+    }
+
+    if (isMethodCall) {
+      // Look for method
+      const method = typeSymbols[0]?.methods?.find(
+        (m) => m.name === memberName,
+      );
+      if (method) {
+        let returnType = method.signature.returnType;
+
+        // Substitute generic parameters (T, U, etc.) with actual types
+        // For single generic like Array<Row>, T becomes Row
+        if (genericArgs.length > 0 && genericArgs[0]) {
+          // Check if return type is a generic parameter (single uppercase letter)
+          if (/^[A-Z]$/.test(returnType)) {
+            // For now, assume first generic arg replaces T
+            returnType = genericArgs[0];
+            console.log(
+              `[resolveChainType] Substituted generic parameter ${method.signature.returnType} with ${returnType}`,
+            );
+          }
+        }
+
+        currentType = returnType;
+        console.log(
+          `[resolveChainType] Method ${memberName}() -> ${currentType}`,
+        );
+      } else {
+        console.log(
+          `[resolveChainType] Method "${memberName}" not found in "${baseType}"`,
+        );
+        return null;
+      }
+    } else {
+      // Look for field
+      const field = typeSymbols[0]?.fields?.find((f) => f.name === memberName);
+      if (field) {
+        currentType = field.type;
+        console.log(`[resolveChainType] Field ${memberName} -> ${currentType}`);
+      } else {
+        console.log(
+          `[resolveChainType] Field "${memberName}" not found in "${baseType}"`,
+        );
+        return null;
+      }
+    }
+  }
+
+  return currentType;
+}
+
 function findVariableType(
   text: string,
   varName: string,
   line: number,
+  depth = 0,
 ): string | null {
+  // Prevent infinite recursion
+  if (depth > 5) {
+    console.log(`[findVariableType] Max recursion depth reached`);
+    return null;
+  }
+
+  console.log(
+    `[findVariableType] Looking for variable "${varName}" at line ${line}`,
+  );
+
+  // Escape special regex characters in varName to prevent regex errors
+  const escapedVarName = varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   const lines = text.split(/\r?\n/);
   // 1. Search backwards for local declaration or function arg
   for (let i = line; i >= 0; i--) {
@@ -2210,31 +2035,79 @@ function findVariableType(
     // Check for function definition (end of scope search)
     if (l.trim().startsWith("frame ")) {
       // Check if it's an argument in this frame
-      const argMatch = new RegExp(`\\b${varName}\\s*:\\s*([a-zA-Z0-9_]+)`).exec(
-        l,
+      const argMatch = new RegExp(
+        `\\b${escapedVarName}\\s*:\\s*\\*?([a-zA-Z0-9_]+)`,
+      ).exec(l);
+      if (argMatch) {
+        console.log(
+          `[findVariableType] Found as function argument: ${argMatch[1]}`,
+        );
+        return argMatch[1] || null;
+      }
+      console.log(
+        `[findVariableType] Hit function boundary, stopping local search`,
       );
-      if (argMatch) return argMatch[1] || null;
-      return null; // Stop searching if we hit the function boundary
+      break; // Stop local search, only check globals now
     }
 
-    // Check for local declaration: local varName : Type
-    // or local (varName : Type)
-    // We just look for "varName : Type" which is common to both
-    // But we must ensure it's not a struct field or something else.
-    // Inside a function, "varName : Type" is likely a declaration.
-    const declMatch = new RegExp(`\\b${varName}\\s*:\\s*([a-zA-Z0-9_]+)`).exec(
-      l,
-    );
+    // Check for explicit type annotation: local varName : Type or local varName : *Type
+    const declMatch = new RegExp(
+      `\\b${escapedVarName}\\s*:\\s*\\*?([a-zA-Z0-9_]+)`,
+    ).exec(l);
     if (declMatch) {
+      console.log(
+        `[findVariableType] Found with explicit type: ${declMatch[1]}`,
+      );
       return declMatch[1] || null;
+    }
+
+    // Check for type inference from constructor: local varName = Type.new()
+    const constructorMatch = new RegExp(
+      `\\b${escapedVarName}\\s*=\\s*([a-zA-Z0-9_]+)\\.new\\(`,
+    ).exec(l);
+    if (constructorMatch) {
+      console.log(
+        `[findVariableType] Found with constructor inference: ${constructorMatch[1]}`,
+      );
+      return constructorMatch[1] || null;
+    }
+
+    // Check for chained method call: local varName = obj.method() or obj.field.method()
+    const chainMatch = new RegExp(
+      `\\b${escapedVarName}\\s*=\\s*([a-zA-Z0-9_.()]+)`,
+    ).exec(l);
+    if (chainMatch && chainMatch[1] && chainMatch[1].includes(".")) {
+      const expression = chainMatch[1];
+      console.log(
+        `[findVariableType] Found assignment from expression: ${expression}`,
+      );
+      // Resolve the chain to get its return type
+      const resolvedType = resolveChainType(
+        expression,
+        text,
+        i,
+        symbolIndex,
+        depth + 1,
+      );
+      if (resolvedType) {
+        console.log(
+          `[findVariableType] Resolved chain expression to type: ${resolvedType}`,
+        );
+        return resolvedType;
+      }
     }
   }
 
   // 2. Search for global declaration
+  console.log(`[findVariableType] Searching for global declaration`);
   const globalMatch = new RegExp(
-    `\\bglobal\\s+${varName}\\s*:\\s*([a-zA-Z0-9_]+)`,
+    `\\bglobal\\s+${escapedVarName}\\s*:\\s*\\*?([a-zA-Z0-9_]+)`,
   ).exec(text);
-  if (globalMatch) return globalMatch[1] || null;
+  if (globalMatch) {
+    console.log(`[findVariableType] Found as global: ${globalMatch[1]}`);
+    return globalMatch[1] || null;
+  }
 
+  console.log(`[findVariableType] Variable "${varName}" not found`);
   return null;
 }

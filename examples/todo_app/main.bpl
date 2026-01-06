@@ -9,13 +9,13 @@ global db: *Database;
 global todos: *Table;
 
 frame main() {
-    local app = App.new();
+    local app: App = App.new();
 
     # Serve static files
     app.useStatic("/", "./public");
 
     # Init DB
-    local _db = Database.new();
+    local _db: Database = Database.new();
     db = &_db;
 
     # Create Table
@@ -40,7 +40,7 @@ frame notFound(_req: *Request, res: *Response) {
 }
 
 frame greetUser(req: *Request, res: *Response) {
-    local name_opt = req.getParam("name");
+    local name_opt: Option<string> = req.getParam("name");
     match (name_opt) {
         Option.Some(name) => {
             local json_buf: char[256];
@@ -64,9 +64,9 @@ frame getTodos(_req: *Request, res: *Response) {
         if (i > 0) {
             strcat(ptr, ",");
         }
-        local row = todos.rows.get(i);
-        local title_val = row.values.get(0);
-        local completed_val = row.values.get(1);
+        local row: Row = todos.rows.get(i);
+        local title_val: Value = row.values.get(0);
+        local completed_val: Value = row.values.get(1);
 
         local row_json: char[256];
 
@@ -97,15 +97,15 @@ frame getTodos(_req: *Request, res: *Response) {
 }
 
 frame createTodo(req: *Request, res: *Response) {
-    local title = req.body;
+    local title: string = req.body;
     if (strlen(title) == 0) {
         title = "New Todo";
     }
-    local values = Array<Value>.new(2);
+    local values: Array<Value> = Array<Value>.new(2);
     values.push(Value.Str(title));
     values.push(Value.Bool(false));
 
-    local id = todos.insert(&values);
+    local id: int = todos.insert(&values);
 
     local json_buf: char[128];
     sprintf(cast<string>(&json_buf[0]), "{\"id\": %d, \"status\": \"created\"}", id);
@@ -113,17 +113,17 @@ frame createTodo(req: *Request, res: *Response) {
 }
 
 frame getTodo(req: *Request, res: *Response) {
-    local id_opt = req.getParam("id");
+    local id_opt: Option<string> = req.getParam("id");
     match (id_opt) {
         Option.Some(id_str) => {
-            local id = atoi(id_str);
+            local id: int = atoi(id_str);
 
             local i: int = 0;
             loop (i < todos.rows.len()) {
-                local row = todos.rows.get(i);
+                local row: Row = todos.rows.get(i);
                 if (row.id == id) {
-                    local title_val = row.values.get(0);
-                    local completed_val = row.values.get(1);
+                    local title_val: Value = row.values.get(0);
+                    local completed_val: Value = row.values.get(1);
 
                     local title_s: string = "unknown";
                     match (title_val) {
@@ -157,18 +157,18 @@ frame getTodo(req: *Request, res: *Response) {
 }
 
 frame updateTodo(req: *Request, res: *Response) {
-    local id_opt = req.getParam("id");
+    local id_opt: Option<string> = req.getParam("id");
     match (id_opt) {
         Option.Some(id_str) => {
-            local id = atoi(id_str);
-            local completed_str = req.body;
-            local completed = false;
+            local id: int = atoi(id_str);
+            local completed_str: string = req.body;
+            local completed: bool = false;
             if (strcmp(completed_str, "true") == 0) {
                 completed = true;
             }
             local i: int = 0;
             loop (i < todos.rows.len()) {
-                local row = todos.rows.get(i);
+                local row: Row = todos.rows.get(i);
                 if (row.id == id) {
                     row.values.set(1, Value.Bool(completed));
                     todos.rows.set(i, row);
@@ -186,14 +186,14 @@ frame updateTodo(req: *Request, res: *Response) {
 }
 
 frame deleteTodo(req: *Request, res: *Response) {
-    local id_opt = req.getParam("id");
+    local id_opt: Option<string> = req.getParam("id");
     match (id_opt) {
         Option.Some(id_str) => {
-            local id = atoi(id_str);
+            local id: int = atoi(id_str);
 
             local i: int = 0;
             loop (i < todos.rows.len()) {
-                local row = todos.rows.get(i);
+                local row: Row = todos.rows.get(i);
                 if (row.id == id) {
                     todos.rows.removeAt(i);
                     res.status(200).json("{\"status\": \"deleted\"}");
