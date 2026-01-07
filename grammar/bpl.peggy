@@ -186,6 +186,10 @@
     return { kind: "PatternEnumStruct", enumName, variantName, fields, genericArgs, location: makeLoc(loc) };
   }
 
+  function patternTuple(patterns, loc) {
+    return { kind: "PatternTuple", patterns, location: makeLoc(loc) };
+  }
+
   function block(statements, loc) {
     return { kind: "Block", statements: statements || [], location: makeLoc(loc) };
   }
@@ -1133,12 +1137,23 @@ Pattern
   = PatternWildcard
   / PatternEnumStruct
   / PatternEnumTuple
-  / PatternEnum
+  / PatternTuple
   / PatternLiteral
+  / PatternEnum
   / PatternIdentifier
 
 PatternWildcard
   = "_" { return patternWildcard(location()); }
+
+PatternTuple
+  = "(" _ patterns:PatternList _ ")" {
+      return patternTuple(patterns, location());
+    }
+
+PatternList
+  = head:Pattern tail:(_ "," _ Pattern)* {
+      return [head, ...tail.map(t => t[3])];
+    }
 
 LambdaExpression
   = "|" _ K_void _ "|" _ retType:("ret" _ Type)? _ body:LambdaBody {
@@ -1179,29 +1194,30 @@ EnumName
     }
 
 PatternEnum
-  = enumName:EnumName rest:(_ "." _ Identifier)? !(_ ("(" / "{")) {
+  = enumName:EnumName rest:(_ "." _ Identifier)? &{ 
+      // Ensure there's at least one dot (in qualified identifier or explicit)
+      return (enumName.genericArgs && enumName.genericArgs.length > 0) || 
+             rest !== null || 
+             enumName.name.includes(".");
+    } !(_ ("(" / "{")) {
       let name = enumName.name;
       let generics = enumName.genericArgs;
       let variant = "";
 
       if (generics.length > 0) {
-          if (!rest) error("Expected '.' and variant name after generic enum");
-          variant = rest[3].name;
+        // Generic enums require explicit dot: Option<T>.Some
+        if (!rest) error("Expected '.' and variant name after generic enum");
+        variant = rest[3].name;
+      } else if (rest) {
+        // Explicit dot after EnumName
+        variant = rest[3].name;
       } else {
-          if (rest) {
-             variant = rest[3].name;
-          } else {
-             const parts = name.split(".");
-             if (parts.length < 2) {
-                 // Allow single identifier for Type Matching
-                 variant = name;
-                 name = "";
-             } else {
-                 variant = parts.pop();
-                 name = parts.join(".");
-             }
-          }
+        // No explicit dot - split the qualified identifier
+        const parts = name.split(".");
+        variant = parts.pop();
+        name = parts.join(".");
       }
+
       return patternEnum(name, generics, variant, location());
     }
 
@@ -1265,7 +1281,9 @@ PatternBindingList
     }
 
 PatternBinding
-  = "_" { return patternWildcard(location()); }
+  = PatternEnumStruct
+  / PatternEnumTuple
+  / "_" { return patternWildcard(location()); }
   / name:Identifier { return patternIdentifier(name.name, location()); }
 
 PatternFieldList
@@ -1561,7 +1579,7 @@ Whitespace
   = [ \t\n\r]+
 
 Comment
-  = c:("/#" (!"#/" SourceChar)* "#/"
+  = c:(MultiLineComment
   / "#"[^\n\r]*) {
     if (options && options.comments) {
       const loc = location();
@@ -1576,6 +1594,9 @@ Comment
     }
     return c;
   }
+
+MultiLineComment
+  = "/#" (MultiLineComment / (!"#/" SourceChar))* "#/"
 
 SourceChar = .
 

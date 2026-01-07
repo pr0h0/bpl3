@@ -495,7 +495,18 @@ switch (option) {
 
 ## Match Expressions
 
-BPL supports powerful pattern matching using the `match` expression. Unlike `switch`, `match` is an expression that returns a value, and it supports destructuring of Enums.
+BPL supports powerful pattern matching using the `match` expression. Unlike `switch`, `match` is an expression that returns a value, and it supports destructuring of Enums, tuples, and pattern matching on primitive values.
+
+### Pattern Types
+
+Match expressions support several types of patterns:
+
+- **Literal patterns**: Match exact values (e.g., `0`, `42`, `3.14`, `true`, `"hello"`)
+- **Identifier patterns**: Bind matched values to variables (e.g., `x`, `n`)
+- **Tuple patterns**: Destructure and match tuples (e.g., `(a, b)`, `(0, y)`)
+- **Wildcard pattern**: Match anything with `_`
+- **Enum patterns**: Match and destructure enum variants (e.g., `Option.Some(val)`)
+- **Guard clauses**: Add conditions to patterns with `if` (e.g., `n if n > 0`)
 
 ### Basic Match
 
@@ -507,6 +518,135 @@ local s: Status = Status.Ok;
 local msg: string = match(s) {
     Status.Ok => "Success",
     Status.Error(code) => "Failed with code",
+};
+```
+
+### Primitive Pattern Matching
+
+Match on primitive values with literals, identifiers, and guards:
+
+```bpl
+# Integer matching
+local x: int = 42;
+match (x) {
+    0 => printf("Zero\n"),
+    42 => printf("The answer!\n"),
+    n if n < 0 => printf("Negative: %d\n", n),
+    _ => printf("Other\n"),
+};
+
+# Float matching
+local f: float = 3.14;
+match (f) {
+    0.0 => printf("Zero\n"),
+    3.14 => printf("Pi!\n"),
+    val if val > 100.0 => printf("Large: %f\n", val),
+    _ => printf("Other\n"),
+};
+
+# Boolean matching
+local b: bool = true;
+match (b) {
+    true => printf("Yes\n"),
+    false => printf("No\n"),
+};
+
+# String matching
+local s: string = "hello";
+match (s) {
+    "" => printf("Empty\n"),
+    "hello" => printf("Hello!\n"),
+    str => printf("Other: %s\n", str),
+};
+
+# Character matching
+local c: char = 'A';
+match (c) {
+    'A' => printf("Letter A\n"),
+    'B' => printf("Letter B\n"),
+    ch if ch >= '0' && ch <= '9' => printf("Digit\n"),
+    _ => printf("Other\n"),
+};
+```
+
+### Tuple Pattern Matching
+
+Match and destructure tuples:
+
+```bpl
+# Basic tuple patterns
+local point: (int, int) = (5, 10);
+match (point) {
+    (0, 0) => printf("Origin\n"),
+    (0, y) => printf("On Y-axis at %d\n", y),
+    (x, 0) => printf("On X-axis at %d\n", x),
+    (5, 10) => printf("Specific point\n"),
+    (x, y) => printf("Point at (%d, %d)\n", x, y),
+};
+
+# Tuple patterns with guards
+local coords: (int, int) = (3, 7);
+match (coords) {
+    (a, b) if a == b => printf("Diagonal\n"),
+    (a, b) if (a + b) == 10 => printf("Sum is 10\n"),
+    (a, b) if a > b => printf("X greater\n"),
+    _ => printf("Other\n"),
+};
+
+# Mixed type tuples
+local mixed: (int, bool) = (42, true);
+match (mixed) {
+    (0, _) => printf("Zero and anything\n"),
+    (42, true) => printf("Answer and true\n"),
+    (n, false) => printf("%d and false\n", n),
+    (n, b) => printf("Other: %d, %d\n", n, b),
+};
+
+# Three-element tuples
+local triple: (int, int, int) = (1, 2, 3);
+match (triple) {
+    (0, 0, 0) => printf("Origin\n"),
+    (1, 2, 3) => printf("Sequential\n"),
+    (a, b, c) if (a + b) == c => printf("a + b = c\n"),
+    _ => printf("Other\n"),
+};
+```
+
+### Wildcard Patterns
+
+Use `_` to match anything without binding:
+
+```bpl
+match (value) {
+    0 => printf("Zero\n"),
+    _ => printf("Non-zero\n"),  # Catches everything else
+};
+
+# In tuple patterns
+match (pair) {
+    (0, _) => printf("First is zero\n"),
+    (_, 0) => printf("Second is zero\n"),
+    _ => printf("Neither is zero\n"),
+};
+```
+
+### Pattern Guards
+
+Add conditional logic to patterns with `if`:
+
+```bpl
+match (n) {
+    x if x < 0 => printf("Negative\n"),
+    x if x == 0 => printf("Zero\n"),
+    x if x > 0 && x < 100 => printf("Small positive\n"),
+    _ => printf("Large positive\n"),
+};
+
+# Complex guards with tuple patterns
+match ((x, y)) {
+    (a, b) if ((a % 2) == 0) && ((b % 2) == 0) => printf("Both even\n"),
+    (a, b) if (a * b) > 50 => printf("Large product\n"),
+    _ => printf("Other\n"),
 };
 ```
 

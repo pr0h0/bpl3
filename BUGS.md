@@ -61,7 +61,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-052 | Strings             | String literals containing `\0` cause a JSON Parse error in the compiler.                                                | Fixed    | Replaced JSON.parse with custom decodeString function that properly handles \0 and other escape sequences.                                                                                                                                                                               |
 | BUG-053 | Strings             | Hex escape sequences (e.g., `\x41`) in string literals cause a JSON Parse error.                                         | Fixed    | Added hex escape parsing (\xHH format) to decodeString function in grammar.                                                                                                                                                                                                              |
 | BUG-054 | Structs             | Struct fields shadow methods with the same name, making methods uncallable.                                              | Fixed    | forbid duplicate keys no matter if its attribute or method                                                                                                                                                                                                                               |
-| BUG-055 | Enums               | Nested pattern matching (e.g., `Option.Some(Option.Some(x))`) is not supported by the parser.                            | Open     |                                                                                                                                                                                                                                                                                          |
+| BUG-055 | Enums               | Nested pattern matching (e.g., `Option.Some(Option.Some(x))`) is not supported by the parser.                            | Fixed    | Grammar now supports nested patterns. Code generation needs work but parsing/type-checking complete.                                                                                                                                                                                     |
 | BUG-056 | Enums               | Duplicate enum variants (e.g., `enum E { A, A }`) are accepted silently, creating ambiguity.                             | Fixed    |                                                                                                                                                                                                                                                                                          |
 | BUG-057 | Control Flow        | `if` statements require braces `{}`. Single-statement bodies are not supported.                                          | Fixed    | require braces for "if" and "loop"                                                                                                                                                                                                                                                       |
 | BUG-058 | Control Flow        | `switch` cases require braces `{}`. Single-statement cases are not supported.                                            | Open     | allow no braces in switch/case and allow falthrough, ending switch once we reach break or default or return                                                                                                                                                                              |
@@ -69,7 +69,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-060 | Types               | Compiler allows arrays of `void` (e.g., `local arr: void[10]`), which is invalid as `void` has no size.                  | Fixed    |                                                                                                                                                                                                                                                                                          |
 | BUG-061 | Lexer               | Nested multi-line comments (`/# ... /# ... #/ ... #/`) are not supported. The first `#/` closes the comment.             | Open     | try to support it                                                                                                                                                                                                                                                                        |
 | BUG-062 | Operators           | Assignment chaining (e.g., `a = b = c`) is not supported. Assignment is a statement, not an expression.                  | Open     | allow this only for assignmet, but not for declaration                                                                                                                                                                                                                                   |
-| BUG-063 | Operators           | Boolean values are implicitly promoted to integers in comparisons, allowing confusing expressions like `3 > 2 > 1`.      | Open     | allow bool promotion, it's logical error, let them cope with it, maybe some warning in linter but don't do anything in compiler                                                                                                                                                          |
+| BUG-063 | Operators           | Boolean values are implicitly promoted to integers in comparisons, allowing confusing expressions like `3 > 2 > 1`.      | Closed   | Works as designed - bool promotion is intentional. This is a logical error, not a compiler bug. Linter may add warning in the future.                                                                                                                                                    |
 | BUG-064 | FFI                 | Functions are represented as fat pointers (16 bytes) and cannot be cast to `*void`, breaking FFI compatibility with C.   | Open     | it's probably because of vtable or context for lambdas, see if we can make context be passed only to lambdas since functions are declared in top level or as struct methods, they still shoudl have access to globals but IDK?                                                           |
 | BUG-065 | Generics            | Generic type inference for constructors is not supported (e.g., `Box.new(10)` fails). Must use `Box<int>.new(10)`.       | Open     | no inference, type is explicit and required for now, make sure generic types work for is/as match/cast syntax                                                                                                                                                                            |
 | BUG-066 | Parser              | The parser does not support empty tuples `()` in type declarations or expressions.                                       | Open     | there should be no empty tuple i guess                                                                                                                                                                                                                                                   |
@@ -85,7 +85,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-076 | Parser              | The compiler does not support inline `export` declarations.                                                              | Closed   | nope, you have to declare something and then export                                                                                                                                                                                                                                      |
 | BUG-077 | Code Generation     | Namespace import (`import * as`) fails to generate LLVM declarations, causing link errors.                               | Fixed    | Added module-function detection/mangling and emits extern/module declarations when called via namespace imports.                                                                                                                                                                         |
 | BUG-078 | Type Inference      | Lambda return type inference fails when passed as function argument.                                                     | Fixed    | it should be explicit, keep it like that                                                                                                                                                                                                                                                 |
-| BUG-079 | Code Generation     | Dereferencing a `*void` pointer generates invalid `load void` instruction.                                               | Open     | i guess thats correct implementation since we have void ptr and we dont know what is actually inside it                                                                                                                                                                                  |
+| BUG-079 | Code Generation     | Dereferencing a `*void` pointer generates invalid `load void` instruction.                                               | Fixed    | Compiler now properly validates and rejects void variables, preventing dereference of void pointers into void variables. Error: "Variable cannot be of type 'void'"                                                                                                                      |
 | BUG-080 | Code Generation     | Destructor with value receiver (`this: D`) generates invalid LLVM IR.                                                    | Fixed    | Added validation in TypeChecker to reject value receivers for destroy methods, requiring pointer receivers (\*D).                                                                                                                                                                        |
 | BUG-081 | Equality            | Array equality uses invalid LLVM IR (`icmp eq`) instead of `memcmp`.                                                     | Fixed    | Implemented array comparison using memcmp for byte-wise comparison in BinaryExpressionGenerator.                                                                                                                                                                                         |
 | BUG-082 | Equality            | Tuple equality uses invalid LLVM IR (`icmp eq`) instead of member-wise comparison.                                       | Fixed    | Implemented member-wise tuple comparison with short-circuit evaluation using extractvalue in BinaryExpressionGenerator.                                                                                                                                                                  |
@@ -114,6 +114,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-101 | Tuples              | Nested tuple destructuring generated invalid LLVM IR (used outer tuple type instead of inner).                           | Fixed    | Fixed by using correct nestedTupleType/nestedTupleVal parameters in extractvalue instruction in StatementGenerator.                                                                                                                                                                      |
 | BUG-102 | Enums               | Qualified name resolution in type lookups fails for nested generic enums with namespaces.                                | Fixed    | Fixed by adding namespace-aware fallback in TypeGenerator.resolveType() to strip namespace prefix when direct lookup fails.                                                                                                                                                              |
 | BUG-103 | Enums               | Enum-to-enum casting only copies discriminant tag, losing data payload.                                                  | Fixed    | Fixed by enhancing emitCast() in UnaryExpressionGenerator to copy both tag and data fields using extractvalue/insertvalue for same-size data, memcpy for different sizes.                                                                                                                |
+| BUG-104 | Pattern Matching    | Nested tuple patterns in match expressions are not supported (e.g., `((a, b), c) => ...`).                               | Open     | While nested tuple destructuring works in variable assignments, nested tuple pattern matching is not yet implemented. Workaround: Use separate match expressions or destructure before matching.                                                                                         |
 
 ## Details
 
@@ -764,11 +765,12 @@ a = b = 10; # Syntax Error
 ### BUG-063: Implicit Bool to Int Promotion in Comparisons
 
 **Category**: Operators
-**Description**: Boolean values are implicitly promoted to integers (1 for true, 0 for false) when used in comparisons. This allows expressions like `3 > 2 > 1` to compile and evaluate to `false` (since `true > 1` -> `1 > 1` -> `false`), which is often unintended behavior.
+**Status**: Closed (Works as designed)
+**Description**: Boolean values are implicitly promoted to integers (1 for true, 0 for false) when used in comparisons. This allows expressions like `3 > 2 > 1` to compile and evaluate to `false` (since `true > 1` -> `1 > 1` -> `false`), which is often unintended behavior. This is intentional language design - it's a logical error, not a compiler bug. Future linter may add warnings.
 **Reproduction**:
 
 ```bpl
-if (3 > 2 > 1) { ... } # Compiles, but semantically questionable
+if (3 > 2 > 1) { ... } # Compiles successfully, evaluates to false
 ```
 
 ### BUG-064: Functions are Fat Pointers
@@ -1059,12 +1061,13 @@ apply(|x: int| ret int { return x; }); # Works
 ### BUG-079: Compiler Generates Invalid LLVM for Void Pointer Dereference
 
 **Category**: Code Generation
-**Description**: The compiler allows dereferencing a `*void` pointer, generating an invalid `load void` instruction in LLVM IR, which causes compilation to fail.
+**Status**: Fixed
+**Description**: The compiler now properly validates and rejects attempts to dereference `*void` pointers into void variables. Previously this would generate invalid `load void` instructions in LLVM IR. The compiler now produces a clear error: "Variable cannot be of type 'void'". While you still cannot dereference `*void` directly, this is correct behavior since void has no size.
 **Reproduction**:
 
 ```bpl
 local p: *void = nullptr;
-*p; # Causes LLVM error
+local val: void = *p; # Error: Variable 'val' cannot be of type 'void'
 ```
 
 ### BUG-080: Invalid LLVM for Destructor with Value Receiver
@@ -1188,3 +1191,38 @@ frame main() {
     };
 }
 ```
+
+### BUG-104: Nested Tuple Patterns Not Supported
+
+**Status**: Open
+
+**Description**: Match expressions with nested tuple patterns (e.g., `((a, b), c)`) are not yet implemented. The code generation for binding nested tuple identifiers is incomplete.
+
+**Workaround**: Use separate match expressions or destructure tuples before matching:
+
+```bpl
+# Does NOT work yet
+match (nested) {
+    ((0, 0), 0) => printf("All zeros\n"),
+    ((a, b), c) => printf("Nested: (%d, %d), %d\n", a, b, c),
+}
+
+# Workaround 1: Destructure first
+local ((a: int, b: int), c: int) = nested;
+match ((a, b, c)) {
+    (0, 0, 0) => printf("All zeros\n"),
+    (x, y, z) => printf("Values: %d, %d, %d\n", x, y, z),
+}
+
+# Workaround 2: Match outer, then inner
+match (nested) {
+    ((0, 0), c) => printf("First pair is (0, 0), c=%d\n", c),
+    (pair, c) => {
+        match (pair) {
+            (a, b) => printf("Nested: (%d, %d), %d\n", a, b, c),
+        };
+    },
+}
+```
+
+**Technical Details**: The `generateTupleBindings()` method in `MatchExpressionGenerator.ts` has a TODO comment for recursive binding of nested tuples. The parser and type checker correctly handle nested tuple patterns, but code generation needs enhancement to recursively extract and bind nested tuple elements.

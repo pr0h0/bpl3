@@ -188,22 +188,18 @@ describe("Bug Hunting - Edge Cases", () => {
       expectError(source, "exhaustive");
     });
 
-    it("should reject match on non-enum type", () => {
+    it("should accept match on primitive type", () => {
+      // Updated: We now support primitive pattern matching
       const source = `
             frame main() {
                 local x: i32 = 1;
                 match (x) {
-                    1 => {}
+                    1 => {},
+                    _ => {}
                 };
             }
           `;
-      // Updated expectation: match on non-enum is now treated as Type Matching,
-      // so it rejects the literal pattern '1' instead of the type 'i32' itself.
-      try {
-        expectError(source, "enum");
-      } catch (e) {
-        expectError(source, "Invalid pattern");
-      }
+      expect(() => check(source)).not.toThrow();
     });
 
     it("should reject non-exhaustive match", () => {

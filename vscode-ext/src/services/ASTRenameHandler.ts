@@ -1868,7 +1868,7 @@ export class ASTRenameHandler {
       case "PatternEnumStruct":
         // PatternEnumStruct has fields with bindings
         const enumStruct = node as AST.PatternEnumStruct;
-        enumStruct.fields.forEach((field) => {
+        enumStruct.fields.forEach((_field) => {
           // Field bindings are strings (variable names), not Pattern nodes
           // We don't need to traverse them since they're just names
         });

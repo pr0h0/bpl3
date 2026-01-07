@@ -790,7 +790,8 @@ describe("Enum Match Expression Edge Cases", () => {
     expect(() => check(source)).not.toThrow();
   });
 
-  it("should reject match on non-enum type", () => {
+  it("should accept match on primitive type", () => {
+    // Updated: We now support primitive pattern matching
     const source = `
       frame main() ret int {
         local x: int = 42;
@@ -800,7 +801,7 @@ describe("Enum Match Expression Edge Cases", () => {
         };
       }
     `;
-    expect(() => check(source)).toThrow(CompilerError);
+    expect(() => check(source)).not.toThrow();
   });
 
   it("should reject match arms with inconsistent return types", () => {

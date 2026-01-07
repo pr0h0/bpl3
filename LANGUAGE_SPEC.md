@@ -303,6 +303,45 @@ try {
 - **Address/Dereference**: `&var`, `*ptr`
 - **Lambda**: `|arg(s):type| ret Type { ... }` - may contain 0 or many args:type, return type may be omitted if void
 
+### Pattern Matching
+
+The `match` expression supports comprehensive pattern matching:
+
+```bpl
+# Primitive patterns (int, float, bool, string, char)
+match (x) {
+    0 => "zero",
+    42 => "answer",
+    n if n < 0 => "negative",
+    _ => "other",
+}
+
+# Tuple patterns
+match (point) {
+    (0, 0) => "origin",
+    (0, y) => "y-axis",
+    (x, 0) => "x-axis",
+    (x, y) if x == y => "diagonal",
+    (x, y) => "other",
+}
+
+# Enum patterns
+enum Option<T> { Some(T), None }
+match (opt) {
+    Option.Some(val) => val,
+    Option.None => 0,
+}
+```
+
+**Pattern Types:**
+
+- **Literals**: `0`, `3.14`, `true`, `"hello"`, `'A'`
+- **Identifiers**: `x`, `n` (binds the matched value)
+- **Tuples**: `(a, b)`, `(0, y)`, `(x, y, z)`
+- **Wildcards**: `_` (matches anything, doesn't bind)
+- **Enums**: `Type.Variant(binding)`
+- **Guards**: `pattern if condition` (adds conditional logic)
+
 ## 7. Known Limitations / Disallowed Constructs
 
 The following are **NOT** currently supported by the grammar:

@@ -11,7 +11,7 @@ echo -e "${BLUE}=== Compiling Benchmarks (Binary Tree Insert 100k) ===${NC}"
 echo "Compiling BPL..."
 COMPILER="../../index.ts"
 if [ -f "$COMPILER" ]; then
-    OUTPUT=$(bun "$COMPILER" tree.bpl --clang-flag "-O3")
+    OUTPUT=$(bun "$COMPILER" tree.bpl "-O3")
     if [ $? -ne 0 ]; then
         echo "BPL Compilation failed:"
         echo "$OUTPUT"

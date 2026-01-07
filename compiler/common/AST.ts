@@ -270,7 +270,8 @@ export type Pattern =
   | PatternIdentifier
   | PatternEnum
   | PatternEnumTuple
-  | PatternEnumStruct;
+  | PatternEnumStruct
+  | PatternTuple;
 
 export interface PatternWildcard extends ASTNode {
   kind: "PatternWildcard";
@@ -285,6 +286,11 @@ export interface PatternIdentifier extends ASTNode {
   kind: "PatternIdentifier";
   name: string;
   type?: TypeNode;
+}
+
+export interface PatternTuple extends ASTNode {
+  kind: "PatternTuple";
+  patterns: Pattern[];
 }
 
 export interface PatternEnum extends ASTNode {

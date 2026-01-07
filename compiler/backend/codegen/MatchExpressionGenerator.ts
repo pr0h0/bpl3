@@ -25,21 +25,37 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   protected generateMatchExpr(expr: AST.MatchExpr): string {
     // Generate the value to match on
     const matchValue = this.generateExpression(expr.value);
-    const matchType = expr.value.resolvedType as AST.BasicTypeNode;
+    const matchType = expr.value.resolvedType;
 
-    if (!matchType || matchType.kind !== "BasicType") {
+    if (!matchType) {
       throw this.createError(
-        "Match expression value must have a basic type",
+        "Match expression value must have a resolved type",
         expr.value,
       );
     }
 
+    // Handle tuple matching
+    if (matchType.kind === "TupleType") {
+      return this.generateTupleMatch(expr, matchValue, matchType);
+    }
+
+    // For non-tuple types, must be BasicType
+    if (matchType.kind !== "BasicType") {
+      throw this.createError(
+        "Match expression value must have a basic or tuple type",
+        expr.value,
+      );
+    }
+
+    // From here on, matchType is guaranteed to be BasicTypeNode
+    const basicMatchType = matchType;
+
     // Get enum information - handle generic instantiation
-    let enumName = matchType.name;
+    let enumName = basicMatchType.name;
 
     // Substitute types in matchType if we are in a generic context
     const substitutedMatchType = this.substituteType(
-      matchType,
+      basicMatchType,
       this.currentTypeMap,
     ) as AST.BasicTypeNode;
 
@@ -49,7 +65,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       substitutedMatchType.genericArgs.length > 0
     ) {
       enumName = this.instantiateGenericEnum(
-        matchType.name,
+        basicMatchType.name,
         substitutedMatchType.genericArgs,
       );
     }
@@ -59,12 +75,38 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     // Handle Type Matching on Any (or other structs if we support them later)
     if (!variantInfo) {
       // Check if it's Any
-      if (matchType.name === "Any") {
-        return this.generateAnyMatch(expr, matchValue, matchType);
+      if (basicMatchType.name === "Any") {
+        return this.generateAnyMatch(expr, matchValue, basicMatchType);
+      }
+
+      // Check if it's a primitive type (int, float, bool, string, char)
+      if (
+        [
+          "i1",
+          "i8",
+          "i16",
+          "i32",
+          "i64",
+          "u8",
+          "u16",
+          "u32",
+          "u64",
+          "f32",
+          "f64",
+          "bool",
+          "char",
+          "int",
+          "uint",
+          "float",
+          "double",
+          "string",
+        ].includes(basicMatchType.name)
+      ) {
+        return this.generatePrimitiveMatch(expr, matchValue, basicMatchType);
       }
 
       throw this.createError(
-        `Cannot match on non-enum type '${matchType.name}'`,
+        `Cannot match on non-enum type '${basicMatchType.name}'`,
         expr.value,
       );
     }
@@ -490,6 +532,426 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     }
 
     return resultReg;
+  }
+
+  protected generatePrimitiveMatch(
+    expr: AST.MatchExpr,
+    matchValue: string,
+    matchType: AST.BasicTypeNode,
+  ): string {
+    // Primitive match: compare value to literals or bind to identifier
+    const llvmType = this.resolveType(matchType);
+
+    // Create labels
+    const mergeLabel = this.newLabel("match_prim_merge");
+    const armLabels: string[] = [];
+    const nextLabels: string[] = [];
+
+    for (let i = 0; i < expr.arms.length; i++) {
+      armLabels.push(this.newLabel(`match_prim_arm${i}`));
+      nextLabels.push(this.newLabel(`match_prim_next${i}`));
+    }
+
+    const resultType = this.resolveType(expr.resolvedType!);
+    this.matchStack.push({
+      mergeLabel,
+      results: [],
+      resultType,
+      resultTypeNode: expr.resolvedType!,
+    });
+
+    // Start matching
+    const currentLabel = this.newLabel("match_prim_start");
+    this.emit(`  br label %${currentLabel}`);
+    this.emit(`${currentLabel}:`);
+
+    for (let i = 0; i < expr.arms.length; i++) {
+      const arm = expr.arms[i]!;
+      const pattern = arm.pattern;
+      const armLabel = armLabels[i]!;
+      const nextLabel = nextLabels[i]!;
+
+      if (pattern.kind === "PatternWildcard") {
+        // Wildcard always matches
+        this.emit(`  br label %${armLabel}`);
+      } else if (pattern.kind === "PatternLiteral") {
+        // Compare literal value
+        let literalValue = this.generateLiteral(pattern.value);
+        const cmpReg = this.newRegister();
+
+        if (matchType.name === "string") {
+          // String comparison requires strcmp
+          const strcmpResult = this.newRegister();
+          this.emit(
+            `  ${strcmpResult} = call i32 @strcmp(i8* ${matchValue}, i8* ${literalValue})`,
+          );
+          this.emit(`  ${cmpReg} = icmp eq i32 ${strcmpResult}, 0`);
+        } else if (llvmType === "double" || llvmType === "float") {
+          // Ensure literal is float format for fcmp
+          if (
+            pattern.value.kind === "Literal" &&
+            pattern.value.type === "number" &&
+            !literalValue.includes(".") &&
+            !literalValue.includes("e")
+          ) {
+            literalValue = literalValue + ".0";
+          }
+          this.emit(
+            `  ${cmpReg} = fcmp oeq ${llvmType} ${matchValue}, ${literalValue}`,
+          );
+        } else {
+          this.emit(
+            `  ${cmpReg} = icmp eq ${llvmType} ${matchValue}, ${literalValue}`,
+          );
+        }
+
+        this.emit(`  br i1 ${cmpReg}, label %${armLabel}, label %${nextLabel}`);
+      } else if (pattern.kind === "PatternIdentifier") {
+        // Identifier always matches (binds the value)
+        // Check guard if present
+        if (arm.guard) {
+          // We need to bind the variable first, then evaluate the guard
+          const savedLocalPointers = new Map(this.localPointers);
+          const savedLocals = new Set(this.locals);
+
+          // Bind the variable
+          const varAddr = this.allocateStack(pattern.name, llvmType);
+          this.emit(
+            `  store ${llvmType} ${matchValue}, ${llvmType}* ${varAddr}`,
+          );
+
+          // Evaluate guard
+          const guardValue = this.generateExpression(arm.guard);
+
+          // Restore state (guard shouldn't define new vars that leak out)
+          this.localPointers = savedLocalPointers;
+          this.locals = savedLocals;
+
+          this.emit(
+            `  br i1 ${guardValue}, label %${armLabel}, label %${nextLabel}`,
+          );
+        } else {
+          this.emit(`  br label %${armLabel}`);
+        }
+      } else {
+        // Unsupported pattern (shouldn't happen after type checking)
+        this.emit(`  br label %${nextLabel}`);
+      }
+
+      // Generate arm body
+      this.emit(`${armLabel}:`);
+
+      const savedLocalPointers = new Map(this.localPointers);
+      const savedLocals = new Set(this.locals);
+
+      // Bind variable if PatternIdentifier
+      if (pattern.kind === "PatternIdentifier") {
+        const varAddr = this.allocateStack(pattern.name, llvmType);
+        this.emit(`  store ${llvmType} ${matchValue}, ${llvmType}* ${varAddr}`);
+      }
+
+      const result = this.generateMatchArmBody(arm.body);
+
+      this.localPointers = savedLocalPointers;
+      this.locals = savedLocals;
+
+      if (result !== null) {
+        const resultLabel = this.getCurrentLabel();
+        this.matchStack[this.matchStack.length - 1]!.results.push({
+          value: result,
+          label: resultLabel,
+          type: resultType,
+        });
+        this.emit(`  br label %${mergeLabel}`);
+      } else if (
+        !this.isTerminator(this.output[this.output.length - 1] || "")
+      ) {
+        this.emit(`  br label %${mergeLabel}`);
+      }
+
+      // Next check
+      this.emit(`${nextLabel}:`);
+    }
+
+    // If no match, unreachable (should be exhaustive after type checking)
+    this.emit(`  unreachable`);
+
+    const matchContext = this.matchStack.pop()!;
+    this.emit(`${mergeLabel}:`);
+
+    if (resultType === "void") {
+      return "";
+    }
+
+    const resultReg = this.newRegister();
+    const armResults = matchContext.results;
+
+    if (armResults.length > 0) {
+      const phiEntries = armResults
+        .map((r) => `[ ${r.value}, %${r.label} ]`)
+        .join(", ");
+      this.emit(`  ${resultReg} = phi ${resultType} ${phiEntries}`);
+    } else {
+      this.emit(`  ${resultReg} = undef`);
+    }
+
+    return resultReg;
+  }
+
+  protected generateTupleMatch(
+    expr: AST.MatchExpr,
+    matchValue: string,
+    matchType: AST.TupleTypeNode,
+  ): string {
+    // Tuple match: destructure and match sub-patterns
+    const tupleType = this.resolveType(matchType);
+
+    // Extract tuple elements
+    const tupleElements: { value: string; type: string }[] = [];
+    for (let i = 0; i < matchType.types.length; i++) {
+      const elementType = this.resolveType(matchType.types[i]!);
+      const elementReg = this.newRegister();
+      this.emit(
+        `  ${elementReg} = extractvalue ${tupleType} ${matchValue}, ${i}`,
+      );
+      tupleElements.push({ value: elementReg, type: elementType });
+    }
+
+    // Create labels
+    const mergeLabel = this.newLabel("match_tuple_merge");
+    const armLabels: string[] = [];
+    const nextLabels: string[] = [];
+
+    for (let i = 0; i < expr.arms.length; i++) {
+      armLabels.push(this.newLabel(`match_tuple_arm${i}`));
+      nextLabels.push(this.newLabel(`match_tuple_next${i}`));
+    }
+
+    const resultType = this.resolveType(expr.resolvedType!);
+    this.matchStack.push({
+      mergeLabel,
+      results: [],
+      resultType,
+      resultTypeNode: expr.resolvedType!,
+    });
+
+    // Start matching
+    const currentLabel = this.newLabel("match_tuple_start");
+    this.emit(`  br label %${currentLabel}`);
+    this.emit(`${currentLabel}:`);
+
+    for (let i = 0; i < expr.arms.length; i++) {
+      const arm = expr.arms[i]!;
+      const pattern = arm.pattern;
+      const armLabel = armLabels[i]!;
+      const nextLabel = nextLabels[i]!;
+
+      // Check if pattern matches
+      const matchResult = this.generateTuplePatternCheck(
+        pattern,
+        tupleElements,
+        matchType,
+        armLabel,
+        nextLabel,
+      );
+
+      if (matchResult === "always") {
+        // Pattern always matches - check guard if present
+        if (arm.guard) {
+          const savedLocalPointers = new Map(this.localPointers);
+          const savedLocals = new Set(this.locals);
+
+          // Bind variables for guard evaluation
+          this.bindTuplePatternVariables(pattern, tupleElements, matchType);
+
+          // Evaluate guard
+          const guardValue = this.generateExpression(arm.guard);
+
+          // Restore state
+          this.localPointers = savedLocalPointers;
+          this.locals = savedLocals;
+
+          this.emit(
+            `  br i1 ${guardValue}, label %${armLabel}, label %${nextLabel}`,
+          );
+        } else {
+          this.emit(`  br label %${armLabel}`);
+        }
+      } else if (matchResult === "never") {
+        this.emit(`  br label %${nextLabel}`);
+      }
+      // Otherwise, the check has already emitted the branch
+
+      // Generate arm body
+      this.emit(`${armLabel}:`);
+
+      const savedLocalPointers = new Map(this.localPointers);
+      const savedLocals = new Set(this.locals);
+
+      // Bind variables from pattern
+      this.bindTuplePatternVariables(pattern, tupleElements, matchType);
+
+      const result = this.generateMatchArmBody(arm.body);
+
+      this.localPointers = savedLocalPointers;
+      this.locals = savedLocals;
+
+      if (result !== null) {
+        const resultLabel = this.getCurrentLabel();
+        this.matchStack[this.matchStack.length - 1]!.results.push({
+          value: result,
+          label: resultLabel,
+          type: resultType,
+        });
+        this.emit(`  br label %${mergeLabel}`);
+      } else if (
+        !this.isTerminator(this.output[this.output.length - 1] || "")
+      ) {
+        this.emit(`  br label %${mergeLabel}`);
+      }
+
+      // Next check
+      this.emit(`${nextLabel}:`);
+    }
+
+    // If no match, unreachable
+    this.emit(`  unreachable`);
+
+    const matchContext = this.matchStack.pop()!;
+    this.emit(`${mergeLabel}:`);
+
+    if (resultType === "void") {
+      return "";
+    }
+
+    const resultReg = this.newRegister();
+    const armResults = matchContext.results;
+
+    if (armResults.length > 0) {
+      const phiEntries = armResults
+        .map((r) => `[ ${r.value}, %${r.label} ]`)
+        .join(", ");
+      this.emit(`  ${resultReg} = phi ${resultType} ${phiEntries}`);
+    } else {
+      this.emit(`  ${resultReg} = undef`);
+    }
+
+    return resultReg;
+  }
+
+  protected generateTuplePatternCheck(
+    pattern: AST.Pattern,
+    tupleElements: { value: string; type: string }[],
+    tupleType: AST.TupleTypeNode,
+    successLabel: string,
+    failLabel: string,
+  ): "always" | "never" | "checked" {
+    if (pattern.kind === "PatternWildcard") {
+      return "always";
+    }
+
+    if (pattern.kind === "PatternIdentifier") {
+      return "always";
+    }
+
+    if (pattern.kind === "PatternTuple") {
+      if (pattern.patterns.length !== tupleElements.length) {
+        return "never";
+      }
+
+      // Collect comparison results for literal sub-patterns
+      const checkRegs: string[] = [];
+
+      for (let i = 0; i < pattern.patterns.length; i++) {
+        const subPattern = pattern.patterns[i]!;
+        const element = tupleElements[i]!;
+
+        if (subPattern.kind === "PatternLiteral") {
+          let literalValue = this.generateLiteral(subPattern.value);
+
+          if (element.type === "double" || element.type === "float") {
+            // Ensure literal is float format for fcmp
+            if (
+              subPattern.value.kind === "Literal" &&
+              subPattern.value.type === "number" &&
+              !literalValue.includes(".") &&
+              !literalValue.includes("e")
+            ) {
+              literalValue = literalValue + ".0";
+            }
+            const cmpReg = this.newRegister();
+            this.emit(
+              `  ${cmpReg} = fcmp oeq ${element.type} ${element.value}, ${literalValue}`,
+            );
+            checkRegs.push(cmpReg);
+          } else if (element.type === "i8*") {
+            const strcmpResult = this.newRegister();
+            this.emit(
+              `  ${strcmpResult} = call i32 @strcmp(i8* ${element.value}, i8* ${literalValue})`,
+            );
+            const cmpReg = this.newRegister();
+            this.emit(`  ${cmpReg} = icmp eq i32 ${strcmpResult}, 0`);
+            checkRegs.push(cmpReg);
+          } else {
+            const cmpReg = this.newRegister();
+            this.emit(
+              `  ${cmpReg} = icmp eq ${element.type} ${element.value}, ${literalValue}`,
+            );
+            checkRegs.push(cmpReg);
+          }
+        } else if (
+          subPattern.kind !== "PatternWildcard" &&
+          subPattern.kind !== "PatternIdentifier"
+        ) {
+          return "never";
+        }
+      }
+
+      // AND all checks together
+      if (checkRegs.length > 0) {
+        let combinedCheck = checkRegs[0]!;
+        for (let i = 1; i < checkRegs.length; i++) {
+          const andReg = this.newRegister();
+          this.emit(`  ${andReg} = and i1 ${combinedCheck}, ${checkRegs[i]}`);
+          combinedCheck = andReg;
+        }
+
+        this.emit(
+          `  br i1 ${combinedCheck}, label %${successLabel}, label %${failLabel}`,
+        );
+        return "checked";
+      }
+
+      return "always";
+    }
+
+    return "never";
+  }
+
+  protected bindTuplePatternVariables(
+    pattern: AST.Pattern,
+    tupleElements: { value: string; type: string }[],
+    _tupleType: AST.TupleTypeNode,
+  ): void {
+    if (pattern.kind === "PatternIdentifier") {
+      return;
+    }
+
+    if (pattern.kind === "PatternTuple") {
+      for (let i = 0; i < pattern.patterns.length; i++) {
+        const subPattern = pattern.patterns[i]!;
+        const element = tupleElements[i]!;
+
+        if (subPattern.kind === "PatternIdentifier") {
+          const varAddr = this.allocateStack(subPattern.name, element.type);
+          this.emit(
+            `  store ${element.type} ${element.value}, ${element.type}* ${varAddr}`,
+          );
+        } else if (subPattern.kind === "PatternTuple") {
+          // Nested tuple - TODO: implement recursive binding
+        }
+      }
+    }
   }
 
   // Helper to get type ID (hash of type name)

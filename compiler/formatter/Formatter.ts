@@ -1194,6 +1194,11 @@ export class Formatter {
         return `${enumName}.${p.variantName} { ${fields} }`;
       }
 
+      case "PatternTuple": {
+        const p = pattern as AST.PatternTuple;
+        return `(${p.patterns.map((pat) => this.formatPattern(pat)).join(", ")})`;
+      }
+
       default:
         return "/* unknown pattern */";
     }

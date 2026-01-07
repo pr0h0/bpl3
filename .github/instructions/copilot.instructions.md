@@ -11,12 +11,13 @@ You are working with BPL, a statically-typed, compiled programming language that
 ### Keywords
 
 - **Declarations**: `frame` (function), `struct`, `spec` (interface/trait), `enum`, `type` (alias), `local`, `global`, `const`.
-- **Control Flow**: `if`, `else`, `loop`, `break`, `continue`, `switch`, `case`, `default`, `return`.
+- **Control Flow**: `if`, `else`, `loop`, `break`, `continue`, `switch`, `case`, `default`, `return`, `defer`.
 - **Pattern Matching**: `match`.
 - **Error Handling**: `try`, `catch`, `throw`.
 - **Modules**: `import`, `export`, `from`, `as`.
 - **Types & Values**: `true`, `false`, `nullptr`, `void`, `int`, `float`, `bool`, `char`, `string`, `ushort`, `uint`, `ulong`.
 - **Operators**: `cast`, `sizeof`, `is`, `as`.
+  - `sizeof<T>()` or `sizeof(T)` or `sizeof(expr)`
 - **FFI & Low Level**: `extern`, `asm`.
 
 ### Data Types
@@ -94,12 +95,54 @@ match (opt) {
 }
 ```
 
+### Pattern Matching
+
+BPL supports comprehensive pattern matching with the `match` expression:
+
+```bpl
+# Primitive patterns (int, float, bool, string, char)
+match (x) {
+    0 => printf("Zero\n"),
+    42 => printf("The answer!\n"),
+    n if n < 0 => printf("Negative: %d\n", n),
+    _ => printf("Other\n"),
+}
+
+# Tuple patterns
+match (point) {
+    (0, 0) => printf("Origin\n"),
+    (0, y) => printf("Y-axis at %d\n", y),
+    (x, 0) => printf("X-axis at %d\n", x),
+    (x, y) if x == y => printf("Diagonal\n"),
+    (x, y) => printf("Point (%d, %d)\n", x, y),
+}
+
+# Enum patterns with destructuring
+enum Result<T, E> { Ok(T), Err(E) }
+match (result) {
+    Result.Ok(val) => printf("Success: %d\n", val),
+    Result.Err(err) => printf("Error: %d\n", err),
+}
+```
+
+**Pattern Types:**
+
+- **Literals**: `0`, `3.14`, `true`, `"hello"`, `'A'`
+- **Identifiers**: `x`, `n` (binds matched value)
+- **Tuples**: `(a, b)`, `(0, y)`, `(x, y, z)`
+- **Wildcards**: `_` (matches anything)
+- **Guards**: `pattern if condition`
+
 ### Control Flow
 
 - **If/Else**: `if (cond) { ... } else { ... }`
-- **Loop**: `loop (cond) { ... }` (while loop), `loop { ... }` (infinite)
+- **Loop**:
+  - `loop (cond) { ... }` (while loop)
+  - `loop { ... }` (infinite)
+  - `loop (init; cond; step) { ... }` (C-style for loop)
 - **Switch**: `switch (val) { case 1: ... default: ... }`
 - **Match**: `match (val) { Pattern => ... }`
+- **Defer**: `defer { ... }` (executes on scope exit or throw)
 
 ### Error Handling
 
@@ -119,6 +162,30 @@ try {
 import printf from "libc";
 import [Point] from "./geometry.bpl";
 export frame myFunc() { ... }
+```
+
+### Inline Assembly
+
+```bpl
+# Intel Syntax
+asm("intel") {
+    mov eax, (a)              # Input (default "r")
+    add eax, (b: "r")         # Input with explicit constraint
+    mov (=result), eax        # Output (default "=r")
+    mov (=out: "=a"), ebx     # Output with explicit constraint
+    [ "ebx" ]                 # Clobbers
+}
+
+# AT&T Syntax
+asm("att") {
+    movl (a), %eax
+    movl %eax, (=result)
+}
+
+# Raw LLVM IR
+asm("llvm") {
+    "%ptr = getelementptr i32, i32* (a), i32 0"
+}
 ```
 
 ## 2. Project Workflow & Development

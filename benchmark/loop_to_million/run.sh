@@ -12,7 +12,7 @@ echo "Compiling BPL..."
 # Ensure we use the local compiler
 COMPILER="../../index.ts"
 if [ -f "$COMPILER" ]; then
-    OUTPUT=$(bun "$COMPILER" loop.bpl --clang-flag -O3)
+    OUTPUT=$(bun "$COMPILER" loop.bpl "-O3")
     if [ $? -ne 0 ]; then
         echo "BPL Compilation failed:"
         echo "$OUTPUT"

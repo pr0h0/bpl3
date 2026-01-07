@@ -50,6 +50,14 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
     if (expr.kind === "Unary") {
       return this.generateUnaryAddress(expr as AST.UnaryExpr);
     }
+    if (expr.kind === "Assignment") {
+      // For assignment chaining, generate the assignment and return the address of the assignee
+      this.generateExpression(expr);
+      return this.generateAddress(
+        (expr as AST.AssignmentExpr).assignee,
+        skipNullObjectCheck,
+      );
+    }
 
     throw new CompilerError(
       `Expression is not an lvalue: ${expr.kind}`,

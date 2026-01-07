@@ -1156,6 +1156,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       for (const elem of tuple.elements) {
         this.checkIsMutable(elem);
       }
+    } else if (expr.kind === "Assignment") {
+      // For assignment chaining, check the final assignee
+      const assignment = expr as AST.AssignmentExpr;
+      this.checkIsMutable(assignment.assignee);
     }
   }
 
@@ -1166,6 +1170,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       expr.assignee.kind !== "Member" &&
       expr.assignee.kind !== "Index" &&
       expr.assignee.kind !== "TupleLiteral" &&
+      expr.assignee.kind !== "Assignment" && // Allow assignment chaining
       (expr.assignee.kind !== "Unary" ||
         (expr.assignee as AST.UnaryExpr).operator.type !== TokenType.Star)
     ) {
@@ -1489,6 +1494,47 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /**
+   * Recursively extract all PatternIdentifier bindings from a pattern
+   */
+  private extractPatternBindings(
+    pattern: AST.Pattern,
+  ): { name: string; pattern: AST.Pattern }[] {
+    if (pattern.kind === "PatternWildcard") {
+      return [];
+    }
+    if (pattern.kind === "PatternIdentifier") {
+      return [{ name: pattern.name, pattern }];
+    }
+    if (pattern.kind === "PatternEnum") {
+      return [];
+    }
+    if (pattern.kind === "PatternEnumTuple") {
+      const bindings: { name: string; pattern: AST.Pattern }[] = [];
+      for (const binding of pattern.bindings) {
+        bindings.push(...this.extractPatternBindings(binding));
+      }
+      return bindings;
+    }
+    if (pattern.kind === "PatternEnumStruct") {
+      // Struct patterns have simple string bindings, not nested patterns
+      return pattern.fields
+        .filter((f) => f.binding !== "_")
+        .map((f) => ({
+          name: f.binding,
+          pattern,
+        }));
+    }
+    if (pattern.kind === "PatternTuple") {
+      const bindings: { name: string; pattern: AST.Pattern }[] = [];
+      for (const subPattern of pattern.patterns) {
+        bindings.push(...this.extractPatternBindings(subPattern));
+      }
+      return bindings;
+    }
+    return [];
+  }
+
   public checkPattern(
     pattern: AST.Pattern,
     enumType: AST.TypeNode,
@@ -1496,8 +1542,56 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   ): void {
     if (pattern.kind === "PatternWildcard") return;
 
-    // Handle Type Matching (when enumDecl is undefined)
+    // Handle Primitive Type Matching (when enumDecl is undefined)
     if (!enumDecl) {
+      // Allow literals on primitive types
+      if (pattern.kind === "PatternLiteral") {
+        // Literal patterns like 5, "hello", true, etc.
+        // Type checking happens at runtime comparison
+        return;
+      }
+
+      // Allow identifier patterns on primitive types
+      if (pattern.kind === "PatternIdentifier") {
+        // Pattern like: x if x == 5
+        // Define the variable with the matched type
+        this.defineSymbol(pattern.name, "Variable", enumType, pattern);
+        return;
+      }
+
+      // Allow tuple patterns
+      if (pattern.kind === "PatternTuple") {
+        // Check that the matched type is a tuple
+        if (enumType.kind !== "TupleType") {
+          throw new CompilerError(
+            "Tuple pattern used on non-tuple type",
+            `Expected tuple type, got ${enumType.kind}`,
+            pattern.location,
+          );
+        }
+
+        // Check pattern count matches tuple size
+        if (pattern.patterns.length !== enumType.types.length) {
+          throw new CompilerError(
+            `Tuple pattern has ${pattern.patterns.length} elements, but type has ${enumType.types.length}`,
+            "Pattern and type must have the same number of elements",
+            pattern.location,
+          );
+        }
+
+        // Recursively check each element pattern
+        for (let i = 0; i < pattern.patterns.length; i++) {
+          const subPattern = pattern.patterns[i]!;
+          const subType = enumType.types[i]!;
+
+          // Recursively check sub-pattern (no enum decl for tuple elements)
+          this.checkPattern(subPattern, subType, undefined);
+        }
+
+        return;
+      }
+
+      // Handle Type(binding) pattern for type matching
       if (pattern.kind === "PatternEnumTuple") {
         // Treat as Type(binding)
         // e.g. int(i)
@@ -1535,12 +1629,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           );
         }
 
-        // Define the binding variable
+        // Define the binding variable(s)
         const binding = pattern.bindings[0]!;
-        // If wildcard, no binding to create
-        if (binding.kind === "PatternWildcard") return;
+        const bindings = this.extractPatternBindings(binding);
 
-        const bindingName = (binding as AST.PatternIdentifier).name;
         // We need to construct the type node for the binding
         const bindingType: AST.TypeNode = {
           kind: "BasicType",
@@ -1554,29 +1646,44 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         // Resolve it properly
         const resolvedBindingType = this.resolveType(bindingType);
 
-        this.defineSymbol(
-          bindingName,
-          "Variable",
-          resolvedBindingType,
-          pattern,
-        );
+        // For nested patterns, recursively check inner patterns
+        if (
+          binding.kind !== "PatternWildcard" &&
+          binding.kind !== "PatternIdentifier"
+        ) {
+          // Nested pattern - need to check it recursively
+          // For type matching, the inner pattern should match the same type
+          this.checkPattern(binding, bindingType, undefined);
+        } else {
+          // Simple identifier binding
+          for (const { name, pattern: bindingPattern } of bindings) {
+            this.defineSymbol(
+              name,
+              "Variable",
+              resolvedBindingType,
+              bindingPattern,
+            );
+          }
+        }
 
         return;
       }
+
       throw new CompilerError(
-        "Invalid pattern for type matching",
-        "Only Type(variable) or _ patterns are supported for Any matching.",
+        "Invalid pattern for primitive type matching",
+        'Use literals (5, "text"), identifiers (x), or Type(variable) patterns.',
         pattern.location,
       );
     }
 
+    // Handle enum patterns (enumDecl is defined)
     if (pattern.kind === "PatternEnum") {
-      const variant = enumDecl.variants.find(
+      const variant = enumDecl!.variants.find(
         (v) => v.name === pattern.variantName,
       );
       if (!variant) {
         throw new CompilerError(
-          `Unknown variant '${pattern.variantName}' in enum '${enumDecl.name}'`,
+          `Unknown variant '${pattern.variantName}' in enum '${enumDecl!.name}'`,
           "Check the enum definition.",
           pattern.location,
         );
@@ -1591,7 +1698,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     if (pattern.kind === "PatternEnumTuple") {
-      const variant = enumDecl.variants.find(
+      const variant = enumDecl!.variants.find(
         (v) => v.name === pattern.variantName,
       );
       if (!variant || variant.dataType?.kind !== "EnumVariantTuple") {
@@ -1612,46 +1719,61 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
       // Build type substitution for generic enums
       const typeMap = new Map<string, AST.TypeNode>();
-      if (enumType.kind === "BasicType" && enumDecl.genericParams) {
+      if (enumType.kind === "BasicType" && enumDecl!.genericParams) {
         const genericArgs = enumType.genericArgs || [];
         for (
           let i = 0;
-          i < enumDecl.genericParams.length && i < genericArgs.length;
+          i < enumDecl!.genericParams.length && i < genericArgs.length;
           i++
         ) {
-          typeMap.set(enumDecl.genericParams[i]!.name, genericArgs[i]!);
+          typeMap.set(enumDecl!.genericParams[i]!.name, genericArgs[i]!);
         }
       }
 
-      // Bind variables
+      // Bind variables (supporting nested patterns)
       for (let i = 0; i < pattern.bindings.length; i++) {
         const binding = pattern.bindings[i]!;
         if (binding.kind === "PatternWildcard") continue;
-
-        const bindingName = (binding as AST.PatternIdentifier).name;
 
         let bindingType = variant.dataType.types[i]!;
         if (typeMap.size > 0) {
           bindingType = this.substituteType(bindingType, typeMap);
         }
 
-        // Create a synthetic VariableDecl for the binding so it can be captured correctly
-        const bindingDecl: AST.VariableDecl = {
-          kind: "VariableDecl",
-          name: bindingName,
-          typeAnnotation: bindingType,
-          resolvedType: bindingType,
-          location: pattern.location,
-          isGlobal: false,
-          isConst: false,
-        };
+        // Check if this is a nested pattern
+        if (binding.kind !== "PatternIdentifier") {
+          // Nested pattern - recursively check it
+          // Find the enum declaration for the binding type
+          let nestedEnumDecl: AST.EnumDecl | undefined;
+          if (bindingType.kind === "BasicType") {
+            const typeSymbol = this.currentScope.resolve(bindingType.name);
+            if (typeSymbol && typeSymbol.kind === "Enum") {
+              nestedEnumDecl = typeSymbol.declaration as AST.EnumDecl;
+            }
+          }
+          this.checkPattern(binding, bindingType, nestedEnumDecl);
+        } else {
+          // Simple identifier binding
+          const bindingName = binding.name;
 
-        this.defineSymbol(bindingName, "Variable", bindingType, bindingDecl);
+          // Create a synthetic VariableDecl for the binding so it can be captured correctly
+          const bindingDecl: AST.VariableDecl = {
+            kind: "VariableDecl",
+            name: bindingName,
+            typeAnnotation: bindingType,
+            resolvedType: bindingType,
+            location: pattern.location,
+            isGlobal: false,
+            isConst: false,
+          };
+
+          this.defineSymbol(bindingName, "Variable", bindingType, bindingDecl);
+        }
       }
     }
 
     if (pattern.kind === "PatternEnumStruct") {
-      const variant = enumDecl.variants.find(
+      const variant = enumDecl!.variants.find(
         (v) => v.name === pattern.variantName,
       );
       if (!variant || variant.dataType?.kind !== "EnumVariantStruct") {

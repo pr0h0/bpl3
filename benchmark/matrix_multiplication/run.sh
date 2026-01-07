@@ -11,7 +11,7 @@ echo -e "${BLUE}=== Compiling Benchmarks (Matrix Multiplication 300x300) ===${NC
 echo "Compiling BPL..."
 COMPILER="../../index.ts"
 if [ -f "$COMPILER" ]; then
-    OUTPUT=$(bun "$COMPILER" matmul.bpl --clang-flag "-O3")
+    OUTPUT=$(bun "$COMPILER" matmul.bpl "-O3")
     if [ $? -ne 0 ]; then
         echo "BPL Compilation failed:"
         echo "$OUTPUT"

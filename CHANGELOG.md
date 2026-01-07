@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Pattern Matching Enhancements** - Comprehensive pattern matching support:
+  - **Primitive Pattern Matching**: Full support for int, i8, i16, i32, i64, u8, u16, u32, u64, float, f32, f64, bool, string, and char types
+  - **Tuple Pattern Matching**: Match and destructure tuples of any size (2-element, 3-element, etc.)
+  - **Pattern Types**:
+    - Literal patterns: `0`, `3.14`, `true`, `"hello"`, `'A'`
+    - Identifier patterns: `x`, `n` (binds matched value)
+    - Tuple patterns: `(a, b)`, `(0, y)`, `(x, y, z)`
+    - Wildcard pattern: `_` (matches anything)
+    - Guard clauses: `pattern if condition` (conditional patterns)
+  - **Formatter Support**: Updated code formatter to handle all pattern types including PatternTuple
+  - **Type Normalization**: Fixed float→double and bool→i1 type handling in LLVM backend
+  - **Examples**: Added comprehensive examples in `examples/primitive_patterns/` and `examples/tuple_patterns/`
+  - **Test Coverage**: 49 new tests covering all pattern matching features
 - **New CLI Commands** - Major CLI restructure for better usability:
   - `bpl run <file> [args...]` - Compile and execute in one command
   - `bpl dev <file> [args...]` - Development mode with watch and auto-run
@@ -53,13 +66,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added complete examples for all new commands and flags
 - Documented optimization levels, debug options, and cross-compilation
 - Added workflow examples for development, production, and CI/CD
+- **Pattern Matching Documentation**:
+  - Added comprehensive pattern matching section to `docs/07-control-flow.md`
+  - Updated `LANGUAGE_SPEC.md` with pattern syntax and examples
+  - Updated `AGENTS.MD` with pattern matching reference
+  - Added pattern matching examples covering all supported types
 
 ### Fixed
 
+- **Pattern Matching Code Generation**:
+  - Fixed float literal generation in pattern matching (append `.0` for float types)
+  - Fixed type name normalization (float→double, bool→i1) in primitive type detection
+  - Fixed register ordering bug in tuple pattern string comparison (strcmpResult before cmpReg)
+  - Fixed exit code issues in pattern matching examples (return 0 from main)
 - Flag conflicts between main program and subcommands resolved
 - Commander.js parent option inheritance issues fixed
 - Restored `--eval` and `--stdin` flags for direct code execution
 - Type definitions for all new CLI options in `cli/types.ts`
+
+### Known Limitations
+
+- **BUG-104**: Nested tuple patterns in match expressions are not yet supported (e.g., `((a, b), c) => ...`)
+  - Workaround: Use separate match expressions or destructure tuples before matching
+  - See BUGS.md for details and examples
 
 ## [Previous Release]
 

@@ -11,7 +11,7 @@ echo -e "${BLUE}=== Compiling Benchmarks (Prime Sieve) ===${NC}"
 echo "Compiling BPL..."
 COMPILER="../../index.ts"
 if [ -f "$COMPILER" ]; then
-    OUTPUT=$(bun "$COMPILER" sieve.bpl --clang-flag "-O3")
+    OUTPUT=$(bun "$COMPILER" sieve.bpl "-O3")
     if [ $? -ne 0 ]; then
         echo "BPL Compilation failed:"
         echo "$OUTPUT"
