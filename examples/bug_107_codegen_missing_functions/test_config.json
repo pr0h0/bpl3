@@ -1,0 +1,7 @@
+{
+  "expectedOutput": ["BUG-107 Fixed"],
+  "args": [],
+  "env": {},
+  "input": "",
+  "description": "Codegen missing functions after extern - this test currently FAILS to LINK"
+}

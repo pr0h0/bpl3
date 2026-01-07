@@ -1,0 +1,7 @@
+{
+  "expectedOutput": ["Val: 42"],
+  "args": [],
+  "env": {},
+  "input": "",
+  "description": "Escape analysis missing - this test currently PASSES (unsafe) but SHOULD FAIL compilation"
+}

@@ -249,6 +249,46 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
         stmt.location,
       );
     }
+
+    // Safety check: BUG-106 Prevent returning address of stack local variable
+    if (
+      stmt.value &&
+      stmt.value.kind === "Unary" &&
+      stmt.value.operator.type === "Ampersand"
+    ) {
+      const operand = stmt.value.operand;
+      // console.error("DEBUG BUG-106 CHECK:", operand.kind);
+      if (operand.kind === "Identifier") {
+        const symbol = this.currentScope.resolve(operand.name);
+        // console.error("DEBUG BUG-106 SYMBOL:", symbol ? symbol.kind : "missing", operand.name);
+        if (
+          symbol &&
+          (symbol.kind === "Variable" || symbol.kind === "Parameter")
+        ) {
+          // If it's a Variable, check if it's local
+          let isStackLocal = true;
+          if (symbol.kind === "Variable") {
+            const decl = symbol.declaration as AST.VariableDecl;
+            // console.error("DEBUG BUG-106 VAR:", decl.isGlobal, decl.isConst);
+            if (decl.isGlobal || decl.isConst) {
+              isStackLocal = false;
+            }
+          }
+          // Parameters are always stack-allocated (or registers spilled to stack),
+          // so returning their address is dangerous if passed by value.
+
+          // Allow unsafe return if variable name starts with "_"
+          if (isStackLocal && !operand.name.startsWith("_")) {
+            // console.error("DEBUG BUG-106 THROWING ERROR");
+            throw new CompilerError(
+              `Potential use-after-free: returning address of stack variable '${operand.name}'`,
+              `Variable '${operand.name}' is allocated on the stack and will be invalidated when the function returns. To suppress this error (unsafe), prefix the variable name with '_' (e.g., '_${operand.name}').`,
+              stmt.location,
+            );
+          }
+        }
+      }
+    }
   }
 }
 

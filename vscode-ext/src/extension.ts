@@ -67,7 +67,7 @@ export async function activate(context: ExtensionContext) {
       }
       if (filePath) {
         // Quote path to handle spaces
-        terminal.sendText(`bpl --run "${filePath}"`);
+        terminal.sendText(`bpl run "${filePath}"`);
       } else {
         window.showErrorMessage("No file to run.");
       }

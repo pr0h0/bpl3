@@ -45,6 +45,8 @@ export class CodeGenerator extends StatementGenerator {
     this.registerBuiltinLayouts();
     this.loopStack = [];
     this.declaredFunctions.clear();
+    this.definedFunctions.clear();
+    this.emittedFunctions.clear();
     this.globals.clear();
     this.locals.clear();
     this.generatedStructs.clear();
@@ -477,10 +479,28 @@ export class CodeGenerator extends StatementGenerator {
     // Process pending lambdas and monomorphized functions iteratively
     // This is necessary because monomorphized functions might generate lambdas,
     // and lambdas might trigger new monomorphizations.
+    let iterationCount = 0;
     while (
       this.pendingLambdas.length > 0 ||
       this.pendingGenerations.length > 0
     ) {
+      if (this.pendingGenerations.length > 0) {
+        iterationCount++;
+      }
+
+      if (iterationCount > 50) {
+        throw new CompilerError(
+          "Infinite monomorphization detected (exceeded 50 generation batches)",
+          "Generic recursion depth limit exceeded. Check for infinite recursive generic instantiations.",
+          program.location || {
+            file: "unknown",
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        );
+      }
       this.processPendingLambdas();
 
       // Process one batch of pending generations

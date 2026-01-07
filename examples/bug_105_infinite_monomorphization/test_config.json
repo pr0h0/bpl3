@@ -1,0 +1,7 @@
+{
+  "expectedOutput": [],
+  "args": [],
+  "env": {},
+  "input": "",
+  "description": "Infinite monomorphization - this test is expected to TIMEOUT or CRASH until fixed"
+}
