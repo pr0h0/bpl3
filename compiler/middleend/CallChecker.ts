@@ -751,10 +751,23 @@ export function checkMember(
 
       if (member && member.kind === "StructField") {
         const fieldType = this.resolveType((member as AST.StructField).type);
+        let resultType = fieldType;
+
         if (genericMap && genericMap.size > 0) {
-          return this.substituteType(fieldType, genericMap);
+          resultType = this.substituteType(fieldType, genericMap);
         }
-        return fieldType;
+
+        // Propagate constness from parent object to field
+        if (
+          effectiveObjectType.kind === "BasicType" &&
+          effectiveObjectType.isConst
+        ) {
+          if (resultType.kind === "BasicType") {
+            resultType = { ...resultType, isConst: true };
+          }
+        }
+
+        return resultType;
       }
 
       if (

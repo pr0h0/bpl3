@@ -1,3 +1,4 @@
+import [Error] from "std/errors.bpl";
 extern printf(fmt: string, ...);
 
 struct Point {

@@ -41,6 +41,7 @@ export interface CompilerOptions {
   clangFlags?: string[]; // Additional clang flags
   dwarf?: boolean; // Generate DWARF debug information
   collectAllErrors?: boolean; // Continue scanning and report all errors
+  optimizationLevel?: number; // Optimization level (0-3)
 }
 
 export interface CompilationResult {
@@ -142,6 +143,7 @@ export class Compiler {
       const codeGenerator = new CodeGenerator({
         target: this.options.target,
         dwarf: this.options.dwarf,
+        optimizationLevel: this.options.optimizationLevel,
       });
       const llvmIR = codeGenerator.generate(ast, this.options.filePath);
 

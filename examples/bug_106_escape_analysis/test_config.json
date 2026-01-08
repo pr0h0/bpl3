@@ -1,7 +1,10 @@
 {
-  "expectedOutput": ["Val: 42"],
+  "expectedOutput": [
+    "Potential use-after-free: returning address of stack variable"
+  ],
+  "exitCode": 1,
   "args": [],
   "env": {},
   "input": "",
-  "description": "Escape analysis missing - this test currently PASSES (unsafe) but SHOULD FAIL compilation"
+  "description": "Escape analysis - this test should FAIL compilation because it returns a stack pointer"
 }

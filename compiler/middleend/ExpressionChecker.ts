@@ -364,7 +364,11 @@ export function checkIdentifier(
   }
 
   if (symbol.type) {
-    return this.resolveType(symbol.type, false);
+    const type = this.resolveType(symbol.type, false);
+    if (symbol.isConst && type.kind === "BasicType") {
+      return { ...type, isConst: true };
+    }
+    return type;
   }
 
   typeCheckerLog.debug(`Symbol '${expr.name}' has no type!`, {
@@ -481,14 +485,27 @@ export function checkBinary(
   }
 
   // String concatenation
-  if (
+  const isLeftString =
     leftType.kind === "BasicType" &&
-    leftType.name === "string" &&
+    (leftType.name === "string" ||
+      ((leftType.name === "char" ||
+        leftType.name === "i8" ||
+        leftType.name === "u8") &&
+        leftType.pointerDepth === 1));
+  const isRightString =
     rightType.kind === "BasicType" &&
-    rightType.name === "string" &&
-    op === TokenType.Plus
-  ) {
-    return leftType;
+    (rightType.name === "string" ||
+      ((rightType.name === "char" ||
+        rightType.name === "i8" ||
+        rightType.name === "u8") &&
+        rightType.pointerDepth === 1));
+
+  if (isLeftString && isRightString && op === TokenType.Plus) {
+    throw new CompilerError(
+      "String concatenation with '+' is not supported.",
+      "Use 'string_concat(a, b)' or similar helper functions.",
+      expr.location,
+    );
   }
 
   // Boolean operators
@@ -682,6 +699,14 @@ export function checkUnary(
   // Address-of operator (&)
   if (op === TokenType.Ampersand) {
     if (operandType.kind === "BasicType") {
+      if (operandType.isConst) {
+        throw new CompilerError(
+          "Cannot take address of constant expression.",
+          "BPL does not support pointers to constants yet. Taking the address would allow modification of the constant.",
+          expr.location,
+        );
+      }
+
       if (!operandType)
         typeCheckerLog.debug("operandType is undefined in Ampersand check");
 

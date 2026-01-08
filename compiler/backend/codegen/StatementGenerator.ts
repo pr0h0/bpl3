@@ -163,6 +163,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       case "FreeCaptureStruct":
         this.generateFreeCaptureStruct(stmt as any);
         break;
+      case "Extern":
+        // Just to remove console log since its handled elsewhere
+        break;
       default:
         codeGenLog.warn(`Unhandled statement kind: ${stmt.kind}`);
         break;
@@ -691,11 +694,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Decrement stack depth
-      const depth = this.newRegister();
-      this.emit(`  ${depth} = load i32, i32* @__bpl_stack_depth`);
-      const newDepth = this.newRegister();
-      this.emit(`  ${newDepth} = sub i32 ${depth}, 1`);
-      this.emit(`  store i32 ${newDepth}, i32* @__bpl_stack_depth`);
+      if (this.optimizationLevel < 2) {
+        this.emit(`  call void @__bpl_exit_stack_frame()`);
+      }
 
       if (this.onReturn) this.onReturn();
     }
@@ -1143,6 +1144,13 @@ export abstract class StatementGenerator extends AsmGenerator {
         params = userParams ? `${ctxParam}, ${userParams}` : ctxParam;
       }
 
+      // Built-in runtime functions are now external (linked from runtime.ll)
+      // So we just declare them and skip body generation
+      if (decl.location && decl.location.file === "internal") {
+        this.emitDeclaration(`declare ${retType} @${name}(${params})`);
+        return;
+      }
+
       let linkage = "";
       if (name.startsWith("Type_")) {
         linkage = "linkonce_odr ";
@@ -1190,92 +1198,20 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Stack overflow check
-      const depth = this.newRegister();
-      this.emit(`  ${depth} = load i32, i32* @__bpl_stack_depth`);
-      const newDepth = this.newRegister();
-      this.emit(`  ${newDepth} = add i32 ${depth}, 1`);
-      this.emit(`  store i32 ${newDepth}, i32* @__bpl_stack_depth`);
+      // For optimization levels >= 2, we skip the runtime call for performance
+      if (this.optimizationLevel < 2) {
+        this.emit(`  call void @__bpl_enter_stack_frame()`);
+      }
 
-      const isOverflow = this.newRegister();
-      this.emit(`  ${isOverflow} = icmp ugt i32 ${newDepth}, 10000`);
-
+      /*
+      // Stack overflow check details moved to runtime.ll for performance/size
+      */
       const stackOk = this.newLabel("stack_ok");
-      const stackErr = this.newLabel("stack_err");
-
-      this.emit(`  br i1 ${isOverflow}, label %${stackErr}, label %${stackOk}`);
-
-      this.emit(`${stackErr}:`);
-
-      // Initialize StackOverflowError struct
-      // We need to handle both the internal fallback (just i8) and the stdlib version (vtable + i8)
-      const msg = "Stack overflow";
-      if (!this.stringLiterals.has(msg)) {
-        this.stringLiterals.set(
-          msg,
-          `@.stack_overflow_msg.${this.stringLiterals.size}`,
-        );
-      }
-      const msgLen = msg.length + 1;
-      const msgPtr = `getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${this.stringLiterals.get(msg)}, i64 0, i64 0)`;
-
-      const soLayout = this.structLayouts.get("StackOverflowError");
-      let currentStruct = "undef";
-
-      if (soLayout) {
-        // Initialize vtable if present
-        if (soLayout.has("__vtable__")) {
-          const vtableIndex = soLayout.get("__vtable__");
-          const vtablePtr = this.newRegister();
-          // Assuming standard vtable size of 3 (getTypeName, toString, destroy)
-          this.emit(
-            `  ${vtablePtr} = bitcast [3 x i8*]* @StackOverflowError_vtable to i8*`,
-          );
-          const nextStruct = this.newRegister();
-          this.emit(
-            `  ${nextStruct} = insertvalue %struct.StackOverflowError ${currentStruct}, i8* ${vtablePtr}, ${vtableIndex}`,
-          );
-          currentStruct = nextStruct;
-        }
-
-        if (soLayout.has("message")) {
-          const idx = soLayout.get("message");
-          const nextStruct = this.newRegister();
-          this.emit(
-            `  ${nextStruct} = insertvalue %struct.StackOverflowError ${currentStruct}, i8* ${msgPtr}, ${idx}`,
-          );
-          currentStruct = nextStruct;
-        }
-        if (soLayout.has("code")) {
-          const idx = soLayout.get("code");
-          const nextStruct = this.newRegister();
-          this.emit(
-            `  ${nextStruct} = insertvalue %struct.StackOverflowError ${currentStruct}, i32 9, ${idx}`,
-          );
-          currentStruct = nextStruct;
-        }
-
-        // Initialize dummy field
-        if (soLayout.has("dummy")) {
-          const dummyIndex = soLayout.get("dummy");
-          const nextStruct = this.newRegister();
-          this.emit(
-            `  ${nextStruct} = insertvalue %struct.StackOverflowError ${currentStruct}, i8 0, ${dummyIndex}`,
-          );
-          currentStruct = nextStruct;
-        }
-      } else {
-        // Fallback for internal definition
-        const nextStruct = this.newRegister();
-        this.emit(
-          `  ${nextStruct} = insertvalue %struct.StackOverflowError undef, i8 0, 0`,
-        );
-        currentStruct = nextStruct;
-      }
-
-      const errorStruct = currentStruct;
-      this.emitThrow(errorStruct, "%struct.StackOverflowError");
-
+      this.emit(`  br label %${stackOk}`);
       this.emit(`${stackOk}:`);
+
+      // StackOverflowError construction and throw logic removed
+      // (Handled by runtime check)
 
       // Store argc/argv in global variables for main function
       if (name === "main") {
@@ -1374,11 +1310,9 @@ export abstract class StatementGenerator extends AsmGenerator {
 
       if (!isTerminator) {
         // Decrement stack depth
-        const exitDepth = this.newRegister();
-        this.emit(`  ${exitDepth} = load i32, i32* @__bpl_stack_depth`);
-        const exitNewDepth = this.newRegister();
-        this.emit(`  ${exitNewDepth} = sub i32 ${exitDepth}, 1`);
-        this.emit(`  store i32 ${exitNewDepth}, i32* @__bpl_stack_depth`);
+        if (this.optimizationLevel < 2) {
+          this.emit(`  call void @__bpl_exit_stack_frame()`);
+        }
 
         if (this.onReturn) this.onReturn();
 

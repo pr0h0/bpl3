@@ -1,7 +1,8 @@
 {
-  "expectedOutput": [],
+  "expectedOutput": ["Infinite monomorphization detected"],
+  "exitCode": 1,
   "args": [],
   "env": {},
   "input": "",
-  "description": "Infinite monomorphization - this test is expected to TIMEOUT or CRASH until fixed"
+  "description": "Infinite monomorphization - this test is expected to fail gracefully with a compiler error"
 }

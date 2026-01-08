@@ -35,6 +35,7 @@ export interface CompileOptions {
   clear?: boolean; // Clear screen on watch mode recompile
   noRun?: boolean; // Compile only in watch mode, don't execute
   O?: string; // Optimization level: "0", "1", "2", "3"
+  skipRuntime?: boolean; // Don't emit runtime definitions (use separate runtime library)
 }
 
 /**

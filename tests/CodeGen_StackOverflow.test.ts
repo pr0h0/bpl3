@@ -23,14 +23,8 @@ describe("CodeGen - Stack Overflow", () => {
     `;
     const ir = generate(source);
 
-    // Check for increment at start
-    expect(ir).toContain("@__bpl_stack_depth");
-    expect(ir).toContain("add i32");
-    expect(ir).toContain("icmp ugt i32");
-    expect(ir).toContain("10000");
-    expect(ir).toContain("%struct.StackOverflowError");
-
-    // Check for decrement at return
-    expect(ir).toContain("sub i32");
+    // Check for runtime calls
+    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("call void @__bpl_exit_stack_frame()");
   });
 });

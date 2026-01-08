@@ -675,8 +675,8 @@ StructMemberList
 
 StructMember
   = fd:FunctionDeclaration { return fd; }
-  / name:Identifier _ ":" _ type:Type _ "," { return { kind: "StructField", name: name.name, type, location: location() }; }
-  / name:Identifier _ ":" _ type:Type &(_ "}") { return { kind: "StructField", name: name.name, type, location: location() }; }
+  / name:Identifier _ ":" _ type:Type _ "," { return { kind: "StructField", name: name.name, type, location: makeLoc(location()) }; }
+  / name:Identifier _ ":" _ type:Type &(_ "}") { return { kind: "StructField", name: name.name, type, location: makeLoc(location()) }; }
 
 TypeAlias
   = K_type _ name:Identifier _ gen:GenericParamList? _ "=" _ type:Type _ ";" {

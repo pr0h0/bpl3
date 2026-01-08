@@ -1,7 +1,7 @@
 {
-  "expectedOutput": ["BUG-107 Fixed"],
+  "expectedOutput": ["x = 0"],
   "args": [],
   "env": {},
   "input": "",
-  "description": "Codegen missing functions after extern - this test currently FAILS to LINK"
+  "description": "Codegen missing functions after extern - fixed if it runs and prints"
 }

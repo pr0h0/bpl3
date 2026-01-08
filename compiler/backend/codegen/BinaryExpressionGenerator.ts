@@ -551,12 +551,21 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     switch (expr.operator.type) {
       case TokenType.Plus:
         op = isFloat ? "fadd" : "add";
+        if (!isFloat && !isUnsigned && this.optimizationLevel >= 3) {
+          op += " nsw"; // No Signed Wrap optimization
+        }
         break;
       case TokenType.Minus:
         op = isFloat ? "fsub" : "sub";
+        if (!isFloat && !isUnsigned && this.optimizationLevel >= 3) {
+          op += " nsw";
+        }
         break;
       case TokenType.Star:
         op = isFloat ? "fmul" : "mul";
+        if (!isFloat && !isUnsigned && this.optimizationLevel >= 3) {
+          op += " nsw";
+        }
         break;
       case TokenType.Slash:
         op = this.getDivisionOp(isFloat, isUnsigned, right, rightType);
@@ -933,20 +942,44 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         currentStruct = nextStruct;
       }
 
-      if (layout.has("dummy")) {
-        const dummyIndex = layout.get("dummy");
+      if (layout.has("stack_frames")) {
+        const idx = layout.get("stack_frames");
         const nextStruct = this.newRegister();
         this.emit(
-          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i8 0, ${dummyIndex}`,
+          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i8** null, ${idx}`,
+        );
+        currentStruct = nextStruct;
+      }
+
+      if (layout.has("stack_depth")) {
+        const idx = layout.get("stack_depth");
+        const nextStruct = this.newRegister();
+        this.emit(
+          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i32 0, ${idx}`,
         );
         currentStruct = nextStruct;
       }
     } else {
-      const nextStruct = this.newRegister();
+      // Fallback if layout missing (should not happen)
+      // Assuming manually updated struct layout: { message, code, stack_frames, stack_depth }
+      // message (0), code (1), stack_frames (2), stack_depth (3)
+      const s = this.newRegister();
       this.emit(
-        `  ${nextStruct} = insertvalue %struct.DivisionByZeroError undef, i8 0, 0`,
+        `  ${s} = insertvalue %struct.DivisionByZeroError undef, i8* ${msgPtr}, 0`,
       );
-      currentStruct = nextStruct;
+      const s2 = this.newRegister();
+      this.emit(
+        `  ${s2} = insertvalue %struct.DivisionByZeroError ${s}, i32 8, 1`,
+      );
+      const s3 = this.newRegister();
+      this.emit(
+        `  ${s3} = insertvalue %struct.DivisionByZeroError ${s2}, i8** null, 2`,
+      );
+      const s4 = this.newRegister();
+      this.emit(
+        `  ${s4} = insertvalue %struct.DivisionByZeroError ${s3}, i32 0, 3`,
+      );
+      currentStruct = s4;
     }
     return currentStruct;
   }

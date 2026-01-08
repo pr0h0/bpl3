@@ -29,9 +29,13 @@ function check(source: string): number {
 
   try {
     writeFileSync(llFile, llvmIR);
-    execSync(`clang -Wno-override-module ${llFile} -o ${exeFile}`, {
-      stdio: "pipe",
-    });
+    const runtimePath = join(process.cwd(), "lib/runtime.ll");
+    execSync(
+      `clang -Wno-override-module ${llFile} "${runtimePath}" -o ${exeFile}`,
+      {
+        stdio: "pipe",
+      },
+    );
     const result = execSync(exeFile, { stdio: "pipe" });
     return result.length > 0 ? result[0]! : 0;
   } catch (error: any) {

@@ -119,6 +119,24 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
       },
       {
         kind: "StructField",
+        name: "code",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "stack_frames",
+        type: createBasicType("i8", { pointerDepth: 2 }), // i8**
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "stack_depth",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
         name: "function",
         type: createBasicType("i8", { pointerDepth: 1 }),
         location: INTERNAL_LOCATION,
@@ -413,6 +431,18 @@ export function createIndexOutOfBoundsErrorDecl(): AST.StructDecl {
       },
       {
         kind: "StructField",
+        name: "stack_frames",
+        type: createBasicType("i8", { pointerDepth: 2 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "stack_depth",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
         name: "index",
         type: createBasicType("i32"),
         location: INTERNAL_LOCATION,
@@ -444,6 +474,18 @@ export function createDivisionByZeroErrorDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "code",
+        type: createBasicType("i32"),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "stack_frames",
+        type: createBasicType("i8", { pointerDepth: 2 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "stack_depth",
         type: createBasicType("i32"),
         location: INTERNAL_LOCATION,
       },

@@ -118,6 +118,9 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-105 | Generics            | Infinite recursion in generic function calls (monomorphization) causes compiler hang/crash (timeout).                      | Fixed    | Added generation batch limit (50) in CodeGenerator to detect and error on infinite recursion.                                                                                                                                                                                            |
 | BUG-106 | Safety              | Escape analysis is missing; functions can return pointers to local stack variables (use-after-free).                       | Fixed    | Added check in StatementChecker to error when returning the address of a local variable or parameter.                                                                                                                                                                                    |
 | BUG-107 | Code Generation     | Code generator fails to emit function definitions (e.g. `main`) when using `extern` or `try-catch`, causing linker errors. | Fixed    | Fixed by clearing `definedFunctions` set in `CodeGenerator.ts` to prevent stated leakage between compilations.                                                                                                                                                                           |
+| BUG-108 | Parser/Analysis     | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                 | Open     | The compiler throws `TypeError: The "path" property must be of type string` instead of a proper error message.                                                                                                                                                                           |
+| BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Open     | The type system allows taking a mutable pointer to a immutable variable without warning or error.                                                                                                                                                                                        |
+| BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Open     | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
 
 ## Details
 
@@ -1279,3 +1282,21 @@ frame main() {
     try { throw 1; } catch(e: int) {}
 } # main not generated
 ```
+
+### BUG-108: Compiler Crash on Duplicate Struct Fields - Fixed
+
+The compiler crashed with an internal error (TypeError) when a struct definition contained duplicate fields, instead of reporting a proper error message.
+
+**Resolution**: Fixed by ensuring `StructField` nodes in the AST have valid source locations in the parser (`bpl.peggy`) and adding robust null checks in `CompilerError` class.
+
+### BUG-109: Const Correctness Violation - Fixed
+
+The compiler allowed taking the address of a `const` variable (`&x`), producing a mutable pointer that could be used to modify the constant value.
+
+**Resolution**: Updated `ExpressionChecker` to forbid taking the address of constant variables (`isConst`). Also updated `CallChecker` to properly propagate constness when accessing members of constant structs (e.g., `&constObj.field` is now forbidden).
+
+### BUG-110: Invalid IR for String Concatenation - Fixed
+
+String concatenation using the `+` operator generated invalid LLVM IR (`add` instruction on pointers), leading to bad code generation or crashes.
+
+**Resolution**: Updated `ExpressionChecker` to explicitly check for and reject string concatenation using `+`. Users should use helper functions like `string_concat` instead.

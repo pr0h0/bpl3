@@ -5,9 +5,11 @@
 
 import { spawnSync } from "child_process";
 import * as path from "path";
+import * as fs from "fs";
 import type { CompileOptions } from "./types";
 import { getHostDefaults, normalizeArrayOption } from "./utils";
 import { Logger } from "../compiler/common/Logger";
+import { getBplHome } from "../compiler/common/PathResolver";
 
 const log = new Logger("BinaryRunner");
 
@@ -149,6 +151,11 @@ function buildClangArgs(
     args.push("-g");
   }
 
+  // Optimization level
+  if (options.O) {
+    args.push(`-O${options.O}`);
+  }
+
   // Target triple
   const target = options.target ?? hostDefaults.target;
   if (target) {
@@ -189,6 +196,29 @@ function buildClangArgs(
   // Additional clang flags
   for (const flag of normalizeArrayOption(options.clangFlag)) {
     args.push(flag);
+  }
+
+  // Explicitly link object files provided in options
+  if (options.object) {
+    const objs = normalizeArrayOption(options.object);
+    objs.forEach((obj) => args.push(obj));
+  }
+
+  // Link runtime logic unless skipped
+  if (!options.skipRuntime) {
+    const bplHome = getBplHome();
+    const runtimePath = path.join(bplHome, "lib", "runtime.ll");
+    if (fs.existsSync(runtimePath)) {
+      // Avoid duplicate linking if it was already added to 'object' in CompilationRunner
+      const alreadyLinked =
+        (options.object &&
+          normalizeArrayOption(options.object).includes(runtimePath)) ||
+        args.includes(runtimePath);
+
+      if (!alreadyLinked) {
+        args.push(runtimePath);
+      }
+    }
   }
 
   // Input and output

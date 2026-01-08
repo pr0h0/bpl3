@@ -108,6 +108,11 @@ export class CompilerError extends Error {
    */
   private loadSourceLines(): void {
     try {
+      if (!this.location || !this.location.file) {
+        this.sourceLines = null;
+        return;
+      }
+
       // Check SourceManager first (for virtual files like stdin/eval)
       const cachedSource = SourceManager.getSource(this.location.file);
       if (cachedSource) {
@@ -178,6 +183,9 @@ export class CompilerError extends Error {
    * Get the filename without full path for cleaner output
    */
   private getShortFileName(): string {
+    if (!this.location || typeof this.location.file !== "string") {
+      return "unknown";
+    }
     return path.basename(this.location.file);
   }
 

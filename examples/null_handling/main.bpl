@@ -62,8 +62,8 @@ frame returnNullOnError(shouldError: bool) ret *int {
     if (shouldError) {
         return nullptr;
     }
-    local value: int = 100;
-    return &value;
+    local _value: int = 100;
+    return &_value;
 }
 frame testVoidPointer() {
     printf("\nTesting void pointer:\n");

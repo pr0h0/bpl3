@@ -85,6 +85,8 @@ export class BaseCodeGenerator {
   protected useLinkOnceOdrForStdLib: boolean = false;
   protected target?: string;
   protected generateDwarf: boolean = false;
+  protected skipRuntime: boolean = false;
+  protected optimizationLevel: number = 0;
   protected debugInfoGenerator: DebugInfoGenerator;
 
   constructor(
@@ -93,12 +95,16 @@ export class BaseCodeGenerator {
       useLinkOnceOdrForStdLib?: boolean;
       target?: string;
       dwarf?: boolean;
+      skipRuntime?: boolean;
+      optimizationLevel?: number;
     } = {},
   ) {
     this.stdLibPath = options.stdLibPath;
     this.useLinkOnceOdrForStdLib = options.useLinkOnceOdrForStdLib || false;
     this.target = options.target;
     this.generateDwarf = options.dwarf || false;
+    this.skipRuntime = options.skipRuntime || false;
+    this.optimizationLevel = options.optimizationLevel || 0;
     this.debugInfoGenerator = new DebugInfoGenerator("unknown.bpl", ".");
 
     // Register built-in struct layouts

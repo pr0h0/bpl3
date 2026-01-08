@@ -93,8 +93,9 @@ async function compileAndRunExample(
 
     // Compile IR to binary using clang
     try {
+      const runtimePath = path.resolve("lib/runtime.ll");
       await execAsync(
-        `clang -o "${binFile}" "${irFile}" -Wno-override-module -lm`,
+        `clang -o "${binFile}" "${irFile}" "${runtimePath}" -Wno-override-module -lm`,
       );
     } catch (e: any) {
       return {

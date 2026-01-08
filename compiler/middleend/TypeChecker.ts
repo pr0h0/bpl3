@@ -803,17 +803,34 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       } else {
         // Field
         if (fieldNames.has(member.name)) {
+          // If member has no location (implicit or bug), try to use struct location
+          const loc = member.location ||
+            decl.location || {
+              file: "unknown",
+              startLine: 0,
+              startColumn: 0,
+              endLine: 0,
+              endColumn: 0,
+            };
           throw new CompilerError(
             `Duplicate field '${member.name}' in struct '${decl.name}'`,
             `The field '${member.name}' is defined multiple times in struct '${decl.name}'.`,
-            member.location,
+            loc,
           );
         }
         if (methodNames.has(member.name)) {
+          const loc = member.location ||
+            decl.location || {
+              file: "unknown",
+              startLine: 0,
+              startColumn: 0,
+              endLine: 0,
+              endColumn: 0,
+            };
           throw new CompilerError(
             `Field '${member.name}' conflicts with method in struct '${decl.name}'`,
             `The field '${member.name}' shares a name with a method in struct '${decl.name}'.`,
-            member.location,
+            loc,
           );
         }
         fieldNames.add(member.name);

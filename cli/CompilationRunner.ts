@@ -16,6 +16,7 @@ import {
   lexWithGrammar,
   SourceManager,
 } from "../compiler";
+import { getBplHome } from "../compiler/common/PathResolver";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
 import { compileBinaryAndRun } from "./BinaryRunner";
 import { getHostDefaults } from "./utils";
@@ -133,6 +134,20 @@ function processCodeInternal(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
+  // Inject runtime library unless skipped
+  if (!options.skipRuntime) {
+    const bplHome = getBplHome();
+    const runtimePath = path.join(bplHome, "lib", "runtime.ll");
+    if (fs.existsSync(runtimePath)) {
+      if (!options.object) {
+        options.object = [];
+      } else if (!Array.isArray(options.object)) {
+        options.object = [options.object as string];
+      }
+      (options.object as string[]).push(runtimePath);
+    }
+  }
+
   // Check if file has imports - if so, use module resolution
   const hasImports = content.includes("import ");
 
@@ -168,6 +183,7 @@ function compileWithModules(
       ? normalizeArray(options.clangFlag)
       : undefined,
     dwarf: options.dwarf,
+    optimizationLevel: options.O ? parseInt(options.O) : 0,
   });
 
   const result = compiler.compile(content);
@@ -313,6 +329,7 @@ function compileSingleFile(
   const generator = new CodeGenerator({
     target: options.target || hostDefaults.target,
     dwarf: options.dwarf,
+    optimizationLevel: options.O ? parseInt(options.O) : 0,
   });
   const ir = generator.generate(ast, filePath);
   endCodeGeneration();

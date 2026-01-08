@@ -496,31 +496,21 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
     ptrType: string,
     location: SourceLocation,
     exprStr: string,
-    msg: string,
+    _msg: string,
   ): void {
-    const isNull = this.newRegister();
-    this.emit(`  ${isNull} = icmp eq ${ptrType} ${ptrVal}, null`);
-
-    const throwLabel = this.newLabel("nullptr.throw");
-    const passLabel = this.newLabel("nullptr.pass");
-    this.emit(`  br i1 ${isNull}, label %${throwLabel}, label %${passLabel}`);
-
-    this.emit(`${throwLabel}:`);
-    const funcName = this.currentFunctionName || "unknown";
-
-    this.registerStringLiteral(msg);
-    this.registerStringLiteral(funcName);
-    this.registerStringLiteral(exprStr);
-
-    const errorStruct = this.buildNullAccessError(
-      msg,
-      funcName,
-      exprStr,
-      location,
-    );
-    this.emitThrow(errorStruct, "%struct.NullAccessError");
-
-    this.emit(`${passLabel}:`);
+    const ptrAsI8 = this.newRegister();
+    this.emit(`  ${ptrAsI8} = bitcast ${ptrType} ${ptrVal} to i8*`);
+    // For optimization levels >= 2, we skip the runtime call for performance
+    if (this.optimizationLevel < 2) {
+      const funcNameStr = this.currentFunctionName || "unknown";
+      const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
+      const exprStrPtr = this.getStringLiteralPtr(exprStr);
+      const line = location.startLine;
+      const col = location.startColumn || 0;
+      this.emit(
+        `  call void @__bpl_check_null(i8* ${ptrAsI8}, i8* ${funcNamePtr}, i8* ${exprStrPtr}, i32 ${line}, i32 ${col})`,
+      );
+    }
   }
 
   /**
@@ -648,6 +638,24 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
         const nextStruct = this.newRegister();
         this.emit(
           `  ${nextStruct} = insertvalue %struct.IndexOutOfBoundsError ${currentStruct}, i32 5, ${idx}`,
+        );
+        currentStruct = nextStruct;
+      }
+
+      if (layout.has("stack_frames")) {
+        const idx = layout.get("stack_frames");
+        const nextStruct = this.newRegister();
+        this.emit(
+          `  ${nextStruct} = insertvalue %struct.IndexOutOfBoundsError ${currentStruct}, i8** null, ${idx}`,
+        );
+        currentStruct = nextStruct;
+      }
+
+      if (layout.has("stack_depth")) {
+        const idx = layout.get("stack_depth");
+        const nextStruct = this.newRegister();
+        this.emit(
+          `  ${nextStruct} = insertvalue %struct.IndexOutOfBoundsError ${currentStruct}, i32 0, ${idx}`,
         );
         currentStruct = nextStruct;
       }

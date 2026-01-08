@@ -263,7 +263,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     const arrayContent = `[${ptrs.join(", ")}]`;
 
     this.emitDeclaration(
-      `${globalName} = constant ${arrayType} ${arrayContent}`,
+      `${globalName} = linkonce_odr constant ${arrayType} ${arrayContent}`,
     );
     this.emitDeclaration("");
   }
