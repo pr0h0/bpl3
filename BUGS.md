@@ -120,7 +120,8 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-107 | Code Generation     | Code generator fails to emit function definitions (e.g. `main`) when using `extern` or `try-catch`, causing linker errors. | Fixed    | Fixed by clearing `definedFunctions` set in `CodeGenerator.ts` to prevent stated leakage between compilations.                                                                                                                                                                           |
 | BUG-108 | Parser/Analysis     | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                 | Open     | The compiler throws `TypeError: The "path" property must be of type string` instead of a proper error message.                                                                                                                                                                           |
 | BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Open     | The type system allows taking a mutable pointer to a immutable variable without warning or error.                                                                                                                                                                                        |
-| BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Open     | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
+| BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Fixed    | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
+| BUG-111 | Inline Asm          | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                          | Open     | Placeholder replacement logic likely fails for underscores in variable names.                                                                                                                                                                                                            |
 
 ## Details
 
@@ -1300,3 +1301,24 @@ The compiler allowed taking the address of a `const` variable (`&x`), producing 
 String concatenation using the `+` operator generated invalid LLVM IR (`add` instruction on pointers), leading to bad code generation or crashes.
 
 **Resolution**: Updated `ExpressionChecker` to explicitly check for and reject string concatenation using `+`. Users should use helper functions like `string_concat` instead.
+
+### BUG-111: Inline Assembly Variable Name with Underscore
+
+**Status**: Open
+
+**Description**: Using a variable name with an underscore (e.g., `asm_res`, `my_var`) in an inline assembly block causes a compilation error. The compiler fails to replace the placeholder correctly in the generated output.
+
+**Reproduction**:
+
+```bpl
+frame main() {
+    local my_var: int = 10;
+    asm("intel") {
+        mov eax, (=my_var)
+    }
+}
+```
+
+**Generates Error**: `<inline asm>: error: unexpected token in argument list ... mov __BPL_ASM_OP_my_var...`
+
+**Workaround**: Use variable names without underscores in inline assembly (e.g., `res`, `val`).
