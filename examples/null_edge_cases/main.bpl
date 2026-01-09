@@ -1,3 +1,4 @@
+import [NullAccessError] from "std/errors.bpl";
 extern printf(fmt: string, ...);
 
 struct Inner {

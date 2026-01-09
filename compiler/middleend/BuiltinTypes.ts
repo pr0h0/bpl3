@@ -113,8 +113,14 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
     members: [
       {
         kind: "StructField",
-        name: "message",
+        name: "_vtable",
         type: createBasicType("i8", { pointerDepth: 1 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "message",
+        type: createBasicType("String"),
         location: INTERNAL_LOCATION,
       },
       {
@@ -138,13 +144,13 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "function",
-        type: createBasicType("i8", { pointerDepth: 1 }),
+        type: createBasicType("String"),
         location: INTERNAL_LOCATION,
       },
       {
         kind: "StructField",
         name: "expression",
-        type: createBasicType("i8", { pointerDepth: 1 }),
+        type: createBasicType("String"),
         location: INTERNAL_LOCATION,
       },
       {
@@ -419,8 +425,14 @@ export function createIndexOutOfBoundsErrorDecl(): AST.StructDecl {
     members: [
       {
         kind: "StructField",
-        name: "message",
+        name: "_vtable",
         type: createBasicType("i8", { pointerDepth: 1 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "message",
+        type: createBasicType("String"),
         location: INTERNAL_LOCATION,
       },
       {
@@ -467,8 +479,14 @@ export function createDivisionByZeroErrorDecl(): AST.StructDecl {
     members: [
       {
         kind: "StructField",
-        name: "message",
+        name: "_vtable",
         type: createBasicType("i8", { pointerDepth: 1 }),
+        location: INTERNAL_LOCATION,
+      },
+      {
+        kind: "StructField",
+        name: "message",
+        type: createBasicType("String"),
         location: INTERNAL_LOCATION,
       },
       {

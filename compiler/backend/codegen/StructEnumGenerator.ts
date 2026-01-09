@@ -282,6 +282,11 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     // %struct.Name = type { ... }
     const fields = this.getAllStructFields(decl);
 
+    // Ensure vtable layout is computed
+    if (!this.vtableLayouts.has(structName)) {
+      this.computeVTableLayout(structName);
+    }
+
     // Check if we need a vtable pointer
     const hasVTable =
       this.vtableLayouts.has(structName) &&

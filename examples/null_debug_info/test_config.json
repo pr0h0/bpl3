@@ -2,9 +2,9 @@
   "expectedOutput": [
     "=== Nullptr Object Debug Info Test ===",
     "About to access p.x (should trap with error)...",
-    "Caught Test 1: Attempted to access member of nullptr in testMemberAccess (expr: pointer_dereference)",
+    "Caught Test 1: Attempted to access member of nullptr in testMemberAccess (expr: p.x)",
     "About to access c.items[0] (should trap with error)...",
-    "Caught Test 2: Attempted to access member of nullptr in testIndexAccess (expr: pointer_dereference)",
+    "Caught Test 2: Attempted to access member of nullptr in testIndexAccess (expr: c.items)",
     "All tests passed!"
   ],
   "args": [],

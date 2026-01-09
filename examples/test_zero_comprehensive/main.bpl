@@ -30,7 +30,19 @@ frame main() ret int {
         local _val: int = p3.x; # Should trap here
         printf("ERROR: Should not reach here\n");
     } catch (e: NullAccessError) {
-        printf("Caught: %s in %s (expr: %s)\n", e.message, e.function, e.expression);
+        printf("Caught: %s", e.message);
+        printf(" in %s", e.function);
+        printf(" (expr: %s)\n", e.expression);
+    }
+    # Test 4: Nullptr array access (should trap)
+    printf("\nTest 4: Nullptr array access\n");
+    local arr: *int = nullptr;
+    try {
+        local _val2: int = arr[0];
+        printf("ERROR: Should not reach here\n");
+    } catch (e: NullAccessError) {
+        printf("Caught: %s", e.message);
+        printf(" (expr: %s)\n", e.expression);
     }
     printf("\nAll tests passed!\n");
     return 0;

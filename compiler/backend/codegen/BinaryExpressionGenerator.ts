@@ -719,8 +719,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     this.emit(`  br i1 ${isZero}, label %${errLabel}, label %${okLabel}`);
 
     this.emit(`${errLabel}:`);
-    const errorStruct = this.buildDivisionByZeroError();
-    this.emitThrow(errorStruct, "%struct.DivisionByZeroError");
+
+    // Call runtime
+    const funcNameStr = this.currentFunctionName || "unknown";
+    const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
+
+    // TODO: Pass actual location if available
+    this.emit(
+      `  call void @__bpl_throw_division_by_zero(i8* ${funcNamePtr}, i32 0, i32 0)`,
+    );
+    this.emit(`  unreachable`);
 
     this.emit(`${okLabel}:`);
   }

@@ -27,7 +27,7 @@ describe("CodeGen - Bounds Check", () => {
     // Check for bounds check logic
     expect(ir).toContain("icmp ult i64"); // Comparison
     expect(ir).toContain("br i1"); // Branch
-    expect(ir).toContain("%struct.IndexOutOfBoundsError"); // Error struct usage
-    expect(ir).toContain("insertvalue %struct.IndexOutOfBoundsError"); // Error construction
+    // New codegen uses a runtime function call instead of inline error construction
+    expect(ir).toContain("call void @__bpl_throw_index_out_of_bounds");
   });
 });

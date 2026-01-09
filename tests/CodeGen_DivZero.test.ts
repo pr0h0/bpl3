@@ -28,8 +28,8 @@ describe("CodeGen - Division By Zero", () => {
     expect(ir).toContain("icmp eq i32");
     expect(ir).toContain(", 0");
     expect(ir).toContain("br i1");
-    expect(ir).toContain("%struct.DivisionByZeroError");
-    expect(ir).toContain("insertvalue %struct.DivisionByZeroError");
+    // New codegen uses a runtime function call instead of inline error construction
+    expect(ir).toContain("call void @__bpl_throw_division_by_zero");
   });
 
   it("should generate zero check for modulo", () => {
@@ -42,6 +42,7 @@ describe("CodeGen - Division By Zero", () => {
     `;
     const ir = generate(source);
 
-    expect(ir).toContain("%struct.DivisionByZeroError");
+    // New codegen uses a runtime function call
+    expect(ir).toContain("call void @__bpl_throw_division_by_zero");
   });
 });

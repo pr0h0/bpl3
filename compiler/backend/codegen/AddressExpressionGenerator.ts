@@ -186,7 +186,7 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
         baseAddr,
         llvmType,
         memberExpr.location,
-        "pointer_dereference",
+        this.exprToDescription(memberExpr),
         "Attempted to access member of nullptr",
       );
     }
@@ -364,7 +364,7 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
         ptrReg,
         ptrType,
         indexExpr.location,
-        "pointer_index",
+        this.exprToDescription(indexExpr),
         "Attempted to index null pointer",
       );
     }
@@ -395,7 +395,7 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
         ptrReg,
         ptrType,
         indexExpr.location,
-        "pointer_index",
+        this.exprToDescription(indexExpr),
         "Attempted to index null pointer",
       );
     }
@@ -488,6 +488,41 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
     }
   }
 
+  protected exprToDescription(expr: AST.Expression): string {
+    if (!expr) return "unknown_expression";
+
+    switch (expr.kind) {
+      case "Identifier":
+        return (expr as AST.IdentifierExpr).name;
+      case "Member": {
+        const member = expr as AST.MemberExpr;
+        return `${this.exprToDescription(member.object)}.${member.property}`;
+      }
+      case "Index": {
+        const idx = expr as AST.IndexExpr;
+        return `${this.exprToDescription(idx.object)}[...]`;
+      }
+      case "Call": {
+        const call = expr as AST.CallExpr;
+        if (call.callee.kind === "Identifier") {
+          return `${(call.callee as AST.IdentifierExpr).name}(...)`;
+        }
+        return "call(...)";
+      }
+      case "Unary": {
+        const unary = expr as AST.UnaryExpr;
+        return `${unary.operator}${this.exprToDescription(unary.operand)}`;
+      }
+      default:
+        // Use location if available
+        if (expr.location) {
+          const col = expr.location.startColumn ?? 0;
+          return `<line:${expr.location.startLine}:${col}>`;
+        }
+        return "expression";
+    }
+  }
+
   /**
    * Emit null pointer check with throw
    */
@@ -529,15 +564,19 @@ export abstract class AddressExpressionGenerator extends TypeGenerator {
     this.emit(`  br i1 ${inBounds}, label %${passLabel}, label %${throwLabel}`);
 
     this.emit(`${throwLabel}:`);
-    const msg = "Index out of bounds";
-    this.registerStringLiteral(msg);
 
-    const errorStruct = this.buildIndexOutOfBoundsError(
-      indexVal,
-      size,
-      location,
+    const funcNameStr = this.currentFunctionName || "unknown";
+    const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
+    const line = location.startLine;
+    const col = location.startColumn || 0;
+
+    const idx32 = this.newRegister();
+    this.emit(`  ${idx32} = trunc i64 ${indexVal} to i32`);
+
+    this.emit(
+      `  call void @__bpl_throw_index_out_of_bounds(i32 ${idx32}, i32 ${size}, i8* ${funcNamePtr}, i32 ${line}, i32 ${col})`,
     );
-    this.emitThrow(errorStruct, "%struct.IndexOutOfBoundsError");
+    this.emit(`  unreachable`);
 
     this.emit(`${passLabel}:`);
   }

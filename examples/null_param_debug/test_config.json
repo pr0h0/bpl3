@@ -2,7 +2,7 @@
   "expectedOutput": [
     "Test: Passing nullptr as parameter",
     "In testParam",
-    "Caught: Attempted to access member of nullptr in testParam (expr: pointer_dereference)",
+    "Caught: Attempted to access member of nullptr in testParam (expr: d.value)",
     "Test completed"
   ],
   "args": [],

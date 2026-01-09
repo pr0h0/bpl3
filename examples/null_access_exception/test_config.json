@@ -3,7 +3,9 @@
     "Testing nullptr access exception handling",
     "Caught nullptr access exception!",
     "Message: Attempted to access member of nullptr",
-    "Function: main\nExpression: pointer_dereference\nProgram continues after catching exception\n"
+    "Function: main",
+    "Expression: p.x",
+    "Program continues after catching exception"
   ],
   "args": [],
   "env": {},

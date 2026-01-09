@@ -8,7 +8,10 @@
     "",
     "Test 3: Nullptr struct (should trap)",
     "About to access p3.x...",
-    "Caught: Attempted to access member of nullptr in main (expr: pointer_dereference)",
+    "Caught: Attempted to access member of nullptr in main (expr: p3.x)",
+    "",
+    "Test 4: Nullptr array access",
+    "Caught: Attempted to access member of nullptr (expr: arr[...])",
     "",
     "All tests passed!"
   ],

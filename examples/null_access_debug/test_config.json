@@ -3,8 +3,8 @@
     "Caught NullAccessError:",
     "Message: Attempted to access member of nullptr",
     "Function: main",
-    "Expression: pointer_dereference",
-    "Location: 13:9"
+    "Expression: p.x",
+    "Location: 15:9"
   ],
   "args": [],
   "env": {},

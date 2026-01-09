@@ -2226,6 +2226,13 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const val = this.generateExpression(arg);
       const srcType = this.resolveType(arg.resolvedType!);
 
+      // Special handling for String passed to variadic function (like printf)
+      if (funcType.isVariadic && srcType === "%struct.String") {
+        const strData = this.newRegister();
+        this.emit(`  ${strData} = extractvalue %struct.String ${val}, 0`);
+        return `i8* ${strData}`;
+      }
+
       // For variadic arguments, promote i1 to i32 (C convention)
       if (srcType === "i1" && funcType.isVariadic) {
         const promoted = this.newRegister();

@@ -99,289 +99,14 @@ export class CodeGenerator extends StatementGenerator {
       );
     };
 
-    // 1. Ensure 'Error' base struct exists (needed for vtables)
-    if (!hasStruct("Error")) {
-      const errorDecl: AST.StructDecl = {
-        kind: "StructDecl",
-        name: "Error",
-        genericParams: [],
-        inheritanceList: [],
-        members: [
-          {
-            kind: "StructField",
-            name: "message",
-            type: {
-              kind: "BasicType",
-              name: "i8",
-              genericArgs: [],
-              pointerDepth: 1,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "code",
-            type: {
-              kind: "BasicType",
-              name: "i32",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "stack_frames",
-            type: {
-              kind: "BasicType",
-              name: "void",
-              genericArgs: [],
-              pointerDepth: 2,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "stack_depth",
-            type: {
-              kind: "BasicType",
-              name: "i32",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          // toString virtual method
-          {
-            kind: "FunctionDecl",
-            isFrame: true,
-            isStatic: false,
-            name: "toString",
-            resolvedType: {
-              kind: "FunctionType",
-              returnType: {
-                kind: "BasicType",
-                name: "string",
-                genericArgs: [],
-                pointerDepth: 0,
-                arrayDimensions: [],
-                location: internalLoc,
-              },
-              paramTypes: [
-                {
-                  kind: "BasicType",
-                  name: "Error",
-                  genericArgs: [],
-                  pointerDepth: 1,
-                  arrayDimensions: [],
-                  location: internalLoc,
-                },
-              ],
-              location: internalLoc,
-            },
-            genericParams: [],
-            params: [
-              {
-                kind: "Parameter",
-                name: "this",
-                type: {
-                  kind: "BasicType",
-                  name: "Error",
-                  genericArgs: [],
-                  pointerDepth: 1,
-                  arrayDimensions: [],
-                  location: internalLoc,
-                },
-                location: internalLoc,
-              },
-            ],
-            returnType: {
-              kind: "BasicType",
-              name: "string",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            body: {
-              kind: "Block",
-              statements: [
-                {
-                  kind: "Return",
-                  value: {
-                    kind: "Literal",
-                    type: "string",
-                    value: "Error",
-                    raw: '"Error"',
-                    resolvedType: {
-                      kind: "BasicType",
-                      name: "string",
-                      genericArgs: [],
-                      pointerDepth: 0,
-                      arrayDimensions: [],
-                      location: internalLoc,
-                    },
-                    location: internalLoc,
-                  },
-                  location: internalLoc,
-                },
-              ],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-        ],
-        location: internalLoc,
-      };
-      program.statements.push(errorDecl);
-      this.structMap.set("Error", errorDecl);
-    }
-
-    // 2. Ensure NullAccessError (inherits Error)
-    if (
-      !hasStruct("NullAccessError") ||
-      (this.structMap.get("NullAccessError")!.inheritanceList || []).length ===
-        0
-    ) {
-      const errorDeclRef = this.structMap.get("Error") as AST.StructDecl;
-      const decl: AST.StructDecl = {
-        kind: "StructDecl",
-        name: "NullAccessError",
-        genericParams: [],
-        inheritanceList: [
-          {
-            kind: "BasicType",
-            name: "Error",
-            genericArgs: [],
-            location: internalLoc,
-            pointerDepth: 0,
-            arrayDimensions: [],
-            resolvedDeclaration: errorDeclRef,
-          },
-        ],
-        members: [
-          {
-            kind: "StructField",
-            name: "function",
-            type: {
-              kind: "BasicType",
-              name: "i8",
-              genericArgs: [],
-              pointerDepth: 1,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "expression",
-            type: {
-              kind: "BasicType",
-              name: "i8",
-              genericArgs: [],
-              pointerDepth: 1,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "line",
-            type: {
-              kind: "BasicType",
-              name: "i32",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "column",
-            type: {
-              kind: "BasicType",
-              name: "i32",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-        ],
-        location: internalLoc,
-      };
-      program.statements.push(decl);
-      this.structMap.set("NullAccessError", decl);
-    }
-
-    // 3. Ensure IndexOutOfBoundsError (inherits Error)
-    if (
-      !hasStruct("IndexOutOfBoundsError") ||
-      (this.structMap.get("IndexOutOfBoundsError")!.inheritanceList || [])
-        .length === 0
-    ) {
-      const decl: AST.StructDecl = {
-        kind: "StructDecl",
-        name: "IndexOutOfBoundsError",
-        genericParams: [],
-        inheritanceList: [
-          {
-            kind: "BasicType",
-            name: "Error",
-            genericArgs: [],
-            location: internalLoc,
-            pointerDepth: 0,
-            arrayDimensions: [],
-          },
-        ],
-        members: [
-          {
-            kind: "StructField",
-            name: "index",
-            type: {
-              kind: "BasicType",
-              name: "i32",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-          {
-            kind: "StructField",
-            name: "size",
-            type: {
-              kind: "BasicType",
-              name: "i32",
-              genericArgs: [],
-              pointerDepth: 0,
-              arrayDimensions: [],
-              location: internalLoc,
-            },
-            location: internalLoc,
-          },
-        ],
-        location: internalLoc,
-      };
-      program.statements.push(decl);
-      this.structMap.set("IndexOutOfBoundsError", decl);
-    }
+    /*
+     * Built-in Error Structs and Primitive Wrappers logic has been moved to runtime library
+     * and BaseCodeGenerator initialization.
+     * We no longer manually inject AST nodes for these into the program.
+     */
 
     // Inject built-in Type struct
+    /*
     if (!this.structMap.has("Type")) {
       const typeDecl = createTypeStructDecl();
       this.structMap.set("Type", typeDecl);
@@ -416,6 +141,7 @@ export class CodeGenerator extends StatementGenerator {
       this.structMap.set("String", stringDecl);
       this.generateStruct(stringDecl);
     }
+    */
 
     // Collect defined functions to avoid unnecessary declarations
     for (const stmt of program.statements) {
@@ -428,6 +154,7 @@ export class CodeGenerator extends StatementGenerator {
       // This allows generateFunction to check for redefinitions and skip if already emitted.
     }
 
+    /*
     // 4. Ensure DivisionByZeroError (inherits Error)
     if (
       !hasStruct("DivisionByZeroError") ||
@@ -481,6 +208,7 @@ export class CodeGenerator extends StatementGenerator {
       program.statements.push(decl);
       this.structMap.set("StackOverflowError", decl);
     }
+    */
 
     // Index Structs for inheritance lookup
     for (const stmt of program.statements) {
@@ -495,6 +223,7 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    /*
     // Ensure built-in errors are generated (including vtables)
     const builtinErrors = [
       "StackOverflowError",
@@ -503,40 +232,82 @@ export class CodeGenerator extends StatementGenerator {
       "IndexOutOfBoundsError",
       "EmptyError",
     ];
+    */
+
+    // Emitting layouts for built-ins is required even if we don't emit their methods.
+    // This allows LLVM to know the size and fields of these structs.
+
+    // 1. Primitives
+    const builtinPrimitives = [
+      createTypeStructDecl(),
+      createIntStructDecl(),
+      createBoolStructDecl(),
+      createDoubleStructDecl(),
+      createStringStructDecl(), // Let String be generated from stdlib source
+    ];
+    for (const decl of builtinPrimitives) {
+      if (!this.structMap.has(decl.name)) {
+        this.registerBuiltinLayout(decl);
+      }
+      this.generateStruct(this.structMap.get(decl.name)!);
+    }
+
+    // 2. Errors
+    const builtinErrorNames = [
+      "DivisionByZeroError",
+      "NullAccessError",
+      "IndexOutOfBoundsError",
+    ];
 
     this.computeVTableLayouts(program);
     this.collectStructLayouts(program);
 
-    for (const errorName of builtinErrors) {
-      if (this.structMap.has(errorName)) {
-        this.generateStruct(this.structMap.get(errorName)!);
+    for (const name of builtinErrorNames) {
+      if (this.structMap.has(name)) {
+        this.generateStruct(this.structMap.get(name)!);
       }
     }
 
-    // Standard library declarations
-    this.emitDeclaration("declare i8* @malloc(i64)");
-    this.declaredFunctions.add("malloc");
-    this.emitDeclaration("declare void @free(i8*)");
-    this.declaredFunctions.add("free");
-    this.emitDeclaration("declare void @exit(i32)");
-    this.declaredFunctions.add("exit");
-    this.emitDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
-    this.declaredFunctions.add("memcmp");
-    this.emitDeclaration("declare i32 @strcmp(i8*, i8*)");
-    this.declaredFunctions.add("strcmp");
+    for (const stmt of program.statements) {
+      this.generateTopLevel(stmt);
+    }
+
+    // Standard library declarations - Emitted AFTER user code to avoid collisions
+    if (!this.declaredFunctions.has("malloc")) {
+      this.emitDeclaration("declare i8* @malloc(i64)");
+      this.declaredFunctions.add("malloc");
+    }
+    if (!this.declaredFunctions.has("free")) {
+      this.emitDeclaration("declare void @free(i8*)");
+      this.declaredFunctions.add("free");
+    }
+    if (!this.declaredFunctions.has("exit")) {
+      this.emitDeclaration("declare void @exit(i32)");
+      this.declaredFunctions.add("exit");
+    }
+    if (!this.declaredFunctions.has("memcmp")) {
+      this.emitDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
+      this.declaredFunctions.add("memcmp");
+    }
+    if (!this.declaredFunctions.has("strcmp")) {
+      this.emitDeclaration("declare i32 @strcmp(i8*, i8*)");
+      this.declaredFunctions.add("strcmp");
+    }
 
     // fprintf and stderr for null trap error messages (kept for backward compatibility)
     this.emitDeclaration("%struct._IO_FILE = type opaque");
     this.emitDeclaration("@stderr = external global %struct._IO_FILE*");
-    this.emitDeclaration("declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)");
-    this.declaredFunctions.add("fprintf");
+    if (!this.declaredFunctions.has("fprintf")) {
+      this.emitDeclaration("declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)");
+      this.declaredFunctions.add("fprintf");
+    }
 
     // Exception Handling Primitives
     // Defer Node
     this.emitDeclaration(
       `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }`,
     );
-    this.emitDeclaration(`@defer_top = weak global %struct.DeferNode* null`);
+    this.emitDeclaration(`@defer_top = external global %struct.DeferNode*`);
 
     // jmp_buf is platform dependent. [32 x i64] is 256 bytes, sufficient for x64.
     // Added saved_defer_top to restore defer stack on catch
@@ -544,37 +315,51 @@ export class CodeGenerator extends StatementGenerator {
       `%struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }`,
     );
     this.emitDeclaration(
-      `@exception_top = weak global %struct.ExceptionFrame* null`,
+      `@exception_top = external global %struct.ExceptionFrame*`,
     );
-    this.emitDeclaration(`@exception_value = weak global i64 0`);
-    this.emitDeclaration(`@exception_type = weak global i32 0`);
-    this.emitDeclaration(`@__bpl_stack_depth = weak global i32 0`);
+    this.emitDeclaration(`@exception_value = external global i64`);
+    this.emitDeclaration(`@exception_type = external global i32`);
+    this.emitDeclaration(`@__bpl_stack_depth = external global i32`);
 
     // Global argc/argv for Args library
-    this.emitDeclaration(`@__bpl_argc_value = weak global i32 0`);
-    this.emitDeclaration(`@__bpl_argv_value = weak global i8** null`);
+    this.emitDeclaration(`@__bpl_argc_value = external global i32`);
+    this.emitDeclaration(`@__bpl_argv_value = external global i8**`);
 
-    this.emitDeclaration(`declare i32 @setjmp(i8*) returns_twice`);
-    this.declaredFunctions.add("setjmp");
-    this.emitDeclaration(`declare void @longjmp(i8*, i32) noreturn`);
-    this.declaredFunctions.add("longjmp");
+    if (!this.declaredFunctions.has("setjmp")) {
+      this.emitDeclaration(`declare i32 @setjmp(i8*) returns_twice`);
+      this.declaredFunctions.add("setjmp");
+    }
+    if (!this.declaredFunctions.has("longjmp")) {
+      this.emitDeclaration(`declare void @longjmp(i8*, i32) noreturn`);
+      this.declaredFunctions.add("longjmp");
+    }
 
     // Helper functions for accessing argc/argv
-    this.emitDeclaration(`define linkonce_odr i32 @__bpl_argc() {`);
-    this.emitDeclaration(`  %1 = load i32, i32* @__bpl_argc_value`);
-    this.emitDeclaration(`  ret i32 %1`);
-    this.emitDeclaration(`}`);
-    this.emitDeclaration(``);
+    if (!this.declaredFunctions.has("__bpl_argc")) {
+      this.emitDeclaration(`declare i32 @__bpl_argc()`);
+      this.declaredFunctions.add("__bpl_argc");
+    }
+    if (!this.declaredFunctions.has("__bpl_argv_get")) {
+      this.emitDeclaration(`declare i8* @__bpl_argv_get(i32)`);
+      this.declaredFunctions.add("__bpl_argv_get");
+    }
+
+    // Throw Helpers
+    // These internal functions are safe to emit unconditionally (namespaced)
+    this.emitDeclaration(`declare void @__bpl_throw_stack_overflow()`);
+    this.declaredFunctions.add("__bpl_throw_stack_overflow");
     this.emitDeclaration(
-      `define linkonce_odr i8* @__bpl_argv_get(i32 %index) {`,
+      `declare void @__bpl_throw_null_access(i8*, i8*, i32, i32)`,
     );
-    this.emitDeclaration(`  %1 = load i8**, i8*** @__bpl_argv_value`);
-    this.emitDeclaration(`  %2 = getelementptr i8*, i8** %1, i32 %index`);
-    this.emitDeclaration(`  %3 = load i8*, i8** %2`);
-    this.emitDeclaration(`  ret i8* %3`);
-    this.emitDeclaration(`}`);
-    this.declaredFunctions.add("__bpl_argc");
-    this.declaredFunctions.add("__bpl_argv_get");
+    this.declaredFunctions.add("__bpl_throw_null_access");
+    this.emitDeclaration(
+      `declare void @__bpl_throw_division_by_zero(i8*, i32, i32)`,
+    );
+    this.declaredFunctions.add("__bpl_throw_division_by_zero");
+    this.emitDeclaration(
+      `declare void @__bpl_throw_index_out_of_bounds(i32, i32, i8*, i32, i32)`,
+    );
+    this.declaredFunctions.add("__bpl_throw_index_out_of_bounds");
 
     // Runtime Checks Declarations
     this.emitDeclaration(`declare void @__bpl_enter_stack_frame()`);
@@ -591,38 +376,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration("");
 
     // Helper: memory zero-check function used for 'struct == null' comparisons
-    if (!this.emittedMemIsZero) {
-      this.emitDeclaration(
-        "define linkonce_odr i1 @__bpl_mem_is_zero(i8* %ptr, i64 %n) {",
-      );
-      this.emitDeclaration("entry:");
-      this.emitDeclaration("  %end = getelementptr i8, i8* %ptr, i64 %n");
-      this.emitDeclaration("  br label %loop");
-      this.emitDeclaration("loop:");
-      this.emitDeclaration(
-        "  %curr = phi i8* [ %ptr, %entry ], [ %next, %cont ]",
-      );
-      this.emitDeclaration("  %done = icmp eq i8* %curr, %end");
-      this.emitDeclaration("  br i1 %done, label %ret_true, label %check");
-      this.emitDeclaration("check:");
-      this.emitDeclaration("  %byte = load i8, i8* %curr");
-      this.emitDeclaration("  %isnz = icmp ne i8 %byte, 0");
-      this.emitDeclaration("  br i1 %isnz, label %ret_false, label %cont");
-      this.emitDeclaration("cont:");
-      this.emitDeclaration("  %next = getelementptr i8, i8* %curr, i64 1");
-      this.emitDeclaration("  br label %loop");
-      this.emitDeclaration("ret_true:");
-      this.emitDeclaration("  ret i1 1");
-      this.emitDeclaration("ret_false:");
-      this.emitDeclaration("  ret i1 0");
-      this.emitDeclaration("}");
-      this.emitDeclaration("");
-      this.emittedMemIsZero = true;
-    }
-
-    for (const stmt of program.statements) {
-      this.generateTopLevel(stmt);
-    }
+    this.emitDeclaration("declare i1 @__bpl_mem_is_zero(i8*, i64)");
 
     // Process pending lambdas and monomorphized functions iteratively
     // This is necessary because monomorphized functions might generate lambdas,

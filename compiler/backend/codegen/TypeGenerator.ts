@@ -689,6 +689,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     // Built-in Exceptions (Must match runtime.ll)
     if (typeName === "%struct.NullAccessError") return 3266311688;
     if (typeName === "%struct.StackOverflowError") return 2060636097;
+    if (typeName === "%struct.DivisionByZeroError") return 3968367666;
+    if (typeName === "%struct.IndexOutOfBoundsError") return 2320298516;
 
     if (!this.typeIdMap.has(typeName)) {
       this.typeIdMap.set(typeName, this.nextTypeId++);
