@@ -108,6 +108,36 @@ The following features are recommended for implementation next:
 - ✅ **Formatter**: Updated `Formatter` to format C-style loops.
 - ✅ **Tests**: Added `examples/c_style_loop` verifying execution and `continue` behavior.
 
+## [9] ✅ Reflection API (COMPLETED)
+
+**Description:** Provide runtime type inspection and reflection capabilities for accessing type metadata, field information, and generic type resolution.
+
+**Implementation Status:** ✅ Fully Implemented (January 2026)
+
+**What Was Implemented:**
+
+- ✅ **Metadata Generation**: `ReflectionGenerator` emits global `TypeInfo` structs for all used types, handling Structs, Arrays, Pointers, Primitives, and Enums.
+- ✅ **Runtime API**: `typeof<T>()` intrinsic returns `*TypeInfo`.
+- ✅ **Standard Library**: `std/reflection.bpl` defines `TypeInfo` and `FieldInfo` structures.
+- ✅ **Substitutions**: Fixed Generics types substitution to ensure `typeof<T>` resolves to concrete types.
+- ✅ **Enum Support**: Added metadata for Enum names and tags.
+- ✅ **Validation**: Verified with `std/json` library implementation.
+
+## [7] ✅ Standard Library: JSON & Serialization (COMPLETED)
+
+**Description:** Add support for parsing and generating JSON data using Reflection.
+
+**Implementation Status:** ✅ Fully Implemented (January 2026)
+
+**What Was Implemented:**
+
+- ✅ **Serialization**: `JSON.stringify<T>(obj)` uses reflection to serialize any struct/type to JSON string recursively.
+- ✅ **Deserialization**: `JSON.parse<T>(json)` parses JSON string and populates a new `T` instance using reflection field lookups.
+- ✅ **Type Support**: Handles Structs, Arrays (fixed), Enums (names), Pointers, Int, Float, Bool, String.
+- ✅ **Parser**: Implemented `JsonParser` in BPL.
+- ✅ **Compiler Fixes**: Resolved bugs in `inttoptr` casting and 64/32-bit integer sizing to support serialization logic.
+- ✅ **Tests**: Added `examples/json_reflection_test` covering complex nested structs and enums.
+
 ## [2] ✅ Scope Verification & Validation (COMPLETED)
 
 **Description:** Verify and document variable scoping rules.
@@ -986,24 +1016,6 @@ There are several approaches to fix this:
 
 ---
 
-## [7] Standard Library: JSON & Serialization
-
-**Description:** Add support for parsing and generating JSON data, a critical requirement for configuration and web APIs.
-
-**Implementation Notes:**
-
-- Implement `std.json.parse` returning a dynamic `JsonValue` enum variant.
-- Implement `std.json.stringify` for converting values to JSON strings.
-- (Future) Support reflection-based serialization for structs.
-
-**Acceptance Criteria:**
-
-- Can parse a JSON string into a traversable object.
-- Can serialize a `Map` or `List` to a JSON string.
-- Handles nested objects and arrays correctly.
-
----
-
 ## [7] Standard Library: Cryptography & Hashing
 
 **Description:** Provide basic cryptographic primitives and secure random number generation.
@@ -1281,30 +1293,6 @@ There are several approaches to fix this:
 - Examples demonstrate interactive exploration
 
 ---
-
-## [9] Reflection API
-
-**Description:** Provide runtime type inspection and reflection capabilities for accessing type metadata, field information, and method signatures. This enables generic serialization, dependency injection, testing frameworks, and other metaprogramming use cases.
-
-**Implementation Notes:**
-
-- Generate metadata tables during compilation for all types
-- Emit metadata into binary (special section or data)
-- Create stdlib module with reflection APIs (Type, Field, Method info)
-- Implement type ID generation and comparison
-- Support field name and offset lookup
-- Provide method signature and parameter information
-- Implement iteration over fields and methods
-- Handle inheritance and method overrides in reflection
-
-**Acceptance Criteria:**
-
-- Runtime type information available for all types
-- Can reflect on fields and get names, types, offsets
-- Can reflect on methods and get signatures
-- Iteration over type members works
-- Generic serialization can be implemented using reflection
-- Examples show reflection in action (JSON serialization, etc.)
 
 ---
 

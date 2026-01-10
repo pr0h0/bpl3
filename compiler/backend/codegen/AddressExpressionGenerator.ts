@@ -5,10 +5,10 @@
 import * as AST from "../../common/AST";
 import { CompilerError, type SourceLocation } from "../../common/CompilerError";
 import { TokenType } from "../../frontend/TokenType";
-import { TypeGenerator } from "./TypeGenerator";
+import { ReflectionGenerator } from "./ReflectionGenerator";
 import { getIntegerBitWidth } from "./utils";
 
-export abstract class AddressExpressionGenerator extends TypeGenerator {
+export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
   protected abstract generateExpression(expr: AST.Expression): string;
   protected abstract generateArrayLiteral(expr: AST.ArrayLiteralExpr): string;

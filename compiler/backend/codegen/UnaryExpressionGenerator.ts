@@ -5,7 +5,6 @@
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { TokenType } from "../../frontend/TokenType";
-import { RTTI } from "../../middleend/RTTI";
 import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 
 export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator {
@@ -380,36 +379,45 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
   ): string {
     // Ensure Any struct is defined
     if (!this.generatedStructs.has("Any")) {
-      this.declarationsOutput.push(`%struct.Any = type { i8*, i64, i64 }`);
+      // struct Any { type_info: *TypeInfo, data: u64 }
+      // %struct.TypeInfo must be defined by ReflectionGenerator or lib
+      this.declarationsOutput.push(
+        `%struct.Any = type { %struct.TypeInfo*, i64 }`,
+      );
       this.generatedStructs.add("Any");
     }
 
     const anyType = `%struct.Any`;
-    const typeId = RTTI.getTypeId(srcTypeNode).toString();
+    // Use ReflectionGenerator to get the TypeInfo global
+    const typeInfoGlobal = this.getOrCreateTypeInfo(srcTypeNode);
 
     // Pack data
     let dataVal = "0";
-    if (
+    if (srcType.startsWith("%struct.") && !srcType.endsWith("*")) {
+      // Struct value passed to Any -> spill to stack and store pointer
+      const spill = this.allocateStack(
+        `any_spill_${this.labelCount++}`,
+        srcType,
+      );
+      this.emit(`  store ${srcType} ${val}, ${srcType}* ${spill}`);
+
+      const cast = this.newRegister();
+      this.emit(`  ${cast} = ptrtoint ${srcType}* ${spill} to i64`);
+      dataVal = cast;
+    } else if (
       srcType === "i64" ||
       srcType === "u64" ||
       srcType === "double" ||
       srcType.endsWith("*") ||
-      srcType === "ptr" ||
-      srcType.startsWith("%struct.")
+      srcType === "ptr"
     ) {
       if (srcType === "double") {
         const cast = this.newRegister();
         this.emit(`  ${cast} = bitcast double ${val} to i64`);
         dataVal = cast;
-      } else if (
-        srcType.endsWith("*") ||
-        srcType === "ptr" ||
-        srcType.startsWith("%struct.")
-      ) {
+      } else if (srcType.endsWith("*") || srcType === "ptr") {
         const cast = this.newRegister();
-        let type = srcType;
-        if (srcType.startsWith("%struct.")) type += "*";
-        this.emit(`  ${cast} = ptrtoint ${type} ${val} to i64`);
+        this.emit(`  ${cast} = ptrtoint ${srcType} ${val} to i64`);
         dataVal = cast;
       } else {
         dataVal = val;
@@ -429,14 +437,12 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     }
 
     const anyVal = this.newRegister();
-    this.emit(`  ${anyVal} = insertvalue ${anyType} undef, i8* null, 0`);
-    const anyVal2 = this.newRegister();
     this.emit(
-      `  ${anyVal2} = insertvalue ${anyType} ${anyVal}, i64 ${typeId}, 1`,
+      `  ${anyVal} = insertvalue ${anyType} undef, %struct.TypeInfo* ${typeInfoGlobal}, 0`,
     );
     const finalAny = this.newRegister();
     this.emit(
-      `  ${finalAny} = insertvalue ${anyType} ${anyVal2}, i64 ${dataVal}, 2`,
+      `  ${finalAny} = insertvalue ${anyType} ${anyVal}, i64 ${dataVal}, 1`,
     );
 
     return finalAny;
@@ -470,6 +476,20 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     if (srcType.endsWith("*") && destType.endsWith("*")) {
       const reg = this.newRegister();
       this.emit(`  ${reg} = bitcast ${srcType} ${val} to ${destType}`);
+      return reg;
+    }
+
+    // Integer to Pointer (inttoptr)
+    if (srcType.startsWith("i") && destType.endsWith("*")) {
+      const reg = this.newRegister();
+      this.emit(`  ${reg} = inttoptr ${srcType} ${val} to ${destType}`);
+      return reg;
+    }
+
+    // Pointer to Integer (ptrtoint)
+    if (srcType.endsWith("*") && destType.startsWith("i")) {
+      const reg = this.newRegister();
+      this.emit(`  ${reg} = ptrtoint ${srcType} ${val} to ${destType}`);
       return reg;
     }
 
@@ -680,20 +700,6 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
 
       // Return pointer to fat pointer
       return fatPtrAlloc;
-    }
-
-    // Pointer casts
-    if (srcType.endsWith("*") && destType.endsWith("*")) {
-      this.emit(`  ${reg} = bitcast ${srcType} ${val} to ${destType}`);
-      return reg;
-    }
-    if (srcType.startsWith("i") && destType.endsWith("*")) {
-      this.emit(`  ${reg} = inttoptr ${srcType} ${val} to ${destType}`);
-      return reg;
-    }
-    if (srcType.endsWith("*") && destType.startsWith("i")) {
-      this.emit(`  ${reg} = ptrtoint ${srcType} ${val} to ${destType}`);
-      return reg;
     }
 
     // Float casts

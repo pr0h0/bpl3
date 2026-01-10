@@ -350,6 +350,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       case "Sizeof":
         type = ExprChecker.checkSizeof.call(this, expr);
         break;
+      case "TypeOf":
+        type = ExprChecker.checkTypeOf.call(this, expr);
+        break;
+      case "OffsetOf":
+        type = ExprChecker.checkOffsetOf.call(this, expr);
+        break;
       case "TypeMatch":
         type = ExprChecker.checkTypeMatch.call(this, expr);
         break;

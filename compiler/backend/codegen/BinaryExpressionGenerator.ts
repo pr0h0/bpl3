@@ -724,9 +724,15 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     const funcNameStr = this.currentFunctionName || "unknown";
     const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
 
-    // TODO: Pass actual location if available
+    let line = 0;
+    let column = 0;
+    if (this.currentStatementLocation) {
+      line = this.currentStatementLocation.startLine;
+      column = this.currentStatementLocation.startColumn || 0;
+    }
+
     this.emit(
-      `  call void @__bpl_throw_division_by_zero(i8* ${funcNamePtr}, i32 0, i32 0)`,
+      `  call void @__bpl_throw_division_by_zero(i8* ${funcNamePtr}, i32 ${line}, i32 ${column})`,
     );
     this.emit(`  unreachable`);
 

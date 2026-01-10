@@ -258,7 +258,6 @@ export class ImportHandler {
 
     // Check if file exists to avoid crashing if stdlib is missing
     if (!fs.existsSync(primitivesPath)) {
-      // console.log("Primitives file not found");
       return;
     }
 
@@ -293,7 +292,7 @@ export class ImportHandler {
         }
       }
     } catch (_e) {
-      // console.log("Error loading implicit primitives:", e);
+      // Ignore errors loading implicit primitives
     }
   }
 

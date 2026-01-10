@@ -3,7 +3,7 @@
     "--- Type Match Test ---",
     "Matched int: 42",
     "Matched string: hello",
-    "Matched unknown type"
+    "Matched unknown type: double"
   ],
   "args": [],
   "env": {},

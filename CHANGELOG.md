@@ -57,6 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - All compilation workflows now use dedicated commands for clarity
 - Enhanced `processCode` function signature to include `sourceLabel` parameter
 - Improved CLI architecture with better separation of concerns
+- **JSON Library**: Refactored `JsonParser.parseString` in `lib/json.bpl` to use flat `else if` chains instead of deep nesting, improving code readability.
 
 ### Documentation
 
@@ -83,6 +84,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Commander.js parent option inheritance issues fixed
 - Restored `--eval` and `--stdin` flags for direct code execution
 - Type definitions for all new CLI options in `cli/types.ts`
+- **Reflection Type Identification**: Fixed a bug where `double` types were incorrectly identified as `void` in `ReflectionGenerator`, ensuring correct `TypeInfo` generation and `Any` construction.
+- **Example Projects**: Fixed compilation and runtime issues in multiple existing examples:
+  - `json_io_demo`: Added missing test config and fixed imports.
+  - `jsonable_test`: Rewrote to use proper `std/json` library and fixed test config.
+  - `method_reflection_test`: Fixed standard library imports.
+  - `reflection_basic`: Fixed struct layout mismatch by importing `TypeInfo` from `std/reflection.bpl`.
+  - `type_match`: Fixed test expectation for double/float types.
 
 ### Known Limitations
 

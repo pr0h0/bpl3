@@ -10,7 +10,7 @@ struct Point {
     frame distance(this: *Point, other: *Point) ret float {
         local dx: float = this.x - other.x;
         local dy: float = this.y - other.y;
-        return sqrt(dx*dx + dy*dy);
+        return sqrt((dx * dx) + (dy * dy));
     }
 }
 
@@ -18,7 +18,7 @@ spec Drawable {
     frame draw(this: *Self);
 }
 
-struct Circle : Drawable {
+struct Circle: Drawable {
     center: Point,
     radius: float,
 
@@ -31,7 +31,7 @@ struct Circle : Drawable {
     }
 }
 
-struct Rectangle : Drawable {
+struct Rectangle: Drawable {
     top_left: Point,
     width: float,
     height: float,

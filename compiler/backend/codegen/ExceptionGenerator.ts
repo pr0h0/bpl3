@@ -322,8 +322,6 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       isError = checkInheritance(structName);
     }
 
-    // console.log("Generating throw for", typeStr, "isError:", isError);
-
     if (isError) {
       // Load the exception value (pointer to struct)
       const exVal = this.newRegister();

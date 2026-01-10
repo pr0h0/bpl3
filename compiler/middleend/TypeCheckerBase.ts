@@ -1118,6 +1118,24 @@ export abstract class TypeCheckerBase {
     const resolvedSource = this.resolveType(source);
     const resolvedTarget = this.resolveType(target);
 
+    // Allow casting TO Any from anything
+    if (
+      resolvedTarget.kind === "BasicType" &&
+      resolvedTarget.name === "Any" &&
+      resolvedTarget.pointerDepth === 0
+    ) {
+      return true;
+    }
+
+    // Allow casting FROM Any to anything (unsafe cast)
+    if (
+      resolvedSource.kind === "BasicType" &&
+      resolvedSource.name === "Any" &&
+      resolvedSource.pointerDepth === 0
+    ) {
+      return true;
+    }
+
     if (this.areTypesCompatible(resolvedSource, resolvedTarget)) {
       return true;
     }

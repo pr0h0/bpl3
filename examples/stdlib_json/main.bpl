@@ -6,8 +6,10 @@ extern printf(fmt: string, ...) ret int;
 
 frame main() ret int {
     IO.log("=== JSON Demo ===");
-    local s: String = JSON.stringifyInt(-123);
+    local val: int = -123;
+    local s: String = JSON.stringify<int>(&val);
     printf("%s\n", s.toString());
-    IO.printInt(JSON.parse("456"));
+    local parsed: *int = JSON.parse<int>("456");
+    IO.printInt(*parsed);
     return 0;
 }

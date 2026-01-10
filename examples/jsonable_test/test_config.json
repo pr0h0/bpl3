@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "Result: \"CustomJSON-User\"",
+    "Parsed ID: 999",
+    "Parsed Name: ParsedUser"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

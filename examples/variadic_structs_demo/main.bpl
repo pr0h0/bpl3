@@ -1,5 +1,6 @@
 import [IO] from "std/io.bpl";
 import [Any] from "std/type.bpl";
+import [TypeInfo] from "std/reflection.bpl";
 
 struct Point {
     x: int,
@@ -37,7 +38,7 @@ frame printMixed(args: ...Any, count: int) {
             local ptr: *int = cast<*int>(arg.data);
             IO.bpl_printf("Arg %d is *int: value=%d\n", i, *ptr);
         } else {
-            IO.bpl_printf("Arg %d is unknown type (id=%lu)\n", i, arg.type_id);
+            IO.bpl_printf("Arg %d is unknown type (name=%s)\n", i, arg.type_info.name);
         }
         i += 1;
     }

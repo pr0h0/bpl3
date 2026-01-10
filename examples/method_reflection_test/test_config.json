@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Type: User", "Methods: 1", "  - toJson"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

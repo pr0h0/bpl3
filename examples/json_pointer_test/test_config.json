@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "=== JSON Pointer Test ===",
+    "Original: {\"value\": 10, \"next\": {\"value\": 20, \"next\": null}}",
+    "Parsing...",
+    "Node 1: 10",
+    "Node 2: 20",
+    "Freeing...",
+    "Done."
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

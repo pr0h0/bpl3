@@ -338,26 +338,28 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     matchValue: string,
     _matchType: AST.BasicTypeNode,
   ): string {
-    // Any struct: { type_id: u64, data: u64 }
+    // Any struct: { type_info: *TypeInfo, data: i64 }
     const anyType = `%struct.Any`;
 
-    // Allocate space for Any value to extract fields
+    // Allocate space for Any value to extract fields (if it's passed by value)
     const anyPtr = this.newRegister();
     this.emit(`  ${anyPtr} = alloca ${anyType}`);
     this.emit(`  store ${anyType} ${matchValue}, ${anyType}* ${anyPtr}`);
 
-    // Extract type_id
-    const typeIdPtr = this.newRegister();
+    // Extract type_info (index 0)
+    const typeInfoPtr = this.newRegister();
     this.emit(
-      `  ${typeIdPtr} = getelementptr inbounds ${anyType}, ${anyType}* ${anyPtr}, i32 0, i32 1`,
+      `  ${typeInfoPtr} = getelementptr inbounds ${anyType}, ${anyType}* ${anyPtr}, i32 0, i32 0`,
     );
-    const typeId = this.newRegister();
-    this.emit(`  ${typeId} = load i64, i64* ${typeIdPtr}`);
+    const typeInfo = this.newRegister();
+    this.emit(
+      `  ${typeInfo} = load %struct.TypeInfo*, %struct.TypeInfo** ${typeInfoPtr}`,
+    );
 
-    // Extract data
+    // Extract data (index 1) - i64
     const dataPtr = this.newRegister();
     this.emit(
-      `  ${dataPtr} = getelementptr inbounds ${anyType}, ${anyType}* ${anyPtr}, i32 0, i32 2`,
+      `  ${dataPtr} = getelementptr inbounds ${anyType}, ${anyType}* ${anyPtr}, i32 0, i32 1`,
     );
     const data = this.newRegister();
     this.emit(`  ${data} = load i64, i64* ${dataPtr}`);
@@ -397,10 +399,10 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         this.emit(`  br label %${armLabel}`);
       } else if (pattern.kind === "PatternEnumTuple") {
         // Type(var) pattern
-        // Check type_id
+        // Check type_info pointer equality
         const typeName = pattern.variantName;
 
-        // Resolve type alias to match RTTI ID generation
+        // Resolve type to match RTTI generation
         const dummyType: AST.BasicTypeNode = {
           kind: "BasicType",
           name: typeName,
@@ -409,15 +411,14 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           arrayDimensions: [],
           location: expr.location,
         };
-        const llvmType = this.resolveType(dummyType);
-        const bplType = this.llvmTypeToBplType(llvmType);
 
-        // We need to get the type ID for this type
-        // This requires a helper to get type ID constant or hash
-        const targetTypeId = this.getRttiTypeId(bplType);
+        // Get the global TypeInfo* for this type
+        const targetTypeInfo = this.getOrCreateTypeInfo(dummyType);
 
         const typeCheck = this.newRegister();
-        this.emit(`  ${typeCheck} = icmp eq i64 ${typeId}, ${targetTypeId}`);
+        this.emit(
+          `  ${typeCheck} = icmp eq %struct.TypeInfo* ${typeInfo}, ${targetTypeInfo}`,
+        );
         this.emit(
           `  br i1 ${typeCheck}, label %${armLabel}, label %${nextLabel}`,
         );
@@ -450,28 +451,36 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           });
 
           // Cast data (u64) to target type
-          // If target type is smaller than 64-bit, truncate
-          // If target type is pointer, inttoptr
-          // If target type is float/double, bitcast
-
-          const castVal = this.newRegister();
+          // We need to ensure registers are created in emission order
+          let castVal: string;
 
           if (bindingType === "double") {
+            castVal = this.newRegister();
             this.emit(`  ${castVal} = bitcast i64 ${data} to double`);
           } else if (bindingType === "float") {
-            // float is 32-bit, so we need to truncate first? Or bitcast lower 32 bits?
-            // Assuming data stores bits directly.
-            // For float, we might need to trunc to i32 then bitcast
             const trunc = this.newRegister();
             this.emit(`  ${trunc} = trunc i64 ${data} to i32`);
+            castVal = this.newRegister();
             this.emit(`  ${castVal} = bitcast i32 ${trunc} to float`);
-          } else if (bindingType.endsWith("*")) {
+          } else if (
+            bindingType.startsWith("%struct.") &&
+            !bindingType.endsWith("*")
+          ) {
+            // Struct value - data is pointer to it
+            const ptrVal = this.newRegister();
+            this.emit(`  ${ptrVal} = inttoptr i64 ${data} to ${bindingType}*`);
+            castVal = this.newRegister();
+            this.emit(
+              `  ${castVal} = load ${bindingType}, ${bindingType}* ${ptrVal}`,
+            );
+          } else if (bindingType.endsWith("*") || bindingType === "i8*") {
+            castVal = this.newRegister();
             this.emit(`  ${castVal} = inttoptr i64 ${data} to ${bindingType}`);
           } else if (bindingType === "i64" || bindingType === "u64") {
-            // Integer types - no cast needed, just bitcast to be safe
+            castVal = this.newRegister();
             this.emit(`  ${castVal} = bitcast i64 ${data} to ${bindingType}`);
           } else {
-            // Integer types - truncate
+            castVal = this.newRegister();
             this.emit(`  ${castVal} = trunc i64 ${data} to ${bindingType}`);
           }
 
@@ -1217,32 +1226,38 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     if (isAny || isPtrAny) {
       // Generate runtime check
-      // 1. Get type_id from Any
-      let typeIdVal = "";
+      // 1. Get TypeInfo pointer from Any
+      let typeInfoVal = "";
       if (isAny) {
         // Extract from struct
-        // Any layout: { type_id, data } -> index 0
-        const typeIdReg = this.newRegister();
-        this.emit(`  ${typeIdReg} = extractvalue %struct.Any ${matchValue}, 0`);
-        typeIdVal = typeIdReg;
+        // Any layout: { type_info, data } -> index 0
+        const typeInfoReg = this.newRegister();
+        this.emit(
+          `  ${typeInfoReg} = extractvalue %struct.Any ${matchValue}, 0`,
+        );
+        typeInfoVal = typeInfoReg;
       } else {
         // Load from pointer
         // getelementptr %struct.Any, %struct.Any* %ptr, i32 0, i32 0
-        const typeIdPtr = this.newRegister();
+        const typeInfoPtr = this.newRegister();
         this.emit(
-          `  ${typeIdPtr} = getelementptr inbounds %struct.Any, %struct.Any* ${matchValue}, i32 0, i32 0`,
+          `  ${typeInfoPtr} = getelementptr inbounds %struct.Any, %struct.Any* ${matchValue}, i32 0, i32 0`,
         );
-        const typeIdReg = this.newRegister();
-        this.emit(`  ${typeIdReg} = load i64, i64* ${typeIdPtr}`);
-        typeIdVal = typeIdReg;
+        const typeInfoReg = this.newRegister();
+        this.emit(
+          `  ${typeInfoReg} = load %struct.TypeInfo*, %struct.TypeInfo** ${typeInfoPtr}`,
+        );
+        typeInfoVal = typeInfoReg;
       }
 
-      // 2. Get target type ID
-      const targetTypeId = RTTI.getTypeId(targetType);
+      // 2. Get target type Info Global
+      const targetTypeInfo = this.getOrCreateTypeInfo(targetType);
 
-      // 3. Compare
+      // 3. Compare pointers
       const result = this.newRegister();
-      this.emit(`  ${result} = icmp eq i64 ${typeIdVal}, ${targetTypeId}`);
+      this.emit(
+        `  ${result} = icmp eq %struct.TypeInfo* ${typeInfoVal}, ${targetTypeInfo}`,
+      );
       return result;
     }
 

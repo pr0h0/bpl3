@@ -755,6 +755,26 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       }
     }
 
+    if (calleeName === "__type_info") {
+      let genericArgs = expr.genericArgs || [];
+      if (
+        genericArgs.length === 0 &&
+        expr.callee.kind === "GenericInstantiation"
+      ) {
+        genericArgs = (expr.callee as AST.GenericInstantiationExpr).genericArgs;
+      }
+
+      if (genericArgs.length === 1) {
+        let typeArg = genericArgs[0]!;
+
+        if (this.currentTypeMap.size > 0) {
+          typeArg = this.substituteType(typeArg, this.currentTypeMap);
+        }
+        // Return the global pointer to TypeInfo
+        return this.getOrCreateTypeInfo(typeArg);
+      }
+    }
+
     let decl: any;
     // Check for enum variant constructor
     const enumVariantInfo = (expr as any).enumVariantInfo;
@@ -2304,7 +2324,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
       // Ensure Any struct is defined before we use it in variadic arrays
       if (!isHomogeneous && !this.generatedStructs.has("Any")) {
-        this.declarationsOutput.push(`%struct.Any = type { i8*, i64, i64 }`);
+        this.declarationsOutput.push(
+          `%struct.Any = type { %struct.TypeInfo*, i64 }`,
+        );
         this.generatedStructs.add("Any");
       }
 

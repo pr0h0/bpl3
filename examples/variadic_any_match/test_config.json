@@ -1,0 +1,12 @@
+{
+  "expectedOutput": [
+    "Printing 4 args:",
+    "  Arg 0: int(42)",
+    "  Arg 1: string(Hello)",
+    "  Arg 2: Point(10, 20)",
+    "  Arg 3: Point(1, 2)"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

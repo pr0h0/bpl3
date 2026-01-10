@@ -50,6 +50,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         );
       case "Sizeof":
         return this.generateSizeof(expr as AST.SizeofExpr);
+      case "TypeOf":
+        return this.generateTypeOf(expr as AST.TypeOfExpr);
+      case "OffsetOf":
+        return this.generateOffsetOf(expr as AST.OffsetOfExpr);
       case "Ternary":
         return this.generateTernary(expr as AST.TernaryExpr);
       case "Match":
@@ -1145,6 +1149,65 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const ptrReg = this.newRegister();
     this.emit(
       `  ${ptrReg} = getelementptr ${llvmType}, ${llvmType}* null, i32 1`,
+    );
+    const intReg = this.newRegister();
+    this.emit(`  ${intReg} = ptrtoint ${llvmType}* ${ptrReg} to i64`);
+    return intReg;
+  }
+
+  protected generateOffsetOf(expr: AST.OffsetOfExpr): string {
+    const targetType = expr.targetType;
+    // We assume checkOffsetOf verified it's a struct and member exists
+
+    const llvmType = this.resolveType(targetType);
+
+    // Find field index
+    const basicType = targetType as AST.BasicTypeNode;
+    // resolvedDeclaration should be present
+    const structDecl = basicType.resolvedDeclaration as AST.StructDecl;
+
+    // We iterate to find the index
+    // Note: We need to match the backend's view of fields (which matches AST usually)
+    let fieldIndex = -1;
+    let currentIdx = 0;
+    for (const member of structDecl.members) {
+      if (member.kind === "StructField") {
+        if (member.name === expr.member) {
+          fieldIndex = currentIdx;
+          break;
+        }
+        currentIdx++;
+      }
+    }
+
+    if (fieldIndex === -1) {
+      throw new CompilerError(
+        `Field ${expr.member} not found in struct during codegen`,
+        "This assumes TypeCheck passed.",
+        expr.location,
+      );
+    }
+
+    // Use structLayouts to determine the correct field index, accounting for potential hidden fields like vtables.
+    let lookupName = structDecl.name;
+    if (basicType.genericArgs.length > 0) {
+      // Mangle name
+      lookupName = this.mangleType(basicType).replace("%struct.", "");
+    }
+
+    const realLayout = this.structLayouts.get(lookupName);
+    if (realLayout && realLayout.has(expr.member)) {
+      fieldIndex = realLayout.get(expr.member)!;
+    } else if (
+      this.vtableLayouts.has(lookupName) &&
+      this.vtableLayouts.get(lookupName)!.length > 0
+    ) {
+      fieldIndex += 1; // Shift for vtable
+    }
+
+    const ptrReg = this.newRegister();
+    this.emit(
+      `  ${ptrReg} = getelementptr ${llvmType}, ${llvmType}* null, i32 0, i32 ${fieldIndex}`,
     );
     const intReg = this.newRegister();
     this.emit(`  ${intReg} = ptrtoint ${llvmType}* ${ptrReg} to i64`);

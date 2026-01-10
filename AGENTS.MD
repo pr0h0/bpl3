@@ -16,8 +16,10 @@ You are working with BPL, a statically-typed, compiled programming language that
 - **Error Handling**: `try`, `catch`, `throw`.
 - **Modules**: `import`, `export`, `from`, `as`.
 - **Types & Values**: `true`, `false`, `nullptr`, `void`, `int`, `float`, `bool`, `char`, `string`, `ushort`, `uint`, `ulong`.
-- **Operators**: `cast`, `sizeof`, `is`, `as`.
+- **Operators**: `cast`, `sizeof`, `is`, `as`, `offsetof`, `typeof`.
   - `sizeof<T>()` or `sizeof(T)` or `sizeof(expr)`
+  - `offsetof(Type, member)`
+  - `typeof<T>()` or `typeof(expr)`
 - **FFI & Low Level**: `extern`, `asm`.
 
 ### Data Types

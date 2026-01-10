@@ -1,5 +1,6 @@
 import [IO] from "std/io.bpl";
 import [Any] from "std/type.bpl";
+import [TypeInfo] from "std/reflection.bpl";
 
 frame main() ret int {
     IO.printString("--- Type Match Test ---");
@@ -26,7 +27,7 @@ frame test_match(args: ...Any, args_count: int) {
             local s: *char = cast<*char>(val.data);
             IO.bpl_printf("Matched *char: %s\n", s);
         } else {
-            IO.bpl_printf("Matched unknown type: %l\n", cast<long>(val.type_id));
+            IO.bpl_printf("Matched unknown type: %s\n", val.type_info.name);
         }
         i = i + 1;
     }

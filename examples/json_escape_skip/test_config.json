@@ -1,0 +1,8 @@
+{
+  "expectedOutput": [
+    "=== JSON Escape & Skip Test ===",
+    "Serialized: {\"name\": \"Line1\\nLine2 \\\"Quote\\\"\", \"id\": 1}",
+    "Parsed Name: Success",
+    "Parsed ID: 42"
+  ]
+}

@@ -1,6 +1,8 @@
 # BPL Standard Library - Type System Root
 # This module defines the root Type struct that all user-defined structs implicitly inherit from.
 
+import [TypeInfo] from "reflection";
+
 struct Type {
     # Virtual method to get the name of the type
     # The compiler should generate an override for this in every subclass
@@ -22,7 +24,7 @@ struct Type {
 }
 
 struct Any {
-    type_id: u64,
+    type_info: *TypeInfo,
     data: u64,
 }
 

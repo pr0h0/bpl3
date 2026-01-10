@@ -80,135 +80,13 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
-    // Register built-in NullAccessError struct
-    const internalLoc = {
-      file: "generated",
-      startLine: 0,
-      startColumn: 0,
-      endLine: 0,
-      endColumn: 0,
-    };
-
-    // Helper: Check if struct exists in program statements OR structMap
-    const hasStruct = (name: string) => {
-      return (
-        this.structMap.has(name) ||
-        program.statements.some(
-          (s) => s.kind === "StructDecl" && (s as AST.StructDecl).name === name,
-        )
-      );
-    };
-
-    /*
-     * Built-in Error Structs and Primitive Wrappers logic has been moved to runtime library
-     * and BaseCodeGenerator initialization.
-     * We no longer manually inject AST nodes for these into the program.
-     */
-
-    // Inject built-in Type struct
-    /*
-    if (!this.structMap.has("Type")) {
-      const typeDecl = createTypeStructDecl();
-      this.structMap.set("Type", typeDecl);
-
-      // Compute vtables early to ensure Type has correct layout
-      this.computeVTableLayout("Type");
-
-      this.generateStruct(typeDecl);
-    }
-
-    // Inject built-in primitive wrapper structs
-    if (!this.structMap.has("Int")) {
-      const intDecl = createIntStructDecl();
-      this.structMap.set("Int", intDecl);
-      this.generateStruct(intDecl);
-    }
-
-    if (!this.structMap.has("Bool")) {
-      const boolDecl = createBoolStructDecl();
-      this.structMap.set("Bool", boolDecl);
-      this.generateStruct(boolDecl);
-    }
-
-    if (!this.structMap.has("Double")) {
-      const doubleDecl = createDoubleStructDecl();
-      this.structMap.set("Double", doubleDecl);
-      this.generateStruct(doubleDecl);
-    }
-
-    if (!this.structMap.has("String")) {
-      const stringDecl = createStringStructDecl();
-      this.structMap.set("String", stringDecl);
-      this.generateStruct(stringDecl);
-    }
-    */
-
     // Collect defined functions to avoid unnecessary declarations
     for (const stmt of program.statements) {
       if (stmt.kind === "TypeAlias") {
         const decl = stmt as AST.TypeAliasDecl;
         this.typeAliasMap.set(decl.name, decl);
       }
-      // We do NOT add to definedFunctions here anymore.
-      // definedFunctions should only track what has actually been emitted by generateFunction.
-      // This allows generateFunction to check for redefinitions and skip if already emitted.
     }
-
-    /*
-    // 4. Ensure DivisionByZeroError (inherits Error)
-    if (
-      !hasStruct("DivisionByZeroError") ||
-      (this.structMap.get("DivisionByZeroError")!.inheritanceList || [])
-        .length === 0
-    ) {
-      const decl: AST.StructDecl = {
-        kind: "StructDecl",
-        name: "DivisionByZeroError",
-        genericParams: [],
-        inheritanceList: [
-          {
-            kind: "BasicType",
-            name: "Error",
-            genericArgs: [],
-            location: internalLoc,
-            pointerDepth: 0,
-            arrayDimensions: [],
-          },
-        ],
-        members: [],
-        location: internalLoc,
-      };
-      program.statements.push(decl);
-      this.structMap.set("DivisionByZeroError", decl);
-    }
-
-    // 5. Ensure StackOverflowError (inherits Error)
-    if (
-      !hasStruct("StackOverflowError") ||
-      (this.structMap.get("StackOverflowError")!.inheritanceList || [])
-        .length === 0
-    ) {
-      const decl: AST.StructDecl = {
-        kind: "StructDecl",
-        name: "StackOverflowError",
-        genericParams: [],
-        inheritanceList: [
-          {
-            kind: "BasicType",
-            name: "Error",
-            genericArgs: [],
-            location: internalLoc,
-            pointerDepth: 0,
-            arrayDimensions: [],
-          },
-        ],
-        members: [],
-        location: internalLoc,
-      };
-      program.statements.push(decl);
-      this.structMap.set("StackOverflowError", decl);
-    }
-    */
 
     // Index Structs for inheritance lookup
     for (const stmt of program.statements) {
@@ -222,17 +100,6 @@ export class CodeGenerator extends StatementGenerator {
         this.emitDeclaration(`%struct.${spec.name} = type opaque`);
       }
     }
-
-    /*
-    // Ensure built-in errors are generated (including vtables)
-    const builtinErrors = [
-      "StackOverflowError",
-      "DivisionByZeroError",
-      "NullAccessError",
-      "IndexOutOfBoundsError",
-      "EmptyError",
-    ];
-    */
 
     // Emitting layouts for built-ins is required even if we don't emit their methods.
     // This allows LLVM to know the size and fields of these structs.

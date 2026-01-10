@@ -126,6 +126,14 @@
     return { kind: "Sizeof", target, location: makeLoc(loc) };
   }
 
+  function typeOfNode(target, loc) {
+    return { kind: "TypeOf", target, location: makeLoc(loc) };
+  }
+
+  function offsetofNode(type, member, loc) {
+    return { kind: "OffsetOf", targetType: type, member: member, location: makeLoc(loc) };
+  }
+
   function lambdaExpression(params, returnType, body, loc) {
     return { kind: "LambdaExpression", params, returnType, body, location: makeLoc(loc) };
   }
@@ -1076,6 +1084,8 @@ Primary
   / TupleOrGrouped
   / CastExpression
   / SizeofExpression
+  / TypeOfExpression
+  / OffsetOfExpression
   / TypeMatchExpression
   / PatternMatchExpression
   / ArrayLiteral
@@ -1109,6 +1119,13 @@ SizeofExpression
   = K_sizeof _ "<" _ type:Type _ ">" _ "(" _ ")" { return sizeofNode(type, location()); }
   / K_sizeof _ "(" _ arg:(Expression / Type) _ ")" { return sizeofNode(arg, location()); }
   / K_sizeof _ "(" _ expr:Expression _ ")" { return sizeofNode(expr, location()); }
+
+TypeOfExpression
+  = K_typeof _ "<" _ type:Type _ ">" _ "(" _ ")" { return typeOfNode(type, location()); }
+  / K_typeof _ "(" _ arg:(Expression / Type) _ ")" { return typeOfNode(arg, location()); }
+
+OffsetOfExpression
+  = K_offsetof _ "(" _ type:Type _ "," _ member:Identifier _ ")" { return offsetofNode(type, member.name, location()); }
 
 TypeMatchExpression
   = K_match _ "<" _ type:Type _ ">" _ "(" _ val:(Expression / Type) _ ")" { return matchNode(type, val, location()); }
@@ -1520,6 +1537,8 @@ K_case = "case" IdBoundary
 K_default = "default" IdBoundary
 K_cast = "cast" IdBoundary
 K_sizeof = "sizeof" IdBoundary
+K_typeof = "typeof" IdBoundary
+K_offsetof = "offsetof" IdBoundary
 K_match = "match" IdBoundary
 K_is = "is" IdBoundary
 K_Func = "Func" IdBoundary
@@ -1563,6 +1582,8 @@ KeywordReserved
   / "default" IdBoundary
   / "cast" IdBoundary
   / "sizeof" IdBoundary
+  / "typeof" IdBoundary
+  / "offsetof" IdBoundary
   / "match" IdBoundary
   / "is" IdBoundary
   / "Func" IdBoundary

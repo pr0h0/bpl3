@@ -1136,6 +1136,139 @@ export function checkSizeof(
 }
 
 /**
+ * Check offsetof expression
+ */
+export function checkTypeOf(
+  this: CheckerContext,
+  expr: AST.TypeOfExpr,
+): AST.TypeNode {
+  const target = expr.target as AST.ASTNode;
+
+  if (
+    target.kind === "BasicType" ||
+    target.kind === "TupleType" ||
+    target.kind === "FunctionType" ||
+    target.kind === "LambdaType" ||
+    target.kind === "MetaType"
+  ) {
+    // Check if it's a BasicType that is actually a variable
+    let isVariable = false;
+    if (target.kind === "BasicType") {
+      const basicTarget = target as AST.BasicTypeNode;
+      const symbol = this.currentScope.resolve(basicTarget.name);
+      if (
+        symbol &&
+        (symbol.kind === "Variable" || symbol.kind === "Parameter")
+      ) {
+        isVariable = true;
+      }
+    }
+
+    if (isVariable && target.kind === "BasicType") {
+      const basicTarget = target as AST.BasicTypeNode;
+      // Treat as expression
+      // Reconstitute identifier expression
+      const idExpr: AST.IdentifierExpr = {
+        kind: "Identifier",
+        name: basicTarget.name,
+        location: basicTarget.location,
+      };
+      const type = this.checkExpression(idExpr);
+      if (!type) {
+        throw new CompilerError(
+          "Could not determine type for typeof",
+          "Expression failed type check",
+          expr.location,
+        );
+      }
+      // targetType is the type of the expression
+    } else {
+      // It is a type
+      this.resolveType(target as AST.TypeNode);
+    }
+  } else {
+    // It is an expression
+    const type = this.checkExpression(target as AST.Expression);
+    if (!type) {
+      throw new CompilerError(
+        "Could not determine type for typeof",
+        "Expression failed type check",
+        expr.location,
+      );
+    }
+  }
+
+  // Return *TypeInfo
+  return {
+    kind: "BasicType",
+    name: "TypeInfo",
+    pointerDepth: 1,
+    genericArgs: [],
+    arrayDimensions: [],
+    location: expr.location,
+  };
+}
+
+export function checkOffsetOf(
+  this: CheckerContext,
+  expr: AST.OffsetOfExpr,
+): AST.TypeNode {
+  // offsetof(Type, member)
+  const targetType = expr.targetType;
+
+  // Resolve the type
+  const resolvedType = this.resolveType(targetType);
+  expr.targetType = resolvedType; // Update in place if needed, or just use strict check below
+
+  // Must be a struct type
+  if (resolvedType.kind !== "BasicType") {
+    throw new CompilerError(
+      "offsetof requires a struct type",
+      `Got ${TypeUtils.typeToString(resolvedType)}`,
+      expr.location,
+    );
+  }
+
+  const basicType = resolvedType as AST.BasicTypeNode;
+  const decl = basicType.resolvedDeclaration;
+
+  if (!decl || decl.kind !== "StructDecl") {
+    throw new CompilerError(
+      "offsetof requires a struct type",
+      `Got ${TypeUtils.typeToString(targetType)} which is not a struct`,
+      expr.location,
+    );
+  }
+
+  const structDecl = decl as AST.StructDecl;
+
+  // Check if member exists
+  const field = structDecl.members.find(
+    (m) => m.kind === "StructField" && m.name === expr.member,
+  );
+  if (!field) {
+    throw new CompilerError(
+      `Field '${expr.member}' not found in struct '${structDecl.name}'`,
+      `Available fields: ${structDecl.members
+        .filter((m) => m.kind === "StructField")
+        .map((f) => f.name)
+        .join(", ")}`,
+      expr.location,
+    );
+  }
+
+  // Return i64 (size_t)
+  return {
+    kind: "BasicType",
+    name: "i64",
+    genericArgs: [],
+    pointerDepth: 0,
+    arrayDimensions: [],
+    location: expr.location,
+  };
+}
+
+/**
  * Check a type match expression (match<T>(value))
  */
 export function checkTypeMatch(

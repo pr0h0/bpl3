@@ -429,11 +429,11 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       switch (type.name) {
         case "i64":
         case "u64":
-        case "int":
-        case "uint":
         case "double":
         case "float":
           return 64;
+        case "int":
+        case "uint":
         case "i32":
         case "u32":
           return 32;

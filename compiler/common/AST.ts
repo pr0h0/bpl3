@@ -91,6 +91,8 @@ export type Expression =
   | EnumStructVariantExpr
   | CastExpr
   | SizeofExpr
+  | TypeOfExpr
+  | OffsetOfExpr
   | TypeMatchExpr
   | MatchExpr
   | AssignmentExpr
@@ -240,6 +242,18 @@ export interface CastExpr extends ASTNode {
 export interface SizeofExpr extends ASTNode {
   kind: "Sizeof";
   target: Expression | TypeNode;
+}
+
+export interface TypeOfExpr extends ASTNode {
+  kind: "TypeOf";
+  target: Expression | TypeNode;
+}
+
+export interface OffsetOfExpr extends ASTNode {
+  kind: "OffsetOf";
+  targetType: TypeNode;
+  member: string;
+  resolvedOffset?: number; // Calculated by TypeChecker
 }
 
 // Type match expression: match<Type>(value)

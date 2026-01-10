@@ -10,13 +10,13 @@ enum Color {
     Red,
     Green,
     Blue,
-    Custom(int, int, int)
+    Custom(int, int, int),
 }
 
 # Generic Enum
 enum Option<T> {
     Some(T),
-    None
+    None,
 }
 
 frame print_color(c: Color) {
@@ -24,8 +24,8 @@ frame print_color(c: Color) {
         Color.Red => printf("Color is Red\n"),
         Color.Green => printf("Color is Green\n"),
         Color.Blue => printf("Color is Blue\n"),
-        Color.Custom(r, g, b) => printf("Custom Color(%d, %d, %d)\n", r, g, b)
-    }
+        Color.Custom(r, g, b) => printf("Custom Color(%d, %d, %d)\n", r, g, b),
+    };
 }
 
 frame test_control_flow(n: int) {
@@ -46,14 +46,14 @@ frame test_control_flow(n: int) {
     match (n) {
         0 => printf("Zero\n"),
         x if x < 0 => printf("Negative: %d\n", x),
-        _ => printf("Positive: %d\n", n)
-    }
+        _ => printf("Positive: %d\n", n),
+    };
 }
 
 frame test_pointers_and_arrays() {
     printf("--- Pointers and Arrays ---\n");
     local x: int = 42;
-    local ptr: *int = &x; 
+    local ptr: *int = &x;
     printf("Value via pointer: %d\n", *ptr);
     *ptr = 100;
     printf("New value: %d\n", x);
@@ -63,7 +63,7 @@ frame test_pointers_and_arrays() {
     arr[0] = 10;
     arr[1] = 20;
     printf("Array elements: %d, %d\n", arr[0], arr[1]);
-    
+
     # Manual memory (using extern malloc)
     local heap_int: *int = cast<*int>(malloc(sizeof(int)));
     *heap_int = 12345;
@@ -79,8 +79,8 @@ frame test_generics() {
     local opt: Option<int> = Option.Some(55);
     match (opt) {
         Option.Some(val) => printf("Option has value: %d\n", val),
-        Option.None => printf("Option is None\n")
-    }
+        Option.None => printf("Option is None\n"),
+    };
 }
 
 frame main() ret int {
@@ -101,10 +101,7 @@ frame main() ret int {
     local p2: Point = Point { x: 3.0, y: 4.0 };
     printf("Distance: %.2f\n", p1.distance(&p2));
 
-    local c: Circle = Circle {
-        radius: 5.0,
-        center: p1
-    };
+    local c: Circle = Circle { radius: 5.0, center: p1 };
     c.draw();
     printf("Circle Area: %.2f\n", c.area());
 

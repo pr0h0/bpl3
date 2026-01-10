@@ -1,0 +1,25 @@
+{
+  "expectedOutput": [
+    "-- Test 1: Generic<int> --",
+    "Generic val is int",
+    "-- Test 2: Generic<string> --",
+    "Generic val is other",
+    "-- Test 3: Generic<Any> --",
+    "Generic val is int",
+    "Generic val is string",
+    "-- Test 4: Variadic<int> --",
+    "Processing 3 items",
+    "  Args[0] is int",
+    "  Args[1] is int",
+    "  Args[2] is int",
+    "-- Test 5: Variadic<Any> --",
+    "Processing 4 items",
+    "  Args[0] is int",
+    "  Args[1] is string",
+    "  Args[2] is int",
+    "  Args[3] is string"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

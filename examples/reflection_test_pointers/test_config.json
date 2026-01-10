@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "Field 'value' offset: 8",
+    "Value via reflection: 42",
+    "Calling method 'increment' via reflection...",
+    "New value: 43"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

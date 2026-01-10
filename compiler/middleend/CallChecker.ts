@@ -61,6 +61,35 @@ export function checkCall(
       };
     }
 
+    if (name === "__type_info") {
+      if (genericArgs.length !== 1) {
+        throw new CompilerError(
+          "Intrinsic __type_info requires exactly 1 generic argument",
+          "",
+          expr.location,
+        );
+      }
+      if (expr.args.length !== 0) {
+        throw new CompilerError(
+          "Intrinsic __type_info accepts no arguments",
+          "",
+          expr.location,
+        );
+      }
+      // Resolve the type to ensure it exists and is valid
+      this.resolveType(genericArgs[0]!);
+
+      // Return *TypeInfo type
+      return {
+        kind: "BasicType",
+        name: "TypeInfo",
+        genericArgs: [],
+        pointerDepth: 1,
+        arrayDimensions: [],
+        location: expr.location,
+      };
+    }
+
     const symbol = this.currentScope.resolve(name);
 
     if (symbol && symbol.kind === "Function") {
@@ -171,12 +200,64 @@ export function checkCall(
           continue;
 
         let match = true;
+        let variadicElementType: AST.TypeNode | undefined;
+
         for (let i = 0; i < candidate.paramTypes.length; i++) {
           const paramType = candidate.paramTypes[i]!;
           const argType = argTypes[i];
-          if (argType && !this.areTypesCompatible(paramType, argType)) {
-            match = false;
-            break;
+
+          let checkType = paramType;
+
+          // Check if this param is variadic
+          if (candidate.declaration) {
+            const decl = candidate.declaration as AST.FunctionDecl;
+            if (i < decl.params.length && decl.params[i]!.isVariadic) {
+              // Unwrap pointer for variadic param
+              if (
+                paramType.kind === "BasicType" &&
+                paramType.pointerDepth > 0
+              ) {
+                checkType = {
+                  ...paramType,
+                  pointerDepth: paramType.pointerDepth - 1,
+                };
+              }
+              variadicElementType = checkType;
+            }
+          }
+
+          if (argType) {
+            // Special handling for Any in variadic
+            const isAny =
+              checkType.kind === "BasicType" && checkType.name === "Any";
+            if (!isAny && !this.areTypesCompatible(checkType, argType)) {
+              match = false;
+              break;
+            }
+          }
+        }
+
+        // Check remaining args against variadicElementType
+        if (
+          match &&
+          variadicElementType &&
+          argTypes.length > candidate.paramTypes.length
+        ) {
+          const isAny =
+            variadicElementType.kind === "BasicType" &&
+            variadicElementType.name === "Any";
+          if (!isAny) {
+            for (
+              let j = candidate.paramTypes.length;
+              j < argTypes.length;
+              j++
+            ) {
+              // Check against variadic element type
+              if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+                match = false;
+                break;
+              }
+            }
           }
         }
 
@@ -301,12 +382,48 @@ export function checkCall(
 
         packVariadicArguments.call(this, expr, funcDecl, typeForPacking);
 
+        // Update validation type to reflect the variadic packing (T -> *T)
+        // This is necessary because packVariadicArguments transforms the arguments list
+        // to pass a pointer to the array, but the original function signature expects T (in the variadic definition).
+        const validationType = {
+          ...typeForPacking,
+          paramTypes: [...typeForPacking.paramTypes],
+        } as AST.FunctionTypeNode;
+        if (validationType.declaration) {
+          const innerDecl = validationType.declaration as AST.FunctionDecl;
+          const paramCount = innerDecl.params.length;
+          let variadicIndex = paramCount - 1;
+          // Handle (args, count) pattern where count is last
+          if (paramCount > 0 && !innerDecl.params[paramCount - 1]!.isVariadic) {
+            variadicIndex = paramCount - 2;
+          }
+
+          if (
+            variadicIndex >= 0 &&
+            variadicIndex < validationType.paramTypes.length
+          ) {
+            const variadicType = validationType.paramTypes[variadicIndex]!;
+            const paramDecl = innerDecl.params[variadicIndex];
+
+            // Only increment pointer depth if it is a standard variadic parameter (...T)
+            // Explicit variadics (*Any param) already have the correct pointer type
+            if (paramDecl && paramDecl.isVariadic) {
+              // Increment pointer depth
+              if (variadicType.kind === "BasicType") {
+                const pointerType = { ...variadicType } as AST.BasicTypeNode;
+                pointerType.pointerDepth += 1;
+                validationType.paramTypes[variadicIndex] = pointerType;
+              }
+            }
+          }
+        }
+
         // Re-compute argTypes
         const newArgTypes = expr.args.map((arg) => this.checkExpression(arg));
         return validateFunctionCall.call(
           this,
           expr,
-          typeForPacking,
+          validationType,
           newArgTypes,
         );
       }
@@ -1174,55 +1291,36 @@ function packVariadicArguments(
   if (fixedParamCount >= 0) {
     const variadicArgs = expr.args.slice(fixedParamCount);
     const fixedArgs = expr.args.slice(0, fixedParamCount);
-    const variadicParam = funcDecl.params[fixedParamCount]!;
+    // Use specialized type from funcType if available, otherwise fallback to decl type
+    const specializedVariadicType =
+      fixedParamCount < funcType.paramTypes.length
+        ? funcType.paramTypes[fixedParamCount]!
+        : funcDecl.params[fixedParamCount]!.type;
 
     let packedArgs: AST.Expression[] = variadicArgs;
 
-    // Check if Heterogeneous (Any)
-    const isVariadicAny =
-      variadicParam.type.kind === "BasicType" &&
-      variadicParam.type.name === "Any" &&
-      variadicParam.isVariadic;
+    // Check if Heterogeneous (Any) - Use specialized type to detect T=Any
+    const specializedBasic =
+      specializedVariadicType.kind === "BasicType"
+        ? (specializedVariadicType as AST.BasicTypeNode)
+        : undefined;
 
+    const isVariadicAny =
+      specializedBasic &&
+      specializedBasic.name === "Any" &&
+      // If from decl, check isVariadic. If from specialized type, isVariadic flag might be missing on TypeNode,
+      // but we know we are operating on the variadic param slot.
+      true;
+
+    // Also check for explicit *Any (e.g. T=*Any or Any*)
     const isExplicitAnyPtr =
-      variadicParam.type.kind === "BasicType" &&
-      variadicParam.type.name === "Any" &&
-      variadicParam.type.pointerDepth === 1;
+      specializedBasic &&
+      specializedBasic.name === "Any" &&
+      specializedBasic.pointerDepth === 1;
 
     if (isVariadicAny || isExplicitAnyPtr) {
       packedArgs = variadicArgs.map((arg) => {
-        // Create Any struct literal
-        // Any { type_id: __type_id<T>(), data: cast<u64>(arg) }
-        const u64Type: AST.BasicTypeNode = {
-          kind: "BasicType",
-          name: "u64",
-          genericArgs: [],
-          pointerDepth: 0,
-          arrayDimensions: [],
-          location: arg.location,
-        };
-
-        const typeIdCall: AST.CallExpr = {
-          kind: "Call",
-          callee: {
-            kind: "Identifier",
-            name: "__type_id",
-            location: arg.location,
-          },
-          args: [],
-          genericArgs: [arg.resolvedType!],
-          location: arg.location,
-          resolvedType: u64Type,
-        };
-
-        const castExpr: AST.CastExpr = {
-          kind: "Cast",
-          targetType: u64Type,
-          expression: arg,
-          location: arg.location,
-          resolvedType: u64Type,
-        };
-
+        // Create Cast<Any>(arg) expression
         const anyType: AST.BasicTypeNode = {
           kind: "BasicType",
           name: "Any",
@@ -1233,22 +1331,12 @@ function packVariadicArguments(
         };
 
         return {
-          kind: "StructLiteral",
-          structName: "Any",
-          fields: [
-            {
-              name: "type_id",
-              value: typeIdCall,
-            },
-            {
-              name: "data",
-              value: castExpr,
-            },
-          ],
-          genericArgs: [],
+          kind: "Cast",
+          targetType: anyType,
+          expression: arg,
           location: arg.location,
           resolvedType: anyType,
-        } as AST.StructLiteralExpr;
+        } as AST.CastExpr;
       });
     }
 
@@ -1257,10 +1345,16 @@ function packVariadicArguments(
       elements: packedArgs,
       location: expr.location,
       resolvedType: {
+        ...(specializedVariadicType as AST.BasicTypeNode), // preserve type info
         kind: "BasicType",
-        name: (variadicParam.type as AST.BasicTypeNode).name,
-        genericArgs: [],
-        pointerDepth: 0,
+        name: (specializedVariadicType as AST.BasicTypeNode).name,
+        genericArgs:
+          (specializedVariadicType as AST.BasicTypeNode).genericArgs || [],
+        pointerDepth: Math.max(
+          0,
+          ((specializedVariadicType as AST.BasicTypeNode).pointerDepth || 0) -
+            1,
+        ),
         arrayDimensions: [variadicArgs.length],
         location: expr.location,
       },
@@ -1269,13 +1363,13 @@ function packVariadicArguments(
     let argsPtrExpr: AST.Expression;
 
     // Determine the element type for the pointer
-    // If it's Any, we use Any. If it's T, we use T.
-    // variadicParam.type is the element type (e.g. int or Any)
-    const elementType = variadicParam.type;
-    const pointerType: AST.TypeNode = {
-      ...elementType,
-      pointerDepth: (elementType as AST.BasicTypeNode).pointerDepth + 1,
-    } as AST.TypeNode;
+    const elementType = specializedVariadicType;
+    const pointerType: AST.TypeNode = isExplicitAnyPtr
+      ? specializedVariadicType
+      : ({
+          ...elementType,
+          pointerDepth: (elementType as AST.BasicTypeNode).pointerDepth + 1,
+        } as AST.TypeNode);
 
     if (packedArgs.length === 0) {
       // Cast 0 to *T

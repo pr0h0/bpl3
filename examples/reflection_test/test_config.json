@@ -1,0 +1,12 @@
+{
+  "expectedOutput": [
+    "Offset of Point.x: 0",
+    "Offset of Point.y: 8",
+    "Offset of Node.val: 0",
+    "Offset of Node.next: 8",
+    "Offset of VTableTest.val: 8"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

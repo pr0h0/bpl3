@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "=== JSON Error Test ===",
+    "JSON Parse Error: Unexpected EOF in struct at line 2, column 12",
+    "Parse failed as expected",
+    "JSON Parse Error: Expected , or ] in skipped array at line 4, column 2",
+    "Parse failed as expected (2)",
+    "JSON Parse Error: Expected number at line 1, column 8",
+    "Parse failed as expected (3)"
+  ]
+}

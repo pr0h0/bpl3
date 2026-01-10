@@ -1,0 +1,8 @@
+{
+  "expectedOutput": [
+    "=== JSON Enum Test ===",
+    "Serialized: {\"id\": 101, \"status\": \"Active\"}",
+    "Parsed ID: 202",
+    "Status: Closed (Correct)"
+  ]
+}

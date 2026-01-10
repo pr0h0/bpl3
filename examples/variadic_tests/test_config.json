@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "Sum: 10",
+    "  Arg 1 is string: Test String",
+    "  Arg 2 is int: 456"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

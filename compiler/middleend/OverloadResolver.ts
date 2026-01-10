@@ -250,10 +250,18 @@ export class OverloadResolver {
 
       if (ft.isVariadic) {
         if (decl.kind === "FunctionDecl") {
-          // BPL Variadic: (fixed..., variadic, count)
-          // We check fixed params, then check remaining args against the element type of the variadic param
-          isBplVariadic = true;
-          paramsToCheck = ft.paramTypes.length - 2;
+          // BPL Variadic: Check params to find the variadic boundary
+          const funcDecl = decl as AST.FunctionDecl;
+          const variadicIndex = funcDecl.params.findIndex((p) => p.isVariadic);
+
+          if (variadicIndex !== -1) {
+            isBplVariadic = true;
+            paramsToCheck = variadicIndex;
+            // Fallback for signatures that might already be expanded or intrinsic
+          } else if (ft.paramTypes.length >= 2) {
+            isBplVariadic = true;
+            paramsToCheck = ft.paramTypes.length - 2;
+          }
         }
       }
 

@@ -17,6 +17,8 @@ This guide covers all operators available in BPL, their precedence, associativit
 - [Member Access](#member-access)
 - [Subscript Operator](#subscript-operator)
 - [Sizeof Operator](#sizeof-operator)
+- [Offsetof Operator](#offsetof-operator)
+- [Typeof Operator](#typeof-operator)
 
 ## Operator Precedence
 
@@ -528,6 +530,47 @@ local elem_count: int = sizeof(arr) / sizeof(int);  # 10
 - `sizeof` is evaluated at compile-time
 - Returns size in bytes
 - For arrays, returns total size, not element count
+
+## Offsetof Operator
+
+The `offsetof` operator returns the byte offset of a field within a struct declaration.
+
+```bpl
+# Syntax: offsetof(Type, member_name)
+
+struct Point {
+    x: int,
+    y: int
+}
+
+local off_x: int = offsetof(Point, x); # 0
+local off_y: int = offsetof(Point, y); # 4 (if int is i32)
+```
+
+**Important:**
+
+- Evaluated at compile-time.
+- Returns the offset in bytes from the start of the struct.
+- Useful for low-level memory operations, serialization, or FFI.
+
+## Typeof Operator
+
+The `typeof` operator returns a runtime type identifier (TypeInfo) or is used for reflection.
+
+```bpl
+# Syntax: typeof<Type>() or typeof(expression)
+
+import { TypeInfo } from "std/reflection";
+
+local info: *TypeInfo = typeof<int>();
+local info2: *TypeInfo = typeof(10 + 20);
+
+if (info.kind == TypeKind.Integer) {
+    printf("It is an integer");
+}
+```
+
+See [Reflection and JSON](55-reflection-and-json.md) for more details.
 
 ## Operator Overloading
 

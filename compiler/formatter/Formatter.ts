@@ -887,6 +887,10 @@ export class Formatter {
         return this.formatCast(expr as AST.CastExpr);
       case "Sizeof":
         return this.formatSizeof(expr as AST.SizeofExpr);
+      case "OffsetOf":
+        return this.formatOffsetOf(expr as AST.OffsetOfExpr);
+      case "TypeOf":
+        return this.formatTypeOf(expr as AST.TypeOfExpr);
       case "Match":
         return this.formatMatchExpr(expr as AST.MatchExpr);
       case "TypeMatch":
@@ -1085,6 +1089,24 @@ export class Formatter {
     return `sizeof(${this.formatExpression(target as AST.Expression)})`;
   }
 
+  private formatTypeOf(expr: AST.TypeOfExpr): string {
+    const target = expr.target as AST.ASTNode;
+    if (
+      target.kind === "BasicType" ||
+      target.kind === "TupleType" ||
+      target.kind === "FunctionType" ||
+      target.kind === "LambdaType" ||
+      target.kind === "MetaType"
+    ) {
+      return `typeof<${this.formatType(target as AST.TypeNode)}>()`;
+    }
+    return `typeof(${this.formatExpression(target as AST.Expression)})`;
+  }
+
+  private formatOffsetOf(expr: AST.OffsetOfExpr): string {
+    return `offsetof(${this.formatType(expr.targetType)}, ${expr.member})`;
+  }
+
   private formatTypeMatch(expr: AST.TypeMatchExpr): string {
     return `match<${this.formatType(expr.targetType)}>(${this.formatExpression(
       expr.value as AST.Expression,
@@ -1170,7 +1192,10 @@ export class Formatter {
         if (p.genericArgs && p.genericArgs.length > 0) {
           enumName += `<${p.genericArgs.map((t) => this.formatType(t)).join(", ")}>`;
         }
-        return `${enumName}.${p.variantName}`;
+        if (enumName.length > 0) {
+          return `${enumName}.${p.variantName}`;
+        }
+        return p.variantName;
       }
 
       case "PatternEnumTuple": {
@@ -1179,7 +1204,11 @@ export class Formatter {
         if (p.genericArgs && p.genericArgs.length > 0) {
           enumName += `<${p.genericArgs.map((t) => this.formatType(t)).join(", ")}>`;
         }
-        return `${enumName}.${p.variantName}(${p.bindings.map((b) => this.formatPattern(b)).join(", ")})`;
+        const bindings = `(${p.bindings.map((b) => this.formatPattern(b)).join(", ")})`;
+        if (enumName.length > 0) {
+          return `${enumName}.${p.variantName}${bindings}`;
+        }
+        return `${p.variantName}${bindings}`;
       }
 
       case "PatternEnumStruct": {
@@ -1191,7 +1220,10 @@ export class Formatter {
         const fields = p.fields
           .map((f) => `${f.fieldName}: ${f.binding}`)
           .join(", ");
-        return `${enumName}.${p.variantName} { ${fields} }`;
+        if (enumName.length > 0) {
+          return `${enumName}.${p.variantName} { ${fields} }`;
+        }
+        return `${p.variantName} { ${fields} }`;
       }
 
       case "PatternTuple": {
@@ -1209,7 +1241,11 @@ export class Formatter {
   }
 
   private formatStructLiteral(expr: AST.StructLiteralExpr): string {
-    let output = `${expr.structName} {`;
+    let output = `${expr.structName}`;
+    if (expr.genericArgs && expr.genericArgs.length > 0) {
+      output += `<${expr.genericArgs.map((t) => this.formatType(t)).join(", ")}>`;
+    }
+    output += " {";
     if (expr.fields.length > 0) {
       output += " ";
       output += expr.fields

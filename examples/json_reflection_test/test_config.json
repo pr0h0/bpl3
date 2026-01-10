@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "User: {\"id\": 1, \"name\": \"Alice\", \"active\": true, \"roles\": [10, 20, 30], \"status\": \"Active\"}",
+    "User Parsed: {\"id\": 1, \"name\": \"Alice\", \"active\": true, \"roles\": [10, 20, 30], \"status\": \"Active\"}",
+    "Group: {\"id\": 100, \"admin\": {\"id\": 1, \"name\": \"Alice\", \"active\": true, \"roles\": [10, 20, 30], \"status\": \"Active\"}, \"member\": {\"id\": 2, \"name\": \"Bob\", \"active\": true, \"roles\": [10, 20, 30], \"status\": \"Active\"}}"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -1,0 +1,19 @@
+{
+  "expectedOutput": [
+    "Original Config:",
+    "  ID: 101",
+    "  User: bpl_user",
+    "Serialized JSON:",
+    "{\"id\": 101, \"username\": \"bpl_user\", \"active\": true}",
+    "Successfully wrote to file: config.json",
+    "Read JSON from file:",
+    "{\"id\": 101, \"username\": \"bpl_user\", \"active\": true}",
+    "Restored Config:",
+    "  ID: 101",
+    "  User: bpl_user",
+    "  Active: true"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}
