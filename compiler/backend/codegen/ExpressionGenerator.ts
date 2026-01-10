@@ -68,10 +68,39 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         return this.generateLambda(expr as AST.LambdaExpr);
       case "Group":
         return this.generateExpression(expr.expression);
+      case "GenericInstantiation":
+        return this.generateGenericInstantiation(
+          expr as AST.GenericInstantiationExpr,
+        );
       default:
         codeGenLog.warn(`Unhandled expression kind: ${expr.kind}`);
         return "0"; // Placeholder
     }
+  }
+
+  protected generateGenericInstantiation(
+    expr: AST.GenericInstantiationExpr,
+  ): string {
+    const base = expr.base as AST.IdentifierExpr;
+    const genericArgs = expr.genericArgs;
+    const decl = (base as any).resolvedDeclaration as AST.FunctionDecl;
+
+    if (decl && decl.kind === "FunctionDecl") {
+      // Trigger instantiation and get mangled name
+      const mangledName = this.resolveMonomorphizedFunction(decl, genericArgs);
+      return `@${mangledName}`;
+    }
+
+    const funcName = base.name;
+    const mangledArgs = genericArgs
+      .map((arg) => {
+        const concrete = this.substituteType(arg, this.currentTypeMap);
+        return this.mangleType(concrete);
+      })
+      .join("_");
+
+    const mangledName = `${funcName}_${mangledArgs}`;
+    return `@${mangledName}`;
   }
 
   protected generateInterpolatedString(

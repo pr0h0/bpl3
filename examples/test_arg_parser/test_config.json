@@ -1,0 +1,15 @@
+{
+  "args": ["--", "--help"],
+  "expectedOutput": [
+    "compiler: The BPL Compiler",
+    "Usage: compiler [options] [command]",
+    "Commands:",
+    "  build        Build the project",
+    "  run          Build and run the project",
+    "  install      Install the binary",
+    "Options:",
+    "  -v, --verbose      Enable verbose output",
+    "  -V, --version      Print version info",
+    "  -h, --help         Show help output"
+  ]
+}

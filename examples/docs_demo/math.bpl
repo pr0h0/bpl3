@@ -1,3 +1,6 @@
+export [Vec2];
+export [Vec3];
+
 struct Vec2 {
     x: float,
     y: float,

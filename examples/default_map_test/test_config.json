@@ -1,0 +1,19 @@
+{
+  "expectedOutput": [
+    "--- Testing Map<int, string> ---",
+    "Has 1",
+    "Has 2",
+    "Missing 3",
+    "Value of 2: two",
+    "--- Testing Map<string, int> ---",
+    "Has apple",
+    "Value of banana: 200",
+    "Removed apple",
+    "--- Testing Set<int> ---",
+    "Set has 10",
+    "Set has 20"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

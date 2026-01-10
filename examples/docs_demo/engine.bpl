@@ -1,6 +1,8 @@
 import [Entity], [EntityType] from "./entities.bpl";
 import [Vec3] from "./math.bpl";
 
+export [GameEngine];
+
 /#
 # Game Engine
 The core system that manages the game loop and entity state.
@@ -49,6 +51,11 @@ struct GameEngine {
     #/
     frame spawnEntity(this: GameEngine, kind: EntityType, pos: Vec3) ret int {
         # Implementation omitted
+        this.tickRate = this.tickRate + cast<int>(pos.x);
+        match (kind) {
+            _ => {
+            },
+        };
         return 1;
     }
 }

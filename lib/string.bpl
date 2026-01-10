@@ -1,6 +1,6 @@
 # String standard library
 
-import [Comparable], [Equatable], [Destructible], [Cloneable] from "std/core_specs.bpl";
+import [Comparable], [Equatable], [Destructible], [Cloneable], [Hashable] from "std/core_specs.bpl";
 
 export [String];
 
@@ -12,7 +12,7 @@ extern strcat(dst: string, src: string) ret string;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 
-struct String: Comparable<String>, Cloneable<String>, Destructible {
+struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<String> {
     data: string,
     length: int,
     frame new(text: string) ret String {
@@ -33,6 +33,20 @@ struct String: Comparable<String>, Cloneable<String>, Destructible {
         this.data = nullptr;
         this.length = 0;
         return this;
+    }
+
+    frame hash(this: *String) ret u64 {
+        local h: u64 = 0xcbf29ce484222325;
+        local p: u64 = 0x100000001b3;
+        local ptr: *u8 = cast<*u8>(this.data);
+        local i: int = 0;
+        loop (i < this.length) {
+            local c: u8 = ptr[i];
+            h = h ^ cast<u64>(c);
+            h = h * p;
+            i = i + 1;
+        }
+        return h;
     }
 
     frame destroy(this: *String) {

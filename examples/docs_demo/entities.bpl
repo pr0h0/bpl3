@@ -1,5 +1,8 @@
 import [Vec2], [Vec3] from "./math.bpl";
 
+export [EntityType];
+export [Entity];
+
 /#
 # Entity Type Enum
 Defines the category of a game entity.

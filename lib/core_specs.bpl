@@ -4,6 +4,7 @@ export [Comparable];
 export [Equatable];
 export [Destructible];
 export [Cloneable];
+export [Hashable];
 
 /#
     # Equatable<T>
@@ -12,6 +13,14 @@ export [Cloneable];
 spec Equatable<T> {
     frame __eq__(this: *T, other: *T) ret bool;
     frame __ne__(this: *T, other: *T) ret bool;
+}
+
+/#
+    # Hashable<T>
+    # Types that can be hashed.
+#/
+spec Hashable<T> {
+    frame hash(this: *T) ret u64;
 }
 
 /#

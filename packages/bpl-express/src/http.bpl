@@ -33,16 +33,7 @@ struct Request {
     }
 
     frame getParam(this: *Request, key: string) ret Option<string> {
-        local i: int = 0;
-        local items: *Array<Pair<string, string>> = &this.params.items;
-        loop (i < items.len()) {
-            local p: Pair<string, string> = items.get(i);
-            if (strcmp(p.key, key) == 0) {
-                return Option<string>.Some(p.value);
-            }
-            i = i + 1;
-        }
-        return Option<string>.None;
+        return this.params.get(key);
     }
 }
 

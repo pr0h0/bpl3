@@ -14,11 +14,14 @@ frame main(argc: int, argv: *string) ret int {
     }
 
     IO.log("=== Args Demo From [Args] ===");
-    local count: int = Args.count();
+
+    local args: Args = Args.new(argc, argv);
+    local count: int = args.count();
+
     IO.printInt(count);
     local i: int = 0;
     loop (i < count) {
-        local arg: String = Args.get(i);
+        local arg: String = args.get(i);
         printf("arg[%d]: %s\n", i, arg.toString());
         i = i + 1;
     }

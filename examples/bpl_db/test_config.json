@@ -21,6 +21,7 @@
     "Saving to 'db_main.dump'...",
     "Loading into new engine...",
     "Verifying loaded data:",
+    "Results from 'users':",
     "ID: 1 | 25 100 "
   ],
   "args": [],

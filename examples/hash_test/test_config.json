@@ -1,0 +1,16 @@
+{
+  "expectedOutput": [
+    "Testing HashMap...",
+    "Has hello",
+    "Has world",
+    "Missing foo (correct)",
+    "hello = 42",
+    "Removed hello",
+    "Testing HashSet...",
+    "Set has world",
+    "Set has foo"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

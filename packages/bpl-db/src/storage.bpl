@@ -6,7 +6,8 @@ export [Database];
 import [Value], [DataType], serialize_value, deserialize_value from "./types.bpl";
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
-import [Map], [Pair] from "std/map.bpl";
+import [Map], [Pair], [MapIterator], [MapNode] from "std/map.bpl";
+import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 
@@ -116,29 +117,24 @@ struct Table {
 }
 
 struct Database {
-    tables: Map<string, Table>,
+    tables: Map<string, *Table>,
     frame new() ret Database {
         local db: Database;
-        db.tables = Map<string, Table>.new(16);
+        db.tables = Map<string, *Table>.new();
         return db;
     }
 
     frame create_table(this: *Database, name: string) ret *Table {
-        local t: Table = Table.new(name);
-        this.tables.set(name, t);
-        return this.get_table(name);
+        local t_ptr: *Table = cast<*Table>(malloc(sizeof<Table>()));
+        *t_ptr = Table.new(name);
+        this.tables.set(name, t_ptr);
+        return t_ptr;
     }
 
     frame get_table(this: *Database, name: string) ret *Table {
-        # Manually iterate to get pointer
-        local i: int = 0;
-        local n: int = this.tables.items.len();
-        loop (i < n) {
-            local p: *Pair<string, Table> = this.tables.items.getRef(i);
-            if (strcmp(p.key, name) == 0) {
-                return &p.value;
-            }
-            i = i + 1;
+        local opt: Option<*Table> = this.tables.get(name);
+        if (opt.isSome()) {
+            return opt.unwrap();
         }
         return nullptr;
     }
@@ -149,42 +145,49 @@ struct Database {
             printf("Error: Cannot open file for writing: %s\n", path);
             return;
         }
+        # Manual iteration to avoid Generic Iterator bugs
         local i: int = 0;
-        local n: int = this.tables.items.len();
+        local n: int = this.tables.buckets.len();
         loop (i < n) {
-            local p: *Pair<string, Table> = this.tables.items.getRef(i);
-            local t: *Table = &p.value;
+            local curr: *MapNode<string, *Table> = this.tables.buckets.get(i);
+            loop (curr != nullptr) {
+                local t: *Table = curr.value;
+                # local name: string = curr.key;
 
-            local buf: string = malloc(4096);
-            sprintf(buf, "TABLE %s\n", t.name);
-            f.write(buf);
+                # Check t validity (sanity check, should persist)
+                if (t != nullptr) {
+                    local buf: string = malloc(4096);
+                    sprintf(buf, "TABLE %s\n", t.name);
+                    f.write(buf);
 
-            # Columns
-            loop (local j: int = 0; j < t.columns.len(); j = j + 1) {
-                local c: Column = t.columns.get(j);
-                sprintf(buf, "COL %s %d\n", c.name, c.kind);
-                f.write(buf);
-            }
+                    # Columns
+                    loop (local j: int = 0; j < t.columns.len(); j = j + 1) {
+                        local c: Column = t.columns.get(j);
+                        sprintf(buf, "COL %s %d\n", c.name, c.kind);
+                        f.write(buf);
+                    }
 
-            # Rows
-            loop (local k: int = 0; k < t.rows.len(); k = k + 1) {
-                local r: Row = t.rows.get(k);
-                sprintf(buf, "ROW %d", r.id);
-                f.write(buf);
+                    # Rows
+                    loop (local k: int = 0; k < t.rows.len(); k = k + 1) {
+                        local r: Row = t.rows.get(k);
+                        sprintf(buf, "ROW %d", r.id);
+                        f.write(buf);
 
-                loop (local l: int = 0; l < r.values.len(); l = l + 1) {
-                    local v: Value = r.values.get(l);
-                    local s: string = serialize_value(&v);
-                    f.write(" ");
-                    f.write(s);
-                    free(s);
+                        loop (local l: int = 0; l < r.values.len(); l = l + 1) {
+                            local v: Value = r.values.get(l);
+                            local s: string = serialize_value(&v);
+                            f.write(" ");
+                            f.write(s);
+                            free(s);
+                        }
+                        f.write("\n");
+                    }
+
+                    f.write("END_TABLE\n");
+                    free(buf);
                 }
-                f.write("\n");
+                curr = curr.next;
             }
-
-            f.write("END_TABLE\n");
-            free(buf);
-
             i = i + 1;
         }
 

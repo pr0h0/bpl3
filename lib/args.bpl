@@ -3,25 +3,37 @@
 export [Args];
 
 import [String] from "std/string.bpl";
-extern __bpl_argc() ret int;
-extern __bpl_argv_get(index: int) ret string;
-extern strlen(s: string) ret int;
-extern malloc(size: long) ret string;
-extern free(ptr: string) ret void;
 
 struct Args {
-    frame count() ret int {
-        return __bpl_argc();
+    argc: int,
+    argv: *string,
+
+    frame new(argc: int, argv: *string) ret Args {
+        local a: Args;
+        a.argc = argc;
+        a.argv = argv;
+        return a;
     }
 
-    frame get(index: int) ret String {
-        local arg: string = __bpl_argv_get(index);
-        if (arg == nullptr) {
+    frame count(this: *Args) ret int {
+        return this.argc;
+    }
+
+    frame get(this: *Args, index: int) ret String {
+        if (index < 0) {
+            # Return empty
             local empty: String;
             empty.data = nullptr;
             empty.length = 0;
             return empty;
         }
-        return String.new(arg);
+        if (index >= this.argc) {
+            local empty: String;
+            empty.data = nullptr;
+            empty.length = 0;
+            return empty;
+        }
+        local raw: string = this.argv[index];
+        return String.new(raw);
     }
 }
