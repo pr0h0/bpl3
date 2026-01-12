@@ -51,7 +51,12 @@ struct ArenaAllocator: Allocator {
         # Align to 8 bytes
         if ((size % 8) != 0) 
             size = size + (cast<ulong>(8) - (size % 8));
-        # 1. Try current block
+        # 1. Large allocation: If size is > default block size, allocate separate block
+        #    This prevents a huge allocation from filling a standard block and causing fragmentation
+        if (size > this.default_block_size) {
+            return this.alloc_large(size);
+        }
+        # 2. Try current block
         if (this.current != nullptr) {
             local available: ulong = this.current.capacity - this.current.used;
             if (available >= size) {
@@ -63,12 +68,31 @@ struct ArenaAllocator: Allocator {
         return this.grow_and_alloc(size);
     }
 
-    # Internal: Allocate a new block from OS and allocate from it.
+    # Internal: Allocate a dedicated large block.
+    # Does NOT update `this.current`, but prepends to `this.head` for cleanup.
+    frame alloc_large(this: *ArenaAllocator, size: ulong) ret *void {
+        local total_req: ulong = size + sizeof(ArenaBlock);
+        local pages_needed: ulong = ((total_req + 4096) - 1) / 4096;
+        local real_size: ulong = pages_needed * 4096;
+
+        local raw_mem: *void = mmap(nullptr, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (cast<ulong>(raw_mem) == MAP_FAILED) 
+            return nullptr;
+        local new_block: *ArenaBlock = cast<*ArenaBlock>(raw_mem);
+        new_block.capacity = real_size - sizeof(ArenaBlock);
+        new_block.used = size;
+        new_block.data = cast<*u8>(cast<ulong>(new_block) + sizeof(ArenaBlock));
+
+        # Prepend to head so it gets freed
+        new_block.next = this.head;
+        this.head = new_block;
+
+        return cast<*void>(new_block.data);
+    }
+
+    # Internal: Allocate a new standard block from OS and allocate from it.
     frame grow_and_alloc(this: *ArenaAllocator, size: ulong) ret *void {
-        local alloc_size: ulong = size;
-        if (alloc_size < this.default_block_size) {
-            alloc_size = this.default_block_size;
-        }
+        local alloc_size: ulong = this.default_block_size;
         local total_req: ulong = alloc_size + sizeof(ArenaBlock);
         local pages_needed: ulong = ((total_req + 4096) - 1) / 4096;
         local real_size: ulong = pages_needed * 4096;
@@ -79,14 +103,17 @@ struct ArenaAllocator: Allocator {
         local new_block: *ArenaBlock = cast<*ArenaBlock>(raw_mem);
         new_block.capacity = real_size - sizeof(ArenaBlock);
         new_block.used = size;
-        new_block.next = nullptr;
         new_block.data = cast<*u8>(cast<ulong>(new_block) + sizeof(ArenaBlock));
 
-        if (this.head == nullptr) {
-            this.head = new_block;
+        if (this.current != nullptr) {
+            # Insert after current to keep chain
+            new_block.next = this.current.next;
+            this.current.next = new_block;
             this.current = new_block;
         } else {
-            this.current.next = new_block;
+            # Start new chain (or prepend to existing large blocks)
+            new_block.next = this.head;
+            this.head = new_block;
             this.current = new_block;
         }
 

@@ -7,19 +7,26 @@ extern printf(fmt: string, ...) ret int;
 frame main() ret int {
     IO.log("=== FS Demo ===");
     local path: string = "examples/stdlib_fs/tmp.txt";
-    local ok: bool = FS.writeFile(path, "hello");
-    local ok_i: int = 0;
+
+    # Write
+    local ok: bool = FS.writeFile(path, "Hello BPL Filesystem!");
     if (ok) {
-        ok_i = 1;
+        IO.log("Write: Success");
+    } else {
+        IO.log("Write: Failed");
     }
-    IO.printInt(ok_i);
-    local ex: bool = FS.exists(path);
-    local ex_i: int = 0;
-    if (ex) {
-        ex_i = 1;
+
+    # Exists
+    if (FS.exists(path)) {
+        IO.log("Exists: Yes");
+    } else {
+        IO.log("Exists: No");
     }
-    IO.printInt(ex_i);
+
+    # Read
     local content: String = FS.readFile(path);
-    printf("%s\n", content.toString());
+    printf("Content: %s\n", content.toString());
+    content.destroy();
+
     return 0;
 }

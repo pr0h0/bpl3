@@ -1,6 +1,7 @@
 # String standard library
 
 import [Comparable], [Equatable], [Destructible], [Cloneable], [Hashable] from "std/core_specs.bpl";
+import [Array] from "std/array.bpl";
 
 export [String];
 
@@ -192,6 +193,17 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         return strcmp(this.data, other.data) == 0;
     }
 
+    # Operator overloading: String equality with == (string literal overload)
+    frame __eq__(this: *String, other: string) ret bool {
+        if ((this.data == nullptr) && (other == nullptr)) {
+            return true;
+        }
+        if ((this.data == nullptr) || (other == nullptr)) {
+            return false;
+        }
+        return strcmp(this.data, other) == 0;
+    }
+
     # Operator overloading: String inequality with !=
     frame __ne__(this: *String, other: String) ret bool {
         return !this.__eq__(other);
@@ -276,5 +288,69 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         s.data = buf;
         s.length = strlen(buf);
         return s;
+    }
+
+    frame get(this: *String, index: int) ret char {
+        if ((index < 0) || (index >= this.length)) {
+            return cast<char>(0);
+        }
+        local ptr: *u8 = cast<*u8>(this.data);
+        return cast<char>(ptr[index]);
+    }
+
+    frame substring(this: *String, start: int, len: int) ret String {
+        local s: String;
+        if ((start < 0) || (start >= this.length)) {
+            return String.new("");
+        }
+        if (len <= 0) {
+            return String.new("");
+        }
+        local realLen: int = len;
+        if ((start + realLen) > this.length) {
+            realLen = this.length - start;
+        }
+        local buf: string = malloc(cast<long>(realLen + 1));
+        local ptr: *u8 = cast<*u8>(this.data);
+        local dest: *u8 = cast<*u8>(buf);
+        local i: int = 0;
+        loop (i < realLen) {
+            dest[i] = ptr[start + i];
+            i = i + 1;
+        }
+        dest[realLen] = cast<u8>(0);
+
+        s.data = cast<string>(dest);
+        s.length = realLen;
+        return s;
+    }
+
+    frame cstr(this: *String) ret string {
+        return this.data;
+    }
+
+    frame split(this: *String, delimiter: char) ret Array<String> {
+        local res: Array<String> = Array<String>.new(10);
+        if (this.length == 0) {
+            return res;
+        }
+        local start: int = 0;
+        local i: int = 0;
+
+        loop (i < this.length) {
+            if (this.get(i) == delimiter) {
+                local part: String = this.substring(start, i - start);
+                res.push(part);
+                start = i + 1;
+            }
+            i = i + 1;
+        }
+
+        # Add the last part
+        if (start <= this.length) {
+            local part: String = this.substring(start, this.length - start);
+            res.push(part);
+        }
+        return res;
     }
 }

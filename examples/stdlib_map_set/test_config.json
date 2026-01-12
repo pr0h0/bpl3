@@ -1,5 +1,14 @@
 {
-  "expectedOutput": ["=== Map/Set Demo ===", "10", "-1", "1", "1", "1", "0"],
+  "expectedOutput": [
+    "=== Map/Set Demo ===",
+    "Map Get(1): 10",
+    "Map Get(3): None",
+    "Set Size: 2",
+    "Set Has 7: Yes",
+    "Set Has 7 After Remove: No",
+    "String Set Size: 2",
+    "Set Has 'world': Yes"
+  ],
   "args": [],
   "env": {},
   "input": ""

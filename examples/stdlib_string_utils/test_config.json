@@ -1,16 +1,15 @@
 {
   "expectedOutput": [
     "=== String Utils Demo ===",
-    "1",
-    "1",
-    "hello world",
-    "1",
-    "a+b+c",
-    "=== String.assign & includes ===",
-    "1",
-    "goodbye",
-    "0",
-    "1"
+    "Includes 'World': Yes",
+    "Includes 'Python': No",
+    "Substring(0,5): Hello",
+    "Split Parts: 3",
+    "Part 0: Hello",
+    "Part 1: World",
+    "Part 2: BPL",
+    "StartsWith 'Hello': Yes",
+    "EndsWith 'BPL': Yes"
   ],
   "args": [],
   "env": {},

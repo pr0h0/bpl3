@@ -1,5 +1,10 @@
 {
-  "expectedOutput": ["=== FS Demo ===", "1", "1", "hello"],
+  "expectedOutput": [
+    "=== FS Demo ===",
+    "Write: Success",
+    "Exists: Yes",
+    "Content: Hello BPL Filesystem!"
+  ],
   "args": [],
   "env": {},
   "input": ""

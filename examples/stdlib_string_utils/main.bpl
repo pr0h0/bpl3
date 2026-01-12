@@ -1,53 +1,61 @@
-import [StringUtils] from "std/string_utils.bpl";
 import [String] from "std/string.bpl";
+import [Array] from "std/array.bpl";
+import [StringUtils] from "std/string_utils.bpl";
 import [IO] from "std/io.bpl";
 
 extern printf(fmt: string, ...) ret int;
 
 frame main() ret int {
     IO.log("=== String Utils Demo ===");
-    local s: string = "  hello world  ";
-    local sw: bool = StringUtils.startsWith(s, "  he");
-    local sw_i: int = 0;
-    if (sw) {
-        sw_i = 1;
-    }
-    IO.printInt(sw_i);
-    local ew: bool = StringUtils.endsWith(s, "d  ");
-    local ew_i: int = 0;
-    if (ew) {
-        ew_i = 1;
-    }
-    IO.printInt(ew_i);
-    local trimmed: String = StringUtils.trim(s);
-    printf("%s\n", trimmed.toString());
-    IO.printInt(StringUtils.find("abc", cast<char>(98)));
-    local replaced: String = StringUtils.replaceChar("a-b-c", cast<char>(45), cast<char>(43));
-    printf("%s\n", replaced.toString());
 
-    IO.log("=== String.assign & includes ===");
-    # Managed String tests for assign() and includes()
-    local m: String = String.new("hello world");
-    # includes should find substring "world"
-    local inc1: bool = m.includes("world");
-    if (inc1) {
-        IO.printInt(1);
+    local text: String = String.new("Hello World BPL");
+
+    # Includes
+    if (text.includes("World")) {
+        IO.log("Includes 'World': Yes");
     } else {
-        IO.printInt(0);
+        IO.log("Includes 'World': No");
     }
 
-    # assign a new C-string into the managed String
-    m.assign("goodbye");
-    IO.printString(m.toString());
-    # now includes should not find "world"
-    local inc2: bool = m.includes("world");
-    if (inc2) {
-        IO.printInt(1);
+    if (text.includes("Python")) {
+        IO.log("Includes 'Python': Yes");
     } else {
-        IO.printInt(0);
+        IO.log("Includes 'Python': No");
     }
 
-    # includes should find substring "good"
-    IO.printInt(m.includes("good") ? 1 : 0);
+    # Substring
+    # "Hello" is 0-5
+    local sub: String = text.substring(0, 5);
+    printf("Substring(0,5): %s\n", sub.toString());
+    sub.destroy();
+
+    # Split
+    local parts: Array<String> = text.split(cast<char>(32)); # space
+    printf("Split Parts: %d\n", parts.length);
+    local i: int = 0;
+    loop (i < parts.length) {
+        printf("Part %d: %s\n", i, parts.get(i).toString());
+        i = i + 1;
+    }
+
+    # StringUtils Module tests
+    local raw: string = text.toString();
+    if (StringUtils.startsWith(raw, "Hello")) {
+        IO.log("StartsWith 'Hello': Yes");
+    }
+    if (StringUtils.endsWith(raw, "BPL")) {
+        IO.log("EndsWith 'BPL': Yes");
+    }
+    # Cleanup
+    text.destroy();
+
+    # Manual cleanup 
+    i = 0;
+    loop (i < parts.length) {
+        parts.getRef(i).destroy();
+        i = i + 1;
+    }
+    parts.destroy();
+
     return 0;
 }

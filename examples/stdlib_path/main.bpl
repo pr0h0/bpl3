@@ -6,11 +6,44 @@ extern printf(fmt: string, ...) ret int;
 
 frame main() ret int {
     IO.log("=== Path Demo ===");
+
+    # 1. Join
     local joined: String = Path.join("/home/user", "file.txt");
-    printf("%s\n", joined.toString());
+    printf("Joined: %s\n", joined.toString());
+    joined.destroy();
+
+    # 2. Basename
     local base: String = Path.basename("/home/user/file.txt");
-    printf("%s\n", base.toString());
+    printf("Basename: %s\n", base.toString());
+    base.destroy();
+
+    # 3. Dirname
     local dir: String = Path.dirname("/home/user/file.txt");
-    printf("%s\n", dir.toString());
+    printf("Dirname: %s\n", dir.toString());
+    dir.destroy();
+
+    # 4. Normalize
+    local messy: string = "/home/user//../user/./docs";
+    local norm: String = Path.normalize(messy);
+    printf("Normalize: %s\n", norm.toString());
+    norm.destroy();
+
+    # 5. IsAbsolute
+    if (Path.isAbsolute("/home")) {
+        IO.log("IsAbsolute(/home): true");
+    } else {
+        IO.log("IsAbsolute(/home): false");
+    }
+    if (Path.isAbsolute("rel/path")) {
+        IO.log("IsAbsolute(rel/path): true");
+    } else {
+        IO.log("IsAbsolute(rel/path): false");
+    }
+
+    # 6. Resolve
+    local res: String = Path.resolve("/base/path", "../target");
+    printf("Resolve: %s\n", res.toString());
+    res.destroy();
+
     return 0;
 }

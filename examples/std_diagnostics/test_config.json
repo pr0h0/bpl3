@@ -1,0 +1,11 @@
+{
+  "description": "Standard Library Diagnostics Demo",
+  "expectedOutput": [
+    "main.bpl:2:20:",
+    "Unexpected token",
+    "2 |     local x: int = ;"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

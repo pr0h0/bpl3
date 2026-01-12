@@ -1,12 +1,12 @@
 extern printf(fmt: string, ...);
 extern malloc(size: long) ret string;
 extern free(ptr: string);
-struct Array<T> {
+struct MyArray<T> {
     data: *T,
     length: int,
     capacity: int,
-    frame new(cap: int) ret Array<T> {
-        local result: Array<T>;
+    frame new(cap: int) ret MyArray<T> {
+        local result: MyArray<T>;
         local size: long = sizeof<T>() * cast<long>(cap);
         local buffer: *T = cast<*T>(malloc(size));
         result.data = buffer;
@@ -14,7 +14,7 @@ struct Array<T> {
         result.capacity = cap;
         return result;
     }
-    frame push(this: *Array<T>, val: T) {
+    frame push(this: *MyArray<T>, val: T) {
         if (this.length < this.capacity) {
             this.data[this.length] = val;
             this.length = this.length + 1;
@@ -22,7 +22,7 @@ struct Array<T> {
             printf("Error: Array full\n");
         }
     }
-    frame pop(this: *Array<T>) ret T {
+    frame pop(this: *MyArray<T>) ret T {
         if (this.length > 0) {
             this.length = this.length - 1;
             return this.data[this.length];
@@ -31,7 +31,7 @@ struct Array<T> {
         local err: string = "Array is empty";
         throw err;
     }
-    frame forEach(this: *Array<T>, fn: Func<void>(T)) {
+    frame forEach(this: *MyArray<T>, fn: Func<void>(T)) {
         local i: int = 0;
         loop (i < this.length) {
             fn(this.data[i]);
@@ -39,8 +39,8 @@ struct Array<T> {
         }
     }
     # Map to new array (JavaScript-style)
-    frame map<U>(this: *Array<T>, fn: Func<U>(T)) ret Array<U> {
-        local result: Array<U> = Array<U>.new(this.capacity);
+    frame map<U>(this: *MyArray<T>, fn: Func<U>(T)) ret MyArray<U> {
+        local result: MyArray<U> = MyArray<U>.new(this.capacity);
         local i: int = 0;
         loop (i < this.length) {
             result.push(fn(this.data[i]));
@@ -49,8 +49,8 @@ struct Array<T> {
         return result;
     }
     # Filter to new array (JavaScript-style)
-    frame filter(this: *Array<T>, fn: Func<bool>(T)) ret Array<T> {
-        local result: Array<T> = Array<T>.new(this.capacity);
+    frame filter(this: *MyArray<T>, fn: Func<bool>(T)) ret MyArray<T> {
+        local result: MyArray<T> = MyArray<T>.new(this.capacity);
         local i: int = 0;
         loop (i < this.length) {
             local val: T = this.data[i];
@@ -61,7 +61,7 @@ struct Array<T> {
         }
         return result;
     }
-    frame destroy(this: *Array<T>) {
+    frame destroy(this: *MyArray<T>) {
         free(cast<string>(this.data));
     }
 }
@@ -76,7 +76,7 @@ frame isEven(x: int) ret bool {
     return (x % 2) == 0;
 }
 frame main() ret int {
-    local arr1: Array<int> = Array<int>.new(10);
+    local arr1: MyArray<int> = MyArray<int>.new(10);
     try {
         arr1.push(10);
         printf("Poped first value: %d\n", arr1.pop());
@@ -98,12 +98,12 @@ frame main() ret int {
     arr1.forEach(printInt);
     printf("\n");
     # Map - returns new array
-    local arr2: Array<int> = arr1.map<int>(square);
+    local arr2: MyArray<int> = arr1.map<int>(square);
     printf("Squared: ");
     arr2.forEach(printInt);
     printf("\n");
     # Filter - returns new array
-    local arr3: Array<int> = arr1.filter(isEven);
+    local arr3: MyArray<int> = arr1.filter(isEven);
     printf("Filtered (even): ");
     arr3.forEach(printInt);
     printf("\n");
