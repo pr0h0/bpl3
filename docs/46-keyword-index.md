@@ -8,7 +8,7 @@ Reserved words in BPL.
 - `if`, `else`
 - `loop`
 - `break`, `continue`
-- `switch`, `case`, `default`
+- `switch`, `case`, `default`, `fallthrough`
 - `import`, `export`
 - `try`, `catch`, `throw`
 - `local`, `global`, `const`

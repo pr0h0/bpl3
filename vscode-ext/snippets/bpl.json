@@ -65,13 +65,20 @@
       "switch (${1:expression}) {",
       "\tcase ${2:value}: {",
       "\t\t$3",
+      "\t\tbreak;",
       "\t}",
       "\tdefault: {",
       "\t\t$0",
+      "\t\tbreak;",
       "\t}",
       "}"
     ],
     "description": "Switch statement"
+  },
+  "Fallthrough": {
+    "prefix": "fallthrough",
+    "body": ["fallthrough;"],
+    "description": "Fallthrough to next case"
   },
   "Match Expression": {
     "prefix": "match",

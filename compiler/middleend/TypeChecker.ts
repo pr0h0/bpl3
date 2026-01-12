@@ -295,6 +295,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       case "Switch":
         StmtChecker.checkSwitch.call(this, stmt);
         break;
+      case "Fallthrough":
+        StmtChecker.checkFallthrough.call(this, stmt as AST.FallthroughStmt);
+        break;
       case "Asm":
         StmtChecker.checkAsm.call(this, stmt as AST.AsmBlockStmt);
         break;

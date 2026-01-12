@@ -255,6 +255,15 @@
 
 ### Medium Priority
 
+- [4] **RAII & Automatic Resource Management**
+
+  - Description: Add automatic destructor calls and ownership semantics.
+  - Implementation notes:
+    - Define `Destructible` interface in stdlib.
+    - Implement compiler pass to inject `x.destroy()` at end of scope.
+    - Implement "Move Semantics" (nullify source variable on return/assignment) to prevent double-free.
+    - Add `Unique<T>` and `Shared<T>` smart pointers.
+
 - [6] **Default and Named Arguments**
 
   - Description: Allow functions to define default values for parameters and allow callers to specify arguments by name.

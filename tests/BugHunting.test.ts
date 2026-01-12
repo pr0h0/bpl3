@@ -241,8 +241,8 @@ describe("Bug Hunting - Edge Cases", () => {
       const source = `
             frame main() {
                 switch (1) {
-                    case 1: {}
-                    case 1: {}
+                    case 1: { break; }
+                    case 1: { break; }
                 }
             }
           `;

@@ -57,7 +57,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-048 | Types               | `int` is 32-bit (4 bytes), contradicting documentation which states 64-bit.                                                | Fixed    | Updated AGENTS.MD to reflect that int is 32-bit.                                                                                                                                                                                                                                         |
 | BUG-049 | Pointers            | `cast<int>(ptr)` truncates pointers on 64-bit systems because `int` is 32-bit.                                             | Fixed    | pointers should be casted to long                                                                                                                                                                                                                                                        |
 | BUG-050 | Pointers            | `cast<int>(ptr)` dereferences the pointer instead of casting the address.                                                  | Fixed    | this tries to dereference pointer and cast it's value instead of raw pointer addrress, should we leave it like that?                                                                                                                                                                     |
-| BUG-051 | Pointers            | `cast<*T>(int)` creates a new temporary variable and returns its address, instead of casting the integer to a pointer.     | Open     | this is effectivelly &int or &T? should we be able to cast to pointer from non pointer type int->\*int, should this be handles as &int?                                                                                                                                                  |
+| BUG-051 | Pointers            | `cast<*T>(int)` creates a new temporary variable and returns its address, instead of casting the integer to a pointer.     | Fixed    | UnaryExpressionGenerator.ts now uses `inttoptr` instruction for integer-to-pointer casts.                                                                                                                                                                                                |
 | BUG-052 | Strings             | String literals containing `\0` cause a JSON Parse error in the compiler.                                                  | Fixed    | Replaced JSON.parse with custom decodeString function that properly handles \0 and other escape sequences.                                                                                                                                                                               |
 | BUG-053 | Strings             | Hex escape sequences (e.g., `\x41`) in string literals cause a JSON Parse error.                                           | Fixed    | Added hex escape parsing (\xHH format) to decodeString function in grammar.                                                                                                                                                                                                              |
 | BUG-054 | Structs             | Struct fields shadow methods with the same name, making methods uncallable.                                                | Fixed    | forbid duplicate keys no matter if its attribute or method                                                                                                                                                                                                                               |
@@ -67,10 +67,10 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-058 | Control Flow        | `switch` cases require braces `{}`. Single-statement cases are not supported.                                              | Open     | allow no braces in switch/case and allow falthrough, ending switch once we reach break or default or return                                                                                                                                                                              |
 | BUG-059 | Types               | Compiler allows `void` as a named function argument type (e.g., `frame foo(v: void)`).                                     | Fixed    |                                                                                                                                                                                                                                                                                          |
 | BUG-060 | Types               | Compiler allows arrays of `void` (e.g., `local arr: void[10]`), which is invalid as `void` has no size.                    | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-061 | Lexer               | Nested multi-line comments (`/# ... /# ... #/ ... #/`) are not supported. The first `#/` closes the comment.               | Open     | try to support it                                                                                                                                                                                                                                                                        |
+| BUG-061 | Lexer               | Nested multi-line comments (`/# ... /# ... #/ ... #/`) are not supported. The first `#/` closes the comment.               | Fixed    | The grammar now uses a recursive rule for `MultiLineComment` which correctly handles nesting.                                                                                                                                                                                            |
 | BUG-062 | Operators           | Assignment chaining (e.g., `a = b = c`) is not supported. Assignment is a statement, not an expression.                    | Open     | allow this only for assignmet, but not for declaration                                                                                                                                                                                                                                   |
 | BUG-063 | Operators           | Boolean values are implicitly promoted to integers in comparisons, allowing confusing expressions like `3 > 2 > 1`.        | Closed   | Works as designed - bool promotion is intentional. This is a logical error, not a compiler bug. Linter may add warning in the future.                                                                                                                                                    |
-| BUG-064 | FFI                 | Functions are represented as fat pointers (16 bytes) and cannot be cast to `*void`, breaking FFI compatibility with C.     | Open     | it's probably because of vtable or context for lambdas, see if we can make context be passed only to lambdas since functions are declared in top level or as struct methods, they still shoudl have access to globals but IDK?                                                           |
+| BUG-064 | FFI                 | Functions are represented as fat pointers (16 bytes) and cannot be cast to `*void`, breaking FFI compatibility with C.     | Fixed    | Func<T> is now a raw function pointer (thin), and Lambda<T> is a closure (fat). Func is C-compatible.                                                                                                                                                                                    |
 | BUG-065 | Generics            | Generic type inference for constructors is not supported (e.g., `Box.new(10)` fails). Must use `Box<int>.new(10)`.         | Open     | no inference, type is explicit and required for now, make sure generic types work for is/as match/cast syntax                                                                                                                                                                            |
 | BUG-066 | Parser              | The parser does not support empty tuples `()` in type declarations or expressions.                                         | Open     | there should be no empty tuple i guess                                                                                                                                                                                                                                                   |
 | BUG-067 | Parser              | The parser does not allow accessing tuple elements using dot notation with numbers (e.g., `tuple.0`).                      | Fixed    | Added grammar support for numeric member access (.0, .1, etc.) and implemented tuple element extraction using extractvalue in ExpressionGenerator and AddressExpressionGenerator.                                                                                                        |
@@ -118,8 +118,8 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-105 | Generics            | Infinite recursion in generic function calls (monomorphization) causes compiler hang/crash (timeout).                      | Fixed    | Added generation batch limit (50) in CodeGenerator to detect and error on infinite recursion.                                                                                                                                                                                            |
 | BUG-106 | Safety              | Escape analysis is missing; functions can return pointers to local stack variables (use-after-free).                       | Fixed    | Added check in StatementChecker to error when returning the address of a local variable or parameter.                                                                                                                                                                                    |
 | BUG-107 | Code Generation     | Code generator fails to emit function definitions (e.g. `main`) when using `extern` or `try-catch`, causing linker errors. | Fixed    | Fixed by clearing `definedFunctions` set in `CodeGenerator.ts` to prevent stated leakage between compilations.                                                                                                                                                                           |
-| BUG-108 | Parser/Analysis     | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                 | Open     | The compiler throws `TypeError: The "path" property must be of type string` instead of a proper error message.                                                                                                                                                                           |
-| BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Open     | The type system allows taking a mutable pointer to a immutable variable without warning or error.                                                                                                                                                                                        |
+| BUG-108 | Parser/Analysis     | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                 | Fixed    | TypeChecker.ts now explicitly checks for duplicate fields/methods and throws a proper CompilerError.                                                                                                                                                                                     |
+| BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Fixed    | ExpressionChecker.ts now throws a CompilerError when attempting to take the address of a constant variable.                                                                                                                                                                              |
 | BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Fixed    | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
 | BUG-111 | Inline Asm          | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                          | Open     | Placeholder replacement logic likely fails for underscores in variable names.                                                                                                                                                                                                            |
 
@@ -636,13 +636,9 @@ local addr: int = cast<int>(ptr); # addr becomes 123, not the address 0x...
 ### BUG-051: Cast Int to Pointer Creates Temporary
 
 **Category**: Pointers
+**Status**: ✅ FIXED
 **Description**: Casting an integer to a pointer (`cast<*int>(addr)`) creates a new temporary variable on the stack, stores the integer value in it, and returns the address of that temporary. It does not cast the integer value to a pointer type.
-**Reproduction**:
-
-```bpl
-local addr: int = 0x1234;
-local ptr: *int = cast<*int>(addr); # ptr points to a new stack slot containing 0x1234
-```
+**Resolution**: The `unaryExpressionGenerator.ts` now identifies integer-to-pointer casts and emits the correct `inttoptr` LLVM instruction instead of allocating temporary memory.
 
 ### BUG-052: Null Char in String Literal
 
@@ -746,16 +742,9 @@ local arr: void[10];
 ### BUG-061: Nested Comments Unsupported
 
 **Category**: Lexer
+**Status**: ✅ FIXED
 **Description**: The grammar defines multi-line comments as `/# ( .* | '\n' )*? #/`. The non-greedy match `*?` causes the comment to end at the _first_ occurrence of `#/`, making nested comments impossible.
-**Reproduction**:
-
-```bpl
-/#
-  Outer comment
-  /# Inner comment #/
-  This text is now outside the comment and causes syntax error
-#/
-```
+**Resolution**: The `bpl.peggy` grammar has been updated to use a recursive rule for `MultiLineComment`, effectively supporting arbitrarily nested comments.
 
 ### BUG-062: Assignment Chaining Unsupported
 
@@ -1286,13 +1275,19 @@ frame main() {
 
 ### BUG-108: Compiler Crash on Duplicate Struct Fields - Fixed
 
-The compiler crashed with an internal error (TypeError) when a struct definition contained duplicate fields, instead of reporting a proper error message.
+**Status**: ✅ FIXED
 
-**Resolution**: Fixed by ensuring `StructField` nodes in the AST have valid source locations in the parser (`bpl.peggy`) and adding robust null checks in `CompilerError` class.
+**Category**: Compiler Crash
+**Description**: The compiler crashed with an internal error (TypeError) when a struct definition contained duplicate fields, instead of reporting a proper error message.
+
+**Resolution**: Fixed by checking for duplicates in `TypeChecker.ts` and throwing a clean `CompilerError` instead of allowing the duplicate keys to crash the analysis phase.
 
 ### BUG-109: Const Correctness Violation - Fixed
 
-The compiler allowed taking the address of a `const` variable (`&x`), producing a mutable pointer that could be used to modify the constant value.
+**Status**: ✅ FIXED
+
+**Category**: Safety
+**Description**: The compiler allowed taking the address of a `const` variable (`&x`), producing a mutable pointer that could be used to modify the constant value.
 
 **Resolution**: Updated `ExpressionChecker` to forbid taking the address of constant variables (`isConst`). Also updated `CallChecker` to properly propagate constness when accessing members of constant structs (e.g., `&constObj.field` is now forbidden).
 

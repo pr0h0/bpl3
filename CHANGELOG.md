@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Strict Switch Semantics** - Improved control flow safety for switch statements:
+
+  - **Explicit Termination**: All `case` and `default` blocks must now strict end with a terminator (`break`, `return`, `throw`, `continue`, or `fallthrough`).
+  - **Explicit Fallthrough**: Added `fallthrough` keyword to explicitly transfer control to the next case.
+  - **Break in Switch**: Added support for standard `break` statements within switch cases (previously only allowed in loops).
+  - **Fixes**: Resolved multiple regressions in legacy tests causing implicit fallthrough or missing termination bugs.
+  - **Documentation**: Updated `docs/07-control-flow.md` and `AGENTS.MD` with new strict switch rules.
+  - **VS Code Extension**: Updated syntax highlighting and snippets to support `fallthrough`.
+  - **Formatter**: Updated code formatter to handle `fallthrough` and indent strict switch cases correctly.
+
 - **Process Execution Module** - Added `std/process.bpl`:
   - Execute commands with `exec(args...)`
   - Get status with `execStatus(args...)`

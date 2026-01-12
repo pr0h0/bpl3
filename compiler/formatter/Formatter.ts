@@ -155,6 +155,8 @@ export class Formatter {
         return this.formatThrow(stmt as AST.ThrowStmt);
       case "Switch":
         return this.formatSwitch(stmt as AST.SwitchStmt);
+      case "Fallthrough":
+        return `${indent}fallthrough;`;
       case "ExpressionStmt":
         return `${indent}${this.formatExpression((stmt as AST.ExpressionStmt).expression)};`;
       default:

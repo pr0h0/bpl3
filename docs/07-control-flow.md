@@ -357,24 +357,35 @@ loop (i <= 10) {
 
 ## Switch Statements
 
-Switch statements allow multi-way branching based on a value.
+Switch statements allow multi-way branching based on a value. BPL requires explicit termination for every case block.
+
+### Strict Termination
+
+Each case in a `switch` statement must end with a terminator:
+
+- `break`: Exit the switch statement.
+- `fallthrough`: Explicitly continue execution to the next case.
+- `return`, `throw`, `continue`: Other standard control flow terminators.
+
+This prevents accidental fallthrough bugs common in C-like languages.
 
 ### Basic Switch
 
 ```bpl
 local expression: int = 1;
-# local const constant1: int = 1;
-# local const constant2: int = 2;
 
 switch (expression) {
     case 1: {
         # Execute if expression == 1
+        break;
     }
     case 2: {
         # Execute if expression == 2
+        break;
     }
     default: {
         # Execute if no case matches
+        break;
     }
 }
 ```
@@ -387,27 +398,58 @@ local day: int = 3;
 switch (day) {
     case 1: {
         printf("Monday\n");
+        break;
     }
     case 2: {
         printf("Tuesday\n");
+        break;
     }
     case 3: {
         printf("Wednesday\n");
+        break;
     }
     case 4: {
         printf("Thursday\n");
+        break;
     }
     case 5: {
         printf("Friday\n");
+        break;
     }
     case 6: {
         printf("Saturday\n");
+        break;
     }
     case 7: {
         printf("Sunday\n");
+        break;
     }
     default: {
         printf("Invalid day\n");
+        break;
+    }
+}
+```
+
+### Fallthrough
+
+To share code between cases or explicitly fall through, use the `fallthrough` keyword:
+
+```bpl
+switch (x) {
+    case 1:
+    case 2:
+    case 3: {
+        printf("1, 2, or 3\n");
+        break;
+    }
+    case 4: {
+        printf("4");
+        fallthrough;
+    }
+    case 5: {
+        printf(" (and maybe 5)\n");
+        break;
     }
 }
 ```
@@ -423,18 +465,23 @@ local result: int = 0;
 switch (op) {
     case '+': {
         result = a + b;
+        break;
     }
     case '-': {
         result = a - b;
+        break;
     }
     case '*': {
         result = a * b;
+        break;
     }
     case '/': {
         result = a / b;
+        break;
     }
     default: {
         printf("Unknown operator\n");
+        break;
     }
 }
 ```
@@ -454,9 +501,11 @@ local value: int = 1;
 switch (value) {
     case 1: {
         handleOne();
+        break;
     }
     case 2: {
         handleTwo();
+        break;
     }
 }
 
@@ -464,12 +513,15 @@ switch (value) {
 switch (value) {
     case 1: {
         handleOne();
+        break;
     }
     case 2: {
         handleTwo();
+        break;
     }
     default: {
         handleUnexpected();
+        break;
     }
 }
 ```
@@ -485,8 +537,10 @@ local option: int = 1;
 
 switch (option) {
     case 1: { # OK: literal
+        break;
     }
     case 2: { # OK: literal
+        break;
     }
     # case x + 1: {    # ERROR: not a constant expression
     # }

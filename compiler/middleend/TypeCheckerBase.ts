@@ -36,6 +36,7 @@ export abstract class TypeCheckerBase {
   public errors: CompilerError[] = [];
   public collectAllErrors: boolean = true;
   public loopDepth: number = 0;
+  public switchDepth: number = 0;
   public inDefer: boolean = false;
 
   // Track type alias resolution to detect cycles

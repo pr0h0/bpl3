@@ -804,6 +804,25 @@ There are several approaches to fix this:
 
 ### Medium Priority
 
+## [4] RAII & Automatic Resource Management
+
+**Description:** Implement standard RAII (Resource Acquisition Is Initialization) semantics. This ensures automatic resource cleanup (memory, file handles) when variables go out of scope, improving robustness and preventing leaks.
+
+**Implementation Notes:**
+
+- Define `Destructible` interface in stdlib
+- Auto-inject `destroy()` calls at scope exit (return/break/continue/})
+- Implement move semantics to handle returns safely
+- Add `Unique<T>` and `Shared<T>` smart pointers
+
+**Acceptance Criteria:**
+
+- Strings and File handles are automatically closed/freed at end of scope
+- Returning a `String` does not double-free it
+- `Unique<T>` manages heap memory safely without leak
+
+---
+
 ## [7] Standard Library: Structured Logging
 
 **Description:** Implement a structured logging module in the standard library. This allows applications to emit logs with different severity levels (Info, Warn, Error, Debug) and structured data, which is essential for monitoring and debugging production applications.

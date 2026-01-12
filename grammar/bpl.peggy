@@ -539,6 +539,7 @@ Statement
   / SwitchStatement
   / BreakStatement
   / ContinueStatement
+  / FallthroughStatement
   / DeferStatement
   / ErrorRecovery
 
@@ -841,17 +842,51 @@ CatchOther
 ThrowStatement
   = K_throw _ expr:Expression _ ";" { return throwStmt(expr, location()); }
 
+FallthroughStatement
+  = K_fallthrough _ ";" { return { kind: "Fallthrough", location: makeLoc(location()) }; }
+
 SwitchStatement
-  = K_switch _ expr:Expression _ "{" _ cases:(SwitchCase _)* defaultCase:DefaultCase? _ "}" {
+  = K_switch _ "(" _ expr:Expression _ ")" _ "{" _ cases:(SwitchCase _)* defaultCase:DefaultCase? _ "}" {
+      const caseList = cases.map(c => c[0]);
+      return switchStmt(expr, caseList, defaultCase || undefined, location());
+    }
+  / K_switch _ expr:Expression _ "{" _ cases:(SwitchCase _)* defaultCase:DefaultCase? _ "}" {
       const caseList = cases.map(c => c[0]);
       return switchStmt(expr, caseList, defaultCase || undefined, location());
     }
 
 SwitchCase
-  = K_case _ value:Expression _ ":" _ body:Block { return caseClause(value, body, location()); }
+  = K_case _ value:Expression _ ":" _ stmts:CaseStatements {
+      // If stmts is a single Block, unwrap it (or keep it as is, depending on AST)
+      // Actually, our AST expects a Block node for the body.
+      // So if we parse a list of statements, we wrap them in a synthetic Block.
+      let body;
+      if (stmts.length === 1 && stmts[0].kind === "Block") {
+          body = stmts[0];
+      } else {
+          body = { kind: "Block", statements: stmts, location: makeLoc(location()) };
+      }
+      return caseClause(value, body, location());
+    }
+
+CaseStatements
+  = block:Block { return [block]; }
+  / stmts:(
+      !(_ K_case / _ K_default / _ "}")
+      stmt:Statement _ { return stmt; }
+    )+ { return stmts; }
+  / &(_ K_case / _ K_default / _ "}") { return []; }
 
 DefaultCase
-  = K_default _ ":" _ body:Block { return body; }
+  = K_default _ ":" _ stmts:CaseStatements {
+      let body;
+      if (stmts.length === 1 && stmts[0].kind === "Block") {
+          body = stmts[0];
+      } else {
+          body = { kind: "Block", statements: stmts, location: makeLoc(location()) };
+      }
+      return body;
+    }
 
 StatementStartKeyword
   = "global" IdBoundary
@@ -874,6 +909,7 @@ StatementStartKeyword
   / "return" IdBoundary
   / "throw" IdBoundary
   / "switch" IdBoundary
+  / "fallthrough" IdBoundary
 
 ExpressionStatement
   = !StatementStartKeyword expr:Expression _ semi:";"? &{ return semi || expr.kind === "Match"; } { return expressionStmt(expr, location()); }
@@ -1535,6 +1571,7 @@ K_throw = "throw" IdBoundary
 K_switch = "switch" IdBoundary
 K_case = "case" IdBoundary
 K_default = "default" IdBoundary
+K_fallthrough = "fallthrough" IdBoundary
 K_cast = "cast" IdBoundary
 K_sizeof = "sizeof" IdBoundary
 K_typeof = "typeof" IdBoundary
@@ -1580,6 +1617,7 @@ KeywordReserved
   / "switch" IdBoundary
   / "case" IdBoundary
   / "default" IdBoundary
+  / "fallthrough" IdBoundary
   / "cast" IdBoundary
   / "sizeof" IdBoundary
   / "typeof" IdBoundary

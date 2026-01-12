@@ -148,6 +148,7 @@ export class BaseCodeGenerator {
     deferred: AST.Statement[];
     isLoop: boolean;
     isFunction: boolean;
+    isSwitch?: boolean;
   }[] = [];
   protected declaredFunctions: Set<string> = new Set();
   protected globals: Set<string> = new Set();

@@ -382,6 +382,7 @@ export type Statement =
   | ReturnStmt
   | BreakStmt
   | ContinueStmt
+  | FallthroughStmt
   | DeferStmt
   | ExpressionStmt
   | ImportStmt
@@ -537,6 +538,10 @@ export interface BreakStmt extends ASTNode {
 
 export interface ContinueStmt extends ASTNode {
   kind: "Continue";
+}
+
+export interface FallthroughStmt extends ASTNode {
+  kind: "Fallthrough";
 }
 
 export interface DeferStmt extends ASTNode {

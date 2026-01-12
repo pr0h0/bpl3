@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "Testing 1: One Two",
+    "Testing 2: Two",
+    "Testing 3: Three Four",
+    "Testing 5: Default",
+    "Braces 10: Ten",
+    "Braces 11: Eleven",
+    "Braces 12: Other"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

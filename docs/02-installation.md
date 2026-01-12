@@ -158,7 +158,7 @@ if exists("b:current_syntax")
 endif
 
 " Keywords
-syn keyword bplKeyword frame local global import export extern return if else loop switch case default try catch catchOther throw break continue cast sizeof match type struct
+syn keyword bplKeyword frame local global import export extern return if else loop switch case default try catch catchOther throw break continue cast sizeof match type struct fallthrough
 syn keyword bplType int uint float bool char void string
 syn keyword bplBoolean true false
 syn keyword bplNull nullptr
@@ -214,7 +214,7 @@ scope: source.bpl
 
 contexts:
   main:
-    - match: '\b(frame|local|global|import|export|extern|return|if|else|loop|switch|case|default|try|catch|catchOther|throw|break|continue|cast|sizeof|match|type|struct)\b'
+    - match: '\b(frame|local|global|import|export|extern|return|if|else|loop|switch|case|default|try|catch|catchOther|throw|break|continue|cast|sizeof|match|type|struct|fallthrough)\b'
       scope: keyword.control.bpl
     - match: '\b(int|uint|float|bool|char|void|string)\b'
       scope: storage.type.bpl

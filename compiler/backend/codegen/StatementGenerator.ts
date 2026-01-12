@@ -5,10 +5,13 @@ import { TokenType } from "../../frontend/TokenType";
 import { AsmGenerator } from "./AsmGenerator";
 
 export abstract class StatementGenerator extends AsmGenerator {
+  protected switchStack: { labels: string[]; activeIndex: number }[] = [];
+
   protected generateBlock(
     block: AST.BlockStmt,
     isLoop: boolean = false,
     isFunction: boolean = false,
+    isSwitch: boolean = false,
   ) {
     // Scope management:
     // We need to track variables declared in this block so we can restore their previous state (if any)
@@ -16,7 +19,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     // This ensures that variables declared inside the block don't leak out or permanently shadow outer variables.
 
     // Push scope for defer
-    this.scopeStack.push({ deferred: [], isLoop, isFunction });
+    this.scopeStack.push({ deferred: [], isLoop, isFunction, isSwitch });
 
     const declaredInBlock = new Set<string>();
 
@@ -140,6 +143,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       case "Switch":
         this.generateSwitch(stmt as AST.SwitchStmt);
         break;
+      case "Fallthrough":
+        this.generateFallthrough(stmt as AST.FallthroughStmt);
+        break;
       case "Try":
         this.generateTry(stmt as AST.TryStmt);
         break;
@@ -207,25 +213,52 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   protected generateBreak(stmt: AST.BreakStmt) {
-    if (this.loopStack.length === 0) {
-      throw this.createError(
-        "Break statement outside of loop",
-        stmt,
-        "Break statements can only be used inside loops (for, while, do-while)",
-      );
-    }
+    let targetLabel = "";
+    let found = false;
 
-    // Unwind scopes until loop
+    // Unwind scopes until loop or switch
     for (let i = this.scopeStack.length - 1; i >= 0; i--) {
       const scope = this.scopeStack[i]!;
       for (let j = scope.deferred.length - 1; j >= 0; j--) {
         this.generateStatement(scope.deferred[j]!);
       }
-      if (scope.isLoop) break;
+
+      if (scope.isLoop) {
+        if (this.loopStack.length === 0) {
+          throw this.createError(
+            "Internal error: Loop scope without loop stack",
+            stmt,
+          );
+        }
+        targetLabel = this.loopStack[this.loopStack.length - 1]!.breakLabel;
+        found = true;
+        break;
+      }
+
+      if (scope.isSwitch) {
+        if (this.switchStack.length === 0) {
+          throw this.createError(
+            "Internal error: Switch scope without switch stack",
+            stmt,
+          );
+        }
+        const ctx = this.switchStack[this.switchStack.length - 1]!;
+        // The last label in fallthroughLabels is the end label
+        targetLabel = ctx.labels[ctx.labels.length - 1]!;
+        found = true;
+        break;
+      }
     }
 
-    const { breakLabel } = this.loopStack[this.loopStack.length - 1]!;
-    this.emit(`  br label %${breakLabel}`);
+    if (!found) {
+      throw this.createError(
+        "Break statement outside of loop or switch",
+        stmt,
+        "Break statements can only be used inside loops or switch statements",
+      );
+    }
+
+    this.emit(`  br label %${targetLabel}`);
   }
 
   protected generateContinue(stmt: AST.ContinueStmt) {
@@ -868,23 +901,58 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Attach debug info to the end of the switch instruction
     this.emit(`  ]`);
 
-    for (const c of caseLabels) {
+    // push stack
+    const fallthroughLabels = caseLabels.map((c) => c.label);
+    if (stmt.defaultCase) {
+      fallthroughLabels.push(defaultLabel);
+    }
+    fallthroughLabels.push(endLabel); // Fallthrough from last case goes to end
+    this.switchStack.push({ labels: fallthroughLabels, activeIndex: -1 });
+
+    for (let i = 0; i < caseLabels.length; i++) {
+      const c = caseLabels[i]!;
+      this.switchStack[this.switchStack.length - 1]!.activeIndex = i;
       this.emit(`${c.label}:`);
-      this.generateBlock(c.body);
+      this.generateBlock(c.body, false, false, true);
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         this.emit(`  br label %${endLabel}`);
       }
     }
 
     if (stmt.defaultCase) {
+      this.switchStack[this.switchStack.length - 1]!.activeIndex =
+        caseLabels.length;
       this.emit(`${defaultLabel}:`);
-      this.generateBlock(stmt.defaultCase);
+      this.generateBlock(stmt.defaultCase, false, false, true);
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         this.emit(`  br label %${endLabel}`);
       }
     }
 
+    this.switchStack.pop();
+
     this.emit(`${endLabel}:`);
+  }
+
+  protected generateFallthrough(stmt: AST.FallthroughStmt) {
+    if (this.switchStack.length === 0) {
+      throw this.createError("Fallthrough statement outside of switch", stmt);
+    }
+    const ctx = this.switchStack[this.switchStack.length - 1]!;
+    const nextIndex = ctx.activeIndex + 1;
+    if (nextIndex >= ctx.labels.length) {
+      // Should effectively break if there is nowhere to fall through to
+      // But usually this means falling out of switch
+      // In our setup, ctx.labels includes endLabel as the last element if we added it
+    }
+    const target = ctx.labels[nextIndex];
+    if (target) {
+      this.emit(`  br label %${target}`);
+    } else {
+      // Fallback? Should exist due to endLabel
+      // If activeIndex was -1 (logic error), or labels empty (impossible)
+      throw this.createError("Invalid fallthrough target", stmt);
+    }
   }
 
   /**
@@ -909,6 +977,14 @@ export abstract class StatementGenerator extends AsmGenerator {
       ? this.newLabel("switch.default")
       : endLabel;
 
+    // push stack
+    const fallthroughLabels = caseLabels.map((c) => c.label);
+    if (stmt.defaultCase) {
+      fallthroughLabels.push(defaultLabel);
+    }
+    fallthroughLabels.push(endLabel);
+    this.switchStack.push({ labels: fallthroughLabels, activeIndex: -1 });
+
     // Generate if-else chain
     for (let i = 0; i < caseLabels.length; i++) {
       const c = caseLabels[i]!;
@@ -929,8 +1005,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit(`  br i1 ${eqReg}, label %${c.label}, label %${nextLabel}`);
 
       // Generate case body
+      this.switchStack[this.switchStack.length - 1]!.activeIndex = i;
       this.emit(`${c.label}:`);
-      this.generateBlock(c.body);
+      this.generateBlock(c.body, false, false, true);
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         this.emit(`  br label %${endLabel}`);
       }
@@ -943,12 +1020,16 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Generate default case
     if (stmt.defaultCase) {
+      this.switchStack[this.switchStack.length - 1]!.activeIndex =
+        caseLabels.length;
       this.emit(`${defaultLabel}:`);
-      this.generateBlock(stmt.defaultCase);
+      this.generateBlock(stmt.defaultCase, false, false, true);
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         this.emit(`  br label %${endLabel}`);
       }
     }
+
+    this.switchStack.pop();
 
     this.emit(`${endLabel}:`);
   }

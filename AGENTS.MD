@@ -146,7 +146,7 @@ match (result) {
   - `loop (cond) { ... }` (while loop)
   - `loop { ... }` (infinite)
   - `loop (init; cond; step) { ... }` (C-style for loop)
-- **Switch**: `switch (val) { case 1: ... default: ... }`
+- **Switch**: `switch (val) { case 1: ... break; default: ... break; }` (Strict termination required)
 - **Match**: `match (val) { Pattern => ... }`
 - **Defer**: `defer { ... }` (executes on scope exit or throw)
 

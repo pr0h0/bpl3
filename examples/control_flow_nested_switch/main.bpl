@@ -9,14 +9,18 @@ frame main() ret int {
             switch (y) {
                 case 2: {
                     printf("One Two\n");
+                    break;
                 }
                 default: {
                     printf("One Other\n");
+                    break;
                 }
             }
+            break;
         }
         default: {
             printf("Other\n");
+            break;
         }
     }
     return 0;

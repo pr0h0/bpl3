@@ -119,10 +119,10 @@ describe("Control Flow", () => {
       frame main() {
         local i: i32 = 2;
         switch (i) {
-          case 1: { printf("One\\n"); }
-          case 2: { printf("Two\\n"); }
-          case 3: { printf("Three\\n"); }
-          default: { printf("Default\\n"); }
+          case 1: { printf("One\\n"); break; }
+          case 2: { printf("Two\\n"); break; }
+          case 3: { printf("Three\\n"); break; }
+          default: { printf("Default\\n"); break; }
         }
       }
     `;
@@ -140,8 +140,8 @@ describe("Control Flow", () => {
       frame main() {
         local i: i32 = 1;
         switch (i) {
-          case 1: { printf("A"); }
-          case 2: { printf("B"); }
+          case 1: { printf("A"); break; }
+          case 2: { printf("B"); break; }
         }
         printf("\\n");
       }

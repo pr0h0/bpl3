@@ -49,7 +49,8 @@ export function checkBlock(
       s.kind === "Return" ||
       s.kind === "Break" ||
       s.kind === "Continue" ||
-      s.kind === "Throw"
+      s.kind === "Throw" ||
+      s.kind === "Fallthrough"
     ) {
       terminated = true;
     }
@@ -323,91 +324,126 @@ export function checkThrow(this: CheckerContext, stmt: AST.ThrowStmt): void {
  * Check a switch statement
  */
 export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
-  const valueType = this.checkExpression(stmt.expression);
+  this.switchDepth++;
+  try {
+    const valueType = this.checkExpression(stmt.expression);
 
-  if (valueType) {
-    const resolvedType = this.resolveType(valueType);
-    let isValid = false;
+    if (valueType) {
+      const resolvedType = this.resolveType(valueType);
+      let isValid = false;
 
-    if (resolvedType.kind === "BasicType") {
-      if (INTEGER_TYPES.includes(resolvedType.name)) {
-        isValid = true;
-      } else {
-        const symbol = this.currentScope.resolve(resolvedType.name);
-        if (symbol && symbol.kind === "Enum") {
+      if (resolvedType.kind === "BasicType") {
+        if (INTEGER_TYPES.includes(resolvedType.name)) {
           isValid = true;
+        } else {
+          const symbol = this.currentScope.resolve(resolvedType.name);
+          if (symbol && symbol.kind === "Enum") {
+            isValid = true;
+          }
         }
-      }
-    }
-
-    if (!isValid) {
-      throw new CompilerError(
-        `Switch value must be an integer or enum type, got ${this.typeToString(
-          valueType,
-        )}`,
-        "Ensure the switch expression evaluates to an integer or enum.",
-        stmt.expression.location,
-      );
-    }
-  }
-
-  const seenValues = new Set<string>();
-
-  for (const caseItem of stmt.cases) {
-    const patternType = this.checkExpression(caseItem.value);
-    if (
-      patternType &&
-      valueType &&
-      !this.areTypesCompatible(valueType, patternType)
-    ) {
-      throw new CompilerError(
-        `Case pattern type ${this.typeToString(
-          patternType,
-        )} not compatible with switch value type ${this.typeToString(valueType)}`,
-        "Ensure case patterns match the switch value type.",
-        caseItem.value.location,
-      );
-    }
-
-    // Check for duplicate cases
-    // We need to evaluate the constant value of the case expression
-    let constVal = this.getIntegerConstantValue(caseItem.value);
-
-    if (constVal === undefined) {
-      const enumIndex = this.getEnumVariantIndex(caseItem.value);
-      if (enumIndex !== undefined) {
-        constVal = BigInt(enumIndex);
-      }
-    }
-
-    if (constVal !== undefined) {
-      // Replace non-literal constant expressions (like Enum variants) with Literals
-      if (caseItem.value.kind !== "Literal") {
-        caseItem.value = {
-          kind: "Literal",
-          value: Number(constVal),
-          raw: constVal.toString(),
-          type: "number",
-          location: caseItem.value.location,
-        } as AST.LiteralExpr;
+      } else if (
+        valueType.kind === "BasicType" &&
+        valueType.name === "string"
+      ) {
+        isValid = true;
       }
 
-      const valStr = constVal.toString();
-      if (seenValues.has(valStr)) {
+      if (!isValid) {
         throw new CompilerError(
-          `Duplicate case value '${valStr}'`,
-          "Switch cases must have unique values.",
+          `Switch value must be an integer, string or enum type, got ${this.typeToString(
+            valueType,
+          )}`,
+          "Ensure the switch expression evaluates to an integer, string or enum.",
+          stmt.expression.location,
+        );
+      }
+    }
+
+    const seenValues = new Set<string>();
+
+    for (const caseItem of stmt.cases) {
+      const patternType = this.checkExpression(caseItem.value);
+      if (
+        patternType &&
+        valueType &&
+        !this.areTypesCompatible(valueType, patternType)
+      ) {
+        throw new CompilerError(
+          `Case pattern type ${this.typeToString(
+            patternType,
+          )} not compatible with switch value type ${this.typeToString(valueType)}`,
+          "Ensure case patterns match the switch value type.",
           caseItem.value.location,
         );
       }
-      seenValues.add(valStr);
+
+      // Check for duplicate cases
+      // We need to evaluate the constant value of the case expression
+      let constVal = this.getIntegerConstantValue(caseItem.value);
+      let valStr: string | undefined;
+
+      if (constVal === undefined) {
+        if (
+          caseItem.value.kind === "Literal" &&
+          caseItem.value.type === "string"
+        ) {
+          valStr = (caseItem.value as AST.LiteralExpr).value as string;
+        } else {
+          const enumIndex = this.getEnumVariantIndex(caseItem.value);
+          if (enumIndex !== undefined) {
+            constVal = BigInt(enumIndex);
+          }
+        }
+      }
+
+      if (constVal !== undefined) {
+        // Replace non-literal constant expressions (like Enum variants) with Literals
+        if (caseItem.value.kind !== "Literal") {
+          caseItem.value = {
+            kind: "Literal",
+            value: Number(constVal),
+            raw: constVal.toString(),
+            type: "number",
+            location: caseItem.value.location,
+          } as AST.LiteralExpr;
+        }
+        valStr = constVal.toString();
+      }
+
+      if (valStr !== undefined) {
+        if (seenValues.has(valStr)) {
+          throw new CompilerError(
+            `Duplicate case value '${valStr}'`,
+            "Switch cases must have unique values.",
+            caseItem.value.location,
+          );
+        }
+        seenValues.add(valStr);
+      }
+
+      checkBlock.call(this, caseItem.body);
+
+      if (!isTerminated(caseItem.body)) {
+        throw new CompilerError(
+          "Switch case must end with a terminator",
+          "Add 'break', 'return', 'throw', 'continue', or 'fallthrough' at the end of the case block.",
+          caseItem.value.location,
+        );
+      }
     }
 
-    checkBlock.call(this, caseItem.body);
-  }
-
-  if (stmt.defaultCase) {
-    checkBlock.call(this, stmt.defaultCase);
+    if (stmt.defaultCase) {
+      checkBlock.call(this, stmt.defaultCase);
+      if (!isTerminated(stmt.defaultCase)) {
+        throw new CompilerError(
+          "Default case must end with a terminator",
+          "Add 'break', 'return', 'throw', or 'continue' at the end of the default block.",
+          stmt.defaultCase.location,
+        );
+      }
+    }
+  } finally {
+    this.switchDepth--;
   }
 }
 
@@ -415,10 +451,26 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
  * Check a break statement
  */
 export function checkBreak(this: CheckerContext, stmt: AST.BreakStmt): void {
-  if (this.loopDepth === 0) {
+  if (this.loopDepth === 0 && this.switchDepth === 0) {
     throw new CompilerError(
-      "'break' statement outside of loop",
-      "Break statements can only be used inside loops.",
+      "'break' statement outside of loop or switch",
+      "Break statements can only be used inside loops or switch statements.",
+      stmt.location,
+    );
+  }
+}
+
+/**
+ * Check a fallthrough statement
+ */
+export function checkFallthrough(
+  this: CheckerContext,
+  stmt: AST.FallthroughStmt,
+): void {
+  if (this.switchDepth === 0) {
+    throw new CompilerError(
+      "'fallthrough' statement outside of switch",
+      "Fallthrough statements can only be used inside switch statements.",
       stmt.location,
     );
   }
@@ -813,4 +865,21 @@ export function checkDefer(this: CheckerContext, stmt: AST.DeferStmt): void {
   } finally {
     this.inDefer = prevInDefer;
   }
+}
+
+function isTerminated(block: AST.BlockStmt): boolean {
+  if (block.statements.length === 0) {
+    return false;
+  }
+  const last = block.statements[block.statements.length - 1];
+  if (!last) return false;
+  const kind = last.kind as string;
+
+  return (
+    kind === "Return" ||
+    kind === "Break" ||
+    kind === "Continue" ||
+    kind === "Throw" ||
+    kind === "Fallthrough"
+  );
 }

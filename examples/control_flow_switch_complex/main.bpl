@@ -5,12 +5,15 @@ frame main() ret int {
     switch (x * 2) {
         case 20: {
             printf("Twenty\n");
+            break;
         }
         case 10: {
             printf("Ten\n");
+            break;
         }
         default: {
             printf("Default\n");
+            break;
         }
     }
     return 0;

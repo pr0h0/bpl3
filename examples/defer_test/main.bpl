@@ -76,10 +76,12 @@ frame main() {
         case 1: {
             defer printf("Case 1 Defer\n");
             printf("Case 1 Body\n");
+            break;
         }
         default: {
             defer printf("Default Defer\n");
             printf("Default Body\n");
+            break;
         }
     }
 
