@@ -864,7 +864,7 @@ SwitchCase
       if (stmts.length === 1 && stmts[0].kind === "Block") {
           body = stmts[0];
       } else {
-          body = { kind: "Block", statements: stmts, location: makeLoc(location()) };
+          body = { kind: "Block", statements: stmts, synthesized: true, location: makeLoc(location()) };
       }
       return caseClause(value, body, location());
     }
@@ -883,7 +883,7 @@ DefaultCase
       if (stmts.length === 1 && stmts[0].kind === "Block") {
           body = stmts[0];
       } else {
-          body = { kind: "Block", statements: stmts, location: makeLoc(location()) };
+          body = { kind: "Block", statements: stmts, synthesized: true, location: makeLoc(location()) };
       }
       return body;
     }

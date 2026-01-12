@@ -809,6 +809,31 @@ export class Formatter {
 
     this.lastLineProcessed = stmt.location.startLine;
 
+    const formatBody = (body: AST.BlockStmt, headerLine: number): string => {
+      if (body.synthesized) {
+        if (body.statements.length === 0) {
+          return "";
+        }
+
+        const firstStmt = body.statements[0]!;
+        const isSameLine = firstStmt.location.startLine === headerLine;
+
+        if (body.statements.length === 1 && isSameLine) {
+          const stmtStr = this.formatStatement(firstStmt).trimStart();
+          const inlineComment = this.getInlineComment(
+            firstStmt.location.endLine,
+          );
+          return " " + stmtStr + inlineComment;
+        }
+        this.indentLevel++;
+        this.lastLineProcessed = headerLine;
+        const s = "\n" + this.formatStatements(body.statements);
+        this.indentLevel--;
+        return s.trimEnd();
+      }
+      return ` ${this.formatBlock(body, false)}`;
+    };
+
     for (const kase of stmt.cases) {
       output += this.printCommentsBefore(kase.location.startLine);
 
@@ -819,11 +844,11 @@ export class Formatter {
         output += "\n";
       }
 
-      output += `${this.getIndent()}case ${this.formatExpression(kase.value)}: `;
-      output += this.formatBlock(kase.body, false);
+      output += `${this.getIndent()}case ${this.formatExpression(kase.value)}:`;
+      output += formatBody(kase.body, kase.location.startLine);
       output += "\n";
 
-      this.lastLineProcessed = kase.location.endLine;
+      this.lastLineProcessed = kase.body.location.endLine;
     }
 
     if (stmt.defaultCase) {
@@ -837,8 +862,11 @@ export class Formatter {
         output += "\n";
       }
 
-      output += `${this.getIndent()}default: `;
-      output += this.formatBlock(stmt.defaultCase, false);
+      output += `${this.getIndent()}default:`;
+      output += formatBody(
+        stmt.defaultCase,
+        stmt.defaultCase.location.startLine,
+      );
       output += "\n";
 
       this.lastLineProcessed = stmt.defaultCase.location.endLine;

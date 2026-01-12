@@ -509,6 +509,7 @@ export interface TypeAliasDecl extends ASTNode {
 export interface BlockStmt extends ASTNode {
   kind: "Block";
   statements: Statement[];
+  synthesized?: boolean; // True if this block was implicitly created (e.g. switch case wrapper)
 }
 
 export interface IfStmt extends ASTNode {

@@ -5,6 +5,7 @@
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { TokenType } from "../../frontend/TokenType";
+import { hashString } from "../../common/HashUtils";
 import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 
 export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator {
@@ -492,7 +493,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const rawFuncPtrType = `${rawFuncSig}*`;
 
       // Unique name for the thunk based on signature
-      const sigHash = Bun.hash(rawFuncPtrType).toString(16);
+      const sigHash = hashString(rawFuncPtrType);
       const thunkName = `__bpl_thunk_${sigHash}`;
 
       this.requestThunk(thunkName, retType, paramTypes, rawFuncPtrType);
@@ -549,7 +550,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
 
       // Unique name for the thunk based on signature
       // We use a content hash or just a deterministic string
-      const sigHash = Bun.hash(rawFuncPtrType).toString(16);
+      const sigHash = hashString(rawFuncPtrType);
       const thunkName = `__bpl_thunk_${sigHash}`;
 
       // Generate thunk adapter if needed.

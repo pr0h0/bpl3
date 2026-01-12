@@ -23,17 +23,17 @@ frame test_fallthrough(x: int) {
 
 frame test_optional_braces(x: int) {
     printf("Braces %d: ", x);
-    switch(x) {
+    switch (x) {
         case 10:
-             printf("Ten\n");
-             break;
+            printf("Ten\n");
+            break;
         case 11: {
-             printf("Eleven\n");
-             break;
+            printf("Eleven\n");
+            break;
         }
         default:
-             printf("Other\n");
-             break;
+            printf("Other\n");
+            break;
     }
 }
 

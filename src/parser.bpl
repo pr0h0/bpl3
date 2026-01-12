@@ -74,7 +74,7 @@ struct Parser {
     }
 
     frame errorAt(this: *Parser, token: *Token, msg: string) {
-        if (this.panicMode)
+        if (this.panicMode) 
             return;
         this.panicMode = true;
         this.hadError = true;
