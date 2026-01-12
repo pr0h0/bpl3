@@ -25,8 +25,10 @@ frame main() {
     local name: string = ptr.getTypeName();
     IO.print("Type name: ");
     IO.printString(name);
+    IO.print("\n");
 
     local str: string = ptr.toString();
     IO.print("ToString: ");
     IO.printString(str);
+    IO.print("\n");
 }

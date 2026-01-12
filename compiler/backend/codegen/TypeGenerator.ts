@@ -140,48 +140,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       return 0;
     }
 
-    // Function Types (Closures)
+    // Function Types (Raw Pointers)
     if (type.kind === "FunctionType") {
-      const voidPtrId = this.debugInfoGenerator.createPointerType(0);
-      const fileId = this.debugInfoGenerator.getFileNodeId(
-        this.currentFilePath,
-      );
-
-      // Create members for { i8*, i8* }
-      const funcMember = this.debugInfoGenerator.createMemberType(
-        "func_ptr",
-        fileId,
-        0,
-        64,
-        0,
-        voidPtrId,
-      );
-      const envMember = this.debugInfoGenerator.createMemberType(
-        "env_ptr",
-        fileId,
-        0,
-        64,
-        64,
-        voidPtrId,
-      );
-
-      const funcType = type as AST.FunctionTypeNode;
-      const retName = this.resolveType(funcType.returnType);
-      const paramNames = funcType.paramTypes
-        .map((p) => this.resolveType(p))
-        .join("_");
-      const closureName = `Closure_${retName}_${paramNames}`.replace(
-        /[^a-zA-Z0-9_]/g,
-        "_",
-      );
-
-      return this.debugInfoGenerator.createStructType(
-        closureName,
-        128,
-        fileId,
-        0,
-        [funcMember, envMember],
-      );
+      // Treat as void* for now in debug info
+      return this.debugInfoGenerator.createPointerType(0);
     }
 
     // Lambda Types (Closures)
@@ -1071,6 +1033,23 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         if (owner) return owner;
       }
     }
+
+    // Implicit inheritance from Type
+    if (structName !== "Type") {
+      const typeDecl = this.structMap.get("Type");
+      if (typeDecl) {
+        // Check Type members directly
+        for (const m of typeDecl.members) {
+          if (m.kind === "FunctionDecl") {
+            const funcDecl = m as AST.FunctionDecl;
+            if (funcDecl.name === methodName) {
+              return typeDecl;
+            }
+          }
+        }
+      }
+    }
+
     return null;
   }
 
@@ -1582,8 +1561,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         const params = funcType.paramTypes
           .map((p) => this.resolveType(p))
           .join(", ");
-        // Raw function pointer: ret (params...)*
+
+        // Raw function pointer: return_type (params)*
         let llvmType = `${ret} (${params})*`;
+
         if (funcType.arrayDimensions) {
           for (let i = funcType.arrayDimensions.length - 1; i >= 0; i--) {
             llvmType = `[${funcType.arrayDimensions[i]} x ${llvmType}]`;

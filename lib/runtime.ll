@@ -78,7 +78,7 @@ define linkonce_odr void @StackOverflowError_destroy(i8* %ctx, %struct.StackOver
 %struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }
 %struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }
 
-@Type_vtable = linkonce_odr constant [3 x i8*] [i8* bitcast (i8* (i8*, %struct.Type*)* @Type_getTypeName_Type_ptr to i8*), i8* bitcast (i8* (i8*, %struct.Type*)* @Type_toString_Type_ptr to i8*), i8* bitcast (void (i8*, %struct.Type*)* @Type_destroy_Type_ptr to i8*)]
+@Type_vtable = linkonce_odr constant [3 x i8*] [i8* bitcast (i8* (%struct.Type*)* @Type_getTypeName_Type_ptr to i8*), i8* bitcast (i8* (%struct.Type*)* @Type_toString_Type_ptr to i8*), i8* bitcast (void (%struct.Type*)* @Type_destroy_Type_ptr to i8*)]
 
 ; --- External Declarations ---
 declare i8* @malloc(i64)
@@ -125,7 +125,7 @@ ret_false:
 ; Note: Code bloat in Type methods is due to stack/exception boilerplate.
 ; Ideally this would be refactored to use a helper function for prologue/epilogue.
 
-define linkonce_odr i8* @Type_getTypeName_Type_ptr(i8* %__closure_ctx, %struct.Type* %this) #0 {
+define linkonce_odr i8* @Type_getTypeName_Type_ptr(%struct.Type* %this) #0 {
 entry:
   ; Minimal stack check for runtime functions
   %0 = load i32, i32* @__bpl_stack_depth
@@ -138,7 +138,7 @@ entry:
   ret i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str.Type, i64 0, i64 0)
 }
 
-define linkonce_odr i8* @Type_toString_Type_ptr(i8* %__closure_ctx, %struct.Type* %this) #0 {
+define linkonce_odr i8* @Type_toString_Type_ptr(%struct.Type* %this) #0 {
   ; Virtual dispatch to getTypeName (index 0)
   %vtable_ptr_ptr = getelementptr %struct.Type, %struct.Type* %this, i32 0, i32 0
   %vtable_ptr = load i8*, i8** %vtable_ptr_ptr
@@ -146,13 +146,13 @@ define linkonce_odr i8* @Type_toString_Type_ptr(i8* %__closure_ctx, %struct.Type
   
   %func_ptr_ptr = getelementptr i8*, i8** %vtable, i32 0
   %func_ptr = load i8*, i8** %func_ptr_ptr
-  %func = bitcast i8* %func_ptr to i8* (i8*, %struct.Type*)*
+  %func = bitcast i8* %func_ptr to i8* (%struct.Type*)*
   
-  %name = call i8* %func(i8* %__closure_ctx, %struct.Type* %this)
+  %name = call i8* %func(%struct.Type* %this)
   ret i8* %name
 }
 
-define linkonce_odr void @Type_destroy_Type_ptr(i8* %__closure_ctx, %struct.Type* %this) #0 {
+define linkonce_odr void @Type_destroy_Type_ptr(%struct.Type* %this) #0 {
   ret void
 }
 

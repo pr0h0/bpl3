@@ -73,7 +73,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           expr as AST.GenericInstantiationExpr,
         );
       default:
-        codeGenLog.warn(`Unhandled expression kind: ${expr.kind}`);
+        codeGenLog.warn(
+          `Unhandled expression kind: ${(expr as AST.Expression).kind}`,
+        );
         return "0"; // Placeholder
     }
   }
@@ -85,22 +87,28 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const genericArgs = expr.genericArgs;
     const decl = (base as any).resolvedDeclaration as AST.FunctionDecl;
 
+    let mangledName = "";
+
     if (decl && decl.kind === "FunctionDecl") {
       // Trigger instantiation and get mangled name
-      const mangledName = this.resolveMonomorphizedFunction(decl, genericArgs);
-      return `@${mangledName}`;
+      mangledName = this.resolveMonomorphizedFunction(decl, genericArgs);
+    } else {
+      const funcName = base.name;
+      const mangledArgs = genericArgs
+        .map((arg) => {
+          const concrete = this.substituteType(arg, this.currentTypeMap);
+          return this.mangleType(concrete);
+        })
+        .join("_");
+
+      mangledName = `${funcName}_${mangledArgs}`;
     }
 
-    const funcName = base.name;
-    const mangledArgs = genericArgs
-      .map((arg) => {
-        const concrete = this.substituteType(arg, this.currentTypeMap);
-        return this.mangleType(concrete);
-      })
-      .join("_");
+    // Generic Instantiation returns a raw function pointer
+    const ptrVal = `@${mangledName}`;
 
-    const mangledName = `${funcName}_${mangledArgs}`;
-    return `@${mangledName}`;
+    // Resolve the type of the expression
+    return ptrVal;
   }
 
   protected generateInterpolatedString(
@@ -375,7 +383,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     // Special case: function identifiers (not local variables) evaluate to their address directly
     if (expr.resolvedType.kind === "FunctionType" && !this.locals.has(name)) {
       let funcName = name;
-      let isExtern = false;
 
       if (
         expr.resolvedDeclaration &&
@@ -390,13 +397,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         expr.resolvedDeclaration &&
         expr.resolvedDeclaration.kind === "Extern"
       ) {
-        isExtern = true;
+        funcName = expr.resolvedDeclaration.name;
       }
 
-      if (isExtern) {
-        return `@${funcName}`;
-      }
-
+      // Function identifier: return raw pointer address
       return `@${funcName}`;
     }
 
@@ -492,12 +496,12 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             if (returnType !== "void") {
               const resultReg = this.newRegister();
               this.emit(
-                `  ${resultReg} = call ${returnType} @${mangledName}(i8* null, ${objectTypeStr}* ${thisPtr}, ${indexType} ${indexRaw}, ${valueType} ${valueRaw})`,
+                `  ${resultReg} = call ${returnType} @${mangledName}(${objectTypeStr}* ${thisPtr}, ${indexType} ${indexRaw}, ${valueType} ${valueRaw})`,
               );
               return resultReg;
             }
             this.emit(
-              `  call void @${mangledName}(i8* null, ${objectTypeStr}* ${thisPtr}, ${indexType} ${indexRaw}, ${valueType} ${valueRaw})`,
+              `  call void @${mangledName}(${objectTypeStr}* ${thisPtr}, ${indexType} ${indexRaw}, ${valueType} ${valueRaw})`,
             );
             return valueRaw; // Return the assigned value
           }
@@ -832,7 +836,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       const returnType = this.resolveType(methodType.returnType);
       const resultReg = this.newRegister();
       this.emit(
-        `  ${resultReg} = call ${returnType} @${mangledName}(i8* null, ${objectType}* ${thisPtr}, ${indexType} ${indexRaw})`,
+        `  ${resultReg} = call ${returnType} @${mangledName}(${objectType}* ${thisPtr}, ${indexType} ${indexRaw})`,
       );
       return resultReg;
     }

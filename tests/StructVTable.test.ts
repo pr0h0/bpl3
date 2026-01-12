@@ -28,7 +28,7 @@ describe("Struct Layout and VTable Code Generation", () => {
       }
     `;
     const ir = compile(source);
-    // %struct.Point = type { i32, i32 }
+    // %struct.Point = type { i32, i32 } (no implicit Type vtable for POD)
     expect(ir).toContain("%struct.Point = type { i32, i32 }");
   });
 
@@ -43,7 +43,8 @@ describe("Struct Layout and VTable Code Generation", () => {
       frame main() ret int { return 0; }
     `;
     const ir = compile(source);
-    // Flattened layout for POD structs
+    // Flattened layout for POD structs (base has no vtable, derived has no vtable)
+    // Base: { i32 }, Derived: { i32, i32 } (Base inlined)
     expect(ir).toContain("%struct.Derived = type { i32, i32 }");
   });
 

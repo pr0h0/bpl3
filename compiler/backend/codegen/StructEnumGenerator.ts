@@ -131,22 +131,99 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       }
     }
 
+    // Implicit inheritance from Type
+    // Do not force Type inheritance on reflection structs or string to avoid layout mismatches
+    // in ReflectionGenerator and circular dependencies.
+    const isReflectionStruct = [
+      "TypeInfo",
+      "FieldInfo",
+      "MethodInfo",
+      "InterfaceImpl",
+      "string",
+      "Any",
+    ].includes(name);
+
+    // Only force implicit inheritance from Type if the struct has methods.
+    // This allows POD (Plain Old Data) structs to be compatible with C ABI (no vtable).
+    const hasMethods = decl.members.some((m) => m.kind === "FunctionDecl");
+
+    if (
+      !parentName &&
+      name !== "Type" &&
+      this.structMap.has("Type") &&
+      !isReflectionStruct &&
+      hasMethods
+    ) {
+      parentName = "Type";
+    }
+
     if (parentName) {
       layout = [...this.computeVTableLayout(parentName)];
     }
 
     // Add/Override methods
-    const methods = this.getStructMethods(decl);
-    for (const method of methods) {
-      const index = layout.indexOf(method);
-      if (index === -1) {
-        layout.push(method);
+    // We iterate FunctionDecls to get names
+    const funcDecls = decl.members.filter(
+      (m) =>
+        m.kind === "FunctionDecl" &&
+        (m as AST.FunctionDecl).genericParams.length === 0,
+    ) as AST.FunctionDecl[];
+
+    for (const mDecl of funcDecls) {
+      const methodStr = this.getVTableMethodName(mDecl);
+      // Assume mDecl.name is Struct_SimpleName
+      const simpleName = mDecl.name.substring(name.length + 1);
+
+      let overridden = false;
+      for (let i = 0; i < layout.length; i++) {
+        const entry = layout[i]!;
+        const entrySimple = this.getEntrySimpleName(entry);
+        if (entrySimple === simpleName) {
+          layout[i] = methodStr;
+          overridden = true;
+          break;
+        }
       }
-      // If index !== -1, it's an override, position stays same.
+
+      if (!overridden) {
+        layout.push(methodStr);
+      }
     }
 
     this.vtableLayouts.set(name, layout);
     return layout;
+  }
+
+  protected getEntrySimpleName(entry: string): string | null {
+    // Find matching struct prefix
+    let bestStructName = "";
+    for (const sName of this.structMap.keys()) {
+      if (entry.startsWith(sName + "_")) {
+        if (sName.length > bestStructName.length) {
+          bestStructName = sName;
+        }
+      }
+    }
+    if (!bestStructName) return null;
+
+    // We can't easily look up the method decl without iterating.
+    // Optimization: Assume format Struct_SimpleName_MangledParams.
+    // The SimpleName ends before the first underscore OF THE PARAMS.
+    // But SimpleName might contain underscores.
+    // Reliable way: check struct decl.
+    const decl = this.structMap.get(bestStructName)!;
+    for (const m of decl.members) {
+      if (
+        m.kind === "FunctionDecl" &&
+        (m as AST.FunctionDecl).genericParams.length === 0
+      ) {
+        const fd = m as AST.FunctionDecl;
+        if (this.getVTableMethodName(fd) === entry) {
+          return fd.name.substring(bestStructName.length + 1);
+        }
+      }
+    }
+    return null;
   }
 
   protected computeVTableLayouts(program: AST.Program) {
@@ -249,12 +326,10 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       // But @mangled is just the func_ptr.
       const funcType = methodDecl.resolvedType as AST.FunctionTypeNode;
       const retType = this.resolveType(funcType.returnType);
-      // All functions now take an implicit context pointer as first argument
-      // And methods take 'this' as the second argument (which is in paramTypes)
+      // Virtual methods are Frames (not Lambdas) so they don't take context pointer
       const paramTypes = funcType.paramTypes.map((p) => this.resolveType(p));
-      const paramsStr =
-        paramTypes.length > 0 ? `, ${paramTypes.join(", ")}` : "";
-      const rawFuncTypeStr = `${retType} (i8*${paramsStr})*`;
+      const paramsStr = paramTypes.join(", ");
+      const rawFuncTypeStr = `${retType} (${paramsStr})*`;
 
       ptrs.push(`i8* bitcast (${rawFuncTypeStr} @${mangled} to i8*)`);
     }
@@ -362,8 +437,8 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
           // Tuple variant: calculate size with alignment
           let offset = 0;
           for (const fieldType of variant.dataType.types) {
-            const llvmType = this.resolveType(fieldType);
-            const fieldSize = this.getTypeSize(llvmType);
+            // Use getTypeSizeInBits to accurately calculate size (including vtables of nested structs)
+            const fieldSize = this.getTypeSizeInBits(fieldType) / 8;
 
             const alignment = this.getAlignmentForSize(fieldSize);
             if (offset % alignment !== 0) {
@@ -377,8 +452,8 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
           // Struct variant: calculate size with alignment
           let offset = 0;
           for (const field of variant.dataType.fields) {
-            const llvmType = this.resolveType(field.type);
-            const fieldSize = this.getTypeSize(llvmType);
+            // Use getTypeSizeInBits to accurately calculate size
+            const fieldSize = this.getTypeSizeInBits(field.type) / 8;
 
             const alignment = this.getAlignmentForSize(fieldSize);
             if (offset % alignment !== 0) {
@@ -400,12 +475,61 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   }
 
   protected calculateStructSize(decl: AST.StructDecl): number {
-    let size = 0;
+    let offset = 0;
+    let maxAlign = 1;
+
+    // Check for VTable
+    if (!this.vtableLayouts.has(decl.name)) {
+      try {
+        this.computeVTableLayout(decl.name);
+      } catch (_e) {
+        // Ignore
+      }
+    }
+
+    if (
+      this.vtableLayouts.has(decl.name) &&
+      this.vtableLayouts.get(decl.name)!.length > 0
+    ) {
+      // VTable pointer
+      const ptrSize = 8;
+      const ptrAlign = 8;
+
+      const padding = (ptrAlign - (offset % ptrAlign)) % ptrAlign;
+      offset += padding;
+      offset += ptrSize;
+
+      if (ptrAlign > maxAlign) maxAlign = ptrAlign;
+    }
+
     const fields = this.getAllStructFields(decl);
     for (const field of fields) {
-      size += this.getTypeSizeInBits(field.type);
+      const sizeBytes = this.getTypeSizeInBits(field.type) / 8;
+
+      // Estimate alignment
+      let align = 1;
+      if (sizeBytes >= 8) align = 8;
+      else if (sizeBytes >= 4) align = 4;
+      else if (sizeBytes >= 2) align = 2;
+
+      // Fix for arrays: alignment determines by element, not total size
+      // But for size calculation, using size-based alignment estimate is usually safe
+      // (allocating more padding than needed is safe).
+      // Exception: large struct with small alignment?
+      // If we pad it to 8 bytes boundary always, it's safe.
+
+      const padding = (align - (offset % align)) % align;
+      offset += padding;
+      offset += sizeBytes;
+
+      if (align > maxAlign) maxAlign = align;
     }
-    return size;
+
+    // Tail padding
+    const tailPadding = (maxAlign - (offset % maxAlign)) % maxAlign;
+    offset += tailPadding;
+
+    return offset * 8;
   }
 
   protected getTypeSizeInBits(type: AST.TypeNode): number {
@@ -453,12 +577,13 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       if (structDecl) return this.calculateStructSize(structDecl);
 
       const enumDecl = this.enumDeclMap.get(type.name);
-      if (enumDecl) return this.calculateEnumMaxSize(enumDecl) * 8;
+      if (enumDecl) return (this.calculateEnumMaxSize(enumDecl) + 4) * 8;
 
       return 64; // Default
     }
 
-    if (type.kind === "FunctionType") return 128; // Closure { func_ptr, env_ptr }
+    if (type.kind === "FunctionType") return 64; // Raw function pointer
+    if (type.kind === "LambdaType") return 128; // Closure { func_ptr, env_ptr }
     if (type.kind === "TupleType") {
       let size = 0;
       for (const t of type.types) size += this.getTypeSizeInBits(t);

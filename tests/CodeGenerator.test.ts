@@ -31,9 +31,7 @@ describe("CodeGenerator", () => {
       }
     `;
     const ir = compile(source);
-    expect(ir).toContain(
-      "define i32 @add_i32_i32(i8* %__closure_ctx, i32 %a, i32 %b)",
-    );
+    expect(ir).toContain("define i32 @add_i32_i32(i32 %a, i32 %b)");
     expect(ir).toContain("add i32");
     expect(ir).toContain("ret i32");
   });
@@ -51,8 +49,6 @@ describe("CodeGenerator", () => {
     const ir = compile(source);
     expect(ir).toContain("%struct.Point = type { i8*, i32, i32 }");
     // Check for mangled name
-    expect(ir).toContain(
-      "define i32 @Point_sum_Point(i8* %__closure_ctx, %struct.Point %this)",
-    );
+    expect(ir).toContain("define i32 @Point_sum_Point(%struct.Point %this)");
   });
 });

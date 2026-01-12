@@ -14,8 +14,7 @@ struct Route {
     handler: RouteHandler,
 }
 
-frame defaultNotFoundHandler(req: *Request, res: *Response) {
-    cast<*void>(req);
+frame defaultNotFoundHandler(_req: *Request, res: *Response) {
     res.status(404).send("Cannot match path");
 }
 

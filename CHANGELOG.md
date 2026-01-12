@@ -75,6 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Struct Equality**: Fixed invalid LLVM IR generation (`icmp` on aggregate types) for struct and lambda equality comparisons by implementing member-wise comparison and literal `memcmp` fallback.
 - **Pattern Matching Code Generation**:
   - Fixed float literal generation in pattern matching (append `.0` for float types)
   - Fixed type name normalization (float→double, bool→i1) in primitive type detection

@@ -142,6 +142,7 @@ export class BaseCodeGenerator {
   protected structLayouts: Map<string, Map<string, number>> = new Map();
   protected structMap: Map<string, AST.StructDecl> = new Map();
   protected specMap: Map<string, AST.SpecDecl> = new Map();
+  protected thunks: Set<string> = new Set();
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];
   protected scopeStack: {
     deferred: AST.Statement[];

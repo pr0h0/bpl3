@@ -553,8 +553,8 @@ export abstract class StatementGenerator extends AsmGenerator {
           const ctorName = this.getMangledName(methodName, methodType);
 
           // Generate call
-          // Pass null for closure context (first argument)
-          this.emit(`  call void @${ctorName}(i8* null, ${type}* ${addr})`);
+          // Constructors are definitionally Func type (raw ptr) so no context arg
+          this.emit(`  call void @${ctorName}(${type}* ${addr})`);
         }
       }
     }
@@ -1126,8 +1126,18 @@ export abstract class StatementGenerator extends AsmGenerator {
       if (decl.name === "main") {
         params = "i32 %argc, i8** %argv";
       } else {
-        // Add implicit context parameter for closures
-        const ctxParam = "i8* %__closure_ctx";
+        // Add implicit context parameter ONLY for lambdas/closures
+        // Functions (Func<T>) are raw pointers and do not take extra context args
+        let ctxParam = "";
+
+        // This check detects if we are generating a lambda body (from expression)
+        // vs a distinct named function (frame)
+        const isLambda = !!captureInfo || decl.name.startsWith("lambda_L");
+
+        if (isLambda) {
+          ctxParam = "i8* %__closure_ctx";
+        }
+
         const userParams = decl.params
           .map((p, i) => {
             const type = this.resolveType(funcType.paramTypes[i]!);
@@ -1141,7 +1151,12 @@ export abstract class StatementGenerator extends AsmGenerator {
             return `${type} ${paramName}`;
           })
           .join(", ");
-        params = userParams ? `${ctxParam}, ${userParams}` : ctxParam;
+
+        if (isLambda) {
+          params = userParams ? `${ctxParam}, ${userParams}` : ctxParam;
+        } else {
+          params = userParams;
+        }
       }
 
       // Built-in runtime functions are now external (linked from runtime.ll)
@@ -1442,12 +1457,12 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (isInstanceInit) {
       // Call constructor
       this.emit(
-        `  call void @${ctorName}(i8* null, ${structTypeStr}* ${currentElemPtr})`,
+        `  call void @${ctorName}(${structTypeStr}* ${currentElemPtr})`,
       );
     } else {
       // Call static factory
       const val = this.newRegister();
-      this.emit(`  ${val} = call ${structTypeStr} @${ctorName}(i8* null)`);
+      this.emit(`  ${val} = call ${structTypeStr} @${ctorName}()`);
       this.emit(
         `  store ${structTypeStr} ${val}, ${structTypeStr}* ${currentElemPtr}`,
       );

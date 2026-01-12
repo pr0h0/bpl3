@@ -63,6 +63,8 @@ frame add(a: int, b: int) ret int {
 frame identity<T>(val: T) ret T {
     return val;
 }
+
+**Note**: Functions (`Func<T>`) are raw function pointers (compatible with C ABI). Lambdas (`Lambda<T>`) are fat pointers (struct `{ func*, ctx* }`). You can cast a `Func` to a `Lambda` (wrapping it), but casting a `Lambda` to a `Func` is forbidden.
 ```
 
 ### Structs
@@ -77,6 +79,8 @@ struct Point {
         return sqrt(cast<float>(this.x * this.x + this.y * this.y));
     }
 }
+
+**Layout Note**: Structs defined without methods (and without invalidating inheritance) are "POD" (Plain Old Data) and match C memory layout exactly. Structs with methods (or inheriting from classes with methods) implicitly inherit from `Type` and carry a hidden compilation-generated vtable pointer as their first field.
 
 # Inheritance
 struct Dog : Animal { ... }

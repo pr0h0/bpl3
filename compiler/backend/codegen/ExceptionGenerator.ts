@@ -359,10 +359,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         }
       }
 
-      // Note: BPL functions take a closure context as first argument (i8*)
-      this.emit(
-        `  call void ${printStackName}(i8* null, %struct.Error* ${errorPtr})`,
-      );
+      // Note: BPL functions do not take a closure context as first argument unless they are lambdas.
+      // printStack is a struct method (frame), so it's a raw function pointer.
+      this.emit(`  call void ${printStackName}(%struct.Error* ${errorPtr})`);
 
       // Exit
       this.emit(`  call void @exit(i32 1)`);

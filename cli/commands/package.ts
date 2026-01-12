@@ -4,14 +4,18 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+import { spawnSync } from "child_process";
 import { Command } from "commander";
-import { PackageManager } from "../../compiler";
+import { PackageManager, Compiler } from "../../compiler";
 import type {
   PackageOptionsGlobal,
   PackageOptionsOutput,
   PackageOptionsVerbose,
 } from "../types";
 import { Logger } from "../../compiler/common/Logger";
+import { diagnosticFormatter } from "../DiagnosticFormatter";
 
 const log = new Logger("Package");
 
@@ -26,8 +30,84 @@ export function registerPackageCommands(program: Command): void {
     .option("-o, --output <dir>", "output directory for the package")
     .action((dir: string | undefined, options: PackageOptionsOutput) => {
       try {
-        const packageDir = dir || process.cwd();
+        const packageDir = dir ? path.resolve(dir) : process.cwd();
         const pm = new PackageManager();
+
+        // Check if code compiles before packing
+        const manifest = pm.loadManifest(packageDir);
+        const mainFile = manifest.main || "index.bpl";
+        const entryPath = path.join(packageDir, mainFile);
+
+        if (fs.existsSync(entryPath)) {
+          log.info(`Verifying package integrity: ${mainFile}`);
+          const content = fs.readFileSync(entryPath, "utf-8");
+
+          const compiler = new Compiler({
+            filePath: entryPath,
+            resolveImports: true,
+            emitType: "llvm",
+            verbose: false,
+          });
+
+          const result = compiler.compile(content);
+
+          if (!result.success) {
+            log.error(
+              "Package verification failed - compilation errors detected:",
+            );
+            if (result.errors) {
+              console.error(diagnosticFormatter.formatErrors(result.errors));
+            }
+            process.exit(1);
+          }
+
+          // Verify LLVM IR validity by running clang -S
+          // This catches CodeGen errors like invalid instructions that TypeChecker missed
+          if (result.output) {
+            const tempLL = path.join(
+              os.tmpdir(),
+              `bpl_pack_verify_${Date.now()}.ll`,
+            );
+            fs.writeFileSync(tempLL, result.output);
+
+            try {
+              const cc = process.env.CC || "clang";
+              const check = spawnSync(
+                cc,
+                [
+                  "-S",
+                  "-o",
+                  "/dev/null",
+                  "-x",
+                  "ir",
+                  tempLL,
+                  "-Wno-override-module",
+                ],
+                { encoding: "utf-8" },
+              );
+
+              if (check.status !== 0) {
+                log.error(
+                  "Package verification failed - generated invalid code:",
+                );
+                console.error(check.stderr || "Unknown clang error");
+                process.exit(1);
+              }
+            } catch (e) {
+              // If clang is missing, we warn but allow packing (maybe cross-compiling or no clang env)
+              log.warn(
+                `Skipping IR verification: ${e instanceof Error ? e.message : String(e)}`,
+              );
+            } finally {
+              if (fs.existsSync(tempLL)) {
+                fs.unlinkSync(tempLL);
+              }
+            }
+          }
+        } else {
+          log.warn(`Warning: Package entry point '${mainFile}' not found.`);
+        }
+
         const tarball = pm.pack(packageDir, options.output);
         log.info(`Package ready: ${tarball}`);
       } catch (e) {

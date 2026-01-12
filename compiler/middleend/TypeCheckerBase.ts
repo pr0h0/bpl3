@@ -899,6 +899,11 @@ export abstract class TypeCheckerBase {
 
     if (childSymbol.kind !== "Struct") return false;
 
+    // Check implicit inheritance from Type
+    if (parent.name === "Type" && child.name !== "Type") {
+      return true;
+    }
+
     const childDecl = childSymbol.declaration as AST.StructDecl;
     if (!childDecl.inheritanceList || childDecl.inheritanceList.length === 0)
       return false;
@@ -1109,6 +1114,24 @@ export abstract class TypeCheckerBase {
       }
     }
 
+    // Check implicit inheritance from Type
+    if (decl.kind === "StructDecl" && decl.name !== "Type") {
+      const typeSymbol = this.currentScope.resolve("Type");
+      if (typeSymbol && typeSymbol.kind === "Struct") {
+        const typeDecl = typeSymbol.declaration as AST.StructDecl;
+        const typeMembers = typeDecl.members.filter(
+          (m) => m.kind === "FunctionDecl" && m.name === memberName,
+        );
+        if (typeMembers.length > 0) {
+          return {
+            decl: typeDecl,
+            members: typeMembers,
+            genericMap: new Map(),
+          };
+        }
+      }
+    }
+
     return undefined;
   }
 
@@ -1138,6 +1161,17 @@ export abstract class TypeCheckerBase {
 
     if (this.areTypesCompatible(resolvedSource, resolvedTarget)) {
       return true;
+    }
+
+    // Allow Func -> Lambda cast
+    // We check compatibility in the correct assignment direction (Target <- Source)
+    if (
+      resolvedSource.kind === "FunctionType" &&
+      resolvedTarget.kind === "LambdaType"
+    ) {
+      if (this.areTypesCompatible(resolvedTarget, resolvedSource)) {
+        return true;
+      }
     }
 
     // Allow casting if source or target is a generic parameter

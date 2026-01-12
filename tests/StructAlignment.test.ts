@@ -20,7 +20,7 @@ describe("Struct Alignment & Padding", () => {
       # Offset b: 4
       # Offset c: 8
       # Offset d: 16
-      # Size: 24
+      # Size: 24 (Old) -> 32 (New with implicit vtable ptr at offset 0)
 
       frame main() ret int {
         printf("Size: %d\\n", sizeof(Mixed));
@@ -41,7 +41,8 @@ describe("Struct Alignment & Padding", () => {
     }
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Values: 1 2 3 4");
-    // We expect standard C-like alignment
+    // We expect standard C-like alignment (24 bytes for POD struct with u8, u64 pairs)
+    // No vtable overhead.
     expect(result.stdout).toContain("Size: 24");
   });
 });

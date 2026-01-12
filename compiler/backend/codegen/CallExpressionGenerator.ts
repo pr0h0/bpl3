@@ -69,7 +69,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       paramTypes,
     } = this.resolveVirtualMethodSignature(callExpr, memberExpr, structName);
 
-    const funcSig = `${retType} (i8*, ${paramTypes.join(", ")})`;
+    const funcSig = `${retType} (${paramTypes.join(", ")})`;
     const funcPtr = this.newRegister();
     this.emit(`  ${funcPtr} = bitcast i8* ${methodVoidPtr} to ${funcSig}*`);
 
@@ -78,6 +78,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       structType,
       paramTypes,
       argsToGenerate,
+      _funcType.paramTypes,
     );
 
     const resultReg = this.newRegister();
@@ -385,9 +386,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     structType: string,
     paramTypes: string[],
     argsToGenerate: AST.Expression[],
+    paramTypeNodes: AST.TypeNode[],
   ): string[] {
     const callArgs: string[] = [];
-    callArgs.push("i8* null");
+    // callArgs.push("i8* null"); // Removed implicit context for virtual calls as they are frames
 
     const thisType = paramTypes[0]!;
 
@@ -409,9 +411,41 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
 
     for (let i = 0; i < argsToGenerate.length; i++) {
-      const argVal = this.generateExpression(argsToGenerate[i]!);
-      const argType = paramTypes[i + 1]!;
-      callArgs.push(`${argType} ${argVal}`);
+      const arg = argsToGenerate[i]!;
+      const val = this.generateExpression(arg);
+      const destTypeStr = paramTypes[i + 1]!;
+      const destTypeNode = paramTypeNodes[i + 1]!;
+
+      // Synthetic FunctionType for Identifiers
+      let resolvedArgType: AST.TypeNode = arg.resolvedType!;
+      if (
+        arg.kind === "Identifier" &&
+        arg.resolvedDeclaration &&
+        arg.resolvedDeclaration.kind === "FunctionDecl"
+      ) {
+        const fnDecl = arg.resolvedDeclaration as AST.FunctionDecl;
+        resolvedArgType = {
+          kind: "FunctionType",
+          returnType: fnDecl.returnType,
+          paramTypes: fnDecl.params.map((p) => p.type),
+          declaration: fnDecl,
+          isVariadic: false,
+          location: arg.location,
+        };
+      }
+
+      const srcTypeStr = this.resolveType(resolvedArgType);
+
+      // Use emitCast for all conversions (including Function -> Lambda, bitcasts, etc)
+      const castVal = this.emitCast(
+        val,
+        srcTypeStr,
+        destTypeStr,
+        resolvedArgType,
+        destTypeNode,
+      );
+
+      callArgs.push(`${destTypeStr} ${castVal}`);
     }
 
     return callArgs;
@@ -473,8 +507,29 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     );
 
     const argRegs: string[] = [];
-    for (const arg of callExpr.args) {
-      argRegs.push(this.generateExpression(arg));
+    for (let i = 0; i < callExpr.args.length; i++) {
+      const arg = callExpr.args[i]!;
+      const val = this.generateExpression(arg);
+      // Attempt cast if type mismatch
+      if (i < paramTypes.length) {
+        const srcType = this.resolveType(arg.resolvedType!);
+        const destType = paramTypes[i]!; // paramTypes excludes this (implied objPtr)
+
+        if (srcType !== destType) {
+          const castVal = this.emitCast(
+            val,
+            srcType,
+            destType,
+            arg.resolvedType!,
+            { kind: "BasicType", name: "dummy" } as any,
+          ); // we need type node
+          argRegs.push(castVal);
+        } else {
+          argRegs.push(val);
+        }
+      } else {
+        argRegs.push(val);
+      }
     }
 
     const callArgs = [`i8* ${objPtr}`];
@@ -725,7 +780,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
   }
 
   protected generateCall(expr: AST.CallExpr): string {
-    // Handle intrinsics
     let calleeName = "";
     if (expr.callee.kind === "Identifier") {
       calleeName = (expr.callee as AST.IdentifierExpr).name;
@@ -951,7 +1005,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       }
 
       // Build argument list for call: context + this pointer + actual args
-      const callArgs = [`i8* null`, `${calleeType}* ${thisPtr}`];
+      const callArgs = [`${calleeType}* ${thisPtr}`];
       for (let i = 0; i < argRegs.length; i++) {
         callArgs.push(`${argTypes[i]} ${argRegs[i]}`);
       }
@@ -966,6 +1020,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
 
     let funcName = "";
+
     let argsToGenerate = expr.args;
     let isInstanceCall = false;
     let targetThisType: string | undefined;
@@ -1414,6 +1469,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           // Check for virtual method dispatch
           // Only for instance calls (not static calls like Struct.new())
           // And only if the struct has a vtable
+
           if (this.vtableLayouts.has(structName)) {
             const layout = this.vtableLayouts.get(structName)!;
 
@@ -1579,6 +1635,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             }
 
             ownerDecl = this.findMethodOwner(structName, memberExpr.property);
+            if (!ownerDecl && memberExpr.property.includes("toString")) {
+              codeGenLog.debug(
+                `DEBUG: findMethodOwner failed for ${structName}.${memberExpr.property}. Try looking for Type.`,
+              );
+            }
 
             // Static call: no extra argument
           } else {
@@ -1660,6 +1721,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
     let callTarget = "";
     let closureCtx = "null";
+    let isClosureCall = false; // Track if we need to pass context argument
     let _isIndirectCall = false;
 
     // If identifier and local, indirect call
@@ -1670,35 +1732,28 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         _isIndirectCall = true;
         const type = ident.resolvedType!;
 
-        if (type.kind === "FunctionType") {
-          // Raw pointer
-          const funcType = this.resolveType(type);
+        if (type.kind === "FunctionType" || type.kind === "LambdaType") {
+          // Fat function pointer / Closure or Raw Function Variable
+          const valType = this.resolveType(type);
           const addr = this.generateAddress(ident);
-          const funcPtr = this.newRegister();
-          this.emit(`  ${funcPtr} = load ${funcType}, ${funcType}* ${addr}`);
-          callTarget = funcPtr;
-          closureCtx = "null";
-        } else {
-          // Closure (LambdaType)
-          const closureType = this.resolveType(type);
-          const addr = this.generateAddress(ident);
-          const closureVal = this.newRegister();
-          // addr is closureType*
-          this.emit(
-            `  ${closureVal} = load ${closureType}, ${closureType}* ${addr}`,
-          );
+          const val = this.newRegister();
+          // addr is valType*
+          this.emit(`  ${val} = load ${valType}, ${valType}* ${addr}`);
 
-          const funcPtr = this.newRegister();
-          this.emit(
-            `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
-          );
-          callTarget = funcPtr;
+          if (type.kind === "LambdaType") {
+            const funcPtr = this.newRegister();
+            this.emit(`  ${funcPtr} = extractvalue ${valType} ${val}, 0`);
+            callTarget = funcPtr;
 
-          const ctxPtr = this.newRegister();
-          this.emit(
-            `  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`,
-          );
-          closureCtx = ctxPtr;
+            const ctxPtr = this.newRegister();
+            this.emit(`  ${ctxPtr} = extractvalue ${valType} ${val}, 1`);
+            closureCtx = ctxPtr;
+            isClosureCall = true;
+          } else {
+            // FunctionType is raw pointer
+            callTarget = val;
+            isClosureCall = false;
+          }
         }
       } else {
         callTarget = `@${funcName}`;
@@ -1724,28 +1779,25 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           _isIndirectCall = true;
           const type = memberExpr.resolvedType!;
 
-          if (type.kind === "FunctionType") {
-            // Raw pointer field
-            const funcPtr = this.generateMember(memberExpr);
-            callTarget = funcPtr;
-            closureCtx = "null";
-          } else {
-            // Closure field
-            // We should generate the member access to get the closure struct.
-            const closureVal = this.generateMember(memberExpr); // Get closure struct value
-            const closureType = this.resolveType(memberExpr.resolvedType!);
+          if (type.kind === "FunctionType" || type.kind === "LambdaType") {
+            // Fat function / Closure field or Raw Function field
+            const val = this.generateMember(memberExpr); // Get value
+            const valType = this.resolveType(memberExpr.resolvedType!);
 
-            const funcPtr = this.newRegister();
-            this.emit(
-              `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
-            );
-            callTarget = funcPtr;
+            if (type.kind === "LambdaType") {
+              const funcPtr = this.newRegister();
+              this.emit(`  ${funcPtr} = extractvalue ${valType} ${val}, 0`);
+              callTarget = funcPtr;
 
-            const ctxPtr = this.newRegister();
-            this.emit(
-              `  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`,
-            );
-            closureCtx = ctxPtr;
+              const ctxPtr = this.newRegister();
+              this.emit(`  ${ctxPtr} = extractvalue ${valType} ${val}, 1`);
+              closureCtx = ctxPtr;
+              isClosureCall = true;
+            } else {
+              // FunctionType is a raw pointer
+              callTarget = val;
+              isClosureCall = false;
+            }
           }
 
           // Reset args (remove "this" injection done for methods)
@@ -1843,22 +1895,23 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       _isIndirectCall = true;
       const type = callee.resolvedType!;
 
-      if (type.kind === "FunctionType") {
-        callTarget = this.generateExpression(callee);
-        closureCtx = "null";
-      } else {
-        const closureType = this.resolveType(callee.resolvedType!);
-        const closureVal = this.generateExpression(callee);
+      if (type.kind === "FunctionType" || type.kind === "LambdaType") {
+        const valType = this.resolveType(callee.resolvedType!);
+        const val = this.generateExpression(callee);
 
-        const funcPtr = this.newRegister();
-        this.emit(
-          `  ${funcPtr} = extractvalue ${closureType} ${closureVal}, 0`,
-        );
-        callTarget = funcPtr;
+        if (type.kind === "LambdaType") {
+          const funcPtr = this.newRegister();
+          this.emit(`  ${funcPtr} = extractvalue ${valType} ${val}, 0`);
+          callTarget = funcPtr;
 
-        const ctxPtr = this.newRegister();
-        this.emit(`  ${ctxPtr} = extractvalue ${closureType} ${closureVal}, 1`);
-        closureCtx = ctxPtr;
+          const ctxPtr = this.newRegister();
+          this.emit(`  ${ctxPtr} = extractvalue ${valType} ${val}, 1`);
+          closureCtx = ctxPtr;
+          isClosureCall = true;
+        } else {
+          callTarget = val;
+          isClosureCall = false;
+        }
       }
     }
 
@@ -1944,7 +1997,55 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         }
 
         const destType = this.resolveType(targetTypeNode);
-        const srcType = this.resolveType(arg.resolvedType!);
+
+        // Treat function identifiers as FunctionType even if TypeChecker resolved them to BasicType (e.g. implicitly)
+        let resolvedArgType = arg.resolvedType!;
+
+        if (
+          arg.kind === "Identifier" &&
+          arg.resolvedDeclaration &&
+          arg.resolvedDeclaration.kind === "FunctionDecl"
+        ) {
+          const fnDecl = arg.resolvedDeclaration as AST.FunctionDecl;
+          resolvedArgType = {
+            kind: "FunctionType",
+            returnType: fnDecl.returnType,
+            paramTypes: fnDecl.params.map((p) => p.type),
+            declaration: fnDecl,
+            isVariadic: false,
+            location: arg.location,
+          };
+        }
+
+        const srcType = this.resolveType(resolvedArgType);
+
+        if (
+          targetTypeNode &&
+          targetTypeNode.kind === "LambdaType" &&
+          resolvedArgType.kind === "FunctionType"
+        ) {
+          const val = this.generateExpression(arg);
+          const expectedFuncPtrType = destType
+            .substring(destType.indexOf("{") + 1, destType.lastIndexOf(","))
+            .trim();
+
+          const castReg = this.newRegister();
+          this.emit(
+            `  ${castReg} = bitcast ${srcType} ${val} to ${expectedFuncPtrType}`,
+          );
+
+          const undef = this.newRegister();
+          this.emit(
+            `  ${undef} = insertvalue ${destType} undef, ${expectedFuncPtrType} ${castReg}, 0`,
+          );
+
+          const result = this.newRegister();
+          this.emit(
+            `  ${result} = insertvalue ${destType} ${undef}, i8* null, 1`,
+          );
+
+          return `${destType} ${result}`;
+        }
 
         // Check for Struct* -> Spec* cast
         if (targetTypeNode.kind === "BasicType") {
@@ -1960,7 +2061,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           if (specDecl) {
             // It is a spec!
             // Check if arg is a struct pointer
-            const argType = arg.resolvedType!;
+            const argType = resolvedArgType;
             if (argType.kind === "BasicType" && argType.pointerDepth === 1) {
               // Check if it's a struct
               let structDecl = this.structMap.get(argType.name);
@@ -2233,11 +2334,12 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         }
 
         const val = this.generateExpression(arg);
+
         const castVal = this.emitCast(
           val,
           srcType,
           destType,
-          arg.resolvedType!,
+          resolvedArgType,
           targetTypeNode,
         );
         return `${destType} ${castVal}`;
@@ -2340,6 +2442,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
       for (let i = 0; i < count; i++) {
         const arg = varArgs[i]!;
+
         const val = this.generateExpression(arg);
         const srcType = this.resolveType(arg.resolvedType!);
 
@@ -2396,7 +2499,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     let finalArgs = args;
     const isMain = funcName === "main";
 
-    if (!isExtern && !isMain) {
+    if (!isExtern && !isMain && isClosureCall) {
       if (finalArgs.length > 0) {
         finalArgs = `i8* ${closureCtx}, ${finalArgs}`;
       } else {
@@ -2406,7 +2509,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     const retType = this.resolveType(expr.resolvedType!);
 
-    // Ensure external or module function is declared
     if (callTarget.startsWith("@") && (isExtern || isModuleFunction)) {
       const targetName = callTarget.substring(1);
       if (
@@ -2543,7 +2645,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           .map((t) => this.resolveType(t))
           .join(", ");
 
-        if (!isExtern && !isMain) {
+        if (!isExtern && !isMain && isClosureCall) {
           if (paramTypesStr.length > 0) {
             paramTypesStr = `i8*, ${paramTypesStr}`;
           } else {
@@ -2572,7 +2674,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         .map((t) => this.resolveType(t))
         .join(", ");
 
-      if (!isExtern && !isMain) {
+      if (!isExtern && !isMain && isClosureCall) {
         if (paramTypesStr.length > 0) {
           paramTypesStr = `i8*, ${paramTypesStr}`;
         } else {

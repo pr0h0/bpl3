@@ -6,6 +6,7 @@ import * as AST from "../../common/AST";
 import { TokenType } from "../../frontend/TokenType";
 import { AddressExpressionGenerator } from "./AddressExpressionGenerator";
 import { isEnumType } from "./utils";
+import { codeGenLog } from "../../common/Logger";
 
 export abstract class BinaryExpressionGenerator extends AddressExpressionGenerator {
   /**
@@ -155,7 +156,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     const resultReg = this.newRegister();
     this.emit(
-      `  ${resultReg} = call ${returnType} @${mangledName}(i8* null, ${thisArg}, ${finalOtherType} ${finalOtherVal})`,
+      `  ${resultReg} = call ${returnType} @${mangledName}(${thisArg}, ${finalOtherType} ${finalOtherVal})`,
     );
 
     if (overload.negateResult) {
@@ -345,7 +346,134 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       );
     }
 
+    // Generic struct comparison (for unnamed structs like Tuples or Fat Pointers)
+    // We use a memcmp-based comparison if the types are compatible and are struct literals
+    if (
+      leftType.startsWith("{") &&
+      rightType.startsWith("{") &&
+      !leftType.endsWith("*") &&
+      !rightType.endsWith("*")
+    ) {
+      // Check for Lambda signature { i8*, i8* }
+      const normalized = leftType.replace(/\s/g, "");
+      const isLambdaSig = normalized === "{i8*,i8*}";
+      const isLambdaKind =
+        expr.left.resolvedType?.kind === "FunctionType" ||
+        expr.left.resolvedType?.kind === "LambdaType";
+
+      if (isLambdaKind || isLambdaSig) {
+        return this.generateLambdaEquality(
+          expr,
+          leftRaw,
+          rightRaw,
+          leftType,
+          expr.operator.type === TokenType.EqualEqual,
+        );
+      }
+
+      // Fallback for other struct literals (tuples, etc.)
+      return this.generateGenericStructEquality(
+        leftRaw,
+        rightRaw,
+        leftType,
+        expr.operator.type === TokenType.EqualEqual,
+      );
+    }
+
     return null;
+  }
+
+  /**
+   * Generate fat pointer comparison (Function/Lambda) using memcmp
+   */
+  private generateFatPointerComparison(
+    leftRaw: string,
+    rightRaw: string,
+    type: string,
+    isEqual: boolean,
+  ): string {
+    // Allocate stack
+    const leftPtr = this.allocateStack(`fp_cmp_left_${this.labelCount}`, type);
+    this.emit(`  store ${type} ${leftRaw}, ${type}* ${leftPtr}`);
+
+    const rightPtr = this.allocateStack(
+      `fp_cmp_right_${this.labelCount++}`,
+      type,
+    );
+    this.emit(`  store ${type} ${rightRaw}, ${type}* ${rightPtr}`);
+
+    // Bitcast to i8*
+    const leftI8 = this.newRegister();
+    this.emit(`  ${leftI8} = bitcast ${type}* ${leftPtr} to i8*`);
+    const rightI8 = this.newRegister();
+    this.emit(`  ${rightI8} = bitcast ${type}* ${rightPtr} to i8*`);
+
+    // Call memcmp
+    // Function Fat Pointers are ALWAYS 2 pointers (func ptr + ctx ptr) = 16 bytes on 64-bit
+    const size = 16;
+
+    const res = this.newRegister();
+    this.emit(
+      `  ${res} = call i32 @memcmp(i8* ${leftI8}, i8* ${rightI8}, i64 ${size})`,
+    );
+
+    const cmp = this.newRegister();
+    this.emit(`  ${cmp} = icmp eq i32 ${res}, 0`);
+
+    if (!isEqual) {
+      const not = this.newRegister();
+      this.emit(`  ${not} = xor i1 ${cmp}, true`);
+      return not;
+    }
+    return cmp;
+  }
+
+  /**
+   * Generate generic struct literal equality using memcmp and computed sizeof
+   */
+  private generateGenericStructEquality(
+    left: string,
+    right: string,
+    type: string,
+    isEqual: boolean,
+  ): string {
+    // Calculate size dynamically using GEP null
+    const sizeGep = this.newRegister();
+    this.emit(`  ${sizeGep} = getelementptr ${type}, ${type}* null, i32 1`);
+    const size = this.newRegister();
+    this.emit(`  ${size} = ptrtoint ${type}* ${sizeGep} to i64`);
+
+    // Allocate stack for operands
+    const leftPtr = this.allocateStack(`gseq_left_${this.labelCount}`, type);
+    this.emit(`  store ${type} ${left}, ${type}* ${leftPtr}`);
+
+    const rightPtr = this.allocateStack(
+      `gseq_right_${this.labelCount++}`,
+      type,
+    );
+    this.emit(`  store ${type} ${right}, ${type}* ${rightPtr}`);
+
+    // Bitcast to i8*
+    const leftI8 = this.newRegister();
+    this.emit(`  ${leftI8} = bitcast ${type}* ${leftPtr} to i8*`);
+    const rightI8 = this.newRegister();
+    this.emit(`  ${rightI8} = bitcast ${type}* ${rightPtr} to i8*`);
+
+    // Call memcmp
+    const res = this.newRegister();
+    this.emit(
+      `  ${res} = call i32 @memcmp(i8* ${leftI8}, i8* ${rightI8}, i64 ${size})`,
+    );
+
+    const cmp = this.newRegister();
+    this.emit(`  ${cmp} = icmp eq i32 ${res}, 0`);
+
+    if (isEqual) {
+      return cmp;
+    }
+    const not = this.newRegister();
+    this.emit(`  ${not} = xor i1 ${cmp}, true`);
+    return not;
   }
 
   /**
@@ -586,11 +714,27 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
               true,
             );
           }
+          // Check for struct equality
+          if (leftBasic.pointerDepth === 0 && leftType.startsWith("%struct.")) {
+            return this.generateStructEquality(
+              expr,
+              left,
+              right,
+              leftType,
+              true,
+            );
+          }
         }
         // Check for tuple equality
         if (expr.left.resolvedType?.kind === "TupleType") {
           return this.generateTupleEquality(expr, left, right, leftType, true);
         }
+
+        // Check for lambda equality
+        if (expr.left.resolvedType?.kind === "LambdaType") {
+          return this.generateLambdaEquality(expr, left, right, leftType, true);
+        }
+
         op = isFloat ? "fcmp oeq" : "icmp eq";
         break;
       case TokenType.BangEqual:
@@ -609,11 +753,33 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
               false,
             );
           }
+          // Check for struct inequality
+          if (leftBasic.pointerDepth === 0 && leftType.startsWith("%struct.")) {
+            return this.generateStructEquality(
+              expr,
+              left,
+              right,
+              leftType,
+              false,
+            );
+          }
         }
         // Check for tuple inequality
         if (expr.left.resolvedType?.kind === "TupleType") {
           return this.generateTupleEquality(expr, left, right, leftType, false);
         }
+
+        // Check for lambda inequality
+        if (expr.left.resolvedType?.kind === "LambdaType") {
+          return this.generateLambdaEquality(
+            expr,
+            left,
+            right,
+            leftType,
+            false,
+          );
+        }
+
         op = isFloat ? "fcmp one" : "icmp ne";
         break;
       case TokenType.Less:
@@ -672,6 +838,335 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return reg;
     }
     return "0";
+  }
+
+  /**
+   * Generate lambda equality check
+   * Lambdas are fat pointers { func_ptr, ctx_ptr }
+   */
+  private generateLambdaEquality(
+    expr: AST.BinaryExpr,
+    left: string,
+    right: string,
+    type: string,
+    isEqual: boolean,
+  ): string {
+    // 1. Extract function pointers
+    const leftFunc = this.newRegister();
+    this.emit(`  ${leftFunc} = extractvalue ${type} ${left}, 0`);
+    const rightFunc = this.newRegister();
+    this.emit(`  ${rightFunc} = extractvalue ${type} ${right}, 0`);
+
+    // 2. Extract context pointers
+    const leftCtx = this.newRegister();
+    this.emit(`  ${leftCtx} = extractvalue ${type} ${left}, 1`);
+    const rightCtx = this.newRegister();
+    this.emit(`  ${rightCtx} = extractvalue ${type} ${right}, 1`);
+
+    // 3. Compare function pointers
+    const funcCmp = this.newRegister();
+    this.emit(`  ${funcCmp} = icmp eq ptr ${leftFunc}, ${rightFunc}`);
+
+    // 4. Compare context pointers
+    const ctxCmp = this.newRegister();
+    this.emit(`  ${ctxCmp} = icmp eq i8* ${leftCtx}, ${rightCtx}`);
+
+    // 5. Combine results
+    const combined = this.newRegister();
+    this.emit(`  ${combined} = and i1 ${funcCmp}, ${ctxCmp}`);
+
+    if (isEqual) {
+      return combined;
+    }
+    const result = this.newRegister();
+    this.emit(`  ${result} = xor i1 ${combined}, true`);
+    return result;
+  }
+
+  /**
+   * Generate struct equality check
+   * First check for __eq__ method, if not present do member-wise comparison
+   */
+  private generateStructEquality(
+    expr: AST.BinaryExpr,
+    left: string,
+    right: string,
+    type: string,
+    isEqual: boolean,
+  ): string {
+    const structName = type.substring(8); // Remove %struct.
+    const decl = this.structMap.get(structName);
+
+    if (!decl) {
+      codeGenLog.warn(
+        `Struct definition not found for equality check: ${structName}`,
+      );
+      return "0"; // Should fallback to icmp but that fails for aggregates
+    }
+
+    // 1. Check for __eq__ overload
+    // Note: This logic duplicates generateOperatorOverloadCall somewhat but specifically for implicit equality usage
+    // However, binary operator generation logic usually handles explicit overloads BEFORE calling this switch.
+    // If we are here, it implies either no overload was found by TypeChecker OR implicit generation is needed.
+    // In BPL, `==` on structs defaults to member-wise unless `__eq__` is defined.
+
+    // If implicit equality via method is desired, we should really be using the operator overload logic.
+    // However, if the user didn't explicitly implement it, we do member-wise.
+
+    // 2. Member-wise comparison
+    // We need to compare every field.
+    const resultPtr = this.allocateStack(
+      `struct_eq_${this.labelCount++}`,
+      "i1",
+    );
+    this.emit(`  store i1 1, i1* ${resultPtr}`); // Assume true initially
+
+    const falseLabel = this.newLabel("struct_eq_false");
+    const endLabel = this.newLabel("struct_eq_end");
+
+    const fields = this.getAllStructFields(decl);
+
+    // If struct has vtable (inherited from Type), skip the first field (vtable ptr)
+    // Actually, we should check layout.
+    const layout = this.structLayouts.get(structName);
+    const hasVTable = layout && layout.has("__vtable__");
+    const startIndex = hasVTable ? 1 : 0;
+
+    for (let i = startIndex; i < fields.length + startIndex; i++) {
+      // Adjust index if vtable is present (virtual index vs physical index)
+      // structLayouts map logical names to indices.
+      // fields[] is the AST definition order.
+      // We can just iterate the layout entries sorted by index.
+    }
+
+    // Better: iterate sorted layout
+    if (layout) {
+      const sortedEntries = Array.from(layout.entries()).sort(
+        (a, b) => a[1] - b[1],
+      );
+
+      for (const [fieldName, index] of sortedEntries) {
+        if (fieldName === "__vtable__") continue; // Don't compare vtables? Or should we? Usually identical for same type.
+        if (fieldName === "__base__") {
+          // Handle base class comparison?
+          // If base is a struct, we should recurse.
+          // For simplicity, treat as field.
+        }
+
+        const field = fields.find((f) => f.name === fieldName);
+        if (!field && fieldName !== "__base__") continue;
+
+        // Determine type of field
+        // We can't easily resolving AST type here without context passed down.
+        // But we have the struct definition.
+
+        // Extract values
+        const leftVal = this.newRegister();
+        this.emit(`  ${leftVal} = extractvalue ${type} ${left}, ${index}`);
+
+        const rightVal = this.newRegister();
+        this.emit(`  ${rightVal} = extractvalue ${type} ${right}, ${index}`);
+
+        // We need to generate comparison for these values.
+        // Recursive call? We can't easily recurse into this function because we need AST nodes for types.
+        // Instead, we can emit basic comparisons based on LLVM type if we can determine it.
+
+        // To determine the LLVM type of the field:
+        // We can inspect the operand type of extractvalue? No, we emit strings.
+        // We must resolve the AST type.
+        let fieldType: AST.TypeNode | undefined;
+
+        if (fieldName === "__base__") {
+          // It's the parent struct.
+          // We need to find the parent type from `extends`.
+          // This is complex.
+          // Valid workaround: Recurse into fields of parent?
+          // "Type" parent has no fields except vtable which we skip.
+          continue;
+        } else {
+          fieldType = field!.type;
+        }
+
+        // Recursively generate comparison is tricky without full AST expressions.
+        // BUT, we can use a helper method that compares two LLVM values given their AST type.
+        const areEqual = this.generateValueEquality(
+          leftVal,
+          rightVal,
+          fieldType!,
+        );
+        const cond = this.newRegister();
+        this.emit(`  ${cond} = icmp eq i1 ${areEqual}, 0`); // Check if false
+        this.emit(
+          `  br i1 ${cond}, label %${falseLabel}, label %${this.newLabel("cont")}`,
+        );
+        this.emit(`${this.getCurrentLabel()}:`);
+      }
+    }
+
+    this.emit(`  br label %${endLabel}`);
+
+    this.emit(`${falseLabel}:`);
+    this.emit(`  store i1 0, i1* ${resultPtr}`);
+    this.emit(`  br label %${endLabel}`);
+
+    this.emit(`${endLabel}:`);
+    const finalRes = this.newRegister();
+    this.emit(`  ${finalRes} = load i1, i1* ${resultPtr}`);
+
+    if (isEqual) {
+      return finalRes;
+    }
+    const negated = this.newRegister();
+    this.emit(`  ${negated} = xor i1 ${finalRes}, true`);
+    return negated;
+  }
+
+  private generateValueEquality(
+    left: string,
+    right: string,
+    typeNode: AST.TypeNode,
+  ): string {
+    const llvmType = this.resolveType(typeNode);
+
+    // Primitives
+    if (
+      this.isPrimitive(
+        typeNode.kind === "BasicType"
+          ? (typeNode as AST.BasicTypeNode).name
+          : "",
+      ) &&
+      (typeNode as any).pointerDepth === 0
+    ) {
+      if (llvmType === "double" || llvmType === "float") {
+        const cmp = this.newRegister();
+        this.emit(`  ${cmp} = fcmp oeq ${llvmType} ${left}, ${right}`);
+        return cmp;
+      }
+      const cmp = this.newRegister();
+      this.emit(`  ${cmp} = icmp eq ${llvmType} ${left}, ${right}`);
+      return cmp;
+    }
+
+    // Pointers
+    const ptrDepth = (typeNode as any).pointerDepth || 0;
+    if (ptrDepth > 0) {
+      const cmp = this.newRegister();
+      this.emit(`  ${cmp} = icmp eq ${llvmType} ${left}, ${right}`);
+      return cmp;
+    }
+    // Structs
+    if (typeNode.kind === "BasicType") {
+      const basicType = typeNode as AST.BasicTypeNode;
+      if (basicType.pointerDepth === 0 && llvmType.startsWith("%struct.")) {
+        return this.generateStructEquality_Inner(left, right, llvmType);
+      }
+    }
+
+    // Lambdas
+    if (typeNode.kind === "LambdaType") {
+      return this.generateLambdaEquality_Inner(left, right, llvmType);
+    }
+
+    // Generic struct literal fallback (e.g. Tuples, or Lambdas where Kind check failed)
+    // This prevents icmp on aggregate types
+    if (llvmType.startsWith("{") && !llvmType.endsWith("*")) {
+      return this.generateGenericStructEquality(left, right, llvmType, true);
+    }
+
+    // Default fallback (pointers, etc)
+    const cmp = this.newRegister();
+    this.emit(`  ${cmp} = icmp eq ${llvmType} ${left}, ${right}`);
+    return cmp;
+  }
+
+  private generateLambdaEquality_Inner(
+    left: string,
+    right: string,
+    type: string,
+  ): string {
+    // Duplicate logic from generateLambdaEquality but return result directly
+    const leftFunc = this.newRegister();
+    this.emit(`  ${leftFunc} = extractvalue ${type} ${left}, 0`);
+    const rightFunc = this.newRegister();
+    this.emit(`  ${rightFunc} = extractvalue ${type} ${right}, 0`);
+
+    const leftCtx = this.newRegister();
+    this.emit(`  ${leftCtx} = extractvalue ${type} ${left}, 1`);
+    const rightCtx = this.newRegister();
+    this.emit(`  ${rightCtx} = extractvalue ${type} ${right}, 1`);
+
+    const funcCmp = this.newRegister();
+    this.emit(`  ${funcCmp} = icmp eq ptr ${leftFunc}, ${rightFunc}`);
+
+    const ctxCmp = this.newRegister();
+    this.emit(`  ${ctxCmp} = icmp eq i8* ${leftCtx}, ${rightCtx}`);
+
+    const combined = this.newRegister();
+    this.emit(`  ${combined} = and i1 ${funcCmp}, ${ctxCmp}`);
+    return combined;
+  }
+
+  private generateStructEquality_Inner(
+    left: string,
+    right: string,
+    type: string,
+  ): string {
+    const structName = type.substring(8);
+    const decl = this.structMap.get(structName);
+    if (!decl) return "0";
+
+    const resPtr = this.allocateStack(
+      `struct_inner_eq_${this.labelCount++}`,
+      "i1",
+    );
+    this.emit(`  store i1 1, i1* ${resPtr}`);
+
+    const falseLabel = this.newLabel("seq_fls");
+    const endLabel = this.newLabel("seq_end");
+
+    const layout = this.structLayouts.get(structName);
+    if (layout) {
+      const sorted = Array.from(layout.entries()).sort((a, b) => a[1] - b[1]);
+      const fields = this.getAllStructFields(decl);
+
+      for (const [name, idx] of sorted) {
+        if (name === "__vtable__") continue;
+        // Lookup field type
+        // If it's a base class field, we have to look into inheritance...
+        // Simplification: if name is not in fields list, it might be inherited.
+        // getAllStructFields includes inherited fields for us!
+        const field = fields.find((f) => f.name === name);
+        if (!field) continue; // Should effectively handle __base__ if mapped correctly or skipped
+
+        const lVal = this.newRegister();
+        this.emit(`  ${lVal} = extractvalue ${type} ${left}, ${idx}`);
+        const rVal = this.newRegister();
+        this.emit(`  ${rVal} = extractvalue ${type} ${right}, ${idx}`);
+
+        const eq = this.generateValueEquality(
+          lVal,
+          rVal,
+          field ? field.type : (null as any),
+        );
+        const isFalse = this.newRegister();
+        this.emit(`  ${isFalse} = icmp eq i1 ${eq}, 0`);
+        const nextLabel = this.newLabel("seq_nxt");
+        this.emit(
+          `  br i1 ${isFalse}, label %${falseLabel}, label %${nextLabel}`,
+        );
+        this.emit(`${nextLabel}:`);
+      }
+    }
+
+    this.emit(`  br label %${endLabel}`);
+    this.emit(`${falseLabel}:`);
+    this.emit(`  store i1 0, i1* ${resPtr}`);
+    this.emit(`  br label %${endLabel}`);
+    this.emit(`${endLabel}:`);
+
+    const res = this.newRegister();
+    this.emit(`  ${res} = load i1, i1* ${resPtr}`);
+    return res;
   }
 
   /**
@@ -1094,6 +1589,15 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     if (fieldType.startsWith("%enum.") || fieldType.startsWith("[")) {
       return this.generateMemcmpComparison(fieldType, leftField, rightField);
+    }
+
+    if (fieldType.startsWith("{") && !fieldType.endsWith("*")) {
+      return this.generateGenericStructEquality(
+        leftField,
+        rightField,
+        fieldType,
+        true,
+      );
     }
 
     const cmpReg = this.newRegister();

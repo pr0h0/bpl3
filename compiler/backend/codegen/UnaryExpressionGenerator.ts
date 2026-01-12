@@ -4,6 +4,7 @@
  */
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
+import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
 import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 
@@ -90,7 +91,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const returnType = this.resolveType(method.returnType);
       const resultReg = this.newRegister();
       this.emit(
-        `  ${resultReg} = call ${returnType} @${mangledName}(i8* null, ${operandType}* ${thisPtr})`,
+        `  ${resultReg} = call ${returnType} @${mangledName}(${operandType}* ${thisPtr})`,
       );
       return resultReg;
     }
@@ -455,7 +456,156 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     srcTypeNode: AST.TypeNode,
     destTypeNode: AST.TypeNode,
   ): string {
+    let effectiveDest = destTypeNode;
+
+    // Resolve Type Alias for destination
+    while (
+      effectiveDest.kind === "BasicType" &&
+      effectiveDest.resolvedDeclaration &&
+      effectiveDest.resolvedDeclaration.kind === "TypeAlias"
+    ) {
+      effectiveDest = (effectiveDest.resolvedDeclaration as AST.TypeAliasDecl)
+        .type;
+    }
+
+    if (srcTypeNode.kind === "FunctionType") {
+      // debug log removed
+    }
+
+    // Function (Raw Pointer) to Lambda (Fat Pointer)
+    if (
+      srcTypeNode.kind === "FunctionType" &&
+      effectiveDest.kind === "LambdaType"
+    ) {
+      const srcFuncType = srcTypeNode as AST.FunctionTypeNode;
+
+      // We need to create a thunk that matches the Lambda signature
+      // but calls the raw function pointer stored in the context.
+
+      const retType = this.resolveType(srcFuncType.returnType);
+      const paramTypes = srcFuncType.paramTypes.map((p) => this.resolveType(p));
+      const paramTypesStr = paramTypes.join(", ");
+
+      // Signature for the thunk: (i8* ctx, params...)
+      const thunkParamsStr = ["i8*", ...paramTypes].join(", ");
+      const thunkSig = `${retType} (${thunkParamsStr})`;
+      const rawFuncSig = `${retType} (${paramTypesStr})`;
+      const rawFuncPtrType = `${rawFuncSig}*`;
+
+      // Unique name for the thunk based on signature
+      const sigHash = Bun.hash(rawFuncPtrType).toString(16);
+      const thunkName = `__bpl_thunk_${sigHash}`;
+
+      this.requestThunk(thunkName, retType, paramTypes, rawFuncPtrType);
+      const thunkRef = `@${thunkName}`;
+
+      // Logic for the cast itself:
+      // 1. Cast the raw function pointer (src) to i8* -> this becomes the context.
+      const funcPtrAsCtx = this.newRegister();
+      this.emit(`  ${funcPtrAsCtx} = bitcast ${srcType} ${val} to i8*`);
+
+      // 2. The lambda function pointer is the Thunk.
+      const thunkPtr = this.newRegister();
+      // The thunk has signature `ret (i8*, params...)`.
+      // The Lambda expects `ret (i8*, params...)*`. Matches.
+      this.emit(
+        `  ${thunkPtr} = bitcast ${thunkSig}* ${thunkRef} to ${retType} (i8*, ${paramTypesStr})*`,
+      );
+
+      // 3. Construct fat pointer { thunk, ctx }
+      const fatPtr1 = this.newRegister();
+      this.emit(
+        `  ${fatPtr1} = insertvalue ${destType} undef, ${retType} (i8*, ${paramTypesStr})* ${thunkPtr}, 0`,
+      );
+
+      const fatPtr2 = this.newRegister();
+      this.emit(
+        `  ${fatPtr2} = insertvalue ${destType} ${fatPtr1}, i8* ${funcPtrAsCtx}, 1`,
+      );
+
+      return fatPtr2;
+    }
+
     if (srcType === destType) return val;
+
+    // Function (Raw Pointer) to Lambda (Fat Pointer)
+    if (
+      srcTypeNode.kind === "FunctionType" &&
+      destTypeNode.kind === "LambdaType"
+    ) {
+      const srcFuncType = srcTypeNode as AST.FunctionTypeNode;
+
+      // We need to create a thunk that matches the Lambda signature
+      // but calls the raw function pointer stored in the context.
+
+      const retType = this.resolveType(srcFuncType.returnType);
+      const paramTypes = srcFuncType.paramTypes.map((p) => this.resolveType(p));
+      const paramTypesStr = paramTypes.join(", ");
+
+      // Signature for the thunk: (i8* ctx, params...)
+      const thunkParamsStr = ["i8*", ...paramTypes].join(", ");
+      const thunkSig = `${retType} (${thunkParamsStr})`;
+      const rawFuncSig = `${retType} (${paramTypesStr})`;
+      const rawFuncPtrType = `${rawFuncSig}*`;
+
+      // Unique name for the thunk based on signature
+      // We use a content hash or just a deterministic string
+      const sigHash = Bun.hash(rawFuncPtrType).toString(16);
+      const thunkName = `__bpl_thunk_${sigHash}`;
+
+      // Generate thunk adapter if needed.
+      // The thunk adapts the raw function pointer signature to the lambda signature
+      // (receiving an extra i8* context argument).
+      this.requestThunk(thunkName, retType, paramTypes, rawFuncPtrType);
+
+      const thunkRef = `@${thunkName}`;
+
+      /*
+      if (!this.context.thunks.has(thunkName)) {
+        this.context.thunks.add(thunkName);
+      }
+      */
+
+      // Logic for the cast itself:
+      // 1. Cast the raw function pointer (src) to i8* -> this becomes the context.
+      const funcPtrAsCtx = this.newRegister();
+      this.emit(`  ${funcPtrAsCtx} = bitcast ${srcType} ${val} to i8*`);
+
+      // 2. The lambda function pointer is the Thunk.
+      const thunkPtr = this.newRegister();
+      // The thunk has signature `ret (i8*, params...)`.
+      // The Lambda expects `ret (i8*, params...)*`. Matches.
+      this.emit(
+        `  ${thunkPtr} = bitcast ${thunkSig}* ${thunkRef} to ${retType} (i8*, ${paramTypesStr})*`,
+      );
+
+      // 3. Construct fat pointer { thunk, ctx }
+      const fatPtr1 = this.newRegister();
+      this.emit(
+        `  ${fatPtr1} = insertvalue ${destType} undef, ${retType} (i8*, ${paramTypesStr})* ${thunkPtr}, 0`,
+      );
+
+      const fatPtr2 = this.newRegister();
+      this.emit(
+        `  ${fatPtr2} = insertvalue ${destType} ${fatPtr1}, i8* ${funcPtrAsCtx}, 1`,
+      );
+
+      // Trigger thunk generation (I'll need to implement this mechanism)
+      /* this.requestThunk(...); */
+      return fatPtr2;
+    }
+
+    // Lambda to Func (Forbidden)
+    if (
+      srcTypeNode.kind === "LambdaType" &&
+      destTypeNode.kind === "FunctionType"
+    ) {
+      throw new CompilerError(
+        "Cannot cast Lambda to Func. Lambdas carry state (context) which cannot be represented in a raw function pointer.",
+        "",
+        srcTypeNode.location,
+      );
+    }
 
     // Case: Cast to Any
     if (destType === "%struct.Any") {
@@ -923,5 +1073,44 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       "CastError",
       srcTypeNode.location,
     );
+  }
+
+  protected requestThunk(
+    thunkName: string,
+    retType: string,
+    paramTypes: string[],
+    rawFuncPtrType: string,
+  ): void {
+    if (this.thunks.has(thunkName)) return;
+    this.thunks.add(thunkName);
+
+    // Thunk Signature: retType (i8*, params...)
+    const paramsListDef = [
+      "i8* %ctx",
+      ...paramTypes.map((t, i) => `${t} %p${i}`),
+    ].join(", ");
+
+    const methodBody: string[] = [];
+    methodBody.push(`define ${retType} @${thunkName}(${paramsListDef}) {`);
+    methodBody.push(`entry:`);
+
+    // Cast ctx to raw function pointer
+    methodBody.push(`  %fn = bitcast i8* %ctx to ${rawFuncPtrType}`);
+
+    // Call arguments
+    const callArgs = paramTypes.map((t, i) => `${t} %p${i}`).join(", ");
+
+    const callInst = retType === "void" ? "call" : "%ret = call";
+    methodBody.push(`  ${callInst} ${rawFuncPtrType} %fn(${callArgs})`);
+
+    if (retType === "void") {
+      methodBody.push(`  ret void`);
+    } else {
+      methodBody.push(`  ret ${retType} %ret`);
+    }
+
+    methodBody.push(`}`);
+
+    this.declarationsOutput.push(methodBody.join("\n"));
   }
 }

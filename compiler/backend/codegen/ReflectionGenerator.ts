@@ -155,7 +155,7 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     return globalName;
   }
 
-  private isPrimitive(name: string): boolean {
+  protected isPrimitive(name: string): boolean {
     const p = [
       "int",
       "uint",

@@ -98,7 +98,12 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     if (ptr) return ptr;
 
     if (expr.resolvedType && expr.resolvedType.kind === "FunctionType") {
-      return `@${name}`;
+      // Function identifiers are r-values (structs), so to take their address we must spill to stack
+      const val = this.generateExpression(expr);
+      const type = this.resolveType(expr.resolvedType);
+      const spill = this.allocateStack(`func_spill_${this.labelCount++}`, type);
+      this.emit(`  store ${type} ${val}, ${type}* ${spill}`);
+      return spill;
     }
 
     return `%${name}_ptr`;
