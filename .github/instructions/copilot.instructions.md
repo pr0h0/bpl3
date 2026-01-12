@@ -16,8 +16,10 @@ You are working with BPL, a statically-typed, compiled programming language that
 - **Error Handling**: `try`, `catch`, `throw`.
 - **Modules**: `import`, `export`, `from`, `as`.
 - **Types & Values**: `true`, `false`, `nullptr`, `void`, `int`, `float`, `bool`, `char`, `string`, `ushort`, `uint`, `ulong`.
-- **Operators**: `cast`, `sizeof`, `is`, `as`.
+- **Operators**: `cast`, `sizeof`, `is`, `as`, `offsetof`, `typeof`.
   - `sizeof<T>()` or `sizeof(T)` or `sizeof(expr)`
+  - `offsetof(Type, member)`
+  - `typeof<T>()` or `typeof(expr)`
 - **FFI & Low Level**: `extern`, `asm`.
 
 ### Data Types
@@ -61,6 +63,8 @@ frame add(a: int, b: int) ret int {
 frame identity<T>(val: T) ret T {
     return val;
 }
+
+**Note**: Functions (`Func<T>`) are raw function pointers (compatible with C ABI). Lambdas (`Lambda<T>`) are fat pointers (struct `{ func*, ctx* }`). You can cast a `Func` to a `Lambda` (wrapping it), but casting a `Lambda` to a `Func` is forbidden.
 ```
 
 ### Structs
@@ -75,6 +79,8 @@ struct Point {
         return sqrt(cast<float>(this.x * this.x + this.y * this.y));
     }
 }
+
+**Layout Note**: Structs defined without methods (and without invalidating inheritance) are "POD" (Plain Old Data) and match C memory layout exactly. Structs with methods (or inheriting from classes with methods) implicitly inherit from `Type` and carry a hidden compilation-generated vtable pointer as their first field.
 
 # Inheritance
 struct Dog : Animal { ... }
@@ -161,6 +167,7 @@ try {
 ```bpl
 import printf from "libc";
 import [Point] from "./geometry.bpl";
+import exec from "std/process.bpl";
 export frame myFunc() { ... }
 ```
 

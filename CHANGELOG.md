@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Process Execution Module** - Added `std/process.bpl`:
+  - Execute commands with `exec(args...)`
+  - Get status with `execStatus(args...)`
+  - Capture output with `execOutput(args...)` -> `ProcessResult`
+  - **Execute raw shell commands** with `execShell(cmd)` for pipes/redirects
+  - **Silent execution** with `execSilent(args...)`
+  - **Sleep** with `sleep(ms)`
+  - Variadic arguments support with automatic space joining and **automatic OS command injection protection**
+  - Cross-platform helper module for common system tasks
 - **Pattern Matching Enhancements** - Comprehensive pattern matching support:
   - **Primitive Pattern Matching**: Full support for int, i8, i16, i32, i64, u8, u16, u32, u64, float, f32, f64, bool, string, and char types
   - **Tuple Pattern Matching**: Match and destructure tuples of any size (2-element, 3-element, etc.)
@@ -43,11 +52,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Colorized output with context tagging
   - Time profiling with `time()` method
   - Integrated throughout compiler and CLI
-- Comprehensive bash and zsh shell completions for all commands
-- Updated test utilities to use new `run` command
-- Enhanced `cmp.sh` script to use `bpl run` internally
 
 ### Changed
+
+- Updated `lib/process.bpl` to use variadic arguments for all execution functions, improving UX and safety.
+- Expanded `std` exports to include `std/process.bpl`.
 
 - **BREAKING**: Removed `--run` flag from main command (use `bpl run` instead)
 - **BREAKING**: Removed `--watch` flag from main command (use `bpl dev` instead)

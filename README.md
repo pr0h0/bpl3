@@ -43,6 +43,7 @@ frame main() ret int {
 - **Module System**: Organize code with imports and exports
 - **Exception Handling**: Try/catch blocks for robust error management
 - **Pattern Matching**: Type-safe conditional logic
+- **Process execution**: Execute shell commands, check status, and capture output with automatic injection protection
 - **String Interpolation**: Embed expressions in strings with `` `Hello ${name}` ``
 - **Tuples**: Multi-value types for clean APIs
 - **Function Pointers**: First-class functions

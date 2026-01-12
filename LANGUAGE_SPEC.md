@@ -476,3 +476,12 @@ asm("att") {
     "movl (val), %eax"
 }
 ```
+
+## 10. Standard Library Overview
+
+The BPL standard library (`std`) provides core functionality.
+
+- **std/io.bpl**: Input/Output (printf replacement soon).
+- **std/process.bpl**: Process execution and management.
+- **std/string.bpl**: String manipulation.
+- **std/collections**: Lists, Maps, Sets.

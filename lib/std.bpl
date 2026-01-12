@@ -117,3 +117,12 @@ export [Range];
 
 import [StringBuilder] from "std/string_builder.bpl";
 export [StringBuilder];
+
+import exec, execStatus, execOutput, execShell, execSilent, sleep, [ProcessResult] from "std/process.bpl";
+export exec;
+export execStatus;
+export execOutput;
+export execShell;
+export execSilent;
+export sleep;
+export [ProcessResult];

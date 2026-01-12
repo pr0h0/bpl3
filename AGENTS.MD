@@ -167,6 +167,7 @@ try {
 ```bpl
 import printf from "libc";
 import [Point] from "./geometry.bpl";
+import exec from "std/process.bpl";
 export frame myFunc() { ... }
 ```
 

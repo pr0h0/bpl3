@@ -1,0 +1,19 @@
+{
+  "expectedOutput": [
+    "--- Process Test Start ---",
+    "Hello from exec",
+    "Status true: 0",
+    "Status false: nonzero",
+    "Output: Captured Output",
+    "Injection Output: hello; echo INJECTED",
+    "Testing execShell with pipe...",
+    "Pipe Works",
+    "Testing execSilent (should see no output below)...",
+    "Sleeping for 1 second...",
+    "Awake!",
+    "--- Process Test End ---"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

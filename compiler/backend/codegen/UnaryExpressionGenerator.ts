@@ -4,7 +4,6 @@
  */
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
-import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
 import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 
