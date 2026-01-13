@@ -5,7 +5,7 @@
     "  User: bpl_user",
     "Serialized JSON:",
     "{\"id\": 101, \"username\": \"bpl_user\", \"active\": true}",
-    "Successfully wrote to file: config.json",
+    "Successfully wrote to file: tmp/config.json",
     "Read JSON from file:",
     "{\"id\": 101, \"username\": \"bpl_user\", \"active\": true}",
     "Restored Config:",

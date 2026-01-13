@@ -117,7 +117,8 @@ export class ASTResolver {
     try {
       const tokens = lexWithGrammar(content, filePath);
       const parser = new Parser(content, filePath, tokens);
-      const ast = parser.parse();
+      // Don't throw on error, we want partial ASTs for completion
+      const ast = parser.parse(false, false);
 
       // Cache it (use current time as mtime since it's in-memory)
       this.astCache.set(filePath, { ast, mtime: Date.now(), source: content });

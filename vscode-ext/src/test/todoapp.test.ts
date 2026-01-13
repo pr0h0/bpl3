@@ -324,7 +324,10 @@ describe("Todo App - Completions", () => {
   });
 
   it("should complete method calls on chained expressions (res.status().json())", () => {
-    const testContent = `frame test(res: *Response) {\n    res.status(404).\n}`;
+    // Index bpl-express so Response type can be resolved
+    symbolIndex.indexFile(TODO_APP_PATH);
+
+    const testContent = `import [Response] from "bpl-express";\nframe test(res: *Response) {\n    res.status(404).\n}`;
     const testDoc = TextDocument.create(
       `file://${TODO_APP_PATH}`,
       "bpl",
@@ -332,7 +335,7 @@ describe("Todo App - Completions", () => {
       testContent,
     );
 
-    const line = 2;
+    const line = 3;
     const character = 20; // After "res.status(404)."
 
     const completions = completionHandler.handle(

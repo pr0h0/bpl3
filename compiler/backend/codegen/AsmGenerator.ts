@@ -97,15 +97,12 @@ export abstract class AsmGenerator extends ExceptionGenerator {
       const sortedOperands = [...outputs, ...inputs];
 
       // 3. Replace placeholders with $index
-      asmString = tempString.replace(
-        /__BPL_ASM_OP_([^_]+)__/g,
-        (match, key) => {
-          const op = uniqueOperands.get(key);
-          if (!op) return match;
-          const index = sortedOperands.indexOf(op);
-          return `$${index}`;
-        },
-      );
+      asmString = tempString.replace(/__BPL_ASM_OP_(.+?)__/g, (match, key) => {
+        const op = uniqueOperands.get(key);
+        if (!op) return match;
+        const index = sortedOperands.indexOf(op);
+        return `$${index}`;
+      });
 
       // 4. Generate constraints string
       // Constraints order: outputs, inputs, clobbers

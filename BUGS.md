@@ -94,7 +94,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-085 | Parser              | `sizeof(int[10])` fails parsing (interpreted as indexing expression).                                                      | Fixed    |                                                                                                                                                                                                                                                                                          |
 | BUG-086 | Type Aliases        | Type alias substitution ignores precedence (e.g., `*Arr` where `Arr=int[10]` becomes array of pointers).                   | Fixed    | Pointer-to-array indexing now loads the pointee array and uses correct GEP, preserving alias precedence for `*Arr` -> pointer-to-array.                                                                                                                                                  |
 | BUG-087 | Equality            | Function pointer equality uses invalid LLVM IR (`icmp eq` on closure struct).                                              | Fixed    | Already works correctly - generates valid `icmp eq` instruction for direct pointer comparison.                                                                                                                                                                                           |
-| BUG-088 | Methods             | Bound methods (e.g., `obj.method`) are not supported (parser error).                                                       | Open     | in obj.method() this should work, in `frame obj.method()` this should not work since we have struct methods                                                                                                                                                                              |
+| BUG-088 | Methods             | Bound methods (e.g., `obj.method`) are not supported (parser error).                                                       | Fixed    | in obj.method() this should work, in `frame obj.method()` this should not work since we have struct methods                                                                                                                                                                              |
 | BUG-089 | Structs             | Recursive structs (infinite size) cause LLVM IR generation errors instead of semantic error.                               | Fixed    | Added detectStructCycle() method to TypeChecker.ts to detect cyclic struct field references before LLVM generation.                                                                                                                                                                      |
 | BUG-090 | Enums               | Recursive enums cause stack buffer overflow in generated code (incorrect size calculation).                                | Fixed    | Added detectEnumCycle() method to TypeChecker.ts to detect cyclic enum variant references before LLVM generation.                                                                                                                                                                        |
 | BUG-091 | Enums               | Enum constructor corrupts fields for small types (writes `i32` for `u8`, overwriting adjacent fields).                     | Fixed    | Added type truncation when storing enum tuple variant arguments to handle small integer types (u8, i8, u16, i16).                                                                                                                                                                        |
@@ -121,7 +121,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-108 | Parser/Analysis     | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                 | Fixed    | TypeChecker.ts now explicitly checks for duplicate fields/methods and throws a proper CompilerError.                                                                                                                                                                                     |
 | BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Fixed    | ExpressionChecker.ts now throws a CompilerError when attempting to take the address of a constant variable.                                                                                                                                                                              |
 | BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Fixed    | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
-| BUG-111 | Inline Asm          | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                          | Open     | Placeholder replacement logic likely fails for underscores in variable names.                                                                                                                                                                                                            |
+| BUG-111 | Inline Asm          | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                          | Fixed    | Fixed regex in `AsmGenerator.ts` to support variable names containing underscores by using non-greedy match `(.+?)` instead of `([^_]+)`.                                                                                                                                                |
 
 ## Details
 
@@ -1299,21 +1299,8 @@ String concatenation using the `+` operator generated invalid LLVM IR (`add` ins
 
 ### BUG-111: Inline Assembly Variable Name with Underscore
 
-**Status**: Open
+**Status**: Fixed
 
 **Description**: Using a variable name with an underscore (e.g., `asm_res`, `my_var`) in an inline assembly block causes a compilation error. The compiler fails to replace the placeholder correctly in the generated output.
 
-**Reproduction**:
-
-```bpl
-frame main() {
-    local my_var: int = 10;
-    asm("intel") {
-        mov eax, (=my_var)
-    }
-}
-```
-
-**Generates Error**: `<inline asm>: error: unexpected token in argument list ... mov __BPL_ASM_OP_my_var...`
-
-**Workaround**: Use variable names without underscores in inline assembly (e.g., `res`, `val`).
+**Resolution**: Updated the regex in `AsmGenerator.ts` to correctly match placeholders containing underscores. Previously, the regex `([^_]+)` stopped matching at the first underscore, failing to replace the full placeholder. It now uses `(.+?)` to match the full key until the closing `__` delimiter.

@@ -51,9 +51,10 @@ export class ASTCompletionHandler {
 
       // Check if we're after a dot (member access) with optional partial text
       // Match: obj. or Array<int>. or obj.getNa or obj.field1.field2. or obj.field.partial
-      // Pattern matches: identifier, optional generics <...>, optional chained members, then dot
+      // Pattern matches: identifier, optional generics <...>, optional calls (...), then chained members, then dot
+      // Note: This simple regex handles simple calls like foo(1) but might fail on nested calls foo(bar())
       const memberMatch = beforeCursor.match(
-        /([a-zA-Z_][a-zA-Z0-9_]*(?:<[^>]+>)?(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\.(\w*)$/,
+        /([a-zA-Z_][a-zA-Z0-9_]*(?:<[^>]+>)?(?:\([^)]*\))?(?:\.[a-zA-Z_][a-zA-Z0-9_]*(?:<[^>]+>)?(?:\([^)]*\))?)*)\.(\w*)$/,
       );
 
       if (memberMatch && memberMatch[1]) {
@@ -117,50 +118,80 @@ export class ASTCompletionHandler {
 
     // Build synthetic AST node for chained access
     const parts = objectPath.split(".");
-    let syntheticNode: AST.ASTNode;
+    let syntheticNode: AST.ASTNode | null = null;
 
-    if (parts.length === 1) {
-      // Simple identifier: obj
-      syntheticNode = {
-        kind: "Identifier",
-        name: parts[0],
-        location: {
-          file: filePath,
-          startLine: line,
-          startColumn: character - objectPath.length - 1,
-          endLine: line,
-          endColumn: character - 1,
-        },
-      } as AST.IdentifierExpr;
-    } else {
-      // Chained member access: obj.field1.field2
-      syntheticNode = {
-        kind: "Identifier",
-        name: parts[0],
-        location: {
-          file: filePath,
-          startLine: line,
-          startColumn: character - objectPath.length - 1,
-          endLine: line,
-          endColumn: character - 1,
-        },
-      } as AST.IdentifierExpr;
+    // Helper to create safe location
+    const loc = {
+      file: filePath,
+      startLine: line,
+      startColumn: character - objectPath.length - 1, // Approximate
+      endLine: line,
+      endColumn: character - 1,
+    };
 
-      for (let i = 1; i < parts.length; i++) {
-        syntheticNode = {
-          kind: "Member",
-          object: syntheticNode,
-          property: parts[i],
-          location: {
-            file: filePath,
-            startLine: line,
-            startColumn: character - objectPath.length - 1,
-            endLine: line,
-            endColumn: character - 1,
-          },
-        } as AST.MemberExpr;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!part) continue;
+
+      // Check for call pattern: name(...) or name<...>(...)
+      const callMatch = part.match(
+        /^([a-zA-Z_][a-zA-Z0-9_]*)(?:<[^>]+>)?\s*\(.*\)$/,
+      );
+
+      let currentNode: AST.ASTNode;
+
+      if (callMatch) {
+        const name = callMatch[1];
+        // Create base node (Identifier or Member)
+        if (i === 0) {
+          currentNode = {
+            kind: "Identifier",
+            name: name,
+            location: loc,
+          } as AST.IdentifierExpr;
+        } else {
+          currentNode = {
+            kind: "Member",
+            object: syntheticNode!,
+            property: name,
+            location: loc,
+          } as AST.MemberExpr;
+        }
+
+        // Wrap in Call
+        currentNode = {
+          kind: "Call",
+          callee: currentNode as AST.Expression,
+          args: [], // Arguments not needed for simple return type resolution
+          genericArgs: [],
+          location: loc,
+        } as AST.CallExpr;
+      } else {
+        // Not a call
+        // Strip generics if present for the name property (though usually not present in var names access)
+        const nameMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)/);
+        const name = nameMatch ? nameMatch[1] : part;
+
+        if (i === 0) {
+          currentNode = {
+            kind: "Identifier",
+            name: name,
+            location: loc,
+          } as AST.IdentifierExpr;
+        } else {
+          currentNode = {
+            kind: "Member",
+            object: syntheticNode!,
+            property: name,
+            location: loc,
+          } as AST.MemberExpr;
+        }
       }
+
+      syntheticNode = currentNode;
     }
+
+    if (!syntheticNode) return [];
 
     const type = this.astResolver.resolveType(syntheticNode, filePath);
     console.log(`[ASTCompletion] Resolved type: ${type}`);
