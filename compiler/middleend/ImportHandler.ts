@@ -406,9 +406,6 @@ export class ImportHandler {
       for (const s of ast.statements) {
         if (s.kind === "Export") {
           const exportStmt = s as AST.ExportStmt;
-          // console.log(
-          //   `Checking export: '${exportStmt.items.map(i => i.name).join(", ")}' vs '${item.name}'`,
-          // );
           for (const exportedItem of exportStmt.items) {
             if (exportedItem.name === item.name) {
               isExported = true;

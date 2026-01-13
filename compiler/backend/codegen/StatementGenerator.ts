@@ -170,7 +170,7 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.generateFreeCaptureStruct(stmt as any);
         break;
       case "Extern":
-        // Just to remove console log since its handled elsewhere
+        // Just to remove warning since its handled elsewhere
         break;
       default:
         codeGenLog.warn(`Unhandled statement kind: ${stmt.kind}`);

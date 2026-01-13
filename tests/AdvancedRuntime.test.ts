@@ -152,8 +152,6 @@ describe("Advanced Runtime Values", () => {
       }
     `;
     const { stdout, stderr, exitCode } = runBPL(source);
-    console.log("DivZero ExitCode:", exitCode);
-    console.log("DivZero Stderr:", stderr);
   });
 
   it("should handle infinite recursion (stack overflow)", () => {
@@ -168,8 +166,6 @@ describe("Advanced Runtime Values", () => {
       }
     `;
     const { stdout, stderr, exitCode } = runBPL(source);
-    console.log("StackOverflow ExitCode:", exitCode);
-    // console.log("StackOverflow Stderr:", stderr); // Might be huge
   });
 
   it("should handle float to int casting", () => {

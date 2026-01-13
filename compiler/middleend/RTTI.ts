@@ -96,7 +96,6 @@ export class RTTI {
       hash *= 0x100000001b3n;
       hash &= 0xffffffffffffffffn; // Keep it 64-bit
     }
-    // console.log("Registered type id for type:", str, hash);
     return hash;
   }
 }
