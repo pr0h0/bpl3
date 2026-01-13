@@ -33,7 +33,7 @@ frame main() {
     IO.print("\n");
 
     # 3. Write to File
-    local path: string = "config.json";
+    local path: string = "tmp/config.json";
     if (FS.writeFile(path, jsonStr)) {
         IO.print("Successfully wrote to file: ");
         IO.print(path);

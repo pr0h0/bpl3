@@ -69,7 +69,7 @@ frame identity<T>(val: T) ret T {
 
 ### Structs
 
-```bpl
+````bpl
 struct Point {
     x: int,
     y: int,
@@ -84,7 +84,24 @@ struct Point {
 
 # Inheritance
 struct Dog : Animal { ... }
-```
+
+### Bound Methods
+
+Methods can be used as values, creating a `Lambda` that captures the object instance (`this`).
+
+```bpl
+struct Counter {
+    count: int,
+    frame increment(this: *Counter) { this.count = this.count + 1; }
+}
+
+frame main() {
+    local c = Counter { count: 0 };
+    # 'inc' is a Lambda<void> that captures 'c'
+    local inc = c.increment;
+    inc();
+}
+````
 
 ### Enums (ADTs)
 

@@ -87,3 +87,28 @@ This pattern is particularly useful for:
 
 1.  **Calling Parent Methods**: Simulating `super` calls in inheritance (see [Inheritance](13-inheritance.md)).
 2.  **Disambiguation**: When multiple methods might have similar names or when dealing with function pointers.
+
+## Bound Methods
+
+Methods can be assigned to variables. When you access an instance method without calling it, it creates a "bound method" (a `Lambda`) that captures the object instance (`this`).
+
+```bpl
+struct Counter {
+    val: int,
+    frame increment(this: *Counter) {
+        this.val = this.val + 1;
+    }
+}
+
+frame main() {
+    local c: Counter = Counter { val: 0 };
+
+    # 'inc' is a Lambda that captures 'c'
+    local inc: Lambda<void>() = c.increment;
+
+    inc(); # Calls c.increment(), c.val becomes 1
+    inc(); # c.val becomes 2
+}
+```
+
+The bound method follows reference semantics if the method takes a pointer receiver (`this: *Type`). Modifications via the bound method will affect the original object.

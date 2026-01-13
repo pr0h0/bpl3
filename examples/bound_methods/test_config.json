@@ -1,0 +1,16 @@
+{
+  "expectedOutput": [
+    "--- Bound Methods Example ---",
+    "Counter incremented to: 1",
+    "Counter incremented to: 2",
+    "Counter added 5, new total: 7",
+    "Counter added 10, new total: 17",
+    "Counter incremented to: 101",
+    "Counter incremented to: 18",
+    "Hello, World!",
+    "--- End ---"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

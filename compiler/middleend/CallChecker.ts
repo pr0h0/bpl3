@@ -987,58 +987,63 @@ export function checkMember(
           }
 
           return {
-            kind: "FunctionType",
+            kind: "LambdaType", // Return LambdaType for bound methods
             returnType: returnType,
             paramTypes,
             location: expr.location,
             declaration: method,
-          } as AST.FunctionTypeNode;
+          } as AST.LambdaTypeNode;
         }
 
         // Multiple overloads
         if (compatibleMethods.length > 0 && compatibleMethods[0]) {
           const first = compatibleMethods[0];
+          // For overloads, we also need to indicate it's a bound method.
+          // However, overload resolution later expects FunctionType or similar.
+          // Let's attach a flag or use LambdaType.
+          // The issue is if we use LambdaType, OverloadResolver needs to handle it.
 
-          // Resolve types in module context first
-          const {
-            returnType: initFirstReturnType,
-            paramTypes: allFirstParamTypes,
-          } = resolveMethodTypesInModuleContext(this, first);
-          let firstReturnType = initFirstReturnType;
-          let firstParamTypes = allFirstParamTypes.slice(1);
-
-          if (genericMap && genericMap.size > 0) {
-            firstReturnType = this.substituteType(firstReturnType, genericMap);
-            firstParamTypes = firstParamTypes.map((t) =>
-              this.substituteType(t, genericMap),
-            );
-          }
-
-          return {
-            kind: "FunctionType",
-            returnType: firstReturnType,
-            paramTypes: firstParamTypes,
+          const result = {
+            kind: "FunctionType", // Temporarily FunctionType for overload resolution?
+            // Actually, if we return LambdaType, checkCall needs to handle it.
+            // But here we are in checkMember, which is called for `c.inc`.
+            // If we return LambdaType, then `c.inc()` (CallExpr) will see LambdaType as callee.
+            returnType: this.resolveType(first.returnType!),
+            paramTypes: [], // Dummy, filled by overloads
             location: expr.location,
-            overloads: compatibleMethods.map((m) => {
-              // Resolve types in module context first
-              const { returnType: initRet, paramTypes: allParams } =
-                resolveMethodTypesInModuleContext(this, m);
-              let ret = initRet;
-              let params = allParams.slice(1);
-
-              if (genericMap && genericMap.size > 0) {
-                ret = this.substituteType(ret, genericMap);
-                params = params.map((t) => this.substituteType(t, genericMap));
-              }
-              return {
-                kind: "FunctionType" as const,
-                returnType: ret,
-                paramTypes: params,
-                location: m.location,
-                declaration: m,
-              };
-            }),
+            declaration: first,
           } as any;
+
+          result.overloads = compatibleMethods.map((m) => {
+            // ... construct lambda types for candidates?
+            return m;
+          });
+          // This part is tricky. Existing overload logic works on FunctionType.
+          // Let's stick to FunctionType but add a property 'isBoundMethod'.
+
+          const candidates = compatibleMethods.map((method) => {
+            const { returnType: rt, paramTypes: apt } =
+              resolveMethodTypesInModuleContext(this, method);
+
+            let ret = rt;
+            let pts = apt.slice(1); // Strip this
+
+            if (genericMap && genericMap.size > 0) {
+              ret = this.substituteType(ret, genericMap);
+              pts = pts.map((t) => this.substituteType(t, genericMap));
+            }
+
+            return {
+              kind: "LambdaType",
+              returnType: ret,
+              paramTypes: pts,
+              location: expr.location,
+              declaration: method,
+            } as AST.LambdaTypeNode;
+          });
+
+          (result as any).overloads = candidates;
+          return result;
         }
       }
     }

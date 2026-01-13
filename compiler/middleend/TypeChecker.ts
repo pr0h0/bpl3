@@ -1350,6 +1350,35 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       };
     }
 
+    // Handle generic lambda instantiation (bound methods)
+    if (baseType.kind === "LambdaType" && (baseType as any).declaration) {
+      const lambdaType = baseType as AST.LambdaTypeNode;
+      const decl = (baseType as any).declaration as AST.FunctionDecl;
+
+      if (
+        decl &&
+        decl.genericParams &&
+        decl.genericParams.length === expr.genericArgs.length
+      ) {
+        // Match! Substitute.
+        const typeMap = new Map<string, AST.TypeNode>();
+        for (let i = 0; i < decl.genericParams.length; i++) {
+          typeMap.set(
+            decl.genericParams[i]!.name,
+            this.resolveType(expr.genericArgs[i]!),
+          );
+        }
+
+        return {
+          ...lambdaType,
+          returnType: this.substituteType(lambdaType.returnType, typeMap),
+          paramTypes: lambdaType.paramTypes.map((t) =>
+            this.substituteType(t, typeMap),
+          ),
+        };
+      }
+    }
+
     // Handle generic function instantiation
     if (baseType.kind === "FunctionType") {
       const funcType = baseType as AST.FunctionTypeNode;

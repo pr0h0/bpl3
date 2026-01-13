@@ -751,11 +751,131 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       return reg;
     }
 
+    // Handle bound methods
+    if (
+      expr.resolvedType &&
+      expr.resolvedType.kind === "LambdaType" &&
+      (expr.resolvedType as any).declaration?.kind === "FunctionDecl"
+    ) {
+      return this.generateBoundMethod(
+        expr,
+        (expr.resolvedType as any).declaration,
+      );
+    }
+
     const addr = this.generateAddress(expr);
     const type = this.resolveType(expr.resolvedType!);
     const reg = this.newRegister();
     this.emit(`  ${reg} = load ${type}, ${type}* ${addr}`);
     return reg;
+  }
+
+  protected generateBoundMethod(
+    expr: AST.MemberExpr,
+    methodDecl: AST.FunctionDecl,
+  ): string {
+    const objType = expr.object.resolvedType as AST.BasicTypeNode;
+    let valPtr: string;
+    let valPtrType: string;
+
+    // 1. Get Context Pointer (this)
+    if (expr.object.kind === "Call") {
+      const callType = expr.object.resolvedType as AST.BasicTypeNode;
+      const llvmObjType = this.resolveType(callType);
+
+      if (callType.pointerDepth > 0) {
+        valPtr = this.generateExpression(expr.object);
+        valPtrType = llvmObjType;
+      } else {
+        // Result is value. Store in alloca.
+        valPtr = this.newRegister();
+        this.emit(`  ${valPtr} = alloca ${llvmObjType}`);
+        const val = this.generateExpression(expr.object);
+        this.emit(`  store ${llvmObjType} ${val}, ${llvmObjType}* ${valPtr}`);
+        valPtrType = llvmObjType + "*";
+      }
+    } else if (objType.pointerDepth > 0) {
+      // Logic for L-values or simple expressions
+      valPtr = this.generateExpression(expr.object);
+      valPtrType = this.resolveType(objType);
+    } else {
+      const llvmObjType = this.resolveType(objType);
+      try {
+        valPtr = this.generateAddress(expr.object);
+        valPtrType = llvmObjType + "*";
+      } catch {
+        // Not an l-value (e.g. struct literal)
+        const val = this.generateExpression(expr.object);
+        valPtr = this.newRegister();
+        this.emit(`  ${valPtr} = alloca ${llvmObjType}`);
+        this.emit(`  store ${llvmObjType} ${val}, ${llvmObjType}* ${valPtr}`);
+        valPtrType = llvmObjType + "*";
+      }
+    }
+
+    // 2. Resolve Function Name (Mangled)
+    const funcType: AST.FunctionTypeNode = {
+      // Shim for mangling
+      kind: "FunctionType",
+      returnType: methodDecl.returnType,
+      paramTypes: methodDecl.params.map((p) => p.type),
+      isVariadic: methodDecl.params.some((p) => p.isVariadic),
+      location: methodDecl.location,
+    };
+
+    let structName = objType.name;
+    if (
+      methodDecl.params.length > 0 &&
+      methodDecl.params[0]!.name === "this" &&
+      methodDecl.params[0]!.type.kind === "BasicType"
+    ) {
+      structName = (methodDecl.params[0]!.type as AST.BasicTypeNode).name;
+    }
+
+    const fullMethodName = `${structName}_${methodDecl.name}`;
+    const funcName = this.getMangledName(fullMethodName, funcType);
+
+    // 3. Create Lambda Struct
+    const lambdaType = expr.resolvedType as AST.LambdaTypeNode;
+    const closureType = this.resolveType(lambdaType);
+
+    // Target lambda function pointer type: ret (i8*, args...)*
+    const retTypeStr = this.resolveType(lambdaType.returnType);
+    const paramTypesStr = lambdaType.paramTypes
+      .map((p) => this.resolveType(p))
+      .join(", ");
+    const genericFuncPtrType = `${retTypeStr} (i8*${
+      paramTypesStr ? ", " + paramTypesStr : ""
+    })*`;
+
+    // Existing function pointer type
+    const specificRetTypeStr = this.resolveType(methodDecl.returnType);
+    const specificParamTypesStr = methodDecl.params
+      .map((p) => this.resolveType(p.type))
+      .join(", ");
+    const specificFuncPtrType = `${specificRetTypeStr} (${specificParamTypesStr})*`;
+
+    // Bitcast the function
+    const castFuncPtr = this.newRegister();
+    this.emit(
+      `  ${castFuncPtr} = bitcast ${specificFuncPtrType} @${funcName} to ${genericFuncPtrType}`,
+    );
+
+    const undef = this.newRegister();
+    this.emit(
+      `  ${undef} = insertvalue ${closureType} undef, ${genericFuncPtrType} ${castFuncPtr}, 0`,
+    );
+
+    // Bitcast the context
+    const ctxVoidPtr = this.newRegister();
+    this.emit(`  ${ctxVoidPtr} = bitcast ${valPtrType} ${valPtr} to i8*`);
+
+    const closure = this.newRegister();
+    this.emit(
+      `  ${closure} = insertvalue ${closureType} ${undef}, i8* ${ctxVoidPtr}, 1`,
+    );
+
+    return closure;
   }
 
   protected generateIndex(expr: AST.IndexExpr): string {

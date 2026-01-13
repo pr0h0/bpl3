@@ -105,8 +105,25 @@ printf("%d\n", getRefX()); # Prints 10
 
 You can use `_` for arguments that are not used in the lambda body.
 
-```bpl
+```BPL
 local alwaysZero: Func<int>(int) = |_| ret int {
     return 0;
 };
+```
+
+## Bound Methods
+
+Instance methods of structs can be treated as lambdas. When you reference a method on an instance (e.g., `obj.method`), it produces a `Lambda` where the `this` pointer is implicitly captured as the context.
+
+```bpl
+struct Greeter {
+    name: string,
+    frame sayHello(this: *Greeter) {
+        printf("Hello, %s!", this.name);
+    }
+}
+
+local g: Greeter = Greeter { name: "World" };
+local greet: Lambda<void>() = g.sayHello;
+greet(); // Prints "Hello, World!"
 ```
