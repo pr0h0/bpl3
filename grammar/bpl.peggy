@@ -1690,7 +1690,12 @@ InterpolatedStringChar
       if (c === '`') return '`';
       return text(); 
     }
-  / [^`\\$\n\r] { return text(); }
+  / c:[^`\\$] { 
+      if (c === '"') return '\\"';
+      if (c === '\n') return '\\n';
+      if (c === '\r') return '\\r';
+      return c;
+    }
   / "$" ! "{" { return "$"; }
 
 EOF = !.

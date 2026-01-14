@@ -1,0 +1,13 @@
+{
+  "expectedOutput": [
+    "--- HTTP Client Comprehensive Test ---",
+    "[Test 1] GET http://example.com/",
+    "[Test 2] GET with Headers",
+    "[Test 3] POST http://example.com/",
+    "[Test 4] CUSTOM METHOD PROPFIND",
+    "--- Tests Completed ---"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

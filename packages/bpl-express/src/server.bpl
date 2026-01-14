@@ -1,9 +1,13 @@
 import [Router] from "./router.bpl";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
-import socket, bind, listen, accept, read, close, setsockopt, htons, printf, exit, memset, strncmp, strchr, strstr, strlen, open, lseek, malloc, free, strcpy, strcat from "./libc.bpl";
+import socket, bind, listen, accept, read, close, setsockopt, htons, printf, exit, memset, strncmp, strchr, strstr, strlen, open, lseek, malloc, free, strcpy, strcat, strcmp from "./libc.bpl";
 import [sockaddr_in] from "./libc.bpl";
+import [HttpParser], [ParsedRequest] from "bpl-http-parser";
 
 export [App];
+export [Request];
+export [Response];
+export [Router];
 
 struct App {
     router: Router,
@@ -140,37 +144,33 @@ struct App {
 
     frame parseRequest(this: *App, raw: string) ret Request {
         local req: Request = Request.new();
+        local parsed: ParsedRequest = HttpParser.parse(raw);
 
-        # Method
-        if (strncmp(raw, "GET", 3) == 0) {
+        req.path = parsed.path;
+        req.body = parsed.body;
+
+        # Method Mapping
+        if (strcmp(parsed.method, "GET") == 0) {
             req.method = HttpMethod.GET;
-        } else if (strncmp(raw, "POST", 4) == 0) {
+        } else if (strcmp(parsed.method, "POST") == 0) {
             req.method = HttpMethod.POST;
-        } else if (strncmp(raw, "PUT", 3) == 0) {
+        } else if (strcmp(parsed.method, "PUT") == 0) {
             req.method = HttpMethod.PUT;
-        } else if (strncmp(raw, "DELETE", 6) == 0) {
+        } else if (strcmp(parsed.method, "DELETE") == 0) {
             req.method = HttpMethod.DELETE;
-        }
-        # Body (find before modifying raw)
-        local body_sep: *char = strstr(raw, "\r\n\r\n");
-        if (body_sep != nullptr) {
-            req.body = body_sep + 4;
+        } else if (strcmp(parsed.method, "PATCH") == 0) {
+            req.method = HttpMethod.PATCH;
         } else {
-            req.body = "";
+            req.method = HttpMethod.GET; # Default
         }
 
-        # Path
-        local space1: *char = strchr(raw, ' ');
-        if (space1 != nullptr) {
-            local path_start: *char = space1 + 1;
-            local space2: *char = strchr(path_start, ' ');
-            if (space2 != nullptr) {
-                # Null terminate path in place
-                local ptr: *char = cast<*char>(space2);
-                ptr[0] = 0;
-                req.path = path_start;
-            }
-        }
+        # Transfer ownership of maps
+        req.headers = parsed.headers;
+        req.query = parsed.query;
+        req.params = parsed.params;
+
+        free(parsed.method);
+
         return req;
     }
 }

@@ -1,0 +1,9 @@
+{
+  "name": "bpl-http-client",
+  "version": "0.1.0",
+  "description": "HTTP Client for BPL",
+  "main": "index.bpl",
+  "dependencies": {
+    "network-utils": "path:./src"
+  }
+}

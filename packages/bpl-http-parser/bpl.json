@@ -1,0 +1,7 @@
+{
+  "name": "bpl-http-parser",
+  "version": "0.1.0",
+  "description": "HTTP request parsing library for BPL",
+  "main": "index.bpl",
+  "license": "MIT"
+}
