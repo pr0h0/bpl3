@@ -1,0 +1,8 @@
+@args name: string
+<html>
+  <body>
+    <h1>Welcome</h1>
+    <p>Hello, {{ name }}!</p>
+    <p>Escaping test: {{ "<script>alert('xss')</script>" }}</p>
+  </body>
+</html>

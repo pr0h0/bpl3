@@ -1,4 +1,4 @@
-import [Router] from "./router.bpl";
+import [Router], [RouteHandler] from "./router.bpl";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
 import socket, bind, listen, accept, read, close, setsockopt, htons, printf, exit, memset, strncmp, strchr, strstr, strlen, open, lseek, malloc, free, strcpy, strcat, strcmp from "./libc.bpl";
 import [sockaddr_in] from "./libc.bpl";
@@ -26,6 +26,14 @@ struct App {
     frame useStatic(this: *App, url: string, dir: string) {
         this.static_url = url;
         this.static_dir = dir;
+    }
+
+    frame use(this: *App, handler: RouteHandler) {
+        this.router.addMiddleware(handler);
+    }
+
+    frame useRouter(this: *App, path: string, router: *Router) {
+        this.router.useRouter(path, router);
     }
 
     frame listen(this: *App, port: int) {

@@ -1,0 +1,10 @@
+{
+  "name": "bpl-templ",
+  "version": "0.1.6",
+  "description": "BPL Template Engine Compiler",
+  "bin": {
+    "bpl-templ": "dist/bpl-templ"
+  },
+  "main": "src/html.bpl",
+  "exports": ["src/html.bpl"]
+}

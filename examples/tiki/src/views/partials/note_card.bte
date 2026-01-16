@@ -1,0 +1,11 @@
+@args note: *Note
+@import [Note] from "../../models.bpl"
+@import int_to_string from "../../utils.bpl"
+
+<div class="bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden border border-gray-200">
+  <div class="p-6">
+    <h5 class="text-xl font-bold mb-2 text-gray-800">{{ note.title }}</h5>
+    <p class="text-gray-600 mb-4">{{ note.content }}</p>
+    <a href="/notes/{{ int_to_string(note.id) }}/edit" class="text-teal-600 hover:text-teal-800 font-semibold hover:underline">Edit</a>
+  </div>
+</div>

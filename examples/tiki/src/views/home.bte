@@ -1,0 +1,27 @@
+@args user: *User, notes: **Note, count: int
+@import [User], [Note] from "../models.bpl"
+@import [Header] from "./partials/header.bpl"
+@import [Footer] from "./partials/footer.bpl"
+@import [Navbar] from "./partials/navbar.bpl"
+@import [NoteCard] from "./partials/note_card.bpl"
+
+{{ !Header.render("Home") }}
+{{ !Navbar.render(user) }}
+
+<main class="container mx-auto px-4">
+  <div class="bg-white p-10 rounded-lg shadow-sm mb-8 border border-gray-200">
+    <h1 class="text-4xl font-bold mb-4 text-gray-800">All Notes</h1>
+    <p class="text-xl text-gray-600 mb-6 font-light">Welcome to Tiki Notes. Share your thoughts.</p>
+    @if (user != nullptr) {
+        <a class="inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg transition shadow-sm" href="/notes/create" role="button">Create Note</a>
+    }
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    @loop (local i: int = 0; i < count; i++) {
+        {{ !NoteCard.render(notes[i]) }}
+    }
+  </div>
+</main>
+
+{{ !Footer.render() }}

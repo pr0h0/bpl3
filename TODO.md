@@ -231,6 +231,15 @@
 
 ### High Priority (Next Steps)
 
+- [ ] **Proper Runtime Library Implementation**
+
+  - Description: Replace minimal stubs in `lib/runtime.ll` with a robust runtime library (possibly in C or BPL).
+  - Implementation notes:
+    - Implement `__bpl_check_null` to print file/line info before exiting.
+    - Implement `__bpl_enter_stack_frame` / `__bpl_exit_stack_frame` for stack tracing.
+    - Handle signals (SEGV, ILL) to print stack traces.
+    - Consider moving runtime to a C file (`runtime.c`) compiled to `.bc` and linked, for easier maintenance.
+
 - [ ] **Advanced Type System Features**
 
   - [ ] Type Guards (User-defined `is` functions)

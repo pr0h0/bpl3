@@ -1,18 +1,15 @@
-# Path utilities
-
-export [Path];
-
 import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
+import [StringBuilder] from "std/string_builder.bpl";
 
 extern strlen(s: string) ret int;
-extern malloc(size: long) ret string;
-extern free(ptr: string) ret void;
+extern malloc(size: long) ret *void;
+extern free(ptr: *void) ret void;
 
 struct Path {
     frame join(a: string, b: string) ret String {
-        local pa: string = cast<string>(a);
-        local pb: string = cast<string>(b);
+        local pa: string = a;
+        local pb: string = b;
         local la: int = strlen(pa);
         local lb: int = strlen(pb);
         local needSlash: int = 1;
@@ -23,10 +20,6 @@ struct Path {
                 needSlash = 0;
             }
         }
-        # If a is empty, or b is absolute? Logic similar to original but simpler join
-        # For now keep original logic or improve? 
-        # Original logic (concatenation with slash) is fine for basic join.
-
         local extra: int = needSlash;
         local total: int = la + lb + extra;
         local buf: string = malloc(cast<long>(total + 1));
@@ -51,160 +44,220 @@ struct Path {
         return res;
     }
 
-    frame basename(path: string) ret String {
-        local pp: string = cast<string>(path);
-        local lp: int = strlen(pp);
-        if (lp == 0) {
-            return String.new("");
+    frame dirname(path: string) ret String {
+        local len: int = strlen(path);
+        if (len == 0) {
+            return String.new(".");
         }
-        local i: int = lp - 1;
+        local i: int = len - 1;
+
         loop (i >= 0) {
-            if (pp[i] == cast<char>(47)) {
-                break;
+            local c: char = path[i];
+            if (c == cast<char>(47)) {
+                if (i == 0) {
+                    return String.new("/");
+                }
+                local buf: string = malloc(cast<long>(i + 1));
+                local k: int = 0;
+                loop (k < i) {
+                    buf[k] = path[k];
+                    k = k + 1;
+                }
+                buf[k] = cast<char>(0);
+                local s: String = String.new(buf);
+                free(buf);
+                return s;
             }
             i = i - 1;
         }
-        local start: int = i + 1;
-        local len: int = lp - start;
-        local buf: string = malloc(cast<long>(len + 1));
-        local k: int = 0;
-        loop (k < len) {
-            buf[k] = pp[start + k];
-            k = k + 1;
+        return String.new(".");
+    }
+
+    frame basename(path: string) ret String {
+        local len: int = strlen(path);
+        if (len == 0) {
+            return String.new("");
         }
-        buf[len] = cast<char>(0);
-        local res: String = String.new(buf);
-        free(buf);
-        return res;
+        local i: int = len - 1;
+        loop (i >= 0) {
+            local c: char = path[i];
+            if (c == cast<char>(47)) {
+                local start: int = i + 1;
+                local subLen: int = len - start;
+                local buf: string = malloc(cast<long>(subLen + 1));
+                local k: int = 0;
+                loop (k < subLen) {
+                    buf[k] = path[start + k];
+                    k = k + 1;
+                }
+                buf[subLen] = cast<char>(0);
+                local s: String = String.new(buf);
+                free(buf);
+                return s;
+            }
+            i = i - 1;
+        }
+        return String.new(path);
     }
 
     frame isAbsolute(path: string) ret bool {
-        if (path == nullptr) 
+        if (path == nullptr) {
             return false;
-        return *path == cast<char>(47);
+        }
+        local c: char = path[0];
+        return c == cast<char>(47);
+    }
+
+    frame extname(path: string) ret String {
+        local len: int = strlen(path);
+        if (len == 0) {
+            return String.new("");
+        }
+        local i: int = len - 1;
+        loop (i >= 0) {
+            local c: char = path[i];
+            if (c == cast<char>(46)) {
+                local start: int = i;
+                local subLen: int = len - start;
+                local buf: string = malloc(cast<long>(subLen + 1));
+                local k: int = 0;
+                loop (k < subLen) {
+                    buf[k] = path[start + k];
+                    k = k + 1;
+                }
+                buf[subLen] = cast<char>(0);
+                local s: String = String.new(buf);
+                free(buf);
+                return s;
+            }
+            if (c == cast<char>(47)) {
+                return String.new("");
+            }
+            i = i - 1;
+        }
+        return String.new("");
     }
 
     frame normalize(path: string) ret String {
         local s: String = String.new(path);
         local parts: Array<String> = s.split(cast<char>(47));
-        local stack: Array<String> = Array<String>.new(10);
+        local stack: Array<String> = Array<String>.new(parts.length);
+
+        local isAbs: bool = Path.isAbsolute(path);
 
         local i: int = 0;
         loop (i < parts.length) {
             local part: String = parts.get(i);
 
-            if (part == "..") {
-                if (stack.length > 0) {
-                    stack.removeAt(stack.length - 1);
-                }
-            } else {
-                local skip: bool = false;
-                if (part == ".") {
-                    skip = true;
-                }
-                if (part.length == 0) {
-                    skip = true;
-                }
-                if (!skip) {
-                    stack.push(part.clone());
+            if (part.length > 0) {
+                if (part == "..") {
+                    local popped: bool = false;
+                    if (stack.length > 0) {
+                        local top: String = stack.get(stack.length - 1);
+                        if (top == "..") {
+                            # cannot pop '..'
+                        } else {
+                            # pop
+                            stack.pop();
+                            popped = true;
+                        }
+                    }
+                    if (!popped) {
+                        if (stack.length > 0) {
+                            local top: String = stack.get(stack.length - 1);
+                            if (top == "..") {
+                                stack.push(part);
+                            }
+                        } else {
+                            if (!isAbs) {
+                                stack.push(part);
+                            }
+                        }
+                    }
+                } else {
+                    if (!(part == ".")) {
+                        stack.push(part);
+                    }
                 }
             }
             i = i + 1;
         }
 
-        local res: String;
-        if (Path.isAbsolute(path)) {
-            res = String.new("/");
-        } else {
-            res = String.new("");
+        local joinedSb: StringBuilder = StringBuilder.new(strlen(path) + 16);
+        local m: int = 0;
+        loop (m < stack.length) {
+            if (m > 0) {
+                joinedSb.append("/");
+            }
+            joinedSb.append(stack.get(m).toString());
+            m = m + 1;
         }
 
-        local j: int = 0;
-        loop (j < stack.length) {
-            if (j > 0) {
-                # Add separator
-                res = res + "/";
-            } else {
-                # If absolute root, and this is first component?
-                # normalization of "/a" -> stack=["a"]. res="/" -> res="/a". Correct.
-                # normalizaiton of "a" -> stack=["a"]. res="" -> res="a". Correct.
-                # If res is "/" (absolute) and stack has items, do we need extra slash?
-                # "/" + "a" -> "/a". Yes.
-                # But if res is "/" already?
-                # String add of "/" + "a" -> "/a".
-                # If res has length > 0 (absolute), and j==0?
-                # If res="/" and we append "a", we get "/a". 
-                # Seems implicit / is handled by res initialization if absolute.
-                # But wait, if absolute, res="/". stack=["a"].
-                # j=0. Loop condition j>0 is false.
-                # res = "/" + "a" = "/a". Correct.
-                # If j=1. res="/a". condition j>0 is true.
-                # res = "/a" + "/" = "/a/".
-                # res = "/a/" + "b" = "/a/b". Correct.
+        local joined: String = String.new(joinedSb.toString());
+
+        if (isAbs) {
+            if (joined.length == 0) {
+                return String.new("/");
             }
-            # Special check: if res is "/" logic above:
-            # j=0. res="/". res = res + "a" = "/a". Correct.
-
-            # What if res is "" (relative)
-            # j=0. res="". res=res+"a" = "a". Correct.
-            # j=1. res="a". j>0. res="a" + "/" = "a/". res="a/b". Correct.
-
-            # One edge case: if absolute path "/" -> parts=["",""]. stack empty.
-            # returns "/". Correct.
-
-            # Another: isAbsolute check uses 'path' (char*) not s.
-            if ((res.length > 0) && (res.get(res.length - 1) != cast<char>(47))) {
-                res = res + "/";
-            }
-            res = res + stack.get(j);
-            j = j + 1;
+            return String.new("/") + joined;
         }
-
-        parts.destroy();
-        stack.destroy();
-        s.destroy();
-        return res;
+        if (joined.length == 0) {
+            return String.new(".");
+        }
+        return joined;
     }
 
-    frame resolve(base: string, relative: string) ret String {
-        if (Path.isAbsolute(relative)) {
-            return Path.normalize(relative);
+    frame resolve(base: string, target: string) ret String {
+        if (Path.isAbsolute(target)) {
+            return Path.normalize(target);
         }
-        local joined: String = Path.join(base, relative);
-        local normalized: String = Path.normalize(joined.toString());
+        local joined: String = Path.join(base, target);
+        local normalized: String = Path.normalize(joined.data);
         joined.destroy();
         return normalized;
     }
 
-    frame dirname(p: string) ret String {
-        local pp2: string = cast<string>(p);
-        local lp: int = strlen(pp2);
-        if (lp == 0) {
-            return String.new(".");
+    frame relative(src: string, dest: string) ret String {
+        local la: int = strlen(src);
+        local lb: int = strlen(dest);
+
+        if (la == 0) {
+            return String.new(dest);
         }
-        local i: int = lp - 1;
-        loop (i >= 0) {
-            if (pp2[i] == cast<char>(47)) {
+        local i: int = 0;
+        local matches: bool = true;
+        loop (i < la) {
+            if (i >= lb) {
+                matches = false;
                 break;
             }
-            i = i - 1;
+            if (src[i] != dest[i]) {
+                matches = false;
+                break;
+            }
+            i = i + 1;
         }
-        if (i < 0) {
-            return String.new(".");
+
+        if (matches) {
+            if (la == lb) {
+                return String.new("");
+            }
+            if (dest[la] == cast<char>(47)) {
+                local start: int = la + 1;
+                local subLen: int = lb - start;
+                local buf: string = malloc(cast<long>(subLen + 1));
+                local k: int = 0;
+                loop (k < subLen) {
+                    buf[k] = dest[start + k];
+                    k = k + 1;
+                }
+                buf[subLen] = cast<char>(0);
+                local res: String = String.new(buf);
+                free(buf);
+                return res;
+            }
         }
-        if (i == 0) {
-            return String.new("/");
-        }
-        local len: int = i;
-        local buf: string = malloc(cast<long>(len + 1));
-        local k: int = 0;
-        loop (k < len) {
-            buf[k] = pp2[k];
-            k = k + 1;
-        }
-        buf[len] = cast<char>(0);
-        local res: String = String.new(buf);
-        free(buf);
-        return res;
+        return String.new(dest);
     }
 }
+export [Path];

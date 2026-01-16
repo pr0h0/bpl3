@@ -1,9 +1,10 @@
 import [App] from "./src/server.bpl";
-import [Router] from "./src/router.bpl";
+import [Router], [RouteHandler] from "./src/router.bpl";
 import [Request], [Response], [HttpMethod] from "./src/http.bpl";
 
 export [App];
 export [Router];
+export [RouteHandler];
 export [Request];
 export [Response];
 export [HttpMethod];

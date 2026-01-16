@@ -1,5 +1,6 @@
 import [App], [Request], [Response], [Router] from "../../packages/bpl-express/src/server.bpl";
 import [JSON] from "../../lib/json.bpl";
+import [Home] from "./views/home.bpl";
 import [String] from "std/string.bpl";
 import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
@@ -53,6 +54,14 @@ frame handleLogin(req: *Request, res: *Response) {
     JSON.free<LoginData>(login);
 }
 
+frame handleHome(req: *Request, res: *Response) {
+    printf("Home handler: %s\n", req.path);
+    local html: string = Home.render("World");
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+    # TODO: free html if needed
+}
+
 frame handleSearch(req: *Request, res: *Response) {
     local q_opt: Option<string> = req.query.get("q");
     local q: string = "";
@@ -97,6 +106,7 @@ frame main() {
     # Let's configure static to "/" to serve public.
     app.useStatic("/", "examples/web_server_demo/public");
 
+    app.router.get("/", handleHome);
     app.router.post("/login", handleLogin);
     app.router.get("/search", handleSearch);
     app.router.get("/protected", handleProtected);

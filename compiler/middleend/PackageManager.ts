@@ -24,6 +24,8 @@ export interface PackageManifest {
   exports?: string[];
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
+  bin?: Record<string, string>;
   repository?: {
     type: string;
     url: string;
@@ -40,14 +42,18 @@ export interface PackageInfo {
 export class PackageManager {
   private globalPackageDir: string;
   private localPackageDir: string;
+  private globalBinDir: string;
+  private localBinDir: string;
 
   constructor(projectRoot?: string) {
     // Global packages in ~/.bpl/packages
     this.globalPackageDir = path.join(os.homedir(), ".bpl", "packages");
+    this.globalBinDir = path.join(os.homedir(), ".bpl", "bin");
 
     // Local packages in project's node_modules equivalent
     const root = projectRoot || process.cwd();
     this.localPackageDir = path.join(root, "bpl_modules");
+    this.localBinDir = path.join(this.localPackageDir, ".bin");
 
     this.ensureDirectories();
   }
@@ -61,6 +67,47 @@ export class PackageManager {
     }
     if (!fs.existsSync(this.localPackageDir)) {
       fs.mkdirSync(this.localPackageDir, { recursive: true });
+    }
+  }
+
+  private linkBinaries(
+    manifest: PackageManifest,
+    installPath: string,
+    isGlobal: boolean,
+  ): void {
+    if (!manifest.bin) return;
+
+    const binDir = isGlobal ? this.globalBinDir : this.localBinDir;
+    if (!fs.existsSync(binDir)) {
+      fs.mkdirSync(binDir, { recursive: true });
+    }
+
+    for (const [name, relativePath] of Object.entries(manifest.bin)) {
+      const sourcePath = path.resolve(installPath, relativePath);
+      const targetPath = path.join(binDir, name);
+
+      // Remove existing link/file
+      if (fs.existsSync(targetPath)) {
+        fs.unlinkSync(targetPath);
+      }
+
+      // Ensure source is executable
+      if (process.platform !== "win32") {
+        try {
+          fs.chmodSync(sourcePath, "755");
+        } catch (_e) {
+          // Ignore permission errors
+        }
+      }
+
+      // Create symlink
+      try {
+        fs.symlinkSync(sourcePath, targetPath);
+      } catch (e) {
+        compilerLog.warn(
+          `Failed to link binary ${name}: ${(e as Error).message}`,
+        );
+      }
     }
   }
 
@@ -118,7 +165,30 @@ export class PackageManager {
       if (!/^[a-z0-9-]+$/.test(manifest.name)) {
         throw new CompilerError(
           `Invalid package name: ${manifest.name} (use lowercase and hyphens only)`,
-          "Package names can only contain lowercase letters, numbers, and hyphens.",
+          "Use kebab-case for package names.",
+          location,
+        );
+      }
+
+      // Validate scripts and bin
+      if (
+        manifest.scripts &&
+        (typeof manifest.scripts !== "object" ||
+          Array.isArray(manifest.scripts))
+      ) {
+        throw new CompilerError(
+          "Invalid 'scripts' field",
+          "'scripts' must be an object mapping script names to commands.",
+          location,
+        );
+      }
+      if (
+        manifest.bin &&
+        (typeof manifest.bin !== "object" || Array.isArray(manifest.bin))
+      ) {
+        throw new CompilerError(
+          "Invalid 'bin' field",
+          "'bin' must be an object mapping command names to executable paths.",
           location,
         );
       }
@@ -220,6 +290,21 @@ export class PackageManager {
 
     // Get files to include
     const files = this.getAllBplFiles(packageDir);
+
+    // Also include 'bin' files
+    if (manifest.bin) {
+      for (const binaryPath of Object.values(manifest.bin)) {
+        const fullPath = path.join(packageDir, binaryPath as string);
+        if (fs.existsSync(fullPath)) {
+          files.push(fullPath);
+        } else {
+          compilerLog.warn(
+            `Warning: Binary '${binaryPath}' not found, skipping.`,
+          );
+        }
+      }
+    }
+
     const manifestPath = path.join(packageDir, "bpl.json");
 
     if (files.length === 0) {
@@ -396,6 +481,9 @@ export class PackageManager {
       fs.mkdirSync(path.dirname(installPath), { recursive: true });
       this.copyDir(packageDir, installPath);
 
+      // Link binaries
+      this.linkBinaries(manifest, installPath, options.global || false);
+
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
 
       if (options.global) {
@@ -453,6 +541,17 @@ export class PackageManager {
 
     const manifest = this.loadManifest(packagePath);
 
+    // Unlink binaries
+    if (manifest.bin) {
+      const binDir = options.global ? this.globalBinDir : this.localBinDir;
+      for (const name of Object.keys(manifest.bin)) {
+        const targetPath = path.join(binDir, name);
+        if (fs.existsSync(targetPath)) {
+          fs.unlinkSync(targetPath);
+        }
+      }
+    }
+
     compilerLog.info(`Uninstalling ${manifest.name}@${manifest.version}...`);
 
     // Remove the package directory
@@ -505,17 +604,50 @@ export class PackageManager {
   resolvePackage(packageName: string, projectRoot?: string): string | null {
     const root = projectRoot || process.cwd();
 
-    // Check local packages first
-    const localPath = path.join(root, "bpl_modules", packageName);
-    if (fs.existsSync(localPath)) {
-      return this.getPackageEntryPoint(localPath);
-    }
+    // Helper to check path
+    const checkPath = (baseDir: string): string | null => {
+      // Handle "package/subpath"
+      // Iterate to find where the package name ends
+      const parts = packageName.split("/");
 
-    // Check global packages
-    const globalPath = path.join(this.globalPackageDir, packageName);
-    if (fs.existsSync(globalPath)) {
-      return this.getPackageEntryPoint(globalPath);
-    }
+      // Try mostly likely case: first part is package name
+      // (Unless scoped packages are supported later)
+      if (parts.length > 0) {
+        const pkgName = parts[0]!;
+        const pkgPath = path.join(baseDir, pkgName);
+
+        if (
+          fs.existsSync(pkgPath) &&
+          fs.existsSync(path.join(pkgPath, "bpl.json"))
+        ) {
+          // Found package root
+          if (parts.length === 1) {
+            // Import "pkg" -> main
+            return this.getPackageEntryPoint(pkgPath);
+          }
+          // Import "pkg/path/file"
+          const subPath = parts.slice(1).join("/");
+          const fullPath = path.join(pkgPath, subPath);
+
+          // Helper to check extensions
+          for (const ext of ["", ".bpl", ".x"]) {
+            const tryPath = fullPath + ext;
+            if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
+              return tryPath;
+            }
+          }
+        }
+      }
+      return null;
+    };
+
+    // Check local
+    let result = checkPath(path.join(root, "bpl_modules"));
+    if (result) return result;
+
+    // Check global
+    result = checkPath(this.globalPackageDir);
+    if (result) return result;
 
     return null;
   }

@@ -3,6 +3,7 @@
 export [StringUtils];
 
 import [String] from "std/string.bpl";
+import [StringBuilder] from "std/string_builder.bpl";
 extern strlen(s: string) ret int;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
@@ -72,10 +73,7 @@ struct StringUtils {
         }
         local newlen: int = (end - start) + 1;
         if (newlen <= 0) {
-            local empty: String;
-            empty.data = nullptr;
-            empty.length = 0;
-            return empty;
+            return String.new("");
         }
         local buf: string = cast<string>(malloc(cast<long>(newlen + 1)));
         local i: int = 0;
@@ -105,5 +103,66 @@ struct StringUtils {
         local res: String = String.new(buf);
         free(buf);
         return res;
+    }
+
+    frame findString(haystack: string, needle: string, start: int) ret int {
+        local lh: int = strlen(haystack);
+        local ln: int = strlen(needle);
+        if (ln == 0) 
+            return start;
+        if (ln > lh) 
+            return -1;
+        local i: int = start;
+        loop (i <= (lh - ln)) {
+            local j: int = 0;
+            local isMatch: bool = true;
+            loop (j < ln) {
+                if (haystack[i + j] != needle[j]) {
+                    isMatch = false;
+                    break;
+                }
+                j = j + 1;
+            }
+            if (isMatch) 
+                return i;
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    frame replace(s: string, oldStr: string, newStr: string) ret String {
+        local sb: StringBuilder = StringBuilder.new(1024);
+        local i: int = 0;
+        local len: int = strlen(s);
+        local oldLen: int = strlen(oldStr);
+
+        loop (i < len) {
+            local pos: int = StringUtils.findString(s, oldStr, i);
+            if (pos == -1) {
+                # No more occurrences, append rest
+                # Pointer arithmetic for suffix workaround: 
+                # We iterate because accessing s+i is unsafe if not handled
+                local k: int = i;
+                loop (k < len) {
+                    sb.appendChar(s[k]);
+                    k = k + 1;
+                }
+                break;
+            }
+            # Append part before match
+            local k: int = i;
+            loop (k < pos) {
+                sb.appendChar(s[k]);
+                k = k + 1;
+            }
+
+            # Append new string
+            sb.append(newStr);
+
+            # Advance
+            i = pos + oldLen;
+        }
+
+        return String.new(sb.toString());
     }
 }

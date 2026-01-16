@@ -15,3 +15,4 @@ export { registerBuildCommand } from "./build";
 export { registerCheckCommand } from "./check";
 export { registerNewCommand } from "./new";
 export { registerCleanCommand } from "./clean";
+export { registerRunScriptCommand } from "./runScript";

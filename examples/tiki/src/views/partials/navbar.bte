@@ -1,0 +1,28 @@
+@args user: *User
+@import [User] from "../../models.bpl"
+<nav class="bg-gray-800 text-white shadow-lg mb-8">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center">
+        <a class="text-xl font-bold text-teal-400" href="/">Tiki</a>
+        <div class="ml-10 flex items-baseline space-x-4">
+          <a class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white transition" href="/">Home</a>
+          @if (user != nullptr) {
+              <a class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white transition" href="/profile">My Notes</a>
+              <a class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white transition" href="/notes/create">New Note</a>
+          }
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        @if (user != nullptr) {
+            <a href="/profile" class="px-3 py-2 rounded-md text-sm font-medium border border-gray-600 hover:bg-gray-700 transition">Profile</a>
+            <a href="/logout" class="px-3 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-700 transition">Logout</a>
+        }
+        @if (user == nullptr) {
+            <a href="/login" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition">Login</a>
+            <a href="/register" class="px-3 py-2 rounded-md text-sm font-medium bg-teal-500 hover:bg-teal-600 text-white transition">Register</a>
+        }
+      </div>
+    </div>
+  </div>
+</nav>

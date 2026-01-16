@@ -31,6 +31,13 @@
       "description": "Entry point file (e.g., lib/index.bpl)",
       "default": "index.bpl"
     },
+    "bin": {
+      "type": "object",
+      "description": "Executable files to link into bpl_modules/.bin",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "exports": {
       "type": "array",
       "description": "Public API exports",
@@ -48,6 +55,13 @@
     "devDependencies": {
       "type": "object",
       "description": "Development dependencies",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Script commands to be executed by 'bpl run-script'",
       "additionalProperties": {
         "type": "string"
       }

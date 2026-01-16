@@ -13,8 +13,20 @@ function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
   const list = fs.readdirSync(dir);
   for (const file of list) {
     const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
+    // Use lstatSync to avoid crashing on broken symlinks
+    let stat;
+    try {
+      stat = fs.lstatSync(fullPath);
+    } catch (e) {
+      continue;
+    }
+
+    if (
+      stat.isDirectory() &&
+      !stat.isSymbolicLink() &&
+      file !== "node_modules" &&
+      file !== "bpl_modules"
+    ) {
       if (fs.existsSync(path.join(fullPath, "main.bpl"))) {
         results.push(path.relative(EXAMPLES_DIR, fullPath));
       }

@@ -22,6 +22,7 @@ import {
   registerCheckCommand,
   registerNewCommand,
   registerCleanCommand,
+  registerRunScriptCommand,
 } from "./cli";
 import type { CompileOptions } from "./cli/types";
 import { Logger } from "./compiler/common/Logger";
@@ -137,6 +138,7 @@ program
 
 // Register all subcommands from cli/commands/
 registerRunCommand(program);
+registerRunScriptCommand(program);
 registerDevCommand(program);
 registerBuildCommand(program);
 registerCheckCommand(program);

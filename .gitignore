@@ -38,6 +38,7 @@ examples/**
 !examples/*.sh
 !examples/**/
 !examples/**/*.bpl
+!examples/**/*.bte
 !examples/**/test*.sh
 !examples/**/test_config.json
 !examples/*.json
@@ -56,3 +57,5 @@ ir.ll
 tests/ir.ll
 *.dump
 /tmp
+
+**/views/**/*.bpl
