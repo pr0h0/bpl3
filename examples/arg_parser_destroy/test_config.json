@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["verbose: OK", "output: OK", "count: OK", "destroy: OK"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

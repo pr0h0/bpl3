@@ -391,9 +391,27 @@ export function checkBinary(
 
   const op = expr.operator.type;
 
-  // Try operator overload first (for user-defined types)
+  // Helper to check if a type is nullptr
+  const isNullptrType = (t: AST.TypeNode) =>
+    t.kind === "BasicType" &&
+    ((t as AST.BasicTypeNode).name === "nullptr" ||
+      (t as AST.BasicTypeNode).name === "null");
+
+  // Helper to check if a type is a pointer
+  const isPointerType = (t: AST.TypeNode) =>
+    t.kind === "BasicType" && (t as AST.BasicTypeNode).pointerDepth > 0;
+
+  // Skip operator overloads for ALL pointer comparisons (use direct pointer identity comparison)
+  // When comparing pointers, we always want pointer identity, not dereferenced value equality
+  // Users should dereference explicitly if they want value comparison: *ptr1 == *ptr2
+  const isPointerComparison =
+    (op === TokenType.EqualEqual || op === TokenType.BangEqual) &&
+    (isPointerType(leftType) || isNullptrType(leftType)) &&
+    (isPointerType(rightType) || isNullptrType(rightType));
+
+  // Try operator overload first (for user-defined types), but not for pointer comparisons
   const methodName = OPERATOR_METHOD_MAP[expr.operator.lexeme];
-  if (methodName) {
+  if (methodName && !isPointerComparison) {
     let method = this.findOperatorOverload(leftType, methodName, [rightType]);
     let swapOperands = false;
     let negateResult = false;
@@ -802,9 +820,7 @@ export function checkUnary(
         operandType.name !== "double")
     ) {
       throw new CompilerError(
-        `Unary operator '-' cannot be applied to type '${this.typeToString(
-          operandType,
-        )}'`,
+        `Unary operator '-' cannot be applied to type '${this.typeToString(operandType)}'`,
         "Negation requires a numeric type.",
         expr.location,
       );
@@ -862,9 +878,8 @@ export function checkStructLiteral(
 
   // Special handling for 'Any' struct used in variadics
   if (!symbol && expr.structName === "Any") {
-    const modules = (this as any).modules;
-    if (modules) {
-      for (const scope of modules.values()) {
+    if (this.modules) {
+      for (const scope of this.modules.values()) {
         const s = scope.resolve("Any");
         if (s && s.kind === "Struct") {
           symbol = s;
@@ -1039,7 +1054,7 @@ export function checkCast(
       if (
         resolvedSource.kind === "BasicType" &&
         resolvedSource.pointerDepth === 0 &&
-        (this as any).isIntegerType(resolvedSource)
+        TypeUtils.isIntegerType(resolvedSource)
       ) {
         throw new CompilerError(
           `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
@@ -1052,8 +1067,8 @@ export function checkCast(
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.targetType);
 
-    // Check if cast is allowed using isCastAllowed from base
-    if (!(this as any).isCastAllowed(resolved, target)) {
+    // Check if cast is allowed
+    if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(
         `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
         "This cast is not allowed.",
@@ -1456,7 +1471,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
       if (
         resolvedSource.kind === "BasicType" &&
         resolvedSource.pointerDepth === 0 &&
-        (this as any).isIntegerType(resolvedSource)
+        TypeUtils.isIntegerType(resolvedSource)
       ) {
         throw new CompilerError(
           `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
@@ -1469,8 +1484,8 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.type);
 
-    // Check if cast is allowed using isCastAllowed from base
-    if (!(this as any).isCastAllowed(resolved, target)) {
+    // Check if cast is allowed
+    if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(
         `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
         "This cast is not allowed.",

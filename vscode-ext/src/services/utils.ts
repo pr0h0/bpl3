@@ -10,6 +10,19 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { TextDocuments } from "vscode-languageserver/node";
 import type * as AST from "../../../compiler/common/AST";
 
+// Re-export AST traversal utilities from compiler for convenience
+export {
+  findNodeAtPosition,
+  findMostSpecificNodeAtPosition,
+  findSmallestNodeAtPosition,
+  findEnclosingNodeOfKind,
+  walkAST,
+  findNodes,
+  findNode,
+  isASTNode,
+  getChildren,
+} from "../../../compiler/common/ASTTraversal";
+
 /**
  * Convert a TypeNode to a readable string
  */
@@ -181,56 +194,6 @@ export function filePathToUri(filePath: string): string {
  */
 export function uriToFilePath(uri: string): string {
   return fileURLToPath(uri);
-}
-
-/**
- * Find the AST node at a specific position
- * Returns the path from root to the most specific node
- */
-export function findNodeAtPosition(
-  node: AST.ASTNode,
-  line: number,
-  column: number,
-): AST.ASTNode[] {
-  if (!node || !node.location) return [];
-
-  // Check bounds
-  if (line < node.location.startLine || line > node.location.endLine) return [];
-  if (line === node.location.startLine && column < node.location.startColumn)
-    return [];
-  if (line === node.location.endLine && column > node.location.endColumn)
-    return [];
-
-  // Try to find a child that contains the position
-  for (const key in node) {
-    if (
-      key === "location" ||
-      key === "resolvedType" ||
-      key === "resolvedDeclaration" ||
-      key === "documentation"
-    )
-      continue;
-    const child = (node as any)[key];
-
-    if (Array.isArray(child)) {
-      for (const item of child) {
-        if (item && typeof item === "object" && item.kind) {
-          const childPath = findNodeAtPosition(item, line, column);
-          if (childPath.length > 0) {
-            return [node, ...childPath];
-          }
-        }
-      }
-    } else if (child && typeof child === "object" && child.kind) {
-      const childPath = findNodeAtPosition(child, line, column);
-      if (childPath.length > 0) {
-        return [node, ...childPath];
-      }
-    }
-  }
-
-  // If no child contains the position, then 'node' is the most specific one
-  return [node];
 }
 
 /**

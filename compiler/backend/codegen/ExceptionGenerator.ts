@@ -1,6 +1,16 @@
 /**
- * ExceptionGenerator - Handles exception handling code generation (try/catch/throw/defer)
- * Part of the StatementGenerator inheritance chain
+ * Handles exception handling code generation (try/catch/throw/defer).
+ *
+ * Generates code for:
+ * - try/catch block compilation with LLVM landingpad
+ * - throw statement code generation
+ * - Exception type matching and dispatch
+ * - catchOther catch-all handling
+ * - defer statement cleanup handlers
+ * - Stack unwinding support
+ *
+ * @extends ExpressionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
 import { ExpressionGenerator } from "./ExpressionGenerator";

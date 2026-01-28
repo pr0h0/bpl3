@@ -21,6 +21,7 @@ export interface CheckerContext {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
   }[];
+  modules: Map<string, SymbolTable>;
 
   // Core Checking
   checkExpression(expr: AST.Expression): AST.TypeNode | undefined;

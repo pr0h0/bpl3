@@ -12,6 +12,26 @@ import { codeGenLog } from "../common/Logger";
 import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 
+/**
+ * Main entry point for LLVM IR code generation.
+ *
+ * This is the final class in a 14-level inheritance chain that transforms
+ * type-checked BPL AST nodes into LLVM IR text format.
+ *
+ * @example
+ * ```typescript
+ * const generator = new CodeGenerator({ target: "x86_64-linux-gnu" });
+ * const llvmIR = generator.generate(typedAST, "main.bpl");
+ * ```
+ *
+ * @see compiler/backend/codegen/ARCHITECTURE.md for the full inheritance hierarchy
+ *
+ * Inheritance chain:
+ * - BaseCodeGenerator → StructEnumGenerator → TypeGenerator → ReflectionGenerator
+ * - → AddressExpressionGenerator → BinaryExpressionGenerator → CallExpressionGenerator
+ * - → MatchExpressionGenerator → UnaryExpressionGenerator → ExpressionGenerator
+ * - → ExceptionGenerator → AsmGenerator → StatementGenerator → **CodeGenerator**
+ */
 export class CodeGenerator extends StatementGenerator {
   constructor(
     options: {
@@ -319,10 +339,13 @@ export class CodeGenerator extends StatementGenerator {
       this.output.join("\n") +
       '\nattributes #0 = { "frame-pointer"="all" }\n';
 
+    // Write debug IR file (non-critical, failures are logged but ignored)
     try {
       const fs = require("fs");
       fs.writeFileSync("ir.ll", result);
-    } catch (_e) {}
+    } catch (e) {
+      codeGenLog.debug("Failed to write debug IR file:", { error: String(e) });
+    }
 
     return result;
   }

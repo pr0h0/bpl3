@@ -258,10 +258,8 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
       stmt.value.operator.type === "Ampersand"
     ) {
       const operand = stmt.value.operand;
-      // console.error("DEBUG BUG-106 CHECK:", operand.kind);
       if (operand.kind === "Identifier") {
         const symbol = this.currentScope.resolve(operand.name);
-        // console.error("DEBUG BUG-106 SYMBOL:", symbol ? symbol.kind : "missing", operand.name);
         if (
           symbol &&
           (symbol.kind === "Variable" || symbol.kind === "Parameter")
@@ -270,7 +268,6 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
           let isStackLocal = true;
           if (symbol.kind === "Variable") {
             const decl = symbol.declaration as AST.VariableDecl;
-            // console.error("DEBUG BUG-106 VAR:", decl.isGlobal, decl.isConst);
             if (decl.isGlobal || decl.isConst) {
               isStackLocal = false;
             }
@@ -280,7 +277,6 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
           // Allow unsafe return if variable name starts with "_"
           if (isStackLocal && !operand.name.startsWith("_")) {
-            // console.error("DEBUG BUG-106 THROWING ERROR");
             throw new CompilerError(
               `Potential use-after-free: returning address of stack variable '${operand.name}'`,
               `Variable '${operand.name}' is allocated on the stack and will be invalidated when the function returns. To suppress this error (unsafe), prefix the variable name with '_' (e.g., '_${operand.name}').`,
@@ -692,9 +688,7 @@ export function checkVariableDecl(
               `Integer overflow: value ${constVal} does not fit in type ${this.typeToString(
                 resolvedDecl,
               )}`,
-              `Ensure the value is within the range of ${this.typeToString(
-                resolvedDecl,
-              )}.`,
+              `Ensure the value is within the range of ${this.typeToString(resolvedDecl)}.`,
               decl.location,
             );
           } else if (!this.areTypesCompatible(resolvedDecl, resolvedInit)) {

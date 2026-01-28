@@ -482,8 +482,11 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     if (!this.vtableLayouts.has(decl.name)) {
       try {
         this.computeVTableLayout(decl.name);
-      } catch (_e) {
-        // Ignore
+      } catch (e) {
+        // VTable computation may fail for incomplete types, this is expected in some cases
+        codeGenLog.debug(`VTable computation skipped for ${decl.name}:`, {
+          error: String(e),
+        });
       }
     }
 

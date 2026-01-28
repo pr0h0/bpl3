@@ -71,13 +71,11 @@ private generateRegularTypeMatch(
 **What's needed for full generic type checking:**
 
 1. **Runtime Type Information (RTTI) System**
-
    - Assign unique type IDs to each type
    - Store type ID with generic parameters
    - Generate type ID comparison code
 
 2. **Type Metadata**
-
    - Size, alignment, structure
    - Type hierarchy for inheritance
    - Conversion rules
@@ -215,13 +213,11 @@ private checkTypeMatch(expr: AST.TypeMatchExpr): AST.TypeNode {
 ## Current Limitations
 
 1. **No RTTI for Generic Type Checking**
-
    - `match<int>(genericArg)` in generic functions doesn't work yet
    - Compile-time type comparison only
    - Size-based heuristics for some cases
 
 2. **No Support for:**
-
    - Struct type checking
    - Interface/trait type checking
    - Pointer type discrimination
@@ -237,7 +233,6 @@ private checkTypeMatch(expr: AST.TypeMatchExpr): AST.TypeNode {
 ### Phase 1: RTTI Foundation
 
 1. Design type ID system
-
    - Assign unique integers to each type
    - Generate type registry
    - Include in compiled output
@@ -250,7 +245,6 @@ private checkTypeMatch(expr: AST.TypeMatchExpr): AST.TypeNode {
 ### Phase 2: Generic Context
 
 1. Track generic instantiation
-
    - Pass type IDs as hidden parameters
    - Store in frame/context structure
    - Propagate through call chain

@@ -26,31 +26,93 @@ import { TypeChecker } from "./middleend/TypeChecker";
 
 import type * as AST from "./common/AST";
 
+/**
+ * Configuration options for the BPL compiler.
+ *
+ * @example
+ * ```typescript
+ * const options: CompilerOptions = {
+ *   filePath: "main.bpl",
+ *   emitType: "llvm",
+ *   resolveImports: true,
+ *   target: "x86_64-linux-gnu"
+ * };
+ * ```
+ */
 export interface CompilerOptions {
+  /** Path to the source file being compiled */
   filePath: string;
+  /** Output path for the compiled binary/IR */
   outputPath?: string;
+  /** Type of output to generate: 'llvm' (IR), 'ast' (JSON), 'tokens' (JSON), 'formatted' (BPL source) */
   emitType?: "llvm" | "ast" | "tokens" | "formatted";
+  /** Enable verbose logging during compilation */
   verbose?: boolean;
-  resolveImports?: boolean; // New option for full module resolution
-  useCache?: boolean; // Enable incremental compilation with caching
-  objectFiles?: string[]; // Object files to link
-  libraries?: string[]; // Libraries to link
-  libraryPaths?: string[]; // Library search paths
-  target?: string; // Target triple
-  sysroot?: string; // Sysroot for cross-compilation
-  clangFlags?: string[]; // Additional clang flags
-  dwarf?: boolean; // Generate DWARF debug information
-  collectAllErrors?: boolean; // Continue scanning and report all errors
-  optimizationLevel?: number; // Optimization level (0-3)
+  /** Enable full module resolution for imports */
+  resolveImports?: boolean;
+  /** Enable incremental compilation with caching */
+  useCache?: boolean;
+  /** Object files to link with the compiled binary */
+  objectFiles?: string[];
+  /** Libraries to link (-l flags) */
+  libraries?: string[];
+  /** Library search paths (-L flags) */
+  libraryPaths?: string[];
+  /** Target triple (e.g., 'x86_64-linux-gnu', 'aarch64-apple-darwin') */
+  target?: string;
+  /** Sysroot path for cross-compilation */
+  sysroot?: string;
+  /** Additional clang flags for linking */
+  clangFlags?: string[];
+  /** Generate DWARF debug information */
+  dwarf?: boolean;
+  /** Continue scanning and report all errors (don't stop at first error) */
+  collectAllErrors?: boolean;
+  /** Optimization level (0-3, where 0=none, 3=aggressive) */
+  optimizationLevel?: number;
 }
 
+/**
+ * Result of a compilation operation.
+ */
 export interface CompilationResult {
+  /** Whether compilation succeeded */
   success: boolean;
+  /** Output content (LLVM IR, formatted source, AST JSON, etc.) */
   output?: string;
+  /** Compilation errors if any */
   errors?: CompilerError[];
+  /** Parsed AST if available */
   ast?: AST.Program;
 }
 
+/**
+ * Main BPL compiler class.
+ *
+ * Orchestrates the full compilation pipeline from source code to executable:
+ * 1. Lexical analysis (tokenization)
+ * 2. Syntax analysis (parsing to AST)
+ * 3. Semantic analysis (type checking)
+ * 4. Code generation (LLVM IR)
+ * 5. Linking (via clang)
+ *
+ * @example
+ * ```typescript
+ * import { Compiler } from 'bpl3/compiler';
+ *
+ * const compiler = new Compiler({
+ *   filePath: "main.bpl",
+ *   resolveImports: true
+ * });
+ *
+ * const result = compiler.compile(sourceCode);
+ * if (result.success) {
+ *   console.log(result.output); // LLVM IR
+ * } else {
+ *   console.error(result.errors);
+ * }
+ * ```
+ */
 export class Compiler {
   private options: CompilerOptions;
 
@@ -479,9 +541,7 @@ export class Compiler {
       if (this.options.verbose) {
         const stats = cache.getStats();
         compilerLog.info(
-          `Cache stats: ${stats.totalModules} modules, ${(
-            stats.cacheSize / 1024
-          ).toFixed(2)} KB`,
+          `Cache stats: ${stats.totalModules} modules, ${(stats.cacheSize / 1024).toFixed(2)} KB`,
         );
       }
 
@@ -501,7 +561,9 @@ export class Compiler {
   }
 
   /**
-   * Pretty print AST
+   * Pretty print an AST to human-readable format.
+   * @param ast The program AST to print
+   * @returns Formatted string representation
    */
   printAST(ast: AST.Program): string {
     const printer = new ASTPrinter();
@@ -509,20 +571,43 @@ export class Compiler {
   }
 }
 
-// Export all components for external use
+// =============================================================================
+// Public Exports
+// =============================================================================
+// These components can be used individually for custom compilation pipelines
+// or tooling (language servers, formatters, linters, etc.)
+
+/** Source code formatter for BPL files */
 export { Formatter } from "./formatter/Formatter";
+/** Tokenize BPL source code using the PEG grammar */
 export { lexWithGrammar } from "./frontend/GrammarLexer";
+/** Parse BPL tokens into an AST */
 export { Parser } from "./frontend/Parser";
+/** Type check and validate BPL AST */
 export { TypeChecker } from "./middleend/TypeChecker";
+/** Generate LLVM IR from type-checked AST */
 export { CodeGenerator } from "./backend/CodeGenerator";
+/** Compiler error with source location information */
 export { CompilerError } from "./common/CompilerError";
+/** Pretty-print AST for debugging */
 export { ASTPrinter } from "./common/ASTPrinter";
+/** AST node type definitions */
 export * as AST from "./common/AST";
+/** AST traversal utilities (findNodeAtPosition, walkAST, etc.) */
+export * as ASTTraversal from "./common/ASTTraversal";
+/** Token representation */
 export { Token } from "./frontend/Token";
+/** Token type enumeration */
 export { TokenType } from "./frontend/TokenType";
+/** Symbol table for variable/function scopes */
 export { SymbolTable } from "./middleend/SymbolTable";
+/** Format compiler errors for display */
 export { DiagnosticFormatter } from "./common/DiagnosticFormatter";
+/** Lint BPL code for style issues */
 export { Linter } from "./linter/Linter";
+/** Manage BPL package dependencies */
 export { PackageManager } from "./middleend/PackageManager";
+/** Manage source file content and locations */
 export { SourceManager } from "./common/SourceManager";
+/** Resolve BPL import paths */
 export { resolveBplPath } from "./common/PathResolver";

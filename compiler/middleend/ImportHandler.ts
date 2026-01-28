@@ -41,9 +41,12 @@ export interface ImportHandlerContext {
  */
 export class ImportHandler {
   private ctx: ImportHandlerContext;
+  private moduleResolver: ModuleResolver;
 
   constructor(context: ImportHandlerContext) {
     this.ctx = context;
+    // Create single ModuleResolver instance for all imports in this handler
+    this.moduleResolver = new ModuleResolver();
   }
 
   /**
@@ -109,11 +112,14 @@ export class ImportHandler {
     let ast: AST.Program | undefined;
 
     // Always use ModuleResolver to get the canonical path
-    const moduleResolver = new ModuleResolver();
     try {
-      importPath = moduleResolver.resolveModulePath(stmt.source, currentFile);
-    } catch (_e) {
-      // Ignore error, will handle below
+      importPath = this.moduleResolver.resolveModulePath(
+        stmt.source,
+        currentFile,
+      );
+    } catch {
+      // Module resolution may fail for various reasons (missing file, invalid path)
+      // This will be handled below when checking for undefined importPath
     }
 
     if (this.ctx.skipImportResolution) {
@@ -291,8 +297,9 @@ export class ImportHandler {
           this.defineImportedSymbol(name, symbol, this.ctx.globalScope);
         }
       }
-    } catch (_e) {
-      // Ignore errors loading implicit primitives
+    } catch {
+      // Loading implicit primitives may fail in some configurations (e.g., missing std lib)
+      // This is non-fatal as primitives are also defined in BuiltinTypes
     }
   }
 

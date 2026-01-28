@@ -1,0 +1,24 @@
+{
+  "expectedOutput": [
+    "=== Test 1: Simple struct (User) ===",
+    "u1 != nullptr: PASS",
+    "u4 == nullptr: PASS",
+    "u1 == u3 (same ptr): PASS",
+    "u1 != u2 (diff ptr): PASS",
+    "",
+    "=== Test 2: Struct with vtable (String) ===",
+    "s1 != nullptr: PASS",
+    "s4 == nullptr: PASS",
+    "s1 == s3 (same ptr): PASS",
+    "s1 != s2 (diff ptr): PASS",
+    "",
+    "=== Test 3: Value vs Identity ===",
+    "s1 == s1 (identity): PASS",
+    "*s1 == *s2 (value): PASS",
+    "",
+    "All tests passed!"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

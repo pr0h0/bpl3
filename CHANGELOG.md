@@ -9,7 +9,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - **Strict Switch Semantics** - Improved control flow safety for switch statements:
-
   - **Explicit Termination**: All `case` and `default` blocks must now strict end with a terminator (`break`, `return`, `throw`, `continue`, or `fallthrough`).
   - **Explicit Fallthrough**: Added `fallthrough` keyword to explicitly transfer control to the next case.
   - **Break in Switch**: Added support for standard `break` statements within switch cases (previously only allowed in loops).

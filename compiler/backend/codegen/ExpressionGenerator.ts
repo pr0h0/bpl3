@@ -1,3 +1,18 @@
+/**
+ * Main expression dispatcher and literal code generation.
+ *
+ * Generates code for:
+ * - Literal values (int, float, string, bool, char)
+ * - Interpolated strings
+ * - Identifier resolution
+ * - Struct/array/tuple literals
+ * - Ternary expressions
+ * - Generic instantiation expressions
+ * - Lambda expressions
+ *
+ * @extends UnaryExpressionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
+ */
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
@@ -254,7 +269,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         if (!resType) {
           codeGenLog.debug(
             `Missing resolvedType for captured variable ${varName}`,
-            { keys: Object.keys(decl) },
+            {
+              keys: Object.keys(decl),
+            },
           );
         }
         const ident: AST.IdentifierExpr = {
@@ -344,8 +361,8 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           if (!cleaned.includes(".")) {
             return BigInt(cleaned).toString();
           }
-        } catch (_e) {
-          // Fallback to value.toString()
+        } catch {
+          // Fallback to value.toString() - this is expected for non-integer raw values
         }
       }
 
@@ -844,9 +861,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const paramTypesStr = lambdaType.paramTypes
       .map((p) => this.resolveType(p))
       .join(", ");
-    const genericFuncPtrType = `${retTypeStr} (i8*${
-      paramTypesStr ? ", " + paramTypesStr : ""
-    })*`;
+    const genericFuncPtrType = `${retTypeStr} (i8*${paramTypesStr ? ", " + paramTypesStr : ""})*`;
 
     // Existing function pointer type
     const specificRetTypeStr = this.resolveType(methodDecl.returnType);

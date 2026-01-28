@@ -267,7 +267,7 @@ export class Linker {
       if (fs.existsSync(tmpIRFile)) {
         try {
           fs.unlinkSync(tmpIRFile);
-        } catch (_e) {
+        } catch {
           if (options.verbose) {
             compilerLog.warn(`Could not clean up temporary file: ${tmpIRFile}`);
           }

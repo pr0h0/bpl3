@@ -35,6 +35,15 @@ const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = {
   float: ["float", 64, 4],
 };
 
+/**
+ * Handles AST TypeNode to LLVM type conversions.
+ *
+ * Provides type resolution, name mangling, function type generation,
+ * and DWARF debug type information emission.
+ *
+ * @extends StructEnumGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
+ */
 export abstract class TypeGenerator extends StructEnumGenerator {
   protected getMangledName(
     name: string,
@@ -1156,7 +1165,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
         // Check for variableDeclaration (from & operator)
         if (basicType.variableDeclaration) {
-          // console.error("Resolving VariableDecl/Parameter type...");
           const decl = basicType.variableDeclaration;
           let declType: AST.TypeNode | undefined;
           if (decl.kind === "VariableDecl") {
@@ -1170,21 +1178,17 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           }
 
           const baseTypeStr = this.resolveType(declType);
-          // console.error("Base type: " + baseTypeStr);
 
           const declMods = this.getEffectiveModifiers(declType);
           const totalMods = {
             pointerDepth: basicType.pointerDepth,
             arrayDimensions: basicType.arrayDimensions,
           };
-          // console.error(`Decl mods: ptr=${declMods.pointerDepth}, arr=${declMods.arrayDimensions}`);
-          // console.error(`Total mods: ptr=${totalMods.pointerDepth}, arr=${totalMods.arrayDimensions}`);
 
           const ptrDiff = totalMods.pointerDepth - declMods.pointerDepth;
           const arrDiff = totalMods.arrayDimensions.slice(
             declMods.arrayDimensions.length,
           );
-          // console.error(`Diff: ptr=${ptrDiff}, arr=${arrDiff}`);
 
           let llvmType = baseTypeStr;
           if (ptrDiff > 0) {
@@ -1201,7 +1205,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           for (let i = arrDiff.length - 1; i >= 0; i--) {
             llvmType = `[${arrDiff[i]} x ${llvmType}]`;
           }
-          // console.error("Result: " + llvmType);
           return llvmType;
         }
 

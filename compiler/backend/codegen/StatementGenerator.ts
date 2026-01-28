@@ -1,3 +1,19 @@
+/**
+ * Handles control flow statement code generation.
+ *
+ * Generates code for:
+ * - If/else statements
+ * - Loop statements (for, while, infinite loop)
+ * - Switch/case statements
+ * - Return statements
+ * - Variable declarations (local)
+ * - Block statements with scope management
+ * - Break/continue statements
+ * - Expression statements
+ *
+ * @extends AsmGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
+ */
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";

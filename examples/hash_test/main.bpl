@@ -10,7 +10,7 @@ frame strHash(s: *String) ret u64 {
 }
 
 frame strEq(a: *String, b: *String) ret bool {
-    return a == b;
+    return *a == *b;
 }
 
 frame main() ret int {

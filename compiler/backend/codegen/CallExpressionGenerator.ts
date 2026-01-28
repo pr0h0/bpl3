@@ -1,6 +1,17 @@
 /**
- * CallExpressionGenerator - Handles function call generation
- * Part of the ExpressionGenerator inheritance chain
+ * Handles function call code generation including method dispatch.
+ *
+ * Generates code for:
+ * - Direct function calls
+ * - Indirect calls (function pointers)
+ * - Method calls with vtable dispatch
+ * - Lambda invocation
+ * - Variadic function argument passing
+ * - Constructor calls
+ * - Builtin function handling (print, malloc, etc.)
+ *
+ * @extends BinaryExpressionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
@@ -521,7 +532,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             srcType,
             destType,
             arg.resolvedType!,
-            { kind: "BasicType", name: "dummy" } as any,
+            {
+              kind: "BasicType",
+              name: "dummy",
+            } as any,
           ); // we need type node
           argRegs.push(castVal);
         } else {

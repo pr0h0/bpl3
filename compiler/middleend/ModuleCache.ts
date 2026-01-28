@@ -69,7 +69,7 @@ export class ModuleCache {
           version: parsed.version || "1.0.0",
           modules: new Map(Object.entries(parsed.modules || {})),
         };
-      } catch (_e) {
+      } catch {
         compilerLog.warn("Failed to load cache manifest, creating new one");
       }
     }
@@ -190,8 +190,8 @@ export class ModuleCache {
     // Clean up temporary LLVM IR file
     try {
       fs.unlinkSync(llFilePath);
-    } catch (_e) {
-      // Ignore cleanup errors
+    } catch {
+      // Ignore cleanup errors - file may have been deleted or moved
     }
 
     // Update manifest

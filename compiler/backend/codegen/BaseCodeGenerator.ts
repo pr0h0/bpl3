@@ -80,6 +80,22 @@ export function getDataLayoutForTarget(target?: string): string {
   return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
 }
 
+/**
+ * Base class for the LLVM IR code generator hierarchy.
+ *
+ * Provides core LLVM infrastructure including module/builder management,
+ * struct field layouts, VTable tracking, and target-specific configuration.
+ *
+ * @see ARCHITECTURE.md for the full inheritance hierarchy documentation
+ *
+ * @remarks
+ * This is the root of a 14-level inheritance chain. Each subclass adds
+ * code generation capabilities for different AST node types:
+ * - StructEnumGenerator: struct/enum types
+ * - TypeGenerator: type conversions
+ * - ReflectionGenerator: typeof/sizeof operators
+ * - ...up to StatementGenerator and CodeGenerator
+ */
 export class BaseCodeGenerator {
   protected stdLibPath?: string;
   protected useLinkOnceOdrForStdLib: boolean = false;

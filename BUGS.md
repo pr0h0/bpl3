@@ -114,7 +114,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-101 | Tuples              | Nested tuple destructuring generated invalid LLVM IR (used outer tuple type instead of inner).                             | Fixed    | Fixed by using correct nestedTupleType/nestedTupleVal parameters in extractvalue instruction in StatementGenerator.                                                                                                                                                                      |
 | BUG-102 | Enums               | Qualified name resolution in type lookups fails for nested generic enums with namespaces.                                  | Fixed    | Fixed by adding namespace-aware fallback in TypeGenerator.resolveType() to strip namespace prefix when direct lookup fails.                                                                                                                                                              |
 | BUG-103 | Enums               | Enum-to-enum casting only copies discriminant tag, losing data payload.                                                    | Fixed    | Fixed by enhancing emitCast() in UnaryExpressionGenerator to copy both tag and data fields using extractvalue/insertvalue for same-size data, memcpy for different sizes.                                                                                                                |
-| BUG-104 | Pattern Matching    | Nested tuple patterns in match expressions are not supported (e.g., `((a, b), c) => ...`).                                 | Open     | While nested tuple destructuring works in variable assignments, nested tuple pattern matching is not yet implemented. Workaround: Use separate match expressions or destructure before matching.                                                                                         |
+| BUG-104 | Pattern Matching    | Nested tuple patterns in match expressions are not supported (e.g., `((a, b), c) => ...`).                                 | Fixed    | Fixed by adding recursive handling for nested PatternTuple in MatchExpressionGenerator.ts.                                                                                                                                                                                               |
 | BUG-105 | Generics            | Infinite recursion in generic function calls (monomorphization) causes compiler hang/crash (timeout).                      | Fixed    | Added generation batch limit (50) in CodeGenerator to detect and error on infinite recursion.                                                                                                                                                                                            |
 | BUG-106 | Safety              | Escape analysis is missing; functions can return pointers to local stack variables (use-after-free).                       | Fixed    | Added check in StatementChecker to error when returning the address of a local variable or parameter.                                                                                                                                                                                    |
 | BUG-107 | Code Generation     | Code generator fails to emit function definitions (e.g. `main`) when using `extern` or `try-catch`, causing linker errors. | Fixed    | Fixed by clearing `definedFunctions` set in `CodeGenerator.ts` to prevent stated leakage between compilations.                                                                                                                                                                           |
@@ -122,6 +122,9 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Fixed    | ExpressionChecker.ts now throws a CompilerError when attempting to take the address of a constant variable.                                                                                                                                                                              |
 | BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Fixed    | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
 | BUG-111 | Inline Asm          | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                          | Fixed    | Fixed regex in `AsmGenerator.ts` to support variable names containing underscores by using non-greedy match `(.+?)` instead of `([^_]+)`.                                                                                                                                                |
+| BUG-112 | Codegen             | Nested tuple pattern matching doesn't bind variables in nested patterns.                                                   | Fixed    | Fixed MatchExpressionGenerator.ts to recursively handle PatternTuple for nested tuple patterns.                                                                                                                                                                                          |
+| BUG-113 | Standard Library    | arg_parser ParsedArgs.destroy() crashes when freeing FlagEntry strings.                                                    | Fixed    | Root cause was BUG-114 (nullptr comparison bug). Removed unnecessary null checks from destroy code.                                                                                                                                                                                      |
+| BUG-114 | Codegen             | Comparing pointer to vtable-struct with nullptr crashes at runtime.                                                        | Fixed    | Pointer comparisons now always do pointer identity, not operator overloads. Use dereference for value equality: `*a == *b`.                                                                                                                                                              |
 
 ## Details
 
@@ -1304,3 +1307,65 @@ String concatenation using the `+` operator generated invalid LLVM IR (`add` ins
 **Description**: Using a variable name with an underscore (e.g., `asm_res`, `my_var`) in an inline assembly block causes a compilation error. The compiler fails to replace the placeholder correctly in the generated output.
 
 **Resolution**: Updated the regex in `AsmGenerator.ts` to correctly match placeholders containing underscores. Previously, the regex `([^_]+)` stopped matching at the first underscore, failing to replace the full placeholder. It now uses `(.+?)` to match the full key until the closing `__` delimiter.
+
+### BUG-112: Nested Tuple Pattern Matching Codegen - Fixed
+
+**Status**: ✅ FIXED
+
+**Category**: Codegen
+**Description**: Nested tuple patterns in match expressions did not properly generate variable bindings. For example:
+
+```bpl
+match (nested_tuple) {
+  ((a, b), c) => { ... }  # a, b, c were not bound
+}
+```
+
+**Resolution**: Updated `MatchExpressionGenerator.ts` to recursively extract nested tuple elements and bind pattern variables. Both `bindTuplePatternVariables` and `generateTuplePatternCheck` now handle nested `PatternTuple` cases.
+
+### BUG-113: arg_parser Destroy Crash - Fixed
+
+**Status**: ✅ FIXED
+
+**Category**: Standard Library
+**Description**: Calling `destroy()` on `ParsedArgs` crashed when attempting to free `FlagEntry` strings.
+
+**File**: `lib/arg_parser.bpl:325`
+
+**Root Cause**: The crash was NOT due to double-free or ownership issues. It was caused by BUG-114 (pointer-to-struct nullptr comparison crash). The original code used `if (entry.key != nullptr)` which triggers the compiler bug.
+
+**Resolution**: Since `setFlag` always allocates both `key` and `value`, the nullptr checks are unnecessary. Removed the null checks and uncommented the destroy calls. Memory is now properly freed without crashes. Note: BUG-114 is now fixed, so these checks would work correctly now.
+
+### BUG-114: Pointer-to-Struct Nullptr Comparison Crash - Fixed
+
+**Status**: ✅ FIXED
+
+**Category**: Codegen
+**Description**: Comparing a pointer to a struct that has a vtable (implements interfaces) to `nullptr` crashed at runtime.
+
+**Root Cause**: The ExpressionChecker was treating pointer comparisons (`*Struct == *Struct` or `*Struct != nullptr`) as operator overload lookups. When comparing `*String != nullptr`, the compiler would try to call `String.__ne__(nullptr)` which failed because:
+
+1. The operator overload expected `*String` argument, not `nullptr`
+2. Even if it worked, it would do value comparison, not pointer identity
+
+**Fix**: Modified `ExpressionChecker.ts` to skip operator overload resolution for ALL pointer comparisons (not just nullptr). When comparing pointers, you always want pointer identity. For value comparison, explicitly dereference: `*ptr1 == *ptr2`.
+
+**Before** (crashed):
+
+```bpl
+if (str != nullptr) { ... }  # Tried to call String.__ne__()
+if (str1 == str2) { ... }    # Called String.__eq__(), wrong semantics
+```
+
+**After** (works correctly):
+
+```bpl
+if (str != nullptr) { ... }  # Direct pointer comparison (icmp)
+if (str1 == str2) { ... }    # Pointer identity comparison (icmp)
+if (*str1 == *str2) { ... }  # Value comparison via operator overload
+```
+
+**Files Changed**:
+
+- `compiler/middleend/ExpressionChecker.ts`: Added `isPointerComparison` check to skip operator overloads when both operands are pointer types (including nullptr)
+- `examples/hash_test/main.bpl`: Updated `strEq` to use `*a == *b` for proper value equality

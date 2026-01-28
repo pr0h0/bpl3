@@ -9,7 +9,6 @@ Before installing BPL, ensure you have the following installed:
 ### Required
 
 1. **Clang/LLVM** (version 13 or higher)
-
    - Used to compile LLVM IR to native executables
    - Provides the LLVM toolchain
 
@@ -65,7 +64,6 @@ brew install node
 #### Windows
 
 1. **Install Clang/LLVM**
-
    - Download from: https://releases.llvm.org/
    - Or use Chocolatey: `choco install llvm`
 

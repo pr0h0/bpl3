@@ -1,6 +1,15 @@
 /**
- * AddressExpressionGenerator - Handles address generation and null checks
- * Part of the ExpressionGenerator inheritance chain
+ * Handles address generation, pointer operations, and null checks.
+ *
+ * Generates code for:
+ * - Address-of operator (`&expr`)
+ * - Pointer dereference operations
+ * - Array/slice element addressing
+ * - Struct field addressing
+ * - Index expressions with bounds checking
+ *
+ * @extends ReflectionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
 import { CompilerError, type SourceLocation } from "../../common/CompilerError";

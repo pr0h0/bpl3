@@ -1,12 +1,19 @@
+/**
+ * Handles inline assembly code generation.
+ *
+ * Generates code for:
+ * - Intel syntax inline assembly
+ * - AT&T syntax inline assembly
+ * - LLVM IR syntax (raw injection)
+ * - Input/output constraint handling
+ * - Clobber list management
+ *
+ * @extends ExceptionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
+ */
 import * as AST from "../../common/AST";
 import { ExceptionGenerator } from "./ExceptionGenerator";
 
-/**
- * AsmGenerator handles the generation of inline assembly blocks.
- *
- * Inheritance chain:
- * ... -> ExceptionGenerator -> AsmGenerator -> StatementGenerator -> ...
- */
 export abstract class AsmGenerator extends ExceptionGenerator {
   protected generateAsm(stmt: AST.AsmBlockStmt) {
     if (stmt.flavor === "raw") {

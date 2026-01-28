@@ -111,6 +111,18 @@ export class CodeLensProvider {
       }
     }
 
+    // Add "Run File" lens for main function
+    if (func.name === "main") {
+      lenses.push({
+        range: headerRange,
+        command: {
+          title: "▶ Run File",
+          command: "bpl.runFile",
+          arguments: [filePath],
+        },
+      });
+    }
+
     return lenses;
   }
 

@@ -95,8 +95,9 @@ export class PackageManager {
       if (process.platform !== "win32") {
         try {
           fs.chmodSync(sourcePath, "755");
-        } catch (_e) {
-          // Ignore permission errors
+        } catch {
+          // Permission errors can occur on read-only filesystems or when lacking privileges
+          // This is non-critical as the file may already be executable
         }
       }
 
@@ -197,9 +198,7 @@ export class PackageManager {
     } catch (e) {
       if (e instanceof CompilerError) throw e;
       throw new CompilerError(
-        `Failed to load package manifest: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
+        `Failed to load package manifest: ${e instanceof Error ? e.message : String(e)}`,
         "Check that bpl.json is valid JSON.",
         location,
       );
@@ -509,9 +508,7 @@ export class PackageManager {
 
     if (!fs.existsSync(packagePath)) {
       throw new CompilerError(
-        `Package '${packageName}' is not installed ${
-          options.global ? "globally" : "locally"
-        }`,
+        `Package '${packageName}' is not installed ${options.global ? "globally" : "locally"}`,
         "Check the package name.",
         {
           file: packagePath,
@@ -589,8 +586,8 @@ export class PackageManager {
             path: packagePath,
             hash,
           });
-        } catch (_e) {
-          // Skip invalid packages
+        } catch {
+          // Skip invalid packages - they may lack bpl.json or have invalid manifests
         }
       }
     }
@@ -675,7 +672,8 @@ export class PackageManager {
       }
 
       return null;
-    } catch (_e) {
+    } catch {
+      // Failed to load manifest or find entry point - package may be malformed
       return null;
     }
   }

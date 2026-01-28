@@ -89,12 +89,22 @@ export class RTTI {
     return type;
   }
 
+  /** FNV-1a 64-bit offset basis */
+  private static readonly FNV1A_64_OFFSET_BASIS = 0xcbf29ce484222325n;
+  /** FNV-1a 64-bit prime */
+  private static readonly FNV1A_64_PRIME = 0x100000001b3n;
+  /** 64-bit mask for hash truncation */
+  private static readonly HASH_64_MASK = 0xffffffffffffffffn;
+
+  /**
+   * Compute FNV-1a 64-bit hash for type identification.
+   */
   private static fnv1a(str: string): bigint {
-    let hash = 0xcbf29ce484222325n;
+    let hash = this.FNV1A_64_OFFSET_BASIS;
     for (let i = 0; i < str.length; i++) {
       hash ^= BigInt(str.charCodeAt(i));
-      hash *= 0x100000001b3n;
-      hash &= 0xffffffffffffffffn; // Keep it 64-bit
+      hash *= this.FNV1A_64_PRIME;
+      hash &= this.HASH_64_MASK; // Keep it 64-bit
     }
     return hash;
   }

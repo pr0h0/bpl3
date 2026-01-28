@@ -1,0 +1,30 @@
+{
+  "expectedOutput": [
+    "=== Test 1: Simple tuple ===",
+    "a = 10, b = 20",
+    "",
+    "=== Test 2: Triple tuple ===",
+    "x = 1, y = 2, z = 3",
+    "",
+    "=== Test 3: Mixed types ===",
+    "num = 42, pi = 3.14, flag = 1",
+    "",
+    "=== Test 4: Nested tuple (outer) ===",
+    "inner = (100, 200), outer = 300",
+    "",
+    "=== Test 5: Deep nested ===",
+    "d1=1, d2=2, d3=3, d4=4",
+    "",
+    "=== Test 6: Function return ===",
+    "min = 5, max = 10",
+    "",
+    "=== Test 7: Swap ===",
+    "Before: p = 100, q = 200",
+    "After:  p = 200, q = 100",
+    "",
+    "All tests passed!"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

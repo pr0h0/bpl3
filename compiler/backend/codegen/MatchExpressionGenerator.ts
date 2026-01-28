@@ -1,6 +1,16 @@
 /**
- * MatchExpressionGenerator - Handles match expression and pattern matching code generation
- * Part of the ExpressionGenerator inheritance chain
+ * Handles match expression and pattern matching code generation.
+ *
+ * Generates code for:
+ * - Pattern matching compilation
+ * - Enum variant destructuring
+ * - Tuple pattern matching
+ * - Literal patterns (int, string, bool)
+ * - Guard clause evaluation
+ * - Wildcard and catch-all patterns
+ *
+ * @extends CallExpressionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
 import { RTTI } from "../../middleend/RTTI";
@@ -874,6 +884,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       for (let i = 0; i < pattern.patterns.length; i++) {
         const subPattern = pattern.patterns[i]!;
         const element = tupleElements[i]!;
+        const elementTypeNode = tupleType.types[i];
 
         if (subPattern.kind === "PatternLiteral") {
           let literalValue = this.generateLiteral(subPattern.value);
@@ -908,6 +919,47 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
             );
             checkRegs.push(cmpReg);
           }
+        } else if (subPattern.kind === "PatternTuple") {
+          // Nested tuple pattern - recursively check
+          if (elementTypeNode?.kind === "TupleType") {
+            const nestedTupleType = elementTypeNode as AST.TupleTypeNode;
+            const nestedElements: { value: string; type: string }[] = [];
+
+            // Extract each element from the nested tuple
+            for (let j = 0; j < nestedTupleType.types.length; j++) {
+              const nestedElementType = this.resolveType(
+                nestedTupleType.types[j]!,
+              );
+              const nestedElementReg = this.newRegister();
+              this.emit(
+                `  ${nestedElementReg} = extractvalue ${element.type} ${element.value}, ${j}`,
+              );
+              nestedElements.push({
+                value: nestedElementReg,
+                type: nestedElementType,
+              });
+            }
+
+            // Create temporary labels for nested check
+            const nestedSuccessLabel = this.newLabel("nested_tuple_ok");
+            const result = this.generateTuplePatternCheck(
+              subPattern,
+              nestedElements,
+              nestedTupleType,
+              nestedSuccessLabel,
+              failLabel,
+            );
+
+            if (result === "checked") {
+              // Continue from the success label
+              this.emit(`${nestedSuccessLabel}:`);
+            } else if (result === "never") {
+              return "never";
+            }
+            // If "always", no check was emitted, continue
+          } else {
+            return "never";
+          }
         } else if (
           subPattern.kind !== "PatternWildcard" &&
           subPattern.kind !== "PatternIdentifier"
@@ -940,7 +992,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   protected bindTuplePatternVariables(
     pattern: AST.Pattern,
     tupleElements: { value: string; type: string }[],
-    _tupleType: AST.TupleTypeNode,
+    tupleType: AST.TupleTypeNode,
   ): void {
     if (pattern.kind === "PatternIdentifier") {
       return;
@@ -950,6 +1002,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       for (let i = 0; i < pattern.patterns.length; i++) {
         const subPattern = pattern.patterns[i]!;
         const element = tupleElements[i]!;
+        const elementTypeNode = tupleType.types[i];
 
         if (subPattern.kind === "PatternIdentifier") {
           const varAddr = this.allocateStack(subPattern.name, element.type);
@@ -957,7 +1010,35 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
             `  store ${element.type} ${element.value}, ${element.type}* ${varAddr}`,
           );
         } else if (subPattern.kind === "PatternTuple") {
-          // Nested tuple - TODO: implement recursive binding
+          // Nested tuple - recursively extract and bind elements
+          if (elementTypeNode?.kind === "TupleType") {
+            const nestedTupleType = elementTypeNode as AST.TupleTypeNode;
+            const nestedElements: { value: string; type: string }[] = [];
+
+            // Extract each element from the nested tuple
+            for (let j = 0; j < nestedTupleType.types.length; j++) {
+              const nestedElementType = this.resolveType(
+                nestedTupleType.types[j]!,
+              );
+              const nestedElementReg = this.newRegister();
+              this.emit(
+                `  ${nestedElementReg} = extractvalue ${element.type} ${element.value}, ${j}`,
+              );
+              nestedElements.push({
+                value: nestedElementReg,
+                type: nestedElementType,
+              });
+            }
+
+            // Recursively bind the nested pattern
+            this.bindTuplePatternVariables(
+              subPattern,
+              nestedElements,
+              nestedTupleType,
+            );
+          }
+        } else if (subPattern.kind === "PatternWildcard") {
+          // Wildcard - nothing to bind
         }
       }
     }

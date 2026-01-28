@@ -1,6 +1,16 @@
 /**
- * UnaryExpressionGenerator - Handles unary expressions and type casting
- * Part of the ExpressionGenerator inheritance chain
+ * Handles unary expressions and type casting operations.
+ *
+ * Generates code for:
+ * - Unary minus/plus operators
+ * - Logical not (!)
+ * - Bitwise complement (~)
+ * - Cast expressions (cast<T>())
+ * - Prefix/postfix increment/decrement (++, --)
+ * - Dereference operator (*)
+ *
+ * @extends MatchExpressionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";

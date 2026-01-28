@@ -52,7 +52,6 @@ Templates **must** start with header directives to define arguments and imports.
 #### 2. Interpolation
 
 - **Escaped Output**: `{{ expression }}`
-
   - Automatically escapes HTML entities (`<`, `>`, `&`, `"`, `'`).
   - Expression must evaluate to a `string`.
 
@@ -61,7 +60,6 @@ Templates **must** start with header directives to define arguments and imports.
   ```
 
 - **Raw Output**: `{{ !expression }}`
-
   - Outputs the string directly without escaping.
   - Useful for rendering other templates (partials).
 

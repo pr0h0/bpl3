@@ -1,6 +1,15 @@
 /**
- * BinaryExpressionGenerator - Handles binary operations, comparisons, logical operators
- * Part of the ExpressionGenerator inheritance chain
+ * Handles binary operations, comparisons, and logical operators.
+ *
+ * Generates code for:
+ * - Arithmetic operators (+, -, *, /, %)
+ * - Bitwise operators (&, |, ^, <<, >>)
+ * - Comparison operators (==, !=, <, >, <=, >=)
+ * - Logical operators (&&, ||) with short-circuit evaluation
+ * - Compound assignment operators (+=, -=, etc.)
+ *
+ * @extends AddressExpressionGenerator
+ * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
 import { TokenType } from "../../frontend/TokenType";
@@ -354,6 +363,17 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       !leftType.endsWith("*") &&
       !rightType.endsWith("*")
     ) {
+      // Check for Tuple type - use element-wise comparison for proper float handling
+      if (expr.left.resolvedType?.kind === "TupleType") {
+        return this.generateTupleEquality(
+          expr,
+          leftRaw,
+          rightRaw,
+          leftType,
+          expr.operator.type === TokenType.EqualEqual,
+        );
+      }
+
       // Check for Lambda signature { i8*, i8* }
       const normalized = leftType.replace(/\s/g, "");
       const isLambdaSig = normalized === "{i8*,i8*}";
@@ -371,7 +391,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         );
       }
 
-      // Fallback for other struct literals (tuples, etc.)
+      // Fallback for other struct literals (not tuples, not lambdas)
       return this.generateGenericStructEquality(
         leftRaw,
         rightRaw,

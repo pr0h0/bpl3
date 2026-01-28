@@ -50,13 +50,16 @@ frame alloc_with_vtable<T>(dummy: *T) ret *T {
 
 struct Flag {
     name: String,
-    # e.g., "--verbose" or "-v"
     alias: String,
-    # e.g., "-v"
     description: String,
     hasValue: bool,
-    # if true, expects a value after the flag
     defaultValue: String,
+    # e.g., "--verbose" or "-v"
+
+    # e.g., "-v"
+
+    # if true, expects a value after the flag
+
     # default value if not provided (optional)
 
     frame new(name: string, alias: string, desc: string, hasVal: bool) ret *Flag {
@@ -94,7 +97,6 @@ struct Argument {
     name: String,
     description: String,
     required: bool,
-
     frame new(name: string, desc: string, required: bool) ret *Argument {
         local dummy: Argument;
         local a: *Argument = alloc_with_vtable<Argument>(&dummy);
@@ -247,7 +249,6 @@ struct ParsedArgs: Destructible {
     commandPath: Array<*String>,
     flags: Array<*FlagEntry>,
     positional: Array<*String>,
-
     frame new() ret *ParsedArgs {
         local dummy: ParsedArgs;
         local pa: *ParsedArgs = alloc_with_vtable<ParsedArgs>(&dummy);
@@ -321,16 +322,12 @@ struct ParsedArgs: Destructible {
         i = 0;
         loop (i < this.flags.len()) {
             local entry: *FlagEntry = this.flags.get(i);
-
-            # FIXME: Crash on destroy. Potential struct layout issue or double free validation needed.
-            # if (entry.key != nullptr) {
-            #     entry.key.destroy();
-            #     free(cast<*void>(entry.key));
-            # }
-            # if (entry.value != nullptr) {
-            #     entry.value.destroy();
-            #     free(cast<*void>(entry.value));
-            # }
+            # Note: key and value are always allocated in setFlag, so no nullptr check needed.
+            # Avoiding ptr != nullptr comparison due to compiler bug with vtable structs (BUG-114).
+            entry.key.destroy();
+            free(cast<*void>(entry.key));
+            entry.value.destroy();
+            free(cast<*void>(entry.value));
             free(cast<*void>(entry));
             i = i + 1;
         }
@@ -349,7 +346,6 @@ struct ParsedArgs: Destructible {
 
 struct ArgParser {
     root: *Command,
-
     frame new(rootCmd: *Command) ret ArgParser {
         local ap: ArgParser;
         ap.root = rootCmd;

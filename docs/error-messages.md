@@ -260,22 +260,18 @@ bun test ./tests/ErrorFormattingDemo.test.ts
 Potential improvements:
 
 1. **Multi-line Error Pointers**
-
    - Better visualization for multi-line errors
    - Contextual arrows showing error extent
 
 2. **Error Codes**
-
    - Numbered error codes for quick reference
    - Machine-readable error codes
 
 3. **Fix Suggestions**
-
    - Automatic fixes via code actions
    - Quick-fix proposals for common errors
 
 4. **Error Statistics**
-
    - Count errors by category
    - Show most common error types
 
