@@ -96,13 +96,22 @@ import [Path] from "std/path.bpl";
 export [Path];
 
 import [Math] from "std/math.bpl";
+import {PI}, {E}, {TAU}, {SQRT2}, {LN2}, {LN10} from "std/math.bpl";
 export [Math];
+export {PI};
+export {E};
+export {TAU};
+export {SQRT2};
+export {LN2};
+export {LN10};
 
 import [Rand] from "std/rand.bpl";
 export [Rand];
 
-import [Time] from "std/time.bpl";
+import [Time], [Duration], [Stopwatch] from "std/time.bpl";
 export [Time];
+export [Duration];
+export [Stopwatch];
 
 import [Assert] from "std/assert.bpl";
 export [Assert];
@@ -110,6 +119,14 @@ export [Assert];
 # Algorithms
 import [Algorithm] from "std/algorithm.bpl";
 export [Algorithm];
+
+# UTF-8 Utilities
+import [UTF8] from "std/utf8.bpl";
+export [UTF8];
+
+# Character Utilities
+import [CharUtils] from "std/char_utils.bpl";
+export [CharUtils];
 
 # Additional Utilities
 import [Range] from "std/range.bpl";

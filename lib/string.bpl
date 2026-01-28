@@ -353,4 +353,447 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         }
         return res;
     }
+
+    # ============ Additional String Methods ============
+
+    # Trim whitespace from both ends
+    frame trim(this: *String) ret String {
+        if ((this.data == nullptr) || (this.length == 0)) {
+            return String.new("");
+        }
+        local start: int = 0;
+        local end: int = this.length - 1;
+
+        # Find first non-whitespace
+        loop (start < this.length) {
+            local c: char = this.get(start);
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+                break;
+            start = start + 1;
+        }
+
+        # Find last non-whitespace
+        loop (end >= start) {
+            local c: char = this.get(end);
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+                break;
+            end = end - 1;
+        }
+
+        if (start > end) {
+            return String.new("");
+        }
+        return this.substring(start, (end - start) + 1);
+    }
+
+    # Trim whitespace from left side only
+    frame trimLeft(this: *String) ret String {
+        if ((this.data == nullptr) || (this.length == 0)) {
+            return String.new("");
+        }
+        local start: int = 0;
+        loop (start < this.length) {
+            local c: char = this.get(start);
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+                break;
+            start = start + 1;
+        }
+
+        return this.substring(start, this.length - start);
+    }
+
+    # Trim whitespace from right side only
+    frame trimRight(this: *String) ret String {
+        if ((this.data == nullptr) || (this.length == 0)) {
+            return String.new("");
+        }
+        local end: int = this.length - 1;
+        loop (end >= 0) {
+            local c: char = this.get(end);
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+                break;
+            end = end - 1;
+        }
+
+        return this.substring(0, end + 1);
+    }
+
+    # Check if string starts with prefix
+    frame startsWith(this: *String, prefix: string) ret bool {
+        if ((this.data == nullptr) || (prefix == nullptr)) 
+            return false;
+        local prefixLen: int = strlen(prefix);
+        if (prefixLen > this.length) 
+            return false;
+        if (prefixLen == 0) 
+            return true;
+        local i: int = 0;
+        loop (i < prefixLen) {
+            if (this.get(i) != prefix[i]) 
+                return false;
+            i = i + 1;
+        }
+        return true;
+    }
+
+    # Check if string ends with suffix
+    frame endsWith(this: *String, suffix: string) ret bool {
+        if ((this.data == nullptr) || (suffix == nullptr)) 
+            return false;
+        local suffixLen: int = strlen(suffix);
+        if (suffixLen > this.length) 
+            return false;
+        if (suffixLen == 0) 
+            return true;
+        local offset: int = this.length - suffixLen;
+        local i: int = 0;
+        loop (i < suffixLen) {
+            if (this.get(offset + i) != suffix[i]) 
+                return false;
+            i = i + 1;
+        }
+        return true;
+    }
+
+    # Convert to uppercase
+    frame toUpper(this: *String) ret String {
+        if ((this.data == nullptr) || (this.length == 0)) {
+            return String.new("");
+        }
+        local buf: string = malloc(cast<long>(this.length + 1));
+        local i: int = 0;
+        loop (i < this.length) {
+            local c: char = this.get(i);
+            # Convert a-z to A-Z
+            if ((c >= 97) && (c <= 122)) {
+                buf[i] = cast<char>(cast<int>(c) - 32);
+            } else {
+                buf[i] = c;
+            }
+            i = i + 1;
+        }
+        buf[this.length] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = this.length;
+        return result;
+    }
+
+    # Convert to lowercase
+    frame toLower(this: *String) ret String {
+        if ((this.data == nullptr) || (this.length == 0)) {
+            return String.new("");
+        }
+        local buf: string = malloc(cast<long>(this.length + 1));
+        local i: int = 0;
+        loop (i < this.length) {
+            local c: char = this.get(i);
+            # Convert A-Z to a-z
+            if ((c >= 65) && (c <= 90)) {
+                buf[i] = cast<char>(cast<int>(c) + 32);
+            } else {
+                buf[i] = c;
+            }
+            i = i + 1;
+        }
+        buf[this.length] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = this.length;
+        return result;
+    }
+
+    # Repeat string n times
+    frame repeat(this: *String, count: int) ret String {
+        if ((this.data == nullptr) || (this.length == 0) || (count <= 0)) {
+            return String.new("");
+        }
+        local newLen: int = this.length * count;
+        local buf: string = malloc(cast<long>(newLen + 1));
+
+        local i: int = 0;
+        loop (i < count) {
+            local j: int = 0;
+            loop (j < this.length) {
+                buf[(i * this.length) + j] = this.get(j);
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        buf[newLen] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = newLen;
+        return result;
+    }
+
+    # Pad string on the left to reach target length
+    frame padLeft(this: *String, targetLen: int, padChar: char) ret String {
+        if (this.length >= targetLen) {
+            return this.clone();
+        }
+        local padCount: int = targetLen - this.length;
+        local buf: string = malloc(cast<long>(targetLen + 1));
+
+        local i: int = 0;
+        loop (i < padCount) {
+            buf[i] = padChar;
+            i = i + 1;
+        }
+
+        local j: int = 0;
+        loop (j < this.length) {
+            buf[padCount + j] = this.get(j);
+            j = j + 1;
+        }
+        buf[targetLen] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = targetLen;
+        return result;
+    }
+
+    # Pad string on the right to reach target length
+    frame padRight(this: *String, targetLen: int, padChar: char) ret String {
+        if (this.length >= targetLen) {
+            return this.clone();
+        }
+        local buf: string = malloc(cast<long>(targetLen + 1));
+
+        local i: int = 0;
+        loop (i < this.length) {
+            buf[i] = this.get(i);
+            i = i + 1;
+        }
+
+        loop (i < targetLen) {
+            buf[i] = padChar;
+            i = i + 1;
+        }
+        buf[targetLen] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = targetLen;
+        return result;
+    }
+
+    # Reverse the string
+    frame reverse(this: *String) ret String {
+        if ((this.data == nullptr) || (this.length == 0)) {
+            return String.new("");
+        }
+        local buf: string = malloc(cast<long>(this.length + 1));
+        local i: int = 0;
+        loop (i < this.length) {
+            buf[i] = this.get(this.length - 1 - i);
+            i = i + 1;
+        }
+        buf[this.length] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = this.length;
+        return result;
+    }
+
+    # Replace first occurrence of 'old' with 'new'
+    frame replace(this: *String, old: string, newStr: string) ret String {
+        if ((this.data == nullptr) || (old == nullptr)) {
+            return this.clone();
+        }
+        local oldLen: int = strlen(old);
+        local newLen: int = 0;
+        if (newStr != nullptr) 
+            newLen = strlen(newStr);
+        if (oldLen == 0) 
+            return this.clone();
+        # Find first occurrence
+        local pos: int = this.indexOf(old);
+        if (pos < 0) 
+            return this.clone();
+        local resultLen: int = (this.length - oldLen) + newLen;
+        local buf: string = malloc(cast<long>(resultLen + 1));
+
+        # Copy before match
+        local i: int = 0;
+        loop (i < pos) {
+            buf[i] = this.get(i);
+            i = i + 1;
+        }
+
+        # Copy replacement
+        local j: int = 0;
+        loop (j < newLen) {
+            buf[pos + j] = newStr[j];
+            j = j + 1;
+        }
+
+        # Copy after match
+        local k: int = pos + oldLen;
+        loop (k < this.length) {
+            buf[(pos + newLen) + (k - pos - oldLen)] = this.get(k);
+            k = k + 1;
+        }
+        buf[resultLen] = cast<char>(0);
+
+        local result: String;
+        result.data = buf;
+        result.length = resultLen;
+        return result;
+    }
+
+    # Replace all occurrences of 'old' with 'new'
+    frame replaceAll(this: *String, old: string, newStr: string) ret String {
+        local current: String = this.clone();
+        local oldLen: int = strlen(old);
+        if (oldLen == 0) 
+            return current;
+        loop {
+            local replaced: String = current.replace(old, newStr);
+            if (replaced.__eq__(&current)) {
+                replaced.destroy();
+                break;
+            }
+            current.destroy();
+            current = replaced;
+        }
+        return current;
+    }
+
+    # Find index of substring
+    frame indexOf(this: *String, substr: string) ret int {
+        if ((this.data == nullptr) || (substr == nullptr)) 
+            return -1;
+        local subLen: int = strlen(substr);
+        if (subLen == 0) 
+            return 0;
+        if (subLen > this.length) 
+            return -1;
+        local i: int = 0;
+        loop (i <= (this.length - subLen)) {
+            local found: bool = true;
+            local j: int = 0;
+            loop (j < subLen) {
+                if (this.get(i + j) != substr[j]) {
+                    found = false;
+                    break;
+                }
+                j = j + 1;
+            }
+            if (found) 
+                return i;
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    # Find last index of substring
+    frame lastIndexOf(this: *String, substr: string) ret int {
+        if ((this.data == nullptr) || (substr == nullptr)) 
+            return -1;
+        local subLen: int = strlen(substr);
+        if (subLen == 0) 
+            return this.length;
+        if (subLen > this.length) 
+            return -1;
+        local i: int = this.length - subLen;
+        loop (i >= 0) {
+            local found: bool = true;
+            local j: int = 0;
+            loop (j < subLen) {
+                if (this.get(i + j) != substr[j]) {
+                    found = false;
+                    break;
+                }
+                j = j + 1;
+            }
+            if (found) 
+                return i;
+            i = i - 1;
+        }
+        return -1;
+    }
+
+    # Count occurrences of substring
+    frame count(this: *String, substr: string) ret int {
+        if ((this.data == nullptr) || (substr == nullptr)) 
+            return 0;
+        local subLen: int = strlen(substr);
+        if (subLen == 0) 
+            return 0;
+        if (subLen > this.length) 
+            return 0;
+        local cnt: int = 0;
+        local i: int = 0;
+        loop (i <= (this.length - subLen)) {
+            local found: bool = true;
+            local j: int = 0;
+            loop (j < subLen) {
+                if (this.get(i + j) != substr[j]) {
+                    found = false;
+                    break;
+                }
+                j = j + 1;
+            }
+            if (found) {
+                cnt = cnt + 1;
+                i = i + subLen;
+            } else {
+                i = i + 1;
+            }
+        }
+        return cnt;
+    }
+
+    # Check if string contains only digits
+    frame isDigits(this: *String) ret bool {
+        if ((this.data == nullptr) || (this.length == 0)) 
+            return false;
+        local i: int = 0;
+        loop (i < this.length) {
+            local c: char = this.get(i);
+            if ((c < 48) || (c > 57)) 
+                return false;
+            i = i + 1;
+        }
+        return true;
+    }
+
+    # Check if string contains only alphabetic characters
+    frame isAlpha(this: *String) ret bool {
+        if ((this.data == nullptr) || (this.length == 0)) 
+            return false;
+        local i: int = 0;
+        loop (i < this.length) {
+            local c: char = this.get(i);
+            local isLower: bool = (c >= 97) && (c <= 122);
+            local isUpper: bool = (c >= 65) && (c <= 90);
+            if (!isLower && !isUpper) 
+                return false;
+            i = i + 1;
+        }
+        return true;
+    }
+
+    # Check if string contains only alphanumeric characters
+    frame isAlphanumeric(this: *String) ret bool {
+        if ((this.data == nullptr) || (this.length == 0)) 
+            return false;
+        local i: int = 0;
+        loop (i < this.length) {
+            local c: char = this.get(i);
+            local isDigit: bool = (c >= 48) && (c <= 57);
+            local isLower: bool = (c >= 97) && (c <= 122);
+            local isUpper: bool = (c >= 65) && (c <= 90);
+            if (!isDigit && !isLower && !isUpper) 
+                return false;
+            i = i + 1;
+        }
+        return true;
+    }
 }
