@@ -143,3 +143,32 @@ export execShell;
 export execSilent;
 export sleep;
 export [ProcessResult];
+
+# New Utilities
+import [BitSet] from "std/bitset.bpl";
+export [BitSet];
+
+import [Base64] from "std/base64.bpl";
+export [Base64];
+
+import [Hex] from "std/hex.bpl";
+export [Hex];
+
+import [UUID] from "std/uuid.bpl";
+export [UUID];
+
+import [Stats] from "std/stats.bpl";
+export [Stats];
+
+import [Complex] from "std/complex.bpl";
+export [Complex];
+
+import [Rational] from "std/rational.bpl";
+export [Rational];
+
+import [Env] from "std/env.bpl";
+export [Env];
+
+import [Date], [DateTime] from "std/date.bpl";
+export [Date];
+export [DateTime];

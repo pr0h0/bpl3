@@ -141,7 +141,8 @@ struct UTF8 {
             cp = cp | (cast<u32>(ptr[pos + 2] & cast<u8>(0x3F)) << 6);
             cp = cp | cast<u32>(ptr[pos + 3] & cast<u8>(0x3F));
             return cp;
-        } # Replacement character
+        }
+        # Replacement character
         return cast<u32>(0xFFFD);
     }
 

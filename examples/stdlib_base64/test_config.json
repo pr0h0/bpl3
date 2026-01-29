@@ -1,0 +1,28 @@
+{
+  "expectedOutput": [
+    "=== Base64 Encoding Test ===",
+    "Encode 'Hello': SGVsbG8=",
+    "Encode 'Hello, World!': SGVsbG8sIFdvcmxkIQ==",
+    "Encode 'a': YQ==",
+    "Encode 'ab': YWI=",
+    "Encode 'abc': YWJj",
+    "Decode 'SGVsbG8=': Hello",
+    "Decode 'SGVsbG8sIFdvcmxkIQ==': Hello, World!",
+    "Decode 'YQ==': a",
+    "Decode 'YWI=': ab",
+    "Decode 'YWJj': abc",
+    "Is 'SGVsbG8=' valid: 1",
+    "Is 'SGVsbG8' valid: 1",
+    "Is 'Invalid!!!' valid: 0",
+    "Is 'YWJj' valid: 1",
+    "Encoded length for 3 bytes: 4",
+    "Encoded length for 4 bytes: 8",
+    "Encoded length for 10 bytes: 16",
+    "Original: BPL is awesome!",
+    "Decoded:  BPL is awesome!",
+    "=== Base64 Test Complete ==="
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -37,11 +37,11 @@ frame main() ret int {
     printf("\n--- Utility Functions ---\n");
     printf("clamp(5.0, 0.0, 3.0) = %f\n", Math.clamp(5.0, 0.0, 3.0));
     printf("clamp(-2.0, 0.0, 3.0) = %f\n", Math.clamp(-2.0, 0.0, 3.0));
-    printf("clampInt(10, 0, 5) = %d\n", Math.clampInt(10, 0, 5));
+    printf("clamp(10, 0, 5) = %d\n", Math.clamp(10, 0, 5));
     printf("lerp(0.0, 10.0, 0.5) = %f\n", Math.lerp(0.0, 10.0, 0.5));
     printf("sign(-5.0) = %f\n", Math.sign(-5.0));
     printf("sign(5.0) = %f\n", Math.sign(5.0));
-    printf("signInt(-10) = %d\n", Math.signInt(-10));
+    printf("sign(-10) = %d\n", Math.sign(-10));
 
     # Test angle conversion
     printf("\n--- Angle Conversion ---\n");

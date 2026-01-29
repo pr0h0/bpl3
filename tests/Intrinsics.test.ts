@@ -42,10 +42,10 @@ describe("Intrinsics", () => {
       extern printf(fmt: string, ...) ret int;
 
       frame main() {
-        printf("sqrt(16.0) = %f\\n", Math.sqrtFloat(16.0));
-        printf("abs(-5.5) = %f\\n", Math.absFloat(-5.5));
-        printf("min(10.0, 20.0) = %f\\n", Math.minFloat(10.0, 20.0));
-        printf("max(10.0, 20.0) = %f\\n", Math.maxFloat(10.0, 20.0));
+        printf("sqrt(16.0) = %f\\n", Math.sqrt(16.0));
+        printf("abs(-5.5) = %f\\n", Math.abs(-5.5));
+        printf("min(10.0, 20.0) = %f\\n", Math.min(10.0, 20.0));
+        printf("max(10.0, 20.0) = %f\\n", Math.max(10.0, 20.0));
         printf("ceil(3.14) = %f\\n", Math.ceil(3.14));
         printf("floor(3.14) = %f\\n", Math.floor(3.14));
         printf("round(3.6) = %f\\n", Math.round(3.6));

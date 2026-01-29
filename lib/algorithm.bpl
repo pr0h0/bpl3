@@ -8,7 +8,7 @@ import [Rand] from "std/rand.bpl";
 struct Algorithm {
     # ============ Integer Array Operations ============
 
-    frame reverseInt(arr: *Array<int>) {
+    frame reverse(arr: *Array<int>) {
         local n: int = arr.len();
         local i: int = 0;
         loop (i < (n / 2)) {
@@ -21,7 +21,7 @@ struct Algorithm {
         }
     }
 
-    frame sortIntAsc(arr: *Array<int>) {
+    frame sortAsc(arr: *Array<int>) {
         local n: int = arr.len();
         local i: int = 0;
         loop (i < n) {
@@ -39,7 +39,7 @@ struct Algorithm {
         }
     }
 
-    frame sortIntDesc(arr: *Array<int>) {
+    frame sortDesc(arr: *Array<int>) {
         local n: int = arr.len();
         local i: int = 0;
         loop (i < n) {
@@ -58,7 +58,7 @@ struct Algorithm {
     }
 
     # Quick sort implementation for integers (ascending)
-    frame quickSortInt(arr: *Array<int>) {
+    frame quickSort(arr: *Array<int>) {
         Algorithm._quickSortIntHelper(arr, 0, arr.len() - 1);
     }
 
@@ -89,7 +89,7 @@ struct Algorithm {
         return i + 1;
     }
 
-    frame binarySearchInt(arr: *Array<int>, target: int) ret int {
+    frame binarySearch(arr: *Array<int>, target: int) ret int {
         local left: int = 0;
         local right: int = arr.len() - 1;
         loop (left <= right) {
@@ -107,7 +107,7 @@ struct Algorithm {
         return -1;
     }
 
-    frame minInt(arr: *Array<int>) ret int {
+    frame min(arr: *Array<int>) ret int {
         if (arr.len() == 0) 
             return 0;
         local minVal: int = arr.get(0);
@@ -121,7 +121,7 @@ struct Algorithm {
         return minVal;
     }
 
-    frame maxInt(arr: *Array<int>) ret int {
+    frame max(arr: *Array<int>) ret int {
         if (arr.len() == 0) 
             return 0;
         local maxVal: int = arr.get(0);
@@ -135,7 +135,7 @@ struct Algorithm {
         return maxVal;
     }
 
-    frame sumInt(arr: *Array<int>) ret long {
+    frame sum(arr: *Array<int>) ret long {
         local sum: long = 0;
         local i: int = 0;
         loop (i < arr.len()) {
@@ -145,14 +145,14 @@ struct Algorithm {
         return sum;
     }
 
-    frame averageInt(arr: *Array<int>) ret float {
+    frame average(arr: *Array<int>) ret float {
         if (arr.len() == 0) 
             return 0.0;
-        local sum: long = Algorithm.sumInt(arr);
+        local sum: long = Algorithm.sum(arr);
         return cast<float>(sum) / cast<float>(arr.len());
     }
 
-    frame fillInt(arr: *Array<int>, value: int) {
+    frame fill(arr: *Array<int>, value: int) {
         local i: int = 0;
         loop (i < arr.len()) {
             arr.set(i, value);
@@ -160,7 +160,7 @@ struct Algorithm {
         }
     }
 
-    frame countInt(arr: *Array<int>, value: int) ret int {
+    frame count(arr: *Array<int>, value: int) ret int {
         local count: int = 0;
         local i: int = 0;
         loop (i < arr.len()) {
@@ -171,11 +171,11 @@ struct Algorithm {
         return count;
     }
 
-    frame shuffleInt(arr: *Array<int>, rng: *Rand) {
+    frame shuffle(arr: *Array<int>, rng: *Rand) {
         local n: int = arr.len();
         local i: int = n - 1;
         loop (i > 0) {
-            local j: int = rng.rangeInt(0, i + 1);
+            local j: int = rng.range(0, i + 1);
             local temp: int = arr.get(i);
             arr.set(i, arr.get(j));
             arr.set(j, temp);
@@ -183,7 +183,7 @@ struct Algorithm {
         }
     }
 
-    frame isSortedInt(arr: *Array<int>) ret bool {
+    frame isSorted(arr: *Array<int>) ret bool {
         if (arr.len() <= 1) 
             return true;
         local i: int = 0;
@@ -195,7 +195,7 @@ struct Algorithm {
         return true;
     }
 
-    frame uniqueInt(arr: *Array<int>) ret Array<int> {
+    frame unique(arr: *Array<int>) ret Array<int> {
         local result: Array<int> = Array<int>.new(arr.len());
         local i: int = 0;
         loop (i < arr.len()) {
@@ -210,7 +210,7 @@ struct Algorithm {
 
     # ============ Float Array Operations ============
 
-    frame minFloat(arr: *Array<float>) ret float {
+    frame min(arr: *Array<float>) ret float {
         if (arr.len() == 0) 
             return 0.0;
         local minVal: float = arr.get(0);
@@ -224,7 +224,7 @@ struct Algorithm {
         return minVal;
     }
 
-    frame maxFloat(arr: *Array<float>) ret float {
+    frame max(arr: *Array<float>) ret float {
         if (arr.len() == 0) 
             return 0.0;
         local maxVal: float = arr.get(0);
@@ -238,7 +238,7 @@ struct Algorithm {
         return maxVal;
     }
 
-    frame sumFloat(arr: *Array<float>) ret float {
+    frame sum(arr: *Array<float>) ret float {
         local sum: float = 0.0;
         local i: int = 0;
         loop (i < arr.len()) {
@@ -248,14 +248,14 @@ struct Algorithm {
         return sum;
     }
 
-    frame averageFloat(arr: *Array<float>) ret float {
+    frame average(arr: *Array<float>) ret float {
         if (arr.len() == 0) 
             return 0.0;
-        local sum: float = Algorithm.sumFloat(arr);
+        local sum: float = Algorithm.sum(arr);
         return sum / cast<float>(arr.len());
     }
 
-    frame sortFloatAsc(arr: *Array<float>) {
+    frame sortAsc(arr: *Array<float>) {
         local n: int = arr.len();
         local i: int = 0;
         loop (i < n) {
@@ -275,7 +275,7 @@ struct Algorithm {
 
     # ============ Range Generation ============
 
-    frame rangeInt(start: int, end: int) ret Array<int> {
+    frame range(start: int, end: int) ret Array<int> {
         local result: Array<int> = Array<int>.new(end - start);
         local i: int = start;
         loop (i < end) {
@@ -285,7 +285,7 @@ struct Algorithm {
         return result;
     }
 
-    frame rangeIntStep(start: int, end: int, step: int) ret Array<int> {
+    frame rangeStep(start: int, end: int, step: int) ret Array<int> {
         local size: int = ((end - start) / step) + 1;
         local result: Array<int> = Array<int>.new(size);
         local i: int = start;
@@ -305,7 +305,7 @@ struct Algorithm {
 
     # ============ Copy and Clone ============
 
-    frame copyInt(src: *Array<int>, dest: *Array<int>) {
+    frame copy(src: *Array<int>, dest: *Array<int>) {
         local i: int = 0;
         loop (i < src.len()) {
             if (i < dest.len()) {
@@ -319,7 +319,7 @@ struct Algorithm {
 
     # ============ Merge ============
 
-    frame mergeInt(a: *Array<int>, b: *Array<int>) ret Array<int> {
+    frame merge(a: *Array<int>, b: *Array<int>) ret Array<int> {
         local result: Array<int> = Array<int>.new(a.len() + b.len());
         local i: int = 0;
         loop (i < a.len()) {
@@ -336,7 +336,7 @@ struct Algorithm {
 
     # ============ Comparison ============
 
-    frame equalsInt(a: *Array<int>, b: *Array<int>) ret bool {
+    frame equals(a: *Array<int>, b: *Array<int>) ret bool {
         if (a.len() != b.len()) 
             return false;
         local i: int = 0;

@@ -1,0 +1,31 @@
+{
+  "expectedOutput": [
+    "=== Hex Encoding Test ===",
+    "Encode 'Hello': 48656c6c6f",
+    "Encode 'ABC': 414243",
+    "Encode '123': 313233",
+    "Encode 0xDEADBE uppercase: DEADBE",
+    "Encode 0xDEADBE lowercase: deadbe",
+    "Decode '48656c6c6f': Hello",
+    "Decode '414243': ABC",
+    "Decode '0x414243': ABC",
+    "Byte 0xFF to hex: ff",
+    "Byte 0x00 to hex: 00",
+    "Byte 0x42 to hex: 42",
+    "U32 0xDEADBEEF: deadbeef",
+    "U32 255: 000000ff",
+    "Is 'deadbeef' valid: 1",
+    "Is 'DEADBEEF' valid: 1",
+    "Is '0xabcd' valid: 1",
+    "Is 'ghij' valid: 0",
+    "Is '' valid: 0",
+    "Decoded length of 'deadbeef': 4",
+    "Decoded length of '0xdeadbeef': 4",
+    "Original: BPL",
+    "Decoded:  BPL",
+    "=== Hex Test Complete ==="
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -282,13 +282,13 @@ describe("Standard Library", () => {
         arr.push(10);
         arr.push(20);
 
-        Algorithm.sortIntAsc(&arr);
+        Algorithm.sortAsc(&arr);
 
         printf("0: %d\\n", arr.get(0));
         printf("1: %d\\n", arr.get(1));
         printf("2: %d\\n", arr.get(2));
 
-        local idx: int = Algorithm.binarySearchInt(&arr, 20);
+        local idx: int = Algorithm.binarySearch(&arr, 20);
         printf("Idx 20: %d\\n", idx);
 
         arr.destroy();

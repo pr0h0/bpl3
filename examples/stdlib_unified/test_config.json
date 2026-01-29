@@ -33,7 +33,7 @@
     "--- Traditional Features ---",
     "Array size: 3",
     "Map get(1): 100",
-    "Math.minInt(5, 10): 5",
+    "Math.min(5, 10): 5",
     "=== Demo Complete ==="
   ],
   "args": [],

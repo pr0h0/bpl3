@@ -170,8 +170,8 @@ frame main() ret int {
     }
     m.destroy();
 
-    IO.print("Math.minInt(5, 10): ");
-    IO.printInt(Math.minInt(5, 10));
+    IO.print("Math.min(5, 10): ");
+    IO.printInt(Math.min(5, 10));
     IO.print("");
 
     IO.printString("=== Demo Complete ===");

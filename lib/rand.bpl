@@ -54,7 +54,7 @@ struct Rand {
         return (this.nextInt() & 1) == 1;
     }
 
-    frame rangeInt(this: *Rand, min: int, max: int) ret int {
+    frame range(this: *Rand, min: int, max: int) ret int {
         local diff: int = max - min;
         if (diff <= 0) 
             return min;
@@ -65,7 +65,7 @@ struct Rand {
         return min + (i % diff);
     }
 
-    frame rangeFloat(this: *Rand, min: float, max: float) ret float {
+    frame range(this: *Rand, min: float, max: float) ret float {
         return min + (this.nextFloat() * (max - min));
     }
 
@@ -96,7 +96,7 @@ struct Rand {
         local n: int = arr.len();
         local i: int = n - 1;
         loop (i > 0) {
-            local j: int = this.rangeInt(0, i + 1);
+            local j: int = this.range(0, i + 1);
             local temp: int = arr.get(i);
             arr.set(i, arr.get(j));
             arr.set(j, temp);
@@ -109,7 +109,7 @@ struct Rand {
         local n: int = arr.len();
         if (n == 0) 
             return 0;
-        local idx: int = this.rangeInt(0, n);
+        local idx: int = this.range(0, n);
         return arr.get(idx);
     }
 
@@ -134,7 +134,7 @@ struct Rand {
 
         if (total <= 0) 
             return 0;
-        local target: int = this.rangeInt(0, total);
+        local target: int = this.range(0, total);
         local cumulative: int = 0;
         i = 0;
         loop (i < n) {

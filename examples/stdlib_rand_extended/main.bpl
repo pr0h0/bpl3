@@ -23,17 +23,17 @@ frame main() ret int {
     # Test range functions
     printf("\n--- Range Functions ---\n");
     local i: int = 0;
-    printf("rangeInt(1, 10): ");
+    printf("range(1, 10): ");
     loop (i < 5) {
-        printf("%d ", rng.rangeInt(1, 10));
+        printf("%d ", rng.range(1, 10));
         i = i + 1;
     }
     printf("\n");
 
-    printf("rangeFloat(0.0, 1.0): ");
+    printf("range(0.0, 1.0): ");
     i = 0;
     loop (i < 3) {
-        printf("%.3f ", rng.rangeFloat(0.0, 1.0));
+        printf("%.3f ", rng.range(0.0, 1.0));
         i = i + 1;
     }
     printf("\n");

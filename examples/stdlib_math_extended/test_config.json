@@ -12,7 +12,7 @@
     "log10(100) =",
     "--- Utility Functions ---",
     "clamp(5.0, 0.0, 3.0) = 3",
-    "clampInt(10, 0, 5) = 5",
+    "clamp(10, 0, 5) = 5",
     "lerp(0.0, 10.0, 0.5) = 5",
     "--- Power of Two ---",
     "isPowerOfTwo(8) = 1",

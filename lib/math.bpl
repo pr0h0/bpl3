@@ -28,7 +28,7 @@ struct Math {
     # Absolute Value (Int)
     Returns the absolute value of an integer.
     #/
-    frame absInt(x: int) ret int {
+    frame abs(x: int) ret int {
         if (x < 0) {
             return -x;
         }
@@ -39,7 +39,7 @@ struct Math {
     # Absolute Value (Float)
     Returns the absolute value of a float.
     #/
-    frame absFloat(x: float) ret float {
+    frame abs(x: float) ret float {
         return fabs(x);
     }
 
@@ -47,7 +47,7 @@ struct Math {
     # Minimum (Int)
     Returns the smaller of two integers.
     #/
-    frame minInt(a: int, b: int) ret int {
+    frame min(a: int, b: int) ret int {
         if (a < b) {
             return a;
         }
@@ -58,7 +58,7 @@ struct Math {
     # Maximum (Int)
     Returns the larger of two integers.
     #/
-    frame maxInt(a: int, b: int) ret int {
+    frame max(a: int, b: int) ret int {
         if (a > b) {
             return a;
         }
@@ -69,7 +69,7 @@ struct Math {
     # Minimum (Float)
     Returns the smaller of two floats.
     #/
-    frame minFloat(a: float, b: float) ret float {
+    frame min(a: float, b: float) ret float {
         return minnum(a, b);
     }
 
@@ -77,15 +77,15 @@ struct Math {
     # Maximum (Float)
     Returns the larger of two floats.
     #/
-    frame maxFloat(a: float, b: float) ret float {
+    frame max(a: float, b: float) ret float {
         return maxnum(a, b);
     }
 
     /#
-    # Square Root
+    # Square Root (Float)
     Calculates the square root of a float.
     #/
-    frame sqrtFloat(x: float) ret float {
+    frame sqrt(x: float) ret float {
         return sqrt(x);
     }
 
@@ -170,7 +170,8 @@ struct Math {
         }
         if ((x == 0.0) && (y < 0.0)) {
             return -PI / 2.0;
-        } # undefined (0, 0)
+        }
+        # undefined (0, 0)
         return 0.0;
     }
 
@@ -192,7 +193,7 @@ struct Math {
         return x;
     }
 
-    frame clampInt(x: int, minVal: int, maxVal: int) ret int {
+    frame clamp(x: int, minVal: int, maxVal: int) ret int {
         if (x < minVal) 
             return minVal;
         if (x > maxVal) 
@@ -212,7 +213,7 @@ struct Math {
         return 0.0;
     }
 
-    frame signInt(x: int) ret int {
+    frame sign(x: int) ret int {
         if (x > 0) 
             return 1;
         if (x < 0) 
@@ -247,8 +248,8 @@ struct Math {
     }
 
     frame gcd(a: int, b: int) ret int {
-        local x: int = Math.absInt(a);
-        local y: int = Math.absInt(b);
+        local x: int = Math.abs(a);
+        local y: int = Math.abs(b);
         loop (y != 0) {
             local temp: int = y;
             y = x % y;
@@ -260,7 +261,7 @@ struct Math {
     frame lcm(a: int, b: int) ret int {
         if ((a == 0) || (b == 0)) 
             return 0;
-        return Math.absInt(a * b) / Math.gcd(a, b);
+        return Math.abs(a * b) / Math.gcd(a, b);
     }
 
     frame factorial(n: int) ret long {

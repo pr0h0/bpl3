@@ -7,7 +7,7 @@ frame main() ret int {
     local r: Rand = Rand.seed(cast<ulong>(12345));
     IO.printInt(r.nextInt());
     IO.printInt(cast<int>(r.nextFloat() * 100.0));
-    IO.printInt(Math.absInt(-7));
-    IO.printInt(cast<int>(Math.sqrtFloat(9.0)));
+    IO.printInt(Math.abs(-7));
+    IO.printInt(cast<int>(Math.sqrt(9.0)));
     return 0;
 }

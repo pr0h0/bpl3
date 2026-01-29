@@ -10,11 +10,11 @@ frame main() ret int {
     arr.push(4);
     arr.push(2);
     arr.push(3);
-    Algorithm.reverseInt(&arr);
+    Algorithm.reverse(&arr);
     IO.printInt(arr.get(0));
-    Algorithm.sortIntAsc(&arr);
+    Algorithm.sortAsc(&arr);
     IO.printInt(arr.get(0));
-    IO.printInt(Algorithm.binarySearchInt(&arr, 4));
-    IO.printInt(Algorithm.binarySearchInt(&arr, 9));
+    IO.printInt(Algorithm.binarySearch(&arr, 4));
+    IO.printInt(Algorithm.binarySearch(&arr, 9));
     return 0;
 }

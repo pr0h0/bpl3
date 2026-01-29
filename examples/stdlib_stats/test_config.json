@@ -1,0 +1,29 @@
+{
+  "expectedOutput": [
+    "=== Statistics Test ===",
+    "--- Integer Statistics ---",
+    "Data: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100",
+    "Sum: 550",
+    "Mean: 55.00",
+    "Min: 10",
+    "Max: 100",
+    "Range: 90",
+    "--- Float Statistics ---",
+    "Data: 1.5, 2.5, 3.5, 4.5, 5.5",
+    "Sum: 17.50",
+    "Mean: 3.50",
+    "Min: 1.50",
+    "Max: 5.50",
+    "--- Median Tests ---",
+    "--- Mode Test ---",
+    "Mode: 2",
+    "--- Percentile Test ---",
+    "--- Correlation Test ---",
+    "Correlation: 1.0000",
+    "--- Special Means ---",
+    "=== Statistics Test Complete ==="
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}
