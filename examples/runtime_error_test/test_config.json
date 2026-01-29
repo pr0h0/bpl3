@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["NULL POINTER ACCESS", "Stack Trace"],
+  "exitCode": 1,
+  "args": ["null"],
+  "env": {}
+}

@@ -59,3 +59,9 @@ tests/ir.ll
 /tmp
 
 **/views/**/*.bpl
+
+# Runtime build artifacts
+lib/*.o
+lib/*.a
+lib/*.so
+lib/*.bc

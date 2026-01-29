@@ -1,5 +1,20 @@
 # Plan: Native Runtime & Platform Independence
 
+> **Status Update (January 2026)**: Phase 0 (Enhanced Error Handling) has been completed.
+> See [docs/66-runtime-library.md](66-runtime-library.md) for the current runtime documentation.
+
+## Current Implementation
+
+Before pursuing full `libc` independence, we've implemented a robust runtime error handling system:
+
+- **`lib/runtime.ll`**: Core LLVM IR runtime for exception handling, defer, try/catch
+- **`lib/runtime_support.c`**: C support library for signal handlers, stack traces, formatted errors
+- **`lib/build_runtime.sh`**: Build script for the C support library
+
+This hybrid approach provides excellent error diagnostics while maintaining compatibility with existing code.
+
+---
+
 ## 1. Executive Summary
 
 The goal is to remove the dependency on `libc` (C Standard Library) and implement a native BPL runtime. This will allow BPL to run directly on the Linux kernel (and eventually other OSs) via system calls. The architecture will be modular to support dynamic addition of new platforms (OS) and architectures (CPU).

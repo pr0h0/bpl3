@@ -16,6 +16,19 @@ target triple = "x86_64-unknown-linux-gnu"
 @.str.panic_null = private unnamed_addr constant [38 x i8] c"Attempted to access member of nullptr\00", align 1
 @stderr = external global %struct._IO_FILE*
 
+; --- Error Box Titles ---
+@.str.box_null = private unnamed_addr constant [25 x i8] c"NULL POINTER ACCESS     \00", align 1
+@.str.box_stack = private unnamed_addr constant [25 x i8] c"STACK OVERFLOW          \00", align 1
+@.str.box_divzero = private unnamed_addr constant [25 x i8] c"DIVISION BY ZERO        \00", align 1
+@.str.box_index = private unnamed_addr constant [25 x i8] c"INDEX OUT OF BOUNDS     \00", align 1
+
+; --- Error Labels ---
+@.str.label_func = private unnamed_addr constant [9 x i8] c"Function\00", align 1
+@.str.label_expr = private unnamed_addr constant [11 x i8] c"Expression\00", align 1
+@.str.newline = private unnamed_addr constant [2 x i8] c"\0A\00", align 1
+@.str.index_fmt = private unnamed_addr constant [37 x i8] c"Array index %d is out of bounds for \00", align 1
+@.str.size_fmt = private unnamed_addr constant [9 x i8] c"size %d\0A\00", align 1
+
 declare i32 @sprintf(i8*, i8*, ...)
 
 ; --- Types ---
@@ -86,6 +99,13 @@ declare void @free(i8*)
 declare void @exit(i32)
 declare i32 @setjmp(i8*) returns_twice
 declare void @longjmp(i8*, i32) noreturn
+
+; --- C Runtime Support Functions (from runtime_support.c) ---
+declare void @__bpl_print_error_box(i8*)
+declare void @__bpl_print_error_detail(i8*, i8*)
+declare void @__bpl_print_error_location(i32, i32)
+declare void @__bpl_print_stack_trace()
+declare void @__bpl_print_bpl_stack_trace()
 
 ; --- Helper Functions ---
 
@@ -249,7 +269,32 @@ define linkonce_odr void @__bpl_throw_null_access(i8* %func_arg, i8* %expr_arg, 
   br i1 %has_handler, label %throw, label %abort
   
 abort:
+  ; Print nice error box
+  call void @__bpl_print_error_box(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.box_null, i64 0, i64 0))
   call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([38 x i8], [38 x i8]* @.str.panic_null, i64 0, i64 0))
+  call i32 (i8*, ...) @printf(i8* bitcast ([2 x i8]* @.str.newline to i8*))
+  
+  ; Print function name if available
+  %has_func = icmp ne i8* %func_arg, null
+  br i1 %has_func, label %print_func, label %check_expr
+
+print_func:
+  call void @__bpl_print_error_detail(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.label_func, i64 0, i64 0), i8* %func_arg)
+  br label %check_expr
+
+check_expr:
+  ; Print expression if available
+  %has_expr = icmp ne i8* %expr_arg, null
+  br i1 %has_expr, label %print_expr, label %print_location
+
+print_expr:
+  call void @__bpl_print_error_detail(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.label_expr, i64 0, i64 0), i8* %expr_arg)
+  br label %print_location
+
+print_location:
+  call void @__bpl_print_error_location(i32 %line, i32 %col)
+  call void @__bpl_print_bpl_stack_trace()
+  call void @__bpl_print_stack_trace()
   call void @exit(i32 1)
   unreachable
 
@@ -323,7 +368,11 @@ define linkonce_odr void @__bpl_throw_stack_overflow() #0 {
   br i1 %has_handler, label %throw, label %abort
   
 abort:
+  ; Print nice error box
+  call void @__bpl_print_error_box(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.box_stack, i64 0, i64 0))
   call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.panic_so, i64 0, i64 0))
+  call void @__bpl_print_bpl_stack_trace()
+  call void @__bpl_print_stack_trace()
   call void @exit(i32 139)
   unreachable
 
@@ -385,7 +434,22 @@ define linkonce_odr void @__bpl_throw_division_by_zero(i8* %func, i32 %line, i32
   br i1 %has_handler, label %throw, label %abort
 
 abort:
+  ; Print nice error box
+  call void @__bpl_print_error_box(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.box_divzero, i64 0, i64 0))
   call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([18 x i8], [18 x i8]* @.str.panic_div, i64 0, i64 0))
+  
+  ; Print function name if available
+  %has_func = icmp ne i8* %func, null
+  br i1 %has_func, label %print_func_dz, label %print_location_dz
+
+print_func_dz:
+  call void @__bpl_print_error_detail(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.label_func, i64 0, i64 0), i8* %func)
+  br label %print_location_dz
+
+print_location_dz:
+  call void @__bpl_print_error_location(i32 %line, i32 %col)
+  call void @__bpl_print_bpl_stack_trace()
+  call void @__bpl_print_stack_trace()
   call void @exit(i32 1)
   unreachable
 
@@ -429,7 +493,23 @@ define linkonce_odr void @__bpl_throw_index_out_of_bounds(i32 %index, i32 %size,
   br i1 %has_handler, label %throw, label %abort
 
 abort:
-  call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([21 x i8], [21 x i8]* @.str.panic_oob, i64 0, i64 0))
+  ; Print nice error box
+  call void @__bpl_print_error_box(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.box_index, i64 0, i64 0))
+  call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([38 x i8], [38 x i8]* @.str.index_fmt, i64 0, i64 0), i32 %index)
+  call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.size_fmt, i64 0, i64 0), i32 %size)
+  
+  ; Print function name if available
+  %has_func_oob = icmp ne i8* %func, null
+  br i1 %has_func_oob, label %print_func_oob, label %print_location_oob
+
+print_func_oob:
+  call void @__bpl_print_error_detail(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.label_func, i64 0, i64 0), i8* %func)
+  br label %print_location_oob
+
+print_location_oob:
+  call void @__bpl_print_error_location(i32 %line, i32 %col)
+  call void @__bpl_print_bpl_stack_trace()
+  call void @__bpl_print_stack_trace()
   call void @exit(i32 1)
   unreachable
 

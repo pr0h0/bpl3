@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
+  - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
+  - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors
+  - **Stack Traces**: Both native (using `backtrace()` and `dladdr()`) and BPL-level call stack traces
+  - **Runtime Error Types**:
+    - NULL pointer access with expression and location info
+    - Index out of bounds with index/size details
+    - Division by zero with function context
+    - Stack overflow detection
+  - **New Files**:
+    - `lib/runtime_support.c` - C runtime support (signal handlers, stack traces, formatting)
+    - `lib/build_runtime.sh` - Build script for runtime library
+  - **Documentation**: Added `docs/66-runtime-library.md` with complete runtime architecture
+
 - **Strict Switch Semantics** - Improved control flow safety for switch statements:
   - **Explicit Termination**: All `case` and `default` blocks must now strict end with a terminator (`break`, `return`, `throw`, `continue`, or `fallthrough`).
   - **Explicit Fallthrough**: Added `fallthrough` keyword to explicitly transfer control to the next case.

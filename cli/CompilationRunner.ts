@@ -137,14 +137,27 @@ function processCodeInternal(
   // Inject runtime library unless skipped
   if (!options.skipRuntime) {
     const bplHome = getBplHome();
-    const runtimePath = path.join(bplHome, "lib", "runtime.ll");
-    if (fs.existsSync(runtimePath)) {
+
+    // Add LLVM IR declarations (core exception handling)
+    const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
+    if (fs.existsSync(runtimeLLPath)) {
       if (!options.object) {
         options.object = [];
       } else if (!Array.isArray(options.object)) {
         options.object = [options.object as string];
       }
-      (options.object as string[]).push(runtimePath);
+      (options.object as string[]).push(runtimeLLPath);
+    }
+
+    // Add C runtime support (signal handlers, stack traces)
+    const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
+    if (fs.existsSync(runtimeSupportPath)) {
+      if (!options.object) {
+        options.object = [];
+      } else if (!Array.isArray(options.object)) {
+        options.object = [options.object as string];
+      }
+      (options.object as string[]).push(runtimeSupportPath);
     }
   }
 

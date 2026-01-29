@@ -30,8 +30,9 @@ function check(source: string): number {
   try {
     writeFileSync(llFile, llvmIR);
     const runtimePath = join(process.cwd(), "lib/runtime.ll");
+    const runtimeSupportPath = join(process.cwd(), "lib/runtime_support.o");
     execSync(
-      `clang -Wno-override-module ${llFile} "${runtimePath}" -o ${exeFile}`,
+      `clang -Wno-override-module ${llFile} "${runtimePath}" "${runtimeSupportPath}" -o ${exeFile} -rdynamic`,
       {
         stdio: "pipe",
       },

@@ -224,13 +224,23 @@
 
 ### High Priority (Next Steps)
 
-- [ ] **Proper Runtime Library Implementation**
-  - Description: Replace minimal stubs in `lib/runtime.ll` with a robust runtime library (possibly in C or BPL).
-  - Implementation notes:
-    - Implement `__bpl_check_null` to print file/line info before exiting.
-    - Implement `__bpl_enter_stack_frame` / `__bpl_exit_stack_frame` for stack tracing.
-    - Handle signals (SEGV, ILL) to print stack traces.
-    - Consider moving runtime to a C file (`runtime.c`) compiled to `.bc` and linked, for easier maintenance.
+- [x] **Proper Runtime Library Implementation** ✅
+  - **Status:** COMPLETED (January 2026)
+  - Description: Replace minimal stubs in `lib/runtime.ll` with a robust runtime library.
+  - **What Was Implemented:**
+    - ✅ Created `lib/runtime_support.c` - C runtime support library
+    - ✅ Signal handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, SIGBUS
+    - ✅ Colored error boxes with ASCII box drawing
+    - ✅ Native stack traces using `backtrace()` and `dladdr()`
+    - ✅ BPL-level call stack tracking
+    - ✅ Enhanced error messages for:
+      - NULL pointer access (with expression, function, line/column)
+      - Index out of bounds (with index and size)
+      - Division by zero (with function context)
+      - Stack overflow detection
+    - ✅ Created `lib/build_runtime.sh` build script
+    - ✅ Updated `cli/BinaryRunner.ts` and `cli/CompilationRunner.ts` to link runtime
+    - ✅ Documented in `docs/66-runtime-library.md`
 
 - [ ] **Advanced Type System Features**
   - [ ] Type Guards (User-defined `is` functions)

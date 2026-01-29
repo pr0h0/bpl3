@@ -207,16 +207,31 @@ function buildClangArgs(
   // Link runtime logic unless skipped
   if (!options.skipRuntime) {
     const bplHome = getBplHome();
-    const runtimePath = path.join(bplHome, "lib", "runtime.ll");
-    if (fs.existsSync(runtimePath)) {
+
+    // Link LLVM IR declarations (core exception handling)
+    const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
+    if (fs.existsSync(runtimeLLPath)) {
       // Avoid duplicate linking if it was already added to 'object' in CompilationRunner
       const alreadyLinked =
         (options.object &&
-          normalizeArrayOption(options.object).includes(runtimePath)) ||
-        args.includes(runtimePath);
+          normalizeArrayOption(options.object).includes(runtimeLLPath)) ||
+        args.includes(runtimeLLPath);
 
       if (!alreadyLinked) {
-        args.push(runtimePath);
+        args.push(runtimeLLPath);
+      }
+    }
+
+    // Link C runtime support (signal handlers, stack traces)
+    const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
+    if (fs.existsSync(runtimeSupportPath)) {
+      const alreadyLinkedSupport =
+        (options.object &&
+          normalizeArrayOption(options.object).includes(runtimeSupportPath)) ||
+        args.includes(runtimeSupportPath);
+
+      if (!alreadyLinkedSupport) {
+        args.push(runtimeSupportPath);
       }
     }
   }
