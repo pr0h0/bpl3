@@ -1355,7 +1355,9 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     const canonicalValue = this.resolveCanonicalType(valueType);
     const canonicalTarget = this.resolveCanonicalType(targetType);
 
-    // Inheritance checking
+    // BUG-119/120: Runtime vtable-based type checking for struct pointers
+    // When we have a pointer to a base type, we need to check the runtime vtable
+    // to determine the actual type of the object
     if (
       canonicalValue.kind === "BasicType" &&
       canonicalTarget.kind === "BasicType"
@@ -1363,7 +1365,106 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       const valueBasic = canonicalValue as AST.BasicTypeNode;
       const targetBasic = canonicalTarget as AST.BasicTypeNode;
 
-      // Only check inheritance if pointer depth matches
+      // Check if value is a pointer to a struct with a vtable
+      if (valueBasic.pointerDepth === 1) {
+        const valueStructName = valueBasic.name;
+        const targetStructName = targetBasic.name;
+
+        // Check if target inherits from value's declared type OR if target IS the value's type
+        // This means the runtime type COULD be target
+        const targetCouldBeValid =
+          this.checkInheritance(targetStructName, valueStructName) ||
+          valueStructName === targetStructName;
+
+        // Check if both types have vtables (meaning they participate in inheritance)
+        const valueHasVtable = this.vtableGlobalNames.has(valueStructName);
+        const targetHasVtable = this.vtableGlobalNames.has(targetStructName);
+
+        if (targetCouldBeValid && valueHasVtable && targetHasVtable) {
+          // Generate runtime vtable comparison
+          // 1. Load the vtable pointer from the object (first field)
+          const vtablePtrPtr = this.newRegister();
+          this.emit(
+            `  ${vtablePtrPtr} = bitcast %struct.${valueStructName}* ${matchValue} to i8**`,
+          );
+          const actualVtable = this.newRegister();
+          this.emit(`  ${actualVtable} = load i8*, i8** ${vtablePtrPtr}`);
+
+          // 2. Get the target type's vtable
+          const targetVtable = this.vtableGlobalNames.get(targetStructName);
+          const targetVtableMethods =
+            this.vtableLayouts.get(targetStructName) || [];
+          const targetVtableType = `[${targetVtableMethods.length} x i8*]`;
+
+          // 3. Compare vtables
+          const targetVtablePtr = this.newRegister();
+          this.emit(
+            `  ${targetVtablePtr} = bitcast ${targetVtableType}* ${targetVtable} to i8*`,
+          );
+          const result = this.newRegister();
+          this.emit(
+            `  ${result} = icmp eq i8* ${actualVtable}, ${targetVtablePtr}`,
+          );
+          return result;
+        }
+      }
+
+      // BUG-119: Also handle struct values (not just pointers) with vtables
+      // When we have a struct value like `*animal` which has a vtable as first field,
+      // we can do runtime type checking on the value
+      if (valueBasic.pointerDepth === 0 && targetBasic.pointerDepth === 0) {
+        const valueStructName = valueBasic.name;
+        const targetStructName = targetBasic.name;
+
+        // Check if target inherits from value's declared type OR if target IS the value's type
+        const targetCouldBeValid =
+          this.checkInheritance(targetStructName, valueStructName) ||
+          valueStructName === targetStructName;
+
+        // Check if both types have vtables (meaning they participate in inheritance)
+        const valueHasVtable = this.vtableGlobalNames.has(valueStructName);
+        const targetHasVtable = this.vtableGlobalNames.has(targetStructName);
+
+        if (targetCouldBeValid && valueHasVtable && targetHasVtable) {
+          // For struct values, we need to extract the vtable from the value
+          // First, store the struct value to stack so we can get a pointer to it
+          const structType = `%struct.${valueStructName}`;
+          const tempPtr = this.allocateStack(
+            `is_temp_${this.labelCount++}`,
+            structType,
+          );
+          this.emit(
+            `  store ${structType} ${matchValue}, ${structType}* ${tempPtr}`,
+          );
+
+          // Now get the vtable pointer (first field)
+          const vtablePtrPtr = this.newRegister();
+          this.emit(
+            `  ${vtablePtrPtr} = bitcast ${structType}* ${tempPtr} to i8**`,
+          );
+          const actualVtable = this.newRegister();
+          this.emit(`  ${actualVtable} = load i8*, i8** ${vtablePtrPtr}`);
+
+          // Get the target type's vtable
+          const targetVtable = this.vtableGlobalNames.get(targetStructName);
+          const targetVtableMethods =
+            this.vtableLayouts.get(targetStructName) || [];
+          const targetVtableType = `[${targetVtableMethods.length} x i8*]`;
+
+          // Compare vtables
+          const targetVtablePtr = this.newRegister();
+          this.emit(
+            `  ${targetVtablePtr} = bitcast ${targetVtableType}* ${targetVtable} to i8*`,
+          );
+          const result = this.newRegister();
+          this.emit(
+            `  ${result} = icmp eq i8* ${actualVtable}, ${targetVtablePtr}`,
+          );
+          return result;
+        }
+      }
+
+      // Static inheritance checking (fallback for non-pointer types)
       if (valueBasic.pointerDepth === targetBasic.pointerDepth) {
         if (this.checkInheritance(valueBasic.name, targetBasic.name)) {
           const result = this.newRegister();
@@ -1389,6 +1490,101 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   }
 
   protected generateAs(expr: AST.AsExpr): string {
+    // Check if this is a downcast of struct pointers - need runtime type check
+    const srcType = expr.expression.resolvedType;
+    const destType = expr.type;
+
+    // If both are pointers to structs with potential inheritance, do runtime check
+    if (
+      srcType &&
+      srcType.kind === "BasicType" &&
+      srcType.pointerDepth === 1 &&
+      destType.kind === "BasicType" &&
+      destType.pointerDepth === 1
+    ) {
+      const srcStructName = srcType.name;
+      const destStructName = destType.name;
+
+      // Get vtable for destination type to compare at runtime
+      const destVtableName = this.vtableGlobalNames.get(destStructName);
+
+      // Only do runtime check if destination has a vtable (part of inheritance hierarchy)
+      if (destVtableName) {
+        const val = this.generateExpression(expr.expression);
+        const destLlvmType = `%struct.${destStructName}*`;
+
+        // Check if value is null first
+        const isNullLabel = `as_isnull_${this.labelCount++}`;
+        const notNullLabel = `as_notnull_${this.labelCount++}`;
+        const checkVtableLabel = `as_check_${this.labelCount++}`;
+        const matchLabel = `as_match_${this.labelCount++}`;
+        const noMatchLabel = `as_nomatch_${this.labelCount++}`;
+        const doneLabel = `as_done_${this.labelCount++}`;
+
+        // Check for null
+        const isNull = this.newRegister();
+        const srcLlvmType = `%struct.${srcStructName}*`;
+        this.emit(`  ${isNull} = icmp eq ${srcLlvmType} ${val}, null`);
+        this.emit(
+          `  br i1 ${isNull}, label %${isNullLabel}, label %${notNullLabel}`,
+        );
+
+        // If null, result is null
+        this.emit(`${isNullLabel}:`);
+        this.emit(`  br label %${doneLabel}`);
+
+        // Not null - check vtable
+        this.emit(`${notNullLabel}:`);
+
+        // Load vtable pointer from object (first field)
+        const vtablePtrPtr = this.newRegister();
+        this.emit(
+          `  ${vtablePtrPtr} = getelementptr inbounds ${srcLlvmType.slice(0, -1)}, ${srcLlvmType} ${val}, i32 0, i32 0`,
+        );
+        const actualVtable = this.newRegister();
+        this.emit(`  ${actualVtable} = load i8*, i8** ${vtablePtrPtr}`);
+
+        // Compare with expected vtable
+        // Get the vtable type for proper bitcast
+        const destVtableMethods = this.vtableLayouts.get(destStructName) || [];
+        const destVtableType = `[${destVtableMethods.length} x i8*]`;
+        const expectedVtable = this.newRegister();
+        this.emit(
+          `  ${expectedVtable} = bitcast ${destVtableType}* ${destVtableName} to i8*`,
+        );
+
+        const vtableMatch = this.newRegister();
+        this.emit(
+          `  ${vtableMatch} = icmp eq i8* ${actualVtable}, ${expectedVtable}`,
+        );
+        this.emit(
+          `  br i1 ${vtableMatch}, label %${matchLabel}, label %${noMatchLabel}`,
+        );
+
+        // Vtable matches - do the cast
+        this.emit(`${matchLabel}:`);
+        const castResult = this.newRegister();
+        this.emit(
+          `  ${castResult} = bitcast ${srcLlvmType} ${val} to ${destLlvmType}`,
+        );
+        this.emit(`  br label %${doneLabel}`);
+
+        // Vtable doesn't match - return null
+        this.emit(`${noMatchLabel}:`);
+        this.emit(`  br label %${doneLabel}`);
+
+        // Phi node to select result
+        this.emit(`${doneLabel}:`);
+        const result = this.newRegister();
+        this.emit(
+          `  ${result} = phi ${destLlvmType} [ null, %${isNullLabel} ], [ ${castResult}, %${matchLabel} ], [ null, %${noMatchLabel} ]`,
+        );
+
+        return result;
+      }
+    }
+
+    // Default: just do a regular cast
     const castExpr: AST.CastExpr = {
       kind: "Cast",
       expression: expr.expression,

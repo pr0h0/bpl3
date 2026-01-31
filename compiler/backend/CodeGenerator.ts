@@ -319,7 +319,8 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     for (const [content, varName] of this.stringLiterals) {
-      const len = content.length + 1;
+      // BUG-118: Use UTF-8 byte length, not JavaScript string length
+      const len = this.getUtf8ByteLength(content) + 1; // +1 for null terminator
       const escaped = this.escapeString(content);
       header += `${varName} = private unnamed_addr constant [${len} x i8] c"${escaped}\\00", align 1\n`;
     }

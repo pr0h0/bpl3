@@ -860,11 +860,13 @@ SwitchCase
       // If stmts is a single Block, unwrap it (or keep it as is, depending on AST)
       // Actually, our AST expects a Block node for the body.
       // So if we parse a list of statements, we wrap them in a synthetic Block.
+      // Filter out null values from error recovery
+      const filtered = stmts.filter(s => s !== null);
       let body;
-      if (stmts.length === 1 && stmts[0].kind === "Block") {
-          body = stmts[0];
+      if (filtered.length === 1 && filtered[0].kind === "Block") {
+          body = filtered[0];
       } else {
-          body = { kind: "Block", statements: stmts, synthesized: true, location: makeLoc(location()) };
+          body = { kind: "Block", statements: filtered, synthesized: true, location: makeLoc(location()) };
       }
       return caseClause(value, body, location());
     }
@@ -879,11 +881,13 @@ CaseStatements
 
 DefaultCase
   = K_default _ ":" _ stmts:CaseStatements {
+      // Filter out null values from error recovery
+      const filtered = stmts.filter(s => s !== null);
       let body;
-      if (stmts.length === 1 && stmts[0].kind === "Block") {
-          body = stmts[0];
+      if (filtered.length === 1 && filtered[0].kind === "Block") {
+          body = filtered[0];
       } else {
-          body = { kind: "Block", statements: stmts, synthesized: true, location: makeLoc(location()) };
+          body = { kind: "Block", statements: filtered, synthesized: true, location: makeLoc(location()) };
       }
       return body;
     }

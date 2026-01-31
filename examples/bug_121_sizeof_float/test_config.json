@@ -1,0 +1,16 @@
+{
+  "expectedOutput": [
+    "sizeof(int) = 4",
+    "sizeof(i64) = 8",
+    "sizeof(char) = 1",
+    "sizeof(float) = 8",
+    "sizeof(f32) = 4",
+    "sizeof(f64) = 8",
+    "sizeof(double) = 8",
+    "BUG-121 FIXED: sizeof<float>() now works!"
+  ],
+  "args": [],
+  "env": {},
+  "input": "",
+  "note": "This test verifies BUG-121 is fixed. sizeof<float>() now works correctly."
+}

@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "Bug hunt session - testing working features",
+    "See individual test files for specific bug reproductions"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

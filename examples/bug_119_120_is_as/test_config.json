@@ -1,0 +1,18 @@
+{
+  "expectedOutput": [
+    "=== BUG-119: is operator ===",
+    "Direct check: dog is Dog = true",
+    "Through pointer: *animal is Dog = true (correct)",
+    "",
+    "=== BUG-120: as operator ===",
+    "animal as *Dog = ",
+    "(should be non-null)",
+    "animal as *Cat = ",
+    "(should be null!)"
+  ],
+  "args": [],
+  "env": {},
+  "input": "",
+  "skip": false,
+  "note": "Tests BUG-119 (is operator) and BUG-120 (as operator) - now FIXED."
+}

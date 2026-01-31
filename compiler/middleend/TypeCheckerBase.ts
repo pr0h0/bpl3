@@ -372,6 +372,10 @@ export abstract class TypeCheckerBase {
           this.typeAliasResolutionStack.delete(type.name);
         }
       }
+
+      // Note: BUG-125 undefined type check is done in checkVariableDecl instead of here
+      // because resolveType is called in many contexts (imports, generic params, etc.)
+      // where forward references or module-scoped types might not yet be visible
     } else if (type.kind === "FunctionType") {
       return {
         ...type,

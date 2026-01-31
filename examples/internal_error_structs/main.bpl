@@ -2,6 +2,7 @@ import [Option] from "std/option.bpl";
 import [Result] from "std/result.bpl";
 import [FS] from "std/fs.bpl";
 import [Array] from "std/array.bpl";
+import [String] from "std/string.bpl";
 import [OptionUnwrapError], [ResultUnwrapError], [IOError], [IndexOutOfBoundsError], [EmptyError], [NullAccessError], [DivisionByZeroError] from "std/errors.bpl";
 extern printf(fmt: string, ...);
 

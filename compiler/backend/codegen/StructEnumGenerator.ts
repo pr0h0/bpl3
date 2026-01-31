@@ -143,16 +143,35 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       "Any",
     ].includes(name);
 
-    // Only force implicit inheritance from Type if the struct has methods.
-    // This allows POD (Plain Old Data) structs to be compatible with C ABI (no vtable).
+    // Check if struct has methods
     const hasMethods = decl.members.some((m) => m.kind === "FunctionDecl");
+
+    // Check if struct has explicit inheritance (used for is/as runtime checks)
+    const hasExplicitParent =
+      decl.inheritanceList && decl.inheritanceList.length > 0;
+
+    // Check if this struct is a parent of another struct (someone inherits from it)
+    const isParentOfOther = Array.from(this.structMap.values()).some(
+      (otherDecl) =>
+        otherDecl.inheritanceList &&
+        otherDecl.inheritanceList.some(
+          (t) =>
+            t.kind === "BasicType" && (t as AST.BasicTypeNode).name === name,
+        ),
+    );
+
+    // Struct needs vtable if:
+    // 1. Has methods (original behavior), OR
+    // 2. Has explicit parent (for is/as operator support), OR
+    // 3. Is a parent of another struct (for is/as operator support)
+    const needsVTable = hasMethods || hasExplicitParent || isParentOfOther;
 
     if (
       !parentName &&
       name !== "Type" &&
       this.structMap.has("Type") &&
       !isReflectionStruct &&
-      hasMethods
+      needsVTable
     ) {
       parentName = "Type";
     }

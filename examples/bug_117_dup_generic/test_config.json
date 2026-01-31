@@ -1,0 +1,8 @@
+{
+  "expectedOutput": ["Duplicate generic type parameter 'T'"],
+  "exitCode": 1,
+  "args": [],
+  "env": {},
+  "input": "",
+  "note": "This test verifies BUG-117 is fixed. Duplicate generic params are now rejected."
+}

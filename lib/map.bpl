@@ -8,7 +8,7 @@ export [MapNode];
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
 import [Iterable], [Iterator] from "std/iter_specs.bpl";
-import [Destructible] from "std/core_specs.bpl";
+import [Destructible], [Equatable] from "std/core_specs.bpl";
 import [String] from "std/string.bpl";
 
 extern malloc(size: long) ret *void;

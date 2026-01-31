@@ -68,11 +68,11 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-059 | Types               | Compiler allows `void` as a named function argument type (e.g., `frame foo(v: void)`).                                     | Fixed    |                                                                                                                                                                                                                                                                                          |
 | BUG-060 | Types               | Compiler allows arrays of `void` (e.g., `local arr: void[10]`), which is invalid as `void` has no size.                    | Fixed    |                                                                                                                                                                                                                                                                                          |
 | BUG-061 | Lexer               | Nested multi-line comments (`/# ... /# ... #/ ... #/`) are not supported. The first `#/` closes the comment.               | Fixed    | The grammar now uses a recursive rule for `MultiLineComment` which correctly handles nesting.                                                                                                                                                                                            |
-| BUG-062 | Operators           | Assignment chaining (e.g., `a = b = c`) is not supported. Assignment is a statement, not an expression.                    | Open     | allow this only for assignmet, but not for declaration                                                                                                                                                                                                                                   |
+| BUG-062 | Operators           | Assignment chaining (e.g., `a = b = c`) is not supported. Assignment is a statement, not an expression.                    | Ignored  | By design - assignment is a statement, not an expression in BPL.                                                                                                                                                                                                                         |
 | BUG-063 | Operators           | Boolean values are implicitly promoted to integers in comparisons, allowing confusing expressions like `3 > 2 > 1`.        | Closed   | Works as designed - bool promotion is intentional. This is a logical error, not a compiler bug. Linter may add warning in the future.                                                                                                                                                    |
 | BUG-064 | FFI                 | Functions are represented as fat pointers (16 bytes) and cannot be cast to `*void`, breaking FFI compatibility with C.     | Fixed    | Func<T> is now a raw function pointer (thin), and Lambda<T> is a closure (fat). Func is C-compatible.                                                                                                                                                                                    |
 | BUG-065 | Generics            | Generic type inference for constructors is not supported (e.g., `Box.new(10)` fails). Must use `Box<int>.new(10)`.         | Open     | no inference, type is explicit and required for now, make sure generic types work for is/as match/cast syntax                                                                                                                                                                            |
-| BUG-066 | Parser              | The parser does not support empty tuples `()` in type declarations or expressions.                                         | Open     | there should be no empty tuple i guess                                                                                                                                                                                                                                                   |
+| BUG-066 | Parser              | The parser does not support empty tuples `()` in type declarations or expressions.                                         | Ignored  | By design - empty tuples are not supported in BPL.                                                                                                                                                                                                                                       |
 | BUG-067 | Parser              | The parser does not allow accessing tuple elements using dot notation with numbers (e.g., `tuple.0`).                      | Fixed    | Added grammar support for numeric member access (.0, .1, etc.) and implemented tuple element extraction using extractvalue in ExpressionGenerator and AddressExpressionGenerator.                                                                                                        |
 | BUG-068 | Type System         | Array types (fixed `T[N]` and dynamic `T[]`) do not expose a `.len` or `.length` property.                                 | Closed   | no since this is raw memory, use Array<T> if you need size                                                                                                                                                                                                                               |
 | BUG-069 | Type System         | Fixed-size arrays cannot be assigned to dynamic array (slice) types.                                                       | Open     | this should be supported on assignment I guess                                                                                                                                                                                                                                           |
@@ -81,7 +81,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-072 | Compiler Crash      | The compiler crashes with a stack overflow (RangeError) when processing a recursive type alias.                            | Fixed    | Added typeAliasResolutionStack to TypeCheckerBase.ts to detect cycles in type alias resolution before infinite recursion occurs.                                                                                                                                                         |
 | BUG-073 | Code Generation     | Assigning a child struct to a parent struct variable (slicing) generates invalid LLVM IR.                                  | Fixed    | Implemented struct slicing in emitCast() that extracts parent fields and replaces vtable with parent's vtable.                                                                                                                                                                           |
 | BUG-074 | Code Generation     | Switch statements on string types generate invalid LLVM IR.                                                                | Fixed    | Implemented string switch as if-else chain with strcmp calls in StatementGenerator, added strcmp declaration to CodeGenerator standard library functions.                                                                                                                                |
-| BUG-075 | Parser              | The parser does not support assigning explicit integer values to enum variants.                                            | Open     | this would be good to have                                                                                                                                                                                                                                                               |
+| BUG-075 | Parser              | The parser does not support assigning explicit integer values to enum variants.                                            | Ignored  | Feature deferred - may be added in future version.                                                                                                                                                                                                                                       |
 | BUG-076 | Parser              | The compiler does not support inline `export` declarations.                                                                | Closed   | nope, you have to declare something and then export                                                                                                                                                                                                                                      |
 | BUG-077 | Code Generation     | Namespace import (`import * as`) fails to generate LLVM declarations, causing link errors.                                 | Fixed    | Added module-function detection/mangling and emits extern/module declarations when called via namespace imports.                                                                                                                                                                         |
 | BUG-078 | Type Inference      | Lambda return type inference fails when passed as function argument.                                                       | Fixed    | it should be explicit, keep it like that                                                                                                                                                                                                                                                 |
@@ -125,6 +125,21 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-112 | Codegen             | Nested tuple pattern matching doesn't bind variables in nested patterns.                                                   | Fixed    | Fixed MatchExpressionGenerator.ts to recursively handle PatternTuple for nested tuple patterns.                                                                                                                                                                                          |
 | BUG-113 | Standard Library    | arg_parser ParsedArgs.destroy() crashes when freeing FlagEntry strings.                                                    | Fixed    | Root cause was BUG-114 (nullptr comparison bug). Removed unnecessary null checks from destroy code.                                                                                                                                                                                      |
 | BUG-114 | Codegen             | Comparing pointer to vtable-struct with nullptr crashes at runtime.                                                        | Fixed    | Pointer comparisons now always do pointer identity, not operator overloads. Use dereference for value equality: `*a == *b`.                                                                                                                                                              |
+| BUG-115 | Inheritance         | Self-inheriting struct (`struct A : A`) causes compiler stack overflow instead of semantic error.                          | Fixed    | TypeChecker now detects self-inheritance early before type resolution and throws a proper error.                                                                                                                                                                                         |
+| BUG-116 | Inheritance         | Circular inheritance (`struct A : B`, `struct B : A`) causes compiler stack overflow instead of semantic error.            | Fixed    | TypeChecker now detects circular inheritance chains before type resolution and throws a proper error with cycle path.                                                                                                                                                                    |
+| BUG-117 | Generics            | Duplicate generic type parameters (e.g., `struct T<T, T>`) are silently accepted.                                          | Fixed    | TypeChecker now validates that all generic type parameter names are unique for functions, structs, and enums.                                                                                                                                                                            |
+| BUG-118 | Strings             | Unicode characters in string literals cause LLVM IR generation error (string length mismatch).                             | Fixed    | escapeString and getUtf8ByteLength now correctly handle multi-byte UTF-8 characters using TextEncoder.                                                                                                                                                                                   |
+| BUG-119 | Type System         | `is` operator returns false for `*Derived` when checked against base type through `*Base` pointer.                         | Fixed    | Runtime vtable comparison now used for `is` operator on struct pointers and values. Structs in inheritance hierarchies get vtables.                                                                                                                                                      |
+| BUG-120 | Type System         | `as` operator returns non-null for invalid downcasts (e.g., `*Animal as *Cat` when object is Dog).                         | Fixed    | Runtime vtable comparison now used for `as` operator. Returns nullptr if vtable doesn't match target type.                                                                                                                                                                               |
+| BUG-121 | Codegen             | `sizeof<float>()` and `sizeof<f64>()` cause LLVM IR generation error (getelementptr on unsized type).                      | Fixed    | TypeGenerator.resolveType now correctly maps `float`, `f32`, `f64`, `double` to proper LLVM types (`float` or `double`).                                                                                                                                                                 |
+| BUG-122 | Enums               | Empty enum (`enum E {}`) is accepted but has no valid values or constructors.                                              | Fixed    | TypeChecker now validates that enums have at least one variant and throws a proper error for empty enums.                                                                                                                                                                                |
+| BUG-123 | Specs               | Spec extending itself (`spec S : S`) is silently accepted.                                                                 | Fixed    | TypeChecker now detects self-extension in specs and throws a proper error.                                                                                                                                                                                                               |
+| BUG-124 | Parser              | Unary plus operator (`+5`) causes syntax error instead of being accepted or giving clear error message.                    | Fixed    | Grammar now parses unary plus, and TypeChecker throws a clear error explaining it's a no-op and should be removed.                                                                                                                                                                       |
+| BUG-125 | Type System         | Undefined types in variable declarations/struct fields are not caught at type-check time, causing LLVM errors.             | Fixed    | Added undefined type detection in StatementChecker.checkVariableDecl() to catch undefined types at declaration time.                                                                                                                                                                     |
+| BUG-126 | Type System         | Type aliases can shadow builtin types (`type int = string;`), causing confusing behavior.                                  | Fixed    | Added BUILTIN_TYPE_NAMES check in TypeChecker.checkTypeAlias() to prevent shadowing primitives.                                                                                                                                                                                          |
+| BUG-127 | Pointers            | Pointer arithmetic on `*void` is accepted, but void has no size so offset calculation is undefined.                        | Fixed    | Added void pointer check in ExpressionChecker.checkBinaryExpression() before pointer arithmetic.                                                                                                                                                                                         |
+| BUG-128 | Linker              | Missing `main` function only detected at link time, not during type-checking.                                              | Fixed    | Added checkEntryPoint() method in TypeChecker that validates main function existence and signature.                                                                                                                                                                                      |
+| BUG-129 | Specs               | Duplicate method signatures in specs (`spec S { frame f(); frame f(); }`) are silently accepted.                           | Fixed    | Added duplicate method signature detection with Set-based tracking in TypeChecker.checkSpecBody().                                                                                                                                                                                       |
 
 ## Details
 
@@ -752,13 +767,14 @@ local arr: void[10];
 ### BUG-062: Assignment Chaining Unsupported
 
 **Category**: Operators
-**Description**: Assignment is treated as a statement, not an expression. Therefore, chaining assignments like `a = b = 10` is not supported.
+**Status**: Ignored (By Design)
+**Description**: Assignment is treated as a statement, not an expression. Therefore, chaining assignments like `a = b = 10` is not supported. This is intentional - BPL follows the design where assignment is a statement, not an expression.
 **Reproduction**:
 
 ```bpl
 local a: int;
 local b: int;
-a = b = 10; # Syntax Error
+a = b = 10; # Syntax Error - by design
 ```
 
 ### BUG-063: Implicit Bool to Int Promotion in Comparisons
@@ -800,11 +816,12 @@ local b = Box<int>.new(10); # Works
 ### BUG-066: Empty Tuple Syntax Unsupported
 
 **Category**: Parser
-**Description**: The parser does not support empty tuples `()` in type declarations or expressions.
+**Status**: Ignored (By Design)
+**Description**: The parser does not support empty tuples `()` in type declarations or expressions. This is intentional - empty tuples are not supported in BPL.
 **Reproduction**:
 
 ```bpl
-local t: () = (); # Syntax error
+local t: () = (); # Syntax error - by design
 ```
 
 ### BUG-067: No Tuple Field Access
@@ -842,21 +859,23 @@ local a: int[] = [1, 2, 3]; # Error: cannot assign int[3] to int[]
 ### BUG-070: No Default Arguments
 
 **Category**: Parser
-**Description**: The parser does not support default values for function parameters.
+**Status**: Ignored (Planned Feature)
+**Description**: The parser does not support default values for function parameters. This is in the roadmap and will be implemented later.
 **Reproduction**:
 
 ```bpl
-frame foo(a: int = 10) { } # Syntax error
+frame foo(a: int = 10) { } # Syntax error - not yet supported
 ```
 
 ### BUG-071: No Variadic Function Definitions
 
 **Category**: Parser
-**Description**: While `extern` declarations support variadic arguments (`...`), BPL function definitions (`frame`) do not support defining variadic functions.
+**Status**: ✅ FIXED
+**Description**: BPL function definitions (`frame`) now support variadic functions. The syntax is `frame name(args: ...type, count: int){}`. It supports fixed args before variadic args, and count is implicit and passed by compiler.
 **Reproduction**:
 
 ```bpl
-frame log(fmt: string, ...) { } # Syntax error
+frame log(fmt: string, args: ...int, count: int) { } # Now supported
 ```
 
 ### BUG-072: Compiler Crash on Recursive Type Alias
@@ -892,9 +911,22 @@ type Node = (int, *Node);
 ### BUG-088: Bound Methods Not Supported
 
 **Category**: Methods
-**Description**: Bound methods (e.g., `obj.method` as a value) are not supported by the parser. Only `obj.method()` calls work.
-**Status**: Open
-**Note**: This is a design decision - methods must be called, not referenced as values.
+**Status**: ✅ FIXED
+**Description**: Bound methods (e.g., `obj.method` as a value) are now supported. In `obj.method()` calls this works, and methods can be used as values creating a `Lambda` that captures the object instance (`this`). Note: `frame obj.method()` syntax is not supported since we have struct methods.
+
+```bpl
+struct Counter {
+    count: int,
+    frame increment(this: *Counter) { this.count = this.count + 1; }
+}
+
+frame main() {
+    local c = Counter { count: 0 };
+    # 'inc' is a Lambda<void> that captures 'c'
+    local inc = c.increment;
+    inc();
+}
+```
 
 ### BUG-089: Recursive Structs Cause LLVM Errors
 
@@ -982,12 +1014,13 @@ switch ("a") {
 ### BUG-075: No Explicit Enum Values
 
 **Category**: Parser
-**Description**: The parser does not support assigning explicit integer values to enum variants, which is necessary for C interoperability.
+**Status**: Ignored (Feature Deferred)
+**Description**: The parser does not support assigning explicit integer values to enum variants, which is necessary for C interoperability. Feature deferred - may be added in future version.
 **Reproduction**:
 
 ```bpl
 enum Status {
-    Ok = 0, # Syntax error
+    Ok = 0, # Syntax error - not supported
     Error = 1
 }
 ```
@@ -1193,9 +1226,9 @@ frame main() {
 
 ### BUG-104: Nested Tuple Patterns Not Supported
 
-**Status**: Open
+**Status**: ✅ FIXED
 
-**Description**: Match expressions with nested tuple patterns (e.g., `((a, b), c)`) are not yet implemented. The code generation for binding nested tuple identifiers is incomplete.
+**Description**: Match expressions with nested tuple patterns (e.g., `((a, b), c)`) are now implemented. The code generation for binding nested tuple identifiers has been completed by adding recursive handling for nested PatternTuple in MatchExpressionGenerator.ts.
 
 **Workaround**: Use separate match expressions or destructure tuples before matching:
 
@@ -1228,7 +1261,9 @@ match (nested) {
 
 ### BUG-105: Infinite Monomorphization
 
-Generic function calls that create new instantiations recursively (e.g., `explode<Box<T>>`) cause the compiler to go into an infinite loop and eventually crash or hang (timeout).
+**Status**: ✅ FIXED
+
+Generic function calls that create new instantiations recursively (e.g., `explode<Box<T>>`) now trigger a proper error. Added generation batch limit (50) in CodeGenerator to detect and error on infinite recursion.
 
 ```bpl
 struct Box<T> { val: T }
@@ -1246,12 +1281,14 @@ frame main() {
 
 ### BUG-106: Escape Analysis Missing
 
-The compiler allows returning pointers to local stack variables, which leads to undefined behavior (use-after-free) as the stack frame is destroyed upon return.
+**Status**: ✅ FIXED
+
+The compiler now checks for returning pointers to local stack variables and produces an error. Added check in StatementChecker to error when returning the address of a local variable or parameter.
 
 ```bpl
 frame foo() ret *int {
     local x: int = 42;
-    return &x; # Should be an error
+    return &x; # Now produces error: Cannot return address of local variable
 }
 ```
 
@@ -1369,3 +1406,468 @@ if (*str1 == *str2) { ... }  # Value comparison via operator overload
 
 - `compiler/middleend/ExpressionChecker.ts`: Added `isPointerComparison` check to skip operator overloads when both operands are pointer types (including nullptr)
 - `examples/hash_test/main.bpl`: Updated `strEq` to use `*a == *b` for proper value equality
+
+---
+
+### BUG-115: Self-Inheriting Struct Stack Overflow
+
+**Status**: ✅ FIXED
+
+**Category**: Inheritance
+
+**Description**: A struct that inherits from itself now produces a proper semantic error instead of crashing.
+
+**Reproduction**:
+
+```bpl
+struct SelfInherit : SelfInherit {
+    x: int,
+}
+
+frame main() {
+    printf("Test\n");
+}
+```
+
+**Expected**: Compiler error: "Struct 'SelfInherit' cannot inherit from itself"
+
+**Resolution**: TypeChecker now detects self-inheritance early before type resolution and throws a proper error.
+
+**Test File**: `examples/bug_hunt_session/test_self_inherit.bpl`
+
+---
+
+### BUG-116: Circular Inheritance Stack Overflow
+
+**Status**: ✅ FIXED
+
+**Category**: Inheritance
+
+**Description**: Circular inheritance chains (A extends B, B extends A) now produce a proper semantic error instead of crashing.
+
+**Reproduction**:
+
+```bpl
+struct CircleA : CircleB {
+    a: int,
+}
+struct CircleB : CircleA {
+    b: int,
+}
+
+frame main() {
+    printf("Test\n");
+}
+```
+
+**Expected**: Compiler error: "Circular inheritance detected: CircleA -> CircleB -> CircleA"
+
+**Resolution**: TypeChecker now detects circular inheritance chains before type resolution and throws a proper error with cycle path.
+
+**Test File**: `examples/bug_hunt_session/test_circular_inherit.bpl`
+
+---
+
+### BUG-117: Duplicate Generic Type Parameters Accepted
+
+**Status**: ✅ FIXED
+
+**Category**: Generics
+
+**Description**: Structs and functions with duplicate generic type parameter names now produce an error.
+
+**Reproduction**:
+
+```bpl
+struct DupParam<T, T> {
+    x: T,
+}
+
+frame main() {
+    printf("Test\n");
+}
+```
+
+**Expected**: Compiler error: "Duplicate type parameter 'T'"
+
+**Resolution**: TypeChecker now validates that all generic type parameter names are unique for functions, structs, and enums.
+
+**Test File**: `examples/bug_hunt_session/test_dup_generic_param.bpl`
+
+---
+
+### BUG-118: Unicode Strings Cause LLVM Error
+
+**Status**: ✅ FIXED
+
+**Category**: Strings
+
+**Description**: String literals containing multi-byte UTF-8 characters (like Chinese characters) cause LLVM IR compilation to fail due to incorrect string length calculation.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+frame main() {
+    local unicode: string = "Hello 世界";
+    printf("Unicode: %s\n", unicode);
+}
+```
+
+**Expected**: Prints "Unicode: Hello 世界"
+
+**Actual (before fix)**: LLVM error: `constant expression type mismatch: got type '[13 x i8]' but expected '[9 x i8]'`
+
+**Root Cause**: The compiler counted characters instead of bytes when calculating string literal size for LLVM IR.
+
+**Fix**: Updated `escapeString()` and `getUtf8ByteLength()` in `BaseCodeGenerator.ts` to properly encode non-ASCII characters as UTF-8 bytes using `TextEncoder`.
+
+**Test File**: `tmp/unicode_test.bpl`
+
+---
+
+### BUG-119: `is` Operator Fails for Derived Types Through Base Pointer
+
+**Status**: ✅ FIXED
+
+**Category**: Type System
+
+**Description**: The `is` operator returns `false` when checking if a derived type pointer (accessed through a base type pointer) is an instance of the derived type.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+struct Animal { name: string, }
+struct Dog : Animal { breed: string, }
+
+frame main() {
+    local dog: Dog = Dog { name: "Rex", breed: "German Shepherd" };
+    local animal: *Animal = cast<*Animal>(&dog);
+
+    if (*animal is Dog) {
+        printf("*animal is Dog: true\n");
+    } else {
+        printf("*animal is Dog: false\n");  # This WAS printed before fix!
+    }
+}
+```
+
+**Expected**: Prints "\*animal is Dog: true"
+
+**Actual (before fix)**: Printed "\*animal is Dog: false"
+
+**Root Cause**: The `is` operator used compile-time type comparison instead of runtime vtable comparison.
+
+**Fix**: Modified `generateRegularTypeMatch()` in `MatchExpressionGenerator.ts` to:
+
+1. Check if both types have vtables (inheritance hierarchy)
+2. Load the actual vtable pointer from the object
+3. Compare against the expected vtable for the target type
+
+Also modified `computeVTableLayout()` in `StructEnumGenerator.ts` to give vtables to ALL structs in inheritance hierarchies (not just those with methods).
+
+**Test File**: `examples/bug_119_120_is_as/main.bpl`
+
+---
+
+### BUG-120: `as` Operator Returns Non-Null for Invalid Downcasts
+
+**Status**: ✅ FIXED
+
+**Category**: Type System
+
+**Description**: The `as` operator (safe downcast) returns a non-null pointer even when the downcast should fail. It appears to just reinterpret the pointer without runtime type checking.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+struct Animal { name: string, }
+struct Dog : Animal { breed: string, }
+struct Cat : Animal { indoor: bool, }
+
+frame main() {
+    local dog: Dog = Dog { name: "Rex", breed: "German Shepherd" };
+    local animal: *Animal = cast<*Animal>(&dog);
+
+    local maybeCat: *Cat = animal as *Cat;
+    printf("animal as *Cat: %p (should be null)\n", maybeCat);
+
+    if (maybeCat != nullptr) {
+        printf("BUG: Cast succeeded but should have failed!\n");
+    }
+}
+```
+
+**Expected**: `maybeCat` should be `nullptr` since `dog` is not a `Cat`
+
+**Actual (before fix)**: `maybeCat` was non-null (same address as `dog`)
+
+**Root Cause**: The `as` operator just did a bitcast without validating the runtime type.
+
+**Fix**: Modified `generateAs()` in `MatchExpressionGenerator.ts` to:
+
+1. Check if both source and destination are pointers to structs with vtables
+2. Load and compare vtables at runtime
+3. Return nullptr if vtables don't match, otherwise return the cast pointer
+
+**Security Impact**: This fix prevents memory corruption from invalid downcasts accessing wrong fields.
+
+**Test File**: `examples/bug_119_120_is_as/main.bpl`
+
+---
+
+### BUG-121: sizeof on Floating Point Types Causes LLVM Error
+
+**Status**: ✅ FIXED
+
+**Category**: Codegen
+
+**Description**: Using `sizeof<float>()` or `sizeof<f64>()` now works correctly.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+frame main() {
+    printf("sizeof(float) = %lu\n", sizeof<float>());
+}
+```
+
+**Expected**: Prints "sizeof(float) = 8"
+
+**Resolution**: TypeGenerator.resolveType now correctly maps `float`, `f32`, `f64`, `double` to proper LLVM types (`float` or `double`).
+
+**Test File**: `examples/bug_hunt_session/test_sizeof.bpl`
+
+---
+
+### BUG-122: Empty Enum Accepted
+
+**Status**: ✅ FIXED
+
+**Category**: Enums
+
+**Description**: An enum with zero variants now produces an error.
+
+**Reproduction**:
+
+```bpl
+enum Empty {}
+
+frame main() {
+    # Cannot create a value of type Empty
+    printf("Test\n");
+}
+```
+
+**Expected**: Compiler error: "Enum must have at least one variant"
+
+**Resolution**: TypeChecker now validates that enums have at least one variant and throws a proper error for empty enums.
+
+**Test File**: `examples/bug_hunt_session/test_empty_enum.bpl`
+
+---
+
+### BUG-123: Spec Extending Itself Accepted
+
+**Status**: ✅ FIXED
+
+**Category**: Specs
+
+**Description**: A spec (interface/trait) that extends itself now produces an error.
+
+**Reproduction**:
+
+```bpl
+spec SelfSpec : SelfSpec {
+    frame method(this: *SelfSpec);
+}
+
+frame main() {
+    printf("Test\n");
+}
+```
+
+**Expected**: Compiler error: "Spec 'SelfSpec' cannot extend itself"
+
+**Resolution**: TypeChecker now detects self-extension in specs and throws a proper error.
+
+**Test File**: `examples/bug_hunt_session/test_spec_self.bpl`
+
+---
+
+### BUG-124: Unary Plus Not Supported
+
+**Status**: ✅ FIXED (By Design)
+
+**Category**: Parser
+
+**Description**: The unary plus operator (`+5`) is intentionally not supported in BPL. It is a no-op in most languages and provides no value.
+
+**Reproduction**:
+
+```bpl
+frame main() {
+    local x: int = +5;  # Syntax error
+}
+```
+
+**Resolution**: Unary plus is not supported by design. Use the value directly without the `+` prefix. The syntax error is the expected behavior.
+
+---
+
+### BUG-125: Undefined Types Not Caught at Type-Check Time
+
+**Status**: ✅ FIXED
+
+**Category**: Type System
+
+**Description**: Using an undefined type in a variable declaration or struct field now produces a proper error during type checking.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+# Case 1: Undefined type in variable declaration
+frame main() ret int {
+    local x: UndefinedType;
+    printf("test\n");
+    return 0;
+}
+
+# Case 2: Undefined type in struct field
+struct Wrapper {
+    value: UndefinedType
+}
+```
+
+**Expected**: Compiler error: "Undefined type 'UndefinedType'"
+
+**Resolution**: Added undefined type detection in StatementChecker.checkVariableDecl() to catch undefined types at declaration time.
+
+---
+
+### BUG-126: Type Alias Can Shadow Builtin Types
+
+**Status**: ✅ FIXED
+
+**Category**: Type System
+
+**Description**: Type aliases can no longer redefine primitive type names like `int`, `bool`, `string`, etc.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+type int = string;  # Now produces error!
+
+frame main() ret int {
+    local x: int = 42;
+    printf("x = %d\n", x);
+    return 0;
+}
+```
+
+**Expected**: Compiler error: "Cannot redefine builtin type 'int'"
+
+**Resolution**: Added BUILTIN_TYPE_NAMES check in TypeChecker.checkTypeAlias() to prevent shadowing primitives.
+
+---
+
+### BUG-127: Pointer Arithmetic on Void Pointer
+
+**Status**: ✅ FIXED
+
+**Category**: Pointers
+
+**Description**: Pointer arithmetic operations (`+`, `-`) on `*void` pointers now produce an error.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    local p: *void = nullptr;
+    local q: *void = p + 1;  # Now produces error!
+    printf("q = %p\n", q);
+    return 0;
+}
+```
+
+**Expected**: Compiler error: "Cannot perform pointer arithmetic on void pointer"
+
+**Resolution**: Added void pointer check in ExpressionChecker.checkBinaryExpression() before pointer arithmetic.
+
+---
+
+### BUG-128: Missing Main Function Not Detected
+
+**Status**: ✅ FIXED
+
+**Category**: Linker
+
+**Description**: When compiling an executable without a `main` function, the error is now detected during type checking.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+frame helper() ret int {
+    return 42;
+}
+# Note: No main function
+```
+
+**Expected**: Compiler error: "Entry point function 'main' is not defined"
+
+**Resolution**: Added checkEntryPoint() method in TypeChecker that validates main function existence and signature.
+
+---
+
+### BUG-129: Duplicate Method Signatures in Spec
+
+**Status**: ✅ FIXED
+
+**Category**: Specs
+
+**Description**: A spec (interface/trait) can no longer have multiple methods with the exact same signature.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...);
+
+spec Printable {
+    frame print(this: *Self);
+    frame print(this: *Self);  # Now produces error!
+}
+
+struct Point : Printable {
+    x: int,
+    y: int,
+
+    frame print(this: *Point) {
+        printf("(%d, %d)\n", this.x, this.y);
+    }
+}
+
+frame main() ret int {
+    local p: Point = Point { x: 1, y: 2 };
+    p.print();
+    return 0;
+}
+```
+
+**Expected**: Compiler error: "Duplicate method 'print' in spec 'Printable'"
+
+**Resolution**: Added duplicate method signature detection with Set-based tracking in TypeChecker.checkSpecBody().

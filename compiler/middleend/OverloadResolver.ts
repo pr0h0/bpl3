@@ -323,17 +323,14 @@ export class OverloadResolver {
 
         const widening = this.ctx.isImplicitWideningAllowed(
           argTypes[i]!,
-          ft.paramTypes[i]!,
+          paramType,
         );
         if (widening) {
           needsWidening = true;
           continue;
         }
 
-        const compatible = this.ctx.areTypesCompatible(
-          ft.paramTypes[i]!,
-          argTypes[i]!,
-        );
+        const compatible = this.ctx.areTypesCompatible(paramType, argTypes[i]!);
         if (!compatible) {
           allCompatible = false;
           break;

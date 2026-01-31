@@ -18,8 +18,8 @@ frame main() ret int {
 
     # Test UTF-8 strings with multi-byte characters
     printf("\n--- UTF-8 Multi-byte Tests ---\n");
-    # Using escape sequences for 2-byte UTF-8 (e-acute: C3 A9)
-    local utf8_2byte: string = "H\xC3\xA9llo";
+    # Using actual UTF-8 character (e-acute)
+    local utf8_2byte: string = "Héllo";
     printf("String with 2-byte char: '%s'\n", utf8_2byte);
     printf("Byte length: %d\n", UTF8.byteLength(utf8_2byte));
     printf("Codepoint count: %d\n", UTF8.codepointCount(utf8_2byte));

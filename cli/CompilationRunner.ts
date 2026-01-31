@@ -318,7 +318,8 @@ function compileSingleFile(
   const typeChecker = new TypeChecker({
     skipImportResolution: options.prelude === false,
   });
-  typeChecker.checkProgram(ast);
+  // BUG-128: Check for main function in entry point files
+  typeChecker.checkProgram(ast, undefined, { isEntryPoint: true });
   endTypeChecking();
 
   const typeErrors = typeChecker.getErrors();

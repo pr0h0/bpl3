@@ -331,16 +331,35 @@ export class BaseCodeGenerator {
   }
 
   protected escapeString(str: string): string {
+    // Process string character by character
+    // All non-ASCII characters are encoded as UTF-8 bytes
+    const encoder = new TextEncoder();
     let result = "";
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      if (char < 32 || char > 126 || char === 34 || char === 92) {
-        result += "\\" + char.toString(16).toUpperCase().padStart(2, "0");
-      } else {
+      const code = str.charCodeAt(i);
+      // Printable ASCII (except " and \)
+      if (code >= 32 && code <= 126 && code !== 34 && code !== 92) {
         result += str[i];
+      } else if (code < 128) {
+        // Non-printable ASCII - escape it as single byte
+        result += "\\" + code.toString(16).toUpperCase().padStart(2, "0");
+      } else {
+        // Non-ASCII character - encode as UTF-8 bytes
+        const bytes = encoder.encode(str[i]);
+        for (let j = 0; j < bytes.length; j++) {
+          const byte = bytes[j]!;
+          result += "\\" + byte.toString(16).toUpperCase().padStart(2, "0");
+        }
       }
     }
     return result;
+  }
+
+  // BUG-118: Calculate actual UTF-8 byte length for LLVM string constants
+  // This needs to match what escapeString produces
+  protected getUtf8ByteLength(str: string): number {
+    const encoder = new TextEncoder();
+    return encoder.encode(str).length;
   }
 
   protected isTerminator(line: string): boolean {

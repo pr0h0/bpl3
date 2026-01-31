@@ -481,6 +481,15 @@ export function checkBinary(
     (leftType.pointerDepth > 0 || leftType.arrayDimensions.length > 0) &&
     (op === TokenType.Plus || op === TokenType.Minus)
   ) {
+    // BUG-127: Check for void pointer arithmetic
+    if (leftType.name === "void" && leftType.pointerDepth > 0) {
+      throw new CompilerError(
+        "Cannot perform pointer arithmetic on void pointer",
+        "Void pointers have no size, so pointer arithmetic is undefined. Cast to a sized pointer type first (e.g., *u8).",
+        expr.location,
+      );
+    }
+
     if (rightType.kind === "BasicType" && TypeUtils.isIntegerType(rightType)) {
       // pointer + int = pointer
       return leftType;
@@ -828,6 +837,15 @@ export function checkUnary(
     return operandType;
   }
 
+  // Unary plus (+) - not supported, it's a no-op
+  if (op === TokenType.Plus) {
+    throw new CompilerError(
+      "Unary plus operator '+' is not supported",
+      "The unary plus operator is a no-op and has been intentionally excluded. Simply remove the '+' prefix.",
+      expr.location,
+    );
+  }
+
   return operandType;
 }
 
@@ -875,6 +893,31 @@ export function checkStructLiteral(
   expr: AST.StructLiteralExpr,
 ): AST.TypeNode | undefined {
   let symbol = this.currentScope.resolve(expr.structName);
+
+  // Handle qualified names (e.g., "Lib.Point", "std.Array")
+  if (!symbol && expr.structName.includes(".")) {
+    const parts = expr.structName.split(".");
+    let currentScope = this.currentScope;
+    let currentSymbol: Symbol | undefined;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]!;
+      currentSymbol = currentScope.resolve(part);
+      if (!currentSymbol) {
+        break;
+      }
+
+      if (i < parts.length - 1) {
+        if (currentSymbol.moduleScope) {
+          currentScope = currentSymbol.moduleScope;
+        } else {
+          currentSymbol = undefined;
+          break;
+        }
+      }
+    }
+    symbol = currentSymbol;
+  }
 
   // Special handling for 'Any' struct used in variadics
   if (!symbol && expr.structName === "Any") {

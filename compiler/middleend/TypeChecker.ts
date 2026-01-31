@@ -84,7 +84,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Program Checking ==========
 
-  public checkProgram(program: AST.Program, modulePath?: string): void {
+  public checkProgram(
+    program: AST.Program,
+    modulePath?: string,
+    options?: { isEntryPoint?: boolean },
+  ): void {
     const moduleScope = new SymbolTable(this.globalScope);
     this.currentScope = moduleScope;
 
@@ -132,6 +136,83 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           continue;
         }
         throw e;
+      }
+    }
+
+    // BUG-128: Check for main function in entry point
+    if (options?.isEntryPoint) {
+      this.checkEntryPoint(program);
+    }
+  }
+
+  // BUG-128: Validate that an entry point (main function) exists
+  private checkEntryPoint(program: AST.Program): void {
+    const mainSymbol = this.currentScope.resolve("main");
+    if (!mainSymbol) {
+      // Find a good location for the error (use program start or first statement)
+      const location = program.statements[0]?.location || {
+        file: "",
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      };
+      this.addError(
+        new CompilerError(
+          "Missing entry point function 'main'",
+          "Every executable must have a 'main' function. Add: frame main() ret int { return 0; }",
+          location,
+        ),
+      );
+      return;
+    }
+
+    if (mainSymbol.kind !== "Function") {
+      this.addError(
+        new CompilerError(
+          "'main' must be a function",
+          `Found '${mainSymbol.kind}' named 'main', but expected a function declaration.`,
+          mainSymbol.declaration?.location || program.statements[0]?.location,
+        ),
+      );
+      return;
+    }
+
+    // Check main function signature
+    const mainType = mainSymbol.type as AST.FunctionTypeNode;
+    if (mainType.kind === "FunctionType") {
+      // Main should return int (or void)
+      if (mainType.returnType) {
+        const retType = mainType.returnType;
+        if (retType.kind === "BasicType") {
+          const validReturnTypes = ["int", "i32", "void"];
+          if (
+            !validReturnTypes.includes(retType.name) ||
+            retType.pointerDepth > 0
+          ) {
+            this.addError(
+              new CompilerError(
+                "Invalid return type for 'main' function",
+                `'main' should return 'int' or 'void', but returns '${retType.name}'`,
+                mainSymbol.declaration?.location,
+              ),
+            );
+          }
+        }
+      }
+
+      // Main should take no parameters (or argc/argv)
+      if (mainType.paramTypes && mainType.paramTypes.length > 0) {
+        // Allow argc: int, argv: **char or similar
+        if (mainType.paramTypes.length > 2) {
+          this.addError(
+            new CompilerError(
+              "Too many parameters for 'main' function",
+              "'main' should take no parameters or (argc: int, argv: **char)",
+              mainSymbol.declaration?.location,
+            ),
+          );
+        }
       }
     }
   }
@@ -202,10 +283,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         stmt.resolvedType = functionType;
         break;
       case "TypeAlias":
+        // Don't check constraints during symbol collection - forward refs might not be defined yet
         this.defineSymbol(
           stmt.name,
           "TypeAlias",
-          this.resolveType(stmt.type),
+          this.resolveType(stmt.type, false),
           stmt,
         );
         break;
@@ -460,6 +542,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       );
     }
 
+    // Check for duplicate generic parameter names
+    const genericParamNames = new Set<string>();
+    for (const gp of decl.genericParams) {
+      if (genericParamNames.has(gp.name)) {
+        this.addError(
+          new CompilerError(
+            `Duplicate generic type parameter '${gp.name}'`,
+            `The generic type parameter '${gp.name}' is declared multiple times in function '${decl.name}'.`,
+            gp.location || decl.location,
+          ),
+        );
+      }
+      genericParamNames.add(gp.name);
+    }
+
     // Add generic params to scope
     for (const gp of decl.genericParams) {
       this.defineSymbol(
@@ -692,6 +789,51 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   /**
+   * Detect circular inheritance chains that would cause infinite recursion.
+   * This must be called BEFORE resolving inheritance to prevent stack overflow.
+   */
+  private detectInheritanceCycle(
+    decl: AST.StructDecl,
+    visited: Set<string> = new Set(),
+    path: string[] = [],
+  ): void {
+    // Check for self-inheritance
+    for (const parent of decl.inheritanceList) {
+      if (parent.kind === "BasicType" && parent.name === decl.name) {
+        throw new CompilerError(
+          `Struct '${decl.name}' cannot inherit from itself`,
+          "Self-inheritance is not allowed. Remove the inheritance or use a different parent type.",
+          parent.location || decl.location,
+        );
+      }
+    }
+
+    if (visited.has(decl.name)) {
+      // Found a cycle
+      const cyclePath = [...path, decl.name].join(" -> ");
+      throw new CompilerError(
+        `Circular inheritance detected`,
+        `Inheritance cycle: ${cyclePath}. Break the cycle by removing one inheritance relationship.`,
+        decl.location,
+      );
+    }
+
+    visited.add(decl.name);
+    path.push(decl.name);
+
+    for (const parent of decl.inheritanceList) {
+      if (parent.kind === "BasicType") {
+        // Try to resolve the parent struct WITHOUT calling resolveType (which could cause recursion)
+        const symbol = this.currentScope.resolve(parent.name);
+        if (symbol && symbol.kind === "Struct") {
+          const parentDecl = symbol.declaration as AST.StructDecl;
+          this.detectInheritanceCycle(parentDecl, new Set(visited), [...path]);
+        }
+      }
+    }
+  }
+
+  /**
    * Detect cycles in struct field types that would cause infinite size
    */
   private detectStructCycle(
@@ -795,6 +937,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkStructBody(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
+    // Check for circular inheritance FIRST, before any type resolution
+    // This prevents stack overflow from infinite recursion
+    if (decl.inheritanceList.length > 0) {
+      this.detectInheritanceCycle(decl);
+    }
+
     // Check for duplicate member names
     const fieldNames = new Set<string>();
     const methodNames = new Set<string>();
@@ -848,6 +996,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Check for infinite size cycles in struct fields
     this.detectStructCycle(decl.name, decl);
+
+    // Check for duplicate generic parameter names
+    const genericParamNames = new Set<string>();
+    for (const gp of decl.genericParams) {
+      if (genericParamNames.has(gp.name)) {
+        this.addError(
+          new CompilerError(
+            `Duplicate generic type parameter '${gp.name}'`,
+            `The generic type parameter '${gp.name}' is declared multiple times in struct '${decl.name}'.`,
+            gp.location || decl.location,
+          ),
+        );
+      }
+      genericParamNames.add(gp.name);
+    }
 
     // Add generic params
     for (const gp of decl.genericParams) {
@@ -1022,6 +1185,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkEnumBody(decl: AST.EnumDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
+    // Check for empty enum
+    if (decl.variants.length === 0) {
+      this.addError(
+        new CompilerError(
+          `Enum '${decl.name}' must have at least one variant`,
+          "Empty enums are not allowed. Add at least one variant to the enum.",
+          decl.location,
+        ),
+      );
+    }
+
     // Check for duplicate variants
     const variantNames = new Set<string>();
     for (const variant of decl.variants) {
@@ -1039,6 +1213,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Check for infinite size cycles in enum variants
     this.detectEnumCycle(decl.name, decl);
+
+    // Check for duplicate generic parameter names
+    const genericParamNames = new Set<string>();
+    for (const gp of decl.genericParams) {
+      if (genericParamNames.has(gp.name)) {
+        this.addError(
+          new CompilerError(
+            `Duplicate generic type parameter '${gp.name}'`,
+            `The generic type parameter '${gp.name}' is declared multiple times in enum '${decl.name}'.`,
+            gp.location || decl.location,
+          ),
+        );
+      }
+      genericParamNames.add(gp.name);
+    }
 
     // Add generic params
     for (const gp of decl.genericParams) {
@@ -1102,6 +1291,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
+        // Check for self-extension
+        if (parentType.kind === "BasicType" && parentType.name === decl.name) {
+          throw new CompilerError(
+            `Spec '${decl.name}' cannot extend itself`,
+            "Self-extension is not allowed. Remove the extension or use a different spec.",
+            parentType.location || decl.location,
+          );
+        }
+
         if (parentType.kind === "BasicType") {
           const symbol = this.currentScope.resolve(parentType.name);
           if (!symbol) {
@@ -1119,17 +1317,55 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             );
           }
         }
-        this.resolveType(parentType);
+        // Don't check constraints - generic params like T aren't in scope yet
+        this.resolveType(parentType, false);
       }
     }
 
-    // Validate spec methods
+    // BUG-129: Check for duplicate method signatures
+    const methodSignatures = new Set<string>();
     for (const method of decl.methods) {
+      // Build a signature string: name + param types
+      // Use safe type stringification
+      let paramSig: string;
+      try {
+        paramSig = method.params
+          .map((p) => (p.type ? this.typeToString(p.type) : "unknown"))
+          .join(",");
+      } catch {
+        paramSig = method.params
+          .map((p) =>
+            p.type?.kind === "BasicType" ? (p.type as any).name : "unknown",
+          )
+          .join(",");
+      }
+      const signature = `${method.name}(${paramSig})`;
+
+      if (methodSignatures.has(signature)) {
+        // Ensure we have a valid location
+        const errorLocation = (method.location?.file
+          ? method.location
+          : decl.location) || {
+          file: this.currentModulePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        };
+        throw new CompilerError(
+          `Duplicate method '${method.name}' in spec '${decl.name}'`,
+          "Spec methods must have unique signatures. Remove the duplicate method definition.",
+          errorLocation,
+        );
+      }
+      methodSignatures.add(signature);
+
+      // Resolve types but don't check constraints (generic params like T aren't in scope)
       for (const param of method.params) {
-        this.resolveType(param.type);
+        this.resolveType(param.type, false);
       }
       if (method.returnType) {
-        this.resolveType(method.returnType);
+        this.resolveType(method.returnType, false);
       }
     }
   }
@@ -1137,6 +1373,46 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Type Alias Checking ==========
 
   private checkTypeAlias(decl: AST.TypeAliasDecl): void {
+    // BUG-126: Prevent shadowing builtin types
+    const BUILTIN_TYPE_NAMES = new Set([
+      // Base LLVM types
+      "i1",
+      "i8",
+      "u8",
+      "i16",
+      "u16",
+      "i32",
+      "u32",
+      "i64",
+      "u64",
+      "double",
+      "void",
+      "null",
+      "nullptr",
+      // User-friendly aliases
+      "int",
+      "uint",
+      "float",
+      "bool",
+      "char",
+      "uchar",
+      "short",
+      "ushort",
+      "long",
+      "ulong",
+      "string",
+      "f32",
+      "f64",
+    ]);
+
+    if (BUILTIN_TYPE_NAMES.has(decl.name)) {
+      throw new CompilerError(
+        `Cannot redefine builtin type '${decl.name}'`,
+        "Builtin types like 'int', 'bool', 'string', etc. cannot be redefined as type aliases.",
+        decl.location,
+      );
+    }
+
     const resolved = this.resolveType(decl.type);
     if (!this.currentScope.getInCurrentScope(decl.name)) {
       this.defineSymbol(decl.name, "TypeAlias", resolved, decl);
@@ -1260,6 +1536,22 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     expr: AST.EnumStructVariantExpr,
   ): AST.TypeNode | undefined {
     const symbol = this.currentScope.resolve(expr.enumName);
+
+    // Handle namespace.Struct { ... } pattern (e.g., Lib.Point { x: 10, y: 20 })
+    if (symbol && symbol.kind === "Module" && symbol.moduleScope) {
+      const structSymbol = symbol.moduleScope.resolve(expr.variantName);
+      if (structSymbol && structSymbol.kind === "Struct") {
+        // This is a namespaced struct literal, not an enum variant
+        // Transform the AST node in place from EnumStructVariant to StructLiteral
+        const structLiteralExpr = expr as unknown as AST.StructLiteralExpr;
+        structLiteralExpr.kind = "StructLiteral";
+        structLiteralExpr.structName = `${expr.enumName}.${expr.variantName}`;
+        // fields and location are already set
+
+        return ExprChecker.checkStructLiteral.call(this, structLiteralExpr);
+      }
+    }
+
     if (!symbol || symbol.kind !== "Enum") {
       throw new CompilerError(
         `Unknown enum '${expr.enumName}'`,

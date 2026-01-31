@@ -1,0 +1,8 @@
+{
+  "expectedOutput": ["Struct 'SelfInherit' cannot inherit from itself"],
+  "exitCode": 1,
+  "args": [],
+  "env": {},
+  "input": "",
+  "note": "This test verifies BUG-115 is fixed. Self-inheritance is now rejected."
+}

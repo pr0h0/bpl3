@@ -16,6 +16,7 @@ This guide covers all operators available in BPL, their precedence, associativit
 - [Ternary Operator](#ternary-operator)
 - [Member Access](#member-access)
 - [Subscript Operator](#subscript-operator)
+- [Type Operators](#type-operators)
 - [Sizeof Operator](#sizeof-operator)
 - [Offsetof Operator](#offsetof-operator)
 - [Typeof Operator](#typeof-operator)
@@ -491,6 +492,41 @@ if (match<Option.Some>(opt)) {
     printf("opt is Some\n");
 }
 ```
+
+### Runtime Type Check (`is`)
+
+The `is` operator checks if a struct pointer's runtime type matches or is derived from a target type.
+
+```bpl
+struct Animal { name: string }
+struct Dog : Animal { breed: string }
+
+frame checkType(animal: *Animal) {
+    if (animal is *Dog) {
+        printf("It's a dog!\n");
+    }
+}
+```
+
+The `is` operator performs a runtime vtable comparison, returning `true` if the actual type matches the target. See [Type Matching](56-type-matching.md) for more details.
+
+### Safe Downcast (`as`)
+
+The `as` operator attempts a safe downcast, returning `nullptr` if the types don't match.
+
+```bpl
+struct Animal { name: string }
+struct Dog : Animal { breed: string }
+
+frame processAnimal(animal: *Animal) {
+    local dog = animal as *Dog;
+    if (dog != nullptr) {
+        printf("Dog breed: %s\n", dog.breed);
+    }
+}
+```
+
+The `as` operator performs a runtime vtable check before casting. If the actual type doesn't match the target, it returns `nullptr` instead of performing an unsafe cast. See [Type Matching](56-type-matching.md) for more details.
 
 ### Type Cast (`cast`)
 

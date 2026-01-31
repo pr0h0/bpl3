@@ -1474,7 +1474,11 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               break;
             case "float":
             case "double":
+            case "f64":
               llvmType = "double";
+              break;
+            case "f32":
+              llvmType = "float";
               break;
             case "bool":
             case "i1":
