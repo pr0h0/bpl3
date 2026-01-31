@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["NUMBER GUESSING GAME"],
+  "args": [],
+  "env": {},
+  "input": "50\n25\n75\n60\n55\n52\n53\n"
+}

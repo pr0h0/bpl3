@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["SNAKE GAME"],
+  "args": [],
+  "env": {},
+  "input": "\nddddssssaaaawwwwq\n"
+}

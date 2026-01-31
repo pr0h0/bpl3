@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["INFINITE MAZE RUNNER"],
+  "args": [],
+  "env": {},
+  "input": "\nddddssssddddssssq\n"
+}
