@@ -49,13 +49,13 @@ frame test_catch_struct() {
     }
 }
 
-# Test 5: catchOther clause
+# Test 5: catch-all clause
 frame test_catch_other() {
     try {
         throw 3.14; # Float, not caught by int
     } catch (e: int) {
         printf("Caught int\n");
-    } catchOther {
+    } catch {
         printf("Caught something else\n");
     }
 }

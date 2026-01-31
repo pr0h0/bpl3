@@ -99,7 +99,7 @@
       "patterns": [
         {
           "name": "keyword.control.bpl",
-          "match": "\\b(if|else|loop|break|continue|return|switch|case|default|try|catch|catchOther|throw|defer|fallthrough)\\b"
+          "match": "\\b(if|else|loop|break|continue|return|switch|case|default|try|catch|throw|defer|fallthrough)\\b"
         },
         {
           "name": "keyword.control.import.bpl",

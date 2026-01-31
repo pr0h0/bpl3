@@ -1,0 +1,154 @@
+{
+  "id": "lambdas-and-closures",
+  "order": 14,
+  "title": "Lambdas and Closures",
+  "category": "Intermediate Concepts",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Master anonymous functions and closures. Write inline functions, capture variables, and use higher-order programming.",
+  "prerequisites": ["error-handling"],
+  "objectives": [
+    "Create lambda expressions",
+    "Understand Lambda vs Func types",
+    "Capture variables from outer scope",
+    "Use lambdas as callbacks"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What are Lambdas?",
+      "content": "A **lambda** is an anonymous function - a function without a name that you can:\n\n- Define inline where you need it\n- Assign to a variable\n- Pass as an argument\n- Return from a function\n\n**Closures** are lambdas that **capture** variables from their surrounding scope.\n\n```bpl\nlocal multiplier: int = 10;\nlocal fn = |x: int| ret int { return x * multiplier; };  # Captures multiplier!\nfn(5);  # Returns 50\n```"
+    },
+    {
+      "type": "comparison",
+      "title": "Lambda Syntax Comparison",
+      "languages": {
+        "BPL": "local add = |a: int, b: int| ret int {\n    return a + b;\n};",
+        "Rust": "let add = |a: i32, b: i32| -> i32 {\n    a + b\n};",
+        "JavaScript": "const add = (a, b) => {\n    return a + b;\n};",
+        "Python": "add = lambda a, b: a + b"
+      },
+      "explanation": "BPL uses |params| ret Type { body } syntax. The vertical bars | | contain parameters."
+    },
+    {
+      "type": "code",
+      "title": "Basic Lambda Syntax",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Lambda with parameters and return type\n    local add: Lambda<int>(int, int) = |a: int, b: int| ret int {\n        return a + b;\n    };\n    \n    printf(\"5 + 3 = %d\\n\", add(5, 3));\n    \n    # Lambda with no parameters\n    local greet: Lambda<void>() = || {\n        printf(\"Hello from lambda!\\n\");\n    };\n    greet();\n    \n    # Lambda with single parameter\n    local square: Lambda<int>(int) = |x: int| ret int {\n        return x * x;\n    };\n    printf(\"5 squared = %d\\n\", square(5));\n    \n    # Lambda returning bool\n    local isPositive: Lambda<bool>(int) = |n: int| ret bool {\n        return n > 0;\n    };\n    printf(\"Is 10 positive? %d\\n\", isPositive(10));\n    printf(\"Is -5 positive? %d\\n\", isPositive(-5));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "5 + 3 = 8\nHello from lambda!\n5 squared = 25\nIs 10 positive? 1\nIs -5 positive? 0",
+      "lineExplanations": {
+        "5": "Lambda<int>(int, int) - returns int, takes two ints.",
+        "12": "Lambda<void>() - returns nothing, takes nothing.",
+        "5-7": "|a: int, b: int| ret int { body } - full lambda syntax.",
+        "9": "Call lambda like a regular function: add(5, 3)."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Closures: Capturing Variables",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Variable in outer scope\n    local factor: int = 10;\n    \n    # Lambda captures 'factor' by value at creation time\n    local multiply: Lambda<int>(int) = |x: int| ret int {\n        return x * factor;  # Uses captured 'factor' value\n    };\n    \n    printf(\"factor = %d\\n\", factor);\n    printf(\"5 * factor = %d\\n\", multiply(5));\n    printf(\"3 * factor = %d\\n\", multiply(3));\n    \n    # Demonstrate by-value capture semantics\n    local value: int = 100;\n    local showValue: Lambda<void>() = || {\n        printf(\"Captured value = %d\\n\", value);\n    };\n    \n    # Changing value after capture doesn't affect lambda\n    value = 999;\n    printf(\"\\nvalue in main = %d\\n\", value);\n    showValue();  # Still shows 100 (captured at creation)\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "factor = 10\n5 * factor = 50\n3 * factor = 30\n\nvalue in main = 999\nCaptured value = 100",
+      "lineExplanations": {
+        "5": "factor is in the outer scope.",
+        "8-10": "Lambda captures factor by value at creation time.",
+        "19-21": "Lambda captures value = 100 at creation.",
+        "24": "Changing value doesn't affect already-captured lambda."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Lambdas as Function Arguments",
+      "code": "extern printf(fmt: string, ...);\n\n# Higher-order function: takes a function as argument\nframe apply(op: Lambda<int>(int, int), a: int, b: int) ret int {\n    return op(a, b);\n}\n\n# Process array with a transform function\nframe mapArray(arr: *int, len: int, transform: Lambda<int>(int)) {\n    loop (local i: int = 0; i < len; i = i + 1) {\n        *(arr + i) = transform(*(arr + i));\n    }\n}\n\nframe printArray(arr: *int, len: int) {\n    loop (local i: int = 0; i < len; i = i + 1) {\n        printf(\"%d \", *(arr + i));\n    }\n    printf(\"\\n\");\n}\n\nframe main() ret int {\n    # Pass lambdas to apply()\n    local sum: int = apply(|a: int, b: int| ret int { return a + b; }, 10, 5);\n    local diff: int = apply(|a: int, b: int| ret int { return a - b; }, 10, 5);\n    local prod: int = apply(|a: int, b: int| ret int { return a * b; }, 10, 5);\n    \n    printf(\"10 + 5 = %d\\n\", sum);\n    printf(\"10 - 5 = %d\\n\", diff);\n    printf(\"10 * 5 = %d\\n\", prod);\n    \n    # Transform array\n    local data: int[5] = [1, 2, 3, 4, 5];\n    \n    printf(\"\\nOriginal: \");\n    printArray(&data[0], 5);\n    \n    mapArray(&data[0], 5, |x: int| ret int { return x * 2; });\n    printf(\"Doubled: \");\n    printArray(&data[0], 5);\n    \n    mapArray(&data[0], 5, |x: int| ret int { return x + 10; });\n    printf(\"Plus 10: \");\n    printArray(&data[0], 5);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "10 + 5 = 15\n10 - 5 = 5\n10 * 5 = 50\n\nOriginal: 1 2 3 4 5 \nDoubled: 2 4 6 8 10 \nPlus 10: 12 14 16 18 20 ",
+      "lineExplanations": {
+        "4": "Function parameter of type Lambda<int>(int, int).",
+        "9": "Transform function applied to each element.",
+        "24": "Pass lambda inline as argument.",
+        "38": "Each element transformed by the lambda."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Lambda vs Func Types",
+      "code": "extern printf(fmt: string, ...);\n\n# Regular function\nframe regularAdd(a: int, b: int) ret int {\n    return a + b;\n}\n\n# Function that takes a raw function pointer (Func)\nframe useFuncPointer(f: Func<int>(int, int), a: int, b: int) ret int {\n    return f(a, b);\n}\n\n# Function that takes a lambda (can capture state)\nframe useLambda(f: Lambda<int>(int, int), a: int, b: int) ret int {\n    return f(a, b);\n}\n\nframe main() ret int {\n    # Func: raw function pointer, no captures\n    local funcPtr: Func<int>(int, int) = regularAdd;\n    printf(\"Func pointer: %d\\n\", funcPtr(5, 3));\n    \n    # Lambda: can capture variables\n    local offset: int = 100;\n    local lambdaWithCapture: Lambda<int>(int, int) = |a: int, b: int| ret int {\n        return a + b + offset;  # Captures offset\n    };\n    printf(\"Lambda with capture: %d\\n\", lambdaWithCapture(5, 3));\n    \n    # Lambda without captures can be used where Lambda expected\n    local simpleLambda: Lambda<int>(int, int) = |a: int, b: int| ret int {\n        return a + b;\n    };\n    printf(\"Simple lambda: %d\\n\", useLambda(simpleLambda, 5, 3));\n    \n    # Regular function can be used as Func\n    printf(\"Regular func via Func: %d\\n\", useFuncPointer(regularAdd, 5, 3));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Func pointer: 8\nLambda with capture: 108\nSimple lambda: 8\nRegular func via Func: 8",
+      "lineExplanations": {
+        "9": "Func<int>(int, int) - raw function pointer, no captures.",
+        "14": "Lambda<int>(int, int) - can capture variables.",
+        "20": "Regular function can be stored in Func type.",
+        "25": "Lambda with captures needs Lambda type, not Func."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Func vs Lambda",
+      "content": "**Func<Ret>(Args...)** - Raw function pointer\n- ✅ Compatible with C functions\n- ✅ No runtime overhead\n- ❌ Cannot capture variables\n\n**Lambda<Ret>(Args...)** - Fat pointer (function + context)\n- ✅ Can capture variables (closures)\n- ✅ More flexible\n- ⚠️ Slightly larger (two pointers)\n\n**Rule of thumb:**\n- Use `Func` for callbacks to C or when no captures needed\n- Use `Lambda` when you need to capture state"
+    },
+    {
+      "type": "code",
+      "title": "Practical Example: Filtering",
+      "code": "extern printf(fmt: string, ...);\n\n# Filter array elements based on predicate\nframe filter(arr: *int, len: int, predicate: Lambda<bool>(int), out: *int) ret int {\n    local outLen: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        if (predicate(*(arr + i))) {\n            *(out + outLen) = *(arr + i);\n            outLen = outLen + 1;\n        }\n    }\n    return outLen;\n}\n\nframe printArray(arr: *int, len: int) {\n    loop (local i: int = 0; i < len; i = i + 1) {\n        printf(\"%d \", *(arr + i));\n    }\n    printf(\"\\n\");\n}\n\nframe main() ret int {\n    local numbers: int[10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n    local result: int[10];\n    local resultLen: int;\n    \n    printf(\"Original: \");\n    printArray(&numbers[0], 10);\n    \n    # Filter even numbers\n    resultLen = filter(&numbers[0], 10, |x: int| ret bool { return x % 2 == 0; }, &result[0]);\n    printf(\"Even: \");\n    printArray(&result[0], resultLen);\n    \n    # Filter numbers > 5\n    resultLen = filter(&numbers[0], 10, |x: int| ret bool { return x > 5; }, &result[0]);\n    printf(\"Greater than 5: \");\n    printArray(&result[0], resultLen);\n    \n    # Filter with captured threshold\n    local threshold: int = 3;\n    resultLen = filter(&numbers[0], 10, |x: int| ret bool { return x >= threshold; }, &result[0]);\n    printf(\"At least %d: \", threshold);\n    printArray(&result[0], resultLen);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Original: 1 2 3 4 5 6 7 8 9 10 \nEven: 2 4 6 8 10 \nGreater than 5: 6 7 8 9 10 \nAt least 3: 3 4 5 6 7 8 9 10 ",
+      "lineExplanations": {
+        "4": "Predicate is a Lambda returning bool.",
+        "31": "Inline lambda for filtering.",
+        "42": "Lambda captures 'threshold' from outer scope."
+      }
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Reduce Function",
+      "instructions": "Implement `reduce(arr: *int, len: int, init: int, op: Lambda<int>(int, int)) ret int`\nthat combines all array elements using op.\n\nExample: reduce([1,2,3], 3, 0, |a,b| a+b) = 6 (sum)\nExample: reduce([1,2,3,4], 4, 1, |a,b| a*b) = 24 (product)",
+      "hint": "Start with init, then loop through array: accumulator = op(accumulator, element)",
+      "solution": "extern printf(fmt: string, ...);\n\nframe reduce(arr: *int, len: int, init: int, op: Lambda<int>(int, int)) ret int {\n    local acc: int = init;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        acc = op(acc, *(arr + i));\n    }\n    return acc;\n}\n\nframe main() ret int {\n    local nums: int[5] = [1, 2, 3, 4, 5];\n    \n    local sum: int = reduce(&nums[0], 5, 0, |a: int, b: int| ret int { return a + b; });\n    printf(\"Sum: %d\\n\", sum);\n    \n    local product: int = reduce(&nums[0], 5, 1, |a: int, b: int| ret int { return a * b; });\n    printf(\"Product: %d\\n\", product);\n    \n    local max: int = reduce(&nums[0], 5, nums[0], |a: int, b: int| ret int {\n        if (a > b) { return a; }\n        return b;\n    });\n    printf(\"Max: %d\\n\", max);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Lambdas** are anonymous functions: `|params| ret Type { body }`\n\n✅ **Lambda<Ret>(Args)** type can capture variables\n\n✅ **Func<Ret>(Args)** is a raw pointer, no captures\n\n✅ **Closures** capture variables **by value** at creation time\n\n✅ Changes to outer variables after lambda creation don't affect captured values\n\n✅ Pass lambdas as **callbacks** for flexible code\n\n✅ Common patterns: map, filter, reduce"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does |x: int| ret int { return x * 2; } represent?",
+          "options": [
+            "A regular function",
+            "A lambda that doubles its input",
+            "A pointer to x",
+            "A type alias"
+          ],
+          "correct": 1,
+          "explanation": "This is a lambda expression that takes an int and returns it doubled."
+        },
+        {
+          "question": "What is a closure?",
+          "options": [
+            "A closed function",
+            "A lambda that captures outer variables",
+            "A completed function",
+            "A type of loop"
+          ],
+          "correct": 1,
+          "explanation": "A closure is a lambda that captures (encloses) variables from its surrounding scope."
+        },
+        {
+          "question": "When should you use Lambda instead of Func?",
+          "options": [
+            "For faster execution",
+            "When you need to capture variables",
+            "For C compatibility",
+            "Always"
+          ],
+          "correct": 1,
+          "explanation": "Lambda can capture variables, Func cannot. Use Lambda when you need closures."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "15-modules-and-imports"
+}

@@ -1,0 +1,154 @@
+{
+  "id": "struct-methods",
+  "order": 9,
+  "title": "Struct Methods",
+  "category": "Data Structures",
+  "difficulty": "beginner",
+  "duration": "12 min",
+  "description": "Learn how to add behavior to your structs with methods. Understand the difference between instance methods and static methods.",
+  "prerequisites": ["structs"],
+  "objectives": [
+    "Add methods to structs",
+    "Use 'this' to access struct fields",
+    "Create static methods",
+    "Build fluent interfaces with method chaining"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What are Methods?",
+      "content": "**Methods** are functions that belong to a struct. They operate on the struct's data.\n\n**Without methods:**\n```bpl\nframe movePoint(p: *Point, dx: int, dy: int) { ... }\nmovePoint(&point, 5, 10);\n```\n\n**With methods:**\n```bpl\npoint.move(5, 10);\n```\n\nMethods make your code more intuitive and object-oriented."
+    },
+    {
+      "type": "comparison",
+      "title": "Method Syntax Comparison",
+      "languages": {
+        "BPL": "struct Point {\n    x: int,\n    y: int,\n    frame move(this: *Point, dx: int) {\n        this.x = this.x + dx;\n    }\n}",
+        "Rust": "impl Point {\n    fn move(&mut self, dx: i32) {\n        self.x += dx;\n    }\n}",
+        "Python": "class Point:\n    def move(self, dx):\n        self.x += dx",
+        "C++": "struct Point {\n    void move(int dx) {\n        this->x += dx;\n    }\n};"
+      },
+      "explanation": "BPL methods are defined inside the struct with 'this' as the first parameter. Similar to Rust's self or Python's self."
+    },
+    {
+      "type": "code",
+      "title": "Basic Methods",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Counter {\n    value: int,\n    \n    # Method: 'this' is a pointer to the Counter instance\n    frame increment(this: *Counter) {\n        this.value = this.value + 1;\n    }\n    \n    frame decrement(this: *Counter) {\n        this.value = this.value - 1;\n    }\n    \n    frame add(this: *Counter, amount: int) {\n        this.value = this.value + amount;\n    }\n    \n    frame print(this: *Counter) {\n        printf(\"Counter value: %d\\n\", this.value);\n    }\n}\n\nframe main() ret int {\n    local counter: Counter = Counter { value: 0 };\n    \n    counter.print();       # Counter value: 0\n    \n    counter.increment();\n    counter.increment();\n    counter.print();       # Counter value: 2\n    \n    counter.add(10);\n    counter.print();       # Counter value: 12\n    \n    counter.decrement();\n    counter.print();       # Counter value: 11\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Counter value: 0\nCounter value: 2\nCounter value: 12\nCounter value: 11",
+      "lineExplanations": {
+        "7": "Methods are defined with 'this' as first parameter.",
+        "8": "Access struct fields through 'this.fieldName'.",
+        "15": "Methods can have additional parameters.",
+        "27": "Call methods using dot notation: counter.increment()."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Methods with Return Values",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Rectangle {\n    width: int,\n    height: int,\n    \n    # Method that returns a value\n    frame area(this: *Rectangle) ret int {\n        return this.width * this.height;\n    }\n    \n    frame perimeter(this: *Rectangle) ret int {\n        return 2 * (this.width + this.height);\n    }\n    \n    # Method that returns bool\n    frame isSquare(this: *Rectangle) ret bool {\n        return this.width == this.height;\n    }\n    \n    # Method comparing with another rectangle\n    frame equals(this: *Rectangle, other: *Rectangle) ret bool {\n        return this.width == other.width && this.height == other.height;\n    }\n}\n\nframe main() ret int {\n    local rect1: Rectangle = Rectangle { width: 10, height: 5 };\n    local rect2: Rectangle = Rectangle { width: 5, height: 5 };\n    \n    printf(\"Rectangle 1: %d x %d\\n\", rect1.width, rect1.height);\n    printf(\"  Area: %d\\n\", rect1.area());\n    printf(\"  Perimeter: %d\\n\", rect1.perimeter());\n    printf(\"  Is square: %d\\n\", rect1.isSquare());\n    \n    printf(\"\\nRectangle 2: %d x %d\\n\", rect2.width, rect2.height);\n    printf(\"  Area: %d\\n\", rect2.area());\n    printf(\"  Is square: %d\\n\", rect2.isSquare());\n    \n    printf(\"\\nAre they equal? %d\\n\", rect1.equals(&rect2));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Rectangle 1: 10 x 5\n  Area: 50\n  Perimeter: 30\n  Is square: 0\n\nRectangle 2: 5 x 5\n  Area: 25\n  Is square: 1\n\nAre they equal? 0",
+      "lineExplanations": {
+        "8": "Methods can return values just like regular functions.",
+        "17": "Methods can return any type including bool.",
+        "22": "Methods can take other parameters including pointers to same type.",
+        "40": "Pass &rect2 to pass pointer to another Rectangle."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Static Methods",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Math {\n    # Static method: no 'this' parameter\n    # Called on the type, not an instance\n    frame abs(value: int) ret int {\n        if (value < 0) {\n            return -value;\n        }\n        return value;\n    }\n    \n    frame max(a: int, b: int) ret int {\n        if (a > b) {\n            return a;\n        }\n        return b;\n    }\n    \n    frame min(a: int, b: int) ret int {\n        if (a < b) {\n            return a;\n        }\n        return b;\n    }\n    \n    frame clamp(value: int, minVal: int, maxVal: int) ret int {\n        if (value < minVal) {\n            return minVal;\n        }\n        if (value > maxVal) {\n            return maxVal;\n        }\n        return value;\n    }\n}\n\nframe main() ret int {\n    # Static methods are called on the type name\n    printf(\"abs(-5): %d\\n\", Math.abs(-5));\n    printf(\"abs(5): %d\\n\", Math.abs(5));\n    \n    printf(\"\\nmax(10, 20): %d\\n\", Math.max(10, 20));\n    printf(\"min(10, 20): %d\\n\", Math.min(10, 20));\n    \n    printf(\"\\nclamp(50, 0, 100): %d\\n\", Math.clamp(50, 0, 100));\n    printf(\"clamp(-10, 0, 100): %d\\n\", Math.clamp(-10, 0, 100));\n    printf(\"clamp(150, 0, 100): %d\\n\", Math.clamp(150, 0, 100));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "abs(-5): 5\nabs(5): 5\n\nmax(10, 20): 20\nmin(10, 20): 10\n\nclamp(50, 0, 100): 50\nclamp(-10, 0, 100): 0\nclamp(150, 0, 100): 100",
+      "lineExplanations": {
+        "6": "No 'this' parameter = static method.",
+        "40": "Call static methods on the type: Math.abs(), not instance.abs().",
+        "27": "Clamp keeps a value within a range."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Method Chaining (Fluent Interface)",
+      "code": "extern printf(fmt: string, ...);\n\nstruct StringBuilder {\n    buffer: string,\n    \n    # Methods return *StringBuilder for chaining\n    frame append(this: *StringBuilder, text: string) ret *StringBuilder {\n        # Note: Simplified - real impl would need dynamic strings\n        this.buffer = text;  # In real code, this would concatenate\n        printf(\"Appended: %s\\n\", text);\n        return this;  # Return self for chaining\n    }\n    \n    frame newLine(this: *StringBuilder) ret *StringBuilder {\n        printf(\"Added newline\\n\");\n        return this;\n    }\n    \n    frame build(this: *StringBuilder) ret string {\n        printf(\"Built final string\\n\");\n        return this.buffer;\n    }\n}\n\nstruct Point {\n    x: int,\n    y: int,\n    \n    frame setX(this: *Point, x: int) ret *Point {\n        this.x = x;\n        return this;\n    }\n    \n    frame setY(this: *Point, y: int) ret *Point {\n        this.y = y;\n        return this;\n    }\n    \n    frame move(this: *Point, dx: int, dy: int) ret *Point {\n        this.x = this.x + dx;\n        this.y = this.y + dy;\n        return this;\n    }\n    \n    frame print(this: *Point) {\n        printf(\"Point(%d, %d)\\n\", this.x, this.y);\n    }\n}\n\nframe main() ret int {\n    # Method chaining with Point\n    local p: Point = Point { x: 0, y: 0 };\n    \n    # Chain multiple method calls\n    p.setX(5).setY(10).print();\n    \n    p.move(3, 2).move(1, 1).print();\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Point(5, 10)\nPoint(9, 13)",
+      "lineExplanations": {
+        "7": "Return *StringBuilder (pointer to self) enables chaining.",
+        "11": "return this gives back the same object for the next call.",
+        "29": "Each method returns *Point so you can call another method.",
+        "55": "Chain calls: p.setX(5).setY(10).print() - clean and readable!"
+      }
+    },
+    {
+      "type": "code",
+      "title": "Factory Methods (Constructors)",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Color {\n    r: int,\n    g: int,\n    b: int,\n    \n    # Factory methods - create instances with specific values\n    frame red() ret Color {\n        return Color { r: 255, g: 0, b: 0 };\n    }\n    \n    frame green() ret Color {\n        return Color { r: 0, g: 255, b: 0 };\n    }\n    \n    frame blue() ret Color {\n        return Color { r: 0, g: 0, b: 255 };\n    }\n    \n    frame white() ret Color {\n        return Color { r: 255, g: 255, b: 255 };\n    }\n    \n    frame black() ret Color {\n        return Color { r: 0, g: 0, b: 0 };\n    }\n    \n    frame rgb(r: int, g: int, b: int) ret Color {\n        return Color { r: r, g: g, b: b };\n    }\n    \n    # Instance method\n    frame print(this: *Color) {\n        printf(\"RGB(%d, %d, %d)\\n\", this.r, this.g, this.b);\n    }\n}\n\nframe main() ret int {\n    # Use factory methods to create colors\n    local myRed: Color = Color.red();\n    local myGreen: Color = Color.green();\n    local custom: Color = Color.rgb(128, 64, 255);\n    \n    printf(\"Red: \");\n    myRed.print();\n    \n    printf(\"Green: \");\n    myGreen.print();\n    \n    printf(\"Custom: \");\n    custom.print();\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Red: RGB(255, 0, 0)\nGreen: RGB(0, 255, 0)\nCustom: RGB(128, 64, 255)",
+      "lineExplanations": {
+        "9": "Factory method - static method that returns a new instance.",
+        "29": "Generic factory with parameters.",
+        "34": "Instance method uses 'this' parameter.",
+        "41": "Call factory: Color.red() returns a new Color."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Methods Best Practices",
+      "content": "✅ **Instance methods** modify or read struct state → use `this: *Type`\n\n✅ **Static methods** don't need instance → no `this` parameter\n\n✅ **Factory methods** are static methods that create instances\n\n✅ **Method chaining** return `*Type` for fluent interfaces\n\n✅ **Keep methods focused** - one responsibility per method\n\n✅ **Use meaningful names** - `calculateArea()` not `calc()`"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Bank Account",
+      "instructions": "Create a BankAccount struct with:\n- Fields: balance (int), accountNumber (string)\n- Methods: deposit(amount), withdraw(amount) returns bool, getBalance() returns int\n- Withdraw should fail (return false) if insufficient funds\n\nTest with deposits and withdrawals.",
+      "hint": "withdraw should check if balance >= amount before subtracting.",
+      "solution": "extern printf(fmt: string, ...);\n\nstruct BankAccount {\n    balance: int,\n    accountNumber: string,\n    \n    frame deposit(this: *BankAccount, amount: int) {\n        this.balance = this.balance + amount;\n        printf(\"Deposited %d. New balance: %d\\n\", amount, this.balance);\n    }\n    \n    frame withdraw(this: *BankAccount, amount: int) ret bool {\n        if (amount > this.balance) {\n            printf(\"Insufficient funds! Balance: %d\\n\", this.balance);\n            return false;\n        }\n        this.balance = this.balance - amount;\n        printf(\"Withdrew %d. New balance: %d\\n\", amount, this.balance);\n        return true;\n    }\n    \n    frame getBalance(this: *BankAccount) ret int {\n        return this.balance;\n    }\n}\n\nframe main() ret int {\n    local account: BankAccount = BankAccount {\n        balance: 100,\n        accountNumber: \"12345\"\n    };\n    \n    printf(\"Account %s\\n\\n\", account.accountNumber);\n    \n    account.deposit(50);\n    account.withdraw(30);\n    account.withdraw(200);  # Should fail\n    \n    printf(\"\\nFinal balance: %d\\n\", account.getBalance());\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Methods** are functions defined inside structs\n\n✅ **Instance methods** have `this: *Type` as first parameter\n\n✅ **Static methods** have no `this` - called on the type name\n\n✅ **Call instance methods** with `instance.method()`\n\n✅ **Call static methods** with `TypeName.method()`\n\n✅ **Return `*Type`** from methods to enable chaining\n\n✅ **Factory methods** are static methods that create instances"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What makes a method an instance method vs static method?",
+          "options": [
+            "The 'static' keyword",
+            "Having 'this' as first parameter",
+            "Being inside the struct",
+            "Having a return type"
+          ],
+          "correct": 1,
+          "explanation": "Instance methods have 'this: *Type' as their first parameter. Static methods don't."
+        },
+        {
+          "question": "How do you call a static method named 'create' on struct 'Point'?",
+          "options": [
+            "create()",
+            "Point.create()",
+            "this.create()",
+            "Point->create()"
+          ],
+          "correct": 1,
+          "explanation": "Static methods are called on the type name: Point.create()"
+        },
+        {
+          "question": "What should a method return to enable method chaining?",
+          "options": [
+            "void",
+            "bool",
+            "The struct type",
+            "Pointer to self (*Type)"
+          ],
+          "correct": 3,
+          "explanation": "Return *Type (pointer to self) so another method can be called on the result."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "10-pointers-basics"
+}

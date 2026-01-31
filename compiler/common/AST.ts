@@ -593,13 +593,12 @@ export interface TryStmt extends ASTNode {
   kind: "Try";
   tryBlock: BlockStmt;
   catchClauses: CatchClause[];
-  catchOther?: BlockStmt;
 }
 
 export interface CatchClause extends ASTNode {
   kind: "CatchClause";
-  variable: string;
-  type: TypeNode;
+  variable: string | null; // null for catch-all
+  type: TypeNode | null; // null for catch-all
   body: BlockStmt;
 }
 

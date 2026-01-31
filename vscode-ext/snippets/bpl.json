@@ -109,10 +109,10 @@
     "body": ["defer {", "\t$0", "}"],
     "description": "Defer execution until scope exit"
   },
-  "Catch Other": {
-    "prefix": "catchOther",
-    "body": ["catchOther {", "\t$0", "}"],
-    "description": "Catch all other exceptions"
+  "Catch All": {
+    "prefix": "catch-all",
+    "body": ["catch {", "\t$0", "}"],
+    "description": "Catch all exceptions"
   },
   "Import": {
     "prefix": "import",

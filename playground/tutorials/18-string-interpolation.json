@@ -1,0 +1,132 @@
+{
+  "id": "string-interpolation",
+  "order": 18,
+  "title": "String Interpolation",
+  "category": "Advanced Concepts",
+  "difficulty": "intermediate",
+  "duration": "8 min",
+  "description": "Create strings with embedded expressions. Learn BPL's string interpolation syntax for cleaner, more readable string formatting.",
+  "prerequisites": ["type-aliases"],
+  "objectives": [
+    "Use string interpolation with ${ }",
+    "Embed expressions in strings",
+    "Compare with printf-style formatting"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What is String Interpolation?",
+      "content": "Instead of:\n```bpl\nprintf(\"Hello, %s! You are %d years old.\", name, age);\n```\n\nUse string interpolation:\n```bpl\nlocal msg: string = \"Hello, ${name}! You are ${age} years old.\";\n```\n\n**Benefits:**\n- 🔤 Values appear where they'll be in output\n- 📖 Easier to read and maintain\n- ❌ No format specifier mismatches\n- 🔄 Expressions, not just variables"
+    },
+    {
+      "type": "comparison",
+      "title": "String Interpolation Syntax",
+      "languages": {
+        "BPL": "local s = \"Sum: ${a + b}\";",
+        "JavaScript": "let s = `Sum: ${a + b}`;",
+        "Python": "s = f\"Sum: {a + b}\"",
+        "Rust": "let s = format!(\"Sum: {}\", a + b);",
+        "C": "sprintf(s, \"Sum: %d\", a + b);"
+      },
+      "explanation": "BPL uses ${expression} inside double-quoted strings, similar to JavaScript template literals."
+    },
+    {
+      "type": "code",
+      "title": "Basic String Interpolation",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local name: string = \"Alice\";\n    local age: int = 30;\n    local height: float = 5.7;\n    \n    # Simple variable interpolation\n    local greeting: string = \"Hello, ${name}!\";\n    printf(\"%s\\n\", greeting);\n    \n    # Multiple variables\n    local info: string = \"${name} is ${age} years old.\";\n    printf(\"%s\\n\", info);\n    \n    # Different types\n    local details: string = \"Name: ${name}, Age: ${age}, Height: ${height}\";\n    printf(\"%s\\n\", details);\n    \n    # Escape if needed\n    local literal: string = \"Use \\${var} for interpolation\";\n    printf(\"%s\\n\", literal);\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Hello, Alice!\nAlice is 30 years old.\nName: Alice, Age: 30, Height: 5.700000\nUse ${var} for interpolation",
+      "lineExplanations": {
+        "9": "${name} is replaced with the value of name.",
+        "13": "Multiple interpolations in one string.",
+        "17": "Works with different types.",
+        "21": "Escape with backslash: \\${...}"
+      },
+      "note": "Requires BUG-130 fix: string interpolation usage tracking."
+    },
+    {
+      "type": "code",
+      "title": "Expressions in Interpolation",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local a: int = 10;\n    local b: int = 5;\n    \n    # Arithmetic expressions\n    local math: string = \"${a} + ${b} = ${a + b}\";\n    printf(\"%s\\n\", math);\n    \n    local more: string = \"${a} * ${b} = ${a * b}\";\n    printf(\"%s\\n\", more);\n    \n    # Comparison expressions\n    local cmp: string = \"${a} > ${b}? ${a > b}\";\n    printf(\"%s\\n\", cmp);\n    \n    # Function calls (would work with proper setup)\n    local doubled: string = \"${a} doubled is ${a * 2}\";\n    printf(\"%s\\n\", doubled);\n    \n    # Complex expressions\n    local complex: string = \"Average: ${(a + b) / 2}\";\n    printf(\"%s\\n\", complex);\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "10 + 5 = 15\n10 * 5 = 50\n10 > 5? 1\n10 doubled is 20\nAverage: 7",
+      "lineExplanations": {
+        "8": "Full expressions evaluated: ${a + b}.",
+        "15": "Comparison results (true=1, false=0).",
+        "23": "Parentheses for complex expressions."
+      },
+      "note": "Requires BUG-130 fix: string interpolation usage tracking."
+    },
+    {
+      "type": "code",
+      "title": "Practical Example: Building Messages",
+      "code": "extern printf(fmt: string, ...);\n\nstruct User {\n    name: string,\n    email: string,\n    score: int,\n}\n\nframe getGrade(score: int) ret string {\n    if (score >= 90) { return \"A\"; }\n    if (score >= 80) { return \"B\"; }\n    if (score >= 70) { return \"C\"; }\n    if (score >= 60) { return \"D\"; }\n    return \"F\";\n}\n\nframe formatUser(u: *User) ret string {\n    local grade: string = getGrade(u.score);\n    return \"User: ${u.name} <${u.email}> - Score: ${u.score} (Grade: ${grade})\";\n}\n\nframe main() ret int {\n    local users: User[] = [\n        User { name: \"Alice\", email: \"alice@example.com\", score: 95 },\n        User { name: \"Bob\", email: \"bob@example.com\", score: 82 },\n        User { name: \"Carol\", email: \"carol@example.com\", score: 67 }\n    ];\n    \n    printf(\"=== User Report ===\\n\\n\");\n    \n    loop (local i: int = 0; i < 3; i = i + 1) {\n        local report: string = formatUser(&users[i]);\n        printf(\"%s\\n\", report);\n    }\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== User Report ===\n\nUser: Alice <alice@example.com> - Score: 95 (Grade: A)\nUser: Bob <bob@example.com> - Score: 82 (Grade: B)\nUser: Carol <carol@example.com> - Score: 67 (Grade: D)",
+      "lineExplanations": {
+        "19": "Combine multiple fields and function results.",
+        "32": "Returns nicely formatted string."
+      },
+      "note": "Requires BUG-130 fix: string interpolation usage tracking."
+    },
+    {
+      "type": "code",
+      "title": "Printf vs Interpolation",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local name: string = \"Alice\";\n    local score: int = 95;\n    local gpa: float = 3.8;\n    \n    # Printf style - format specifiers required\n    printf(\"Printf: %s scored %d with GPA %.1f\\n\", name, score, gpa);\n    \n    # Interpolation - clearer, inline\n    local msg: string = \"Interp: ${name} scored ${score} with GPA ${gpa}\";\n    printf(\"%s\\n\", msg);\n    \n    # Printf advantage: formatting control\n    printf(\"Formatted: %10s | %5d | %6.2f\\n\", name, score, gpa);\n    \n    # Both have their place!\n    # - Printf: when you need precise formatting\n    # - Interpolation: for readable string building\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Printf: Alice scored 95 with GPA 3.8\nInterp: Alice scored 95 with GPA 3.800000\nFormatted:      Alice |    95 |   3.80",
+      "lineExplanations": {
+        "9": "Printf with %s, %d, %f format specifiers.",
+        "12": "Interpolation is more readable.",
+        "16": "Printf gives precise width/precision control."
+      },
+      "note": "Requires BUG-130 fix: string interpolation usage tracking."
+    },
+    {
+      "type": "text",
+      "title": "When to Use Each",
+      "content": "**Use String Interpolation when:**\n- Building simple messages\n- Readability is priority\n- Values appear inline\n- No special formatting needed\n\n**Use Printf when:**\n- Need precise field widths\n- Need decimal precision control\n- Need alignment (left, right, center)\n- Formatting existing templates\n\n**Example:**\n```bpl\n# Interpolation - readable\nlocal msg = \"Error in ${file} at line ${line}\";\n\n# Printf - precise table formatting\nprintf(\"| %-20s | %8d |\\n\", name, value);\n```"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Log Message Builder",
+      "instructions": "Create a `formatLog(level: string, msg: string, code: int) ret string` function that returns:\n`\"[LEVEL] msg (code: CODE)\"`\n\nTest with:\n- level=\"INFO\", msg=\"Started\", code=0\n- level=\"ERROR\", msg=\"Failed\", code=500",
+      "hint": "Use ${level}, ${msg}, ${code} in the return string.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe formatLog(level: string, msg: string, code: int) {\n    printf(\"[%s] %s (code: %d)\\n\", level, msg, code);\n}\n\nframe main() ret int {\n    formatLog(\"INFO\", \"Started\", 0);\n    formatLog(\"ERROR\", \"Failed\", 500);\n    formatLog(\"WARN\", \"Retrying\", 503);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ Use **${expression}** inside double-quoted strings\n\n✅ Works with **variables, fields, and expressions**\n\n✅ Escape with **\\${** for literal ${}\n\n✅ **More readable** than printf for simple messages\n\n✅ Printf better for **precise formatting** (width, precision)\n\n✅ **Combine both** - interpolation for building, printf for output"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "How do you embed variable 'x' in a string?",
+          "options": ["\"%x\"", "${x}", "#{x}", "{x}"],
+          "correct": 1,
+          "explanation": "BPL uses ${expression} for string interpolation."
+        },
+        {
+          "question": "Can you put expressions like ${a + b} in strings?",
+          "options": [
+            "No, only variables",
+            "Yes, any expression",
+            "Only numbers",
+            "Only strings"
+          ],
+          "correct": 1,
+          "explanation": "You can put any valid expression inside ${...}."
+        },
+        {
+          "question": "How do you write a literal '${' in a string?",
+          "options": ["$${ ", "\\${", "{{", "Cannot be done"],
+          "correct": 1,
+          "explanation": "Use backslash to escape: \\${ produces literal ${."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "19-bitwise-operations"
+}

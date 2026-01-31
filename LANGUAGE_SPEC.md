@@ -278,7 +278,7 @@ try {
     # Handle error
 } catch(e:bool){
     # Handle bool error
-} catchOther {
+} catch {
     # Handle unknown
 }
 ```

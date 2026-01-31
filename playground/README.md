@@ -1,6 +1,6 @@
 # BPL Playground
 
-An interactive web-based playground for learning and experimenting with BPL (Basic Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 25+ annotated examples covering all BPL features.
+An interactive web-based playground for learning and experimenting with BPL (Basic Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 60+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
 
 ## Features
 
@@ -12,9 +12,18 @@ An interactive web-based playground for learning and experimenting with BPL (Bas
 
 🎓 **Learn by Example**
 
-- 25+ curated examples covering all BPL features
+- 60+ curated examples covering all BPL features
 - Each example includes detailed descriptions and explanations
 - Progressive learning from "Hello World" to advanced topics
+
+📚 **Zero to Hero Tutorial Series** _(NEW!)_
+
+- 26 structured lessons from basics to advanced topics
+- Interactive code snippets with "Run" functionality
+- Multi-language comparisons (C, Python, Rust, JavaScript, Go)
+- Hands-on challenges with hints and solutions
+- Knowledge-check quizzes for retention
+- Progress tracking with local storage
 
 🔧 **Powerful Development Tools**
 
@@ -71,30 +80,69 @@ playground/
 │   └── package.json
 ├── frontend/
 │   ├── index.html        # Main playground UI
+│   ├── tutorial.html     # Tutorial page UI
 │   ├── style.css         # Styling and dark theme
-│   └── app.js            # Frontend logic and Monaco setup
-└── examples/
-    ├── 01-hello-world.json
-    ├── 02-variables.json
-    ├── ... (25+ examples)
-    └── 25-fibonacci.json
+│   ├── tutorial.css      # Tutorial-specific styles
+│   ├── app.js            # Frontend logic and Monaco setup
+│   └── tutorial.js       # Tutorial JavaScript functionality
+├── examples/
+│   ├── 01-hello-world.json
+│   ├── 02-variables.json
+│   └── ... (60+ examples)
+└── tutorials/
+    ├── 01-welcome-to-bpl.json
+    ├── 02-variables-and-types.json
+    └── ... (26 lessons)
 ```
 
-## Example Topics Covered
+## Tutorial Topics
 
-1. **Basics**: Hello World, Variables, Math
-2. **Control Flow**: If statements, While/For loops, Switch
-3. **Functions**: Frames, Recursion, Return values
-4. **Data Structures**: Structs, Arrays, Pointers
-5. **Advanced**: Bitwise ops, Type casting, Struct methods
-6. **I/O**: Command-line args, Standard input
-7. **Language Features**: Globals, Type aliases, Sizeof
+The "Zero to Hero" tutorial covers:
+
+### Beginner (Lessons 1-10)
+
+1. Welcome to BPL - First program
+2. Variables and Types - Data types, declarations
+3. Operators - Arithmetic, comparison, logical
+4. Control Flow (If/Else) - Conditionals
+5. Loops - While, for, break, continue
+6. Functions (Frames) - Parameters, returns
+7. Arrays - Creation, indexing, iteration
+8. Structs - Data structures
+9. Struct Methods - Instance methods
+10. Pointers - Memory addresses
+
+### Intermediate (Lessons 11-20)
+
+11. Enums & Pattern Matching - ADTs
+12. Generics - Type parameters
+13. Error Handling - try/catch/throw
+14. Lambdas & Closures - Anonymous functions
+15. Modules & Imports - Code organization
+16. Memory Management - Stack/heap
+17. Type Aliases - Type simplification
+18. String Interpolation - Dynamic strings
+19. Bitwise Operations - Bit manipulation
+20. Inline Assembly - Low-level access
+
+### Advanced (Lessons 21-26)
+
+21. FFI - Calling C libraries
+22. Building & Debugging - Compiler tools
+23. Standard Library - Overview
+24. Patterns & Idioms - Builder, Option, Result
+25. Best Practices - Coding standards
+26. What's Next - Continuing journey
 
 ## API Endpoints
 
 ### `GET /examples`
 
 Returns all available examples with metadata.
+
+### `GET /tutorials`
+
+Returns all tutorial lessons with content and metadata.
 
 ### `POST /compile`
 
@@ -130,7 +178,8 @@ Compiles and runs BPL code.
 3. **Run Programs**: Click "Run Code" to compile and execute
 4. **View Internals**: Switch tabs to see IR, AST, or tokens
 5. **Add Input**: Expand "Input & Arguments" to provide stdin/args
-6. **Learn Progressively**: Follow examples in order from 1-25
+6. **Start Tutorial**: Click "Start Tutorial: Zero to Hero" for structured learning
+7. **Track Progress**: Tutorial progress is saved in your browser
 
 ## Development
 
@@ -164,6 +213,63 @@ Create a new JSON file in `examples/`:
   "snippet": "Short description",
   "description": "Detailed explanation of the concept",
   "code": "frame main() ret int {\n    return 0;\n}"
+}
+```
+
+### Adding New Tutorial Lessons
+
+Create a new JSON file in `tutorials/`:
+
+```json
+{
+  "id": "unique-id",
+  "order": 27,
+  "title": "Lesson Title",
+  "category": "Category Name",
+  "difficulty": "beginner|intermediate|advanced",
+  "duration": "5 min",
+  "description": "Brief description",
+  "prerequisites": ["previous-lesson-id"],
+  "objectives": ["Learning goal 1", "Learning goal 2"],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Section Title",
+      "content": "Markdown content..."
+    },
+    {
+      "type": "code",
+      "title": "Code Example",
+      "code": "frame main() ret int { return 0; }",
+      "runnable": true,
+      "expectedOutput": "0",
+      "lineExplanations": { "1": "Explanation for line 1" }
+    },
+    {
+      "type": "comparison",
+      "title": "Language Comparison",
+      "languages": { "BPL": "...", "C": "...", "Python": "..." }
+    },
+    {
+      "type": "challenge",
+      "title": "Practice Challenge",
+      "instructions": "Task description",
+      "hint": "Optional hint",
+      "solution": "Solution code"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "Question text?",
+          "options": ["A", "B", "C", "D"],
+          "correct": 0,
+          "explanation": "Why A is correct"
+        }
+      ]
+    }
+  ],
+  "nextLesson": "next-lesson-id"
 }
 ```
 

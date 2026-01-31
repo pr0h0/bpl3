@@ -30,7 +30,6 @@ export enum TokenType {
   Continue = "Continue",
   Try = "Try",
   Catch = "Catch",
-  CatchOther = "CatchOther",
   Return = "Return",
   Throw = "Throw",
   Switch = "Switch",

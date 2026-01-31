@@ -1,0 +1,144 @@
+{
+  "id": "patterns-and-idioms",
+  "order": 24,
+  "title": "Common Patterns and Idioms",
+  "category": "Best Practices",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Learn common BPL programming patterns. Write cleaner, more maintainable code using proven idioms.",
+  "prerequisites": ["standard-library-overview"],
+  "objectives": [
+    "Apply the Builder pattern",
+    "Use Option and Result effectively",
+    "Implement common iteration patterns",
+    "Write idiomatic BPL code"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Why Patterns?",
+      "content": "Programming patterns are **reusable solutions** to common problems:\n\n- 📖 Make code **readable** - familiar patterns are easy to understand\n- 🔧 Make code **maintainable** - changes are localized\n- 🐛 Reduce **bugs** - patterns are battle-tested\n- 💬 Improve **communication** - shared vocabulary\n\nLet's explore patterns that work well in BPL!"
+    },
+    {
+      "type": "code",
+      "title": "Builder Pattern",
+      "code": "import [IO] from \"std/io.bpl\";\n\n# Builder pattern for complex object construction\nstruct HttpRequest {\n    method: string,\n    url: string,\n    headers: string,\n    body: string,\n    timeout: int,\n}\n\nstruct HttpRequestBuilder {\n    method: string,\n    url: string,\n    headers: string,\n    body: string,\n    timeout: int,\n    \n    frame new() ret HttpRequestBuilder {\n        return HttpRequestBuilder {\n            method: \"GET\",\n            url: \"\",\n            headers: \"\",\n            body: \"\",\n            timeout: 30\n        };\n    }\n    \n    frame setMethod(this: *HttpRequestBuilder, m: string) ret *HttpRequestBuilder {\n        this.method = m;\n        return this;\n    }\n    \n    frame setUrl(this: *HttpRequestBuilder, u: string) ret *HttpRequestBuilder {\n        this.url = u;\n        return this;\n    }\n    \n    frame setBody(this: *HttpRequestBuilder, b: string) ret *HttpRequestBuilder {\n        this.body = b;\n        return this;\n    }\n    \n    frame setTimeout(this: *HttpRequestBuilder, t: int) ret *HttpRequestBuilder {\n        this.timeout = t;\n        return this;\n    }\n    \n    frame build(this: *HttpRequestBuilder) ret HttpRequest {\n        return HttpRequest {\n            method: this.method,\n            url: this.url,\n            headers: this.headers,\n            body: this.body,\n            timeout: this.timeout\n        };\n    }\n}\n\nframe main() ret int {\n    # Fluent builder pattern\n    local builder: HttpRequestBuilder = HttpRequestBuilder.new();\n    local request: HttpRequest = builder\n        .setMethod(\"POST\")\n        .setUrl(\"https://api.example.com/data\")\n        .setBody(\"{\\\"key\\\": \\\"value\\\"}\")\n        .setTimeout(60)\n        .build();\n    \n    IO.print(\"Request built:\\n\");\n    IO.print(\"  Method: \");\n    IO.print(request.method);\n    IO.print(\"\\n  URL: \");\n    IO.print(request.url);\n    IO.print(\"\\n  Body: \");\n    IO.print(request.body);\n    IO.print(\"\\n  Timeout: \");\n    IO.printInt(request.timeout);\n    IO.print(\"s\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Request built:\n  Method: POST\n  URL: https://api.example.com/data\n  Body: {\"key\": \"value\"}\n  Timeout: 60s",
+      "lineExplanations": {
+        "19": "Factory method with defaults.",
+        "29": "Each setter returns 'this' for chaining.",
+        "48": "build() creates the final object.",
+        "62-66": "Chain methods for fluent API."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Option Pattern",
+      "code": "import [IO] from \"std/io.bpl\";\n\n# Maybe<T> represents a value that might not exist\nenum Maybe<T> {\n    Some(T),\n    None,\n}\n\n# Use Option instead of null checks\nframe findIndex(arr: *int, len: int, target: int) ret Maybe<int> {\n    loop (local i: int = 0; i < len; i = i + 1) {\n        if (*(arr + i) == target) {\n            return Maybe.Some(i);\n        }\n    }\n    return Maybe.None;\n}\n\n# Safe division\nframe divide(a: int, b: int) ret Maybe<int> {\n    if (b == 0) {\n        return Maybe.None;\n    }\n    return Maybe.Some(a / b);\n}\n\n# Helper to unwrap with default\nframe unwrapOr(opt: Maybe<int>, defaultVal: int) ret int {\n    match (opt) {\n        Maybe.Some(v) => { return v; },\n        Maybe.None => { return defaultVal; },\n    }\n}\n\nframe main() ret int {\n    local nums: int[5] = [10, 20, 30, 40, 50];\n    \n    # Find existing element\n    IO.print(\"Find 30: \");\n    match (findIndex(&nums[0], 5, 30)) {\n        Maybe.Some(idx) => {\n            IO.print(\"Found at index \");\n            IO.printInt(idx);\n        },\n        Maybe.None => {\n            IO.print(\"Not found\");\n        },\n    }\n    IO.print(\"\\n\");\n    \n    # Find missing element\n    IO.print(\"Find 99: \");\n    match (findIndex(&nums[0], 5, 99)) {\n        Maybe.Some(idx) => {\n            IO.print(\"Found at index \");\n            IO.printInt(idx);\n        },\n        Maybe.None => {\n            IO.print(\"Not found\");\n        },\n    }\n    IO.print(\"\\n\");\n    \n    # Using unwrapOr\n    local result: int = unwrapOr(divide(10, 3), -1);\n    IO.print(\"\\n10/3 = \");\n    IO.printInt(result);\n    IO.print(\"\\n\");\n    \n    local failed: int = unwrapOr(divide(10, 0), -1);\n    IO.print(\"10/0 = \");\n    IO.printInt(failed);\n    IO.print(\" (default)\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Find 30: Found at index 2\nFind 99: Not found\n\n10/3 = 3\n10/0 = -1 (default)",
+      "lineExplanations": {
+        "13": "Return Some when found.",
+        "16": "Return None when not found.",
+        "28": "Helper to get value with fallback.",
+        "4-7": "Option enum: Some(value) or None."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Result Pattern",
+      "code": "import [IO] from \"std/io.bpl\";\n\n# Outcome<T, E> for operations that can fail\nenum Outcome<T, E> {\n    Ok(T),\n    Err(E),\n}\n\nstruct ParseError {\n    message: string,\n    position: int,\n}\n\n# Parse a single digit character\nframe parseDigit(c: char) ret Outcome<int, ParseError> {\n    if (c < '0' || c > '9') {\n        return Outcome.Err(ParseError {\n            message: \"Not a digit\",\n            position: 0\n        });\n    }\n    return Outcome.Ok(cast<int>(c) - cast<int>('0'));\n}\n\n# Check if Result is Ok\nframe isOk<T, E>(r: Outcome<T, E>) ret bool {\n    match (r) {\n        Outcome.Ok(_) => { return true; },\n        Outcome.Err(_) => { return false; },\n    }\n}\n\nframe main() ret int {\n    IO.print(\"=== Result Pattern ===\\n\\n\");\n    \n    # Parse valid digit\n    IO.print(\"Parse '7': \");\n    match (parseDigit('7')) {\n        Outcome.Ok(n) => {\n            IO.print(\"Success: \");\n            IO.printInt(n);\n        },\n        Outcome.Err(e) => {\n            IO.print(\"Error: \");\n            IO.print(e.message);\n        },\n    }\n    IO.print(\"\\n\");\n    \n    # Parse invalid character\n    IO.print(\"Parse 'x': \");\n    match (parseDigit('x')) {\n        Outcome.Ok(n) => {\n            IO.print(\"Success: \");\n            IO.printInt(n);\n        },\n        Outcome.Err(e) => {\n            IO.print(\"Error: \");\n            IO.print(e.message);\n        },\n    }\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Result Pattern ===\n\nParse '7': Success: 7\nParse 'x': Error: Not a digit",
+      "lineExplanations": {
+        "17": "Return Err with error info.",
+        "22": "Return Ok with success value.",
+        "4-7": "Result: Ok(value) or Err(error).",
+        "9-12": "Custom error type with details."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Iterator Pattern",
+      "code": "import [IO] from \"std/io.bpl\";\n\n# Simple iterator over an array\nstruct IntIterator {\n    data: *int,\n    len: int,\n    index: int,\n    \n    frame create(arr: *int, len: int) ret IntIterator {\n        return IntIterator {\n            data: arr,\n            len: len,\n            index: 0\n        };\n    }\n    \n    frame hasNext(this: *IntIterator) ret bool {\n        return this.index < this.len;\n    }\n    \n    frame next(this: *IntIterator) ret int {\n        local value: int = *(this.data + this.index);\n        this.index = this.index + 1;\n        return value;\n    }\n    \n    frame reset(this: *IntIterator) {\n        this.index = 0;\n    }\n}\n\n# Higher-order function using iterator\nframe forEach(iter: *IntIterator, action: Lambda<void>(int)) {\n    iter.reset();\n    loop (iter.hasNext()) {\n        action(iter.next());\n    }\n}\n\nframe sumAll(iter: *IntIterator) ret int {\n    iter.reset();\n    local total: int = 0;\n    loop (iter.hasNext()) {\n        total = total + iter.next();\n    }\n    return total;\n}\n\nframe main() ret int {\n    local data: int[5] = [1, 2, 3, 4, 5];\n    local iter: IntIterator = IntIterator.create(&data[0], 5);\n    \n    IO.print(\"Using iterator:\\n\");\n    \n    # Manual iteration\n    IO.print(\"Elements: \");\n    loop (iter.hasNext()) {\n        IO.printInt(iter.next());\n        IO.print(\" \");\n    }\n    IO.print(\"\\n\");\n    \n    # Using forEach\n    IO.print(\"Squared: \");\n    forEach(&iter, |x: int| {\n        IO.printInt(x * x);\n        IO.print(\" \");\n    });\n    IO.print(\"\\n\");\n    \n    # Using sumAll\n    IO.print(\"Sum: \");\n    IO.printInt(sumAll(&iter));\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Using iterator:\nElements: 1 2 3 4 5 \nSquared: 1 4 9 16 25 \nSum: 15",
+      "lineExplanations": {
+        "17": "hasNext checks if more elements.",
+        "21": "next returns current and advances.",
+        "33": "Higher-order forEach accepts lambda.",
+        "4-7": "Iterator holds state: position in collection."
+      }
+    },
+    {
+      "type": "code",
+      "title": "RAII Pattern",
+      "code": "import [IO] from \"std/io.bpl\";\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\n# RAII: Resource Acquisition Is Initialization\n# Resource management tied to object lifetime\n\nstruct ManagedBuffer {\n    data: *int,\n    size: int,\n    \n    # Acquire resource in constructor\n    frame create(size: int) ret ManagedBuffer {\n        IO.print(\"  [Allocating buffer]\\n\");\n        return ManagedBuffer {\n            data: cast<*int>(malloc(size * sizeof<int>())),\n            size: size\n        };\n    }\n    \n    # Release resource in destructor\n    frame destroy(this: *ManagedBuffer) {\n        IO.print(\"  [Freeing buffer]\\n\");\n        if (this.data != nullptr) {\n            free(cast<*void>(this.data));\n            this.data = nullptr;\n        }\n    }\n    \n    frame fill(this: *ManagedBuffer, value: int) {\n        loop (local i: int = 0; i < this.size; i = i + 1) {\n            *(this.data + i) = value;\n        }\n    }\n    \n    frame get(this: *ManagedBuffer, index: int) ret int {\n        return *(this.data + index);\n    }\n}\n\nframe useBuffer() {\n    IO.print(\"Entering useBuffer()\\n\");\n    \n    local buf: ManagedBuffer = ManagedBuffer.create(5);\n    defer { buf.destroy(); }  # Cleanup guaranteed!\n    \n    buf.fill(42);\n    IO.print(\"Buffer[0] = \");\n    IO.printInt(buf.get(0));\n    IO.print(\"\\n\");\n    \n    IO.print(\"Exiting useBuffer()\\n\");\n    # defer runs here automatically\n}\n\nframe main() ret int {\n    IO.print(\"=== RAII Pattern ===\\n\\n\");\n    \n    useBuffer();\n    \n    IO.print(\"\\nBack in main()\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== RAII Pattern ===\n\nEntering useBuffer()\n  [Allocating buffer]\nBuffer[0] = 42\nExiting useBuffer()\n  [Freeing buffer]\n\nBack in main()",
+      "lineExplanations": {
+        "13": "Constructor acquires resource.",
+        "22": "Destructor releases resource.",
+        "45": "defer ensures destroy is called."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Idiomatic BPL Checklist",
+      "content": "**Naming:**\n✅ `PascalCase` for types: `HttpRequest`, `IntVec`\n✅ `camelCase` for functions/variables: `getUserName`, `count`\n✅ `SCREAMING_CASE` for constants: `MAX_SIZE`\n\n**Error handling:**\n✅ Use `Maybe<T>` for missing values\n✅ Use `Outcome<T, E>` for operations that can fail\n✅ Match exhaustively\n\n**Memory:**\n✅ Use `defer` for cleanup\n✅ Check `malloc` returns\n✅ Pair every `malloc` with `free`\n\n**Functions:**\n✅ Single responsibility\n✅ Return early on errors\n✅ Document complex logic"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Safe Stack",
+      "instructions": "Create a `SafeStack<T>` that:\n1. Uses Maybe<T> for pop() to handle empty stack\n2. Uses Result for push() to handle full stack\n3. Has proper cleanup with defer\n\nTest push/pop with boundary conditions.",
+      "hint": "pop returns Maybe.None if empty. push returns Outcome.Err if full.",
+      "solution": "import [IO] from \"std/io.bpl\";\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\nenum Maybe<T> { Some(T), None }\nenum Outcome<T, E> { Ok(T), Err(E) }\n\nstruct IntStack {\n    data: *int,\n    top: int,\n    cap: int,\n    \n    frame create(capacity: int) ret IntStack {\n        return IntStack {\n            data: cast<*int>(malloc(capacity * sizeof<int>())),\n            top: 0,\n            cap: capacity\n        };\n    }\n    \n    frame destroy(this: *IntStack) {\n        free(cast<*void>(this.data));\n    }\n    \n    frame push(this: *IntStack, val: int) ret Outcome<bool, string> {\n        if (this.top >= this.cap) {\n            return Outcome.Err(\"Stack full\");\n        }\n        *(this.data + this.top) = val;\n        this.top = this.top + 1;\n        return Outcome.Ok(true);\n    }\n    \n    frame pop(this: *IntStack) ret Maybe<int> {\n        if (this.top <= 0) {\n            return Maybe.None;\n        }\n        this.top = this.top - 1;\n        return Maybe.Some(*(this.data + this.top));\n    }\n}\n\nframe main() ret int {\n    local stack: IntStack = IntStack.create(3);\n    defer { stack.destroy(); }\n    \n    # Push until full\n    stack.push(10);\n    stack.push(20);\n    stack.push(30);\n    \n    # Try to push to full stack\n    match (stack.push(40)) {\n        Outcome.Ok(_) => { IO.print(\"Pushed 40\\n\"); },\n        Outcome.Err(e) => {\n            IO.print(\"Push failed: \");\n            IO.print(e);\n            IO.print(\"\\n\");\n        },\n    }\n    \n    # Pop all\n    IO.print(\"Popping: \");\n    loop {\n        match (stack.pop()) {\n            Maybe.Some(v) => {\n                IO.printInt(v);\n                IO.print(\" \");\n            },\n            Maybe.None => { break; },\n        }\n    }\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Builder Pattern** - Fluent construction of complex objects\n\n✅ **Maybe<T>** - Safe handling of missing values\n\n✅ **Outcome<T, E>** - Explicit error handling\n\n✅ **Iterator Pattern** - Abstract collection traversal\n\n✅ **RAII** - Resource cleanup tied to scope\n\n✅ Use **defer** for guaranteed cleanup\n\n✅ Write **idiomatic code** - follow naming conventions"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does the Builder pattern provide?",
+          "options": [
+            "Faster code",
+            "Fluent object construction",
+            "Automatic memory management",
+            "Type safety"
+          ],
+          "correct": 1,
+          "explanation": "Builder pattern provides fluent, step-by-step object construction with method chaining."
+        },
+        {
+          "question": "When should you use Maybe<T> vs Outcome<T, E>?",
+          "options": [
+            "Option for errors, Result for missing",
+            "Option for missing, Result for errors",
+            "They're the same",
+            "Option for primitives only"
+          ],
+          "correct": 1,
+          "explanation": "Option for potentially missing values, Result when you need to return error information."
+        },
+        {
+          "question": "What does RAII stand for?",
+          "options": [
+            "Return All Initialized Items",
+            "Resource Acquisition Is Initialization",
+            "Runtime Automatic Instance Init",
+            "Register All Interface Implementations"
+          ],
+          "correct": 1,
+          "explanation": "RAII = Resource Acquisition Is Initialization - tie resource lifetime to object lifetime."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "25-best-practices"
+}

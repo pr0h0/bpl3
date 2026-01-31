@@ -38,7 +38,6 @@ const KEYWORDS = [
   "continue",
   "try",
   "catch",
-  "catchOther",
   "return",
   "throw",
   "switch",

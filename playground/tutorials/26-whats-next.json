@@ -1,0 +1,71 @@
+{
+  "id": "whats-next",
+  "order": 26,
+  "title": "What's Next? Continuing Your BPL Journey",
+  "category": "Conclusion",
+  "difficulty": "beginner",
+  "duration": "5 min",
+  "description": "Congratulations on completing the BPL tutorial! Discover resources, community, and projects to continue learning.",
+  "prerequisites": ["best-practices"],
+  "objectives": [
+    "Find additional learning resources",
+    "Discover project ideas",
+    "Join the BPL community",
+    "Plan your next steps"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "🎉 Congratulations!",
+      "content": "You've completed the BPL \"0 to Hero\" tutorial series!\n\n**You've learned:**\n- ✅ Basic syntax and types\n- ✅ Control flow and loops\n- ✅ Functions and structs\n- ✅ Pointers and memory management\n- ✅ Enums and pattern matching\n- ✅ Generics and type safety\n- ✅ Error handling with try/catch\n- ✅ Lambdas and closures\n- ✅ Modules and imports\n- ✅ FFI and C interop\n- ✅ Best practices and patterns\n\nYou're now equipped to build real BPL programs!"
+    },
+    {
+      "type": "text",
+      "title": "📚 Continue Learning",
+      "content": "**Official Documentation:**\n- [Language Specification](docs/44-language-spec.md) - Complete language reference\n- [Grammar Reference](docs/45-grammar-reference.md) - Formal syntax\n- [Standard Library API](docs/48-stdlib-api.md) - All stdlib functions\n\n**Deep Dives:**\n- [Memory Management](docs/20-memory-basics.md) - Manual memory control\n- [Generics](docs/10-generics-functions.md) - Advanced generics\n- [Cross Compilation](docs/37-cross-compilation.md) - Build for other platforms\n\n**Explore the examples/**\n- 60+ working examples in the examples/ directory\n- Each demonstrates specific features\n- Study, modify, and learn!"
+    },
+    {
+      "type": "text",
+      "title": "🚀 Project Ideas",
+      "content": "**Beginner Projects:**\n1. **Temperature Converter** - Celsius ↔ Fahrenheit\n2. **Guess the Number** - Random number game\n3. **Todo List** - Console-based task manager\n4. **Calculator** - Basic arithmetic operations\n\n**Intermediate Projects:**\n1. **JSON Parser** - Parse simple JSON\n2. **HTTP Client** - Make HTTP requests via FFI\n3. **File Encryptor** - Simple XOR encryption\n4. **Linked List** - Implement a data structure\n\n**Advanced Projects:**\n1. **Compiler** - Write a simple expression compiler\n2. **Database** - Key-value store with persistence\n3. **Web Server** - Basic HTTP server\n4. **Game** - Text adventure or simple graphics"
+    },
+    {
+      "type": "code",
+      "title": "Quick Reference Card",
+      "code": "# === BPL Quick Reference ===\n\n# Variables\nlocal x: int = 42;          # Mutable\nlocal const PI: float = 3.14; # Immutable\nglobal count: int = 0;      # Global variable\n\n# Functions (called 'frames')\nframe add(a: int, b: int) ret int {\n    return a + b;\n}\n\n# Structs with methods\nstruct Point {\n    x: int, y: int,\n    frame new(x: int, y: int) ret Point { return Point { x: x, y: y }; }\n}\n\n# Enums (algebraic data types)\nenum Option<T> { Some(T), None }\n\n# Pattern matching\nmatch (opt) {\n    Option.Some(val) => { /* use val */ },\n    Option.None => { /* handle none */ },\n}\n\n# Error handling\ntry {\n    throw 1;\n} catch (e: int) {\n    /* handle error */\n}\n\n# Lambdas\nlocal square: Lambda<int>(int) = |x: int| ret int { return x * x; };\n\n# Memory management\nlocal ptr: *int = cast<*int>(malloc(sizeof<int>()));\ndefer { free(cast<*void>(ptr)); }\n\n# FFI\nextern printf(fmt: string, ...);",
+      "runnable": false,
+      "lineExplanations": {
+        "4": "Local variables with explicit type.",
+        "9": "Functions are called 'frames'.",
+        "14": "Structs can have methods.",
+        "19": "Enums support generics.",
+        "22": "Pattern matching is exhaustive.",
+        "28": "try/catch for exceptions.",
+        "34": "Lambdas capture their environment.",
+        "37": "Manual memory with defer cleanup.",
+        "40": "FFI for C interop."
+      }
+    },
+    {
+      "type": "text",
+      "title": "🛠️ Development Tools",
+      "content": "**VS Code Extension:**\n- Syntax highlighting\n- Error diagnostics\n- Code formatting\n- Install from the `vscode-ext/` directory\n\n**CLI Commands:**\n```bash\nbpl run main.bpl          # Compile and run\nbpl build main.bpl -o app # Compile to binary\nbpl --emit llvm main.bpl  # Output LLVM IR\nbpl fmt main.bpl          # Format code\nbpl check main.bpl        # Type check only\n```\n\n**Build Integration:**\n- Use `bpl-package.json` for projects\n- Package manager handles dependencies\n- Works with CI/CD pipelines"
+    },
+    {
+      "type": "text",
+      "title": "💡 Tips for Success",
+      "content": "**Practice Daily:**\n- Code a little every day\n- Rewrite examples from memory\n- Solve problems on coding sites\n\n**Read Other Code:**\n- Study the examples/ directory\n- Read the standard library source\n- Learn from different coding styles\n\n**Build Things:**\n- Projects teach more than tutorials\n- Start small, iterate\n- Don't fear failure\n\n**Ask for Help:**\n- Check documentation first\n- Search existing examples\n- Ask clear, specific questions"
+    },
+    {
+      "type": "text",
+      "title": "🏆 Final Challenge",
+      "content": "Combine everything you've learned!\n\n**Build a Mini Project:**\n\nCreate a **Contact Book** application that:\n1. Uses structs for Contact (name, email, phone)\n2. Stores contacts in a dynamic array\n3. Has functions to: add, find, list, delete\n4. Uses Option<T> for find (might not exist)\n5. Uses Result<T,E> for operations that can fail\n6. Properly manages memory (malloc/free with defer)\n7. Has a menu-driven interface\n\nThis tests: structs, arrays, enums, pattern matching, memory management, and user interaction.\n\n**You've got this!** 🚀"
+    },
+    {
+      "type": "text",
+      "title": "Thank You!",
+      "content": "Thank you for learning BPL! 🙏\n\nWe hope you enjoyed this tutorial series and feel confident writing BPL code.\n\n**Remember:**\n- The best way to learn is by doing\n- Every expert was once a beginner\n- Keep building, keep learning!\n\n**Happy coding!** 💻✨"
+    }
+  ],
+  "nextLesson": null
+}

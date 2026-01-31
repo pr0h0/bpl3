@@ -545,6 +545,41 @@ body {
   background: var(--text-secondary);
 }
 
+/* Tutorial Link */
+.tutorial-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, var(--primary), #ec4899);
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.tutorial-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
+.tutorial-link span {
+  flex: 1;
+}
+
+.tutorial-link i:last-child {
+  opacity: 0.7;
+  transition: transform 0.2s;
+}
+
+.tutorial-link:hover i:last-child {
+  transform: translateX(4px);
+  opacity: 1;
+}
+
 /* Quick Actions */
 .quick-actions {
   display: flex;

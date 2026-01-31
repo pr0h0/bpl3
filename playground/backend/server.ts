@@ -7,6 +7,7 @@ import { CodeGenerator } from "../../compiler/backend/CodeGenerator";
 import * as AST from "../../compiler/common/AST";
 import { CompilerError } from "../../compiler/common/CompilerError";
 import { DiagnosticFormatter } from "../../compiler/common/DiagnosticFormatter";
+import { getBplHome } from "../../compiler/common/PathResolver";
 import { Formatter } from "../../compiler/formatter/Formatter";
 import { lexWithGrammar } from "../../compiler/frontend/GrammarLexer";
 import { Parser } from "../../compiler/frontend/Parser";
@@ -205,6 +206,30 @@ function getExamples() {
   return examples;
 }
 
+// Get tutorials
+function getTutorials() {
+  const tutorialsDir = path.join(__dirname, "../tutorials");
+  const tutorials: any[] = [];
+
+  if (fs.existsSync(tutorialsDir)) {
+    const files = fs
+      .readdirSync(tutorialsDir)
+      .filter((f) => f.endsWith(".json"));
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(tutorialsDir, file), "utf-8");
+        tutorials.push(JSON.parse(content));
+      } catch (e) {
+        console.error(`Failed to load tutorial ${file}:`, e);
+      }
+    }
+  }
+
+  // Sort by order
+  tutorials.sort((a, b) => (a.order || 0) - (b.order || 0));
+  return tutorials;
+}
+
 // Compile and run BPL code
 async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const startTime = Date.now();
@@ -311,10 +336,30 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       };
     }
 
-    // Compile IR to binary using clang
+    // Compile IR to binary using clang with runtime library
     try {
       const clangStart = Date.now();
-      await execAsync(`clang -o "${binFile}" "${irFile}" -Wno-override-module`);
+      const bplHome = getBplHome();
+
+      // Build list of runtime files to link
+      const runtimeFiles: string[] = [];
+
+      // Add runtime.ll (core runtime functions)
+      const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
+      if (fs.existsSync(runtimeLLPath)) {
+        runtimeFiles.push(`"${runtimeLLPath}"`);
+      }
+
+      // Add runtime_support.o (C runtime support for stack traces, signals)
+      const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
+      if (fs.existsSync(runtimeSupportPath)) {
+        runtimeFiles.push(`"${runtimeSupportPath}"`);
+      }
+
+      const clangCmd = `clang -o "${binFile}" "${irFile}" ${runtimeFiles.join(" ")} -Wno-override-module -lm`;
+      logger.debug(`[${requestId}] Running clang: ${clangCmd}`);
+
+      await execAsync(clangCmd);
       logger.debug(
         `[${requestId}] LLVM compilation completed in ${Date.now() - clangStart}ms`,
       );
@@ -527,6 +572,13 @@ const server = Bun.serve({
       return new Response(JSON.stringify(examples), { headers });
     }
 
+    // GET /tutorials
+    if (url.pathname === "/tutorials" && req.method === "GET") {
+      const tutorials = getTutorials();
+      logger.info(`Tutorials loaded: ${tutorials.length}`);
+      return new Response(JSON.stringify(tutorials), { headers });
+    }
+
     // POST /compile
     if (url.pathname === "/compile" && req.method === "POST") {
       try {
@@ -556,6 +608,16 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === "/tutorial.html") {
+      const html = fs.readFileSync(
+        path.join(__dirname, "../frontend/tutorial.html"),
+        "utf-8",
+      );
+      return new Response(html, {
+        headers: { ...headers, "Content-Type": "text/html" },
+      });
+    }
+
     if (url.pathname === "/style.css") {
       const css = fs.readFileSync(
         path.join(__dirname, "../frontend/style.css"),
@@ -566,9 +628,29 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === "/tutorial.css") {
+      const css = fs.readFileSync(
+        path.join(__dirname, "../frontend/tutorial.css"),
+        "utf-8",
+      );
+      return new Response(css, {
+        headers: { ...headers, "Content-Type": "text/css" },
+      });
+    }
+
     if (url.pathname === "/app.js") {
       const js = fs.readFileSync(
         path.join(__dirname, "../frontend/app.js"),
+        "utf-8",
+      );
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
+      });
+    }
+
+    if (url.pathname === "/tutorial.js") {
+      const js = fs.readFileSync(
+        path.join(__dirname, "../frontend/tutorial.js"),
         "utf-8",
       );
       return new Response(js, {

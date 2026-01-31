@@ -238,11 +238,12 @@
     return { kind: "Asm", content, flavor, clobbers, location: makeLoc(loc) };
   }
 
-  function tryStmt(tryBlock, catchClauses, catchOther, loc) {
-    return { kind: "Try", tryBlock, catchClauses, catchOther, location: makeLoc(loc) };
+  function tryStmt(tryBlock, catchClauses, loc) {
+    return { kind: "Try", tryBlock, catchClauses, location: makeLoc(loc) };
   }
 
   function catchClause(variable, type, body, loc) {
+    // variable and type can be null for catch-all (catch { })
     return { kind: "CatchClause", variable, type, body, location: makeLoc(loc) };
   }
 
@@ -825,19 +826,19 @@ DeferStatement
   = K_defer _ stmt:Statement { return { kind: "Defer", statement: stmt, location: makeLoc(location()) }; }
 
 TryStatement
-  = K_try _ tryBlock:Block _ catches:(CatchClause _)+ catchOther:CatchOther? {
+  = K_try _ tryBlock:Block _ catches:(CatchClause _)+ {
       const catchList = catches.map(c => c[0]);
-      const catchOtherBlock = catchOther ? catchOther : undefined;
-      return tryStmt(tryBlock, catchList, catchOtherBlock, location());
+      return tryStmt(tryBlock, catchList, location());
     }
 
 CatchClause
   = K_catch _ "(" _ name:Identifier _ ":" _ type:Type _ ")" _ body:Block {
       return catchClause(name.name, type, body, location());
     }
-
-CatchOther
-  = K_catchOther _ body:Block { return body; }
+  / K_catch _ body:Block {
+      // Catch-all: no variable, no type
+      return catchClause(null, null, body, location());
+    }
 
 ThrowStatement
   = K_throw _ expr:Expression _ ";" { return throwStmt(expr, location()); }
@@ -1569,7 +1570,6 @@ K_continue = "continue" IdBoundary
 K_defer = "defer" IdBoundary
 K_try = "try" IdBoundary
 K_catch = "catch" IdBoundary
-K_catchOther = "catchOther" IdBoundary
 K_return = "return" IdBoundary
 K_throw = "throw" IdBoundary
 K_switch = "switch" IdBoundary
@@ -1615,7 +1615,6 @@ KeywordReserved
   / "continue" IdBoundary
   / "try" IdBoundary
   / "catch" IdBoundary
-  / "catchOther" IdBoundary
   / "return" IdBoundary
   / "throw" IdBoundary
   / "switch" IdBoundary

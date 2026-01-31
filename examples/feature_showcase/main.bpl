@@ -123,10 +123,9 @@ frame main() ret int {
         throw 404;
     } catch (e: int) {
         printf("Caught exception code: %d\n", e);
-    } catchOther {
+    } catch {
         printf("Caught unknown exception\n");
     }
-
     # Inline Assembly
     printf("--- Inline Assembly ---\n");
     local res: int = 0;

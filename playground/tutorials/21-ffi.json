@@ -1,0 +1,151 @@
+{
+  "id": "ffi",
+  "order": 21,
+  "title": "FFI: Calling C Libraries",
+  "category": "Advanced Concepts",
+  "difficulty": "advanced",
+  "duration": "12 min",
+  "description": "Interface with C libraries using BPL's Foreign Function Interface. Call system libraries, use C structs, and link external code.",
+  "prerequisites": ["inline-assembly"],
+  "objectives": [
+    "Declare extern functions from C",
+    "Pass BPL types to C functions",
+    "Work with C strings and pointers",
+    "Link with system libraries"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What is FFI?",
+      "content": "**Foreign Function Interface (FFI)** lets BPL call C code:\n\n- 📚 Use existing C libraries (libc, OpenSSL, SQLite...)\n- 🖥️ Access system APIs\n- ⚡ Use optimized C implementations\n- 🔄 Integrate with C codebases\n\nBPL compiles to LLVM IR, making C interop straightforward since types match directly."
+    },
+    {
+      "type": "comparison",
+      "title": "FFI Declaration Syntax",
+      "languages": {
+        "BPL": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;",
+        "Rust": "extern \"C\" {\n    fn printf(fmt: *const c_char, ...) -> c_int;\n}",
+        "Go": "// #include <stdio.h>\nimport \"C\"\nC.printf(...)",
+        "Python": "from ctypes import cdll\nlibc = cdll.LoadLibrary(\"libc.so\")"
+      },
+      "explanation": "BPL's extern is simple and direct - just declare the function signature."
+    },
+    {
+      "type": "code",
+      "title": "Basic C Function Calls",
+      "code": "# Declare C standard library functions\nextern printf(fmt: string, ...);\nextern puts(s: string) ret int;\nextern strlen(s: string) ret int;\nextern atoi(s: string) ret int;\n\nframe main() ret int {\n    # printf - formatted output\n    printf(\"=== FFI Examples ===\\n\\n\");\n    \n    # puts - simple string output (adds newline)\n    puts(\"Using puts() from C\");\n    \n    # strlen - string length\n    local msg: string = \"Hello, World!\";\n    local len: int = strlen(msg);\n    printf(\"Length of '%s': %d\\n\", msg, len);\n    \n    # atoi - string to integer\n    local numStr: string = \"12345\";\n    local num: int = atoi(numStr);\n    printf(\"atoi('%s') = %d\\n\", numStr, num);\n    printf(\"Doubled: %d\\n\", num * 2);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "=== FFI Examples ===\n\nUsing puts() from C\nLength of 'Hello, World!': 13\natoi('12345') = 12345\nDoubled: 24690",
+      "lineExplanations": {
+        "2": "extern declares a C function.",
+        "3": "ret int specifies return type.",
+        "4": "strlen takes a string and returns int.",
+        "16": "Call C function like any BPL function."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Memory Functions",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\nextern memset(ptr: *void, value: int, size: int) ret *void;\nextern memcpy(dest: *void, src: *void, size: int) ret *void;\n\nframe main() ret int {\n    # Allocate memory\n    local size: int = 10;\n    local arr: *int = cast<*int>(malloc(size * sizeof<int>()));\n    \n    if (arr == nullptr) {\n        printf(\"Allocation failed!\\n\");\n        return 1;\n    }\n    \n    # Initialize with memset (set all bytes to 0)\n    memset(cast<*void>(arr), 0, size * sizeof<int>());\n    \n    # Fill array\n    loop (local i: int = 0; i < size; i = i + 1) {\n        *(arr + i) = i * 10;\n    }\n    \n    printf(\"Original array: \");\n    loop (local i: int = 0; i < size; i = i + 1) {\n        printf(\"%d \", *(arr + i));\n    }\n    printf(\"\\n\");\n    \n    # Copy part of array using memcpy\n    local copy: *int = cast<*int>(malloc(5 * sizeof<int>()));\n    memcpy(cast<*void>(copy), cast<*void>(arr + 2), 5 * sizeof<int>());\n    \n    printf(\"Copied (elements 2-6): \");\n    loop (local i: int = 0; i < 5; i = i + 1) {\n        printf(\"%d \", *(copy + i));\n    }\n    printf(\"\\n\");\n    \n    # Clean up\n    free(cast<*void>(arr));\n    free(cast<*void>(copy));\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Original array: 0 10 20 30 40 50 60 70 80 90 \nCopied (elements 2-6): 20 30 40 50 60 ",
+      "lineExplanations": {
+        "2": "malloc returns void pointer, needs cast.",
+        "4": "memset sets bytes to a value.",
+        "5": "memcpy copies memory regions.",
+        "10": "cast<*int> to use as int pointer."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Math Library Functions",
+      "code": "extern printf(fmt: string, ...);\n\n# Math library functions\nextern sqrt(x: float) ret float;\nextern pow(base: float, exp: float) ret float;\nextern sin(x: float) ret float;\nextern cos(x: float) ret float;\nextern floor(x: float) ret float;\nextern ceil(x: float) ret float;\nextern abs(x: int) ret int;\nextern fabs(x: float) ret float;\n\nframe main() ret int {\n    printf(\"=== Math Library ===\\n\\n\");\n    \n    # Square root\n    printf(\"sqrt(16) = %.2f\\n\", sqrt(16.0));\n    printf(\"sqrt(2) = %.4f\\n\", sqrt(2.0));\n    \n    # Power\n    printf(\"\\npow(2, 10) = %.0f\\n\", pow(2.0, 10.0));\n    printf(\"pow(3, 4) = %.0f\\n\", pow(3.0, 4.0));\n    \n    # Trigonometry (radians)\n    local pi: float = 3.14159265;\n    printf(\"\\nsin(0) = %.2f\\n\", sin(0.0));\n    printf(\"cos(0) = %.2f\\n\", cos(0.0));\n    printf(\"sin(pi/2) = %.2f\\n\", sin(pi / 2.0));\n    \n    # Floor and ceiling\n    printf(\"\\nfloor(3.7) = %.1f\\n\", floor(3.7));\n    printf(\"ceil(3.2) = %.1f\\n\", ceil(3.2));\n    \n    # Absolute value\n    printf(\"\\nabs(-42) = %d\\n\", abs(-42));\n    printf(\"fabs(-3.14) = %.2f\\n\", fabs(-3.14));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "=== Math Library ===\n\nsqrt(16) = 4.00\nsqrt(2) = 1.4142\n\npow(2, 10) = 1024\npow(3, 4) = 81\n\nsin(0) = 0.00\ncos(0) = 1.00\nsin(pi/2) = 1.00\n\nfloor(3.7) = 3.0\nceil(3.2) = 4.0\n\nabs(-42) = 42\nfabs(-3.14) = 3.14",
+      "lineExplanations": {
+        "10": "abs for integers.",
+        "11": "fabs for floating point absolute value.",
+        "4-11": "Declare math.h functions."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Time Functions",
+      "code": "extern printf(fmt: string, ...);\n\n# Time functions\nextern time(t: *int) ret int;  # time_t is typically int-sized\n\nframe main() ret int {\n    printf(\"=== Time Functions ===\\n\\n\");\n    \n    # Get current timestamp\n    local timestamp: int = time(nullptr);\n    printf(\"Current timestamp: %d\\n\", timestamp);\n    \n    # Calculate some time values\n    local seconds_per_day: int = 60 * 60 * 24;\n    local days_since_epoch: int = timestamp / seconds_per_day;\n    \n    printf(\"Seconds since epoch: %d\\n\", timestamp);\n    printf(\"Days since epoch: %d\\n\", days_since_epoch);\n    printf(\"Years (approx): %d\\n\", days_since_epoch / 365);\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Time Functions ===\n\nCurrent timestamp: ",
+      "lineExplanations": {
+        "4": "time() returns seconds since Unix epoch.",
+        "10": "Pass nullptr to just get the return value.",
+        "14": "Basic time calculations."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Type Mapping: BPL to C",
+      "content": "| BPL Type | C Type |\n|----------|--------|\n| `int` | `int` (32-bit) |\n| `i8` | `char` / `int8_t` |\n| `i64` | `long long` / `int64_t` |\n| `float` | `double` (64-bit) |\n| `f32` | `float` (32-bit) |\n| `bool` | `_Bool` / `int` |\n| `*T` | `T*` |\n| `string` | `const char*` |\n| `*void` | `void*` |\n\n**Note:** BPL's default `float` is 64-bit (like C's `double`)."
+    },
+    {
+      "type": "code",
+      "title": "Environment Variables",
+      "code": "extern printf(fmt: string, ...);\nextern getenv(name: string) ret string;\n\nframe main() ret int {\n    printf(\"=== Environment Variables ===\\n\\n\");\n    \n    # Get common environment variables\n    local home: string = getenv(\"HOME\");\n    local user: string = getenv(\"USER\");\n    local path: string = getenv(\"PATH\");\n    local shell: string = getenv(\"SHELL\");\n    \n    if (home != nullptr) {\n        printf(\"HOME: %s\\n\", home);\n    }\n    \n    if (user != nullptr) {\n        printf(\"USER: %s\\n\", user);\n    }\n    \n    if (shell != nullptr) {\n        printf(\"SHELL: %s\\n\", shell);\n    }\n    \n    # Check a variable that might not exist\n    local custom: string = getenv(\"MY_CUSTOM_VAR\");\n    if (custom == nullptr) {\n        printf(\"\\nMY_CUSTOM_VAR is not set\\n\");\n    } else {\n        printf(\"\\nMY_CUSTOM_VAR: %s\\n\", custom);\n    }\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Environment Variables ===\n\nHOME: /home/",
+      "lineExplanations": {
+        "2": "getenv returns string or nullptr.",
+        "13": "Always check for nullptr - var might not exist."
+      }
+    },
+    {
+      "type": "text",
+      "title": "FFI Best Practices",
+      "content": "✅ **Check return values** - C functions often return error codes\n\n✅ **Handle null pointers** - Many C functions return NULL on error\n\n✅ **Match types carefully** - Size mismatches cause bugs\n\n✅ **Free what you allocate** - C doesn't have GC\n\n✅ **Wrap C APIs** - Create BPL-friendly wrappers\n\n❌ **Don't assume string encoding** - C uses null-terminated bytes\n\n❌ **Don't ignore errno** - Many C functions set it on error"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: String Utilities",
+      "instructions": "Use C's string functions to create:\n1. Declare extern for `strcmp(a: string, b: string) ret int`\n2. Write `areEqual(a: string, b: string) ret bool` using strcmp\n3. Test with several string pairs\n\nNote: strcmp returns 0 if strings are equal.",
+      "hint": "strcmp returns 0 when equal, so areEqual returns strcmp(a, b) == 0",
+      "solution": "extern printf(fmt: string, ...);\nextern strcmp(a: string, b: string) ret int;\n\nframe areEqual(a: string, b: string) ret bool {\n    return strcmp(a, b) == 0;\n}\n\nframe main() ret int {\n    printf(\"Comparing strings:\\n\\n\");\n    \n    printf(\"'hello' == 'hello': %d\\n\", areEqual(\"hello\", \"hello\"));\n    printf(\"'hello' == 'world': %d\\n\", areEqual(\"hello\", \"world\"));\n    printf(\"'abc' == 'ABC': %d\\n\", areEqual(\"abc\", \"ABC\"));\n    printf(\"'' == '': %d\\n\", areEqual(\"\", \"\"));\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **extern** declares C functions in BPL\n\n✅ Types map directly: `int`→`int`, `*T`→`T*`, `string`→`char*`\n\n✅ Use **cast<>** to convert between pointer types\n\n✅ **Check for nullptr** on functions that can fail\n\n✅ **Free** memory allocated by C functions\n\n✅ Wrap C APIs in **BPL-friendly functions**"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does 'extern printf(fmt: string, ...)' do?",
+          "options": [
+            "Defines printf",
+            "Declares printf exists in C",
+            "Exports printf",
+            "Imports printf module"
+          ],
+          "correct": 1,
+          "explanation": "extern declares that printf is defined externally (in C's libc)."
+        },
+        {
+          "question": "What C type does BPL's 'string' map to?",
+          "options": ["std::string", "char*", "String", "wchar_t*"],
+          "correct": 1,
+          "explanation": "BPL's string maps to C's char* (null-terminated)."
+        },
+        {
+          "question": "Why check if getenv() returned nullptr?",
+          "options": [
+            "It's always null",
+            "The variable might not exist",
+            "For performance",
+            "It's optional"
+          ],
+          "correct": 1,
+          "explanation": "getenv returns NULL if the environment variable doesn't exist."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "22-building-and-debugging"
+}

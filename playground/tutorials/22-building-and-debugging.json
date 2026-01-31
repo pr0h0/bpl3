@@ -1,0 +1,128 @@
+{
+  "id": "building-and-debugging",
+  "order": 22,
+  "title": "Building and Debugging BPL Programs",
+  "category": "Tooling",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Master the BPL compiler. Learn compilation options, debugging techniques, and optimization settings.",
+  "prerequisites": ["ffi"],
+  "objectives": [
+    "Understand the compilation pipeline",
+    "Use compiler flags effectively",
+    "Debug BPL programs",
+    "Optimize for performance or size"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "The BPL Compiler Pipeline",
+      "content": "BPL compilation happens in stages:\n\n```\n┌─────────────┐     ┌─────────────┐     ┌─────────────┐\n│   Source    │ ──► │    LLVM     │ ──► │   Native    │\n│   (.bpl)    │     │   IR (.ll)  │     │   Binary    │\n└─────────────┘     └─────────────┘     └─────────────┘\n                          │\n                    ┌─────┴─────┐\n                    │   llc     │\n                    │  + clang  │\n                    └───────────┘\n```\n\n1. **Parse** - BPL source → AST\n2. **Type Check** - Verify types\n3. **CodeGen** - AST → LLVM IR\n4. **Compile** - LLVM IR → Machine code"
+    },
+    {
+      "type": "code",
+      "title": "Basic Compilation",
+      "code": "# This is a simple program to compile\nextern printf(fmt: string, ...);\n\nframe factorial(n: int) ret int {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);\n}\n\nframe main() ret int {\n    printf(\"Factorials:\\n\");\n    \n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        printf(\"%d! = %d\\n\", i, factorial(i));\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Factorials:\n1! = 1\n2! = 2\n3! = 6\n4! = 24\n5! = 120\n6! = 720\n7! = 5040\n8! = 40320\n9! = 362880\n10! = 3628800",
+      "lineExplanations": {
+        "1": "Comments are preserved in debug builds.",
+        "4": "Recursive function for testing."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Compiler Commands",
+      "content": "**Basic usage:**\n```bash\nbpl main.bpl              # Compile and run\nbpl main.bpl -o myapp     # Compile to 'myapp'\nbpl run main.bpl          # Just run\nbpl build main.bpl        # Just compile\n```\n\n**Output control:**\n```bash\nbpl main.bpl --emit llvm  # Output LLVM IR (.ll)\nbpl main.bpl --emit asm   # Output assembly (.s)\nbpl main.bpl --emit obj   # Output object file (.o)\n```\n\n**Optimization:**\n```bash\nbpl main.bpl -O0          # No optimization (debug)\nbpl main.bpl -O2          # Standard optimization\nbpl main.bpl -O3          # Aggressive optimization\nbpl main.bpl -Os          # Optimize for size\n```"
+    },
+    {
+      "type": "text",
+      "title": "Viewing LLVM IR",
+      "content": "LLVM IR is useful for understanding what the compiler generates:\n\n```bash\nbpl main.bpl --emit llvm\ncat main.ll\n```\n\nExample output:\n```llvm\ndefine i32 @factorial(i32 %n) {\nentry:\n  %cmp = icmp sle i32 %n, 1\n  br i1 %cmp, label %return_1, label %recurse\n\nreturn_1:\n  ret i32 1\n\nrecurse:\n  %n_minus_1 = sub i32 %n, 1\n  %rec_result = call i32 @factorial(i32 %n_minus_1)\n  %result = mul i32 %n, %rec_result\n  ret i32 %result\n}\n```\n\nThis helps debug code generation and understand performance."
+    },
+    {
+      "type": "code",
+      "title": "Debug vs Release Builds",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\nframe distance(p1: *Point, p2: *Point) ret int {\n    local dx: int = p2.x - p1.x;\n    local dy: int = p2.y - p1.y;\n    # Simplified: returns dx^2 + dy^2 (no sqrt)\n    return dx * dx + dy * dy;\n}\n\nframe main() ret int {\n    local origin: Point = Point { x: 0, y: 0 };\n    local point: Point = Point { x: 3, y: 4 };\n    \n    printf(\"Origin: (%d, %d)\\n\", origin.x, origin.y);\n    printf(\"Point: (%d, %d)\\n\", point.x, point.y);\n    \n    local distSquared: int = distance(&origin, &point);\n    printf(\"Distance squared: %d\\n\", distSquared);\n    # 3^2 + 4^2 = 9 + 16 = 25\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Origin: (0, 0)\nPoint: (3, 4)\nDistance squared: 25",
+      "lineExplanations": {
+        "8": "Debug builds keep function names for stack traces.",
+        "12": "Optimized builds may inline this function."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Debugging Techniques",
+      "content": "**1. Printf Debugging**\n```bpl\nprintf(\"DEBUG: x = %d\\n\", x);\n```\n\n**2. Check Return Values**\n```bpl\nlocal result: int = riskyOperation();\nif (result < 0) {\n    printf(\"Error: code %d\\n\", result);\n}\n```\n\n**3. Use Assertions (manual)**\n```bpl\nif (index < 0 || index >= size) {\n    printf(\"ASSERT FAILED: index out of bounds\\n\");\n    return -1;\n}\n```\n\n**4. Examine LLVM IR**\n```bash\nbpl --emit llvm buggy.bpl\n# Look for incorrect operations\n```\n\n**5. Use GDB (with debug info)**\n```bash\nbpl -g main.bpl -o myapp  # Include debug info\ngdb ./myapp\n```"
+    },
+    {
+      "type": "code",
+      "title": "Common Bugs and Fixes",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\n# Bug 1: Off-by-one error\nframe buggyLoop() {\n    local arr: int[5] = [1, 2, 3, 4, 5];\n    \n    # WRONG: i <= 5 goes one past the end!\n    # loop (local i = 0; i <= 5; i = i + 1) {\n    \n    # CORRECT: i < 5\n    loop (local i: int = 0; i < 5; i = i + 1) {\n        printf(\"%d \", arr[i]);\n    }\n    printf(\"\\n\");\n}\n\n# Bug 2: Null pointer check\nframe safeAccess() {\n    local ptr: *int = cast<*int>(malloc(sizeof<int>()));\n    \n    # Always check malloc result!\n    if (ptr == nullptr) {\n        printf(\"Allocation failed!\\n\");\n        return;\n    }\n    \n    *ptr = 42;\n    printf(\"Value: %d\\n\", *ptr);\n    free(cast<*void>(ptr));\n}\n\n# Bug 3: Integer overflow\nframe checkOverflow() {\n    local big: int = 2000000000;  # Close to int max\n    local result: int = big + big; # Might overflow!\n    printf(\"2B + 2B = %d (overflow!)\\n\", result);\n    \n    # Use larger type if needed\n    local big64: i64 = 2000000000;\n    local result64: i64 = big64 + big64;\n    printf(\"As i64: %ld\\n\", result64);\n}\n\nframe main() ret int {\n    printf(\"=== Bug Examples ===\\n\\n\");\n    \n    printf(\"1. Array bounds:\\n\");\n    buggyLoop();\n    \n    printf(\"\\n2. Null checks:\\n\");\n    safeAccess();\n    \n    printf(\"\\n3. Overflow:\\n\");\n    checkOverflow();\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "=== Bug Examples ===\n\n1. Array bounds:\n1 2 3 4 5 \n\n2. Null checks:\nValue: 42\n\n3. Overflow:\n2B + 2B = -294967296 (overflow!)\nAs i64: 4000000000",
+      "lineExplanations": {
+        "13": "Use < for array bounds, not <=.",
+        "24": "Always check malloc return value.",
+        "37": "Integer overflow wraps around."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Performance Profiling",
+      "content": "**Measure execution time:**\n```bpl\nextern time(t: *int) ret int;\n\nlocal start: int = time(nullptr);\n# ... code to measure ...\nlocal end: int = time(nullptr);\nprintf(\"Elapsed: %d seconds\\n\", end - start);\n```\n\n**Optimize hot paths:**\n1. Profile first - find what's slow\n2. Check algorithmic complexity\n3. Reduce allocations\n4. Use appropriate data structures\n\n**Compiler optimizations (-O2, -O3):**\n- Function inlining\n- Loop unrolling\n- Dead code elimination\n- Constant folding"
+    },
+    {
+      "type": "text",
+      "title": "Compiler Flags Reference",
+      "content": "| Flag | Description |\n|------|-------------|\n| `-o <file>` | Output file name |\n| `--emit llvm` | Output LLVM IR |\n| `--emit asm` | Output assembly |\n| `-O0` | No optimization |\n| `-O2` | Standard optimization |\n| `-O3` | Aggressive optimization |\n| `-Os` | Optimize for size |\n| `-g` | Include debug info |\n| `--target <triple>` | Cross-compile target |\n| `--verbose` | Show compilation steps |\n| `--help` | Show all options |"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Debug a Function",
+      "instructions": "This function has a bug. Find and fix it:\n\n```bpl\nframe sumArray(arr: *int, len: int) ret int {\n    local sum: int = 0;\n    loop (local i: int = 1; i <= len; i = i + 1) {\n        sum = sum + *(arr + i);\n    }\n    return sum;\n}\n```\n\nIt should sum [1,2,3,4,5] = 15, but returns wrong value.",
+      "hint": "Check the loop bounds. Array indices start at 0.",
+      "solution": "extern printf(fmt: string, ...);\n\n# Fixed version:\n# Bug was: i starts at 1 (skips first element)\n#          i <= len (goes past last element)\nframe sumArray(arr: *int, len: int) ret int {\n    local sum: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        sum = sum + *(arr + i);\n    }\n    return sum;\n}\n\nframe main() ret int {\n    local arr: int[5] = [1, 2, 3, 4, 5];\n    local result: int = sumArray(&arr[0], 5);\n    printf(\"Sum: %d (should be 15)\\n\", result);\n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ BPL compiles to **LLVM IR**, then to native code\n\n✅ Use **--emit llvm** to inspect generated code\n\n✅ **-O2** for production, **-O0** for debugging\n\n✅ **Printf debugging** works, check return values\n\n✅ Common bugs: **off-by-one**, **null pointers**, **overflow**\n\n✅ Profile before optimizing\n\n✅ Use **-g** for debug info with GDB"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does 'bpl main.bpl --emit llvm' do?",
+          "options": [
+            "Runs the program",
+            "Outputs LLVM IR",
+            "Compiles to binary",
+            "Shows errors"
+          ],
+          "correct": 1,
+          "explanation": "--emit llvm outputs the LLVM Intermediate Representation instead of compiling to binary."
+        },
+        {
+          "question": "Which flag enables aggressive optimization?",
+          "options": ["-O0", "-O1", "-O3", "-Og"],
+          "correct": 2,
+          "explanation": "-O3 enables aggressive optimizations, while -O0 disables optimization."
+        },
+        {
+          "question": "What's a common cause of array bugs?",
+          "options": [
+            "Wrong variable names",
+            "Off-by-one errors",
+            "Missing imports",
+            "Type mismatches"
+          ],
+          "correct": 1,
+          "explanation": "Off-by-one errors (using <= instead of < or starting at 1 instead of 0) are very common."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "23-standard-library-overview"
+}

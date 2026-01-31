@@ -721,7 +721,8 @@ struct Game {
                 } else if (seq2 == 68) {
                     # Left arrow
                     dx = -1;
-                } # W
+                }
+                # W
             }
         } else if ((input == 119) || (input == 87)) {
             dy = -1;

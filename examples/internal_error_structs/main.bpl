@@ -66,10 +66,9 @@ frame main() ret int {
         local _val: int = p.x;
     } catch (e: NullAccessError) {
         printf("Caught NullAccessError: %s\n", e.message);
-    } catchOther {
+    } catch {
         printf("Caught unknown error in NullAccessError test\n");
     }
-
     # Test DivisionByZeroError
     try {
         local a: int = 10;

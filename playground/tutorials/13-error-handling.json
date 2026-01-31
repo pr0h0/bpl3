@@ -1,0 +1,152 @@
+{
+  "id": "error-handling",
+  "order": 13,
+  "title": "Error Handling: Try, Catch, Throw",
+  "category": "Intermediate Concepts",
+  "difficulty": "intermediate",
+  "duration": "12 min",
+  "description": "Learn BPL's exception handling system. Throw errors, catch them by type, and build robust error recovery.",
+  "prerequisites": ["generics"],
+  "objectives": [
+    "Throw exceptions of any type",
+    "Catch exceptions by type",
+    "Use catch { } for catch-all exceptions",
+    "Implement proper error recovery patterns"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Why Exception Handling?",
+      "content": "When something goes wrong, you have choices:\n\n**Return codes** - Error-prone, easy to ignore:\n```bpl\nlocal result: int = divide(10, 0);  # Returns -1 for error?\n# Easy to forget to check!\n```\n\n**Exceptions** - Explicit, can't be ignored:\n```bpl\ntry {\n    local result: int = divide(10, 0);  # Throws!\n} catch (e: DivisionError) {\n    printf(\"Error: %s\\n\", e.message);\n}\n```\n\nExceptions separate error handling from normal flow."
+    },
+    {
+      "type": "comparison",
+      "title": "Exception Syntax Comparison",
+      "languages": {
+        "BPL": "try {\n    throw MyError { msg: \"oops\" };\n} catch (e: MyError) {\n    printf(\"%s\", e.msg);\n}",
+        "C++": "try {\n    throw MyError(\"oops\");\n} catch (MyError& e) {\n    cout << e.what();\n}",
+        "Python": "try:\n    raise MyError(\"oops\")\nexcept MyError as e:\n    print(e)",
+        "JavaScript": "try {\n    throw new MyError(\"oops\");\n} catch (e) {\n    console.log(e);\n}"
+      },
+      "explanation": "BPL's try/catch is similar to C++ and Java, but you can throw any type, not just Exception subclasses."
+    },
+    {
+      "type": "code",
+      "title": "Basic Try-Catch",
+      "code": "extern printf(fmt: string, ...);\n\n# Define an error type\nstruct DivisionError {\n    message: string,\n    dividend: int,\n    divisor: int,\n}\n\nframe divide(a: int, b: int) ret int {\n    if (b == 0) {\n        throw DivisionError {\n            message: \"Cannot divide by zero\",\n            dividend: a,\n            divisor: b\n        };\n    }\n    return a / b;\n}\n\nframe main() ret int {\n    # Try a successful division\n    try {\n        local result: int = divide(10, 2);\n        printf(\"10 / 2 = %d\\n\", result);\n    } catch (e: DivisionError) {\n        printf(\"Error: %s\\n\", e.message);\n    }\n    \n    # Try a division by zero\n    try {\n        printf(\"Trying 10 / 0...\\n\");\n        local result: int = divide(10, 0);\n        printf(\"Result: %d\\n\", result);  # Never reached\n    } catch (e: DivisionError) {\n        printf(\"Caught error: %s\\n\", e.message);\n        printf(\"Tried: %d / %d\\n\", e.dividend, e.divisor);\n    }\n    \n    printf(\"\\nProgram continues after error handling!\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "10 / 2 = 5\nTrying 10 / 0...\nCaught error: Cannot divide by zero\nTried: 10 / 0\n\nProgram continues after error handling!",
+      "lineExplanations": {
+        "4-8": "Define a struct to hold error details.",
+        "12": "throw immediately exits the function with the error.",
+        "23": "try block contains code that might throw.",
+        "26": "catch (e: Type) catches errors of that specific type.",
+        "40": "Execution continues after try-catch completes."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Multiple Catch Blocks",
+      "code": "extern printf(fmt: string, ...);\n\n# Different error types\nstruct FileNotFoundError {\n    filename: string,\n}\n\nstruct PermissionError {\n    filename: string,\n    required: string,\n}\n\nstruct NetworkError {\n    host: string,\n    code: int,\n}\n\nframe simulateFileOperation(op: int) {\n    if (op == 1) {\n        throw FileNotFoundError { filename: \"data.txt\" };\n    }\n    if (op == 2) {\n        throw PermissionError { filename: \"secret.txt\", required: \"read\" };\n    }\n    if (op == 3) {\n        throw NetworkError { host: \"api.example.com\", code: 503 };\n    }\n    printf(\"Operation successful!\\n\");\n}\n\nframe main() ret int {\n    # Test different errors\n    loop (local i: int = 0; i <= 3; i = i + 1) {\n        printf(\"--- Operation %d ---\\n\", i);\n        \n        try {\n            simulateFileOperation(i);\n        } catch (e: FileNotFoundError) {\n            printf(\"File not found: %s\\n\", e.filename);\n        } catch (e: PermissionError) {\n            printf(\"Permission denied: need '%s' for %s\\n\", e.required, e.filename);\n        } catch (e: NetworkError) {\n            printf(\"Network error: %s (code %d)\\n\", e.host, e.code);\n        }\n        \n        printf(\"\\n\");\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "--- Operation 0 ---\nOperation successful!\n\n--- Operation 1 ---\nFile not found: data.txt\n\n--- Operation 2 ---\nPermission denied: need 'read' for secret.txt\n\n--- Operation 3 ---\nNetwork error: api.example.com (code 503)",
+      "lineExplanations": {
+        "4-16": "Define different error types for different situations.",
+        "38-44": "Multiple catch blocks handle different error types.",
+        "38": "First matching catch block is executed."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Catch-All - Catching Unknown Errors",
+      "code": "extern printf(fmt: string, ...);\n\nstruct KnownError {\n    code: int,\n}\n\nframe riskyOperation(op: int) {\n    if (op == 1) {\n        throw KnownError { code: 42 };\n    }\n    if (op == 2) {\n        throw \"Something unexpected happened\";  # Throw a string!\n    }\n    if (op == 3) {\n        throw 999;  # Throw an integer!\n    }\n    printf(\"Success!\\n\");\n}\n\nframe main() ret int {\n    loop (local i: int = 0; i <= 3; i = i + 1) {\n        printf(\"--- Test %d ---\\n\", i);\n        \n        try {\n            riskyOperation(i);\n        } catch (e: KnownError) {\n            printf(\"Known error with code: %d\\n\", e.code);\n        } catch {\n            printf(\"Unknown error occurred!\\n\");\n            # Can't access the error value here\n        }\n        \n        printf(\"\\n\");\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "--- Test 0 ---\nSuccess!\n\n--- Test 1 ---\nKnown error with code: 42\n\n--- Test 2 ---\nUnknown error occurred!\n\n--- Test 3 ---\nUnknown error occurred!",
+      "lineExplanations": {
+        "12": "You can throw any type - even strings!",
+        "15": "Or integers, or any other type.",
+        "28": "catch { } catches anything not caught by previous catches."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Rethrowing and Propagation",
+      "code": "extern printf(fmt: string, ...);\n\nstruct ValidationError {\n    field: string,\n    message: string,\n}\n\nframe validateAge(age: int) {\n    if (age < 0) {\n        throw ValidationError {\n            field: \"age\",\n            message: \"Age cannot be negative\"\n        };\n    }\n    if (age > 150) {\n        throw ValidationError {\n            field: \"age\",\n            message: \"Age seems unrealistic\"\n        };\n    }\n}\n\nframe processUser(name: string, age: int) {\n    printf(\"Processing user: %s, age %d\\n\", name, age);\n    \n    # This might throw - we let it propagate up\n    validateAge(age);\n    \n    printf(\"User %s validated successfully!\\n\", name);\n}\n\nframe main() ret int {\n    # Error propagates from validateAge through processUser to main\n    try {\n        processUser(\"Alice\", 25);\n        processUser(\"Bob\", -5);     # This will throw\n        processUser(\"Carol\", 30);   # Never reached\n    } catch (e: ValidationError) {\n        printf(\"Validation failed!\\n\");\n        printf(\"Field: %s\\n\", e.field);\n        printf(\"Error: %s\\n\", e.message);\n    }\n    \n    printf(\"\\n--- Second batch ---\\n\");\n    \n    try {\n        processUser(\"Dave\", 200);   # Too old\n    } catch (e: ValidationError) {\n        printf(\"Error: %s\\n\", e.message);\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Processing user: Alice, age 25\nUser Alice validated successfully!\nProcessing user: Bob, age -5\nValidation failed!\nField: age\nError: Age cannot be negative\n\n--- Second batch ---\nProcessing user: Dave, age 200\nError: Age seems unrealistic",
+      "lineExplanations": {
+        "27": "Exception thrown by validateAge propagates through processUser.",
+        "36": "Execution stops at the throw, never reaches Carol.",
+        "38": "Catch at the outer level handles the propagated error."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Cleanup with Defer",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\nstruct Resource {\n    name: string,\n    data: *void,\n    \n    frame acquire(name: string) ret Resource {\n        printf(\"Acquiring resource: %s\\n\", name);\n        return Resource {\n            name: name,\n            data: malloc(100)\n        };\n    }\n    \n    frame release(this: *Resource) {\n        printf(\"Releasing resource: %s\\n\", this.name);\n        if (this.data != nullptr) {\n            free(this.data);\n            this.data = nullptr;\n        }\n    }\n}\n\nframe riskyWork() {\n    throw \"Something went wrong!\";\n}\n\nframe doWork() {\n    local res: Resource = Resource.acquire(\"Database\");\n    \n    # defer ensures cleanup happens even if exception is thrown\n    defer {\n        res.release();\n    }\n    \n    printf(\"Doing work...\\n\");\n    riskyWork();  # This throws!\n    printf(\"Work complete!\\n\");  # Never reached\n}\n\nframe main() ret int {\n    try {\n        doWork();\n    } catch (e: string) {\n        printf(\"Error caught in main: %s\\n\", e);\n    }\n    \n    printf(\"\\nProgram finished cleanly!\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Acquiring resource: Database\nDoing work...\nReleasing resource: Database\nError caught in main: Something went wrong!\n\nProgram finished cleanly!",
+      "lineExplanations": {
+        "34": "defer schedules code to run when the scope exits.",
+        "39": "Exception is thrown, but defer still runs!",
+        "35": "Resource is properly released despite the error."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Error Handling Best Practices",
+      "content": "✅ **Create specific error types** - Don't just throw strings\n\n✅ **Include useful info** - Error type, message, context\n\n✅ **Handle at the right level** - Catch where you can recover\n\n✅ **Use defer for cleanup** - Ensures resources are released\n\n✅ **Don't catch and ignore** - At least log the error\n\n❌ **Don't use exceptions for control flow** - They're for errors\n\n❌ **Don't throw in destructors** - Can cause issues"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Safe Array Access",
+      "instructions": "Create an `IndexOutOfBoundsError` struct with fields: `index: int`, `size: int`.\nWrite `safeGet(arr: *int, size: int, index: int) ret int` that:\n- Returns the element if index is valid\n- Throws IndexOutOfBoundsError if index is invalid\n\nTest with array [10, 20, 30, 40, 50] accessing indices 2 and 10.",
+      "hint": "Check if index < 0 || index >= size before accessing.",
+      "solution": "extern printf(fmt: string, ...);\n\nstruct IndexOutOfBoundsError {\n    index: int,\n    size: int,\n}\n\nframe safeGet(arr: *int, size: int, index: int) ret int {\n    if (index < 0 || index >= size) {\n        throw IndexOutOfBoundsError {\n            index: index,\n            size: size\n        };\n    }\n    return *(arr + index);\n}\n\nframe main() ret int {\n    local data: int[5] = [10, 20, 30, 40, 50];\n    \n    try {\n        printf(\"data[2] = %d\\n\", safeGet(&data[0], 5, 2));\n        printf(\"data[10] = %d\\n\", safeGet(&data[0], 5, 10));\n    } catch (e: IndexOutOfBoundsError) {\n        printf(\"Error: index %d out of bounds (size %d)\\n\", e.index, e.size);\n    }\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **throw** raises an exception of any type\n\n✅ **try { }** contains code that might throw\n\n✅ **catch (e: Type)** handles specific error types\n\n✅ **catch { }** catches any unhandled exception\n\n✅ Exceptions **propagate up** the call stack\n\n✅ **defer** ensures cleanup even when exceptions occur\n\n✅ Create **custom error types** with descriptive fields"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What happens if an exception isn't caught?",
+          "options": [
+            "Program continues normally",
+            "Program terminates",
+            "Exception is ignored",
+            "Caught by main automatically"
+          ],
+          "correct": 1,
+          "explanation": "Uncaught exceptions cause the program to terminate with an error."
+        },
+        {
+          "question": "What does 'defer' do?",
+          "options": [
+            "Delays execution forever",
+            "Runs code when scope exits",
+            "Catches exceptions",
+            "Prevents exceptions"
+          ],
+          "correct": 1,
+          "explanation": "defer schedules code to run when the current scope exits, even if an exception is thrown."
+        },
+        {
+          "question": "When is catch { } executed?",
+          "options": [
+            "Always",
+            "When no specific catch matches",
+            "Before other catches",
+            "Only for null errors"
+          ],
+          "correct": 1,
+          "explanation": "catch { } runs when an exception doesn't match any specific catch block."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "14-lambdas-and-closures"
+}

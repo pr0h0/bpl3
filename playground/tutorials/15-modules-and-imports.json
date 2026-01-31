@@ -1,0 +1,160 @@
+{
+  "id": "modules-and-imports",
+  "order": 15,
+  "title": "Modules and Imports",
+  "category": "Organization",
+  "difficulty": "intermediate",
+  "duration": "12 min",
+  "description": "Organize your code into modules. Learn to import, export, and structure larger BPL projects.",
+  "prerequisites": ["lambdas-and-closures"],
+  "objectives": [
+    "Import functions and types from modules",
+    "Export your own functions and types",
+    "Use the standard library",
+    "Organize code into multiple files"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Why Modules?",
+      "content": "As programs grow, you need to:\n\n- **Organize** code into logical units\n- **Reuse** code across projects\n- **Hide** implementation details\n- **Avoid** name conflicts\n\nBPL's module system lets you split code into files, import what you need, and export what others can use."
+    },
+    {
+      "type": "comparison",
+      "title": "Import Syntax Comparison",
+      "languages": {
+        "BPL": "import [IO] from \"std/io.bpl\";\nimport myFunc from \"./myfile.bpl\";",
+        "Rust": "use std::io;\nmod myfile;",
+        "Python": "from std import io\nimport myfile",
+        "JavaScript": "import { IO } from 'std/io';\nimport myFunc from './myfile';"
+      },
+      "explanation": "BPL uses import/from syntax similar to JavaScript/TypeScript, with explicit file extensions."
+    },
+    {
+      "type": "code",
+      "title": "Importing from Standard Library",
+      "code": "# Import the IO module from standard library\nimport [IO] from \"std/io.bpl\";\n\nframe main() ret int {\n    # Use IO module functions\n    IO.print(\"Hello from IO module!\");\n    IO.printInt(42);\n    \n    # Multiple prints on one line using IO.print (no newline)\n    IO.print(\"The answer is: \");\n    IO.print(\"42\");\n    IO.print(\"\");  # Just adds newline\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Hello from IO module!42\nThe answer is: 42",
+      "lineExplanations": {
+        "2": "import [IO] brings in the IO namespace/struct.",
+        "6": "IO.print() prints without newline.",
+        "7": "IO.printInt() prints integer with newline."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Import Syntax Variations",
+      "code": "# Import a specific item\nimport [IO] from \"std/io.bpl\";\n\n# Import multiple items\n# import [String, StringBuilder] from \"std/string.bpl\";\n\n# Import with alias\n# import [IO as Console] from \"std/io.bpl\";\n\n# Import extern function (from C)\nextern printf(fmt: string, ...);\nextern sqrt(x: float) ret float;\n\nframe main() ret int {\n    # Using imported module\n    IO.print(\"Using IO module\\n\");\n    \n    # Using extern functions\n    printf(\"Using printf: %d\\n\", 123);\n    \n    local root: float = sqrt(16.0);\n    printf(\"sqrt(16) = %.1f\\n\", root);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Using IO module\nUsing printf: 123\nsqrt(16) = 4.0",
+      "lineExplanations": {
+        "2": "[IO] imports the IO struct/namespace.",
+        "11": "extern imports C functions directly.",
+        "12": "sqrt comes from C's math library."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Exporting Your Code",
+      "code": "# This would be in a file like 'mymath.bpl'\n# ==========================================\n# export frame add(a: int, b: int) ret int {\n#     return a + b;\n# }\n#\n# export struct Point {\n#     x: int,\n#     y: int,\n# }\n# ==========================================\n\n# In your main file:\n# import [add, Point] from \"./mymath.bpl\";\n\n# For now, let's demonstrate with inline code:\nextern printf(fmt: string, ...);\n\n# These would be exported in a real module:\nframe add(a: int, b: int) ret int {\n    return a + b;\n}\n\nframe multiply(a: int, b: int) ret int {\n    return a * b;\n}\n\nstruct Calculator {\n    lastResult: int,\n    \n    frame compute(this: *Calculator, a: int, op: string, b: int) ret int {\n        local result: int = 0;\n        # Simplified: just add or multiply\n        if (op == \"+\") {\n            result = add(a, b);\n        } else {\n            result = multiply(a, b);\n        }\n        this.lastResult = result;\n        return result;\n    }\n}\n\nframe main() ret int {\n    printf(\"add(5, 3) = %d\\n\", add(5, 3));\n    printf(\"multiply(4, 7) = %d\\n\", multiply(4, 7));\n    \n    local calc: Calculator = Calculator { lastResult: 0 };\n    printf(\"calc: 10 + 20 = %d\\n\", calc.compute(10, \"+\", 20));\n    printf(\"calc: 6 * 7 = %d\\n\", calc.compute(6, \"*\", 7));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "add(5, 3) = 8\nmultiply(4, 7) = 28\ncalc: 10 + 20 = 30\ncalc: 6 * 7 = 42",
+      "lineExplanations": {
+        "3": "export keyword makes functions available to importers.",
+        "7": "export works for structs too.",
+        "20": "Without export, functions are private to the file."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Standard Library Overview",
+      "content": "BPL includes a growing standard library:\n\n| Module | Purpose | Key Functions |\n|--------|---------|---------------|\n| `std/io.bpl` | Input/Output | printString, printInt, readLine |\n| `std/string.bpl` | String operations | length, concat, substring |\n| `std/math.bpl` | Math functions | abs, min, max, pow |\n| `std/collections.bpl` | Data structures | Vec, Map, Set |\n| `std/fs.bpl` | File system | readFile, writeFile |\n| `std/time.bpl` | Time operations | now, sleep |\n\nImport what you need:\n```bpl\nimport [IO] from \"std/io.bpl\";\nimport [Math] from \"std/math.bpl\";\n```"
+    },
+    {
+      "type": "code",
+      "title": "Using Standard Library IO",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Print different types using printf\n    printf(\"=== IO Module Demo ===\\n\\n\");\n    \n    # Strings\n    printf(\"Hello, \");\n    printf(\"World!\\n\");\n    \n    # Integers\n    printf(\"Integer: %d\\n\", 42);\n    \n    # Floats\n    printf(\"Float: %.5f\\n\", 3.14159);\n    \n    # Formatted output\n    printf(\"\\nCounting: \");\n    loop (local i: int = 1; i <= 5; i = i + 1) {\n        printf(\"%d \", i);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "=== IO Module Demo ===\n\nHello, World!\nInteger: 42\nFloat: 3.14159\n\nCounting: 1 2 3 4 5 ",
+      "lineExplanations": {
+        "1": "extern printf imports C's printf for flexible output.",
+        "12": "printf with %d for integer output.",
+        "15": "printf with %.5f for floating point precision."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Project Structure",
+      "content": "For larger projects, organize files by functionality:\n\n```\nmy_project/\n├── main.bpl           # Entry point\n├── bpl-package.json   # Package config\n├── src/\n│   ├── utils.bpl      # Utility functions\n│   ├── models/\n│   │   ├── user.bpl   # User struct\n│   │   └── order.bpl  # Order struct\n│   └── services/\n│       ├── auth.bpl   # Authentication\n│       └── data.bpl   # Data access\n└── tests/\n    └── utils.test.bpl # Tests\n```\n\n**Import paths:**\n- `\"std/...\"` - Standard library\n- `\"./file.bpl\"` - Same directory\n- `\"../file.bpl\"` - Parent directory\n- `\"./dir/file.bpl\"` - Subdirectory"
+    },
+    {
+      "type": "code",
+      "title": "Module Best Practices",
+      "code": "extern printf(fmt: string, ...);\n\n# Good: Export only what's needed\n# export frame publicAPI() { ... }\n# frame privateHelper() { ... }  # Not exported\n\n# Example: A well-structured module\n\n# Private helper (not exported)\nframe validateInput(input: int) ret bool {\n    return input >= 0 && input <= 100;\n}\n\n# Private constant\nlocal const MAX_RETRIES: int = 3;\n\n# This would be exported in a real module\nstruct Config {\n    maxItems: int,\n    timeout: int,\n    \n    frame create() ret Config {\n        return Config {\n            maxItems: 100,\n            timeout: 30\n        };\n    }\n    \n    frame isValid(this: *Config) ret bool {\n        return this.maxItems > 0 && this.timeout > 0;\n    }\n}\n\n# Public function (would be exported)\nframe processData(value: int) ret int {\n    if (validateInput(value) == false) {\n        printf(\"Invalid input!\\n\");\n        return -1;\n    }\n    return value * 2;\n}\n\nframe main() ret int {\n    local config: Config = Config.create();\n    \n    printf(\"Config valid: %d\\n\", config.isValid());\n    printf(\"Process 50: %d\\n\", processData(50));\n    printf(\"Process 150: %d\\n\", processData(150));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Config valid: 1\nProcess 50: 100\nInvalid input!\nProcess 150: -1",
+      "lineExplanations": {
+        "10": "Private helper - not exported, internal use only.",
+        "15": "Private constants are module-scoped.",
+        "35": "Public API would be exported."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Module Guidelines",
+      "content": "**DO:**\n✅ Export only the public API\n✅ Use clear, descriptive names\n✅ Group related functionality\n✅ Document exported items\n✅ Keep modules focused (single responsibility)\n\n**DON'T:**\n❌ Export internal helpers\n❌ Create circular dependencies\n❌ Put everything in one huge file\n❌ Use vague module names like \"utils\" or \"misc\""
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Create a Math Module",
+      "instructions": "Create functions that would belong in a math module:\n- `abs(n: int) ret int` - absolute value\n- `max(a: int, b: int) ret int` - larger of two\n- `min(a: int, b: int) ret int` - smaller of two\n- `clamp(val: int, lo: int, hi: int) ret int` - constrain to range\n\nTest them all in main.",
+      "hint": "abs: if n < 0 return -n. clamp: if val < lo return lo, if val > hi return hi.",
+      "solution": "import [IO] from \"std/io.bpl\";\n\n# Math module functions\nframe abs(n: int) ret int {\n    if (n < 0) {\n        return -n;\n    }\n    return n;\n}\n\nframe max(a: int, b: int) ret int {\n    if (a > b) { return a; }\n    return b;\n}\n\nframe min(a: int, b: int) ret int {\n    if (a < b) { return a; }\n    return b;\n}\n\nframe clamp(val: int, lo: int, hi: int) ret int {\n    if (val < lo) { return lo; }\n    if (val > hi) { return hi; }\n    return val;\n}\n\nframe main() ret int {\n    IO.print(\"abs(-5) = \");\n    IO.printInt(abs(-5));\n    IO.print(\"\\n\");\n    \n    IO.print(\"max(10, 20) = \");\n    IO.printInt(max(10, 20));\n    IO.print(\"\\n\");\n    \n    IO.print(\"min(10, 20) = \");\n    IO.printInt(min(10, 20));\n    IO.print(\"\\n\");\n    \n    IO.print(\"clamp(50, 0, 100) = \");\n    IO.printInt(clamp(50, 0, 100));\n    IO.print(\"\\n\");\n    \n    IO.print(\"clamp(-10, 0, 100) = \");\n    IO.printInt(clamp(-10, 0, 100));\n    IO.print(\"\\n\");\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **import [Name] from \"path\"** brings in modules\n\n✅ **export** makes items available to importers\n\n✅ Standard library: `\"std/module.bpl\"`\n\n✅ Local files: `\"./file.bpl\"` or `\"../file.bpl\"`\n\n✅ **extern** imports C functions\n\n✅ Keep modules **focused** and **well-organized**\n\n✅ Export only the **public API**"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does 'import [IO] from \"std/io.bpl\"' do?",
+          "options": [
+            "Creates a new IO module",
+            "Imports IO from standard library",
+            "Exports IO module",
+            "Defines IO locally"
+          ],
+          "correct": 1,
+          "explanation": "This imports the IO module from BPL's standard library."
+        },
+        {
+          "question": "How do you make a function available to other files?",
+          "options": [
+            "public frame",
+            "export frame",
+            "shared frame",
+            "global frame"
+          ],
+          "correct": 1,
+          "explanation": "Use the 'export' keyword before the frame declaration."
+        },
+        {
+          "question": "What does extern do?",
+          "options": [
+            "Exports to C",
+            "Imports from C library",
+            "Creates external file",
+            "Extends a function"
+          ],
+          "correct": 1,
+          "explanation": "extern declares a function that's defined externally, typically in C."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "16-memory-management"
+}

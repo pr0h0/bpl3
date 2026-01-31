@@ -776,13 +776,14 @@ export class Formatter {
     output += this.formatBlock(stmt.tryBlock, false);
 
     for (const clause of stmt.catchClauses) {
-      output += ` catch (${clause.variable}: ${this.formatType(clause.type)}) `;
+      if (clause.variable && clause.type) {
+        // Typed catch: catch (e: Type) { }
+        output += ` catch (${clause.variable}: ${this.formatType(clause.type)}) `;
+      } else {
+        // Catch-all: catch { }
+        output += ` catch `;
+      }
       output += this.formatBlock(clause.body, false);
-    }
-
-    if (stmt.catchOther) {
-      output += " catchOther ";
-      output += this.formatBlock(stmt.catchOther, false);
     }
 
     return output;

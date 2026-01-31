@@ -324,9 +324,6 @@ export class SelectionRangeProvider {
         const tryStmt = node as AST.TryStmt;
         if (tryStmt.tryBlock) children.push(tryStmt.tryBlock);
         children.push(...tryStmt.catchClauses.map((c) => c.body));
-        if (tryStmt.catchOther) {
-          children.push(tryStmt.catchOther);
-        }
         break;
 
       case "Match":

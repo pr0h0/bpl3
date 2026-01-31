@@ -299,14 +299,12 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
   // Check catch clauses
   for (const clause of stmt.catchClauses) {
     this.currentScope = this.currentScope.enterScope();
-    this.defineSymbol(clause.variable, "Variable", clause.type, clause);
+    // Only define variable if it's a typed catch (not catch-all)
+    if (clause.variable && clause.type) {
+      this.defineSymbol(clause.variable, "Variable", clause.type, clause);
+    }
     checkBlock.call(this, clause.body);
     this.currentScope = this.currentScope.exitScope();
-  }
-
-  // Check catch-all clause if present
-  if (stmt.catchOther) {
-    checkBlock.call(this, stmt.catchOther);
   }
 }
 
@@ -897,6 +895,33 @@ export function checkAllPathsReturn(
       return true;
     case "Throw":
       return true;
+    case "ExpressionStmt": {
+      // Check if this is a match expression where all arms return
+      const exprStmt = stmt as AST.ExpressionStmt;
+      if (exprStmt.expression.kind === "Match") {
+        const matchExpr = exprStmt.expression as AST.MatchExpr;
+        // Check if all arms have a return (or throw) in their body
+        if (matchExpr.arms.length === 0) return false;
+        for (const arm of matchExpr.arms) {
+          let armReturns = false;
+          if (arm.body.kind === "Block") {
+            // Block body - check if any statement returns
+            for (const s of (arm.body as AST.BlockStmt).statements) {
+              if (checkAllPathsReturn.call(this, s)) {
+                armReturns = true;
+                break;
+              }
+            }
+          } else {
+            // Expression body - doesn't contain return statements
+            armReturns = false;
+          }
+          if (!armReturns) return false;
+        }
+        return true;
+      }
+      return false;
+    }
     default:
       return false;
   }

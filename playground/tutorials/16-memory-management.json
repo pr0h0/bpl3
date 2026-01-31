@@ -1,0 +1,159 @@
+{
+  "id": "memory-management",
+  "order": 16,
+  "title": "Memory Management",
+  "category": "Advanced Concepts",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Understand stack vs heap, manual memory allocation, and safe memory patterns. Learn when and how to use malloc/free.",
+  "prerequisites": ["modules-and-imports"],
+  "objectives": [
+    "Understand stack vs heap allocation",
+    "Use malloc and free for dynamic memory",
+    "Avoid memory leaks and dangling pointers",
+    "Use defer for safe cleanup"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Stack vs Heap",
+      "content": "BPL has two types of memory:\n\n**Stack** (automatic)\n- Local variables live here\n- Automatically freed when scope ends\n- Fast but limited size\n- Can't outlive the function\n\n**Heap** (manual)\n- Allocated with `malloc`\n- Must be freed with `free`\n- Can be any size\n- Lives until you free it\n\n```bpl\nframe example() {\n    local x: int = 5;           # Stack\n    local p: *int = malloc(4);  # Heap\n    # ... use p ...\n    free(p);                    # Must free!\n}\n```"
+    },
+    {
+      "type": "comparison",
+      "title": "Memory Management Comparison",
+      "languages": {
+        "BPL": "local p: *int = malloc(sizeof<int>());\n*p = 42;\nfree(p);",
+        "C": "int* p = malloc(sizeof(int));\n*p = 42;\nfree(p);",
+        "Rust": "let p = Box::new(42);\n// Automatically freed",
+        "Go": "p := new(int)\n*p = 42\n// Garbage collected"
+      },
+      "explanation": "BPL uses manual memory management like C. You must free what you allocate."
+    },
+    {
+      "type": "code",
+      "title": "Basic malloc and free",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\nframe main() ret int {\n    # Allocate memory for a single integer\n    local p: *int = cast<*int>(malloc(sizeof<int>()));\n    \n    if (p == nullptr) {\n        printf(\"Allocation failed!\\n\");\n        return 1;\n    }\n    \n    # Store a value\n    *p = 42;\n    printf(\"Value at p: %d\\n\", *p);\n    \n    # Modify it\n    *p = *p * 2;\n    printf(\"After doubling: %d\\n\", *p);\n    \n    # Free the memory\n    free(cast<*void>(p));\n    printf(\"Memory freed!\\n\");\n    \n    # DANGER: p is now a dangling pointer!\n    # Don't use p after free\n    # *p = 100;  # UNDEFINED BEHAVIOR!\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Value at p: 42\nAfter doubling: 84\nMemory freed!",
+      "lineExplanations": {
+        "2": "malloc returns *void, takes size in bytes.",
+        "7": "cast<*int> converts void pointer to int pointer.",
+        "9": "Always check if allocation succeeded!",
+        "15": "*p dereferences - access the value at address.",
+        "23": "free releases the memory back to system."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Dynamic Arrays",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: u64) ret *void;\nextern free(ptr: *void);\n\nframe main() ret int {\n    local size: int = 5;\n    \n    # Allocate array of integers\n    local arr: *int = cast<*int>(malloc(cast<u64>(size) * sizeof<int>()));\n    \n    if (arr == nullptr) {\n        printf(\"Allocation failed!\\n\");\n        return 1;\n    }\n    \n    # Initialize array\n    loop (local i: int = 0; i < size; i = i + 1) {\n        *(arr + i) = (i + 1) * 10;\n    }\n    \n    # Print array\n    printf(\"Dynamic array: \");\n    loop (local i: int = 0; i < size; i = i + 1) {\n        printf(\"%d \", *(arr + i));\n    }\n    printf(\"\\n\");\n    \n    # Calculate sum\n    local sum: int = 0;\n    loop (local i: int = 0; i < size; i = i + 1) {\n        sum = sum + *(arr + i);\n    }\n    printf(\"Sum: %d\\n\", sum);\n    \n    # Free the array\n    free(cast<*void>(arr));\n    printf(\"Array freed!\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Dynamic array: 10 20 30 40 50 \nSum: 150\nArray freed!",
+      "lineExplanations": {
+        "9": "Multiply size by element size for total bytes.",
+        "18": "Pointer arithmetic: arr + i points to element i.",
+        "36": "Free the entire block with single free."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Using defer for Safe Cleanup",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: u64) ret *void;\nextern free(ptr: *void);\n\nstruct Buffer {\n    data: *int,\n    size: int,\n}\n\nframe processData(size: int) ret bool {\n    local buf: Buffer;\n    buf.data = cast<*int>(malloc(cast<u64>(size) * sizeof<int>()));\n    buf.size = size;\n    \n    if (buf.data == nullptr) {\n        return false;\n    }\n    \n    # defer ensures cleanup happens when function exits\n    defer {\n        printf(\"Cleaning up buffer...\\n\");\n        free(cast<*void>(buf.data));\n    }\n    \n    # Initialize\n    loop (local i: int = 0; i < size; i = i + 1) {\n        *(buf.data + i) = i * i;\n    }\n    \n    # Process\n    printf(\"Squares: \");\n    loop (local i: int = 0; i < size; i = i + 1) {\n        printf(\"%d \", *(buf.data + i));\n    }\n    printf(\"\\n\");\n    \n    # Simulate error check\n    if (size > 10) {\n        printf(\"Size too large!\\n\");\n        return false;  # defer still runs!\n    }\n    \n    printf(\"Processing complete!\\n\");\n    return true;  # defer runs here too\n}\n\nframe main() ret int {\n    printf(\"=== Test 1 (size=5) ===\\n\");\n    processData(5);\n    \n    printf(\"\\n=== Test 2 (size=15) ===\\n\");\n    processData(15);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "=== Test 1 (size=5) ===\nSquares: 0 1 4 9 16 \nProcessing complete!\nCleaning up buffer...\n\n=== Test 2 (size=15) ===\nSquares: 0 1 4 9 16 25 36 49 64 81 100 121 144 169 196 \nSize too large!\nCleaning up buffer...",
+      "lineExplanations": {
+        "20-23": "defer block runs when function exits, regardless of how.",
+        "40": "Early return - defer still runs!",
+        "44": "Normal return - defer runs after this line."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Allocating Structs",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\nstruct Person {\n    name: string,\n    age: int,\n}\n\nframe createPerson(name: string, age: int) ret *Person {\n    local p: *Person = cast<*Person>(malloc(sizeof<Person>()));\n    if (p == nullptr) {\n        return nullptr;\n    }\n    p.name = name;\n    p.age = age;\n    return p;\n}\n\nframe freePerson(p: *Person) {\n    if (p != nullptr) {\n        free(cast<*void>(p));\n    }\n}\n\nframe main() ret int {\n    # Create people on heap\n    local alice: *Person = createPerson(\"Alice\", 30);\n    local bob: *Person = createPerson(\"Bob\", 25);\n    \n    if (alice == nullptr || bob == nullptr) {\n        printf(\"Failed to allocate!\\n\");\n        return 1;\n    }\n    \n    printf(\"Person 1: %s, age %d\\n\", alice.name, alice.age);\n    printf(\"Person 2: %s, age %d\\n\", bob.name, bob.age);\n    \n    # Modify through pointer\n    alice.age = alice.age + 1;\n    printf(\"After birthday: %s is now %d\\n\", alice.name, alice.age);\n    \n    # Clean up\n    freePerson(alice);\n    freePerson(bob);\n    printf(\"Memory cleaned up!\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Person 1: Alice, age 30\nPerson 2: Bob, age 25\nAfter birthday: Alice is now 31\nMemory cleaned up!",
+      "lineExplanations": {
+        "11": "Allocate sizeof(Person) bytes.",
+        "15": "p.name is shorthand for (*p).name.",
+        "28": "Factory function returns heap-allocated struct.",
+        "44-45": "Always free what you allocate!"
+      }
+    },
+    {
+      "type": "text",
+      "title": "Common Memory Errors",
+      "content": "**Memory Leak** - Allocate but never free:\n```bpl\nlocal p: *int = malloc(4);\n# Forgot to free!\n```\n\n**Double Free** - Free same memory twice:\n```bpl\nfree(p);\nfree(p);  # CRASH!\n```\n\n**Use After Free** - Access freed memory:\n```bpl\nfree(p);\n*p = 10;  # UNDEFINED!\n```\n\n**Null Dereference** - Access null pointer:\n```bpl\nlocal p: *int = nullptr;\n*p = 10;  # CRASH!\n```\n\n**Buffer Overflow** - Write past allocation:\n```bpl\nlocal arr: *int = malloc(5 * 4);  # 5 ints\n*(arr + 10) = 99;  # OUT OF BOUNDS!\n```"
+    },
+    {
+      "type": "code",
+      "title": "RAII-like Pattern",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: u64) ret *void;\nextern free(ptr: *void);\nextern memset(ptr: *void, value: int, size: u64) ret *void;\n\n# A vector that manages its own memory\nstruct IntVec {\n    data: *int,\n    len: int,\n    cap: int,\n    \n    # Constructor\n    frame create(initialCap: int) ret IntVec {\n        local v: IntVec;\n        v.cap = initialCap;\n        v.len = 0;\n        v.data = cast<*int>(malloc(cast<u64>(initialCap) * sizeof<int>()));\n        return v;\n    }\n    \n    # Destructor\n    frame destroy(this: *IntVec) {\n        if (this.data != nullptr) {\n            free(cast<*void>(this.data));\n            this.data = nullptr;\n            this.len = 0;\n            this.cap = 0;\n        }\n    }\n    \n    frame push(this: *IntVec, value: int) ret bool {\n        if (this.len >= this.cap) {\n            printf(\"Vector full!\\n\");\n            return false;\n        }\n        *(this.data + this.len) = value;\n        this.len = this.len + 1;\n        return true;\n    }\n    \n    frame get(this: *IntVec, index: int) ret int {\n        return *(this.data + index);\n    }\n    \n    frame print(this: *IntVec) {\n        printf(\"[\");\n        loop (local i: int = 0; i < this.len; i = i + 1) {\n            printf(\"%d\", this.get(i));\n            if (i < this.len - 1) {\n                printf(\", \");\n            }\n        }\n        printf(\"]\\n\");\n    }\n}\n\nframe main() ret int {\n    local vec: IntVec = IntVec.create(10);\n    \n    defer {\n        printf(\"Destroying vector...\\n\");\n        vec.destroy();\n    }\n    \n    vec.push(10);\n    vec.push(20);\n    vec.push(30);\n    vec.push(40);\n    \n    printf(\"Vector length: %d\\n\", vec.len);\n    printf(\"Vector contents: \");\n    vec.print();\n    \n    printf(\"Element at 2: %d\\n\", vec.get(2));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Vector length: 4\nVector contents: [10, 20, 30, 40]\nElement at 2: 30\nDestroying vector...",
+      "lineExplanations": {
+        "13-18": "Constructor allocates memory.",
+        "22-29": "Destructor frees memory.",
+        "59": "Create vector with initial capacity.",
+        "61-64": "defer ensures cleanup on any exit path."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Memory Safety Guidelines",
+      "content": "✅ **Always check malloc return value**\n```bpl\nlocal p = malloc(size);\nif (p == nullptr) { return error; }\n```\n\n✅ **Use defer for cleanup**\n```bpl\nlocal p = malloc(size);\ndefer { free(p); }\n```\n\n✅ **Set pointer to nullptr after free**\n```bpl\nfree(p);\np = nullptr;  # Prevents use-after-free\n```\n\n✅ **One owner per allocation**\n- Clear ownership: who allocates, who frees\n\n✅ **Prefer stack when possible**\n- Heap only for dynamic sizes or data that outlives scope"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Safe String Buffer",
+      "instructions": "Create a `StringBuffer` struct with:\n- `data: *char` - heap-allocated character array\n- `len: int` - current length\n- `cap: int` - capacity\n\nImplement:\n- `create(cap: int) ret StringBuffer`\n- `destroy(this: *StringBuffer)`\n- `append(this: *StringBuffer, c: char)` - add character\n\nUse defer for cleanup.",
+      "hint": "Similar to IntVec, but with char instead of int.",
+      "solution": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\nstruct StringBuffer {\n    data: *char,\n    len: int,\n    cap: int,\n    \n    frame create(cap: int) ret StringBuffer {\n        local sb: StringBuffer;\n        sb.data = cast<*char>(malloc(cap));\n        sb.len = 0;\n        sb.cap = cap;\n        return sb;\n    }\n    \n    frame destroy(this: *StringBuffer) {\n        if (this.data != nullptr) {\n            free(cast<*void>(this.data));\n            this.data = nullptr;\n        }\n    }\n    \n    frame append(this: *StringBuffer, c: char) ret bool {\n        if (this.len >= this.cap - 1) {\n            return false;\n        }\n        *(this.data + this.len) = c;\n        this.len = this.len + 1;\n        *(this.data + this.len) = cast<char>(0);  # Null terminate\n        return true;\n    }\n}\n\nframe main() ret int {\n    local sb: StringBuffer = StringBuffer.create(20);\n    defer { sb.destroy(); }\n    \n    sb.append('H');\n    sb.append('e');\n    sb.append('l');\n    sb.append('l');\n    sb.append('o');\n    \n    printf(\"Buffer: %s\\n\", sb.data);\n    printf(\"Length: %d\\n\", sb.len);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Stack** is automatic, **heap** is manual\n\n✅ `malloc(size)` allocates, `free(ptr)` deallocates\n\n✅ **Always check** if malloc succeeded\n\n✅ Use **defer** for guaranteed cleanup\n\n✅ **sizeof<T>()** gives size in bytes\n\n✅ Avoid: leaks, double-free, use-after-free\n\n✅ Wrap allocations in **structs with destroy methods**"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What happens if you call malloc and never call free?",
+          "options": [
+            "Nothing",
+            "Memory leak",
+            "Compile error",
+            "Auto-freed at end"
+          ],
+          "correct": 1,
+          "explanation": "Memory leak - the memory is never returned to the system until program ends."
+        },
+        {
+          "question": "What does defer do?",
+          "options": [
+            "Delays execution indefinitely",
+            "Runs code when scope exits",
+            "Frees memory automatically",
+            "Checks for null"
+          ],
+          "correct": 1,
+          "explanation": "defer schedules code to run when the current scope exits, perfect for cleanup."
+        },
+        {
+          "question": "After free(p), what should you do with p?",
+          "options": [
+            "Use it normally",
+            "Set p = nullptr",
+            "Call free again",
+            "Nothing"
+          ],
+          "correct": 1,
+          "explanation": "Setting p = nullptr prevents accidental use-after-free bugs."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "17-type-aliases"
+}

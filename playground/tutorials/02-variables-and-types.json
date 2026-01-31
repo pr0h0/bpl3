@@ -1,0 +1,108 @@
+{
+  "id": "variables-and-types",
+  "order": 2,
+  "title": "Variables and Data Types",
+  "category": "Getting Started",
+  "difficulty": "beginner",
+  "duration": "10 min",
+  "description": "Learn how to store and work with data in BPL. Understand the different data types and how to declare variables.",
+  "prerequisites": ["welcome"],
+  "objectives": [
+    "Declare variables with the 'local' keyword",
+    "Understand primitive data types (int, float, bool, char, string)",
+    "Use type annotations and initialization"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Variables in BPL",
+      "content": "Variables are containers that store data. In BPL, you must **declare** a variable before using it.\n\n**BPL is explicit** - you use the `local` keyword to declare local variables. This makes it clear where variables come from."
+    },
+    {
+      "type": "comparison",
+      "title": "Variable Declaration Comparison",
+      "languages": {
+        "BPL": "local age: int = 25;\nlocal name: string = \"Alice\";",
+        "C": "int age = 25;\nchar* name = \"Alice\";",
+        "JavaScript": "let age = 25;\nlet name = \"Alice\";",
+        "Python": "age = 25\nname = \"Alice\""
+      },
+      "explanation": "BPL requires the 'local' keyword and explicit type annotations. This verbosity pays off with better error messages and code clarity."
+    },
+    {
+      "type": "code",
+      "title": "Primitive Data Types",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Integer type\n    local age: int = 25;           # 32-bit signed integer (most common)\n    \n    # Floating point (decimals)\n    local price: float = 19.99;    # 64-bit floating point\n    \n    # Boolean (true/false)\n    local isActive: bool = true;\n    \n    # Character (single letter)\n    local grade: char = 'A';\n    \n    # String (text)\n    local greeting: string = \"Hello, World!\";\n    \n    # Print them all!\n    printf(\"Age: %d\\n\", age);\n    printf(\"Price: %.2f\\n\", price);\n    printf(\"Is Active: %d\\n\", isActive);  # 1 = true, 0 = false\n    printf(\"Grade: %c\\n\", grade);\n    printf(\"Greeting: %s\\n\", greeting);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Age: 25\nPrice: 19.99\nIs Active: 1\nGrade: A\nGreeting: Hello, World!",
+      "lineExplanations": {
+        "5": "int is the default integer type - use this for most whole numbers.",
+        "6": "i64 holds very large numbers (up to 9 quintillion!).",
+        "8": "u32 is unsigned - it can't be negative but holds larger positive values.",
+        "11": "float is for numbers with decimal points.",
+        "14-15": "bool has only two values: true or false.",
+        "18": "char holds a single character, using single quotes.",
+        "21": "string holds text, using double quotes."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Integer Types Reference",
+      "content": "| Type | Bits | Range | Use Case |\n|------|------|-------|----------|\n| `i8` | 8 | -128 to 127 | Small values, bytes |\n| `i16` | 16 | -32,768 to 32,767 | Moderate values |\n| `int`/`i32` | 32 | ±2.1 billion | Most common |\n| `i64` | 64 | ±9.2 quintillion | Large numbers |\n| `u8` | 8 | 0 to 255 | Bytes, small positive |\n| `u16` | 16 | 0 to 65,535 | Moderate positive |\n| `u32` | 32 | 0 to 4.3 billion | Large positive |\n| `u64` | 64 | 0 to 18 quintillion | Very large positive |"
+    },
+    {
+      "type": "code",
+      "title": "Variable Operations",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Variables can be changed (mutated)\n    local score: int = 0;\n    printf(\"Initial score: %d\\n\", score);\n    \n    score = 10;  # Assign new value\n    printf(\"After assignment: %d\\n\", score);\n    \n    score = score + 5;  # Add to existing value\n    printf(\"After adding 5: %d\\n\", score);\n    \n    # Shorthand operators\n    score = score + 10;   # Same as: score += 10 (if supported)\n    printf(\"Final score: %d\\n\", score);\n    \n    # Constants (cannot be changed)\n    local const MAX_SCORE: int = 100;\n    printf(\"Max possible score: %d\\n\", MAX_SCORE);\n    # MAX_SCORE = 200;  # ERROR! Can't modify a const\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Initial score: 0\nAfter assignment: 10\nAfter adding 5: 15\nFinal score: 25\nMax possible score: 100",
+      "lineExplanations": {
+        "5": "Variables start with an initial value.",
+        "8": "Use = to assign a new value.",
+        "11": "The variable's current value is used in the expression.",
+        "18": "'local const' creates an immutable variable - it cannot be changed."
+      }
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Temperature Converter",
+      "instructions": "Create a program that:\n1. Stores a temperature in Celsius (e.g., 25.0)\n2. Converts it to Fahrenheit using: F = C × 9/5 + 32\n3. Prints both values",
+      "hint": "Use 'float' for temperature values. Cast integers to float if needed.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local celsius: float = 25.0;\n    local fahrenheit: float = celsius * 9.0 / 5.0 + 32.0;\n    \n    printf(\"%.1f°C = %.1f°F\\n\", celsius, fahrenheit);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ Use **local** to declare variables inside functions\n\n✅ Always specify the **type** after the colon: `local x: int`\n\n✅ **int** and **float** are the most common types\n\n✅ **bool** is for true/false values\n\n✅ Use **local const** for values that shouldn't change\n\n✅ **string** uses double quotes, **char** uses single quotes"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "Which type would you use for someone's age?",
+          "options": ["float", "string", "int", "bool"],
+          "correct": 2,
+          "explanation": "Age is a whole number, so 'int' is the best choice."
+        },
+        {
+          "question": "What keyword makes a variable unchangeable?",
+          "options": ["final", "const", "immutable", "fixed"],
+          "correct": 1,
+          "explanation": "Use 'local const' to create a constant that cannot be reassigned."
+        },
+        {
+          "question": "How do you declare a floating point variable named 'price'?",
+          "options": [
+            "float price = 9.99;",
+            "local price: float = 9.99;",
+            "var price = 9.99;",
+            "let price: float = 9.99;"
+          ],
+          "correct": 1,
+          "explanation": "BPL uses 'local' keyword with type annotation after colon."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "03-operators-and-expressions"
+}

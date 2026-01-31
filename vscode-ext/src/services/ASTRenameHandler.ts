@@ -1776,7 +1776,6 @@ export class ASTRenameHandler {
         const tryNode = node as AST.TryStmt;
         callback(tryNode.tryBlock);
         tryNode.catchClauses.forEach(callback);
-        if (tryNode.catchOther) callback(tryNode.catchOther);
         break;
       case "CatchClause":
         const catchNode = node as AST.CatchClause;

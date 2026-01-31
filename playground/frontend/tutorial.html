@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BPL Tutorial - Learn BPL from Zero to Hero</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="tutorial.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+
+  <body class="tutorial-page">
+    <div class="tutorial-container">
+      <!-- Sidebar with lessons -->
+      <aside class="tutorial-sidebar">
+        <div class="sidebar-header">
+          <h1><i class="fas fa-graduation-cap"></i> Learn BPL</h1>
+          <p class="tagline">From Zero to Hero</p>
+          <a href="index.html" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Playground
+          </a>
+        </div>
+
+        <!-- Progress indicator -->
+        <div class="progress-section">
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              id="progress-fill"
+              style="width: 0%"
+            ></div>
+          </div>
+          <span class="progress-text" id="progress-text">0 / 0 lessons</span>
+        </div>
+
+        <!-- Category filter -->
+        <div class="category-filter">
+          <select id="category-filter">
+            <option value="all">All Categories</option>
+          </select>
+        </div>
+
+        <!-- Lessons list -->
+        <div class="lessons-list" id="lessons-list">
+          <!-- Lessons will be loaded here -->
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="tutorial-main">
+        <!-- Header -->
+        <div class="tutorial-header">
+          <div class="lesson-meta">
+            <span class="difficulty-badge" id="lesson-difficulty"
+              >Beginner</span
+            >
+            <span class="duration-badge" id="lesson-duration"
+              ><i class="fas fa-clock"></i> 5 min</span
+            >
+            <span class="category-badge" id="lesson-category"
+              >Getting Started</span
+            >
+          </div>
+          <h2 id="lesson-title">Welcome to BPL</h2>
+          <p id="lesson-description">
+            Learn the basics of BPL programming language.
+          </p>
+          <div class="lesson-objectives" id="lesson-objectives">
+            <!-- Objectives will be loaded here -->
+          </div>
+        </div>
+
+        <!-- Content sections -->
+        <div class="tutorial-content" id="tutorial-content">
+          <!-- Tutorial sections will be loaded here -->
+        </div>
+
+        <!-- Navigation -->
+        <div class="tutorial-navigation">
+          <button class="nav-btn prev-btn" id="prev-btn" disabled>
+            <i class="fas fa-arrow-left"></i> Previous Lesson
+          </button>
+          <button class="nav-btn next-btn" id="next-btn">
+            Next Lesson <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Code runner modal -->
+    <div class="code-modal" id="code-modal" style="display: none">
+      <div class="code-modal-content">
+        <div class="code-modal-header">
+          <h3><i class="fas fa-play"></i> Run Code</h3>
+          <button class="close-modal-btn" id="close-modal-btn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="code-modal-body">
+          <div class="editor-section">
+            <div class="editor-label"><i class="fas fa-code"></i> Code</div>
+            <div id="modal-editor" class="modal-editor"></div>
+          </div>
+          <div class="output-section">
+            <div class="output-label">
+              <i class="fas fa-terminal"></i> Output
+              <button class="run-btn" id="modal-run-btn">
+                <i class="fas fa-play"></i> Run
+              </button>
+            </div>
+            <pre id="modal-output" class="modal-output">
+Click "Run" to execute the code...</pre
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading-overlay" style="display: none">
+      <div class="spinner"></div>
+      <p><i class="fas fa-book-reader"></i> Loading lesson...</p>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <script src="tutorial.js"></script>
+  </body>
+</html>

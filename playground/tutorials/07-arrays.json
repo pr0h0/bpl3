@@ -1,0 +1,143 @@
+{
+  "id": "arrays",
+  "order": 7,
+  "title": "Arrays",
+  "category": "Data Structures",
+  "difficulty": "beginner",
+  "duration": "12 min",
+  "description": "Learn how to work with collections of data using arrays. Store multiple values, iterate through them, and manipulate array data.",
+  "prerequisites": ["functions-basics"],
+  "objectives": [
+    "Create and initialize arrays",
+    "Access and modify array elements",
+    "Iterate through arrays with loops",
+    "Understand array bounds and safety"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What are Arrays?",
+      "content": "An **array** is a collection of elements of the same type, stored in contiguous memory.\n\n- All elements must be the **same type**\n- Elements are accessed by **index** (starting from 0)\n- Arrays have a **fixed size** (determined at compile time)\n- Very **efficient** for sequential access"
+    },
+    {
+      "type": "comparison",
+      "title": "Array Syntax Comparison",
+      "languages": {
+        "BPL": "local nums: int[5];           # Uninitialized\nlocal arr: int[] = [1, 2, 3];  # Initialized",
+        "C": "int nums[5];\nint arr[] = {1, 2, 3};",
+        "Rust": "let nums: [i32; 5];\nlet arr = [1, 2, 3];",
+        "JavaScript": "let nums = new Array(5);\nlet arr = [1, 2, 3];"
+      },
+      "explanation": "BPL uses type[size] for fixed arrays. The type comes first, followed by brackets with the size."
+    },
+    {
+      "type": "code",
+      "title": "Creating and Accessing Arrays",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Create an array with initial values (must specify size)\n    local scores: int[5] = [85, 92, 78, 90, 88];\n    \n    # Access elements by index (0-based!)\n    printf(\"First score: %d\\n\", scores[0]);\n    printf(\"Second score: %d\\n\", scores[1]);\n    printf(\"Last score: %d\\n\", scores[4]);\n    \n    # Modify an element\n    scores[2] = 82;  # Change 78 to 82\n    printf(\"Updated third score: %d\\n\", scores[2]);\n    \n    # Array of floats\n    local prices: float[3] = [9.99, 24.50, 14.99];\n    printf(\"\\nFirst price: $%.2f\\n\", prices[0]);\n    \n    # Array of booleans\n    local flags: bool[3] = [true, false, true];\n    printf(\"First flag: %d\\n\", flags[0]);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "First score: 85\nSecond score: 92\nLast score: 88\nUpdated third score: 82\n\nFirst price: $9.99\nFirst flag: 1",
+      "lineExplanations": {
+        "5": "int[] with initializer - array size is determined from values (5 elements).",
+        "8": "scores[0] is the first element (index 0).",
+        "10": "scores[4] is the fifth element (index 4).",
+        "13": "Arrays are mutable - you can change individual elements."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Iterating Through Arrays",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local numbers: int[5] = [10, 20, 30, 40, 50];\n    local length: int = 5;  # Track array length\n    \n    # Print all elements with a for loop\n    printf(\"All numbers:\\n\");\n    loop (local i: int = 0; i < length; i = i + 1) {\n        printf(\"numbers[%d] = %d\\n\", i, numbers[i]);\n    }\n    \n    # Calculate sum\n    local sum: int = 0;\n    loop (local j: int = 0; j < length; j = j + 1) {\n        sum = sum + numbers[j];\n    }\n    printf(\"\\nSum: %d\\n\", sum);\n    printf(\"Average: %d\\n\", sum / length);\n    \n    # Find maximum\n    local max: int = numbers[0];\n    loop (local k: int = 1; k < length; k = k + 1) {\n        if (numbers[k] > max) {\n            max = numbers[k];\n        }\n    }\n    printf(\"Maximum: %d\\n\", max);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "All numbers:\nnumbers[0] = 10\nnumbers[1] = 20\nnumbers[2] = 30\nnumbers[3] = 40\nnumbers[4] = 50\n\nSum: 150\nAverage: 30\nMaximum: 50",
+      "lineExplanations": {
+        "5": "Keep track of array length - BPL doesn't have built-in .length.",
+        "9": "Loop from 0 to length-1 (using < length).",
+        "22": "Start with first element as max, then compare rest.",
+        "23": "Start from index 1 since we already have index 0."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Multi-Dimensional Arrays",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # 2D array (2 rows, 2 columns) - assigned element by element\n    local matrix: int[2][2];\n    matrix[0][0] = 1;  matrix[0][1] = 2;\n    matrix[1][0] = 3;  matrix[1][1] = 4;\n    \n    local rows: int = 2;\n    local cols: int = 2;\n    \n    # Print the matrix\n    printf(\"Matrix:\\n\");\n    loop (local i: int = 0; i < rows; i = i + 1) {\n        loop (local j: int = 0; j < cols; j = j + 1) {\n            printf(\"%3d \", matrix[i][j]);\n        }\n        printf(\"\\n\");\n    }\n    \n    # Access specific element\n    printf(\"\\nElement at [1][1]: %d\\n\", matrix[1][1]);\n    \n    # Modify an element\n    matrix[0][0] = 99;\n    printf(\"Modified [0][0]: %d\\n\", matrix[0][0]);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Matrix:\n  1   2 \n  3   4 \n\nElement at [1][1]: 4\nModified [0][0]: 99",
+      "lineExplanations": {
+        "5": "int[2][2] creates a 2D array (2 rows, 2 columns).",
+        "6-7": "Assign values to each element individually.",
+        "14": "Nested loops: outer for rows, inner for columns.",
+        "15": "matrix[i][j] - first index is row, second is column."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Passing Arrays to Functions",
+      "code": "extern printf(fmt: string, ...);\n\n# Function that takes array and its length\nframe printArray(arr: *int, len: int) {\n    loop (local i: int = 0; i < len; i = i + 1) {\n        printf(\"%d \", *(arr + i));\n    }\n    printf(\"\\n\");\n}\n\n# Function to calculate sum\nframe sumArray(arr: *int, len: int) ret int {\n    local total: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        total = total + *(arr + i);\n    }\n    return total;\n}\n\n# Function to find minimum\nframe minArray(arr: *int, len: int) ret int {\n    local min: int = *arr;  # First element\n    loop (local i: int = 1; i < len; i = i + 1) {\n        if (*(arr + i) < min) {\n            min = *(arr + i);\n        }\n    }\n    return min;\n}\n\nframe main() ret int {\n    local data: int[5] = [42, 17, 89, 23, 56];\n    local len: int = 5;\n    \n    printf(\"Array: \");\n    printArray(&data[0], len);  # Pass pointer to first element\n    \n    printf(\"Sum: %d\\n\", sumArray(&data[0], len));\n    printf(\"Min: %d\\n\", minArray(&data[0], len));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Array: 42 17 89 23 56 \nSum: 227\nMin: 17",
+      "lineExplanations": {
+        "4": "*int is a pointer to int - arrays decay to pointers.",
+        "6": "*(arr + i) accesses element at index i via pointer arithmetic.",
+        "36": "&data[0] gets address of first element."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Array Bounds Warning!",
+      "content": "⚠️ **BPL does NOT check array bounds by default!**\n\nAccessing an index outside the array leads to **undefined behavior**:\n\n```bpl\nlocal arr: int[] = [1, 2, 3];  # Valid indices: 0, 1, 2\n\nprintf(\"%d\", arr[5]);  # BAD! Index 5 doesn't exist\narr[10] = 42;          # BAD! Writing outside bounds\n```\n\nThis can:\n- Read garbage values\n- Overwrite other variables\n- Crash your program\n- Create security vulnerabilities\n\n**Always track your array sizes and validate indices!**"
+    },
+    {
+      "type": "code",
+      "title": "Safe Array Access Pattern",
+      "code": "extern printf(fmt: string, ...);\n\n# Safe getter with bounds checking\nframe safeGet(arr: *int, len: int, index: int, defaultVal: int) ret int {\n    if (index < 0 || index >= len) {\n        printf(\"Warning: Index %d out of bounds (0-%d)\\n\", index, len - 1);\n        return defaultVal;\n    }\n    return *(arr + index);\n}\n\n# Safe setter with bounds checking\nframe safeSet(arr: *int, len: int, index: int, value: int) ret bool {\n    if (index < 0 || index >= len) {\n        printf(\"Error: Cannot set index %d (out of bounds)\\n\", index);\n        return false;\n    }\n    *(arr + index) = value;\n    return true;\n}\n\nframe main() ret int {\n    local data: int[5] = [10, 20, 30, 40, 50];\n    local len: int = 5;\n    \n    # Safe access\n    printf(\"data[2]: %d\\n\", safeGet(&data[0], len, 2, 0));\n    printf(\"data[10]: %d\\n\", safeGet(&data[0], len, 10, -1));\n    \n    # Safe modification\n    safeSet(&data[0], len, 1, 25);\n    printf(\"Updated data[1]: %d\\n\", safeGet(&data[0], len, 1, 0));\n    \n    safeSet(&data[0], len, 100, 999);  # Will fail safely\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "data[2]: 30\nWarning: Index 10 out of bounds (0-4)\ndata[10]: -1\nUpdated data[1]: 25\nError: Cannot set index 100 (out of bounds)",
+      "lineExplanations": {
+        "5": "Check if index is negative or >= length.",
+        "7": "Return a default value for invalid indices.",
+        "14": "Return false if the set operation failed."
+      }
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Array Statistics",
+      "instructions": "Write a program that:\n1. Creates an array of 6 test scores: [78, 92, 85, 69, 95, 88]\n2. Calculates and prints: minimum, maximum, sum, and average\n3. Counts how many scores are >= 80 (passing)",
+      "hint": "Loop through the array, keeping track of min, max, and sum. Count passes with an if inside the loop.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local scores: int[6] = [78, 92, 85, 69, 95, 88];\n    local len: int = 6;\n    \n    local min: int = scores[0];\n    local max: int = scores[0];\n    local sum: int = 0;\n    local passing: int = 0;\n    \n    loop (local i: int = 0; i < len; i = i + 1) {\n        local score: int = scores[i];\n        sum = sum + score;\n        \n        if (score < min) { min = score; }\n        if (score > max) { max = score; }\n        if (score >= 80) { passing = passing + 1; }\n    }\n    \n    printf(\"Statistics:\\n\");\n    printf(\"Min: %d\\n\", min);\n    printf(\"Max: %d\\n\", max);\n    printf(\"Sum: %d\\n\", sum);\n    printf(\"Average: %d\\n\", sum / len);\n    printf(\"Passing (>=80): %d out of %d\\n\", passing, len);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ Arrays store multiple values of the **same type**\n\n✅ Indices start at **0** (first element is arr[0])\n\n✅ Use `type[]` with initializer or `type[size]` for fixed size\n\n✅ **Track array length** - BPL doesn't have built-in .length\n\n✅ **No bounds checking** - always validate indices!\n\n✅ Arrays are passed as **pointers** to functions\n\n✅ Use `int[][]` for 2D arrays (matrices)"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What is the index of the first element in an array?",
+          "options": ["1", "0", "-1", "Depends on the array"],
+          "correct": 1,
+          "explanation": "Arrays in BPL (and most languages) are 0-indexed. First element is at index 0."
+        },
+        {
+          "question": "Given `local arr: int[] = [5, 10, 15, 20];`, what is arr[2]?",
+          "options": ["5", "10", "15", "20"],
+          "correct": 2,
+          "explanation": "arr[0]=5, arr[1]=10, arr[2]=15, arr[3]=20. Index 2 is the third element."
+        },
+        {
+          "question": "What happens if you access arr[100] when arr has only 5 elements?",
+          "options": [
+            "Returns 0",
+            "Returns null",
+            "Undefined behavior",
+            "Compile error"
+          ],
+          "correct": 2,
+          "explanation": "BPL doesn't check bounds. Accessing invalid indices is undefined behavior."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "08-structs"
+}

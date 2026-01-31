@@ -315,9 +315,6 @@ export class FoldingRangeProvider {
         for (const catchClause of tryCatch.catchClauses) {
           children.push(catchClause.body);
         }
-        if (tryCatch.catchOther) {
-          children.push(tryCatch.catchOther);
-        }
         break;
     }
 

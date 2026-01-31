@@ -5,7 +5,7 @@
  * - try/catch block compilation with LLVM landingpad
  * - throw statement code generation
  * - Exception type matching and dispatch
- * - catchOther catch-all handling
+ * - catch-all handling (catch { })
  * - defer statement cleanup handlers
  * - Stack unwinding support
  *
@@ -117,6 +117,11 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // Generate checks for each catch clause
     // catch (e: int) checks if @exception_type == 1
+    // catch { } (no type) is a catch-all
+
+    // Find if there's a catch-all clause (clause with null type)
+    const catchAllIndex = stmt.catchClauses.findIndex((c) => c.type === null);
+    const _hasCatchAll = catchAllIndex !== -1;
 
     // Let's gather labels first.
     const clauseLabels = stmt.catchClauses.map((_, i) => ({
@@ -127,13 +132,6 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     // Jump to first check or end
     if (stmt.catchClauses.length > 0) {
       this.emit(`  br label %${clauseLabels[0]!.check}`);
-    } else if (stmt.catchOther) {
-      // No clauses? Go to catchOther
-      const anyLabel = this.newLabel("catch.any");
-      this.emit(`  br label %${anyLabel}`);
-      this.emit(`${anyLabel}:`);
-      this.generateBlock(stmt.catchOther);
-      this.emit(`  br label %${endLabel}`);
     } else {
       // Rethrow if no handler
       this.emit(`  call void @exit(i32 1)`); // Unhandled
@@ -143,95 +141,92 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     for (let i = 0; i < stmt.catchClauses.length; i++) {
       const clause = stmt.catchClauses[i]!;
       const labels = clauseLabels[i]!;
+      const isCatchAll = clause.type === null;
+
       let nextTarget: string;
       if (i < stmt.catchClauses.length - 1) {
         nextTarget = clauseLabels[i + 1]!.check;
-      } else if (stmt.catchOther) {
-        nextTarget = this.newLabel("catch.other");
       } else {
         nextTarget = endLabel;
       }
 
       this.emit(`${labels.check}:`);
-      const targetTypeId = this.getTypeIdFromNode(clause.type);
-      const typeMatch = this.newRegister();
-      this.emit(
-        `  ${typeMatch} = icmp eq i32 ${exceptionTypeReg}, ${targetTypeId}`,
-      );
-      this.emit(
-        `  br i1 ${typeMatch}, label %${labels.body}, label %${nextTarget}`,
-      );
 
-      this.emit(`${labels.body}:`);
-      // Bind variable
-      const targetTypeStr = this.resolveType(clause.type);
-      const valI64 = this.newRegister();
-      this.emit(`  ${valI64} = load i64, i64* @exception_value`);
-
-      // For structs, load from heap. For primitives, cast from i64.
-      if (targetTypeStr.startsWith("%struct.")) {
-        // Convert i64 pointer back to struct pointer
-        const structPtr = this.newRegister();
-        this.emit(
-          `  ${structPtr} = inttoptr i64 ${valI64} to ${targetTypeStr}*`,
-        );
-
-        // Load struct from heap
-        const structVal = this.newRegister();
-        this.emit(
-          `  ${structVal} = load ${targetTypeStr}, ${targetTypeStr}* ${structPtr}`,
-        );
-
-        // Allocate local and store
-        const localVar = this.allocateStack(clause.variable, targetTypeStr);
-        this.emit(
-          `  store ${targetTypeStr} ${structVal}, ${targetTypeStr}* ${localVar}`,
-        );
+      if (isCatchAll) {
+        // Catch-all: unconditionally jump to body
+        this.emit(`  br label %${labels.body}`);
       } else {
-        // For primitive types, cast to i64
-        const convertedVal = this.emitCast(
-          valI64,
-          "i64",
-          targetTypeStr,
-          {
-            kind: "BasicType",
-            name: "i64",
-            genericArgs: [],
-            pointerDepth: 0,
-            arrayDimensions: [],
-            location: clause.location,
-          } as AST.BasicTypeNode,
-          clause.type,
-        );
-
-        // Allocate local
-        const localVar = this.allocateStack(clause.variable, targetTypeStr);
+        const targetTypeId = this.getTypeIdFromNode(clause.type!);
+        const typeMatch = this.newRegister();
         this.emit(
-          `  store ${targetTypeStr} ${convertedVal}, ${targetTypeStr}* ${localVar}`,
+          `  ${typeMatch} = icmp eq i32 ${exceptionTypeReg}, ${targetTypeId}`,
+        );
+        this.emit(
+          `  br i1 ${typeMatch}, label %${labels.body}, label %${nextTarget}`,
         );
       }
+
+      this.emit(`${labels.body}:`);
+
+      if (!isCatchAll) {
+        // Bind variable for typed catch
+        const targetTypeStr = this.resolveType(clause.type!);
+        const valI64 = this.newRegister();
+        this.emit(`  ${valI64} = load i64, i64* @exception_value`);
+
+        // For structs, load from heap. For primitives, cast from i64.
+        if (targetTypeStr.startsWith("%struct.")) {
+          // Convert i64 pointer back to struct pointer
+          const structPtr = this.newRegister();
+          this.emit(
+            `  ${structPtr} = inttoptr i64 ${valI64} to ${targetTypeStr}*`,
+          );
+
+          // Load struct from heap
+          const structVal = this.newRegister();
+          this.emit(
+            `  ${structVal} = load ${targetTypeStr}, ${targetTypeStr}* ${structPtr}`,
+          );
+
+          // Allocate local and store
+          const localVar = this.allocateStack(clause.variable!, targetTypeStr);
+          this.emit(
+            `  store ${targetTypeStr} ${structVal}, ${targetTypeStr}* ${localVar}`,
+          );
+        } else {
+          // For primitive types, cast to i64
+          const convertedVal = this.emitCast(
+            valI64,
+            "i64",
+            targetTypeStr,
+            {
+              kind: "BasicType",
+              name: "i64",
+              genericArgs: [],
+              pointerDepth: 0,
+              arrayDimensions: [],
+              location: clause.location,
+            } as AST.BasicTypeNode,
+            clause.type!,
+          );
+
+          // Allocate local
+          const localVar = this.allocateStack(clause.variable!, targetTypeStr);
+          this.emit(
+            `  store ${targetTypeStr} ${convertedVal}, ${targetTypeStr}* ${localVar}`,
+          );
+        }
+      }
+      // For catch-all, no variable binding needed
 
       this.generateBlock(clause.body);
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         this.emit(`  br label %${endLabel}`);
       }
-
-      // If nextTarget was "catch.other", we need to emit it
-      if (i === stmt.catchClauses.length - 1 && stmt.catchOther) {
-        this.emit(`${nextTarget}:`);
-        this.generateBlock(stmt.catchOther);
-        if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
-          this.emit(`  br label %${endLabel}`);
-        }
-      }
     }
 
-    // Handling case where loop logic above didn't emit throw/exit fallthrough if no catchOther
-    if (stmt.catchClauses.length > 0 && !stmt.catchOther) {
-      // The last 'nextTarget' was endLabel. This means unhandled exception is SWALLOWED.
-      // This is technically wrong but acceptable for this "try-catch" MVP if explicitly documented or requested.
-      // However, let's allow it to fall through to endLabel.
-    }
+    // If no catch-all was present, unhandled exceptions fall through to end
+    // which means they are swallowed (acceptable for this MVP)
 
     this.emit(`${endLabel}:`);
   }

@@ -1516,7 +1516,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         // Check if value is null first
         const isNullLabel = `as_isnull_${this.labelCount++}`;
         const notNullLabel = `as_notnull_${this.labelCount++}`;
-        const checkVtableLabel = `as_check_${this.labelCount++}`;
+        const _checkVtableLabel = `as_check_${this.labelCount++}`;
         const matchLabel = `as_match_${this.labelCount++}`;
         const noMatchLabel = `as_nomatch_${this.labelCount++}`;
         const doneLabel = `as_done_${this.labelCount++}`;

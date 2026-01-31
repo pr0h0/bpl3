@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { fileURLToPath, pathToFileURL } from "url";
+import { fileURLToPath } from "url";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   CompletionItem,
@@ -18,8 +18,6 @@ import {
   TextEdit,
   CodeAction,
   CodeActionKind,
-  CodeLens,
-  InsertTextFormat,
   type InitializeParams,
   type TextDocumentPositionParams,
   type InitializeResult,
@@ -153,13 +151,13 @@ interface AnalysisResult {
   checker: TypeChecker;
 }
 
-function typeNodeToString(type: AST.TypeNode | undefined): string {
+function _typeNodeToString(type: AST.TypeNode | undefined): string {
   if (!type) return "void";
   switch (type.kind) {
     case "BasicType":
       let name = type.name;
       if (type.genericArgs && type.genericArgs.length > 0) {
-        name += `<${type.genericArgs.map(typeNodeToString).join(", ")}>`;
+        name += `<${type.genericArgs.map(_typeNodeToString).join(", ")}>`;
       }
       if (type.arrayDimensions) {
         for (const dim of type.arrayDimensions) {
@@ -171,11 +169,11 @@ function typeNodeToString(type: AST.TypeNode | undefined): string {
       }
       return name;
     case "FunctionType":
-      const params = type.paramTypes.map(typeNodeToString).join(", ");
-      const ret = typeNodeToString(type.returnType);
+      const params = type.paramTypes.map(_typeNodeToString).join(", ");
+      const ret = _typeNodeToString(type.returnType);
       return `Func<${ret}>(${params})`;
     case "TupleType":
-      return `(${type.types.map(typeNodeToString).join(", ")})`;
+      return `(${type.types.map(_typeNodeToString).join(", ")})`;
     default:
       return "unknown";
   }

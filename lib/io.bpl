@@ -73,6 +73,26 @@ struct IO {
     }
 
     /#
+    # Print Float
+    Prints a float followed by a newline.
+    #/
+    frame printFloat(f: float) {
+        printf("%f\n", f);
+    }
+
+    /#
+    # Print Bool
+    Prints a boolean as "true" or "false" followed by a newline.
+    #/
+    frame printBool(b: bool) {
+        if (b) {
+            printf("true\n");
+        } else {
+            printf("false\n");
+        }
+    }
+
+    /#
     # Read Line
     Reads a line from stdin into the buffer.
 

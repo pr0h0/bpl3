@@ -96,7 +96,7 @@ struct             # Reserved keyword
 ```
 frame    local    global   import   export   extern
 return   if       else     loop     switch   case
-default  try      catch    catchOther throw  break
+default  try      catch    throw    break
 continue cast     sizeof   match    type     struct
 fallthrough
 true     false    nullptr  ret      this

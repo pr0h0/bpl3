@@ -1,0 +1,932 @@
+/* Tutorial Page Styles */
+
+/* Map CSS variable names to the ones defined in style.css */
+:root {
+  /* Background colors */
+  --bg-primary: var(--bg);
+  --bg-secondary: #1e293b;
+  --bg-tertiary: var(--bg-tertiary, #334155);
+
+  /* Text colors */
+  --text-primary: var(--text);
+  --text-secondary: var(--text-secondary, #94a3b8);
+
+  /* Border colors */
+  --border-color: var(--border);
+
+  /* Accent color */
+  --accent: var(--primary);
+  --accent-bg: rgba(79, 70, 229, 0.1);
+
+  /* Success colors */
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-hover: #059669;
+
+  /* Error colors */
+  --error-bg: rgba(239, 68, 68, 0.1);
+
+  /* Warning colors */
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+
+  /* Info colors */
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.1);
+}
+
+/* Syntax highlighting colors */
+.hl-comment {
+  color: #6a9955;
+  font-style: italic;
+}
+
+.hl-string {
+  color: #ce9178;
+}
+
+.hl-keyword {
+  color: #569cd6;
+  font-weight: 500;
+}
+
+.hl-type {
+  color: #4ec9b0;
+}
+
+.hl-number {
+  color: #b5cea8;
+}
+
+.tutorial-page {
+  background: var(--bg-secondary);
+}
+
+.tutorial-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Tutorial Sidebar */
+.tutorial-sidebar {
+  width: 320px;
+  min-width: 280px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tutorial-sidebar .sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tutorial-sidebar .sidebar-header h1 {
+  font-size: 1.5rem;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.tutorial-sidebar .tagline {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  transition: all 0.2s;
+}
+
+.back-link:hover {
+  color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+/* Progress Section */
+.progress-section {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Category Filter */
+.category-filter {
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.category-filter select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* Lessons List */
+.lessons-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.lesson-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 0.25rem 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.lesson-item:hover {
+  background: var(--bg-secondary);
+}
+
+.lesson-item.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.lesson-item.completed .lesson-number {
+  background: var(--success);
+  color: white;
+}
+
+.lesson-number {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lesson-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lesson-meta-small {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Tutorial Main Content */
+.tutorial-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background: var(--bg-secondary);
+}
+
+.tutorial-header {
+  max-width: 900px;
+  margin: 0 auto 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lesson-meta {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.difficulty-badge,
+.duration-badge,
+.category-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.difficulty-badge {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.difficulty-badge.intermediate {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.difficulty-badge.advanced {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.duration-badge {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.category-badge {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.tutorial-header h2 {
+  font-size: 2rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.tutorial-header p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.lesson-objectives {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-color);
+}
+
+.lesson-objectives h4 {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lesson-objectives ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.lesson-objectives li {
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+
+/* Tutorial Content */
+.tutorial-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.tutorial-section {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 1rem 1.25rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-header h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-body {
+  padding: 1.25rem;
+}
+
+/* Text Section */
+.text-content {
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+.text-content p {
+  margin-bottom: 1rem;
+}
+
+.text-content code {
+  background: var(--bg-tertiary);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+.text-content pre {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.text-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.text-content strong {
+  color: var(--accent);
+}
+
+.text-content ul,
+.text-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.text-content li {
+  margin-bottom: 0.5rem;
+}
+
+.text-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.text-content th,
+.text-content td {
+  padding: 0.75rem;
+  text-align: left;
+  border: 1px solid var(--border-color);
+}
+
+.text-content th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+/* Code Section */
+.code-section {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.code-header span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.code-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.code-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s;
+}
+
+.copy-btn {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.copy-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.run-code-btn {
+  background: var(--success);
+  color: white;
+}
+
+.run-code-btn:hover {
+  background: var(--success-hover);
+}
+
+.code-block {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  padding: 1rem;
+  overflow-x: auto;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.expected-output {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border-left: 3px solid var(--success);
+}
+
+.expected-output h5 {
+  font-size: 0.85rem;
+  color: var(--success);
+  margin-bottom: 0.5rem;
+}
+
+.expected-output pre {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Line Explanations */
+.line-explanations {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.line-explanations h5 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.line-explanation {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.line-explanation:last-child {
+  border-bottom: none;
+}
+
+.line-number {
+  min-width: 50px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.line-text {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+/* Comparison Section */
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.comparison-item {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.comparison-header {
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.comparison-code {
+  padding: 1rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: var(--text-primary);
+}
+
+.comparison-explanation {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Challenge Section */
+.challenge-section {
+  border-left: 4px solid var(--accent);
+}
+
+.challenge-section .section-header {
+  background: var(--accent-bg);
+}
+
+.challenge-section .section-header h3 {
+  color: var(--accent);
+}
+
+.challenge-instructions {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.hint-toggle {
+  padding: 0.75rem 1rem;
+  background: var(--warning-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--warning);
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  width: 100%;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.hint-toggle:hover {
+  filter: brightness(1.1);
+}
+
+.hint-content {
+  padding: 1rem;
+  background: var(--warning-bg);
+  border-radius: 8px;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  display: none;
+}
+
+.hint-content.show {
+  display: block;
+}
+
+.solution-toggle {
+  padding: 0.75rem 1rem;
+  background: var(--success-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--success);
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.solution-toggle:hover {
+  filter: brightness(1.1);
+}
+
+.solution-content {
+  margin-top: 1rem;
+  display: none;
+}
+
+.solution-content.show {
+  display: block;
+}
+
+/* Quiz Section */
+.quiz-section {
+  border-left: 4px solid var(--info);
+}
+
+.quiz-section .section-header {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.quiz-section .section-header h3 {
+  color: var(--info);
+}
+
+.quiz-question {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.quiz-question:last-child {
+  margin-bottom: 0;
+}
+
+.quiz-question h4 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quiz-option {
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.quiz-option:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.quiz-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.quiz-option.correct {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.quiz-option.incorrect {
+  border-color: var(--error);
+  background: var(--error-bg);
+}
+
+.quiz-explanation {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  display: none;
+}
+
+.quiz-explanation.show {
+  display: block;
+}
+
+/* Tutorial Navigation */
+.tutorial-navigation {
+  max-width: 900px;
+  margin: 2rem auto;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.next-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.next-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: white;
+}
+
+/* Code Modal */
+.code-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.code-modal-content {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.code-modal-header h3 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.close-modal-btn {
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+}
+
+.close-modal-btn:hover {
+  color: var(--error);
+}
+
+.code-modal-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-color);
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-section,
+.output-section {
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-label,
+.output-label {
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.output-label {
+  justify-content: space-between;
+}
+
+.run-btn {
+  padding: 0.35rem 0.75rem;
+  background: var(--success);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.run-btn:hover {
+  background: var(--success-hover);
+}
+
+.modal-editor {
+  flex: 1;
+  min-height: 300px;
+}
+
+.modal-output {
+  flex: 1;
+  margin: 0;
+  padding: 1rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  overflow: auto;
+  background: var(--bg-secondary);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .tutorial-container {
+    flex-direction: column;
+  }
+
+  .tutorial-sidebar {
+    width: 100%;
+    max-height: 40vh;
+  }
+
+  .tutorial-main {
+    padding: 1rem;
+  }
+
+  .code-modal-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}

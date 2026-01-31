@@ -1,0 +1,151 @@
+{
+  "id": "inline-assembly",
+  "order": 20,
+  "title": "Inline Assembly",
+  "category": "Advanced Concepts",
+  "difficulty": "advanced",
+  "duration": "15 min",
+  "description": "Write low-level assembly code directly in BPL. Learn Intel, AT&T, and LLVM IR syntax for maximum control.",
+  "prerequisites": ["bitwise-operations"],
+  "objectives": [
+    "Understand when to use inline assembly",
+    "Write Intel and AT&T syntax assembly",
+    "Pass values between BPL and assembly",
+    "Use LLVM IR for advanced operations"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Why Inline Assembly?",
+      "content": "Sometimes you need to go lower than high-level code:\n\n**Use cases:**\n- 🚀 Performance-critical code\n- 🔧 Hardware access (I/O ports, special registers)\n- 🔐 Cryptographic operations (AES instructions)\n- 📊 SIMD/vector operations\n- 🖥️ OS kernel development\n\n⚠️ **Warning:** Assembly is:\n- Not portable (CPU-specific)\n- Hard to debug\n- Easy to break\n\nUse only when absolutely necessary!"
+    },
+    {
+      "type": "code",
+      "title": "Intel Syntax Basics",
+      "code": "extern printf(fmt: string, ...);\n\nframe addWithAsm(a: int, b: int) ret int {\n    local result: int = 0;\n    \n    # Intel syntax: destination, source\n    asm(\"intel\") {\n        mov eax, (a)          # Load a into eax\n        add eax, (b)          # Add b to eax\n        mov (=result), eax    # Store eax in result\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 25;\n    \n    local sum: int = addWithAsm(x, y);\n    printf(\"%d + %d = %d\\n\", x, y, sum);\n    \n    # Another example\n    printf(\"100 + 50 = %d\\n\", addWithAsm(100, 50));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "10 + 25 = 35\n100 + 50 = 150",
+      "lineExplanations": {
+        "7": "asm(\"intel\") - use Intel syntax (dest, src).",
+        "8": "(a) - read variable a.",
+        "9": "add eax, (b) - add variable b to eax.",
+        "10": "(=result) - write to variable result."
+      }
+    },
+    {
+      "type": "code",
+      "title": "AT&T Syntax",
+      "code": "extern printf(fmt: string, ...);\n\nframe multiplyATT(a: int, b: int) ret int {\n    local result: int = 0;\n    \n    # AT&T syntax: source, destination (opposite of Intel!)\n    asm(\"att\") {\n        movl (a), %eax        # Load a into eax\n        imull (b), %eax       # Multiply eax by b\n        movl %eax, (=result)  # Store result\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    printf(\"6 * 7 = %d\\n\", multiplyATT(6, 7));\n    printf(\"12 * 11 = %d\\n\", multiplyATT(12, 11));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "6 * 7 = 42\n12 * 11 = 132",
+      "lineExplanations": {
+        "7": "asm(\"att\") - use AT&T syntax (src, dest).",
+        "8": "% prefix for registers, l suffix for 32-bit.",
+        "9": "imull - signed multiply."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Intel vs AT&T Syntax",
+      "content": "| Feature | Intel | AT&T |\n|---------|-------|------|\n| Order | dest, src | src, dest |\n| Registers | eax | %eax |\n| Size suffix | None | l (32), q (64) |\n| Immediate | 42 | $42 |\n| Memory | [eax] | (%eax) |\n\n**Intel:** `mov eax, 42` (move 42 into eax)\n\n**AT&T:** `movl $42, %eax` (move 42 into eax)\n\nBPL handles the variable binding, so you mostly just use:\n- `(var)` - read variable\n- `(=var)` - write to variable"
+    },
+    {
+      "type": "code",
+      "title": "LLVM IR Assembly",
+      "code": "extern printf(fmt: string, ...);\n\n# Using LLVM IR for precise control\nframe safeBitShift(value: int, shift: int) ret int {\n    local result: int = 0;\n    \n    # LLVM IR gives maximum control\n    asm(\"llvm\") {\n        \"%shifted = shl i32 (value), (shift)\"\n        \"store i32 %shifted, i32* (=result)\"\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    printf(\"1 << 0 = %d\\n\", safeBitShift(1, 0));\n    printf(\"1 << 1 = %d\\n\", safeBitShift(1, 1));\n    printf(\"1 << 4 = %d\\n\", safeBitShift(1, 4));\n    printf(\"5 << 3 = %d\\n\", safeBitShift(5, 3));\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "1 << 0 = 1\n1 << 1 = 2\n1 << 4 = 16\n5 << 3 = 40",
+      "lineExplanations": {
+        "8": "asm(\"llvm\") - use LLVM IR syntax.",
+        "9": "shl - shift left operation in LLVM.",
+        "10": "store - write result to memory."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Constraints and Clobbers",
+      "code": "extern printf(fmt: string, ...);\n\n# Advanced: specify register constraints and clobbers\nframe divide(dividend: int, divisor: int) ret int {\n    local quotient: int = 0;\n    local remainder: int = 0;\n    \n    asm(\"intel\") {\n        mov eax, (dividend)     # Dividend in eax\n        xor edx, edx            # Clear edx (high part)\n        mov ecx, (divisor)      # Divisor in ecx\n        div ecx                 # eax = eax/ecx, edx = remainder\n        mov (=quotient), eax    # Store quotient\n        mov (=remainder), edx   # Store remainder\n        [ \"eax\", \"edx\", \"ecx\" ] # Clobbered registers\n    }\n    \n    printf(\"Remainder: %d\\n\", remainder);\n    return quotient;\n}\n\nframe main() ret int {\n    printf(\"17 / 5 = %d\\n\", divide(17, 5));\n    printf(\"\\n100 / 7 = %d\\n\", divide(100, 7));\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Remainder: 2\n17 / 5 = 3\n\nRemainder: 2\n100 / 7 = 14",
+      "lineExplanations": {
+        "10": "xor edx, edx - fast way to set edx = 0.",
+        "12": "div does unsigned division.",
+        "15": "Clobber list tells compiler these registers are modified."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Practical Example: Fast Operations",
+      "code": "extern printf(fmt: string, ...);\n\n# Count leading zeros (useful for log2)\nframe countLeadingZeros(n: int) ret int {\n    local result: int = 0;\n    \n    if (n == 0) {\n        return 32;  # All zeros\n    }\n    \n    asm(\"intel\") {\n        bsr eax, (n)          # Bit scan reverse\n        xor eax, 31           # Convert to leading zeros\n        mov (=result), eax\n    }\n    \n    return result;\n}\n\n# Fast check if power of 2\nframe isPowerOfTwo(n: int) ret bool {\n    if (n <= 0) { return false; }\n    return (n & (n - 1)) == 0;\n}\n\nframe main() ret int {\n    printf(\"Leading zeros in 1: %d\\n\", countLeadingZeros(1));\n    printf(\"Leading zeros in 16: %d\\n\", countLeadingZeros(16));\n    printf(\"Leading zeros in 255: %d\\n\", countLeadingZeros(255));\n    \n    printf(\"\\nPower of 2 checks:\\n\");\n    printf(\"isPowerOfTwo(1) = %d\\n\", isPowerOfTwo(1));\n    printf(\"isPowerOfTwo(16) = %d\\n\", isPowerOfTwo(16));\n    printf(\"isPowerOfTwo(15) = %d\\n\", isPowerOfTwo(15));\n    printf(\"isPowerOfTwo(64) = %d\\n\", isPowerOfTwo(64));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Leading zeros in 1: 31\nLeading zeros in 16: 27\nLeading zeros in 255: 24\n\nPower of 2 checks:\nisPowerOfTwo(1) = 1\nisPowerOfTwo(16) = 1\nisPowerOfTwo(15) = 0\nisPowerOfTwo(64) = 1",
+      "lineExplanations": {
+        "12": "bsr - bit scan reverse finds highest set bit.",
+        "13": "xor with 31 converts bit position to leading zeros.",
+        "23": "Pure BPL solution without assembly."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Assembly Guidelines",
+      "content": "**DO:**\n✅ Use for performance-critical inner loops\n✅ Document thoroughly what the code does\n✅ Test on all target platforms\n✅ Keep assembly blocks small and focused\n✅ Have a fallback pure-BPL implementation\n\n**DON'T:**\n❌ Use assembly as first solution\n❌ Assume it's faster (compilers are good!)\n❌ Use without measuring performance\n❌ Write complex logic in assembly\n❌ Forget about portability"
+    },
+    {
+      "type": "text",
+      "title": "Variable Binding Summary",
+      "content": "**Reading variables:**\n```\n(varname)       # Default constraint \"r\"\n(varname: \"r\")  # Explicit register constraint\n(varname: \"m\")  # Memory constraint\n```\n\n**Writing variables:**\n```\n(=varname)       # Default \"=r\"\n(=varname: \"=r\") # Explicit output register\n(=varname: \"=m\") # Output to memory\n```\n\n**Constraints:**\n- `\"r\"` - any general register\n- `\"a\"` - eax/rax\n- `\"b\"` - ebx/rbx\n- `\"c\"` - ecx/rcx\n- `\"d\"` - edx/rdx\n- `\"m\"` - memory location"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Swap Without Temp",
+      "instructions": "Write `swapXor(a: *int, b: *int)` using inline assembly and XOR to swap two integers without a temporary variable.\n\nXOR swap: a ^= b; b ^= a; a ^= b;\n\nTest by swapping 10 and 20.",
+      "hint": "Use Intel syntax. Load *a and *b, do three XOR operations, store back.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe swapXor(a: *int, b: *int) {\n    asm(\"intel\") {\n        mov eax, [a]      # Load *a\n        mov ebx, [b]      # Load *b\n        xor eax, ebx      # a ^= b\n        xor ebx, eax      # b ^= a\n        xor eax, ebx      # a ^= b\n        mov [a], eax      # Store back\n        mov [b], ebx\n        [ \"eax\", \"ebx\" ]\n    }\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 20;\n    \n    printf(\"Before: x=%d, y=%d\\n\", x, y);\n    swapXor(&x, &y);\n    printf(\"After: x=%d, y=%d\\n\", x, y);\n    \n    return 0;\n}",
+      "runnable": false
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ Use `asm(\"intel\")`, `asm(\"att\")`, or `asm(\"llvm\")`\n\n✅ Read variables: `(varname)` or `(varname: \"constraint\")`\n\n✅ Write variables: `(=varname)` or `(=varname: \"=constraint\")`\n\n✅ List clobbered registers: `[ \"eax\", \"ebx\" ]`\n\n✅ Use **only when necessary** for performance/hardware\n\n✅ **Document** and **test** thoroughly\n\n✅ Keep assembly **small and focused**"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does (=result) mean in inline assembly?",
+          "options": [
+            "Read from result",
+            "Write to result",
+            "Address of result",
+            "Compare with result"
+          ],
+          "correct": 1,
+          "explanation": "The = prefix indicates an output (write) operand."
+        },
+        {
+          "question": "What's the order in Intel syntax?",
+          "options": [
+            "source, destination",
+            "destination, source",
+            "varies",
+            "neither"
+          ],
+          "correct": 1,
+          "explanation": "Intel syntax uses destination, source order (mov eax, 5 moves 5 into eax)."
+        },
+        {
+          "question": "When should you use inline assembly?",
+          "options": [
+            "Always for speed",
+            "Only when BPL can't express it",
+            "Never",
+            "For all math"
+          ],
+          "correct": 1,
+          "explanation": "Use assembly only when high-level code can't achieve what you need (hardware access, specific instructions)."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "21-ffi"
+}

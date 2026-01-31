@@ -1,0 +1,140 @@
+{
+  "id": "type-aliases",
+  "order": 17,
+  "title": "Type Aliases",
+  "category": "Advanced Concepts",
+  "difficulty": "intermediate",
+  "duration": "8 min",
+  "description": "Create meaningful names for complex types. Make code more readable and maintainable with type aliases.",
+  "prerequisites": ["memory-management"],
+  "objectives": [
+    "Create type aliases with the type keyword",
+    "Simplify complex type signatures",
+    "Improve code readability"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What are Type Aliases?",
+      "content": "A **type alias** gives a new name to an existing type:\n\n```bpl\ntype UserID = int;\ntype Callback = Lambda<void>(int, string);\ntype Matrix = int[4][4];\n```\n\n**Benefits:**\n- 📖 More readable code\n- 🔄 Easy to change underlying type\n- 📦 Simplify complex types\n- 📝 Self-documenting code"
+    },
+    {
+      "type": "comparison",
+      "title": "Type Alias Syntax",
+      "languages": {
+        "BPL": "type UserID = int;\ntype Callback = Func<void>(int);",
+        "Rust": "type UserID = i32;\ntype Callback = fn(i32);",
+        "TypeScript": "type UserID = number;\ntype Callback = (n: number) => void;",
+        "C": "typedef int UserID;\ntypedef void (*Callback)(int);"
+      },
+      "explanation": "BPL uses 'type Name = Type;' syntax, similar to TypeScript."
+    },
+    {
+      "type": "code",
+      "title": "Basic Type Aliases",
+      "code": "extern printf(fmt: string, ...);\n\n# Create meaningful type names\ntype UserID = int;\ntype Score = int;\ntype Percentage = float;\n\nstruct User {\n    id: UserID,\n    name: string,\n    score: Score,\n}\n\nframe calculateGrade(score: Score) ret Percentage {\n    return cast<float>(score) / 100.0 * 100.0;\n}\n\nframe printUser(u: *User) {\n    local grade: Percentage = calculateGrade(u.score);\n    printf(\"User #%d: %s\\n\", u.id, u.name);\n    printf(\"  Score: %d (%.1f%%)\\n\", u.score, grade);\n}\n\nframe main() ret int {\n    local alice: User = User {\n        id: 1001,\n        name: \"Alice\",\n        score: 95\n    };\n    \n    local bob: User = User {\n        id: 1002,\n        name: \"Bob\",\n        score: 87\n    };\n    \n    printUser(&alice);\n    printUser(&bob);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "User #1001: Alice\n  Score: 95 (95.0%)\nUser #1002: Bob\n  Score: 87 (87.0%)",
+      "lineExplanations": {
+        "4": "UserID is an alias for int.",
+        "5": "Score is also int, but semantically different.",
+        "9": "Use alias in struct fields.",
+        "14": "Use aliases in function signatures."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Function Type Aliases",
+      "code": "extern printf(fmt: string, ...);\n\n# Function pointer types\ntype BinaryOp = Lambda<int>(int, int);\ntype Predicate = Lambda<bool>(int);\ntype Transformer = Lambda<int>(int);\n\n# Use the aliases\nframe apply(a: int, b: int, op: BinaryOp) ret int {\n    return op(a, b);\n}\n\nframe filter(values: *int, len: int, pred: Predicate, out: *int) ret int {\n    local count: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        if (pred(*(values + i))) {\n            *(out + count) = *(values + i);\n            count = count + 1;\n        }\n    }\n    return count;\n}\n\nframe main() ret int {\n    # Use BinaryOp\n    local add: BinaryOp = |a: int, b: int| ret int { return a + b; };\n    local mul: BinaryOp = |a: int, b: int| ret int { return a * b; };\n    \n    printf(\"apply(5, 3, add) = %d\\n\", apply(5, 3, add));\n    printf(\"apply(5, 3, mul) = %d\\n\", apply(5, 3, mul));\n    \n    # Use Predicate\n    local isEven: Predicate = |x: int| ret bool { return x % 2 == 0; };\n    \n    local nums: int[8] = [1, -2, 3, -4, 5, 6, -7, 8];\n    local filtered: int[8];\n    local count: int;\n    \n    count = filter(&nums[0], 8, isEven, &filtered[0]);\n    printf(\"\\nEven numbers: \");\n    loop (local i: int = 0; i < count; i = i + 1) {\n        printf(\"%d \", filtered[i]);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "apply(5, 3, add) = 8\napply(5, 3, mul) = 15\n\nEven numbers: -2 -4 6 8 ",
+      "lineExplanations": {
+        "4": "BinaryOp is a lambda taking two ints, returning int.",
+        "5": "Predicate takes int, returns bool.",
+        "9": "Much cleaner than writing Lambda<int>(int, int).",
+        "26": "Variable of type BinaryOp."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Complex Type Aliases",
+      "code": "extern printf(fmt: string, ...);\n\n# Pointer types\ntype IntPtr = *int;\ntype StringArray = string[];\n\n# Tuple types\ntype Point2D = (int, int);\ntype RGB = (int, int, int);\n\n# Nested types\ntype Matrix2x2 = int[2][2];\n\nframe printPoint(p: Point2D) {\n    local (x: int, y: int) = p;\n    printf(\"Point(%d, %d)\\n\", x, y);\n}\n\nframe printColor(c: RGB) {\n    local (r: int, g: int, b: int) = c;\n    printf(\"RGB(%d, %d, %d)\\n\", r, g, b);\n}\n\nframe printMatrix(m: Matrix2x2) {\n    printf(\"[ %d %d ]\\n\", m[0][0], m[0][1]);\n    printf(\"[ %d %d ]\\n\", m[1][0], m[1][1]);\n}\n\nframe main() ret int {\n    # Point2D usage\n    local origin: Point2D = (0, 0);\n    local point: Point2D = (10, 20);\n    printf(\"Origin: \");\n    printPoint(origin);\n    printf(\"Point: \");\n    printPoint(point);\n    \n    # RGB usage\n    local red: RGB = (255, 0, 0);\n    local blue: RGB = (0, 0, 255);\n    printf(\"\\nRed: \");\n    printColor(red);\n    printf(\"Blue: \");\n    printColor(blue);\n    \n    # Matrix usage\n    local identity: Matrix2x2 = [[1, 0], [0, 1]];\n    printf(\"\\nIdentity Matrix:\\n\");\n    printMatrix(identity);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Origin: Point(0, 0)\nPoint: Point(10, 20)\n\nRed: RGB(255, 0, 0)\nBlue: RGB(0, 0, 255)\n\nIdentity Matrix:\n[ 1 0 ]\n[ 0 1 ]",
+      "lineExplanations": {
+        "8": "Tuple alias for 2D coordinates.",
+        "9": "Tuple alias for color components.",
+        "12": "2D array alias for matrices.",
+        "31": "Use alias like any other type."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Generic Type Aliases",
+      "code": "extern printf(fmt: string, ...);\n\n# Generic enums for optional/result patterns\n# (Note: BPL stdlib has Maybe<T> and Outcome<T, E> - we use\n# different names here to demonstrate creating your own)\nenum Maybe<T> {\n    Some(T),\n    None,\n}\n\nenum Outcome<T, E> {\n    Ok(T),\n    Err(E),\n}\n\n# Using generic types directly\nframe safeDivide(a: int, b: int) ret Maybe<int> {\n    if (b == 0) {\n        return Maybe<int>.None;\n    }\n    return Maybe<int>.Some(a / b);\n}\n\nframe parseInt(s: string) ret Outcome<int, string> {\n    # Simplified: only handles single digits\n    if (s == \"0\") { return Outcome<int, string>.Ok(0); }\n    if (s == \"1\") { return Outcome<int, string>.Ok(1); }\n    if (s == \"2\") { return Outcome<int, string>.Ok(2); }\n    if (s == \"3\") { return Outcome<int, string>.Ok(3); }\n    return Outcome<int, string>.Err(\"Invalid number\");\n}\n\nframe main() ret int {\n    # Maybe<int> usage\n    local result1: Maybe<int> = safeDivide(10, 2);\n    local result2: Maybe<int> = safeDivide(10, 0);\n    \n    match (result1) {\n        Maybe<int>.Some(v) => printf(\"10/2 = %d\\n\", v),\n        Maybe<int>.None => printf(\"10/2 = undefined\\n\"),\n    }\n    \n    match (result2) {\n        Maybe<int>.Some(v) => printf(\"10/0 = %d\\n\", v),\n        Maybe<int>.None => printf(\"10/0 = undefined\\n\"),\n    }\n    \n    # Outcome<int, string> usage\n    local parsed: Outcome<int, string> = parseInt(\"3\");\n    match (parsed) {\n        Outcome<int, string>.Ok(n) => printf(\"\\nParsed: %d\\n\", n),\n        Outcome<int, string>.Err(e) => printf(\"\\nError: %s\\n\", e),\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "10/2 = 5\n10/0 = undefined\n\nParsed: 3",
+      "lineExplanations": {
+        "17": "Return Maybe<int> directly.",
+        "24": "Return Outcome<int, string> directly.",
+        "34": "Variable typed as Maybe<int>."
+      }
+    },
+    {
+      "type": "text",
+      "title": "When to Use Type Aliases",
+      "content": "**Good uses:**\n✅ Domain-specific names: `type UserID = int`\n✅ Simplify callbacks: `type Handler = Lambda<void>(Event)`\n✅ Specialize generics: `type IntList = Vec<int>`\n✅ Document intent: `type Pixels = int`\n\n**Avoid:**\n❌ Aliases that hide important info\n❌ Too many aliases (confusion)\n❌ Aliases for simple types without semantic meaning\n\n**Remember:** An alias is just a new name. `UserID` and `int` are interchangeable."
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: API Response Types",
+      "instructions": "Create type aliases for an API:\n- `StatusCode = int`\n- `JSONBody = string`\n- `Headers = (string, string)[]` (array of key-value pairs)\n- `Response = (StatusCode, Headers, JSONBody)` (tuple)\n\nCreate a function `makeResponse(code: StatusCode, body: JSONBody) ret Response` and test it.",
+      "hint": "Build up from simple aliases to complex ones.",
+      "solution": "extern printf(fmt: string, ...);\n\ntype StatusCode = int;\ntype JSONBody = string;\ntype Header = (string, string);\ntype Response = (StatusCode, JSONBody);\n\nframe makeResponse(code: StatusCode, body: JSONBody) ret Response {\n    return (code, body);\n}\n\nframe main() ret int {\n    local success: Response = makeResponse(200, \"{\\\"ok\\\": true}\");\n    local notFound: Response = makeResponse(404, \"{\\\"error\\\": \\\"Not found\\\"}\");\n    \n    local (code1: int, body1: string) = success;\n    printf(\"Response 1: %d - %s\\n\", code1, body1);\n    \n    local (code2: int, body2: string) = notFound;\n    printf(\"Response 2: %d - %s\\n\", code2, body2);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **type Name = ExistingType;** creates an alias\n\n✅ Aliases improve **readability** and **intent**\n\n✅ Great for **function types**: `type Handler = Lambda<...>`\n\n✅ Can specialize **generic types**: `type IntOption = Maybe<int>`\n\n✅ Aliases are **interchangeable** with original type\n\n✅ Use for **domain modeling**: UserID, Score, Timestamp"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does 'type UserID = int;' do?",
+          "options": [
+            "Creates a new type",
+            "Creates an alias for int",
+            "Converts int to UserID",
+            "Imports UserID"
+          ],
+          "correct": 1,
+          "explanation": "It creates an alias - UserID is just another name for int."
+        },
+        {
+          "question": "Can you pass a UserID where an int is expected (if type UserID = int)?",
+          "options": [
+            "No, they're different types",
+            "Yes, they're the same type",
+            "Only with cast",
+            "Only in generics"
+          ],
+          "correct": 1,
+          "explanation": "Type aliases are interchangeable with the original type."
+        },
+        {
+          "question": "What's a good reason to use type aliases?",
+          "options": [
+            "To hide implementation",
+            "To improve readability",
+            "To make code slower",
+            "To avoid errors"
+          ],
+          "correct": 1,
+          "explanation": "Type aliases make code more readable by giving meaningful names to types."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "18-string-interpolation"
+}

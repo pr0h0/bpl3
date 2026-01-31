@@ -1,0 +1,144 @@
+{
+  "id": "control-flow-if-else",
+  "order": 4,
+  "title": "Control Flow: If/Else",
+  "category": "Getting Started",
+  "difficulty": "beginner",
+  "duration": "10 min",
+  "description": "Learn how to make decisions in your programs using conditional statements. Control which code runs based on conditions.",
+  "prerequisites": ["operators-and-expressions"],
+  "objectives": [
+    "Write if statements for simple conditions",
+    "Use else and else if for alternative paths",
+    "Nest conditions for complex logic",
+    "Use the ternary operator for simple conditionals"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Making Decisions",
+      "content": "Programs often need to make decisions - do one thing if a condition is true, something else if it's false.\n\nThe **if statement** is the fundamental building block for decision-making in programming."
+    },
+    {
+      "type": "comparison",
+      "title": "If Statement Syntax",
+      "languages": {
+        "BPL": "if (condition) {\n    # code if true\n}",
+        "C": "if (condition) {\n    // code if true\n}",
+        "Python": "if condition:\n    # code if true",
+        "JavaScript": "if (condition) {\n    // code if true\n}"
+      },
+      "explanation": "BPL's if syntax is similar to C, Java, and JavaScript - condition in parentheses, code in braces."
+    },
+    {
+      "type": "code",
+      "title": "Basic If Statement",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local age: int = 18;\n    \n    # Simple if - only runs if condition is true\n    if (age >= 18) {\n        printf(\"You are an adult!\\n\");\n    }\n    \n    local temperature: int = 35;\n    \n    if (temperature > 30) {\n        printf(\"It's hot outside!\\n\");\n    }\n    \n    # The condition must be in parentheses\n    local score: int = 85;\n    \n    if (score >= 60) {\n        printf(\"You passed!\\n\");\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "You are an adult!\nIt's hot outside!\nYou passed!",
+      "lineExplanations": {
+        "7": "If age is 18 or more, execute the code block.",
+        "13": "If temperature is greater than 30, print the message.",
+        "20": "The code inside braces only runs if score >= 60."
+      }
+    },
+    {
+      "type": "code",
+      "title": "If-Else: Two Paths",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local number: int = 7;\n    \n    # Check if even or odd\n    if (number % 2 == 0) {\n        printf(\"%d is even\\n\", number);\n    } else {\n        printf(\"%d is odd\\n\", number);\n    }\n    \n    local balance: float = 150.50;\n    \n    # Check account status\n    if (balance >= 0.0) {\n        printf(\"Balance: $%.2f (OK)\\n\", balance);\n    } else {\n        printf(\"Balance: $%.2f (OVERDRAWN!)\\n\", balance);\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "7 is odd\nBalance: $150.50 (OK)",
+      "lineExplanations": {
+        "7": "number % 2 == 0 checks if the remainder when divided by 2 is 0 (even).",
+        "9": "The 'else' block runs when the condition is false.",
+        "16": "This check determines if the balance is positive or negative."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Else-If: Multiple Conditions",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local score: int = 85;\n    \n    # Grade calculation\n    if (score >= 90) {\n        printf(\"Grade: A\\n\");\n    } else if (score >= 80) {\n        printf(\"Grade: B\\n\");\n    } else if (score >= 70) {\n        printf(\"Grade: C\\n\");\n    } else if (score >= 60) {\n        printf(\"Grade: D\\n\");\n    } else {\n        printf(\"Grade: F\\n\");\n    }\n    \n    # Another example: day of week\n    local day: int = 3;  # 1=Mon, 2=Tue, etc.\n    \n    if (day == 1) {\n        printf(\"Monday\\n\");\n    } else if (day == 2) {\n        printf(\"Tuesday\\n\");\n    } else if (day == 3) {\n        printf(\"Wednesday\\n\");\n    } else if (day == 4) {\n        printf(\"Thursday\\n\");\n    } else if (day == 5) {\n        printf(\"Friday\\n\");\n    } else {\n        printf(\"Weekend!\\n\");\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Grade: B\nWednesday",
+      "lineExplanations": {
+        "7-17": "Conditions are checked in order. First true one wins.",
+        "9": "'else if' adds another condition to check.",
+        "15": "Final 'else' is the default if nothing else matches.",
+        "22-34": "Multiple else-if creates a chain of conditions."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Nested If Statements",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local age: int = 25;\n    local hasLicense: bool = true;\n    local hasInsurance: bool = true;\n    \n    # Nested conditions for driving eligibility\n    if (age >= 16) {\n        printf(\"Old enough to drive\\n\");\n        \n        if (hasLicense) {\n            printf(\"Has a license\\n\");\n            \n            if (hasInsurance) {\n                printf(\"Fully legal to drive!\\n\");\n            } else {\n                printf(\"Need insurance first!\\n\");\n            }\n        } else {\n            printf(\"Need to get a license first!\\n\");\n        }\n    } else {\n        printf(\"Too young to drive\\n\");\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Old enough to drive\nHas a license\nFully legal to drive!",
+      "lineExplanations": {
+        "9": "First check: is the person old enough?",
+        "12": "Second check (nested): do they have a license?",
+        "15": "Third check (deeper nested): do they have insurance?",
+        "23": "This 'else' matches the outermost 'if'."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Combining Conditions",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local age: int = 25;\n    local hasID: bool = true;\n    local isMember: bool = false;\n    \n    # Using && (AND) - ALL conditions must be true\n    if (age >= 21 && hasID) {\n        printf(\"Entry allowed (age and ID check passed)\\n\");\n    }\n    \n    # Using || (OR) - ANY condition can be true\n    if (isMember || age >= 65) {\n        printf(\"Discount applies!\\n\");\n    } else {\n        printf(\"Regular price\\n\");\n    }\n    \n    # Complex combinations\n    local isStudent: bool = true;\n    local income: int = 15000;\n    \n    if ((isStudent && income < 20000) || age < 18) {\n        printf(\"Qualifies for assistance program\\n\");\n    }\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Entry allowed (age and ID check passed)\nRegular price\nQualifies for assistance program",
+      "lineExplanations": {
+        "9": "&& means both conditions must be true.",
+        "14": "|| means at least one condition must be true.",
+        "24": "Use parentheses to group conditions for clarity."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Ternary Operator (Shorthand If)",
+      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local score: int = 75;\n    \n    # Ternary operator: condition ? value_if_true : value_if_false\n    local status: string = score >= 60 ? \"Pass\" : \"Fail\";\n    printf(\"Status: %s\\n\", status);\n    \n    # Useful for inline decisions\n    local age: int = 15;\n    local category: string = age >= 18 ? \"Adult\" : \"Minor\";\n    printf(\"Category: %s\\n\", category);\n    \n    # Can be used directly in expressions\n    local a: int = 10;\n    local b: int = 20;\n    local max: int = a > b ? a : b;\n    printf(\"Max of %d and %d is %d\\n\", a, b, max);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Status: Pass\nCategory: Minor\nMax of 10 and 20 is 20",
+      "lineExplanations": {
+        "7": "The ternary operator is a one-line if-else.",
+        "12": "Format: condition ? result_if_true : result_if_false",
+        "18": "Great for selecting between two values based on a condition."
+      }
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Number Classifier",
+      "instructions": "Write a program that:\n1. Takes a number (use -7)\n2. Prints whether it's positive, negative, or zero\n3. If positive, also print if it's even or odd",
+      "hint": "Use nested if statements - first check the sign, then check even/odd inside the positive branch.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local num: int = -7;\n    \n    if (num > 0) {\n        printf(\"%d is positive\\n\", num);\n        if (num % 2 == 0) {\n            printf(\"And it's even\\n\");\n        } else {\n            printf(\"And it's odd\\n\");\n        }\n    } else if (num < 0) {\n        printf(\"%d is negative\\n\", num);\n    } else {\n        printf(\"%d is zero\\n\", num);\n    }\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **if (condition)** executes code when condition is true\n\n✅ **else** provides alternative when condition is false\n\n✅ **else if** chains multiple conditions\n\n✅ Conditions can be combined with **&&** (AND) and **||** (OR)\n\n✅ **Ternary operator** `?:` is shorthand for simple if-else\n\n✅ Always use **braces { }** even for single statements (good practice)"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What prints when x = 5? if (x > 10) { print A } else { print B }",
+          "options": ["A", "B", "Both A and B", "Nothing"],
+          "correct": 1,
+          "explanation": "5 is not greater than 10, so the else branch executes, printing B."
+        },
+        {
+          "question": "What is true && false || true?",
+          "options": ["true", "false", "Error", "undefined"],
+          "correct": 0,
+          "explanation": "&& has higher precedence. (true && false) = false. false || true = true."
+        },
+        {
+          "question": "What does 'x > 5 ? 10 : 20' return when x = 3?",
+          "options": ["10", "20", "3", "Error"],
+          "correct": 1,
+          "explanation": "3 is not greater than 5, so the 'else' part (20) is returned."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "05-loops-while-for"
+}

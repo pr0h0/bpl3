@@ -298,7 +298,6 @@ const keywordMap: Record<string, TokenType> = {
   continue: TokenType.Continue,
   try: TokenType.Try,
   catch: TokenType.Catch,
-  catchOther: TokenType.CatchOther,
   return: TokenType.Return,
   throw: TokenType.Throw,
   switch: TokenType.Switch,

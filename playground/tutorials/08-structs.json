@@ -1,0 +1,147 @@
+{
+  "id": "structs",
+  "order": 8,
+  "title": "Structs: Custom Data Types",
+  "category": "Data Structures",
+  "difficulty": "beginner",
+  "duration": "12 min",
+  "description": "Create your own data types by grouping related data together. Learn to define, initialize, and use structs effectively.",
+  "prerequisites": ["arrays"],
+  "objectives": [
+    "Define structs with multiple fields",
+    "Create and initialize struct instances",
+    "Access and modify struct fields",
+    "Pass structs to functions"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What are Structs?",
+      "content": "A **struct** (structure) is a custom data type that groups related data together.\n\nInstead of separate variables:\n```bpl\nlocal personName: string = \"Alice\";\nlocal personAge: int = 30;\nlocal personHeight: float = 1.65;\n```\n\nUse a struct:\n```bpl\nlocal person: Person = Person { name: \"Alice\", age: 30, height: 1.65 };\n```\n\nStructs help you organize related data into a single, meaningful unit."
+    },
+    {
+      "type": "comparison",
+      "title": "Struct Syntax Comparison",
+      "languages": {
+        "BPL": "struct Person {\n    name: string,\n    age: int,\n}",
+        "C": "struct Person {\n    char* name;\n    int age;\n};",
+        "Rust": "struct Person {\n    name: String,\n    age: i32,\n}",
+        "TypeScript": "interface Person {\n    name: string;\n    age: number;\n}"
+      },
+      "explanation": "BPL struct syntax uses field: type format with commas between fields. Very similar to Rust."
+    },
+    {
+      "type": "code",
+      "title": "Defining and Using Structs",
+      "code": "extern printf(fmt: string, ...);\n\n# Define a struct with the 'struct' keyword\nstruct Person {\n    name: string,\n    age: int,\n    height: float,\n}\n\nframe main() ret int {\n    # Create a struct instance using struct literal syntax\n    local alice: Person = Person {\n        name: \"Alice\",\n        age: 30,\n        height: 1.65\n    };\n    \n    # Access fields using the dot operator\n    printf(\"Name: %s\\n\", alice.name);\n    printf(\"Age: %d\\n\", alice.age);\n    printf(\"Height: %.2f m\\n\", alice.height);\n    \n    # Create another person\n    local bob: Person = Person {\n        name: \"Bob\",\n        age: 25,\n        height: 1.80\n    };\n    \n    printf(\"\\n%s is %d years old\\n\", bob.name, bob.age);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Name: Alice\nAge: 30\nHeight: 1.65 m\n\nBob is 25 years old",
+      "lineExplanations": {
+        "4-8": "Define the struct with its fields. Each field has name: type.",
+        "12-16": "Create an instance with struct literal: TypeName { field: value, ... }.",
+        "19": "Access fields with the dot operator: variable.field."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Modifying Struct Fields",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Counter {\n    value: int,\n    name: string,\n}\n\nframe main() ret int {\n    local counter: Counter = Counter {\n        value: 0,\n        name: \"Click Counter\"\n    };\n    \n    printf(\"%s: %d\\n\", counter.name, counter.value);\n    \n    # Modify fields\n    counter.value = counter.value + 1;\n    printf(\"After increment: %d\\n\", counter.value);\n    \n    counter.value = counter.value + 10;\n    printf(\"After adding 10: %d\\n\", counter.value);\n    \n    # Change the name\n    counter.name = \"Updated Counter\";\n    printf(\"%s: %d\\n\", counter.name, counter.value);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Click Counter: 0\nAfter increment: 1\nAfter adding 10: 11\nUpdated Counter: 11",
+      "lineExplanations": {
+        "17": "Modify fields using assignment: struct.field = newValue.",
+        "24": "You can change any field, including strings."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Nested Structs",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\nstruct Rectangle {\n    topLeft: Point,\n    width: int,\n    height: int,\n}\n\nframe main() ret int {\n    # Create nested struct\n    local rect: Rectangle = Rectangle {\n        topLeft: Point { x: 10, y: 20 },\n        width: 100,\n        height: 50\n    };\n    \n    printf(\"Rectangle:\\n\");\n    printf(\"  Position: (%d, %d)\\n\", rect.topLeft.x, rect.topLeft.y);\n    printf(\"  Size: %d x %d\\n\", rect.width, rect.height);\n    \n    # Calculate area\n    local area: int = rect.width * rect.height;\n    printf(\"  Area: %d\\n\", area);\n    \n    # Modify nested field\n    rect.topLeft.x = 50;\n    printf(\"  Moved to: (%d, %d)\\n\", rect.topLeft.x, rect.topLeft.y);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Rectangle:\n  Position: (10, 20)\n  Size: 100 x 50\n  Area: 5000\n  Moved to: (50, 20)",
+      "lineExplanations": {
+        "8-12": "Structs can contain other structs as fields.",
+        "17": "Initialize nested structs inline.",
+        "23": "Chain the dot operator: rect.topLeft.x accesses nested field.",
+        "31": "Can modify deeply nested fields."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Passing Structs to Functions",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\n# Function that takes struct by value (copy)\nframe printPoint(p: Point) {\n    printf(\"Point(%d, %d)\\n\", p.x, p.y);\n}\n\n# Function that takes pointer to struct\nframe movePoint(p: *Point, dx: int, dy: int) {\n    p.x = p.x + dx;\n    p.y = p.y + dy;\n}\n\n# Function that returns a struct\nframe createPoint(x: int, y: int) ret Point {\n    return Point { x: x, y: y };\n}\n\n# Calculate distance between two points\nframe distance(p1: Point, p2: Point) ret int {\n    local dx: int = p2.x - p1.x;\n    local dy: int = p2.y - p1.y;\n    if (dx < 0) { dx = -dx; }\n    if (dy < 0) { dy = -dy; }\n    return dx + dy;  # Manhattan distance\n}\n\nframe main() ret int {\n    local p1: Point = createPoint(0, 0);\n    local p2: Point = createPoint(3, 4);\n    \n    printf(\"p1: \");\n    printPoint(p1);\n    \n    printf(\"p2: \");\n    printPoint(p2);\n    \n    printf(\"Distance: %d\\n\", distance(p1, p2));\n    \n    # Move p1 using pointer\n    movePoint(&p1, 5, 10);\n    printf(\"p1 after move: \");\n    printPoint(p1);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "p1: Point(0, 0)\np2: Point(3, 4)\nDistance: 7\np1 after move: Point(5, 10)",
+      "lineExplanations": {
+        "9": "Passing struct by value creates a copy.",
+        "14": "*Point means pointer to Point - can modify the original.",
+        "15-16": "With pointer, use p.x directly (auto-dereference).",
+        "20": "Functions can return structs.",
+        "46": "&p1 passes the address, allowing modification."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Arrays of Structs",
+      "code": "extern printf(fmt: string, ...);\n\nstruct Student {\n    name: string,\n    grade: int,\n}\n\nframe printStudent(s: Student) {\n    printf(\"  %s: %d\\n\", s.name, s.grade);\n}\n\nframe main() ret int {\n    # Array of structs\n    local students: Student[3] = [\n        Student { name: \"Alice\", grade: 92 },\n        Student { name: \"Bob\", grade: 85 },\n        Student { name: \"Charlie\", grade: 78 }\n    ];\n    local count: int = 3;\n    \n    # Print all students\n    printf(\"Class Roster:\\n\");\n    loop (local i: int = 0; i < count; i = i + 1) {\n        printStudent(students[i]);\n    }\n    \n    # Find best student\n    local best: int = 0;  # Index of best student\n    loop (local j: int = 1; j < count; j = j + 1) {\n        if (students[j].grade > students[best].grade) {\n            best = j;\n        }\n    }\n    printf(\"\\nTop student: %s with %d\\n\", students[best].name, students[best].grade);\n    \n    # Calculate average\n    local total: int = 0;\n    loop (local k: int = 0; k < count; k = k + 1) {\n        total = total + students[k].grade;\n    }\n    printf(\"Class average: %d\\n\", total / count);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Class Roster:\n  Alice: 92\n  Bob: 85\n  Charlie: 78\n\nTop student: Alice with 92\nClass average: 85",
+      "lineExplanations": {
+        "14": "Array of structs - each element is a full Student.",
+        "24": "Access array element, then its field: students[i].name.",
+        "30": "Compare fields of different array elements."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Struct Best Practices",
+      "content": "✅ **Group related data** - If variables always go together, make a struct\n\n✅ **Use meaningful names** - `Point` not `P`, `Rectangle` not `Rect`\n\n✅ **Keep structs focused** - Each struct should represent one concept\n\n✅ **Pass large structs by pointer** - Avoid copying big structs\n\n✅ **Initialize all fields** - Don't leave fields uninitialized\n\n✅ **Consider methods** - We'll learn about struct methods next!"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Book Library",
+      "instructions": "Create a Book struct with: title (string), author (string), year (int), pages (int).\nThen:\n1. Create an array of 3 books\n2. Print all books\n3. Find and print the oldest book",
+      "hint": "Use a loop to find the book with the smallest year value.",
+      "solution": "extern printf(fmt: string, ...);\n\nstruct Book {\n    title: string,\n    author: string,\n    year: int,\n    pages: int,\n}\n\nframe main() ret int {\n    local library: Book[3] = [\n        Book { title: \"1984\", author: \"Orwell\", year: 1949, pages: 328 },\n        Book { title: \"Dune\", author: \"Herbert\", year: 1965, pages: 412 },\n        Book { title: \"Foundation\", author: \"Asimov\", year: 1951, pages: 244 }\n    ];\n    local count: int = 3;\n    \n    printf(\"Library:\\n\");\n    loop (local i: int = 0; i < count; i = i + 1) {\n        printf(\"  %s by %s (%d) - %d pages\\n\", \n            library[i].title, library[i].author, \n            library[i].year, library[i].pages);\n    }\n    \n    local oldest: int = 0;\n    loop (local j: int = 1; j < count; j = j + 1) {\n        if (library[j].year < library[oldest].year) {\n            oldest = j;\n        }\n    }\n    \n    printf(\"\\nOldest: %s (%d)\\n\", library[oldest].title, library[oldest].year);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **struct** creates a custom data type with named fields\n\n✅ **Fields** are defined as `name: type` separated by commas\n\n✅ **Initialize** with: `TypeName { field: value, ... }`\n\n✅ **Access fields** with the dot operator: `instance.field`\n\n✅ **Nested structs** - structs can contain other structs\n\n✅ **Pass by pointer** (`*StructName`) to modify the original\n\n✅ **Arrays of structs** work like arrays of any other type"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What keyword defines a struct in BPL?",
+          "options": ["class", "type", "struct", "record"],
+          "correct": 2,
+          "explanation": "BPL uses 'struct' to define custom data structures."
+        },
+        {
+          "question": "How do you access a field named 'age' in a struct variable 'person'?",
+          "options": [
+            "person->age",
+            "person[age]",
+            "person.age",
+            "person::age"
+          ],
+          "correct": 2,
+          "explanation": "Use the dot operator: person.age"
+        },
+        {
+          "question": "What does passing a struct by pointer (*Type) allow you to do?",
+          "options": [
+            "Read faster",
+            "Modify the original",
+            "Create a copy",
+            "Delete the struct"
+          ],
+          "correct": 1,
+          "explanation": "Passing by pointer gives access to the original, allowing modifications."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "09-struct-methods"
+}

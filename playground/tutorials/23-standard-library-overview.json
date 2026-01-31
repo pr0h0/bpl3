@@ -1,0 +1,133 @@
+{
+  "id": "standard-library-overview",
+  "order": 23,
+  "title": "Standard Library Overview",
+  "category": "Standard Library",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Tour BPL's standard library. Learn about IO, strings, collections, math, and more built-in modules.",
+  "prerequisites": ["building-and-debugging"],
+  "objectives": [
+    "Navigate the standard library",
+    "Use common modules effectively",
+    "Know when to use which module"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Standard Library Structure",
+      "content": "BPL's standard library is organized into modules:\n\n```\nstd/\n├── io.bpl          # Input/output\n├── string.bpl      # String manipulation\n├── math.bpl        # Mathematical functions\n├── collections.bpl # Data structures\n├── fs.bpl          # File system\n├── time.bpl        # Date and time\n├── random.bpl      # Random numbers\n├── algorithms.bpl  # Sorting, searching\n└── ...             # And more!\n```\n\nImport what you need:\n```bpl\nimport [IO] from \"std/io.bpl\";\nimport [Vec] from \"std/collections.bpl\";\n```"
+    },
+    {
+      "type": "code",
+      "title": "IO Module",
+      "code": "import [IO] from \"std/io.bpl\";\n\nframe main() ret int {\n    # Basic output\n    IO.print(\"=== IO Module Demo ===\\n\\n\");\n    \n    # Print different types\n    IO.print(\"String: \");\n    IO.print(\"Hello, World!\");\n    IO.print(\"\\n\");\n    \n    IO.print(\"Integer: \");\n    IO.printInt(42);\n    IO.print(\"\\n\");\n    \n    IO.print(\"Float: \");\n    IO.printFloat(3.14159);\n    IO.print(\"\\n\");\n    \n    IO.print(\"Boolean: \");\n    IO.printBool(true);\n    IO.print(\"\\n\");\n    \n    # Multiple values\n    IO.print(\"\\nCounting: \");\n    loop (local i: int = 1; i <= 5; i = i + 1) {\n        IO.printInt(i);\n        IO.print(\" \");\n    }\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== IO Module Demo ===\n\nString: Hello, World!\nInteger: 42\nFloat: 3.14159\nBoolean: true\n\nCounting: 1 2 3 4 5 ",
+      "lineExplanations": {
+        "1": "Import the IO module.",
+        "5": "IO.printString for text output.",
+        "13": "IO.printInt for integers.",
+        "17": "IO.printFloat for decimals."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Module Quick Reference",
+      "content": "**IO Module** (`std/io.bpl`)\n- `printString(s)`, `printInt(n)`, `printFloat(f)`\n- `readLine() ret string`\n- `print(...)` - formatted output\n\n**String Module** (`std/string.bpl`)\n- `length(s)`, `concat(a, b)`\n- `substring(s, start, len)`\n- `split(s, delimiter)`, `join(arr, sep)`\n- `trim(s)`, `toLower(s)`, `toUpper(s)`\n\n**Math Module** (`std/math.bpl`)\n- `abs(n)`, `min(a, b)`, `max(a, b)`\n- `pow(base, exp)`, `sqrt(n)`\n- `sin(x)`, `cos(x)`, `tan(x)`\n- `floor(x)`, `ceil(x)`, `round(x)`\n\n**Collections** (`std/collections.bpl`)\n- `Vec<T>` - Dynamic array\n- `Map<K, V>` - Hash map\n- `Set<T>` - Hash set"
+    },
+    {
+      "type": "code",
+      "title": "Math Module",
+      "code": "import [IO] from \"std/io.bpl\";\n\n# Using C math functions via extern (std/math.bpl wraps these)\nextern sqrt(x: float) ret float;\nextern pow(base: float, exp: float) ret float;\nextern sin(x: float) ret float;\nextern cos(x: float) ret float;\nextern floor(x: float) ret float;\nextern ceil(x: float) ret float;\n\n# Custom math functions\nframe abs(n: int) ret int {\n    if (n < 0) { return -n; }\n    return n;\n}\n\nframe min(a: int, b: int) ret int {\n    if (a < b) { return a; }\n    return b;\n}\n\nframe max(a: int, b: int) ret int {\n    if (a > b) { return a; }\n    return b;\n}\n\nframe main() ret int {\n    IO.print(\"=== Math Functions ===\\n\\n\");\n    \n    # Basic operations\n    IO.print(\"abs(-42) = \");\n    IO.printInt(abs(-42));\n    IO.print(\"\\n\");\n    \n    IO.print(\"min(10, 20) = \");\n    IO.printInt(min(10, 20));\n    IO.print(\"\\n\");\n    \n    IO.print(\"max(10, 20) = \");\n    IO.printInt(max(10, 20));\n    IO.print(\"\\n\");\n    \n    # Floating point\n    IO.print(\"\\nsqrt(16) = \");\n    IO.printFloat(sqrt(16.0));\n    IO.print(\"\\n\");\n    \n    IO.print(\"pow(2, 10) = \");\n    IO.printFloat(pow(2.0, 10.0));\n    IO.print(\"\\n\");\n    \n    IO.print(\"floor(3.7) = \");\n    IO.printFloat(floor(3.7));\n    IO.print(\"\\n\");\n    \n    IO.print(\"ceil(3.2) = \");\n    IO.printFloat(ceil(3.2));\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Math Functions ===\n\nabs(-42) = 42\nmin(10, 20) = 10\nmax(10, 20) = 20\n\nsqrt(16) = 4.000000\npow(2, 10) = 1024.000000\nfloor(3.7) = 3.000000\nceil(3.2) = 4.000000",
+      "lineExplanations": {
+        "12": "Custom abs implementation.",
+        "17": "Custom min implementation.",
+        "4-9": "Math functions from C library."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Working with Strings",
+      "code": "import [IO] from \"std/io.bpl\";\nextern strlen(s: string) ret int;\nextern strcmp(a: string, b: string) ret int;\n\n# String utility functions\nframe stringLength(s: string) ret int {\n    return strlen(s);\n}\n\nframe stringsEqual(a: string, b: string) ret bool {\n    return strcmp(a, b) == 0;\n}\n\nframe startsWith(s: string, prefix: string) ret bool {\n    local prefixLen: int = strlen(prefix);\n    local sLen: int = strlen(s);\n    \n    if (prefixLen > sLen) {\n        return false;\n    }\n    \n    # Compare character by character\n    loop (local i: int = 0; i < prefixLen; i = i + 1) {\n        # Access characters through pointer arithmetic\n        local sChar: char = *(cast<*char>(s) + i);\n        local pChar: char = *(cast<*char>(prefix) + i);\n        if (sChar != pChar) {\n            return false;\n        }\n    }\n    return true;\n}\n\nframe main() ret int {\n    IO.print(\"=== String Operations ===\\n\\n\");\n    \n    local greeting: string = \"Hello, World!\";\n    \n    IO.print(\"String: \");\n    IO.print(greeting);\n    IO.print(\"\\n\");\n    \n    IO.print(\"Length: \");\n    IO.printInt(stringLength(greeting));\n    IO.print(\"\\n\");\n    \n    IO.print(\"\\nComparisons:\\n\");\n    IO.print(\"'abc' == 'abc': \");\n    IO.printBool(stringsEqual(\"abc\", \"abc\"));\n    IO.print(\"\\n\");\n    \n    IO.print(\"'abc' == 'xyz': \");\n    IO.printBool(stringsEqual(\"abc\", \"xyz\"));\n    IO.print(\"\\n\");\n    \n    IO.print(\"\\nPrefix checks:\\n\");\n    IO.print(\"'Hello...' starts with 'Hello': \");\n    IO.printBool(startsWith(greeting, \"Hello\"));\n    IO.print(\"\\n\");\n    \n    IO.print(\"'Hello...' starts with 'World': \");\n    IO.printBool(startsWith(greeting, \"World\"));\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== String Operations ===\n\nString: Hello, World!\nLength: 13\n\nComparisons:\n'abc' == 'abc': true\n'abc' == 'xyz': false\n\nPrefix checks:\n'Hello...' starts with 'Hello': true\n'Hello...' starts with 'World': false",
+      "lineExplanations": {
+        "6": "Wrap C strlen function.",
+        "10": "strcmp returns 0 if equal.",
+        "14": "Custom startsWith function."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Simple Collections",
+      "code": "import [IO] from \"std/io.bpl\";\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\n# Simple dynamic array implementation\nstruct IntVec {\n    data: *int,\n    len: int,\n    cap: int,\n    \n    frame create(capacity: int) ret IntVec {\n        return IntVec {\n            data: cast<*int>(malloc(capacity * sizeof<int>())),\n            len: 0,\n            cap: capacity\n        };\n    }\n    \n    frame push(this: *IntVec, value: int) {\n        if (this.len < this.cap) {\n            *(this.data + this.len) = value;\n            this.len = this.len + 1;\n        }\n    }\n    \n    frame get(this: *IntVec, index: int) ret int {\n        return *(this.data + index);\n    }\n    \n    frame destroy(this: *IntVec) {\n        free(cast<*void>(this.data));\n    }\n}\n\nframe main() ret int {\n    IO.print(\"=== Collections Demo ===\\n\\n\");\n    \n    local vec: IntVec = IntVec.create(10);\n    defer { vec.destroy(); }\n    \n    # Add elements\n    vec.push(10);\n    vec.push(20);\n    vec.push(30);\n    vec.push(40);\n    vec.push(50);\n    \n    IO.print(\"Vector contents: \");\n    loop (local i: int = 0; i < vec.len; i = i + 1) {\n        IO.printInt(vec.get(i));\n        IO.print(\" \");\n    }\n    IO.print(\"\\n\");\n    \n    IO.print(\"Length: \");\n    IO.printInt(vec.len);\n    IO.print(\"\\n\");\n    \n    # Sum all elements\n    local sum: int = 0;\n    loop (local i: int = 0; i < vec.len; i = i + 1) {\n        sum = sum + vec.get(i);\n    }\n    IO.print(\"Sum: \");\n    IO.printInt(sum);\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Collections Demo ===\n\nVector contents: 10 20 30 40 50 \nLength: 5\nSum: 150",
+      "lineExplanations": {
+        "6": "IntVec is a simple dynamic array.",
+        "11": "Factory method allocates memory.",
+        "19": "Push adds to the end.",
+        "39": "defer ensures cleanup."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Standard Library Best Practices",
+      "content": "✅ **Import only what you need**\n```bpl\nimport [Vec] from \"std/collections.bpl\";\n# Not: import * from \"std/collections.bpl\";\n```\n\n✅ **Check documentation for edge cases**\n- What happens with empty strings?\n- Null pointers?\n- Index out of bounds?\n\n✅ **Use standard library over reinventing**\n- Well-tested\n- Optimized\n- Familiar to other BPL developers\n\n✅ **Understand ownership/cleanup**\n- Does the function allocate?\n- Who frees the memory?"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Statistics Calculator",
+      "instructions": "Using array operations and math, implement:\n1. `sum(arr: *int, len: int) ret int`\n2. `average(arr: *int, len: int) ret float`\n3. `findMax(arr: *int, len: int) ret int`\n\nTest with array [5, 2, 8, 1, 9, 3]",
+      "hint": "sum: loop and accumulate. average: cast sum to float before dividing. max: track largest seen.",
+      "solution": "import [IO] from \"std/io.bpl\";\n\nframe sum(arr: *int, len: int) ret int {\n    local total: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        total = total + *(arr + i);\n    }\n    return total;\n}\n\nframe average(arr: *int, len: int) ret float {\n    local total: int = sum(arr, len);\n    return cast<float>(total) / cast<float>(len);\n}\n\nframe findMax(arr: *int, len: int) ret int {\n    local maxVal: int = *(arr);\n    loop (local i: int = 1; i < len; i = i + 1) {\n        if (*(arr + i) > maxVal) {\n            maxVal = *(arr + i);\n        }\n    }\n    return maxVal;\n}\n\nframe main() ret int {\n    local data: int[6] = [5, 2, 8, 1, 9, 3];\n    \n    IO.print(\"Array: [5, 2, 8, 1, 9, 3]\\n\");\n    IO.print(\"Sum: \");\n    IO.printInt(sum(&data[0], 6));\n    IO.print(\"\\n\");\n    \n    IO.print(\"Average: \");\n    IO.printFloat(average(&data[0], 6));\n    IO.print(\"\\n\");\n    \n    IO.print(\"Max: \");\n    IO.printInt(findMax(&data[0], 6));\n    IO.print(\"\\n\");\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ Standard library organized into **focused modules**\n\n✅ **IO** for input/output operations\n\n✅ **Math** for numeric operations (uses C math library)\n\n✅ **String** functions wrap C string.h\n\n✅ **Collections** provide Vec, Map, Set\n\n✅ Import with `import [Name] from \"std/module.bpl\"`\n\n✅ Check ownership and cleanup requirements"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "How do you import the IO module?",
+          "options": [
+            "use std.io",
+            "import [IO] from \"std/io.bpl\"",
+            "#include <io>",
+            "require('io')"
+          ],
+          "correct": 1,
+          "explanation": "BPL uses import [Name] from \"path\" syntax for modules."
+        },
+        {
+          "question": "What module would you use for sqrt()?",
+          "options": [
+            "std/io.bpl",
+            "std/math.bpl",
+            "std/string.bpl",
+            "std/calc.bpl"
+          ],
+          "correct": 1,
+          "explanation": "Mathematical functions are in std/math.bpl."
+        },
+        {
+          "question": "Why use standard library over custom code?",
+          "options": [
+            "It's mandatory",
+            "Well-tested and optimized",
+            "Faster to compile",
+            "Uses less memory"
+          ],
+          "correct": 1,
+          "explanation": "Standard library is well-tested, optimized, and familiar to other developers."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "24-patterns-and-idioms"
+}

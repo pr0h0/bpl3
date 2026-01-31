@@ -1,0 +1,143 @@
+{
+  "id": "generics",
+  "order": 12,
+  "title": "Generics: Write Once, Use with Any Type",
+  "category": "Intermediate Concepts",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Learn how to write flexible, reusable code with generics. Create functions and structs that work with any type while maintaining type safety.",
+  "prerequisites": ["enums-and-pattern-matching"],
+  "objectives": [
+    "Understand what generics are and why they're useful",
+    "Write generic functions with type parameters",
+    "Create generic structs",
+    "Use multiple type parameters"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Why Generics?",
+      "content": "Without generics, you'd need separate functions for each type:\n\n```bpl\nframe maxInt(a: int, b: int) ret int { ... }\nframe maxFloat(a: float, b: float) ret float { ... }\nframe maxString(a: string, b: string) ret string { ... }\n```\n\nWith generics, write it **once**:\n\n```bpl\nframe max<T>(a: T, b: T) ret T { ... }\n```\n\nThe compiler generates specialized code for each type used. This is called **monomorphization** - zero runtime cost!"
+    },
+    {
+      "type": "comparison",
+      "title": "Generic Syntax Comparison",
+      "languages": {
+        "BPL": "frame identity<T>(val: T) ret T {\n    return val;\n}",
+        "Rust": "fn identity<T>(val: T) -> T {\n    val\n}",
+        "TypeScript": "function identity<T>(val: T): T {\n    return val;\n}",
+        "C++": "template<typename T>\nT identity(T val) {\n    return val;\n}"
+      },
+      "explanation": "BPL uses angle brackets <T> for type parameters, similar to Rust and TypeScript."
+    },
+    {
+      "type": "code",
+      "title": "Generic Functions",
+      "code": "extern printf(fmt: string, ...);\n\n# Generic identity function - returns what it receives\nframe identity<T>(val: T) ret T {\n    return val;\n}\n\n# Generic swap function\nframe swap<T>(a: *T, b: *T) {\n    local temp: T = *a;\n    *a = *b;\n    *b = temp;\n}\n\nframe main() ret int {\n    # Use identity with different types\n    local num: int = identity<int>(42);\n    printf(\"identity<int>(42) = %d\\n\", num);\n    \n    local pi: float = identity<float>(3.14);\n    printf(\"identity<float>(3.14) = %.2f\\n\", pi);\n    \n    local flag: bool = identity<bool>(true);\n    printf(\"identity<bool>(true) = %d\\n\", flag);\n    \n    # Generic swap\n    local x: int = 10;\n    local y: int = 20;\n    printf(\"\\nBefore swap: x=%d, y=%d\\n\", x, y);\n    swap<int>(&x, &y);\n    printf(\"After swap: x=%d, y=%d\\n\", x, y);\n    \n    local a: float = 1.5;\n    local b: float = 2.5;\n    printf(\"\\nBefore swap: a=%.1f, b=%.1f\\n\", a, b);\n    swap<float>(&a, &b);\n    printf(\"After swap: a=%.1f, b=%.1f\\n\", a, b);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "identity<int>(42) = 42\nidentity<float>(3.14) = 3.14\nidentity<bool>(true) = 1\n\nBefore swap: x=10, y=20\nAfter swap: x=20, y=10\n\nBefore swap: a=1.5, b=2.5\nAfter swap: a=2.5, b=1.5",
+      "lineExplanations": {
+        "4": "<T> declares a type parameter named T.",
+        "9": "Generic function with pointer parameters.",
+        "10": "local temp: T - use T as the type.",
+        "16": "Specify the type: identity<int>(...)."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Generic Structs",
+      "code": "extern printf(fmt: string, ...);\n\n# Generic pair - holds two values of the same type\nstruct Pair<T> {\n    first: T,\n    second: T,\n}\n\n# Generic box - wraps a single value\nstruct Box<T> {\n    value: T,\n    \n    frame get(this: *Box<T>) ret T {\n        return this.value;\n    }\n    \n    frame set(this: *Box<T>, newValue: T) {\n        this.value = newValue;\n    }\n}\n\nframe main() ret int {\n    # Pair of ints\n    local intPair: Pair<int> = Pair<int> {\n        first: 10,\n        second: 20\n    };\n    printf(\"Int pair: (%d, %d)\\n\", intPair.first, intPair.second);\n    \n    # Pair of floats\n    local floatPair: Pair<float> = Pair<float> {\n        first: 1.5,\n        second: 2.5\n    };\n    printf(\"Float pair: (%.1f, %.1f)\\n\", floatPair.first, floatPair.second);\n    \n    # Box example\n    local box: Box<int> = Box<int> { value: 42 };\n    printf(\"\\nBox contains: %d\\n\", box.get());\n    \n    box.set(100);\n    printf(\"After set: %d\\n\", box.get());\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Int pair: (10, 20)\nFloat pair: (1.5, 2.5)\n\nBox contains: 42\nAfter set: 100",
+      "lineExplanations": {
+        "4": "struct Pair<T> - T is the type parameter.",
+        "10-19": "Generic struct with methods.",
+        "13": "Method returns T.",
+        "24": "Instantiate with Pair<int> { ... }."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Multiple Type Parameters",
+      "code": "extern printf(fmt: string, ...);\n\n# Two different types\nstruct KeyValue<K, V> {\n    key: K,\n    value: V,\n}\n\n# Either type - holds one of two possible types\nenum Either<L, R> {\n    Left(L),\n    Right(R),\n}\n\nframe printEither(e: Either<int, string>) {\n    match (e) {\n        Either.Left(num) => printf(\"Left: %d\\n\", num),\n        Either.Right(text) => printf(\"Right: %s\\n\", text),\n    }\n}\n\nframe main() ret int {\n    # KeyValue with different key/value types\n    local kv1: KeyValue<string, int> = KeyValue<string, int> {\n        key: \"age\",\n        value: 25\n    };\n    printf(\"Key: %s, Value: %d\\n\", kv1.key, kv1.value);\n    \n    local kv2: KeyValue<int, float> = KeyValue<int, float> {\n        key: 1,\n        value: 3.14\n    };\n    printf(\"Key: %d, Value: %.2f\\n\", kv2.key, kv2.value);\n    \n    # Either type\n    printf(\"\\nEither examples:\\n\");\n    local left: Either<int, string> = Either.Left(42);\n    local right: Either<int, string> = Either.Right(\"hello\");\n    \n    printEither(left);\n    printEither(right);\n    \n    return 0;\n}",
+      "runnable": false,
+      "note": "Requires BUG-131 fix: generic enum type resolution.",
+      "expectedOutput": "Key: age, Value: 25\nKey: 1, Value: 3.14\n\nEither examples:\nLeft: 42\nRight: hello",
+      "lineExplanations": {
+        "4": "<K, V> - two type parameters.",
+        "10": "Either<L, R> - enum with two type parameters.",
+        "24": "Specify both types: KeyValue<string, int>."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Generic Collections",
+      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\n# Simple generic stack (fixed size)\nstruct Stack<T> {\n    data: T[100],  # Fixed-size array\n    top: int,\n    \n    frame create() ret Stack<T> {\n        local s: Stack<T>;\n        s.top = 0;\n        return s;\n    }\n    \n    frame push(this: *Stack<T>, item: T) ret bool {\n        if (this.top >= 100) {\n            return false;  # Stack full\n        }\n        this.data[this.top] = item;\n        this.top = this.top + 1;\n        return true;\n    }\n    \n    frame pop(this: *Stack<T>, out: *T) ret bool {\n        if (this.top <= 0) {\n            return false;  # Stack empty\n        }\n        this.top = this.top - 1;\n        *out = this.data[this.top];\n        return true;\n    }\n    \n    frame isEmpty(this: *Stack<T>) ret bool {\n        return this.top == 0;\n    }\n    \n    frame size(this: *Stack<T>) ret int {\n        return this.top;\n    }\n}\n\nframe main() ret int {\n    local intStack: Stack<int> = Stack<int>.create();\n    \n    # Push some values\n    intStack.push(10);\n    intStack.push(20);\n    intStack.push(30);\n    \n    printf(\"Stack size: %d\\n\", intStack.size());\n    \n    # Pop and print\n    local val: int;\n    printf(\"Popping: \");\n    loop (intStack.isEmpty() == false) {\n        intStack.pop(&val);\n        printf(\"%d \", val);\n    }\n    printf(\"\\n\");\n    \n    printf(\"Stack is empty: %d\\n\", intStack.isEmpty());\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Stack size: 3\nPopping: 30 20 10 \nStack is empty: 1",
+      "lineExplanations": {
+        "6": "Generic stack - works with any type T.",
+        "10": "Static factory method creates a new stack.",
+        "16": "Push adds item to top.",
+        "25": "Pop removes and returns top item via output pointer.",
+        "44": "Create a Stack<int>."
+      }
+    },
+    {
+      "type": "text",
+      "title": "How Generics Work: Monomorphization",
+      "content": "When you use a generic function:\n\n```bpl\nidentity<int>(42);\nidentity<float>(3.14);\n```\n\nThe compiler generates **separate specialized versions**:\n\n```bpl\n# Generated by compiler:\nframe identity_int(val: int) ret int { return val; }\nframe identity_float(val: float) ret float { return val; }\n```\n\n**Benefits:**\n- ✅ No runtime overhead\n- ✅ Fully optimized for each type\n- ✅ Type errors caught at compile time\n\n**Trade-off:**\n- ⚠️ Larger binary size (code duplication)"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Generic MinMax",
+      "instructions": "Create a generic `MinMax<T>` struct that tracks minimum and maximum values:\n- Fields: `min: T`, `max: T`, `count: int`\n- Method: `update(this: *MinMax<T>, val: T)` - updates min/max if needed\n- Use it with integers to track min/max of values: 5, 2, 8, 1, 9",
+      "hint": "In update, compare val with current min and max using < and >.",
+      "solution": "extern printf(fmt: string, ...);\n\nstruct MinMax<T> {\n    min: T,\n    max: T,\n    count: int,\n    \n    frame init(first: T) ret MinMax<T> {\n        return MinMax<T> {\n            min: first,\n            max: first,\n            count: 1\n        };\n    }\n    \n    frame update(this: *MinMax<T>, val: T) {\n        this.count = this.count + 1;\n        if (val < this.min) {\n            this.min = val;\n        }\n        if (val > this.max) {\n            this.max = val;\n        }\n    }\n}\n\nframe main() ret int {\n    local tracker: MinMax<int> = MinMax<int>.init(5);\n    \n    tracker.update(2);\n    tracker.update(8);\n    tracker.update(1);\n    tracker.update(9);\n    \n    printf(\"Tracked %d values\\n\", tracker.count);\n    printf(\"Min: %d\\n\", tracker.min);\n    printf(\"Max: %d\\n\", tracker.max);\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Generics** let you write code that works with any type\n\n✅ Use **<T>** to declare a type parameter\n\n✅ **Functions and structs** can both be generic\n\n✅ **Multiple type parameters** are separated by commas: `<K, V>`\n\n✅ **Monomorphization** generates specialized code - zero cost!\n\n✅ Specify types when using: `Stack<int>`, `identity<float>(...)`"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does <T> mean in 'frame foo<T>(x: T) ret T'?",
+          "options": [
+            "T is a variable name",
+            "T is a type parameter",
+            "T is a constant",
+            "T is a template"
+          ],
+          "correct": 1,
+          "explanation": "T is a type parameter - a placeholder for any type that will be specified when the function is called."
+        },
+        {
+          "question": "What is monomorphization?",
+          "options": [
+            "Runtime type checking",
+            "Generating specialized code for each type",
+            "Converting to a single type",
+            "Type erasure"
+          ],
+          "correct": 1,
+          "explanation": "Monomorphization generates separate optimized code for each concrete type used with a generic."
+        },
+        {
+          "question": "How do you create a Pair<int> with values 1 and 2?",
+          "options": [
+            "Pair(1, 2)",
+            "Pair<int>(1, 2)",
+            "Pair<int> { first: 1, second: 2 }",
+            "new Pair<int>(1, 2)"
+          ],
+          "correct": 2,
+          "explanation": "Use struct literal syntax with the generic type: Pair<int> { field: value, ... }"
+        }
+      ]
+    }
+  ],
+  "nextLesson": "13-error-handling"
+}

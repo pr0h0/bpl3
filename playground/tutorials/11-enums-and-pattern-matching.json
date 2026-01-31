@@ -1,0 +1,156 @@
+{
+  "id": "enums-and-pattern-matching",
+  "order": 11,
+  "title": "Enums and Pattern Matching",
+  "category": "Intermediate Concepts",
+  "difficulty": "intermediate",
+  "duration": "15 min",
+  "description": "Master BPL's powerful enum system and pattern matching. Create algebraic data types and handle all cases elegantly.",
+  "prerequisites": ["pointers-basics"],
+  "objectives": [
+    "Define enums with and without associated data",
+    "Use pattern matching with match expressions",
+    "Handle all enum variants safely",
+    "Build Option and Result types"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What are Enums?",
+      "content": "An **enum** (enumeration) is a type that can be one of several **variants**.\n\nSimple example:\n```bpl\nenum Direction {\n    North, South, East, West\n}\n```\n\nBPL enums are **algebraic data types** - variants can hold data:\n```bpl\nenum Option<T> {\n    Some(T),   # Has a value\n    None       # No value\n}\n```\n\nThis makes them perfect for representing states, results, and optional values."
+    },
+    {
+      "type": "comparison",
+      "title": "Enum Syntax Comparison",
+      "languages": {
+        "BPL": "enum Result<T, E> {\n    Ok(T),\n    Err(E),\n}",
+        "Rust": "enum Result<T, E> {\n    Ok(T),\n    Err(E),\n}",
+        "TypeScript": "type Result<T, E> =\n  | { ok: true; value: T }\n  | { ok: false; error: E }",
+        "C": "// No direct equivalent\n// Use unions + tag"
+      },
+      "explanation": "BPL's enums are inspired by Rust's. They're much more powerful than C enums which are just integers."
+    },
+    {
+      "type": "code",
+      "title": "Simple Enums",
+      "code": "extern printf(fmt: string, ...);\n\n# Simple enum - no associated data\nenum Color {\n    Red,\n    Green,\n    Blue,\n    Yellow,\n}\n\nenum Direction {\n    North,\n    South,\n    East,\n    West,\n}\n\nframe printColor(c: Color) {\n    match (c) {\n        Color.Red => printf(\"Red\\n\"),\n        Color.Green => printf(\"Green\\n\"),\n        Color.Blue => printf(\"Blue\\n\"),\n        Color.Yellow => printf(\"Yellow\\n\"),\n    }\n}\n\nframe move(dir: Direction) {\n    match (dir) {\n        Direction.North => printf(\"Moving north ↑\\n\"),\n        Direction.South => printf(\"Moving south ↓\\n\"),\n        Direction.East => printf(\"Moving east →\\n\"),\n        Direction.West => printf(\"Moving west ←\\n\"),\n    }\n}\n\nframe main() ret int {\n    local myColor: Color = Color.Blue;\n    printf(\"My color: \");\n    printColor(myColor);\n    \n    local heading: Direction = Direction.North;\n    move(heading);\n    move(Direction.East);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "My color: Blue\nMoving north ↑\nMoving east →",
+      "lineExplanations": {
+        "4-8": "Simple enum with four variants, no data.",
+        "19": "match expression handles each variant.",
+        "20": "EnumName.Variant is the full syntax.",
+        "37": "Create enum value with EnumName.Variant."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Enums with Data",
+      "code": "extern printf(fmt: string, ...);\n\n# Enum where variants hold different data\nenum Shape {\n    Circle(int),           # radius\n    Rectangle(int, int),   # width, height\n    Triangle(int, int, int), # three sides\n}\n\nframe describeShape(s: Shape) {\n    match (s) {\n        Shape.Circle(r) => {\n            printf(\"Circle with radius %d\\n\", r);\n        },\n        Shape.Rectangle(w, h) => {\n            printf(\"Rectangle %d x %d\\n\", w, h);\n        },\n        Shape.Triangle(a, b, c) => {\n            printf(\"Triangle with sides %d, %d, %d\\n\", a, b, c);\n        },\n    }\n}\n\nframe area(s: Shape) ret int {\n    local result: int = 0;\n    match (s) {\n        Shape.Circle(r) => {\n            result = 3 * r * r;  # Approximation: π ≈ 3\n        },\n        Shape.Rectangle(w, h) => {\n            result = w * h;\n        },\n        Shape.Triangle(a, b, c) => {\n            # Simplified: just return perimeter/2 as approximation\n            result = (a + b + c) / 2;\n        },\n    }\n    return result;\n}\n\nframe main() ret int {\n    local circle: Shape = Shape.Circle(5);\n    local rect: Shape = Shape.Rectangle(10, 20);\n    local tri: Shape = Shape.Triangle(3, 4, 5);\n    \n    describeShape(circle);\n    printf(\"Area: ~%d\\n\\n\", area(circle));\n    \n    describeShape(rect);\n    printf(\"Area: %d\\n\\n\", area(rect));\n    \n    describeShape(tri);\n    printf(\"Semi-perimeter: %d\\n\", area(tri));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Circle with radius 5\nArea: ~75\n\nRectangle 10 x 20\nArea: 200\n\nTriangle with sides 3, 4, 5\nSemi-perimeter: 6",
+      "lineExplanations": {
+        "5": "Circle holds one int (radius).",
+        "6": "Rectangle holds two ints (width, height).",
+        "12": "Pattern extracts the data: Circle(r) binds r to the radius.",
+        "40": "Create with data: Shape.Circle(5)."
+      }
+    },
+    {
+      "type": "code",
+      "title": "The Option Type",
+      "code": "extern printf(fmt: string, ...);\n\n# Option represents a value that may or may not exist\nenum Option<T> {\n    Some(T),  # Has a value\n    None,     # No value\n}\n\n# Safe division - returns None for division by zero\nframe safeDivide(a: int, b: int) ret Option<int> {\n    if (b == 0) {\n        return Option.None;\n    }\n    return Option.Some(a / b);\n}\n\n# Find element in array - returns None if not found\nframe find(arr: *int, len: int, target: int) ret Option<int> {\n    loop (local i: int = 0; i < len; i = i + 1) {\n        if (*(arr + i) == target) {\n            return Option.Some(i);  # Return index\n        }\n    }\n    return Option.None;\n}\n\nframe main() ret int {\n    # Safe division\n    printf(\"10 / 2 = \");\n    match (safeDivide(10, 2)) {\n        Option.Some(result) => printf(\"%d\\n\", result),\n        Option.None => printf(\"undefined\\n\"),\n    }\n    \n    printf(\"10 / 0 = \");\n    match (safeDivide(10, 0)) {\n        Option.Some(result) => printf(\"%d\\n\", result),\n        Option.None => printf(\"undefined\\n\"),\n    }\n    \n    # Find in array\n    local data: int[5] = [10, 20, 30, 40, 50];\n    \n    printf(\"\\nFind 30: \");\n    match (find(&data[0], 5, 30)) {\n        Option.Some(idx) => printf(\"found at index %d\\n\", idx),\n        Option.None => printf(\"not found\\n\"),\n    }\n    \n    printf(\"Find 99: \");\n    match (find(&data[0], 5, 99)) {\n        Option.Some(idx) => printf(\"found at index %d\\n\", idx),\n        Option.None => printf(\"not found\\n\"),\n    }\n    \n    return 0;\n}",
+      "runnable": false,
+      "note": "Generic enum support is still being improved.",
+      "expectedOutput": "10 / 2 = 5\n10 / 0 = undefined\n\nFind 30: found at index 2\nFind 99: not found",
+      "lineExplanations": {
+        "4-7": "Generic enum Option<T> - T is the type parameter.",
+        "11-14": "Return None for error case, Some for success.",
+        "31": "Pattern match extracts the value from Some."
+      }
+    },
+    {
+      "type": "code",
+      "title": "The Result Type",
+      "code": "extern printf(fmt: string, ...);\n\n# Result represents success or failure with error info\nenum Result<T, E> {\n    Ok(T),   # Success with value\n    Err(E),  # Error with error info\n}\n\nstruct DivError {\n    message: string,\n}\n\nframe divide(a: int, b: int) ret Result<int, DivError> {\n    if (b == 0) {\n        return Result.Err(DivError { message: \"Division by zero\" });\n    }\n    return Result.Ok(a / b);\n}\n\nframe parseDigit(c: char) ret Result<int, string> {\n    if (c >= '0' && c <= '9') {\n        return Result.Ok(cast<int>(c) - cast<int>('0'));\n    }\n    return Result.Err(\"Not a digit\");\n}\n\nframe main() ret int {\n    # Division with Result\n    printf(\"20 / 4 = \");\n    match (divide(20, 4)) {\n        Result.Ok(val) => printf(\"%d\\n\", val),\n        Result.Err(e) => printf(\"Error: %s\\n\", e.message),\n    }\n    \n    printf(\"20 / 0 = \");\n    match (divide(20, 0)) {\n        Result.Ok(val) => printf(\"%d\\n\", val),\n        Result.Err(e) => printf(\"Error: %s\\n\", e.message),\n    }\n    \n    # Parse digit\n    printf(\"\\nParse '7': \");\n    match (parseDigit('7')) {\n        Result.Ok(n) => printf(\"%d\\n\", n),\n        Result.Err(msg) => printf(\"%s\\n\", msg),\n    }\n    \n    printf(\"Parse 'x': \");\n    match (parseDigit('x')) {\n        Result.Ok(n) => printf(\"%d\\n\", n),\n        Result.Err(msg) => printf(\"%s\\n\", msg),\n    }\n    \n    return 0;\n}",
+      "runnable": false,
+      "note": "Generic enum support is still being improved.",
+      "expectedOutput": "20 / 4 = 5\n20 / 0 = Error: Division by zero\n\nParse '7': 7\nParse 'x': Not a digit",
+      "lineExplanations": {
+        "4-7": "Result<T, E> has two type parameters: success and error types.",
+        "15": "Return Err with error information.",
+        "22": "cast<int> converts char to its ASCII code."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Pattern Matching Advanced",
+      "code": "extern printf(fmt: string, ...);\n\nenum Message {\n    Quit,\n    Move(int, int),\n    Write(string),\n    ChangeColor(int, int, int),\n}\n\nframe processMessage(msg: Message) {\n    match (msg) {\n        # Match specific variant\n        Message.Quit => {\n            printf(\"Quit message received\\n\");\n        },\n        # Match and extract data\n        Message.Move(x, y) => {\n            printf(\"Move to (%d, %d)\\n\", x, y);\n        },\n        # Match with string\n        Message.Write(text) => {\n            printf(\"Write: %s\\n\", text);\n        },\n        # Match with multiple values\n        Message.ChangeColor(r, g, b) => {\n            printf(\"Change color to RGB(%d, %d, %d)\\n\", r, g, b);\n        },\n    }\n}\n\nframe main() ret int {\n    processMessage(Message.Quit);\n    processMessage(Message.Move(100, 200));\n    processMessage(Message.Write(\"Hello!\"));\n    processMessage(Message.ChangeColor(255, 128, 0));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Quit message received\nMove to (100, 200)\nWrite: Hello!\nChange color to RGB(255, 128, 0)",
+      "lineExplanations": {
+        "4": "Quit has no data.",
+        "5": "Move has two ints.",
+        "6": "Write has a string.",
+        "7": "ChangeColor has three ints (RGB).",
+        "17": "Match extracts x and y from Move."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Pattern Matching Rules",
+      "content": "**Pattern matching must be exhaustive** - handle all variants!\n\n```bpl\nenum Status { Active, Inactive, Pending }\n\nmatch (status) {\n    Status.Active => ...,\n    Status.Inactive => ...,\n    # Error! Missing Status.Pending\n}\n```\n\n**Use wildcard `_` for catch-all:**\n```bpl\nmatch (status) {\n    Status.Active => printf(\"Active!\"),\n    _ => printf(\"Not active\"),  # Matches anything else\n}\n```\n\nThe compiler ensures you handle all cases, preventing bugs!"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Expression Evaluator",
+      "instructions": "Create an enum `Expr` with variants:\n- `Num(int)` - a number\n- `Add(int, int)` - addition\n- `Mul(int, int)` - multiplication\n\nWrite an `evaluate(expr: Expr) ret int` function that computes the result.",
+      "hint": "Use match to handle each variant and perform the appropriate operation.",
+      "solution": "extern printf(fmt: string, ...);\n\nenum Expr {\n    Num(int),\n    Add(int, int),\n    Mul(int, int),\n}\n\nframe evaluate(expr: Expr) ret int {\n    local result: int = 0;\n    match (expr) {\n        Expr.Num(n) => {\n            result = n;\n        },\n        Expr.Add(a, b) => {\n            result = a + b;\n        },\n        Expr.Mul(a, b) => {\n            result = a * b;\n        },\n    }\n    return result;\n}\n\nframe main() ret int {\n    printf(\"Num(42) = %d\\n\", evaluate(Expr.Num(42)));\n    printf(\"Add(10, 5) = %d\\n\", evaluate(Expr.Add(10, 5)));\n    printf(\"Mul(6, 7) = %d\\n\", evaluate(Expr.Mul(6, 7)));\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Enums** represent one of several possible variants\n\n✅ Variants can hold **associated data** of any type\n\n✅ **match** expressions handle each variant\n\n✅ Pattern matching **extracts data** from variants\n\n✅ **Option<T>** represents optional values (Some/None)\n\n✅ **Result<T, E>** represents success/failure (Ok/Err)\n\n✅ Match must be **exhaustive** - handle all cases!"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What does Option<T>.None represent?",
+          "options": [
+            "An error occurred",
+            "A null pointer",
+            "No value exists",
+            "Default value"
+          ],
+          "correct": 2,
+          "explanation": "None represents the absence of a value, a safe alternative to null."
+        },
+        {
+          "question": "What happens if you don't handle all enum variants in a match?",
+          "options": [
+            "Runtime error",
+            "Compile error",
+            "Returns null",
+            "Uses default"
+          ],
+          "correct": 1,
+          "explanation": "BPL requires exhaustive matching - you must handle all variants or use _ wildcard."
+        },
+        {
+          "question": "In Result<int, string>, what does the string represent?",
+          "options": [
+            "The success value",
+            "The error message",
+            "A label",
+            "The function name"
+          ],
+          "correct": 1,
+          "explanation": "Result<T, E> has success type T (int) and error type E (string)."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "12-generics"
+}

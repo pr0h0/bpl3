@@ -1,0 +1,132 @@
+{
+  "id": "bitwise-operations",
+  "order": 19,
+  "title": "Bitwise Operations",
+  "category": "Advanced Concepts",
+  "difficulty": "intermediate",
+  "duration": "12 min",
+  "description": "Work with individual bits. Learn AND, OR, XOR, NOT, shifts, and practical applications like flags and masks.",
+  "prerequisites": ["string-interpolation"],
+  "objectives": [
+    "Use bitwise operators: &, |, ^, ~, <<, >>",
+    "Understand binary representation",
+    "Work with flags and bit masks",
+    "Apply bitwise operations in practice"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Why Bitwise Operations?",
+      "content": "Bitwise operations manipulate individual bits:\n\n**Use cases:**\n- 🚩 Flags (permissions, options)\n- 🎨 Colors (RGB packed in one int)\n- 🔐 Cryptography and hashing\n- 📦 Compact data storage\n- ⚡ Fast multiplication/division by powers of 2\n\n**Binary reminder:**\n```\nDecimal 13 = Binary 1101\n  = 1×8 + 1×4 + 0×2 + 1×1\n  = 8 + 4 + 1\n  = 13\n```"
+    },
+    {
+      "type": "comparison",
+      "title": "Bitwise Operator Syntax",
+      "languages": {
+        "BPL": "a & b   # AND\na | b   # OR\na ^ b   # XOR\n~a      # NOT\na << n  # Left shift\na >> n  # Right shift",
+        "C": "a & b   // AND\na | b   // OR\na ^ b   // XOR\n~a      // NOT\na << n  // Left shift\na >> n  // Right shift",
+        "Python": "a & b   # AND\na | b   # OR\na ^ b   # XOR\n~a      # NOT\na << n  # Left shift\na >> n  # Right shift",
+        "JavaScript": "a & b   // AND\na | b   // OR\na ^ b   // XOR\n~a      // NOT\na << n  // Left shift\na >> n  // Right shift"
+      },
+      "explanation": "Bitwise operators are the same across most languages!"
+    },
+    {
+      "type": "code",
+      "title": "Basic Bitwise Operators",
+      "code": "extern printf(fmt: string, ...);\n\nframe printBinary(n: int, bits: int) {\n    loop (local i: int = bits - 1; i >= 0; i = i - 1) {\n        if (((n >> i) & 1) == 1) {\n            printf(\"1\");\n        } else {\n            printf(\"0\");\n        }\n    }\n}\n\nframe main() ret int {\n    local a: int = 12;  # Binary: 1100\n    local b: int = 10;  # Binary: 1010\n    \n    printf(\"a = %d = \", a); printBinary(a, 4); printf(\"\\n\");\n    printf(\"b = %d = \", b); printBinary(b, 4); printf(\"\\n\");\n    printf(\"\\n\");\n    \n    # AND: both bits must be 1\n    local andResult: int = a & b;  # 1000 = 8\n    printf(\"a & b = %d = \", andResult); printBinary(andResult, 4); printf(\"\\n\");\n    \n    # OR: either bit is 1\n    local orResult: int = a | b;  # 1110 = 14\n    printf(\"a | b = %d = \", orResult); printBinary(orResult, 4); printf(\"\\n\");\n    \n    # XOR: bits differ\n    local xorResult: int = a ^ b;  # 0110 = 6\n    printf(\"a ^ b = %d = \", xorResult); printBinary(xorResult, 4); printf(\"\\n\");\n    \n    # NOT: flip all bits (32-bit result shown truncated)\n    local notResult: int = ~a;\n    printf(\"~a = %d\\n\", notResult);\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "a = 12 = 1100\nb = 10 = 1010\n\na & b = 8 = 1000\na | b = 14 = 1110\na ^ b = 6 = 0110\n~a = -13",
+      "lineExplanations": {
+        "14": "12 in binary is 1100.",
+        "15": "10 in binary is 1010.",
+        "22": "AND: 1&1=1, 1&0=0, 0&1=0, 0&0=0.",
+        "26": "OR: 1|1=1, 1|0=1, 0|1=1, 0|0=0.",
+        "30": "XOR: same=0, different=1."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Bit Shifting",
+      "code": "extern printf(fmt: string, ...);\n\nframe printBinary(n: int, bits: int) {\n    loop (local i: int = bits - 1; i >= 0; i = i - 1) {\n        if (((n >> i) & 1) == 1) {\n            printf(\"1\");\n        } else {\n            printf(\"0\");\n        }\n    }\n}\n\nframe main() ret int {\n    local n: int = 5;  # Binary: 0101\n    \n    printf(\"n = %d = \", n); printBinary(n, 8); printf(\"\\n\");\n    printf(\"\\n\");\n    \n    # Left shift: multiply by 2^positions\n    printf(\"n << 1 = %d = \", n << 1); printBinary(n << 1, 8); printf(\" (×2)\\n\");\n    printf(\"n << 2 = %d = \", n << 2); printBinary(n << 2, 8); printf(\" (×4)\\n\");\n    printf(\"n << 3 = %d = \", n << 3); printBinary(n << 3, 8); printf(\" (×8)\\n\");\n    \n    printf(\"\\n\");\n    \n    local m: int = 40;  # Binary: 00101000\n    printf(\"m = %d = \", m); printBinary(m, 8); printf(\"\\n\");\n    \n    # Right shift: divide by 2^positions\n    printf(\"m >> 1 = %d = \", m >> 1); printBinary(m >> 1, 8); printf(\" (÷2)\\n\");\n    printf(\"m >> 2 = %d = \", m >> 2); printBinary(m >> 2, 8); printf(\" (÷4)\\n\");\n    printf(\"m >> 3 = %d = \", m >> 3); printBinary(m >> 3, 8); printf(\" (÷8)\\n\");\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "n = 5 = 00000101\n\nn << 1 = 10 = 00001010 (×2)\nn << 2 = 20 = 00010100 (×4)\nn << 3 = 40 = 00101000 (×8)\n\nm = 40 = 00101000\nm >> 1 = 20 = 00010100 (÷2)\nm >> 2 = 10 = 00001010 (÷4)\nm >> 3 = 5 = 00000101 (÷8)",
+      "lineExplanations": {
+        "20": "Left shift by 1 = multiply by 2.",
+        "21": "Left shift by 2 = multiply by 4.",
+        "30": "Right shift by 1 = divide by 2.",
+        "32": "Bits shifted out are lost."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Flags and Permissions",
+      "code": "extern printf(fmt: string, ...);\n\n# Permission flags (each is a power of 2)\nlocal const READ: int    = 1;   # 0001\nlocal const WRITE: int   = 2;   # 0010\nlocal const EXECUTE: int = 4;   # 0100\nlocal const DELETE: int  = 8;   # 1000\n\nframe hasPermission(perms: int, flag: int) ret bool {\n    return (perms & flag) != 0;\n}\n\nframe addPermission(perms: int, flag: int) ret int {\n    return perms | flag;\n}\n\nframe removePermission(perms: int, flag: int) ret int {\n    return perms & (~flag);\n}\n\nframe printPermissions(perms: int) {\n    printf(\"Permissions: \");\n    if (hasPermission(perms, READ))    { printf(\"READ \"); }\n    if (hasPermission(perms, WRITE))   { printf(\"WRITE \"); }\n    if (hasPermission(perms, EXECUTE)) { printf(\"EXECUTE \"); }\n    if (hasPermission(perms, DELETE))  { printf(\"DELETE \"); }\n    printf(\"\\n\");\n}\n\nframe main() ret int {\n    # Start with no permissions\n    local perms: int = 0;\n    printf(\"Initial: \");\n    printPermissions(perms);\n    \n    # Add read and write\n    perms = addPermission(perms, READ);\n    perms = addPermission(perms, WRITE);\n    printf(\"After adding READ, WRITE: \");\n    printPermissions(perms);\n    \n    # Add execute\n    perms = addPermission(perms, EXECUTE);\n    printf(\"After adding EXECUTE: \");\n    printPermissions(perms);\n    \n    # Remove write\n    perms = removePermission(perms, WRITE);\n    printf(\"After removing WRITE: \");\n    printPermissions(perms);\n    \n    # Check specific permission\n    printf(\"\\nHas READ? %d\\n\", hasPermission(perms, READ));\n    printf(\"Has WRITE? %d\\n\", hasPermission(perms, WRITE));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Initial: Permissions: \nAfter adding READ, WRITE: Permissions: READ WRITE \nAfter adding EXECUTE: Permissions: READ WRITE EXECUTE \nAfter removing WRITE: Permissions: READ EXECUTE \n\nHas READ? 1\nHas WRITE? 0",
+      "lineExplanations": {
+        "4-7": "Each flag is a power of 2 (different bit position).",
+        "10": "AND to check if flag is set.",
+        "14": "OR to add a flag.",
+        "18": "AND with NOT to remove a flag."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Bit Masks",
+      "code": "extern printf(fmt: string, ...);\n\n# Extract bits from a color value (0xRRGGBB format)\nframe getRed(color: int) ret int {\n    return (color >> 16) & 0xFF;\n}\n\nframe getGreen(color: int) ret int {\n    return (color >> 8) & 0xFF;\n}\n\nframe getBlue(color: int) ret int {\n    return color & 0xFF;\n}\n\nframe makeColor(r: int, g: int, b: int) ret int {\n    return (r << 16) | (g << 8) | b;\n}\n\nframe main() ret int {\n    # Color in hex: 0xRRGGBB\n    local skyBlue: int = 0x87CEEB;  # RGB(135, 206, 235)\n    \n    printf(\"Sky Blue (0x%X):\\n\", skyBlue);\n    printf(\"  Red:   %d\\n\", getRed(skyBlue));\n    printf(\"  Green: %d\\n\", getGreen(skyBlue));\n    printf(\"  Blue:  %d\\n\", getBlue(skyBlue));\n    \n    # Create a custom color\n    local custom: int = makeColor(255, 128, 64);\n    printf(\"\\nCustom (R=255, G=128, B=64):\\n\");\n    printf(\"  Hex: 0x%X\\n\", custom);\n    printf(\"  Red:   %d\\n\", getRed(custom));\n    printf(\"  Green: %d\\n\", getGreen(custom));\n    printf(\"  Blue:  %d\\n\", getBlue(custom));\n    \n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Sky Blue (0x87CEEB):\n  Red:   135\n  Green: 206\n  Blue:  235\n\nCustom (R=255, G=128, B=64):\n  Hex: 0xFF8040\n  Red:   255\n  Green: 128\n  Blue:  64",
+      "lineExplanations": {
+        "5": "Shift right 16 bits to get red in lowest byte.",
+        "13": "0xFF mask gets only lowest 8 bits.",
+        "17": "Shift components into position and OR together."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Bitwise Cheat Sheet",
+      "content": "| Operation | Symbol | Example | Result |\n|-----------|--------|---------|--------|\n| AND | `&` | `12 & 10` | 8 |\n| OR | `\\|` | `12 \\| 10` | 14 |\n| XOR | `^` | `12 ^ 10` | 6 |\n| NOT | `~` | `~12` | -13 |\n| Left Shift | `<<` | `5 << 2` | 20 |\n| Right Shift | `>>` | `40 >> 2` | 10 |\n\n**Common patterns:**\n- Check bit: `(n >> i) & 1`\n- Set bit: `n \\| (1 << i)`\n- Clear bit: `n & ~(1 << i)`\n- Toggle bit: `n ^ (1 << i)`\n- Check if power of 2: `(n & (n-1)) == 0`"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Bit Counter",
+      "instructions": "Write a function `countSetBits(n: int) ret int` that counts how many bits are set to 1.\n\nExample: countSetBits(13) = 3 (binary 1101 has three 1s)\n\nTest with: 0, 1, 7, 15, 255",
+      "hint": "Loop while n != 0, check (n & 1), then shift right.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe countSetBits(n: int) ret int {\n    local count: int = 0;\n    loop (n != 0) {\n        if ((n & 1) == 1) {\n            count = count + 1;\n        }\n        n = n >> 1;\n    }\n    return count;\n}\n\nframe main() ret int {\n    printf(\"countSetBits(0) = %d\\n\", countSetBits(0));\n    printf(\"countSetBits(1) = %d\\n\", countSetBits(1));\n    printf(\"countSetBits(7) = %d (binary 111)\\n\", countSetBits(7));\n    printf(\"countSetBits(13) = %d (binary 1101)\\n\", countSetBits(13));\n    printf(\"countSetBits(15) = %d (binary 1111)\\n\", countSetBits(15));\n    printf(\"countSetBits(255) = %d (binary 11111111)\\n\", countSetBits(255));\n    \n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **&** (AND) - both bits must be 1\n\n✅ **|** (OR) - either bit is 1\n\n✅ **^** (XOR) - bits are different\n\n✅ **~** (NOT) - flip all bits\n\n✅ **<<** - left shift (multiply by 2^n)\n\n✅ **>>** - right shift (divide by 2^n)\n\n✅ Use **masks** to extract/modify specific bits\n\n✅ Use **flags** (powers of 2) for compact options"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What is 12 & 10 (binary: 1100 & 1010)?",
+          "options": ["2", "8", "14", "6"],
+          "correct": 1,
+          "explanation": "AND: 1100 & 1010 = 1000 = 8 (only position where both have 1)."
+        },
+        {
+          "question": "What does n << 3 do?",
+          "options": [
+            "Divide n by 3",
+            "Multiply n by 8",
+            "Add 3 to n",
+            "Shift 3 bits out"
+          ],
+          "correct": 1,
+          "explanation": "Left shift by 3 multiplies by 2³ = 8."
+        },
+        {
+          "question": "How do you check if bit 2 (value 4) is set in n?",
+          "options": ["n == 4", "n & 4", "(n & 4) != 0", "n | 4"],
+          "correct": 2,
+          "explanation": "(n & 4) != 0 checks if bit 2 is set. Just n & 4 returns 0 or 4, not a boolean."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "20-inline-assembly"
+}

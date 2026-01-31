@@ -1,0 +1,82 @@
+{
+  "id": "welcome",
+  "order": 1,
+  "title": "Welcome to BPL",
+  "category": "Getting Started",
+  "difficulty": "beginner",
+  "duration": "5 min",
+  "description": "Your first steps into BPL programming. Learn what BPL is, why it was created, and write your very first program.",
+  "prerequisites": [],
+  "objectives": [
+    "Understand what BPL is and its key features",
+    "Write and run your first BPL program",
+    "Understand the basic structure of a BPL program"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "What is BPL?",
+      "content": "**BPL (Best Programming Language)** is a statically-typed, compiled programming language that compiles to LLVM IR. Think of it as a modern language with the performance of C but with cleaner syntax and modern features.\n\n**Key Features:**\n- 🚀 **Fast** - Compiles to native code via LLVM\n- 🔒 **Safe** - Static typing catches errors at compile time\n- 🎯 **Simple** - Clean, consistent syntax\n- 💪 **Powerful** - Generics, pattern matching, exceptions"
+    },
+    {
+      "type": "comparison",
+      "title": "How BPL Compares",
+      "languages": {
+        "BPL": "frame main() ret int {\n    printf(\"Hello!\\n\");\n    return 0;\n}",
+        "C": "int main() {\n    printf(\"Hello!\\n\");\n    return 0;\n}",
+        "Rust": "fn main() {\n    println!(\"Hello!\");\n}",
+        "Go": "func main() {\n    fmt.Println(\"Hello!\")\n}"
+      },
+      "explanation": "BPL uses `frame` instead of `fn` or `func`. The `ret` keyword explicitly shows the return type. This clarity helps when learning and reading code."
+    },
+    {
+      "type": "code",
+      "title": "Your First Program",
+      "code": "# This is your first BPL program!\n# Lines starting with # are comments - they're ignored by the compiler\n\n# We need printf to print text. 'extern' means it's defined elsewhere (C library)\nextern printf(fmt: string, ...);\n\n# Every BPL program starts with a 'main' frame (function)\n# 'frame' = function, 'ret int' = returns an integer\nframe main() ret int {\n    # Print a message to the screen\n    printf(\"Hello, BPL World!\\n\");\n    \n    # Return 0 means \"success\" (like in C)\n    return 0;\n}",
+      "runnable": true,
+      "expectedOutput": "Hello, BPL World!",
+      "lineExplanations": {
+        "1": "This is a comment. Comments help explain your code to humans.",
+        "5": "extern declares a function from an external library (C's printf).",
+        "8": "The main frame is your program's entry point. Every program needs one!",
+        "10": "printf displays text. \\n creates a new line.",
+        "13": "return 0 tells the operating system your program ran successfully."
+      }
+    },
+    {
+      "type": "challenge",
+      "title": "Try It Yourself!",
+      "instructions": "Modify the program above to print your name instead of 'BPL World'. For example: `Hello, Alice!`",
+      "hint": "Just change the text inside the quotes in the printf statement.",
+      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    printf(\"Hello, Alice!\\n\");\n    return 0;\n}"
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **frame** defines a function (like `fn` in Rust or `func` in Go)\n\n✅ **ret** specifies the return type\n\n✅ **#** starts a comment\n\n✅ **extern** declares external functions\n\n✅ Every program needs a **main** frame that returns an **int**"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "What keyword is used to define a function in BPL?",
+          "options": ["func", "function", "frame", "def"],
+          "correct": 2,
+          "explanation": "BPL uses 'frame' to define functions, which is unique to BPL."
+        },
+        {
+          "question": "What does 'ret int' mean?",
+          "options": [
+            "Return immediately",
+            "Returns an integer",
+            "Retrieves an integer",
+            "Reserved integer"
+          ],
+          "correct": 1,
+          "explanation": "'ret' is short for 'return type' and 'int' means integer."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "02-variables-and-types"
+}

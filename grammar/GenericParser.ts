@@ -53,7 +53,6 @@ export class GenericParser {
     "continue",
     "try",
     "catch",
-    "catchOther",
     "return",
     "throw",
     "switch",

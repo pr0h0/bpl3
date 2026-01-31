@@ -1,0 +1,134 @@
+{
+  "id": "best-practices",
+  "order": 25,
+  "title": "BPL Best Practices",
+  "category": "Best Practices",
+  "difficulty": "intermediate",
+  "duration": "12 min",
+  "description": "Write professional-quality BPL code. Learn coding standards, documentation, testing approaches, and performance tips.",
+  "prerequisites": ["patterns-and-idioms"],
+  "objectives": [
+    "Follow BPL coding conventions",
+    "Write self-documenting code",
+    "Handle errors gracefully",
+    "Write performant code"
+  ],
+  "sections": [
+    {
+      "type": "text",
+      "title": "Code Style and Naming",
+      "content": "**Consistent naming makes code readable:**\n\n| Element | Convention | Example |\n|---------|------------|----------|\n| Types/Structs | PascalCase | `HttpRequest`, `UserProfile` |\n| Functions | camelCase | `getUserById`, `calculateTotal` |\n| Variables | camelCase | `userName`, `itemCount` |\n| Constants | SCREAMING_CASE | `MAX_BUFFER_SIZE`, `PI` |\n| Files | snake_case | `user_service.bpl`, `http_client.bpl` |\n\n**Formatting:**\n- 4 spaces for indentation (no tabs)\n- Braces on same line\n- Space after keywords: `if (`, `loop (`\n- No trailing whitespace"
+    },
+    {
+      "type": "code",
+      "title": "Good vs Bad Naming",
+      "code": "import [IO] from \"std/io.bpl\";\n\n# ❌ BAD: Unclear names\nframe calc(a: int, b: int, c: int) ret int {\n    return a * b + c;\n}\n\n# ✅ GOOD: Descriptive names\nframe calculateOrderTotal(itemPrice: int, quantity: int, shippingCost: int) ret int {\n    return itemPrice * quantity + shippingCost;\n}\n\n# ❌ BAD: Abbreviations\nstruct Usr {\n    nm: string,\n    addr: string,\n}\n\n# ✅ GOOD: Full words\nstruct User {\n    name: string,\n    address: string,\n}\n\n# ❌ BAD: Single letter variables (except loop indices)\nframe bad(x: int, y: int) ret int {\n    local z: int = x + y;\n    return z;\n}\n\n# ✅ GOOD: Meaningful names\nframe addScores(currentScore: int, bonus: int) ret int {\n    local totalScore: int = currentScore + bonus;\n    return totalScore;\n}\n\nframe main() ret int {\n    IO.print(\"Good naming makes code self-documenting!\\n\");\n    \n    local price: int = 100;\n    local qty: int = 3;\n    local shipping: int = 10;\n    \n    IO.print(\"Order total: $\");\n    IO.printInt(calculateOrderTotal(price, qty, shipping));\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "Good naming makes code self-documenting!\nOrder total: $310",
+      "lineExplanations": {
+        "4": "calc, a, b, c tell us nothing.",
+        "9": "Clear what each parameter means.",
+        "14": "Abbreviations are confusing.",
+        "20": "Full words are readable."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Function Design",
+      "code": "import [IO] from \"std/io.bpl\";\n\nenum Maybe<T> { Some(T), None }\nenum Outcome<T, E> { Ok(T), Err(E) }\n\n# ✅ Single Responsibility: Each function does ONE thing\nframe isValidEmail(email: string) ret bool {\n    # Simplified check - just look for @\n    # In real code, use proper validation\n    local len: int = 0;\n    local hasAt: bool = false;\n    local ptr: *char = cast<*char>(email);\n    \n    loop (*ptr != cast<char>(0)) {\n        if (*ptr == '@') {\n            hasAt = true;\n        }\n        len = len + 1;\n        ptr = ptr + 1;\n    }\n    \n    return hasAt && len >= 5;\n}\n\n# ✅ Return early on errors\nframe processUser(name: string, email: string) ret Result<string, string> {\n    # Check inputs first\n    if (name == nullptr || name == \"\") {\n        return Outcome.Err(\"Name is required\");\n    }\n    \n    if (isValidEmail(email) == false) {\n        return Outcome.Err(\"Invalid email\");\n    }\n    \n    # Happy path continues after all checks\n    return Outcome.Ok(\"User processed successfully\");\n}\n\n# ✅ Keep functions short (under 30 lines)\n# ✅ No more than 3-4 parameters\n\nframe main() ret int {\n    IO.print(\"=== Function Design ===\\n\\n\");\n    \n    # Test valid input\n    match (processUser(\"Alice\", \"alice@example.com\")) {\n        Outcome.Ok(msg) => {\n            IO.print(\"Success: \");\n            IO.print(msg);\n            IO.print(\"\\n\");\n        },\n        Outcome.Err(err) => {\n            IO.print(\"Error: \");\n            IO.print(err);\n            IO.print(\"\\n\");\n        },\n    }\n    \n    # Test invalid email\n    match (processUser(\"Bob\", \"invalid\")) {\n        Outcome.Ok(msg) => {\n            IO.print(\"Success: \");\n            IO.print(msg);\n        },\n        Outcome.Err(err) => {\n            IO.print(\"Error: \");\n            IO.print(err);\n        },\n    }\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Function Design ===\n\nSuccess: User processed successfully\nError: Invalid email",
+      "lineExplanations": {
+        "7": "Function does one thing: validate email.",
+        "26": "Return early when error found.",
+        "37": "Happy path is the main flow."
+      }
+    },
+    {
+      "type": "code",
+      "title": "Error Handling Best Practices",
+      "code": "import [IO] from \"std/io.bpl\";\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\nenum Outcome<T, E> { Ok(T), Err(E) }\n\nstruct AllocationError {\n    requested: int,\n    message: string,\n}\n\n# ✅ Always handle potential failures\nframe allocateBuffer(size: int) ret Result<*int, AllocationError> {\n    if (size <= 0) {\n        return Outcome.Err(AllocationError {\n            requested: size,\n            message: \"Invalid size\"\n        });\n    }\n    \n    local ptr: *int = cast<*int>(malloc(size * sizeof<int>()));\n    \n    if (ptr == nullptr) {\n        return Outcome.Err(AllocationError {\n            requested: size,\n            message: \"Allocation failed\"\n        });\n    }\n    \n    return Outcome.Ok(ptr);\n}\n\n# ✅ Provide context in errors\nstruct OperationError {\n    operation: string,\n    details: string,\n    code: int,\n}\n\n# ✅ Use defer for cleanup, even on errors\nframe processData(size: int) ret Result<int, OperationError> {\n    match (allocateBuffer(size)) {\n        Outcome.Ok(buffer) => {\n            defer { free(cast<*void>(buffer)); }\n            \n            # Process...\n            loop (local i: int = 0; i < size; i = i + 1) {\n                *(buffer + i) = i * 10;\n            }\n            \n            # Calculate sum\n            local sum: int = 0;\n            loop (local i: int = 0; i < size; i = i + 1) {\n                sum = sum + *(buffer + i);\n            }\n            \n            return Outcome.Ok(sum);\n        },\n        Outcome.Err(e) => {\n            return Outcome.Err(OperationError {\n                operation: \"processData\",\n                details: e.message,\n                code: -1\n            });\n        },\n    }\n}\n\nframe main() ret int {\n    IO.print(\"=== Error Handling ===\\n\\n\");\n    \n    # Success case\n    match (processData(5)) {\n        Outcome.Ok(sum) => {\n            IO.print(\"Sum of 5 elements: \");\n            IO.printInt(sum);\n            IO.print(\"\\n\");\n        },\n        Outcome.Err(e) => {\n            IO.print(\"Failed: \");\n            IO.print(e.details);\n            IO.print(\"\\n\");\n        },\n    }\n    \n    # Error case\n    match (processData(-1)) {\n        Outcome.Ok(sum) => {\n            IO.print(\"Result: \");\n            IO.printInt(sum);\n            IO.print(\"\\n\");\n        },\n        Outcome.Err(e) => {\n            IO.print(\"Failed: \");\n            IO.print(e.details);\n            IO.print(\"\\n\");\n        },\n    }\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Error Handling ===\n\nSum of 5 elements: 100\nFailed: Invalid size",
+      "lineExplanations": {
+        "13": "Return Result instead of null or magic values.",
+        "15": "Include helpful context in errors.",
+        "44": "defer ensures cleanup even on success."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Documentation Guidelines",
+      "content": "**Comment the WHY, not the WHAT:**\n\n```bpl\n# ❌ BAD: Restates the code\nlocal x: int = 5;  # Set x to 5\n\n# ✅ GOOD: Explains intent\nlocal retryCount: int = 5;  # Max retries before giving up\n```\n\n**Document complex functions:**\n\n```bpl\n# Calculates shipping cost based on weight and distance.\n# \n# Parameters:\n#   weightKg - Package weight in kilograms\n#   distanceKm - Shipping distance in kilometers\n# \n# Returns: Shipping cost in cents\n# \n# Note: Minimum charge is 500 cents ($5)\nframe calculateShipping(weightKg: float, distanceKm: int) ret int {\n    ...\n}\n```"
+    },
+    {
+      "type": "code",
+      "title": "Performance Tips",
+      "code": "import [IO] from \"std/io.bpl\";\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\n# ✅ Avoid unnecessary allocations\n\n# ❌ BAD: Allocates in loop\nframe badSum(n: int) ret int {\n    local total: int = 0;\n    loop (local i: int = 0; i < n; i = i + 1) {\n        # Don't allocate inside loops!\n        total = total + i;\n    }\n    return total;\n}\n\n# ✅ GOOD: Reuse allocations\nstruct Buffer {\n    data: *int,\n    size: int,\n}\n\nframe sumWithBuffer(buf: *Buffer, n: int) ret int {\n    # Use pre-allocated buffer\n    local total: int = 0;\n    loop (local i: int = 0; i < n && i < buf.size; i = i + 1) {\n        *(buf.data + i) = i;\n        total = total + i;\n    }\n    return total;\n}\n\n# ✅ Prefer stack over heap when possible\nframe stackExample() ret int {\n    # Stack allocation - fast, automatic cleanup\n    local arr: int[100];\n    \n    loop (local i: int = 0; i < 100; i = i + 1) {\n        arr[i] = i * 2;\n    }\n    \n    local sum: int = 0;\n    loop (local i: int = 0; i < 100; i = i + 1) {\n        sum = sum + arr[i];\n    }\n    return sum;\n}\n\nframe main() ret int {\n    IO.print(\"=== Performance Tips ===\\n\\n\");\n    \n    # Stack is fast\n    local stackSum: int = stackExample();\n    IO.print(\"Stack array sum: \");\n    IO.printInt(stackSum);\n    IO.print(\"\\n\");\n    \n    # Simple sum\n    IO.print(\"Simple sum (0..99): \");\n    IO.printInt(badSum(100));\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
+      "runnable": false,
+      "expectedOutput": "=== Performance Tips ===\n\nStack array sum: 9900\nSimple sum (0..99): 4950",
+      "lineExplanations": {
+        "8": "Avoid heap allocations in loops.",
+        "23": "Pre-allocate and reuse buffers.",
+        "35": "Stack arrays are fast and auto-cleanup."
+      }
+    },
+    {
+      "type": "text",
+      "title": "Code Review Checklist",
+      "content": "Before submitting code, verify:\n\n**Correctness:**\n- [ ] All edge cases handled\n- [ ] Error paths tested\n- [ ] No memory leaks\n- [ ] No undefined behavior\n\n**Readability:**\n- [ ] Clear naming\n- [ ] Functions under 30 lines\n- [ ] Complex logic documented\n- [ ] Consistent formatting\n\n**Robustness:**\n- [ ] Input validation\n- [ ] Null checks where needed\n- [ ] Bounds checking\n- [ ] Proper cleanup (defer)\n\n**Performance:**\n- [ ] No unnecessary allocations\n- [ ] Appropriate data structures\n- [ ] No O(n²) when O(n) possible"
+    },
+    {
+      "type": "challenge",
+      "title": "Practice: Refactor Bad Code",
+      "instructions": "Refactor this function following best practices:\n\n```bpl\nframe f(a: *int, n: int, x: int) ret int {\n    local r: int = -1;\n    local i: int = 0;\n    loop (i < n) {\n        if (*(a + i) == x) {\n            r = i;\n            break;\n        }\n        i = i + 1;\n    }\n    return r;\n}\n```\n\nFix: naming, return type (use Option), documentation.",
+      "hint": "Better name: findIndex. Return Maybe<int> instead of -1. Document what it does.",
+      "solution": "import [IO] from \"std/io.bpl\";\n\nenum Maybe<T> { Some(T), None }\n\n# Searches for target value in array.\n# Returns Some(index) if found, None otherwise.\nframe findIndex(arr: *int, length: int, target: int) ret Maybe<int> {\n    loop (local index: int = 0; index < length; index = index + 1) {\n        if (*(arr + index) == target) {\n            return Maybe.Some(index);\n        }\n    }\n    return Maybe.None;\n}\n\nframe main() ret int {\n    local data: int[5] = [10, 20, 30, 40, 50];\n    \n    match (findIndex(&data[0], 5, 30)) {\n        Maybe.Some(idx) => {\n            IO.print(\"Found at index: \");\n            IO.printInt(idx);\n            IO.print(\"\\n\");\n        },\n        Maybe.None => {\n            IO.print(\"Not found\\n\");\n        },\n    }\n    \n    return 0;\n}",
+      "runnable": false
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "content": "✅ **Name clearly** - PascalCase types, camelCase functions/vars\n\n✅ **Single responsibility** - each function does one thing\n\n✅ **Return early** - check errors first, happy path flows\n\n✅ **Use Result/Option** - explicit error handling\n\n✅ **Document WHY** - not what the code does\n\n✅ **Prefer stack** - faster, automatic cleanup\n\n✅ **Review before commit** - use the checklist"
+    },
+    {
+      "type": "quiz",
+      "questions": [
+        {
+          "question": "Which naming convention is correct for a BPL struct?",
+          "options": [
+            "user_profile",
+            "userProfile",
+            "UserProfile",
+            "USER_PROFILE"
+          ],
+          "correct": 2,
+          "explanation": "Structs and types use PascalCase in BPL."
+        },
+        {
+          "question": "What should comments explain?",
+          "options": [
+            "What the code does",
+            "Why the code does it",
+            "Both equally",
+            "Neither"
+          ],
+          "correct": 1,
+          "explanation": "Comments should explain WHY, not WHAT - the code shows what it does."
+        },
+        {
+          "question": "When should you prefer stack over heap allocation?",
+          "options": [
+            "Never",
+            "Always",
+            "When size is known and small",
+            "Only for integers"
+          ],
+          "correct": 2,
+          "explanation": "Use stack when size is known at compile time and reasonable - it's faster with automatic cleanup."
+        }
+      ]
+    }
+  ],
+  "nextLesson": "26-whats-next"
+}
