@@ -1,0 +1,16 @@
+{
+  "expectedOutput": [
+    "Testing ViewManager...",
+    "Views (3):",
+    "  View: active_users",
+    "  Query: SELECT * FROM users WHERE active = true",
+    "  View: high_salary",
+    "  Query: SELECT name FROM users WHERE salary > 70000",
+    "  View: order_summary",
+    "  Query: SELECT user_id, COUNT(*) FROM orders GROUP BY user_id",
+    "All tests passed!"
+  ],
+  "args": [],
+  "env": {},
+  "input": ""
+}

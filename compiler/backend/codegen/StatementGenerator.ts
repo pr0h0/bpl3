@@ -608,7 +608,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
     }
 
-    // Initialize uninitialized array variables if elements need construction
+    // Initialize uninitialized array variables if elements need construction or vtable initialization
     if (!decl.initializer && type.startsWith("[")) {
       const arrayTypeNode = decl.resolvedType || decl.typeAnnotation!;
       if (
@@ -640,6 +640,20 @@ export abstract class StatementGenerator extends AsmGenerator {
             structDecl,
             matchingNew,
           );
+        } else {
+          // No new() method, but if struct has vtable we still need to initialize it
+          // Check if struct has any methods (which means it has a vtable)
+          const hasMethods = structDecl.members.some(
+            (m) => m.kind === "FunctionDecl",
+          );
+          if (hasMethods) {
+            this.generateArrayVTableInitialization(
+              addr,
+              type,
+              arrayTypeNode as AST.BasicTypeNode,
+              structDecl,
+            );
+          }
         }
       }
     }
@@ -1402,6 +1416,78 @@ export abstract class StatementGenerator extends AsmGenerator {
         }
       }
 
+      // BUG-136 FIX: For `init` instance methods on structs with vtables,
+      // inject vtable initialization at the start of the method body.
+      // This ensures heap-allocated structs (via malloc) have their vtable
+      // set before any other methods are called through virtual dispatch.
+      //
+      // Note: `init` is an instance method that takes `this: *Struct` as first param.
+      // This is different from `new()` which is a static factory method.
+      // When methods are generated, their name is mangled to `StructName_methodName`,
+      // so we need to check if the name ends with `_init` rather than equals `init`.
+      const methodBaseName = decl.name.includes("_")
+        ? decl.name.split("_").pop()
+        : decl.name;
+      const isInitMethod =
+        parentStruct &&
+        parentStruct.kind === "StructDecl" &&
+        methodBaseName === "init" &&
+        decl.params.length > 0 &&
+        decl.params[0]!.name === "this";
+
+      if (isInitMethod) {
+        // Get the struct name (may be mangled for generics)
+        let structName = parentStruct.name;
+        if (
+          parentStruct.genericParams.length > 0 &&
+          this.currentTypeMap.size > 0
+        ) {
+          const genericArgs = parentStruct.genericParams.map(
+            (p) => this.currentTypeMap.get(p.name)!,
+          );
+          const mangledType = this.resolveMonomorphizedType(
+            parentStruct,
+            genericArgs,
+          );
+          if (mangledType.startsWith("%struct.")) {
+            structName = mangledType.substring(8);
+          }
+        }
+
+        // Check if struct has a vtable
+        const vtableGlobal = this.vtableGlobalNames.get(structName);
+        const vtableLayout = this.vtableLayouts.get(structName);
+        const structLayout = this.structLayouts.get(structName);
+        const vtableIndex = structLayout?.get("__vtable__");
+
+        if (vtableGlobal && vtableLayout && vtableIndex !== undefined) {
+          const structTypeStr = `%struct.${structName}`;
+          const arrayType = `[${vtableLayout.length} x i8*]`;
+
+          // Load 'this' pointer from its stack slot
+          const thisAddr = this.localPointers.get("this");
+          if (thisAddr) {
+            const thisPtr = this.newRegister();
+            this.emit(
+              `  ${thisPtr} = load ${structTypeStr}*, ${structTypeStr}** ${thisAddr}`,
+            );
+
+            // Get pointer to vtable field (field 0 or at vtableIndex)
+            const vtableFieldPtr = this.newRegister();
+            this.emit(
+              `  ${vtableFieldPtr} = getelementptr inbounds ${structTypeStr}, ${structTypeStr}* ${thisPtr}, i32 0, i32 ${vtableIndex}`,
+            );
+
+            // Store vtable pointer
+            const vtableCast = this.newRegister();
+            this.emit(
+              `  ${vtableCast} = bitcast ${arrayType}* ${vtableGlobal} to i8*`,
+            );
+            this.emit(`  store i8* ${vtableCast}, i8** ${vtableFieldPtr}`);
+          }
+        }
+      }
+
       this.generateBlock(decl.body, false, true);
 
       // Add implicit return for void functions if missing
@@ -1529,6 +1615,13 @@ export abstract class StatementGenerator extends AsmGenerator {
     const loopBody = this.newLabel("array_init.body");
     const loopEnd = this.newLabel("array_init.end");
 
+    // Get vtable info for initialization before constructor call
+    const vtableGlobal = this.vtableGlobalNames.get(structName);
+    const vtableLayout = this.vtableLayouts.get(structName);
+    const structLayout = this.structLayouts.get(structName);
+    const vtableIndex = structLayout?.get("__vtable__");
+    const hasVtable = vtableGlobal && vtableLayout && vtableIndex !== undefined;
+
     // Allocate loop counter
     const counterPtr = this.allocateStack("init_idx", "i32");
     this.emit(`  store i32 0, i32* ${counterPtr}`);
@@ -1551,6 +1644,20 @@ export abstract class StatementGenerator extends AsmGenerator {
       `  ${currentElemPtr} = getelementptr ${structTypeStr}, ${structTypeStr}* ${elemPtr}, i32 ${counter}`,
     );
 
+    // Initialize vtable BEFORE calling constructor (in case constructor uses virtual dispatch)
+    if (hasVtable) {
+      const vtableFieldPtr = this.newRegister();
+      this.emit(
+        `  ${vtableFieldPtr} = getelementptr inbounds ${structTypeStr}, ${structTypeStr}* ${currentElemPtr}, i32 0, i32 ${vtableIndex}`,
+      );
+      const arrayType = `[${vtableLayout!.length} x i8*]`;
+      const vtableCast = this.newRegister();
+      this.emit(
+        `  ${vtableCast} = bitcast ${arrayType}* ${vtableGlobal} to i8*`,
+      );
+      this.emit(`  store i8* ${vtableCast}, i8** ${vtableFieldPtr}`);
+    }
+
     if (isInstanceInit) {
       // Call constructor
       this.emit(
@@ -1564,6 +1671,109 @@ export abstract class StatementGenerator extends AsmGenerator {
         `  store ${structTypeStr} ${val}, ${structTypeStr}* ${currentElemPtr}`,
       );
     }
+
+    // Increment counter
+    const nextCounter = this.newRegister();
+    this.emit(`  ${nextCounter} = add i32 ${counter}, 1`);
+    this.emit(`  store i32 ${nextCounter}, i32* ${counterPtr}`);
+
+    this.emit(`  br label %${loopHead}`);
+
+    this.emit(`${loopEnd}:`);
+  }
+
+  /**
+   * Initialize vtables for array elements when struct has methods but no new() constructor.
+   * This ensures method dispatch works correctly even without explicit construction.
+   */
+  protected generateArrayVTableInitialization(
+    baseAddr: string,
+    arrayTypeStr: string,
+    typeNode: AST.BasicTypeNode,
+    structDecl: AST.StructDecl,
+  ) {
+    // Calculate total elements
+    let totalElements = 1;
+    for (const dim of typeNode.arrayDimensions) {
+      if (dim === null) {
+        // Should not happen for stack-allocated arrays
+        return;
+      }
+      totalElements *= dim;
+    }
+
+    // Resolve struct type
+    let structName = structDecl.name;
+    let structTypeStr = `%struct.${structName}`;
+
+    // Handle generics
+    if (typeNode.genericArgs.length > 0) {
+      const match = arrayTypeStr.match(/%struct\.([a-zA-Z0-9_]+)/);
+      if (match) {
+        structName = match[1]!;
+        structTypeStr = `%struct.${structName}`;
+      }
+    }
+
+    // Get vtable info
+    const vtableGlobal = this.vtableGlobalNames.get(structName);
+    const vtableLayout = this.vtableLayouts.get(structName);
+    const structLayout = this.structLayouts.get(structName);
+
+    if (!vtableGlobal || !vtableLayout || !structLayout) {
+      // No vtable for this struct
+      return;
+    }
+
+    const vtableIndex = structLayout.get("__vtable__");
+    if (vtableIndex === undefined) {
+      return;
+    }
+
+    const arrayType = `[${vtableLayout.length} x i8*]`;
+
+    // Cast array pointer to pointer to first element (flat)
+    const elemPtr = this.newRegister();
+    this.emit(
+      `  ${elemPtr} = bitcast ${arrayTypeStr}* ${baseAddr} to ${structTypeStr}*`,
+    );
+
+    const loopHead = this.newLabel("vtable_init.head");
+    const loopBody = this.newLabel("vtable_init.body");
+    const loopEnd = this.newLabel("vtable_init.end");
+
+    // Allocate loop counter
+    const counterPtr = this.allocateStack("vtable_init_idx", "i32");
+    this.emit(`  store i32 0, i32* ${counterPtr}`);
+
+    this.emit(`  br label %${loopHead}`);
+    this.emit(`${loopHead}:`);
+
+    const counter = this.newRegister();
+    this.emit(`  ${counter} = load i32, i32* ${counterPtr}`);
+
+    const cmp = this.newRegister();
+    this.emit(`  ${cmp} = icmp slt i32 ${counter}, ${totalElements}`);
+    this.emit(`  br i1 ${cmp}, label %${loopBody}, label %${loopEnd}`);
+
+    this.emit(`${loopBody}:`);
+
+    // Get pointer to current element
+    const currentElemPtr = this.newRegister();
+    this.emit(
+      `  ${currentElemPtr} = getelementptr ${structTypeStr}, ${structTypeStr}* ${elemPtr}, i32 ${counter}`,
+    );
+
+    // Get pointer to vtable field
+    const vtableFieldPtr = this.newRegister();
+    this.emit(
+      `  ${vtableFieldPtr} = getelementptr inbounds ${structTypeStr}, ${structTypeStr}* ${currentElemPtr}, i32 0, i32 ${vtableIndex}`,
+    );
+
+    // Store vtable pointer
+    const vtableCast = this.newRegister();
+    this.emit(`  ${vtableCast} = bitcast ${arrayType}* ${vtableGlobal} to i8*`);
+    this.emit(`  store i8* ${vtableCast}, i8** ${vtableFieldPtr}`);
 
     // Increment counter
     const nextCounter = this.newRegister();

@@ -4,37 +4,45 @@
 
 **BPL (Best Programming Language)** is a statically-typed, compiled programming language that transpiles to LLVM IR (Intermediate Representation). It combines the performance of low-level languages with modern programming language features, making it ideal for systems programming, performance-critical applications, and educational purposes.
 
+BPL uses `frame` as its keyword for functions, `local` and `global` for variable declarations, and provides powerful features like generics, pattern matching with `match`, and algebraic data types through `enum`.
+
 ## Key Features
 
 ### 🚀 Performance
 
-- **Compiles to LLVM IR** - Leverages LLVM's world-class optimization
-- **Zero-cost abstractions** - High-level features with no runtime overhead
-- **Manual memory management** - Direct control over allocations
-- **Native code generation** - Produces highly optimized machine code
+- **Compiles to LLVM IR** - Leverages LLVM's world-class optimization pipeline
+- **Zero-cost abstractions** - High-level features compile to efficient machine code with no runtime overhead
+- **Manual memory management** - Direct control over allocations using `malloc`/`free` or custom allocators
+- **Native code generation** - Produces highly optimized machine code for your target platform
+- **Inline assembly support** - Drop down to assembly when you need maximum control
 
 ### 🔒 Type Safety
 
-- **Strong static typing** - Catch errors at compile-time
-- **Type inference** - Less verbose without sacrificing safety
-- **Generics** - Write reusable code with full type checking
-- **No nullptr dereferencing** - Explicit nullptr handling with Option types
+- **Strong static typing** - Catch errors at compile-time before they become runtime bugs
+- **Type inference** - Less verbose code without sacrificing safety
+- **Generics** - Write reusable, type-safe code with `<T>` syntax
+- **Option types** - Handle nullable values safely with `Option<T>` enum
+- **Runtime nullptr protection** - Automatic `NullAccessError` exceptions when dereferencing nullptr
 
 ### 🏗️ Modern Language Features
 
-- **Object-Oriented Programming** - Structs with methods and inheritance
-- **Generic Programming** - Parameterized types and functions
-- **Module System** - Organize code with imports/exports
-- **Pattern Matching** - Type-safe conditional logic
-- **Exception Handling** - Try/catch blocks for error management
+- **Object-Oriented Programming** - Structs with methods and single inheritance
+- **Generic Programming** - Parameterized types and functions with monomorphization
+- **Module System** - Organize code with `import`/`export` statements
+- **Pattern Matching** - Powerful `match` expressions with guards and destructuring
+- **Exception Handling** - `try`/`catch`/`throw` blocks for robust error management
+- **Lambda Expressions** - First-class anonymous functions with closures
+- **String Interpolation** - Embed expressions in strings with backticks and `${expr}`
+- **Algebraic Data Types** - Define sum types with `enum` and pattern match on variants
 
 ### 🛠️ Developer Experience
 
-- **Clear error messages** - Helpful compiler diagnostics
-- **Built-in formatter** - Consistent code style
-- **Package manager** - Easy dependency management
+- **Clear error messages** - Helpful compiler diagnostics with source locations
+- **Built-in formatter** - Consistent code style with `bpl format`
+- **Package manager** - Easy dependency management with `bpl.json`
 - **Cross-platform** - Compile for Linux, macOS, Windows, and more
-- **VS Code integration** - Syntax highlighting and IntelliSense
+- **VS Code integration** - Syntax highlighting, IntelliSense, and error diagnostics
+- **Watch mode** - Automatically recompile on file changes with `bpl watch`
 
 ## Why Choose BPL?
 
@@ -42,28 +50,31 @@
 
 BPL provides low-level control similar to C/C++:
 
-- Direct memory manipulation through pointers
-- Inline assembly support
-- No garbage collector overhead
-- Predictable performance characteristics
+- Direct memory manipulation through pointers (`*T`, `&value`, `*ptr`)
+- Inline assembly support with Intel, AT&T, and LLVM IR flavors
+- No garbage collector overhead - you control when memory is allocated and freed
+- Predictable performance characteristics with no hidden runtime costs
+- C ABI compatibility for easy FFI integration
 
 ### For Application Development
 
 BPL offers modern conveniences:
 
-- Generics for type-safe collections
-- Exception handling for robust error management
-- Module system for code organization
-- Rich standard library
+- Generics for type-safe collections (`Array<T>`, `Map<K, V>`)
+- Exception handling with `try`/`catch`/`throw` for robust error management
+- Module system with `import`/`export` for clean code organization
+- Rich standard library including I/O, strings, collections, math, and more
+- Lambda expressions and closures for functional programming patterns
 
 ### For Learning
 
 BPL is excellent for education:
 
-- Simple, consistent syntax
+- Simple, consistent syntax with clear keywords (`frame`, `local`, `struct`)
 - Clear compilation model (source → LLVM IR → native code)
-- Explicit memory management teaches fundamentals
-- Comprehensive error messages guide learning
+- Explicit memory management teaches fundamentals without hiding complexity
+- Comprehensive error messages with source locations guide learning
+- Small language specification makes it easy to understand the whole language
 
 ## Design Philosophy
 
@@ -72,27 +83,78 @@ BPL is excellent for education:
 BPL favors clarity and explicitness:
 
 - Variables must be declared as `local` or `global`
-- Types are usually explicit (inference where beneficial)
+- Types are usually explicit (with inference where beneficial)
 - Memory allocation is manual and visible
-- No hidden conversions or coercions
+- No hidden conversions or implicit type coercions
+- The `cast<T>` operator makes type conversions explicit
 
 ### Safety Without Compromise
 
 BPL provides safety features without sacrificing performance:
 
-- Static type checking prevents many bugs
-- Bounds checking can be enabled/disabled
-- Nullptr safety through optional types
-- Memory safety through ownership patterns (planned)
+- Static type checking at compile-time prevents many runtime bugs
+- Runtime nullptr protection throws `NullAccessError` on invalid access
+- Optional bounds checking for array access
+- Nullable types through `Option<T>` enum encourage explicit handling
+- Pattern matching ensures exhaustive case handling
 
 ### Simplicity and Consistency
 
 BPL keeps the language small and consistent:
 
-- Few keywords and constructs
-- Regular syntax patterns
-- Predictable behavior
-- Minimal "magic"
+- Few keywords and constructs to learn
+- Regular syntax patterns throughout the language
+- Predictable, unsurprising behavior
+- Minimal "magic" - what you write is what you get
+
+## Language Overview
+
+Here's a quick taste of BPL syntax:
+
+```bpl
+import [String] from "std";
+extern printf(fmt: string, ...);
+
+# Define a struct with methods
+struct Point {
+    x: int,
+    y: int,
+
+    frame new(x: int, y: int) ret Point {
+        return Point { x: x, y: y };
+    }
+
+    frame distance(this: *Point) ret float {
+        return sqrt(cast<float>(this.x * this.x + this.y * this.y));
+    }
+}
+
+# Generic enum for optional values
+enum Option<T> {
+    Some(T),
+    None,
+}
+
+# Main entry point
+frame main() ret int {
+    local p: Point = Point.new(3, 4);
+    printf("Distance: %f\n", p.distance());
+
+    # Pattern matching
+    local opt: Option<int> = Option<int>.Some(42);
+    match (opt) {
+        Option<int>.Some(val) => printf("Value: %d\n", val),
+        Option<int>.None => printf("No value\n"),
+    };
+
+    # String interpolation
+    local msg: String = `Point is at (${p.x}, ${p.y})`;
+    printf("%s\n", msg.toString());
+    msg.destroy();
+
+    return 0;
+}
+```
 
 ## Comparison with Other Languages
 

@@ -1,6 +1,6 @@
 # BPL Playground
 
-An interactive web-based playground for learning and experimenting with BPL (Basic Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 60+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
+An interactive web-based playground for learning and experimenting with BPL (Best Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 60+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
 
 ## Features
 

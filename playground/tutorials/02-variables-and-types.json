@@ -48,7 +48,7 @@
     {
       "type": "text",
       "title": "Integer Types Reference",
-      "content": "| Type | Bits | Range | Use Case |\n|------|------|-------|----------|\n| `i8` | 8 | -128 to 127 | Small values, bytes |\n| `i16` | 16 | -32,768 to 32,767 | Moderate values |\n| `int`/`i32` | 32 | ±2.1 billion | Most common |\n| `i64` | 64 | ±9.2 quintillion | Large numbers |\n| `u8` | 8 | 0 to 255 | Bytes, small positive |\n| `u16` | 16 | 0 to 65,535 | Moderate positive |\n| `u32` | 32 | 0 to 4.3 billion | Large positive |\n| `u64` | 64 | 0 to 18 quintillion | Very large positive |"
+      "content": "| Type | Bits | Range | Use Case |\n|------|------|-------|----------|\n| `char` | 8 | -128 to 127 | Small values, bytes |\n| `short` | 16 | -32,768 to 32,767 | Moderate values |\n| `int` | 32 | ±2.1 billion | Most common |\n| `long` | 64 | ±9.2 quintillion | Large numbers |\n| `uchar` | 8 | 0 to 255 | Bytes, small positive |\n| `ushort` | 16 | 0 to 65,535 | Moderate positive |\n| `uint` | 32 | 0 to 4.3 billion | Large positive |\n| `ulong` | 64 | 0 to 18 quintillion | Very large positive |"
     },
     {
       "type": "code",

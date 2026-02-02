@@ -1522,20 +1522,35 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             const methodIndex = layout.indexOf(lookupName);
 
             if (methodIndex !== -1) {
-              // It is a virtual method!
-              // We need to handle arguments generation here because generateVirtualCall takes expressions.
-              // argsToGenerate is already set to [memberExpr.object, ...expr.args] for instance calls?
-              // No, argsToGenerate is initialized to expr.args.
-              // But for virtual call, we pass expr.args to generateVirtualCall, and it handles 'this' (memberExpr.object).
-              // So we pass expr.args.
+              // Method exists in vtable - but only use virtual dispatch when necessary.
+              // Virtual dispatch is needed when:
+              // 1. The method might be overridden in a derived class
+              // 2. We're calling through a base class pointer
+              //
+              // However, constructor/destructor methods should ALWAYS use direct dispatch
+              // because:
+              // 1. Constructors need to work before the vtable is set up (heap-allocated memory)
+              // 2. Destructors should destroy the actual type, not a base type
+              //
+              // This fixes BUG-136: Method calls on heap-allocated struct arrays crash
+              // because vtable is not initialized when calling init/new methods.
+              const isConstructor =
+                memberExpr.property === "new" || memberExpr.property === "init";
+              const isDestructor =
+                memberExpr.property === "destroy" ||
+                memberExpr.property === "cleanup";
 
-              return this.generateVirtualCall(
-                expr,
-                memberExpr,
-                structName,
-                methodIndex,
-                expr.args,
-              );
+              if (!isConstructor && !isDestructor) {
+                // Use virtual dispatch (through vtable) for non-constructor methods
+                return this.generateVirtualCall(
+                  expr,
+                  memberExpr,
+                  structName,
+                  methodIndex,
+                  expr.args,
+                );
+              }
+              // Fall through to direct call generation for constructors/destructors
             }
           }
 

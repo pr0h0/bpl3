@@ -1,6 +1,6 @@
 # bpl-templ
 
-**bpl-templ** is a simple, compiled template engine for the Basic Programming Language (BPL). It compiles `.bte` (BPL Template) files into type-safe BPL structs.
+**bpl-templ** is a simple, compiled template engine for the Best Programming Language (BPL). It compiles `.bte` (BPL Template) files into type-safe BPL structs.
 
 ## Features
 

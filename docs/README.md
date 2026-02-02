@@ -1,6 +1,12 @@
 # BPL Documentation
 
-Welcome to the comprehensive documentation for the **Best Programming Language (BPL) v3**. This documentation provides in-depth information about every aspect of the language, from basic syntax to advanced features.
+Welcome to the comprehensive documentation for **BPL (Best Programming Language) v3**. This documentation provides in-depth information about every aspect of the language, from basic syntax to advanced features.
+
+## Quick Links
+
+- 🚀 [Quick Start](03-quick-start.md) - Write your first BPL program in 5 minutes
+- 📚 [Language Reference](AGENTS.MD) - Concise language reference
+- 💡 [Examples](../examples/) - Real-world code examples
 
 ## Table of Contents
 
@@ -15,55 +21,55 @@ Welcome to the comprehensive documentation for the **Best Programming Language (
 - [Syntax and Comments](04-syntax-comments.md) - Basic syntax rules and comment styles
 - [Types and Variables](05-types-variables.md) - Primitive types, composite types, and variable declarations
 - [Operators](06-operators.md) - Arithmetic, logical, bitwise, and comparison operators
-- [Control Flow](07-control-flow.md) - Conditionals, loops, and branching
-- [String Interpolation](54-string-interpolation.md) - Embedding expressions in strings
+- [Control Flow](07-control-flow.md) - Conditionals, loops, switch, match, and defer
+- [String Interpolation](54-string-interpolation.md) - Embedding expressions in strings with backticks
 
 ### Functions
 
-- [Functions Basics](08-functions-basics.md) - Declaring and calling functions
+- [Functions Basics](08-functions-basics.md) - Declaring and calling `frame`s
 - [Function Parameters](09-function-parameters.md) - Parameters, return values, and variadic functions
-- [Generics Functions](10-generics-functions.md) - Generic programming with functions
-- [Lambda Expressions](53-lambdas.md) - Anonymous functions
+- [Generic Functions](10-generics-functions.md) - Generic programming with type parameters
+- [Lambda Expressions](53-lambdas.md) - Anonymous functions and closures
 
 ### Data Structures
 
 - [Structs](11-structs.md) - Creating and using structures
 - [Struct Methods](12-struct-methods.md) - Instance and static methods
-- [Inheritance](13-inheritance.md) - Single and multiple inheritance
+- [Inheritance](13-inheritance.md) - Single inheritance with `:`
 - [Struct Primitive Inheritance](55-struct-primitive-inheritance.md) - Inheriting from primitive types
-- [Generic Structs](14-generic-structs.md) - Parameterized types
+- [Generic Structs](14-generic-structs.md) - Parameterized types with `<T>`
 
 ### Advanced Types
 
-- [Pointers](15-pointers.md) - Memory addresses and pointer operations
-- [Arrays](16-arrays.md) - Fixed and dynamic arrays
-- [Tuples](17-tuples.md) - Multi-value types
-- [Type Aliases](18-type-aliases.md) - Creating custom type names
-- [Function Pointers](19-function-pointers.md) - First-class functions
-- [Type Matching](56-type-matching.md) - Runtime type checking with `match<Type>`
+- [Pointers](15-pointers.md) - Memory addresses and pointer operations (`*T`, `&`)
+- [Arrays](16-arrays.md) - Fixed-size and dynamic arrays
+- [Tuples](17-tuples.md) - Multi-value types with destructuring
+- [Type Aliases](18-type-aliases.md) - Creating custom type names with `type`
+- [Function Pointers](19-function-pointers.md) - `Func<R>(P...)` and `Lambda<R>(P...)`
+- [Type Matching](56-type-matching.md) - Runtime type checking with `match<Type>`, `is`, and `as`
 
 ### Memory Management
 
 - [Memory Basics](20-memory-basics.md) - Stack vs heap allocation
 - [Constructors and Destructors](21-constructors-destructors.md) - Object lifecycle
-- [Manual Memory Management](22-manual-memory.md) - malloc, free, and best practices
+- [Manual Memory Management](22-manual-memory.md) - `malloc`, `free`, and best practices
 
 ### Module System
 
-- [Imports and Exports](23-imports-exports.md) - Module organization
+- [Imports and Exports](23-imports-exports.md) - Module organization with `import`/`export`
 - [Module Resolution](24-module-resolution.md) - How BPL finds modules
 - [Package Management](25-package-management.md) - Creating and using packages
 
 ### Error Handling
 
-- [Try-Catch](26-try-catch.md) - Exception handling mechanisms
-- [Throwing Exceptions](27-throwing-exceptions.md) - Error propagation
+- [Try-Catch](26-try-catch.md) - Exception handling with `try`/`catch`
+- [Throwing Exceptions](27-throwing-exceptions.md) - Error propagation with `throw`
 
 ### Standard Library
 
 - [I/O Operations](28-stdlib-io.md) - Input and output
-- [String Utilities](29-stdlib-string.md) - String manipulation
-- [Collections](30-stdlib-collections.md) - Arrays, vectors, maps, and sets
+- [String Utilities](29-stdlib-string.md) - String manipulation with `String` struct
+- [Collections](30-stdlib-collections.md) - `Array<T>`, `Map<K,V>`, and `Set<T>`
 - [File System](31-stdlib-fs.md) - File operations
 - [Math and Random](32-stdlib-math.md) - Mathematical functions
 - [Time and Date](33-stdlib-time.md) - Temporal operations
@@ -71,11 +77,11 @@ Welcome to the comprehensive documentation for the **Best Programming Language (
 
 ### Advanced Topics
 
-- [Inline Assembly](35-inline-assembly.md) - Low-level programming
-- [FFI (Foreign Function Interface)](36-ffi.md) - Calling C functions
-- [LLVM Intrinsics](58-intrinsics.md) - Built-in functions for performance and low-level control
+- [Inline Assembly](35-inline-assembly.md) - Low-level programming with `asm`
+- [FFI (Foreign Function Interface)](36-ffi.md) - Calling C functions with `extern`
+- [LLVM Intrinsics](58-intrinsics.md) - Built-in functions for performance
 - [Cross-Compilation](37-cross-compilation.md) - Building for different platforms
-- [Code Formatting](38-code-formatting.md) - Consistent code style
+- [Code Formatting](38-code-formatting.md) - Consistent code style with `bpl format`
 - [Compiler Options](39-compiler-options.md) - Flags and configuration
 
 ### Best Practices

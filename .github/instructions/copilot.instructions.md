@@ -2,7 +2,7 @@
 applyTo: "**/*.bpl, **/*.x, **/*.sh, **/*.ts, **/*.md"
 ---
 
-# BPL (Basic Programming Language) Coding Assistant Instructions
+# BPL (Best Programming Language) Coding Assistant Instructions
 
 You are working with BPL, a statically-typed, compiled programming language that transpiles to LLVM IR. Follow these instructions strictly when writing code, creating examples, running tests, or modifying the compiler.
 

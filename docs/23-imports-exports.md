@@ -1,80 +1,45 @@
-# Imports and Exports# Modules and Packages
+# Imports and Exports
 
-BPL's module system allows you to share code between files.BPL's module system allows you to organize code across multiple files and create reusable packages. This guide covers importing, exporting, module resolution, and package creation.
+BPL's module system allows you to organize code across multiple files and create reusable packages. This guide covers importing, exporting, module resolution, and package creation.
 
-## Exporting Symbols## Table of Contents
+## Table of Contents
 
-By default, all declarations in a module are private. To make them available to other modules, use the `export` keyword.- [Module Basics](#module-basics)
-
+- [Module Basics](#module-basics)
 - [Import Statement](#import-statement)
+- [Export Statement](#export-statement)
+- [Module Resolution](#module-resolution)
+- [Standard Library](#standard-library)
+- [Module Best Practices](#module-best-practices)
 
-````bpl- [Export Statement](#export-statement)
+## Module Basics
 
-export frame add(a: int, b: int) ret int {- [Module Resolution](#module-resolution)
+### What is a Module?
 
-    return a + b;- [Standard Library](#standard-library)
+A module is a `.bpl` file that contains code (functions, structs, constants, etc.). Modules help organize code and enable reuse.
 
-}- [Creating Packages](#creating-packages)
+**File: math.bpl**
 
-- [Package Configuration](#package-configuration)
-
-export struct Point {- [Module Best Practices](#module-best-practices)
-
-    x: int;
-
-    y: int;## Module Basics
-
+```bpl
+frame add(a: int, b: int) ret int {
+    return a + b;
 }
 
-```### What is a Module?
-
-
-
-## Importing SymbolsA module is a `.bpl` file that contains code (functions, structs, constants, etc.). Modules help organize code and enable reuse.
-
-
-
-Use the `import` statement to bring exported symbols into your current scope.**File: math.bpl**
-
-
-
-```bpl```bpl
-
-import [add, Point] from "math.bpl";frame add(a: int, b: int) ret int {
-
-    return a + b;
-
-frame main() ret void {}
-
-    local p: Point;
-
-    local sum: int = add(1, 2);frame multiply(a: int, b: int) ret int {
-
-}    return a * b;
-
-```}
-
-````
-
-## Import All
+frame multiply(a: int, b: int) ret int {
+    return a * b;
+}
+```
 
 **File: main.bpl**
 
-You can import all exported symbols using `*`.
+```bpl
+import [add, multiply] from "math.bpl";
 
-````bpl
-
-```bplimport [add, multiply] from "math.bpl";
-
-import * from "math.bpl";
-
-```frame main() ret int {
-
+frame main() ret int {
     local sum: int = add(5, 3);
     local product: int = multiply(5, 3);
     return 0;
 }
-````
+```
 
 ### Module Scope
 
@@ -166,16 +131,16 @@ export frame publicFunction() ret int {
 
 # Public struct
 export struct Circle {
-    radius: float;
+    radius: float,
 
-    frame area() ret float {
+    frame area(this: *Circle) ret float {
         return 3.14159 * this.radius * this.radius;
     }
 }
 
 # Private struct - only used internally
 struct InternalHelper {
-    data: int;
+    data: int,
 }
 ```
 
@@ -184,11 +149,11 @@ struct InternalHelper {
 ```bpl
 # File: constants.bpl
 
-export const PI: float = 3.14159265359;
-export const E: float = 2.71828182846;
+export global const PI: float = 3.14159265359;
+export global const E: float = 2.71828182846;
 
 # Private constant
-const INTERNAL_BUFFER_SIZE: int = 1024;
+global const INTERNAL_BUFFER_SIZE: int = 1024;
 ```
 
 ### Multiple Exports
