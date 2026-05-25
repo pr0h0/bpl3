@@ -27,31 +27,78 @@ multi-line comment
 - **Null**: `null`, `nullptr`
 - **Numbers**: `123`, `0xFF`, `3.14`
 
-## 1. Types
+## 2. Semantic Core
 
-### Primitive Types
+This section defines the semantic contract the compiler currently implements. Syntax documentation can be loose; this section is the behavior tests and codegen must preserve.
 
-_Note: The grammar uses `Identifier` for types, implying these are defined in the standard library or built-in._
+### Primitive Type Commitments
 
-- `int` - signed integers 64 bit
-- `uint` - unsigned integers 64 bit
-- `float` - floats 64 bit
-- `bool` (Boolean: `true`, `false`) - u1 if exists 0/1
-- `char` (Character literals: `'c'`) - unsigned 8 bit
-- `void` (Empty type)
-- `null` (Null type)
-- `nullptr` - null but compatible with pointers
+- `int` and `uint` are 32-bit integer aliases for `i32` and `u32`.
+- `long` and `ulong` are 64-bit integer aliases for `i64` and `u64`.
+- `short` and `ushort` are 16-bit integer aliases for `i16` and `u16`.
+- `char` and `uchar` are 8-bit integer aliases for `i8` and `u8`.
+- `bool` is a 1-bit boolean value.
+- `float` and `double` lower to 64-bit LLVM `double` values in the current backend.
+- `void` has no runtime value unless used behind a pointer, where `*void` lowers as `i8*`.
+- `null` is compatible with struct/object values and pointer-like null contexts; `nullptr` is compatible with pointer types.
+- `string` currently lowers as a C-compatible `i8*` string pointer.
 
-### Composite Types
+### Array, Pointer, and Slice Semantics
 
-- **Pointers**: `*T` (e.g., `*int`, `**int`)
-- **Arrays**: `T[]` or `T[N]` (e.g., `int[]`, `float[4]`)
-- **Tuples**: `(T1, T2, ...)` (e.g., `(int, bool)`)
-- **Functions**: `Func<ReturnType>(ArgType1, ArgType2, ...)` (e.g., `Func<void>(int, int)`)
-- **Generics**: `List<T>`, `Map<K, V>`
-- **Enums**: `enum Name { Variant1, Variant2(Type) }`
+- `T[N]` is a fixed-size value array with exactly `N` contiguous elements.
+- `T[]` is a non-owning slice. It does not allocate, free, or own the pointed-to storage.
+- `*T` is a raw pointer. It carries no length and has no ownership semantics.
+- `Array<T>` is the standard library growable collection. It is the owning dynamic array abstraction.
+- Fixed arrays may be indexed with runtime bounds checks when the compiler knows the fixed length.
+- Slices may be indexed with runtime bounds checks using the stored length.
+- Raw pointers may be indexed with direct pointer arithmetic. The compiler cannot bounds-check raw pointers.
+- Assigning or passing a fixed array where a slice is expected creates a view of the existing array storage.
+- Initializing a slice from an array literal materializes backing storage for the literal and creates a slice view over it.
 
-## 2. Declarations
+### Conversion Semantics
+
+Implicit conversions are intentionally narrow:
+
+- Integer types with compatible scalar integer shapes may be implicitly converted.
+- Fixed arrays may decay to a raw pointer when the destination type is the matching `*T`.
+- Fixed arrays may convert to slices when the destination type is the matching `T[]`.
+- Slice-to-pointer conversion is not implicit. Use explicit pointer extraction APIs when they exist.
+- Slice-to-fixed-array conversion is not implicit.
+- Struct inheritance conversions allow child values where parent values are expected; value conversion is struct slicing.
+- `*void` is compatible with other pointer types for FFI-oriented use.
+- Lambda values are not implicitly assignable to `Func` values. A non-capturing lambda may be checked as a function where the type checker has proven it is stateless.
+
+## 3. ABI Lowering Contract
+
+The LLVM lowering is part of the language contract for v0.1 features that interoperate with C, inline assembly, or generated IR tests.
+
+### Function and Lambda ABI
+
+- `Func<R>(...)` lowers to a thin function pointer; concretely, `Func<R>(Args...)` lowers to a raw pointer with signature `R (Args...)*`.
+- `Lambda<R>(...)` lowers to a closure value; concretely, `Lambda<R>(Args...)` lowers to `{ R (i8*, Args...)*, i8* }`.
+- The first lambda field is the thunk/function pointer. The second field is the erased capture context pointer.
+- Passing a `Func` to C ABI code passes only the raw function pointer.
+- Passing a `Lambda` passes the closure value and is not C ABI compatible by default.
+
+### Slice ABI
+
+- `T[]` lowers to `{ T*, i64 }`.
+- Field 0 is the data pointer.
+- Field 1 is the element count.
+- `T[N]` to `T[]` lowering emits a `getelementptr` to the first element and inserts the compile-time length.
+- The fixed-array to slice path must not copy the source array.
+
+## 4. Compiler Pipeline Contract
+
+The compiler currently runs as parser AST, type checker, and LLVM code generator. Incremental lowering rules live in the middle end so semantic conversions can be named once and consumed by both type checking and codegen.
+
+- The parser records syntax and source locations. It does not decide ABI behavior.
+- The type checker resolves names, overloads, generic instantiations, and whether conversions are allowed.
+- The incremental lowering layer classifies implicit conversions such as identity, array-to-pointer decay, and array-to-slice view construction.
+- Codegen consumes resolved types and explicit lowering decisions. It should not invent new semantic conversions by string-matching LLVM types.
+- Golden LLVM shape tests are part of the contract for ABI-sensitive features.
+
+## 5. Declarations
 
 ### Variables
 
@@ -114,7 +161,7 @@ if (true) {
 printf("%d", x); # Prints 10
 ```
 
-## 3. Functions
+## 6. Functions
 
 ### Declaration
 
@@ -146,7 +193,7 @@ frame identity<T>(val: T) ret T {
 }
 ```
 
-## 4. Structs
+## 7. Structs
 
 Structs can contain fields and methods. Structs can inherit from a single parent struct using the `:` operator. All structs implicitly inherit from the root `Type` struct.
 
@@ -175,7 +222,7 @@ struct Generic<T>{
 }
 ```
 
-## 4.1 Specs - Interfaces
+## 7.1 Specs - Interfaces
 
 Specs define interfaces that structs can implement.
 
@@ -197,7 +244,7 @@ struct Circle: Shape, Drawable, <other specs> {
 
 Structs can inherit only one struct but can implement multiple specs.
 
-## 5. Control Flow
+## 8. Control Flow
 
 ### Conditionals
 
@@ -283,7 +330,7 @@ try {
 }
 ```
 
-## 6. Expressions & Operators
+## 9. Expressions & Operators
 
 ### Operators
 
@@ -342,7 +389,7 @@ match (opt) {
 - **Enums**: `Type.Variant(binding)`
 - **Guards**: `pattern if condition` (adds conditional logic)
 
-## 7. Known Limitations / Disallowed Constructs
+## 10. Known Limitations / Disallowed Constructs
 
 The following are **NOT** currently supported by the grammar:
 
@@ -352,7 +399,7 @@ The following are **NOT** currently supported by the grammar:
 - **Visibility**: No `public` / `private` modifiers (all members are public).
 - **Do-While**: No `do { ... } while` loop.
 
-## 8. Modules and Imports
+## 11. Modules and Imports
 
 BPL3 supports a module system with explicit imports and exports.
 
@@ -384,7 +431,7 @@ export [MyStruct];
 export { variable }
 ```
 
-## 9. Inline Assembly
+## 12. Inline Assembly
 
 BPL supports inline assembly blocks for embedding LLVM IR or platform-specific assembly.
 
@@ -477,7 +524,7 @@ asm("att") {
 }
 ```
 
-## 10. Standard Library Overview
+## 13. Standard Library Overview
 
 The BPL standard library (`std`) provides core functionality.
 
