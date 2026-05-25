@@ -50,7 +50,7 @@ frame main() ret int {
     IO.print("Range elements: ");
     local i: int = 0;
     loop (i < range.len()) {
-        IO.printInt(range[i]); # [] operator for indexing
+        IO.printIntLn(range[i]); # [] operator for indexing
         IO.print(" ");
         i = i + 1;
     }
@@ -110,15 +110,15 @@ frame main() ret int {
 
     local union_set: Set<int> = set1.union(&set2); # union operation
     IO.print("Union size: ");
-    IO.printInt(union_set.size());
+    IO.printIntLn(union_set.size());
 
     local intersection: Set<int> = set1.intersection(&set2); # intersection operation
     IO.print("Intersection size: ");
-    IO.printInt(intersection.size());
+    IO.printIntLn(intersection.size());
 
     local difference: Set<int> = set1.difference(&set2); # difference operation
     IO.print("Difference size: ");
-    IO.printInt(difference.size());
+    IO.printIntLn(difference.size());
 
     set1.destroy();
     set2.destroy();
@@ -158,7 +158,7 @@ frame main() ret int {
     arr.push(20);
     arr.push(30);
     IO.print("Array size: ");
-    IO.printInt(arr.len());
+    IO.printIntLn(arr.len());
     arr.destroy();
 
     local m: Map<int, int> = Map<int, int>.new(10);
@@ -166,12 +166,12 @@ frame main() ret int {
     m.set(2, 200);
     IO.print("Map get(1): ");
     if (m.has(1)) {
-        IO.printInt(m.get(1).unwrap());
+        IO.printIntLn(m.get(1).unwrap());
     }
     m.destroy();
 
     IO.print("Math.min(5, 10): ");
-    IO.printInt(Math.min(5, 10));
+    IO.printIntLn(Math.min(5, 10));
     IO.print("");
 
     IO.printString("=== Demo Complete ===");

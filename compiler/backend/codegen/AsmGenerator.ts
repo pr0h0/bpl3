@@ -229,23 +229,40 @@ export abstract class AsmGenerator extends ExceptionGenerator {
 
         if (processedLine.length === 0) continue;
 
-        // Replace (variable) with %variable_ptr (pointer) for locals
-        // or @variable for globals
-        processedLine = processedLine.replace(/\((\w+)\)/g, (match, name) => {
-          // Check if it's a local variable
-          if (this.locals.has(name)) {
-            const ptr = this.localPointers.get(name);
-            if (ptr) {
-              return ptr;
+        // Replace (variable) with the LLVM storage pointer for scalar locals.
+        // For pointer locals, (variable) resolves to the pointer value; use (&variable)
+        // when raw LLVM needs the pointer variable's own stack slot.
+        processedLine = processedLine.replace(
+          /\((&?)(\w+)\)/g,
+          (match, amp, name) => {
+            // Check if it's a local variable
+            if (this.locals.has(name)) {
+              const ptr = this.localPointers.get(name);
+              const type = this.localTypes.get(name);
+              if (ptr) {
+                if (
+                  amp !== "&" &&
+                  type?.kind === "BasicType" &&
+                  type.pointerDepth > 0
+                ) {
+                  const llvmType = this.resolveType(type);
+                  const valueReg = this.newRegister();
+                  this.emit(
+                    `  ${valueReg} = load ${llvmType}, ${llvmType}* ${ptr}`,
+                  );
+                  return valueReg;
+                }
+                return ptr;
+              }
             }
-          }
-          // Check if it's a global variable
-          if (this.globals.has(name)) {
-            return `@${name}`;
-          }
-          // Not found - return unchanged (user may be using raw LLVM IR syntax)
-          return match;
-        });
+            // Check if it's a global variable
+            if (this.globals.has(name)) {
+              return `@${name}`;
+            }
+            // Not found - return unchanged (user may be using raw LLVM IR syntax)
+            return match;
+          },
+        );
 
         this.emit(`  ${processedLine}`);
       }

@@ -9,18 +9,18 @@ frame main() ret int {
     s.push(1);
     s.push(2);
     s.push(3);
-    IO.printInt(s.size());
+    IO.printIntLn(s.size());
     local p1: Option<int> = s.pop();
-    IO.printInt(p1.unwrap());
-    IO.printInt(s.size());
+    IO.printIntLn(p1.unwrap());
+    IO.printIntLn(s.size());
 
     local q: Queue<int> = Queue<int>.new(2);
     q.enqueue(10);
     q.enqueue(20);
     q.enqueue(30);
-    IO.printInt(q.size());
+    IO.printIntLn(q.size());
     local d1: Option<int> = q.dequeue();
-    IO.printInt(d1.unwrap());
-    IO.printInt(q.size());
+    IO.printIntLn(d1.unwrap());
+    IO.printIntLn(q.size());
     return 0;
 }

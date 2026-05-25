@@ -18,10 +18,92 @@ import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
+import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { AsmGenerator } from "./AsmGenerator";
 
 export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
+  protected currentFunctionEmitsStackFrameHooks = true;
+
+  private shouldEmitStackFrameHooksForFunction(
+    decl: AST.FunctionDecl,
+    emittedName: string,
+  ): boolean {
+    if (this.optimizationLevel >= 2) return false;
+    if (decl.name === "main" || emittedName === "main") return true;
+
+    return !this.isTrivialLeafReturnFunction(decl);
+  }
+
+  private isTrivialLeafReturnFunction(decl: AST.FunctionDecl): boolean {
+    if (decl.body.statements.length !== 1) return false;
+
+    const stmt = decl.body.statements[0]!;
+    if (stmt.kind !== "Return") return false;
+
+    const value = (stmt as AST.ReturnStmt).value;
+    return !value || this.isLeafExpression(value);
+  }
+
+  private isLeafExpression(expr: AST.Expression): boolean {
+    switch (expr.kind) {
+      case "Literal":
+      case "Identifier":
+      case "OffsetOf":
+        return true;
+      case "Group":
+        return this.isLeafExpression((expr as AST.GroupExpr).expression);
+      case "Binary": {
+        const binary = expr as AST.BinaryExpr;
+        return (
+          !binary.operatorOverload &&
+          this.isLeafExpression(binary.left) &&
+          this.isLeafExpression(binary.right)
+        );
+      }
+      case "Unary": {
+        const unary = expr as AST.UnaryExpr;
+        return !unary.operatorOverload && this.isLeafExpression(unary.operand);
+      }
+      case "Cast":
+        return this.isLeafExpression((expr as AST.CastExpr).expression);
+      case "Is":
+        return this.isLeafExpression((expr as AST.IsExpr).expression);
+      case "As":
+        return this.isLeafExpression((expr as AST.AsExpr).expression);
+      case "Member":
+        return this.isLeafExpression((expr as AST.MemberExpr).object);
+      case "Index": {
+        const index = expr as AST.IndexExpr;
+        return (
+          !index.operatorOverload &&
+          this.isLeafExpression(index.object) &&
+          this.isLeafExpression(index.index)
+        );
+      }
+      case "ArrayLiteral":
+        return (expr as AST.ArrayLiteralExpr).elements.every((element) =>
+          this.isLeafExpression(element),
+        );
+      case "TupleLiteral":
+        return (expr as AST.TupleLiteralExpr).elements.every((element) =>
+          this.isLeafExpression(element),
+        );
+      case "Ternary": {
+        const ternary = expr as AST.TernaryExpr;
+        return (
+          this.isLeafExpression(ternary.condition) &&
+          this.isLeafExpression(ternary.trueExpr) &&
+          this.isLeafExpression(ternary.falseExpr)
+        );
+      }
+      case "Sizeof":
+      case "TypeOf":
+        return true;
+      default:
+        return false;
+    }
+  }
 
   protected generateBlock(
     block: AST.BlockStmt,
@@ -659,18 +741,58 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     if (decl.initializer) {
-      const val = this.generateExpression(decl.initializer);
-      const srcType = this.resolveType(decl.initializer.resolvedType!);
+      const sourceTypeNode = decl.initializer.resolvedType!;
+      const destTypeNode =
+        decl.resolvedType || decl.typeAnnotation || sourceTypeNode;
+      const srcType = this.resolveType(sourceTypeNode);
       const destType = type;
-      const castVal = this.emitCast(
-        val,
-        srcType,
-        destType,
-        decl.initializer.resolvedType!,
-        decl.resolvedType ||
-          decl.typeAnnotation ||
-          decl.initializer.resolvedType!,
-      );
+      let castVal: string;
+      const conversion = lowerImplicitConversion(destTypeNode, sourceTypeNode);
+
+      if (
+        conversion.kind === "array-to-slice" &&
+        this.isSliceTypeNode(destTypeNode) &&
+        this.isFixedArrayTypeNode(sourceTypeNode)
+      ) {
+        try {
+          const sourceAddr = this.generateAddress(decl.initializer);
+          castVal = this.emitSliceFromArrayAddress(
+            sourceAddr,
+            sourceTypeNode,
+            destTypeNode,
+          );
+        } catch {
+          const val = this.generateExpression(decl.initializer);
+          castVal = this.emitSliceFromArrayValue(
+            val,
+            sourceTypeNode,
+            destTypeNode,
+          );
+        }
+      } else if (
+        conversion.kind === "array-to-pointer" &&
+        this.isFixedArrayTypeNode(sourceTypeNode)
+      ) {
+        try {
+          const sourceAddr = this.generateAddress(decl.initializer);
+          castVal = this.emitPointerFromArrayAddress(
+            sourceAddr,
+            sourceTypeNode,
+          );
+        } catch {
+          const val = this.generateExpression(decl.initializer);
+          castVal = this.emitPointerFromArrayValue(val, sourceTypeNode);
+        }
+      } else {
+        const val = this.generateExpression(decl.initializer);
+        castVal = this.emitCast(
+          val,
+          srcType,
+          destType,
+          sourceTypeNode,
+          destTypeNode,
+        );
+      }
       this.emit(`  store ${type} ${castVal}, ${type}* ${addr}`);
 
       // Update null flag for struct locals
@@ -757,7 +879,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Decrement stack depth
-      if (this.optimizationLevel < 2) {
+      if (this.currentFunctionEmitsStackFrameHooks) {
         this.emit(`  call void @__bpl_exit_stack_frame()`);
       }
 
@@ -1118,6 +1240,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevIsMainWithVoidReturn = this.isMainWithVoidReturn;
     const prevGeneratingFunctionBody = this.generatingFunctionBody;
     const prevSubprogramId = this.currentSubprogramId;
+    const prevCurrentFunctionEmitsStackFrameHooks =
+      this.currentFunctionEmitsStackFrameHooks;
 
     this.registerCount = 0;
     this.labelCount = 0;
@@ -1231,6 +1355,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       if (this.isMainWithVoidReturn) {
         retType = "i32";
       }
+      this.currentFunctionEmitsStackFrameHooks =
+        this.shouldEmitStackFrameHooksForFunction(decl, name);
 
       // Special handling for main function to accept argc/argv
       let params: string;
@@ -1325,7 +1451,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
       // Stack overflow check
       // For optimization levels >= 2, we skip the runtime call for performance
-      if (this.optimizationLevel < 2) {
+      if (this.currentFunctionEmitsStackFrameHooks) {
         this.emit(`  call void @__bpl_enter_stack_frame()`);
       }
 
@@ -1508,7 +1634,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
       if (!isTerminator) {
         // Decrement stack depth
-        if (this.optimizationLevel < 2) {
+        if (this.currentFunctionEmitsStackFrameHooks) {
           this.emit(`  call void @__bpl_exit_stack_frame()`);
         }
 
@@ -1548,6 +1674,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.onReturn = prevOnReturn;
       this.isMainWithVoidReturn = prevIsMainWithVoidReturn;
       this.generatingFunctionBody = prevGeneratingFunctionBody;
+      this.currentFunctionEmitsStackFrameHooks =
+        prevCurrentFunctionEmitsStackFrameHooks;
     }
   }
 

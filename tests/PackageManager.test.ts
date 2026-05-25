@@ -294,6 +294,33 @@ describe("PackageManager", () => {
       const resolved = packageManager.resolvePackage("non-existent", tempDir);
       expect(resolved).toBeNull();
     });
+
+    test("should resolve workspace package import from packages directory", () => {
+      const workspaceDir = path.join(tempDir, "workspace");
+      const packageDir = path.join(workspaceDir, "packages", "workspace-pkg");
+      fs.mkdirSync(packageDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "workspace-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const resolved = packageManager.resolvePackage(
+        "workspace-pkg",
+        workspaceDir,
+      );
+
+      expect(resolved).toBe(path.join(packageDir, "index.bpl"));
+    });
   });
 
   describe("Package Manifest Validation", () => {

@@ -33,13 +33,13 @@
     {
       "type": "code",
       "title": "Importing from Standard Library",
-      "code": "# Import the IO module from standard library\nimport [IO] from \"std/io.bpl\";\n\nframe main() ret int {\n    # Use IO module functions\n    IO.print(\"Hello from IO module!\");\n    IO.printInt(42);\n    \n    # Multiple prints on one line using IO.print (no newline)\n    IO.print(\"The answer is: \");\n    IO.print(\"42\");\n    IO.print(\"\");  # Just adds newline\n    \n    return 0;\n}",
+      "code": "# Import the IO module from standard library\nimport [IO] from \"std/io.bpl\";\n\nframe main() ret int {\n    # Use IO module functions\n    IO.print(\"Hello from IO module!\");\n    IO.printIntLn(42);\n    \n    # Multiple prints on one line using IO.print (no newline)\n    IO.print(\"The answer is: \");\n    IO.print(\"42\");\n    IO.print(\"\\n\");\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Hello from IO module!42\nThe answer is: 42",
       "lineExplanations": {
         "2": "import [IO] brings in the IO namespace/struct.",
         "6": "IO.print() prints without newline.",
-        "7": "IO.printInt() prints integer with newline."
+        "7": "IO.printIntLn() prints integer with newline."
       }
     },
     {

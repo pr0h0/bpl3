@@ -15,7 +15,12 @@ import [IO] from "std/io.bpl";
 | `IO.print(s: string)`                        | Print string without newline              |
 | `IO.printString(s: string)`                  | Print string with newline                 |
 | `IO.printString(s: String)`                  | Print String object with newline          |
-| `IO.printInt(n: int)`                        | Print integer with newline                |
+| `IO.printInt(n: int)`                        | Print integer without newline             |
+| `IO.printIntLn(n: int)`                      | Print integer with newline                |
+| `IO.printFloat(f: float)`                    | Print float without newline               |
+| `IO.printFloatLn(f: float)`                  | Print float with newline                  |
+| `IO.printBool(b: bool)`                      | Print bool without newline                |
+| `IO.printBoolLn(b: bool)`                    | Print bool with newline                   |
 | `IO.log(msg: string)`                        | Alias for printString                     |
 | `IO.printf(format: string, a0: int) ret int` | Formatted print (wrapper around C printf) |
 
@@ -45,8 +50,12 @@ frame main() {
     IO.printString("Hello!");
     IO.log("This is a log message");
 
-    # Print integer
+    # Print integer with explicit newline
     IO.printInt(42);
+    IO.print("\n");
+
+    # Or use the line helper
+    IO.printIntLn(42);
 }
 ```
 

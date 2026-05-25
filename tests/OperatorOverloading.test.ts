@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import { spawnSync } from "child_process";
 import * as path from "path";
 
-const BPL_COMPILER = path.join(process.cwd(), "bpl");
+const BPL_CLI = path.join(process.cwd(), "index.ts");
+
+function compileBpl(sourcePath: string) {
+  return spawnSync("bun", [BPL_CLI, sourcePath], { encoding: "utf-8" });
+}
 
 describe("Operator Overloading Tests", () => {
   describe("Positive Tests - Should Compile and Run", () => {
     it("should handle basic arithmetic operators (+, -, *, /, %)", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading_arithmetic/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading_arithmetic/main.bpl");
 
       expect(result.status).toBe(0);
       expect(result.stderr).not.toContain("error");
@@ -32,11 +32,7 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle bitwise operators (&, |, ^, ~, <<, >>)", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading_bitwise/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading_bitwise/main.bpl");
 
       expect(result.status).toBe(0);
       expect(result.stderr).not.toContain("error");
@@ -58,11 +54,7 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle comparison operators (<, <=, >, >=, ==, !=)", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading_bitwise/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading_bitwise/main.bpl");
 
       expect(result.status).toBe(0);
 
@@ -81,11 +73,7 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle unary operators (-, ~, +)", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading/main.bpl");
 
       expect(result.status).toBe(0);
 
@@ -97,11 +85,7 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle callable operator (__call__)", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading/main.bpl");
 
       expect(result.status).toBe(0);
 
@@ -114,11 +98,7 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle complex number arithmetic", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading/main.bpl");
 
       expect(result.status).toBe(0);
 
@@ -133,10 +113,8 @@ describe("Operator Overloading Tests", () => {
 
   describe("Negative Tests - Should Fail Compilation", () => {
     it("should reject operator overload with wrong number of parameters", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/errors/operator_overloading_errors/wrong_params.bpl"],
-        { encoding: "utf-8" },
+      const result = compileBpl(
+        "examples/errors/operator_overloading_errors/wrong_params.bpl",
       );
 
       expect(result.status).not.toBe(0);
@@ -146,10 +124,8 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should reject operator overload with wrong return type for comparison", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/errors/operator_overloading_errors/wrong_return_type.bpl"],
-        { encoding: "utf-8" },
+      const result = compileBpl(
+        "examples/errors/operator_overloading_errors/wrong_return_type.bpl",
       );
 
       expect(result.status).not.toBe(0);
@@ -159,10 +135,8 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should reject use of operator without overload", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/errors/operator_overloading_errors/missing_operator.bpl"],
-        { encoding: "utf-8" },
+      const result = compileBpl(
+        "examples/errors/operator_overloading_errors/missing_operator.bpl",
       );
 
       expect(result.status).not.toBe(0);
@@ -172,10 +146,8 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should reject static operator overload", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/errors/operator_overloading_errors/static_operator.bpl"],
-        { encoding: "utf-8" },
+      const result = compileBpl(
+        "examples/errors/operator_overloading_errors/static_operator.bpl",
       );
 
       expect(result.status).not.toBe(0);
@@ -185,10 +157,8 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should reject calling non-callable object", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/errors/operator_overloading_errors/not_callable.bpl"],
-        { encoding: "utf-8" },
+      const result = compileBpl(
+        "examples/errors/operator_overloading_errors/not_callable.bpl",
       );
 
       expect(result.status).not.toBe(0);
@@ -200,11 +170,7 @@ describe("Operator Overloading Tests", () => {
 
   describe("Edge Cases", () => {
     it("should handle operator overload with complex types", () => {
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading_arithmetic/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading_arithmetic/main.bpl");
 
       expect(result.status).toBe(0);
 
@@ -221,11 +187,7 @@ describe("Operator Overloading Tests", () => {
     it("should handle chained operator calls", () => {
       // This is implicitly tested in the main examples
       // e.g., (a + b) + c would work with proper operator overloading
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading/main.bpl");
 
       expect(result.status).toBe(0);
     });
@@ -233,11 +195,7 @@ describe("Operator Overloading Tests", () => {
     it("should handle operator precedence correctly", () => {
       // Operator precedence should be maintained
       // This is handled by the parser, not operator overloading
-      const result = spawnSync(
-        BPL_COMPILER,
-        ["examples/operator_overloading_arithmetic/main.bpl"],
-        { encoding: "utf-8" },
-      );
+      const result = compileBpl("examples/operator_overloading_arithmetic/main.bpl");
 
       expect(result.status).toBe(0);
     });

@@ -18,7 +18,7 @@ frame main(argc: int, argv: *string) ret int {
     local args: Args = Args.new(argc, argv);
     local count: int = args.count();
 
-    IO.printInt(count);
+    IO.printIntLn(count);
     local i: int = 0;
     loop (i < count) {
         local arg: String = args.get(i);

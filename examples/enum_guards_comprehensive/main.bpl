@@ -76,6 +76,16 @@ frame main() ret int {
     printf("95F: %s\n", classifyTemp(f1));
     printf("68F: %s\n", classifyTemp(f2));
 
+    printf("\n=== Kelvin ===\n");
+    local k1: Temperature = Temperature.Kelvin(310);
+    local k2: Temperature = Temperature.Kelvin(289);
+    local k3: Temperature = Temperature.Kelvin(274);
+    local k4: Temperature = Temperature.Kelvin(260);
+    printf("310K: %s\n", classifyTemp(k1));
+    printf("289K: %s\n", classifyTemp(k2));
+    printf("274K: %s\n", classifyTemp(k3));
+    printf("260K: %s\n", classifyTemp(k4));
+
     printf("\n=== Loading Progress ===\n");
     local s1: Status = Status.Loading(0);
     local s2: Status = Status.Loading(30);
@@ -93,10 +103,14 @@ frame main() ret int {
     local v1: Status = Status.Loading(50);
     local v2: Status = Status.Loading(-5);
     local v3: Status = Status.Loading(150);
+    local v4: Status = Status.Ready;
+    local v5: Status = Status.Error("network");
 
     printf("50%%: %s\n", validateProgress(v1));
     printf("-5%%: %s\n", validateProgress(v2));
     printf("150%%: %s\n", validateProgress(v3));
+    printf("Ready: %s\n", validateProgress(v4));
+    printf("Error: %s\n", validateProgress(v5));
 
     return 0;
 }

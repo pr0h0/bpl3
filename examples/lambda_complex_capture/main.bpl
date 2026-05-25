@@ -14,5 +14,8 @@ frame main() ret int {
     };
 
     proc(50);
+    # Lambdas capture locals by value when created, so this does not affect proc.
+    factor = 2.0;
+    proc(-100);
     return 0;
 }

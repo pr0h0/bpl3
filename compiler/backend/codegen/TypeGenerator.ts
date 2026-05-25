@@ -4,6 +4,10 @@ import { codeGenLog } from "../../common/Logger";
 import { StructEnumGenerator } from "./StructEnumGenerator";
 import { TypeSubstitution } from "../../middleend/TypeUtils";
 import {
+  isFixedArrayTypeNode as isLoweredFixedArrayTypeNode,
+  isSliceTypeNode as isLoweredSliceTypeNode,
+} from "../../middleend/lowering/ImplicitConversions";
+import {
   isSigned as isSignedTypeName,
   isIntegerType as isLLVMIntegerType,
 } from "./utils";
@@ -45,6 +49,120 @@ const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = {
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 export abstract class TypeGenerator extends StructEnumGenerator {
+  protected abstract allocateStack(name: string, type: string): string;
+
+  protected applyArrayDimensions(
+    llvmType: string,
+    dimensions?: (number | null)[],
+  ): string {
+    if (!dimensions || dimensions.length === 0) return llvmType;
+    const [outer, ...innerDimensions] = dimensions;
+    const innerType = this.applyArrayDimensions(llvmType, innerDimensions);
+    if (outer === null) return `{ ${innerType}*, i64 }`;
+    return `[${outer} x ${innerType}]`;
+  }
+
+  protected isSliceTypeNode(
+    type: AST.TypeNode | undefined,
+  ): type is AST.BasicTypeNode {
+    return isLoweredSliceTypeNode(type);
+  }
+
+  protected isFixedArrayTypeNode(
+    type: AST.TypeNode | undefined,
+  ): type is AST.BasicTypeNode {
+    return isLoweredFixedArrayTypeNode(type);
+  }
+
+  protected getArrayElementTypeNode(
+    type: AST.BasicTypeNode,
+  ): AST.BasicTypeNode {
+    return {
+      ...type,
+      arrayDimensions: type.arrayDimensions.slice(1),
+    };
+  }
+
+  protected emitSliceFromArrayAddress(
+    arrayAddr: string,
+    sourceArrayType: AST.BasicTypeNode,
+    destSliceType: AST.BasicTypeNode,
+  ): string {
+    const length = sourceArrayType.arrayDimensions[0];
+    if (length === null || length === undefined) {
+      throw new CompilerError(
+        "Cannot build slice from dynamic array",
+        "Slice conversion requires a fixed-size source array.",
+        sourceArrayType.location,
+      );
+    }
+
+    const sourceType = this.resolveType(sourceArrayType);
+    const elementType = this.resolveType(
+      this.getArrayElementTypeNode(sourceArrayType),
+    );
+    const destType = this.resolveType(destSliceType);
+
+    const dataPtr = this.newRegister();
+    this.emit(
+      `  ${dataPtr} = getelementptr inbounds ${sourceType}, ${sourceType}* ${arrayAddr}, i64 0, i64 0`,
+    );
+
+    const withData = this.newRegister();
+    this.emit(
+      `  ${withData} = insertvalue ${destType} undef, ${elementType}* ${dataPtr}, 0`,
+    );
+
+    const withLength = this.newRegister();
+    this.emit(
+      `  ${withLength} = insertvalue ${destType} ${withData}, i64 ${length}, 1`,
+    );
+    return withLength;
+  }
+
+  protected emitPointerFromArrayAddress(
+    arrayAddr: string,
+    sourceArrayType: AST.BasicTypeNode,
+  ): string {
+    const sourceType = this.resolveType(sourceArrayType);
+    const elementPtr = this.newRegister();
+    this.emit(
+      `  ${elementPtr} = getelementptr inbounds ${sourceType}, ${sourceType}* ${arrayAddr}, i64 0, i64 0`,
+    );
+    return elementPtr;
+  }
+
+  protected emitSliceFromArrayValue(
+    val: string,
+    sourceArrayType: AST.BasicTypeNode,
+    destSliceType: AST.BasicTypeNode,
+  ): string {
+    const sourceType = this.resolveType(sourceArrayType);
+    const spill = this.allocateStack(
+      `slice_array_${this.labelCount++}`,
+      sourceType,
+    );
+    this.emit(`  store ${sourceType} ${val}, ${sourceType}* ${spill}`);
+    return this.emitSliceFromArrayAddress(
+      spill,
+      sourceArrayType,
+      destSliceType,
+    );
+  }
+
+  protected emitPointerFromArrayValue(
+    val: string,
+    sourceArrayType: AST.BasicTypeNode,
+  ): string {
+    const sourceType = this.resolveType(sourceArrayType);
+    const spill = this.allocateStack(
+      `array_decay_${this.labelCount++}`,
+      sourceType,
+    );
+    this.emit(`  store ${sourceType} ${val}, ${sourceType}* ${spill}`);
+    return this.emitPointerFromArrayAddress(spill, sourceArrayType);
+  }
+
   protected getMangledName(
     name: string,
     type: AST.FunctionTypeNode,
@@ -1202,10 +1320,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               }
             }
           }
-          for (let i = arrDiff.length - 1; i >= 0; i--) {
-            llvmType = `[${arrDiff[i]} x ${llvmType}]`;
-          }
-          return llvmType;
+          return this.applyArrayDimensions(llvmType, arrDiff);
         }
 
         // Check for aliasDeclaration (from TypeChecker) to preserve alias structure (e.g. pointer to array)
@@ -1245,10 +1360,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               }
             }
           }
-          for (let i = arrDiff.length - 1; i >= 0; i--) {
-            llvmType = `[${arrDiff[i]} x ${llvmType}]`;
-          }
-          return llvmType;
+          return this.applyArrayDimensions(llvmType, arrDiff);
         }
 
         let llvmType = "";
@@ -1264,10 +1376,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             for (let i = 0; i < basicType.pointerDepth; i++) {
               fallbackLlvmType += "*";
             }
-            for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
-              fallbackLlvmType = `[${basicType.arrayDimensions[i]} x ${fallbackLlvmType}]`;
-            }
-            return fallbackLlvmType;
+            return this.applyArrayDimensions(
+              fallbackLlvmType,
+              basicType.arrayDimensions,
+            );
           }
 
           let mappedLlvmType = this.resolveType(mapped);
@@ -1276,10 +1388,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             mappedLlvmType += "*";
           }
 
-          for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
-            mappedLlvmType = `[${basicType.arrayDimensions[i]} x ${mappedLlvmType}]`;
-          }
-          return mappedLlvmType;
+          return this.applyArrayDimensions(
+            mappedLlvmType,
+            basicType.arrayDimensions,
+          );
         }
 
         // Check for type aliases
@@ -1303,10 +1415,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               for (let i = 0; i < basicType.pointerDepth; i++) {
                 substitutedLlvmType += "*";
               }
-              for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
-                substitutedLlvmType = `[${basicType.arrayDimensions[i]} x ${substitutedLlvmType}]`;
-              }
-              return substitutedLlvmType;
+              return this.applyArrayDimensions(
+                substitutedLlvmType,
+                basicType.arrayDimensions,
+              );
             }
           }
 
@@ -1315,10 +1427,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           for (let i = 0; i < basicType.pointerDepth; i++) {
             aliasLlvmType += "*";
           }
-          for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
-            aliasLlvmType = `[${basicType.arrayDimensions[i]} x ${aliasLlvmType}]`;
-          }
-          return aliasLlvmType;
+          return this.applyArrayDimensions(
+            aliasLlvmType,
+            basicType.arrayDimensions,
+          );
         }
 
         // Check for generics usage
@@ -1382,11 +1494,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             for (let i = 0; i < ptrDiff; i++) {
               varDeclLlvmType += "*";
             }
-            for (let i = arrDiff.length - 1; i >= 0; i--) {
-              varDeclLlvmType = `[${arrDiff[i]} x ${varDeclLlvmType}]`;
-            }
             codeGenLog.debug("Result: " + varDeclLlvmType);
-            return varDeclLlvmType;
+            return this.applyArrayDimensions(varDeclLlvmType, arrDiff);
           }
 
           // FALLBACK: Lookup by name (for types not resolved by TypeChecker)
@@ -1544,24 +1653,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           llvmType += "*";
         }
 
-        if ("arrayDimensions" in basicType) {
-          for (let i = basicType.arrayDimensions.length - 1; i >= 0; i--) {
-            llvmType = `[${basicType.arrayDimensions[i]} x ${llvmType}]`;
-          }
-        }
-
-        return llvmType;
+        return this.applyArrayDimensions(llvmType, basicType.arrayDimensions);
       } else if (type.kind === "TupleType") {
         const tupleType = type as AST.TupleTypeNode;
         // Represent tuples as LLVM structs: { type0, type1, ... }
         const elementTypes = tupleType.types.map((t) => this.resolveType(t));
         let llvmType = `{ ${elementTypes.join(", ")} }`;
-        if (tupleType.arrayDimensions) {
-          for (let i = tupleType.arrayDimensions.length - 1; i >= 0; i--) {
-            llvmType = `[${tupleType.arrayDimensions[i]} x ${llvmType}]`;
-          }
-        }
-        return llvmType;
+        return this.applyArrayDimensions(llvmType, tupleType.arrayDimensions);
       } else if (type.kind === "FunctionType") {
         const funcType = type as AST.FunctionTypeNode;
         const ret = this.resolveType(funcType.returnType);
@@ -1572,12 +1670,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         // Raw function pointer: return_type (params)*
         let llvmType = `${ret} (${params})*`;
 
-        if (funcType.arrayDimensions) {
-          for (let i = funcType.arrayDimensions.length - 1; i >= 0; i--) {
-            llvmType = `[${funcType.arrayDimensions[i]} x ${llvmType}]`;
-          }
-        }
-        return llvmType;
+        return this.applyArrayDimensions(llvmType, funcType.arrayDimensions);
       } else if (type.kind === "LambdaType") {
         const lambdaType = type as AST.LambdaTypeNode;
         const ret = this.resolveType(lambdaType.returnType);
@@ -1589,12 +1682,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         // We use i8* for the context pointer (type erased)
         const paramsStr = params ? `, ${params}` : "";
         let llvmType = `{ ${ret} (i8*${paramsStr})*, i8* }`;
-        if (lambdaType.arrayDimensions) {
-          for (let i = lambdaType.arrayDimensions.length - 1; i >= 0; i--) {
-            llvmType = `[${lambdaType.arrayDimensions[i]} x ${llvmType}]`;
-          }
-        }
-        return llvmType;
+        return this.applyArrayDimensions(llvmType, lambdaType.arrayDimensions);
       }
       return "void";
     } finally {

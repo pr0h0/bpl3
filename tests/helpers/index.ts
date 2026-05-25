@@ -19,6 +19,8 @@ export {
   type CompileAndRunResult,
 } from "./compileAndRun";
 
+export { compileToLLVM, countMatches } from "./compileToLLVM";
+
 export { parseSource, parseExpression, parseStatement } from "./parser";
 
 export {

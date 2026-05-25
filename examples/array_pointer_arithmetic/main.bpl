@@ -12,5 +12,12 @@ frame main() ret int {
     printf("%d\n", *ptr);
     ptr = ptr + 1;
     printf("%d\n", *ptr);
+
+    local end: *int = &arr[2];
+    local distance: i64 = end - &arr[0];
+    printf("distance=%ld\n", distance);
+
+    ptr = ptr - 2;
+    printf("rewind=%d\n", *ptr);
     return 0;
 }

@@ -8,6 +8,11 @@
     "=== Fahrenheit ===",
     "95F: hot",
     "68F: warm",
+    "=== Kelvin ===",
+    "310K: hot",
+    "289K: warm",
+    "274K: cool",
+    "260K: cold",
     "=== Loading Progress ===",
     "Progress 0%: 0",
     "Progress 30%: 25",
@@ -17,7 +22,9 @@
     "=== Progress Validation ===",
     "50%: valid",
     "-5%: negative progress",
-    "150%: exceeds 100%"
+    "150%: exceeds 100%",
+    "Ready: ready",
+    "Error: error"
   ],
   "exitCode": 0,
   "args": [],

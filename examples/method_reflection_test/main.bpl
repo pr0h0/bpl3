@@ -18,7 +18,7 @@ frame main() {
     IO.print(info.name);
     IO.print("\n");
     IO.print("Methods: ");
-    IO.printInt(info.num_methods);
+    IO.printIntLn(info.num_methods);
     IO.print("\n");
 
     local i: int = 0;

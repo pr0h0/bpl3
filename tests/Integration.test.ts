@@ -116,7 +116,7 @@ describe("Integration Tests", () => {
             expect(output).toContain(config.expectedOutput);
           }
         }
-      });
+      }, config.timeout);
     }
   }
 });

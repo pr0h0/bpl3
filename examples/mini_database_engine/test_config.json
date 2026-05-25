@@ -26,5 +26,6 @@
   ],
   "args": [],
   "env": {},
-  "input": ""
+  "input": "",
+  "timeout": 15000
 }

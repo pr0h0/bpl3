@@ -931,11 +931,12 @@ export function checkAllPathsReturn(
  * Check an asm block statement
  */
 export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
-  // Parse content to find variable usages: (varName) or (&varName)
-  const regex = /\((&?)(\w+)\)/g;
+  // Match the operand forms accepted by codegen:
+  // (varName), (&varName), (=varName), and optional LLVM constraints.
+  const regex = /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g;
   let match;
   while ((match = regex.exec(stmt.content)) !== null) {
-    const varName = match[2];
+    const varName = match[3];
     const symbol = this.currentScope.resolve(varName!);
     if (!symbol) {
       throw new CompilerError(

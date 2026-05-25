@@ -18,7 +18,7 @@ frame main() {
 
     IO.print("Original Config:\n");
     IO.print("  ID: ");
-    IO.printInt(cfg.id);
+    IO.printIntLn(cfg.id);
     IO.print("\n");
     IO.print("  User: ");
     IO.print(cfg.username);
@@ -33,6 +33,7 @@ frame main() {
     IO.print("\n");
 
     # 3. Write to File
+    FS.mkdirp("tmp");
     local path: string = "tmp/config.json";
     if (FS.writeFile(path, jsonStr)) {
         IO.print("Successfully wrote to file: ");
@@ -56,7 +57,7 @@ frame main() {
 
     IO.print("Restored Config:\n");
     IO.print("  ID: ");
-    IO.printInt(loadedCfgPtr.id);
+    IO.printIntLn(loadedCfgPtr.id);
     IO.print("\n");
     IO.print("  User: ");
     IO.print(loadedCfgPtr.username);

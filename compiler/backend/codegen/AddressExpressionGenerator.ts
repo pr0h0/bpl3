@@ -269,7 +269,14 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     const llvmType = isPointer ? this.resolveType(objType) : null;
     const pointerToArray = isPointer && llvmType && llvmType.endsWith("]*");
 
-    if (isPointer && !pointerToArray) {
+    if (this.isSliceTypeNode(objType)) {
+      addr = this.generateSliceIndexAddress(
+        indexExpr,
+        objectAddr,
+        indexVal,
+        objType,
+      );
+    } else if (isPointer && !pointerToArray) {
       // True single-level pointer (could be pointer to element or array of pointers)
       // This includes both:
       // - Regular pointers: int* -> direct GEP
@@ -359,6 +366,33 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 ${indexVal}`,
       );
     }
+    return addr;
+  }
+
+  private generateSliceIndexAddress(
+    indexExpr: AST.IndexExpr,
+    objectAddr: string,
+    indexVal: string,
+    objType: AST.BasicTypeNode,
+  ): string {
+    const sliceType = this.resolveType(objType);
+    const elementType = this.resolveType(this.getArrayElementTypeNode(objType));
+
+    const sliceVal = this.newRegister();
+    this.emit(`  ${sliceVal} = load ${sliceType}, ${sliceType}* ${objectAddr}`);
+
+    const dataPtr = this.newRegister();
+    this.emit(`  ${dataPtr} = extractvalue ${sliceType} ${sliceVal}, 0`);
+
+    const length = this.newRegister();
+    this.emit(`  ${length} = extractvalue ${sliceType} ${sliceVal}, 1`);
+
+    this.emitDynamicBoundsCheck(indexVal, length, indexExpr.location);
+
+    const addr = this.newRegister();
+    this.emit(
+      `  ${addr} = getelementptr inbounds ${elementType}, ${elementType}* ${dataPtr}, i64 ${indexVal}`,
+    );
     return addr;
   }
 
@@ -589,6 +623,39 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
 
     this.emit(
       `  call void @__bpl_throw_index_out_of_bounds(i32 ${idx32}, i32 ${size}, i8* ${funcNamePtr}, i32 ${line}, i32 ${col})`,
+    );
+    this.emit(`  unreachable`);
+
+    this.emit(`${passLabel}:`);
+  }
+
+  protected emitDynamicBoundsCheck(
+    indexVal: string,
+    sizeVal: string,
+    location: SourceLocation,
+  ): void {
+    const inBounds = this.newRegister();
+    this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${sizeVal}`);
+
+    const throwLabel = this.newLabel("bounds.throw");
+    const passLabel = this.newLabel("bounds.pass");
+    this.emit(`  br i1 ${inBounds}, label %${passLabel}, label %${throwLabel}`);
+
+    this.emit(`${throwLabel}:`);
+
+    const funcNameStr = this.currentFunctionName || "unknown";
+    const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
+    const line = location.startLine;
+    const col = location.startColumn || 0;
+
+    const idx32 = this.newRegister();
+    this.emit(`  ${idx32} = trunc i64 ${indexVal} to i32`);
+
+    const size32 = this.newRegister();
+    this.emit(`  ${size32} = trunc i64 ${sizeVal} to i32`);
+
+    this.emit(
+      `  call void @__bpl_throw_index_out_of_bounds(i32 ${idx32}, i32 ${size32}, i8* ${funcNamePtr}, i32 ${line}, i32 ${col})`,
     );
     this.emit(`  unreachable`);
 

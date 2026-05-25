@@ -10,6 +10,6 @@ frame main() ret int {
     local s: String = JSON.stringify<int>(&val);
     printf("%s\n", s.toString());
     local parsed: *int = JSON.parse<int>("456");
-    IO.printInt(*parsed);
+    IO.printIntLn(*parsed);
     return 0;
 }

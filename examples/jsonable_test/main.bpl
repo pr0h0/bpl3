@@ -41,7 +41,7 @@ frame main() {
 
     if (u2 != nullptr) {
         IO.print("Parsed ID: ");
-        IO.printInt(u2.id);
+        IO.printIntLn(u2.id);
         IO.print("\n");
         IO.print("Parsed Name: ");
         IO.print(u2.name);

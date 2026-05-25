@@ -8,6 +8,10 @@ import type { SourceLocation } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import type { SymbolTable } from "./SymbolTable";
+import {
+  areArrayDimensionsAssignable,
+  lowerImplicitConversion,
+} from "./lowering/ImplicitConversions";
 
 /**
  * Integer type names for type checking
@@ -534,27 +538,12 @@ export class TypeComparison {
         isWildcard = true;
       }
 
-      // Pointer depth match or array decay
-      if (rt1.pointerDepth !== rt2.pointerDepth) {
-        if (
-          rt1.pointerDepth === rt2.pointerDepth + 1 &&
-          rt2.arrayDimensions.length > 0 &&
-          rt1.arrayDimensions.length === rt2.arrayDimensions.length - 1
-        ) {
-          // Array decay to pointer - allowed
-        } else {
-          return false;
-        }
-      } else {
-        // pointerDepth matches, check array dimensions strictly
-        if (rt1.arrayDimensions.length !== rt2.arrayDimensions.length) {
-          return false;
-        }
-        for (let i = 0; i < rt1.arrayDimensions.length; i++) {
-          if (rt1.arrayDimensions[i] !== rt2.arrayDimensions[i]) {
-            return false;
-          }
-        }
+      if (
+        rt1.pointerDepth !== rt2.pointerDepth ||
+        !areArrayDimensionsAssignable(rt1.arrayDimensions, rt2.arrayDimensions)
+      ) {
+        const conversion = lowerImplicitConversion(rt1, rt2);
+        if (conversion.kind === "unsupported") return false;
       }
 
       // Generic args match

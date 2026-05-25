@@ -34,9 +34,17 @@ struct IO {
 
     /#
     # Print Integer
-    Prints an integer followed by a newline.
+    Prints an integer without appending a newline.
     #/
     frame printInt(n: int) {
+        printf("%d", n);
+    }
+
+    /#
+    # Print Integer (Line)
+    Prints an integer followed by a newline.
+    #/
+    frame printIntLn(n: int) {
         printf("%d\n", n);
     }
 
@@ -74,17 +82,37 @@ struct IO {
 
     /#
     # Print Float
-    Prints a float followed by a newline.
+    Prints a float without appending a newline.
     #/
     frame printFloat(f: float) {
+        printf("%f", f);
+    }
+
+    /#
+    # Print Float (Line)
+    Prints a float followed by a newline.
+    #/
+    frame printFloatLn(f: float) {
         printf("%f\n", f);
     }
 
     /#
     # Print Bool
-    Prints a boolean as "true" or "false" followed by a newline.
+    Prints a boolean as "true" or "false" without appending a newline.
     #/
     frame printBool(b: bool) {
+        if (b) {
+            printf("true");
+        } else {
+            printf("false");
+        }
+    }
+
+    /#
+    # Print Bool (Line)
+    Prints a boolean as "true" or "false" followed by a newline.
+    #/
+    frame printBoolLn(b: bool) {
         if (b) {
             printf("true\n");
         } else {

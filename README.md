@@ -249,7 +249,7 @@ frame main() ret int {
     IO.log("Vector contents:");
     local i: int = 0;
     loop (i < numbers.len()) {
-        IO.printInt(numbers.get(i));
+        IO.printIntLn(numbers.get(i));
         i = i + 1;
     }
 

@@ -594,6 +594,32 @@ export function checkBinary(
         expr.location,
       );
     }
+    if (op === TokenType.LessLess || op === TokenType.GreaterGreater) {
+      const shiftCount = this.getIntegerConstantValue(expr.right);
+      if (shiftCount !== undefined) {
+        if (shiftCount < 0n) {
+          throw new CompilerError(
+            "Negative shift count",
+            "Shift counts must be zero or greater.",
+            expr.right.location,
+          );
+        }
+
+        const bitWidth =
+          leftType.kind === "BasicType"
+            ? TypeUtils.getIntegerBits(leftType.name)
+            : 0;
+        if (bitWidth > 0 && shiftCount >= BigInt(bitWidth)) {
+          throw new CompilerError(
+            `Shift count ${shiftCount.toString()} is out of range for ${bitWidth}-bit ${this.typeToString(
+              leftType,
+            )}`,
+            "Use a shift count smaller than the width of the left operand.",
+            expr.right.location,
+          );
+        }
+      }
+    }
     return leftType;
   }
 

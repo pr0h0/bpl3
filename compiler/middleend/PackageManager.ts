@@ -642,6 +642,10 @@ export class PackageManager {
     let result = checkPath(path.join(root, "bpl_modules"));
     if (result) return result;
 
+    // Check monorepo/workspace packages, useful for examples and local package development.
+    result = checkPath(path.join(root, "packages"));
+    if (result) return result;
+
     // Check global
     result = checkPath(this.globalPackageDir);
     if (result) return result;

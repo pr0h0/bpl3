@@ -16,5 +16,5 @@ frame main() {
 
     local v: int = c.getValue();
     IO.print("Value: ");
-    IO.printInt(v);
+    IO.printIntLn(v);
 }

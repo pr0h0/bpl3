@@ -17,6 +17,7 @@ import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
+import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { BinaryExpressionGenerator } from "./BinaryExpressionGenerator";
 import { RTTI } from "../../middleend/RTTI";
 import { getIntegerBitWidth } from "./utils";
@@ -2074,6 +2075,32 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           );
 
           return `${destType} ${result}`;
+        }
+
+        const conversion = lowerImplicitConversion(targetTypeNode, resolvedArgType);
+
+        if (
+          conversion.kind === "array-to-slice" &&
+          this.isSliceTypeNode(targetTypeNode) &&
+          this.isFixedArrayTypeNode(resolvedArgType)
+        ) {
+          let sliceVal: string;
+          try {
+            const sourceAddr = this.generateAddress(arg);
+            sliceVal = this.emitSliceFromArrayAddress(
+              sourceAddr,
+              resolvedArgType,
+              targetTypeNode,
+            );
+          } catch {
+            const val = this.generateExpression(arg);
+            sliceVal = this.emitSliceFromArrayValue(
+              val,
+              resolvedArgType,
+              targetTypeNode,
+            );
+          }
+          return `${destType} ${sliceVal}`;
         }
 
         // Check for Struct* -> Spec* cast

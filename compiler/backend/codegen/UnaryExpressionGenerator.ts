@@ -16,6 +16,7 @@ import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { TokenType } from "../../frontend/TokenType";
 import { hashString } from "../../common/HashUtils";
+import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 
 export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator {
@@ -534,6 +535,15 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       );
 
       return fatPtr2;
+    }
+
+    const conversion = lowerImplicitConversion(effectiveDest, srcTypeNode);
+    if (
+      conversion.kind === "array-to-slice" &&
+      this.isSliceTypeNode(effectiveDest) &&
+      this.isFixedArrayTypeNode(srcTypeNode)
+    ) {
+      return this.emitSliceFromArrayValue(val, srcTypeNode, effectiveDest);
     }
 
     if (srcType === destType) return val;

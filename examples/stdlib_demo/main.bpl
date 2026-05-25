@@ -82,7 +82,7 @@ frame demoString() {
 frame demoIo() {
     IO.log("\n--- Demo IO ---");
     IO.log("IO.log test");
-    IO.printInt(12345);
+    IO.printIntLn(12345);
 
     # Test read (scanf)
     IO.log("Enter a number:");

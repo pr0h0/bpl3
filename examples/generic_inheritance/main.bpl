@@ -15,5 +15,5 @@ frame main() {
     local c: IntContainer = IntContainer { value: 42 };
     local v: int = c.getValue();
     IO.print("Value: ");
-    IO.printInt(v);
+    IO.printIntLn(v);
 }

@@ -377,7 +377,7 @@ import [IO] from "std/io.bpl";
 
 frame main() ret int {
     IO.log("Hello from stdlib!");
-    IO.printInt(42);
+    IO.printIntLn(42);
     return 0;
 }
 ```
