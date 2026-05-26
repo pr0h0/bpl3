@@ -392,15 +392,17 @@ bun test tests/CodeGeneratorExtended.test.ts tests/GoldenLLVMShapes.test.ts test
 
 Expected: PASS.
 
-- [ ] **Step 5: Run type check**
+- [ ] **Step 5: Run compiler-scoped type check**
 
 Run:
 
 ```bash
-bun run check
+find compiler -type f -name '*.ts' -print > /tmp/bpl3-compiler-ts-files.txt
+printf 'index.ts\n' >> /tmp/bpl3-compiler-ts-files.txt
+bunx tsc --noEmit --lib ESNext --target ESNext --module ESNext --moduleResolution bundler --allowImportingTsExtensions --verbatimModuleSyntax --strict --skipLibCheck --noFallthroughCasesInSwitch --noUncheckedIndexedAccess @/tmp/bpl3-compiler-ts-files.txt
 ```
 
-Expected: PASS.
+Expected: PASS. The repo-wide `bun run check` also compiles `vscode-ext/`, which currently requires VS Code extension dependencies that are not installed by the root package.
 
 - [ ] **Step 6: Commit virtual call extraction**
 
