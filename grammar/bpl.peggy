@@ -206,8 +206,8 @@
     return { kind: "VariableDecl", isGlobal, isConst, name, typeAnnotation, initializer, location: makeLoc(loc) };
   }
 
-  function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc) {
-    return { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, location: makeLoc(loc) };
+  function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes) {
+    return { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: makeLoc(loc) };
   }
 
   function structDecl(name, genericParams, inheritanceList, members, loc) {
@@ -590,13 +590,24 @@ DestructTarget
   / name:Identifier { return { name: name.name }; }
   / "(" _ targets:DestructTargetList _ ")" { return targets; }
 
+AttributeList
+  = "@[" _ head:FunctionAttribute tail:(_ "," _ FunctionAttribute)* _ ","? _ "]" {
+      return [head, ...tail.map(t => t[3])];
+    }
+
+FunctionAttribute
+  = name:Identifier {
+      return { kind: "FunctionAttribute", name: name.name, location: makeLoc(location()) };
+    }
+
 FunctionDeclaration
-  = K_frame _ name:Identifier _ gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:ReturnType? _ body:Block {
+  = attrs:(_ AttributeList _)? K_frame _ name:Identifier _ gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:ReturnType? _ body:Block {
       const genericParams = gen ? gen : [];
       const paramList = params ? params : [];
       const returnType = ret ? ret : voidType(location());
       const isStatic = !(paramList.length > 0 && paramList[0] && paramList[0].name === "this");
-      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location());
+      const attributes = attrs ? attrs[1] : [];
+      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes);
     }
 
 StructDeclaration

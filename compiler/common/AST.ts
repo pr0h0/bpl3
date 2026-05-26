@@ -419,11 +419,17 @@ export interface VariableDecl extends ASTNode {
   initializer?: Expression;
 }
 
+export interface FunctionAttribute extends ASTNode {
+  kind: "FunctionAttribute";
+  name: string;
+}
+
 export interface FunctionDecl extends ASTNode {
   kind: "FunctionDecl";
   isFrame: boolean; // frame vs static
   isStatic: boolean;
   name: string;
+  attributes: FunctionAttribute[];
   genericParams: GenericParam[];
   params: Parameter[];
   returnType: TypeNode;

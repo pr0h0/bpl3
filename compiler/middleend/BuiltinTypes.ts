@@ -183,6 +183,7 @@ export function createTypeStructDecl(): AST.StructDecl {
     isFrame: true,
     isStatic: false,
     name: "getTypeName",
+    attributes: [],
     genericParams: [],
     params: [
       {
@@ -226,6 +227,7 @@ export function createTypeStructDecl(): AST.StructDecl {
     isFrame: true,
     isStatic: false,
     name: "toString",
+    attributes: [],
     genericParams: [],
     params: [
       {
@@ -286,6 +288,7 @@ export function createTypeStructDecl(): AST.StructDecl {
     isFrame: true,
     isStatic: false,
     name: "destroy",
+    attributes: [],
     genericParams: [],
     params: [
       {

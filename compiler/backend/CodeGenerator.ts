@@ -498,6 +498,7 @@ export class CodeGenerator extends StatementGenerator {
       isFrame: true,
       isStatic: true,
       genericParams: [],
+      attributes: [],
       params: expr.params.map((p) => ({
         kind: "Parameter",
         name: p.name,
