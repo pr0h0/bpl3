@@ -51,6 +51,7 @@ lib/*.o
 lib/*.ll
 
 .bpl-cache
+.worktrees/
 bpl
 
 ir.ll
