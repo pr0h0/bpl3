@@ -84,6 +84,34 @@ function getSeverityLabel(
 }
 
 /**
+ * Get a colored summary label for a group of diagnostics with one severity.
+ */
+function getSeveritySummary(
+  severity: DiagnosticSeverity,
+  count: number,
+  colorize: boolean,
+): string {
+  const labels = {
+    [DiagnosticSeverity.Error]: count === 1 ? "error" : "errors",
+    [DiagnosticSeverity.Warning]: count === 1 ? "warning" : "warnings",
+    [DiagnosticSeverity.Note]: count === 1 ? "note" : "notes",
+    [DiagnosticSeverity.Help]: count === 1 ? "help" : "help messages",
+  };
+  const summary = `${count} ${labels[severity]}`;
+
+  if (!colorize) return summary;
+
+  const colorMap = {
+    [DiagnosticSeverity.Error]: COLORS.red,
+    [DiagnosticSeverity.Warning]: COLORS.yellow,
+    [DiagnosticSeverity.Note]: COLORS.blue,
+    [DiagnosticSeverity.Help]: COLORS.green,
+  };
+
+  return `${COLORS.bold}${colorMap[severity]}${summary}${COLORS.reset}`;
+}
+
+/**
  * Get source lines from a file
  */
 function getSourceLines(filePath: string): string[] | null {
@@ -284,7 +312,7 @@ export class DiagnosticFormatter {
    * Format a CompilerError for display
    */
   formatError(error: CompilerError, severity?: DiagnosticSeverity): string {
-    const effectiveSeverity = severity || DiagnosticSeverity.Error;
+    const effectiveSeverity = severity || error.toDiagnostic().severity;
     const sourceLines = getSourceLines(error.location.file);
 
     const parts: string[] = [];
@@ -361,10 +389,15 @@ export class DiagnosticFormatter {
     // Summary line
     parts.push("");
     const count = errors.length;
-    const errorWord = count === 1 ? "error" : "errors";
-    const summary = this.config.colorize
-      ? `${COLORS.bold}${COLORS.red}${count} ${errorWord}${COLORS.reset}`
-      : `${count} ${errorWord}`;
+    const firstSeverity = errors[0]!.toDiagnostic().severity;
+    const singleSeverity = errors.every(
+      (error) => error.toDiagnostic().severity === firstSeverity,
+    );
+    const summary = singleSeverity
+      ? getSeveritySummary(firstSeverity, count, this.config.colorize)
+      : this.config.colorize
+        ? `${COLORS.bold}${COLORS.cyan}${count} diagnostics${COLORS.reset}`
+        : `${count} diagnostics`;
     parts.push(summary);
 
     return parts.join("\n");

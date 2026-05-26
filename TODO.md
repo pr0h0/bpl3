@@ -200,14 +200,13 @@
     - ❌ Explicit register constraints
     - ❌ Validation of assembly content
 
-- [ ] **Semantic Analysis Improvements**
-  - **Status:** PARTIAL
+- [x] **Semantic Analysis Improvements** ✅
+  - **Status:** COMPLETED
   - Implemented:
     - ✅ Unreachable code detection
     - ✅ Redeclaration check (same scope)
     - ✅ Unused variable detection
-  - Missing:
-    - ❌ Shadowing warning (outer scope)
+    - ✅ Shadowing warning (outer scope)
 
 - [x] **Debugger Support (DWARF)**
   - **Status:** COMPLETED

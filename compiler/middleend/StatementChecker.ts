@@ -82,6 +82,12 @@ function findReturnedStackAddress(
   return undefined;
 }
 
+function getShadowedValueKind(symbol: Symbol): "parameter" | "variable" {
+  return symbol.kind === "Parameter" || symbol.declaration.kind === "Parameter"
+    ? "parameter"
+    : "variable";
+}
+
 /**
  * Check a block statement
  */
@@ -892,6 +898,27 @@ export function checkVariableDecl(
       decl.location,
     );
   }
+
+  const shadowed = this.currentScope.findInOuterScopes(decl.name as string);
+  if (
+    shadowed &&
+    (shadowed.kind === "Variable" || shadowed.kind === "Parameter")
+  ) {
+    const shadowedKind = getShadowedValueKind(shadowed);
+    this.addWarning(
+      new CompilerError(
+        `Variable '${decl.name}' shadows ${shadowedKind} from an outer scope`,
+        `Rename '${decl.name}' or the outer ${shadowedKind} to make the scope relationship explicit.`,
+        decl.location,
+      )
+        .setSeverity(DiagnosticSeverity.Warning)
+        .addRelatedLocation(
+          shadowed.declaration.location,
+          `Outer ${shadowedKind} '${shadowed.name}' declared here`,
+        ),
+    );
+  }
+
   this.defineSymbol(
     decl.name as string,
     "Variable",

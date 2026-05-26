@@ -49,6 +49,16 @@ export class SymbolTable {
     return this.symbols.get(name);
   }
 
+  public findInOuterScopes(name: string): Symbol | undefined {
+    let scope = this.parent;
+    while (scope) {
+      const symbol = scope.getInCurrentScope(name);
+      if (symbol) return symbol;
+      scope = scope.getParent();
+    }
+    return undefined;
+  }
+
   public resolve(name: string): Symbol | undefined {
     const symbol = this.symbols.get(name);
     if (symbol) {

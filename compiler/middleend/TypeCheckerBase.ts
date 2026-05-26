@@ -38,6 +38,7 @@ export abstract class TypeCheckerBase {
   public linkerSymbolTable: LinkerSymbolTable;
   public currentModulePath: string = "unknown";
   public errors: CompilerError[] = [];
+  public warnings: CompilerError[] = [];
   public collectAllErrors: boolean = true;
   public loopDepth: number = 0;
   public switchDepth: number = 0;
@@ -428,6 +429,10 @@ export abstract class TypeCheckerBase {
 
   getErrors(): CompilerError[] {
     return this.errors;
+  }
+
+  getWarnings(): CompilerError[] {
+    return this.warnings;
   }
 
   // ========== Initialization ==========
@@ -1331,5 +1336,9 @@ export abstract class TypeCheckerBase {
     } else {
       throw error;
     }
+  }
+
+  public addWarning(warning: CompilerError): void {
+    this.warnings.push(warning);
   }
 }

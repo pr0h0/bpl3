@@ -16,6 +16,7 @@ export interface CheckerContext {
   switchDepth: number;
   inDefer: boolean;
   errors: CompilerError[];
+  warnings: CompilerError[];
   collectAllErrors: boolean;
   matchContext: {
     expectedType?: AST.TypeNode;
@@ -44,6 +45,7 @@ export interface CheckerContext {
 
   // Error Handling
   addError(error: CompilerError): void;
+  addWarning(warning: CompilerError): void;
 
   // Symbol Management
   defineSymbol(
