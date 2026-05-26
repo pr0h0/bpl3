@@ -204,8 +204,15 @@ export class DocumentationGenerator {
       genericStr = `<${func.genericParams.map((p) => p.name).join(", ")}>`;
     }
 
+    const attrPrefix =
+      func.attributes && func.attributes.length > 0
+        ? `@[${func.attributes.map((attr) => attr.name).join(", ")}]\n`
+        : "";
+
     this.output.push("```bpl");
-    this.output.push(`frame ${func.name}${genericStr}(${params}) ret ${ret}`);
+    this.output.push(
+      `${attrPrefix}frame ${func.name}${genericStr}(${params}) ret ${ret}`,
+    );
     this.output.push("```");
 
     if (func.documentation) {

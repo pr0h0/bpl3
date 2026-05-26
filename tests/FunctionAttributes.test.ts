@@ -68,4 +68,15 @@ describe("Function Attributes", () => {
 
     expect(errors.join("\n")).toContain("noreturn");
   });
+
+  it("formats function attributes above declarations", () => {
+    const program = parseSource(
+      `@[always_inline, hot] frame f(value:int)ret int{return value;}`,
+    );
+    const formatted = new Formatter().format(program);
+
+    expect(formatted).toContain(
+      `@[always_inline, hot]\nframe f(value: int) ret int`,
+    );
+  });
 });

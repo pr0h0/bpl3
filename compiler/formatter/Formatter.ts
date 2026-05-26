@@ -216,7 +216,11 @@ export class Formatter {
 
   private formatFunctionDecl(decl: AST.FunctionDecl): string {
     const indent = this.getIndent();
-    let output = `${indent}frame ${decl.name}`;
+    let output = "";
+    if (decl.attributes && decl.attributes.length > 0) {
+      output += `${indent}@[${decl.attributes.map((attr) => attr.name).join(", ")}]\n`;
+    }
+    output += `${indent}frame ${decl.name}`;
 
     output += this.formatGenericParams(decl.genericParams);
 
