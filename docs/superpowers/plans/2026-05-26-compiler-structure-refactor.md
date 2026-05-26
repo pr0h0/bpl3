@@ -413,7 +413,131 @@ git add compiler/backend/codegen/calls/VirtualCallEmitter.ts compiler/backend/co
 git commit -m "refactor: extract virtual call emitter"
 ```
 
-### Task 3: Final Verification
+### Task 3: Extract Spec Method Call Emitter
+
+**Files:**
+- Create: `compiler/backend/codegen/calls/SpecMethodCallEmitter.ts`
+- Modify: `compiler/backend/codegen/CallExpressionGenerator.ts`
+- Test: `tests/CodeGeneratorExtended.test.ts`
+- Test: `tests/GoldenLLVMShapes.test.ts`
+- Test: `tests/OOP.test.ts`
+- Test: `tests/ComplexTypeNarrowing.test.ts`
+- Test: `tests/TypeNarrowing.test.ts`
+
+- [ ] **Step 1: Run current spec/codegen characterization tests**
+
+Run:
+
+```bash
+bun test tests/CodeGeneratorExtended.test.ts tests/GoldenLLVMShapes.test.ts tests/OOP.test.ts tests/ComplexTypeNarrowing.test.ts tests/TypeNarrowing.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 2: Create spec method helper module**
+
+Create `compiler/backend/codegen/calls/SpecMethodCallEmitter.ts`. Move the current logic from `generateSpecMethodCall` and `resolveSpecMethodSignature` into this module as exported `emitSpecMethodCall(host, ...)` plus a private `resolveSpecMethodSignature()` helper.
+
+The module starts with this host interface:
+
+```ts
+import * as AST from "../../../common/AST";
+import { CompilerError } from "../../../common/CompilerError";
+import { codeGenLog } from "../../../common/Logger";
+
+export interface SpecMethodCallHost {
+  generateExpression(expr: AST.Expression): string;
+  resolveType(type: AST.TypeNode): string;
+  newRegister(): string;
+  emit(line: string): void;
+  getAllSpecMethods(specDecl: AST.SpecDecl): AST.SpecMethod[];
+  substituteType(
+    type: AST.TypeNode,
+    map: Map<string, AST.TypeNode>,
+  ): AST.TypeNode;
+  emitCast(
+    val: string,
+    srcType: string,
+    destType: string,
+    srcTypeNode: AST.TypeNode,
+    destTypeNode: AST.TypeNode,
+  ): string;
+}
+```
+
+The exported function signature is:
+
+```ts
+export function emitSpecMethodCall(
+  host: SpecMethodCallHost,
+  callExpr: AST.CallExpr,
+  memberExpr: AST.MemberExpr,
+  specDecl: AST.SpecDecl,
+): string
+```
+
+- [ ] **Step 3: Wire `CallExpressionGenerator` to `emitSpecMethodCall`**
+
+In `compiler/backend/codegen/CallExpressionGenerator.ts`, add:
+
+```ts
+import {
+  emitSpecMethodCall,
+  type SpecMethodCallHost,
+} from "./calls/SpecMethodCallEmitter";
+```
+
+Replace `generateSpecMethodCall` with:
+
+```ts
+  protected generateSpecMethodCall(
+    callExpr: AST.CallExpr,
+    memberExpr: AST.MemberExpr,
+    specDecl: AST.SpecDecl,
+  ): string {
+    return emitSpecMethodCall(
+      this as unknown as SpecMethodCallHost,
+      callExpr,
+      memberExpr,
+      specDecl,
+    );
+  }
+```
+
+Remove the private `resolveSpecMethodSignature` method from `CallExpressionGenerator.ts`.
+
+- [ ] **Step 4: Run targeted spec/codegen verification**
+
+Run:
+
+```bash
+bun test tests/CodeGeneratorExtended.test.ts tests/GoldenLLVMShapes.test.ts tests/OOP.test.ts tests/ComplexTypeNarrowing.test.ts tests/TypeNarrowing.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Run compiler-scoped type check**
+
+Run:
+
+```bash
+find compiler -type f -name '*.ts' -print > /tmp/bpl3-compiler-ts-files.txt
+printf 'index.ts\n' >> /tmp/bpl3-compiler-ts-files.txt
+bunx tsc --noEmit --lib ESNext --target ESNext --module ESNext --moduleResolution bundler --allowImportingTsExtensions --verbatimModuleSyntax --strict --skipLibCheck --noFallthroughCasesInSwitch --noUncheckedIndexedAccess @/tmp/bpl3-compiler-ts-files.txt
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit spec method extraction**
+
+Run:
+
+```bash
+git add compiler/backend/codegen/calls/SpecMethodCallEmitter.ts compiler/backend/codegen/CallExpressionGenerator.ts docs/superpowers/plans/2026-05-26-compiler-structure-refactor.md
+git commit -m "refactor: extract spec method call emitter"
+```
+
+### Task 4: Final Verification
 
 **Files:**
 - All files modified above.
