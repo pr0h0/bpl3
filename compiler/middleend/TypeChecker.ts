@@ -491,6 +491,86 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Function Body Checking ==========
 
+  private checkFunctionAttributes(decl: AST.FunctionDecl): void {
+    const attributes = decl.attributes ?? [];
+    const allowed = new Set([
+      "inline",
+      "always_inline",
+      "noinline",
+      "cold",
+      "hot",
+      "noreturn",
+      "nounwind",
+      "optnone",
+      "optsize",
+      "minsize",
+    ]);
+    const seen = new Set<string>();
+
+    for (const attr of attributes) {
+      if (!allowed.has(attr.name)) {
+        this.addError(
+          new CompilerError(
+            `Unknown function attribute '${attr.name}'`,
+            "Only compiler-known LLVM function attributes are supported.",
+            attr.location,
+          ),
+        );
+        continue;
+      }
+      if (seen.has(attr.name)) {
+        this.addError(
+          new CompilerError(
+            `Duplicate function attribute '${attr.name}'`,
+            "Remove the duplicate attribute.",
+            attr.location,
+          ),
+        );
+      }
+      seen.add(attr.name);
+    }
+
+    const conflictGroups = [
+      ["inline", "always_inline", "noinline"],
+      ["hot", "cold"],
+      ["optsize", "minsize"],
+      ["optnone", "inline"],
+      ["optnone", "always_inline"],
+      ["optnone", "optsize"],
+      ["optnone", "minsize"],
+    ];
+
+    for (const group of conflictGroups) {
+      const present = group.filter((name) => seen.has(name));
+      if (present.length > 1) {
+        this.addError(
+          new CompilerError(
+            `Conflicting function attributes: ${present.join(", ")}`,
+            "Remove one of the conflicting attributes.",
+            decl.location,
+          ),
+        );
+      }
+    }
+
+    if (seen.has("noreturn")) {
+      const returnType = this.resolveType(decl.returnType);
+      if (
+        returnType.kind !== "BasicType" ||
+        returnType.name !== "void" ||
+        returnType.pointerDepth !== 0
+      ) {
+        this.addError(
+          new CompilerError(
+            "Function attribute 'noreturn' requires a void return type",
+            "Use 'ret void' or remove the noreturn attribute.",
+            decl.location,
+          ),
+        );
+      }
+    }
+  }
+
   private checkFunctionBody(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
@@ -577,6 +657,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         } as AST.ASTNode,
       );
     }
+
+    this.checkFunctionAttributes(decl);
 
     // Add params to scope
     const paramNames = new Set<string>();

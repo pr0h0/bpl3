@@ -30,4 +30,42 @@ describe("Function Attributes", () => {
     ]);
     expect(func?.attributes[0]?.location.startLine).toBe(2);
   });
+
+  it("rejects unknown function attributes", () => {
+    const errors = checkSource(`
+      @[trace]
+      frame f() {}
+    `);
+
+    expect(errors.join("\n")).toContain("Unknown function attribute 'trace'");
+  });
+
+  it("rejects duplicate function attributes", () => {
+    const errors = checkSource(`
+      @[inline, inline]
+      frame f() {}
+    `);
+
+    expect(errors.join("\n")).toContain("Duplicate function attribute 'inline'");
+  });
+
+  it("rejects conflicting function attributes", () => {
+    const errors = checkSource(`
+      @[always_inline, noinline]
+      frame f() {}
+    `);
+
+    expect(errors.join("\n")).toContain("Conflicting function attributes");
+  });
+
+  it("rejects noreturn on functions that return values", () => {
+    const errors = checkSource(`
+      @[noreturn]
+      frame f() ret int {
+        return 1;
+      }
+    `);
+
+    expect(errors.join("\n")).toContain("noreturn");
+  });
 });
