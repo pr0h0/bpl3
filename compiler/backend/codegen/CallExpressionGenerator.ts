@@ -25,6 +25,10 @@ import {
   emitVirtualCall,
   type VirtualCallHost,
 } from "./calls/VirtualCallEmitter";
+import {
+  emitSpecMethodCall,
+  type SpecMethodCallHost,
+} from "./calls/SpecMethodCallEmitter";
 
 export abstract class CallExpressionGenerator extends BinaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
@@ -81,153 +85,12 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     memberExpr: AST.MemberExpr,
     specDecl: AST.SpecDecl,
   ): string {
-    let objVal = this.generateExpression(memberExpr.object);
-    const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
-
-    if (objType.pointerDepth > 0) {
-      const loaded = this.newRegister();
-      const ptrType = this.resolveType(objType);
-      const valType = ptrType.substring(0, ptrType.length - 1);
-      this.emit(`  ${loaded} = load ${valType}, ${ptrType} ${objVal}`);
-      objVal = loaded;
-    }
-
-    const objPtr = this.newRegister();
-    this.emit(`  ${objPtr} = extractvalue { i8*, i8* } ${objVal}, 0`);
-
-    const vtablePtr = this.newRegister();
-    this.emit(`  ${vtablePtr} = extractvalue { i8*, i8* } ${objVal}, 1`);
-
-    const allMethods = this.getAllSpecMethods(specDecl);
-    const methodIndex = allMethods.findIndex(
-      (m) => m.name === memberExpr.property,
-    );
-    if (methodIndex === -1) {
-      throw new CompilerError(
-        `Method ${memberExpr.property} not found in spec ${specDecl.name}`,
-        "",
-        memberExpr.location,
-      );
-    }
-
-    const vtableArrayPtr = this.newRegister();
-    this.emit(`  ${vtableArrayPtr} = bitcast i8* ${vtablePtr} to i8**`);
-
-    const methodPtrPtr = this.newRegister();
-    this.emit(
-      `  ${methodPtrPtr} = getelementptr i8*, i8** ${vtableArrayPtr}, i32 ${methodIndex}`,
-    );
-
-    const methodVoidPtr = this.newRegister();
-    this.emit(`  ${methodVoidPtr} = load i8*, i8** ${methodPtrPtr}`);
-
-    const { retType, paramTypes, funcPtr } = this.resolveSpecMethodSignature(
-      specDecl,
+    return emitSpecMethodCall(
+      this as unknown as SpecMethodCallHost,
+      callExpr,
       memberExpr,
-      allMethods[methodIndex]!,
-      methodVoidPtr,
+      specDecl,
     );
-
-    const argRegs: string[] = [];
-    for (let i = 0; i < callExpr.args.length; i++) {
-      const arg = callExpr.args[i]!;
-      const val = this.generateExpression(arg);
-      // Attempt cast if type mismatch
-      if (i < paramTypes.length) {
-        const srcType = this.resolveType(arg.resolvedType!);
-        const destType = paramTypes[i]!; // paramTypes excludes this (implied objPtr)
-
-        if (srcType !== destType) {
-          const castVal = this.emitCast(
-            val,
-            srcType,
-            destType,
-            arg.resolvedType!,
-            {
-              kind: "BasicType",
-              name: "dummy",
-            } as any,
-          ); // we need type node
-          argRegs.push(castVal);
-        } else {
-          argRegs.push(val);
-        }
-      } else {
-        argRegs.push(val);
-      }
-    }
-
-    const callArgs = [`i8* ${objPtr}`];
-    for (let i = 0; i < argRegs.length; i++) {
-      callArgs.push(`${paramTypes[i]} ${argRegs[i]}`);
-    }
-
-    const resultReg = this.newRegister();
-    if (retType === "void") {
-      this.emit(`  call void ${funcPtr}(${callArgs.join(", ")})`);
-      return "0";
-    }
-    this.emit(
-      `  ${resultReg} = call ${retType} ${funcPtr}(${callArgs.join(", ")})`,
-    );
-    return resultReg;
-  }
-
-  /**
-   * Resolve spec method signature
-   */
-  private resolveSpecMethodSignature(
-    specDecl: AST.SpecDecl,
-    memberExpr: AST.MemberExpr,
-    methodDecl: AST.SpecMethod,
-    methodVoidPtr: string,
-  ): { retType: string; paramTypes: string[]; funcPtr: string } {
-    const typeMap = new Map<string, AST.TypeNode>();
-    if (specDecl.genericParams) {
-      const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
-      for (let i = 0; i < specDecl.genericParams.length; i++) {
-        if (i < objType.genericArgs.length) {
-          typeMap.set(specDecl.genericParams[i]!.name, objType.genericArgs[i]!);
-        }
-      }
-    }
-
-    const paramTypes: string[] = [];
-    for (const p of methodDecl.params) {
-      if (p.name === "this") continue;
-      let pType = p.type;
-      if (!pType) {
-        codeGenLog.error("Param type is undefined", { param: p.name });
-        continue;
-      }
-      if (typeMap.size > 0) {
-        pType = this.substituteType(pType, typeMap);
-      }
-      paramTypes.push(this.resolveType(pType));
-    }
-
-    let retTypeNode = methodDecl.returnType;
-    if (!retTypeNode) {
-      retTypeNode = {
-        kind: "BasicType",
-        name: "void",
-        genericArgs: [],
-        pointerDepth: 0,
-        arrayDimensions: [],
-        location: methodDecl.location,
-      } as AST.BasicTypeNode;
-    }
-    if (typeMap.size > 0) {
-      retTypeNode = this.substituteType(retTypeNode, typeMap);
-    }
-    const retType = this.resolveType(retTypeNode);
-
-    const paramsStr = paramTypes.length > 0 ? `, ${paramTypes.join(", ")}` : "";
-    const funcSig = `${retType} (i8*${paramsStr})`;
-    const funcPtr = this.newRegister();
-    this.emit(`  ${funcPtr} = bitcast i8* ${methodVoidPtr} to ${funcSig}*`);
-
-    return { retType, paramTypes, funcPtr };
   }
 
   // findInstantiatedParentType is inherited from TypeGenerator
