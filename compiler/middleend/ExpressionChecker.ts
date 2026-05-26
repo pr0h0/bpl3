@@ -500,6 +500,16 @@ export function checkBinary(
       rightType.kind === "BasicType" &&
       (rightType.pointerDepth > 0 || rightType.arrayDimensions.length > 0)
     ) {
+      if (!this.areTypesCompatible(leftType, rightType)) {
+        throw new CompilerError(
+          `Cannot compare pointer difference between ${this.typeToString(
+            leftType,
+          )} and ${this.typeToString(rightType)}`,
+          "Pointer subtraction requires compatible pointee types.",
+          expr.location,
+        );
+      }
+
       return {
         kind: "BasicType",
         name: "i64",

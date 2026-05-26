@@ -152,6 +152,10 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-139 | Codegen/Optimization | Trivial wrapper functions are not zero-cost after LLVM optimization because stack-frame instrumentation survives in callers. | Fixed    | Codegen omits stack-frame hooks for trivial leaf return wrappers while keeping hooks for `main` and call-bearing functions, allowing LLVM `-O2` to erase the wrapper. Regression: `tests/V01BugRepros.test.ts`.                                                                          |
 | BUG-140 | Codegen             | Fixed array to raw pointer implicit decay is accepted by lowering/type checking but rejected by codegen.                   | Fixed    | Local variable initialization now lowers `array-to-pointer` with an address-based first-element GEP, preserving the original array storage. Regression: `tests/BugFixes_Batch6.test.ts`.                                                                                                 |
 | BUG-141 | Lowering            | `integer-compatible` implicit conversion classification is unreachable for different integer aliases.                      | Fixed    | Scalar integer compatibility is now classified before same-name element matching, while pointer/array integer types remain unsupported. Regression: `tests/Lowering.test.ts`.                                                                                                             |
+| BUG-142 | Strings/Codegen     | String interpolation evaluates side-effecting expressions twice when converting non-string values.                         | Fixed    | Integer primitive intrinsic dispatch no longer eagerly generates receiver expressions for unrelated methods, and virtual receiver preparation spills rvalues without regenerating them. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                      |
+| BUG-143 | Safety              | Escape analysis misses stack addresses hidden inside aggregate return values.                                              | Fixed    | Return checking now recursively rejects stack addresses hidden in struct, tuple, array, enum-struct, cast, group, and ternary return expressions. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                |
+| BUG-144 | Pointers            | Pointer subtraction across incompatible pointee types is accepted.                                                         | Fixed    | Pointer subtraction now requires compatible pointer operands before lowering to an integer difference. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                                                        |
+| BUG-145 | Inheritance/VTable  | Method overrides with incompatible return types are accepted and can dispatch through the wrong signature.                 | Fixed    | Struct body checking now validates inherited method overrides with matching non-`this` parameters and rejects incompatible return types before vtable dispatch can use mismatched signatures. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                  |
 
 ## Details
 
@@ -1889,3 +1893,155 @@ frame main() ret int {
 **Expected**: Compiler error: "Duplicate method 'print' in spec 'Printable'"
 
 **Resolution**: Added duplicate method signature detection with Set-based tracking in TypeChecker.checkSpecBody().
+
+---
+
+### BUG-142: String Interpolation Evaluates Expressions Twice
+
+**Status**: Fixed
+
+**Category**: Strings/Codegen
+
+**Description**: Interpolating side-effecting non-string expressions evaluates each expression twice while converting it to `String`.
+
+**Reproduction**:
+
+```bpl
+import [String] from "std/string.bpl";
+extern printf(fmt: string, ...) ret int;
+
+frame bump(counter: *int, base: int) ret int {
+    *counter = *counter + 1;
+    return base + *counter;
+}
+
+frame main() ret int {
+    local counter: int = 0;
+    local message: String = `${bump(&counter, 10)}:${bump(&counter, 20)}`;
+    printf("%s %d\n", message.toString(), counter);
+    message.destroy();
+    return 0;
+}
+```
+
+**Expected**: `11:22 2`
+
+**Actual**: `12:24 4`
+
+**Evidence**: Generated LLVM contains two `call @bump...` instructions for each interpolation expression.
+
+**Resolution**: Integer primitive intrinsic dispatch now generates receiver expressions only for matching intrinsic methods. Virtual receiver preparation also spills non-addressable rvalues using the already-generated value instead of asking address generation to regenerate the expression.
+
+---
+
+### BUG-143: Escape Analysis Misses Stack Addresses Inside Aggregate Returns
+
+**Status**: Fixed
+
+**Category**: Safety
+
+**Description**: The direct `return &local` check works, but stack addresses can still escape when nested inside a returned struct or tuple literal.
+
+**Reproduction**:
+
+```bpl
+struct Holder {
+    ptr: *int,
+}
+
+frame leak() ret Holder {
+    local value: int = 7;
+    return Holder { ptr: &value };
+}
+
+frame main() ret int {
+    local holder: Holder = leak();
+    return *holder.ptr;
+}
+```
+
+Tuple variant:
+
+```bpl
+frame leak() ret (*int, int) {
+    local value: int = 7;
+    return (&value, 1);
+}
+```
+
+**Expected**: Compile-time escape-analysis error.
+
+**Actual**: Program compiles, runs, and exits with code `7` with no diagnostic output.
+
+**Resolution**: Return checking now recursively scans aggregate return expressions and reports the same stack-address escape diagnostic for nested `&local` values.
+
+---
+
+### BUG-144: Incompatible Pointer Subtraction Is Accepted
+
+**Status**: Fixed
+
+**Category**: Pointers
+
+**Description**: Pointer subtraction accepts pointers with incompatible pointee types.
+
+**Reproduction**:
+
+```bpl
+frame main() ret int {
+    local int_ptr: *int = nullptr;
+    local float_ptr: *float = nullptr;
+    local diff: long = int_ptr - float_ptr;
+    return 0;
+}
+```
+
+**Expected**: Compile-time type error, matching the existing incompatible pointer equality behavior.
+
+**Actual**: Program compiles and runs successfully.
+
+**Resolution**: Pointer subtraction now checks pointer operand compatibility before returning the integer difference type.
+
+---
+
+### BUG-145: Incompatible Override Return Types Corrupt VTable Dispatch
+
+**Status**: Fixed
+
+**Category**: Inheritance/VTable
+
+**Description**: A derived method with the same name and receiver shape as a base method can change the return type. The vtable treats it as an override, but callers through the base type still use the base method signature.
+
+**Reproduction**:
+
+```bpl
+extern printf(fmt: string, ...) ret int;
+
+struct Base {
+    frame value(this: *Base) ret int {
+        return 1;
+    }
+}
+
+struct Child : Base {
+    frame value(this: *Child) ret float {
+        return 2.5;
+    }
+}
+
+frame read(base: *Base) ret int {
+    return base.value();
+}
+
+frame main() ret int {
+    local child: Child;
+    printf("%d\n", read(&child));
+    return 0;
+}
+```
+
+**Expected**: Compile-time override compatibility error.
+
+**Actual**: Program compiles and prints a garbage integer. The generated `Child_vtable` stores `@Child_value_Child_ptr` with `double` return type in the slot used by a base call emitted as `i32`.
+
+**Resolution**: Struct method checking now validates inherited override signatures for matching non-`this` parameters and rejects incompatible return types before vtable layout/codegen.

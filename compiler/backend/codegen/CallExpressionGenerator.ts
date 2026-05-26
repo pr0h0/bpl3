@@ -126,6 +126,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     if (!objType.endsWith("*")) {
       try {
+        if (!this.isAddressableVirtualReceiver(memberExpr.object)) {
+          throw new Error("receiver is not addressable");
+        }
         objPtr = this.generateAddress(memberExpr.object);
         structType = objType + "*";
       } catch {
@@ -140,6 +143,26 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
 
     return { objPtr, structType };
+  }
+
+  private isAddressableVirtualReceiver(expr: AST.Expression): boolean {
+    if (
+      expr.kind === "Identifier" ||
+      expr.kind === "Member" ||
+      expr.kind === "Index"
+    ) {
+      return true;
+    }
+
+    if (expr.kind === "Group") {
+      return this.isAddressableVirtualReceiver((expr as AST.GroupExpr).expression);
+    }
+
+    if (expr.kind === "Unary") {
+      return (expr as AST.UnaryExpr).operator.type === "Star";
+    }
+
+    return false;
   }
 
   /**
@@ -1264,34 +1287,42 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         const resolvedType = this.resolveType(objType);
         if (this.isIntegerType(resolvedType)) {
           const method = memberExpr.property;
-          const val = this.generateExpression(memberExpr.object);
-          const width = this.getBitWidth(resolvedType);
 
           if (method === "popCount") {
+            const val = this.generateExpression(memberExpr.object);
+            const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
             this.emit(
               `  ${reg} = call ${resolvedType} @llvm.ctpop.i${width}(${resolvedType} ${val})`,
             );
             return reg;
           } else if (method === "leadingZeros") {
+            const val = this.generateExpression(memberExpr.object);
+            const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
             this.emit(
               `  ${reg} = call ${resolvedType} @llvm.ctlz.i${width}(${resolvedType} ${val}, i1 false)`,
             );
             return reg;
           } else if (method === "trailingZeros") {
+            const val = this.generateExpression(memberExpr.object);
+            const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
             this.emit(
               `  ${reg} = call ${resolvedType} @llvm.cttz.i${width}(${resolvedType} ${val}, i1 false)`,
             );
             return reg;
           } else if (method === "byteSwap") {
+            const val = this.generateExpression(memberExpr.object);
+            const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
             this.emit(
               `  ${reg} = call ${resolvedType} @llvm.bswap.i${width}(${resolvedType} ${val})`,
             );
             return reg;
           } else if (method === "reverseBits") {
+            const val = this.generateExpression(memberExpr.object);
+            const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
             this.emit(
               `  ${reg} = call ${resolvedType} @llvm.bitreverse.i${width}(${resolvedType} ${val})`,

@@ -934,6 +934,104 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  private getInheritedMethodsByName(
+    decl: AST.StructDecl,
+    methodName: string,
+  ): AST.FunctionDecl[] {
+    const methods: AST.FunctionDecl[] = [];
+    const visited = new Set<string>();
+
+    const visitParent = (parentType: AST.TypeNode): void => {
+      const resolvedParent = this.resolveType(parentType, false);
+      if (
+        resolvedParent.kind !== "BasicType" ||
+        resolvedParent.name === "Type" ||
+        !resolvedParent.resolvedDeclaration ||
+        resolvedParent.resolvedDeclaration.kind !== "StructDecl"
+      ) {
+        return;
+      }
+
+      const parentDecl = resolvedParent.resolvedDeclaration as AST.StructDecl;
+      if (visited.has(parentDecl.name)) return;
+      visited.add(parentDecl.name);
+
+      for (const member of parentDecl.members) {
+        if (member.kind === "FunctionDecl" && member.name === methodName) {
+          methods.push(member as AST.FunctionDecl);
+        }
+      }
+
+      for (const grandParent of parentDecl.inheritanceList) {
+        visitParent(grandParent);
+      }
+    };
+
+    for (const parent of decl.inheritanceList) {
+      visitParent(parent);
+    }
+
+    return methods;
+  }
+
+  private methodParamsMatchIgnoringThis(
+    childMethod: AST.FunctionDecl,
+    parentMethod: AST.FunctionDecl,
+  ): boolean {
+    const childParams = childMethod.params.slice(1);
+    const parentParams = parentMethod.params.slice(1);
+
+    if (childParams.length !== parentParams.length) return false;
+
+    for (let i = 0; i < childParams.length; i++) {
+      const childType = childParams[i]!.type;
+      const parentType = parentParams[i]!.type;
+      if (
+        !this.areTypesCompatible(parentType, childType) ||
+        !this.areTypesCompatible(childType, parentType)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private checkMethodOverrideSignature(
+    decl: AST.StructDecl,
+    method: AST.FunctionDecl,
+  ): void {
+    if (method.isStatic) return;
+
+    const inheritedMethods = this.getInheritedMethodsByName(decl, method.name);
+    for (const parentMethod of inheritedMethods) {
+      if (parentMethod.isStatic) continue;
+
+      if (!this.methodParamsMatchIgnoringThis(method, parentMethod)) {
+        continue;
+      }
+
+      if (
+        !this.areTypesCompatible(parentMethod.returnType, method.returnType) ||
+        !this.areTypesCompatible(method.returnType, parentMethod.returnType)
+      ) {
+        this.addError(
+          new CompilerError(
+            `Invalid override of method '${method.name}' in struct '${decl.name}'`,
+            `Override return type '${this.typeToString(
+              method.returnType,
+            )}' must match inherited return type '${this.typeToString(
+              parentMethod.returnType,
+            )}'.`,
+            method.location,
+          ),
+        );
+      }
+
+      return;
+    }
+  }
+
   private checkStructBody(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1154,6 +1252,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           declaration: member,
         };
         member.resolvedType = functionType;
+        this.checkMethodOverrideSignature(decl, member);
 
         // Validate destructor signature
         if (member.name === "destroy") {

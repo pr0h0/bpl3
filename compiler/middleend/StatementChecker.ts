@@ -9,6 +9,79 @@ import { INTEGER_TYPES } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
 
+function isUnsafeStackAddressSymbol(symbol: Symbol | undefined): boolean {
+  if (!symbol || (symbol.kind !== "Variable" && symbol.kind !== "Parameter")) {
+    return false;
+  }
+
+  if (symbol.kind === "Parameter") {
+    return true;
+  }
+
+  const decl = symbol.declaration as AST.VariableDecl;
+  return !decl.isGlobal && !decl.isConst;
+}
+
+function findReturnedStackAddress(
+  context: CheckerContext,
+  expr: AST.Expression | undefined,
+): string | undefined {
+  if (!expr) return undefined;
+
+  if (expr.kind === "Unary" && expr.operator.type === "Ampersand") {
+    const operand = expr.operand;
+    if (operand.kind === "Identifier") {
+      const symbol = context.currentScope.resolve(operand.name);
+      if (
+        isUnsafeStackAddressSymbol(symbol) &&
+        !operand.name.startsWith("_")
+      ) {
+        return operand.name;
+      }
+    }
+  }
+
+  switch (expr.kind) {
+    case "StructLiteral":
+      for (const field of (expr as AST.StructLiteralExpr).fields) {
+        const name = findReturnedStackAddress(context, field.value);
+        if (name) return name;
+      }
+      break;
+    case "TupleLiteral":
+      for (const element of (expr as AST.TupleLiteralExpr).elements) {
+        const name = findReturnedStackAddress(context, element);
+        if (name) return name;
+      }
+      break;
+    case "ArrayLiteral":
+      for (const element of (expr as AST.ArrayLiteralExpr).elements) {
+        const name = findReturnedStackAddress(context, element);
+        if (name) return name;
+      }
+      break;
+    case "EnumStructVariant":
+      for (const field of (expr as AST.EnumStructVariantExpr).fields) {
+        const name = findReturnedStackAddress(context, field.value);
+        if (name) return name;
+      }
+      break;
+    case "Cast":
+      return findReturnedStackAddress(context, (expr as AST.CastExpr).expression);
+    case "Group":
+      return findReturnedStackAddress(context, (expr as AST.GroupExpr).expression);
+    case "Ternary": {
+      const ternary = expr as AST.TernaryExpr;
+      return (
+        findReturnedStackAddress(context, ternary.trueExpr) ||
+        findReturnedStackAddress(context, ternary.falseExpr)
+      );
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Check a block statement
  */
@@ -252,40 +325,15 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
       );
     }
 
-    // Safety check: BUG-106 Prevent returning address of stack local variable
-    if (
-      stmt.value &&
-      stmt.value.kind === "Unary" &&
-      stmt.value.operator.type === "Ampersand"
-    ) {
-      const operand = stmt.value.operand;
-      if (operand.kind === "Identifier") {
-        const symbol = this.currentScope.resolve(operand.name);
-        if (
-          symbol &&
-          (symbol.kind === "Variable" || symbol.kind === "Parameter")
-        ) {
-          // If it's a Variable, check if it's local
-          let isStackLocal = true;
-          if (symbol.kind === "Variable") {
-            const decl = symbol.declaration as AST.VariableDecl;
-            if (decl.isGlobal || decl.isConst) {
-              isStackLocal = false;
-            }
-          }
-          // Parameters are always stack-allocated (or registers spilled to stack),
-          // so returning their address is dangerous if passed by value.
-
-          // Allow unsafe return if variable name starts with "_"
-          if (isStackLocal && !operand.name.startsWith("_")) {
-            throw new CompilerError(
-              `Potential use-after-free: returning address of stack variable '${operand.name}'`,
-              `Variable '${operand.name}' is allocated on the stack and will be invalidated when the function returns. To suppress this error (unsafe), prefix the variable name with '_' (e.g., '_${operand.name}').`,
-              stmt.location,
-            );
-          }
-        }
-      }
+    // Safety check: BUG-106/BUG-143 Prevent returning stack addresses directly
+    // or hidden inside aggregate literals.
+    const stackAddressName = findReturnedStackAddress(this, stmt.value);
+    if (stackAddressName) {
+      throw new CompilerError(
+        `Potential use-after-free: returning address of stack variable '${stackAddressName}'`,
+        `Variable '${stackAddressName}' is allocated on the stack and will be invalidated when the function returns. To suppress this error (unsafe), prefix the variable name with '_' (e.g., '_${stackAddressName}').`,
+        stmt.location,
+      );
     }
   }
 }
