@@ -80,6 +80,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emittedFunctions.clear();
     this.typeAliasMap.clear();
     this.specMap.clear();
+    this.resetLlvmAttributeGroups();
 
     // Populate structMap and enumDeclMap with user-defined types first
     for (const stmt of program.statements) {
@@ -338,7 +339,7 @@ export class CodeGenerator extends StatementGenerator {
       this.declarationsOutput.join("\n") +
       "\n" +
       this.output.join("\n") +
-      '\nattributes #0 = { "frame-pointer"="all" }\n';
+      `\n${this.getLlvmAttributeGroupOutput()}\n`;
 
     // Write debug IR file (non-critical, failures are logged but ignored)
     try {

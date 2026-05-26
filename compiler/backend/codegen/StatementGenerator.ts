@@ -1419,8 +1419,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       if (this.generateDwarf && this.currentSubprogramId !== -1) {
         dbgSuffix = ` !dbg !${this.currentSubprogramId}`;
       }
+      const attrGroupId = this.getFunctionAttributeGroupId(decl);
       this.emit(
-        `define ${linkage}${retType} @${name}(${params}) #0${dbgSuffix} {`,
+        `define ${linkage}${retType} @${name}(${params}) #${attrGroupId}${dbgSuffix} {`,
       );
       this.emit("entry:");
 

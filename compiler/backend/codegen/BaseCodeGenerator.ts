@@ -195,6 +195,60 @@ export class BaseCodeGenerator {
   protected typeAliasMap: Map<string, AST.TypeAliasDecl> = new Map(); // Track type aliases
   protected vtableLayouts: Map<string, string[]> = new Map(); // StructName -> [MethodName]
   protected vtableGlobalNames: Map<string, string> = new Map(); // StructName -> @StructName_vtable
+  protected llvmAttributeGroupIds: Map<string, number> = new Map();
+  protected llvmAttributeGroups: Map<number, string[]> = new Map();
+
+  protected resetLlvmAttributeGroups(): void {
+    this.llvmAttributeGroupIds.clear();
+    this.llvmAttributeGroups.clear();
+    this.registerLlvmAttributeGroup([`"frame-pointer"="all"`]);
+  }
+
+  protected getFunctionAttributeGroupId(decl: AST.FunctionDecl): number {
+    return this.registerLlvmAttributeGroup(this.getLlvmFunctionAttributes(decl));
+  }
+
+  protected getLlvmAttributeGroupOutput(): string {
+    return Array.from(this.llvmAttributeGroups.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([id, attrs]) => `attributes #${id} = { ${attrs.join(" ")} }`)
+      .join("\n");
+  }
+
+  private registerLlvmAttributeGroup(attrs: string[]): number {
+    const key = attrs.join("\0");
+    const existing = this.llvmAttributeGroupIds.get(key);
+    if (existing !== undefined) return existing;
+
+    const id = this.llvmAttributeGroupIds.size;
+    this.llvmAttributeGroupIds.set(key, id);
+    this.llvmAttributeGroups.set(id, attrs);
+    return id;
+  }
+
+  private getLlvmFunctionAttributes(decl: AST.FunctionDecl): string[] {
+    const attrMap = new Map([
+      ["inline", "inlinehint"],
+      ["always_inline", "alwaysinline"],
+      ["noinline", "noinline"],
+      ["cold", "cold"],
+      ["hot", "hot"],
+      ["noreturn", "noreturn"],
+      ["nounwind", "nounwind"],
+      ["optnone", "optnone"],
+      ["optsize", "optsize"],
+      ["minsize", "minsize"],
+    ]);
+    const attrs = Array.from(
+      new Set(
+        (decl.attributes ?? [])
+          .map((attr) => attrMap.get(attr.name))
+          .filter((attr): attr is string => !!attr),
+      ),
+    ).sort();
+
+    return [...attrs, `"frame-pointer"="all"`];
+  }
 
   protected getStringLiteralPtr(content: string): string {
     if (!this.stringLiterals.has(content)) {

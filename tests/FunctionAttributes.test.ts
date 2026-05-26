@@ -79,4 +79,37 @@ describe("Function Attributes", () => {
       `@[always_inline, hot]\nframe f(value: int) ret int`,
     );
   });
+
+  it("emits LLVM attributes for attributed functions", () => {
+    const ir = compileToLLVM(`
+      @[inline]
+      frame add_one(value: int) ret int {
+        return value + 1;
+      }
+    `);
+
+    expect(ir).toMatch(/define i32 @add_one_[^(]+\(i32 %value\) #\d+ \{/);
+    expect(ir).toMatch(
+      /attributes #\d+ = \{ inlinehint "frame-pointer"="all" \}/,
+    );
+  });
+
+  it("uses deterministic separate groups for different attribute sets", () => {
+    const ir = compileToLLVM(`
+      @[always_inline, nounwind]
+      frame fast(value: int) ret int {
+        return value + 1;
+      }
+
+      frame plain(value: int) ret int {
+        return value;
+      }
+    `);
+
+    expect(ir).toMatch(/define i32 @fast_[^(]+\(i32 %value\) #\d+ \{/);
+    expect(ir).toMatch(/define i32 @plain_[^(]+\(i32 %value\) #\d+ \{/);
+    expect(ir).toContain("alwaysinline");
+    expect(ir).toContain("nounwind");
+    expect(ir).toContain('"frame-pointer"="all"');
+  });
 });
