@@ -88,6 +88,79 @@ function getShadowedValueKind(symbol: Symbol): "parameter" | "variable" {
     : "variable";
 }
 
+function getTypeGuardNarrowing(
+  context: CheckerContext,
+  condition: AST.Expression,
+):
+  | {
+      name: string;
+      type: AST.TypeNode;
+      declaration: AST.ASTNode;
+      isConst?: boolean;
+    }
+  | undefined {
+  if (condition.kind !== "Call") return undefined;
+
+  const call = condition as AST.CallExpr;
+  const declaration = call.resolvedDeclaration;
+  if (!declaration || declaration.kind !== "FunctionDecl") return undefined;
+
+  const guard = (declaration as AST.FunctionDecl).typeGuard;
+  if (!guard) return undefined;
+
+  const parameterIndex = (declaration as AST.FunctionDecl).params.findIndex(
+    (param) => param.name === guard.parameterName,
+  );
+  if (parameterIndex === -1) return undefined;
+
+  const guardedArg = call.args[parameterIndex];
+  if (!guardedArg || guardedArg.kind !== "Identifier") return undefined;
+
+  const identifier = guardedArg as AST.IdentifierExpr;
+  const original = context.currentScope.resolve(identifier.name);
+  if (!original) return undefined;
+
+  return {
+    name: identifier.name,
+    type: context.resolveType(guard.targetType),
+    declaration: original.declaration,
+    isConst: original.isConst,
+  };
+}
+
+function checkThenBranchWithNarrowing(
+  context: CheckerContext,
+  branch: AST.Statement,
+  narrowing:
+    | {
+        name: string;
+        type: AST.TypeNode;
+        declaration: AST.ASTNode;
+        isConst?: boolean;
+      }
+    | undefined,
+): void {
+  context.currentScope = context.currentScope.enterScope();
+  if (narrowing) {
+    context.defineSymbol(
+      narrowing.name,
+      "Variable",
+      narrowing.type,
+      narrowing.declaration,
+      undefined,
+      narrowing.isConst,
+    );
+  }
+
+  if (branch.kind === "Block") {
+    checkBlock.call(context, branch as AST.BlockStmt, true);
+  } else {
+    context.checkStatement(branch);
+  }
+
+  context.currentScope = context.currentScope.exitScope();
+}
+
 /**
  * Check a block statement
  */
@@ -168,15 +241,11 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
     );
   }
 
+  const narrowing = getTypeGuardNarrowing(this, stmt.condition);
+
   // Check then branch
   if (stmt.thenBranch) {
-    if (stmt.thenBranch.kind === "Block") {
-      checkBlock.call(this, stmt.thenBranch as AST.BlockStmt, true);
-    } else {
-      this.currentScope = this.currentScope.enterScope();
-      this.checkStatement(stmt.thenBranch);
-      this.currentScope = this.currentScope.exitScope();
-    }
+    checkThenBranchWithNarrowing(this, stmt.thenBranch, narrowing);
   }
 
   // Check else branch

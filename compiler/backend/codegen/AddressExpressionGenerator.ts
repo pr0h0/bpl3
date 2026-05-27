@@ -188,10 +188,30 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         baseAddr = objectAddr;
       }
     } else if (objType.pointerDepth > 0) {
-      const ptrReg = this.newRegister();
       const ptrType = llvmType;
-      this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
-      baseAddr = ptrReg;
+      if (memberExpr.object.kind === "Identifier") {
+        const identifier = memberExpr.object as AST.IdentifierExpr;
+        const declaredType = this.localTypes.get(identifier.name);
+        const declaredLlvmType = declaredType
+          ? this.resolveType(declaredType)
+          : ptrType;
+
+        if (
+          declaredLlvmType !== ptrType &&
+          declaredLlvmType.endsWith("*") &&
+          ptrType.endsWith("*")
+        ) {
+          baseAddr = this.generateExpression(memberExpr.object);
+        } else {
+          const ptrReg = this.newRegister();
+          this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
+          baseAddr = ptrReg;
+        }
+      } else {
+        const ptrReg = this.newRegister();
+        this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
+        baseAddr = ptrReg;
+      }
     }
 
     // Runtime null check for pointer dereference

@@ -17,6 +17,7 @@ const ALLOWED_FUNCTION_ATTRIBUTES = new Set([
   "optnone",
   "optsize",
   "minsize",
+  "auto_destroy",
 ]);
 
 const FUNCTION_ATTRIBUTE_CONFLICT_GROUPS = [
@@ -41,7 +42,7 @@ export function validateFunctionAttributes(
       context.addError(
         new CompilerError(
           `Unknown function attribute '${attr.name}'`,
-          "Only compiler-known LLVM function attributes are supported.",
+          "Only compiler-known function attributes are supported.",
           attr.location,
         ),
       );

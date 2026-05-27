@@ -608,15 +608,15 @@ frame funcB(param: int) ret int {
   });
 
   describe("Complex Control Flow", () => {
-    it.skip("should handle variables in switch cases (parser doesn't support switch yet)", () => {
+    it("should handle variables in switch cases", () => {
       const code = `frame test(val: int) ret int {
     switch (val) {
         case 1: {
-            local x = val * 2;
+            local x: int = val * 2;
             return x;
         }
         case 2: {
-            local x = val * 3;
+            local x: int = val * 3;
             return x;
         }
         default:

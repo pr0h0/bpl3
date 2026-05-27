@@ -10,7 +10,7 @@ This work changes existing language behavior conservatively:
 
 - Nested enum tuple payload patterns can use the existing pattern language recursively: identifiers, `_`, literals, tuple patterns, and enum patterns.
 - User-defined type guards use a function return type of the form `param is Type`.
-- Automatic destructor calls apply only to local values whose resolved type is a struct that explicitly implements or inherits `Destructible` behavior through a `destroy` method.
+- Automatic destructor calls apply only to local values whose resolved type is a struct with a `destroy(this: *T)` method marked `@[auto_destroy]`.
 - VS Code rename treats switch case bodies as distinct lexical scopes.
 
 ## Nested Patterns
@@ -44,7 +44,7 @@ At call sites, `if (isDog(animal)) { ... }` narrows `animal` inside the then bra
 
 The standard library already defines `Destructible` in `lib/core_specs.bpl`, and many owning types already expose `destroy(this: *T)`. Automatic cleanup should be opt-in and local:
 
-- A local variable with a resolved struct type and an instance `destroy` method is registered for automatic cleanup when its declaration completes.
+- A local variable with a resolved struct type and an instance `destroy` method marked `@[auto_destroy]` is registered for automatic cleanup when its declaration completes.
 - Cleanup is implemented through the existing scope/defer unwinding path so normal fallthrough, `return`, `break`, `continue`, and `throw` reuse one cleanup mechanism.
 - Locals prefixed with `_` are still eligible for cleanup; the prefix suppresses unused diagnostics, not ownership.
 - Globals, parameters, primitive values, raw pointers, function values, and moved-return locals are not automatically destroyed.

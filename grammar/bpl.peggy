@@ -206,8 +206,10 @@
     return { kind: "VariableDecl", isGlobal, isConst, name, typeAnnotation, initializer, location: makeLoc(loc) };
   }
 
-  function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes) {
-    return { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: makeLoc(loc) };
+  function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes, typeGuard) {
+    const node = { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: makeLoc(loc) };
+    if (typeGuard) node.typeGuard = typeGuard;
+    return node;
   }
 
   function structDecl(name, genericParams, inheritanceList, members, loc) {
@@ -284,6 +286,7 @@
   }
 
   const voidType = (loc) => basicType("void", [], 0, [], loc);
+  const boolType = (loc) => basicType("bool", [], 0, [], loc);
 
   function parseNumber(raw) {
     const cleaned = raw.replace(/_/g, "");
@@ -604,10 +607,10 @@ FunctionDeclaration
   = attrs:(_ AttributeList _)? K_frame _ name:Identifier _ gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:ReturnType? _ body:Block {
       const genericParams = gen ? gen : [];
       const paramList = params ? params : [];
-      const returnType = ret ? ret : voidType(location());
+      const returnType = ret ? ret.returnType : voidType(location());
       const isStatic = !(paramList.length > 0 && paramList[0] && paramList[0].name === "this");
       const attributes = attrs ? attrs[1] : [];
-      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes);
+      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes, ret ? ret.typeGuard : undefined);
     }
 
 StructDeclaration
@@ -741,7 +744,7 @@ ExternDeclaration
   = K_extern _ name:Identifier _ "(" _ params:ExternParameterList? _ ")" _ ret:ReturnType? _ ";" {
       const paramList = params ? params.params : [];
       const isVariadic = params ? params.isVariadic : false;
-      return externDecl(name.name, paramList, isVariadic, ret || undefined, location());
+      return externDecl(name.name, paramList, isVariadic, ret ? ret.returnType : undefined, location());
     }
 
 ExternParameterList
@@ -1350,10 +1353,7 @@ PatternBindingList
     }
 
 PatternBinding
-  = PatternEnumStruct
-  / PatternEnumTuple
-  / "_" { return patternWildcard(location()); }
-  / name:Identifier { return patternIdentifier(name.name, location()); }
+  = Pattern
 
 PatternFieldList
   = head:PatternField tail:(_ "," _ PatternField)* _ ","? {
@@ -1477,7 +1477,16 @@ GenericArgs
     }
 
 ReturnType
-  = K_ret _ type:Type { return type; }
+  = K_ret _ guard:TypeGuardReturn { return guard; }
+  / K_ret _ type:Type { return { returnType: type }; }
+
+TypeGuardReturn
+  = parameter:Identifier _ K_is _ targetType:Type {
+      return {
+        returnType: boolType(location()),
+        typeGuard: { parameterName: parameter.name, targetType }
+      };
+    }
 
 Type
   = isConst:K_const? _ t:BaseType {

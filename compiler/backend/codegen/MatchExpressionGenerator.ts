@@ -32,6 +32,381 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     return "entry"; // fallback
   }
 
+  private getEnumPatternVariantName(pattern: AST.Pattern): string | undefined {
+    if (
+      pattern.kind === "PatternEnum" ||
+      pattern.kind === "PatternEnumTuple" ||
+      pattern.kind === "PatternEnumStruct"
+    ) {
+      return pattern.variantName;
+    }
+    return undefined;
+  }
+
+  private getNextEnumArmLabel(
+    arms: AST.MatchArm[],
+    armLabels: string[],
+    currentIndex: number,
+    variantName: string,
+    defaultLabel: string,
+  ): string {
+    for (let i = currentIndex + 1; i < arms.length; i++) {
+      if (this.getEnumPatternVariantName(arms[i]!.pattern) === variantName) {
+        return armLabels[i]!;
+      }
+    }
+    return defaultLabel;
+  }
+
+  private getRuntimeEnumName(type: AST.TypeNode): string | undefined {
+    const substituted = this.substituteType(
+      type,
+      this.currentTypeMap,
+    ) as AST.TypeNode;
+    if (substituted.kind !== "BasicType") return undefined;
+
+    if (substituted.genericArgs.length > 0) {
+      return this.instantiateGenericEnum(
+        substituted.name,
+        substituted.genericArgs,
+      );
+    }
+
+    return substituted.name;
+  }
+
+  private getEnumTuplePayloadValues(
+    pattern: AST.PatternEnumTuple,
+    matchPtr: string,
+    enumType: string,
+    variantInfo: Map<string, { index: number; dataType?: AST.EnumVariantData }>,
+  ): { value: string; llvmType: string; typeNode: AST.TypeNode }[] {
+    const variant = variantInfo.get(pattern.variantName);
+    if (
+      !variant ||
+      !variant.dataType ||
+      variant.dataType.kind !== "EnumVariantTuple"
+    ) {
+      return [];
+    }
+
+    const dataPtr = this.newRegister();
+    this.emit(
+      `  ${dataPtr} = getelementptr inbounds ${enumType}, ${enumType}* ${matchPtr}, i32 0, i32 1`,
+    );
+
+    const enumName = enumType.substring(6);
+    const dataArraySize = this.enumDataSizes.get(enumName) || 64;
+    const bytePtr = this.newRegister();
+    this.emit(
+      `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+    );
+
+    const values: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
+      [];
+    let byteOffset = 0;
+
+    for (let i = 0; i < pattern.bindings.length; i++) {
+      const typeNode = variant.dataType.types[i]!;
+      const llvmType = this.resolveType(typeNode);
+      const typeSize = this.getTypeSize(llvmType);
+      const alignment = this.getAlignmentForSize(typeSize);
+
+      if (byteOffset % alignment !== 0) {
+        byteOffset = Math.ceil(byteOffset / alignment) * alignment;
+      }
+
+      let elementPtr: string;
+      if (byteOffset === 0) {
+        elementPtr = this.newRegister();
+        this.emit(`  ${elementPtr} = bitcast i8* ${bytePtr} to ${llvmType}*`);
+      } else {
+        const offsetPtr = this.newRegister();
+        this.emit(
+          `  ${offsetPtr} = getelementptr i8, i8* ${bytePtr}, i32 ${byteOffset}`,
+        );
+        elementPtr = this.newRegister();
+        this.emit(`  ${elementPtr} = bitcast i8* ${offsetPtr} to ${llvmType}*`);
+      }
+
+      const value = this.newRegister();
+      this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${elementPtr}`);
+      values.push({ value, llvmType, typeNode });
+
+      byteOffset += typeSize;
+    }
+
+    return values;
+  }
+
+  private emitLiteralPatternCheck(
+    pattern: AST.PatternLiteral,
+    value: string,
+    llvmType: string,
+    successLabel: string,
+    failLabel: string,
+  ): void {
+    let literalValue = this.generateLiteral(pattern.value);
+    const cmpReg = this.newRegister();
+
+    if (llvmType === "double" || llvmType === "float") {
+      if (
+        pattern.value.kind === "Literal" &&
+        pattern.value.type === "number" &&
+        !literalValue.includes(".") &&
+        !literalValue.includes("e")
+      ) {
+        literalValue = literalValue + ".0";
+      }
+      this.emit(
+        `  ${cmpReg} = fcmp oeq ${llvmType} ${value}, ${literalValue}`,
+      );
+    } else if (llvmType === "i8*") {
+      const strcmpResult = this.newRegister();
+      this.emit(
+        `  ${strcmpResult} = call i32 @strcmp(i8* ${value}, i8* ${literalValue})`,
+      );
+      this.emit(`  ${cmpReg} = icmp eq i32 ${strcmpResult}, 0`);
+    } else {
+      this.emit(`  ${cmpReg} = icmp eq ${llvmType} ${value}, ${literalValue}`);
+    }
+
+    this.emit(`  br i1 ${cmpReg}, label %${successLabel}, label %${failLabel}`);
+  }
+
+  private generatePatternValueCheck(
+    pattern: AST.Pattern,
+    value: string,
+    llvmType: string,
+    typeNode: AST.TypeNode,
+    successLabel: string,
+    failLabel: string,
+  ): "always" | "never" | "checked" {
+    if (
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier"
+    ) {
+      return "always";
+    }
+
+    if (pattern.kind === "PatternLiteral") {
+      this.emitLiteralPatternCheck(pattern, value, llvmType, successLabel, failLabel);
+      return "checked";
+    }
+
+    if (pattern.kind === "PatternTuple") {
+      if (typeNode.kind !== "TupleType") return "never";
+      if (pattern.patterns.length !== typeNode.types.length) return "never";
+
+      const nestedValues: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
+        [];
+      for (let i = 0; i < typeNode.types.length; i++) {
+        const nestedType = typeNode.types[i]!;
+        const nestedLlvmType = this.resolveType(nestedType);
+        const nestedValue = this.newRegister();
+        this.emit(
+          `  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`,
+        );
+        nestedValues.push({
+          value: nestedValue,
+          llvmType: nestedLlvmType,
+          typeNode: nestedType,
+        });
+      }
+
+      return this.generateSequentialPatternChecks(
+        pattern.patterns,
+        nestedValues,
+        successLabel,
+        failLabel,
+      );
+    }
+
+    if (
+      pattern.kind === "PatternEnum" ||
+      pattern.kind === "PatternEnumTuple"
+    ) {
+      if (typeNode.kind !== "BasicType") return "never";
+      const enumName = this.getRuntimeEnumName(typeNode);
+      if (!enumName) return "never";
+
+      const variantInfo = this.enumVariants.get(enumName);
+      const variant = variantInfo?.get(pattern.variantName);
+      if (!variant || !variantInfo) return "never";
+
+      const runtimeEnumType = `%enum.${enumName}`;
+      const tempPtr = this.newRegister();
+      this.emit(`  ${tempPtr} = alloca ${runtimeEnumType}`);
+      this.emit(
+        `  store ${runtimeEnumType} ${value}, ${runtimeEnumType}* ${tempPtr}`,
+      );
+
+      const tagPtr = this.newRegister();
+      this.emit(
+        `  ${tagPtr} = getelementptr inbounds ${runtimeEnumType}, ${runtimeEnumType}* ${tempPtr}, i32 0, i32 0`,
+      );
+      const tag = this.newRegister();
+      this.emit(`  ${tag} = load i32, i32* ${tagPtr}`);
+      const tagMatches = this.newRegister();
+      this.emit(`  ${tagMatches} = icmp eq i32 ${tag}, ${variant.index}`);
+
+      if (pattern.kind === "PatternEnum") {
+        this.emit(
+          `  br i1 ${tagMatches}, label %${successLabel}, label %${failLabel}`,
+        );
+        return "checked";
+      }
+
+      const payloadCheckLabel = this.newLabel("nested_enum_payload");
+      this.emit(
+        `  br i1 ${tagMatches}, label %${payloadCheckLabel}, label %${failLabel}`,
+      );
+      this.emit(`${payloadCheckLabel}:`);
+
+      const payloads = this.getEnumTuplePayloadValues(
+        pattern,
+        tempPtr,
+        runtimeEnumType,
+        variantInfo,
+      );
+      return this.generateSequentialPatternChecks(
+        pattern.bindings,
+        payloads,
+        successLabel,
+        failLabel,
+      );
+    }
+
+    return "never";
+  }
+
+  private generateSequentialPatternChecks(
+    patterns: AST.Pattern[],
+    values: { value: string; llvmType: string; typeNode: AST.TypeNode }[],
+    successLabel: string,
+    failLabel: string,
+  ): "always" | "never" | "checked" {
+    if (patterns.length !== values.length) return "never";
+
+    let emittedBranch = false;
+    for (let i = 0; i < patterns.length; i++) {
+      const nextLabel =
+        i === patterns.length - 1
+          ? successLabel
+          : this.newLabel("pattern_next");
+      const result = this.generatePatternValueCheck(
+        patterns[i]!,
+        values[i]!.value,
+        values[i]!.llvmType,
+        values[i]!.typeNode,
+        nextLabel,
+        failLabel,
+      );
+
+      if (result === "never") return "never";
+      if (result === "checked") {
+        emittedBranch = true;
+        if (i < patterns.length - 1) {
+          this.emit(`${nextLabel}:`);
+        }
+      }
+    }
+
+    if (!emittedBranch) return "always";
+    if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+      this.emit(`  br label %${successLabel}`);
+    }
+    return "checked";
+  }
+
+  private generateEnumTuplePayloadPatternCheck(
+    pattern: AST.PatternEnumTuple,
+    matchPtr: string,
+    enumType: string,
+    variantInfo: Map<string, { index: number; dataType?: AST.EnumVariantData }>,
+    successLabel: string,
+    failLabel: string,
+  ): "always" | "never" | "checked" {
+    const payloads = this.getEnumTuplePayloadValues(
+      pattern,
+      matchPtr,
+      enumType,
+      variantInfo,
+    );
+
+    return this.generateSequentialPatternChecks(
+      pattern.bindings,
+      payloads,
+      successLabel,
+      failLabel,
+    );
+  }
+
+  private bindPatternValue(
+    pattern: AST.Pattern,
+    value: string,
+    llvmType: string,
+    typeNode: AST.TypeNode,
+  ): void {
+    if (pattern.kind === "PatternIdentifier") {
+      const varAddr = this.allocateStack(pattern.name, llvmType);
+      this.emit(`  store ${llvmType} ${value}, ${llvmType}* ${varAddr}`);
+      return;
+    }
+
+    if (pattern.kind === "PatternTuple") {
+      if (typeNode.kind !== "TupleType") return;
+      for (let i = 0; i < pattern.patterns.length; i++) {
+        const nestedPattern = pattern.patterns[i]!;
+        const nestedType = typeNode.types[i]!;
+        const nestedLlvmType = this.resolveType(nestedType);
+        const nestedValue = this.newRegister();
+        this.emit(
+          `  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`,
+        );
+        this.bindPatternValue(
+          nestedPattern,
+          nestedValue,
+          nestedLlvmType,
+          nestedType,
+        );
+      }
+      return;
+    }
+
+    if (pattern.kind === "PatternEnumTuple") {
+      if (typeNode.kind !== "BasicType") return;
+      const enumName = this.getRuntimeEnumName(typeNode);
+      if (!enumName) return;
+      const variantInfo = this.enumVariants.get(enumName);
+      if (!variantInfo) return;
+
+      const runtimeEnumType = `%enum.${enumName}`;
+      const tempPtr = this.newRegister();
+      this.emit(`  ${tempPtr} = alloca ${runtimeEnumType}`);
+      this.emit(
+        `  store ${runtimeEnumType} ${value}, ${runtimeEnumType}* ${tempPtr}`,
+      );
+
+      const payloads = this.getEnumTuplePayloadValues(
+        pattern,
+        tempPtr,
+        runtimeEnumType,
+        variantInfo,
+      );
+      for (let i = 0; i < pattern.bindings.length; i++) {
+        const payload = payloads[i];
+        if (!payload) continue;
+        this.bindPatternValue(
+          pattern.bindings[i]!,
+          payload.value,
+          payload.llvmType,
+          payload.typeNode,
+        );
+      }
+    }
+  }
+
   protected generateMatchExpr(expr: AST.MatchExpr): string {
     // Generate the value to match on
     const matchValue = this.generateExpression(expr.value);
@@ -195,14 +570,63 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       const arm = expr.arms[i]!;
       this.emit(`${armLabels[i]}:`);
 
-      // Extract pattern bindings if this is a tuple or struct pattern
+      const bodyLabel = this.newLabel(`match_arm${i}_body`);
+      const savedLocalPointers = new Map(this.localPointers);
+      const savedLocals = new Set(this.locals);
+
+      let shouldEmitBodyLabel = false;
+
       if (arm.pattern.kind === "PatternEnumTuple") {
-        this.generatePatternTupleBindings(
-          arm.pattern as AST.PatternEnumTuple,
+        const failLabel = this.getNextEnumArmLabel(
+          expr.arms,
+          armLabels,
+          i,
+          arm.pattern.variantName,
+          defaultLabel,
+        );
+        const patternCheck = this.generateEnumTuplePayloadPatternCheck(
+          arm.pattern,
+          matchPtr,
+          enumType,
+          variantInfo,
+          bodyLabel,
+          failLabel,
+        );
+
+        if (patternCheck === "never") {
+          this.emit(`  br label %${failLabel}`);
+          shouldEmitBodyLabel = true;
+        } else if (patternCheck === "checked") {
+          shouldEmitBodyLabel = true;
+        }
+      }
+
+      if (shouldEmitBodyLabel) {
+        this.emit(`${bodyLabel}:`);
+      }
+
+      // Extract pattern bindings only after this arm's pattern matched.
+      if (arm.pattern.kind === "PatternEnumTuple") {
+        const payloads = this.getEnumTuplePayloadValues(
+          arm.pattern,
           matchPtr,
           enumType,
           variantInfo,
         );
+        for (
+          let bindingIndex = 0;
+          bindingIndex < arm.pattern.bindings.length;
+          bindingIndex++
+        ) {
+          const payload = payloads[bindingIndex];
+          if (!payload) continue;
+          this.bindPatternValue(
+            arm.pattern.bindings[bindingIndex]!,
+            payload.value,
+            payload.llvmType,
+            payload.typeNode,
+          );
+        }
       } else if (arm.pattern.kind === "PatternEnumStruct") {
         this.generatePatternStructBindings(
           arm.pattern as AST.PatternEnumStruct,
@@ -217,29 +641,16 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         const guardValue = this.generateExpression(arm.guard);
         const guardPassLabel = this.newLabel(`guard_pass${i}`);
 
-        // Find next arm: try next arm with same variant first, then default
         let nextLabel = defaultLabel;
-        if (i + 1 < expr.arms.length) {
-          // Check if next arm is for the same variant
-          const currentPattern = arm.pattern;
-          const nextPattern = expr.arms[i + 1]!.pattern;
-
-          if (
-            (currentPattern.kind === "PatternEnum" ||
-              currentPattern.kind === "PatternEnumTuple" ||
-              currentPattern.kind === "PatternEnumStruct") &&
-            (nextPattern.kind === "PatternEnum" ||
-              nextPattern.kind === "PatternEnumTuple" ||
-              nextPattern.kind === "PatternEnumStruct")
-          ) {
-            const currentVariant = (currentPattern as any).variantName;
-            const nextVariant = (nextPattern as any).variantName;
-
-            // If same variant, jump to next arm; otherwise jump to default
-            if (currentVariant === nextVariant) {
-              nextLabel = armLabels[i + 1]!;
-            }
-          }
+        const variantName = this.getEnumPatternVariantName(arm.pattern);
+        if (variantName) {
+          nextLabel = this.getNextEnumArmLabel(
+            expr.arms,
+            armLabels,
+            i,
+            variantName,
+            defaultLabel,
+          );
         }
 
         this.emit(
@@ -250,6 +661,9 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
       // Generate arm body
       const armValue = this.generateMatchArmBody(arm.body);
+
+      this.localPointers = savedLocalPointers;
+      this.locals = savedLocals;
 
       // If armValue is not null, it was an expression arm.
       // If it is null, it was a block arm, and generateReturn handled the result.

@@ -62,6 +62,7 @@ export interface FunctionTypeNode extends ASTNode {
   isConst?: boolean;
   overloads?: FunctionTypeNode[];
   arrayDimensions?: (number | null)[];
+  typeGuard?: TypeGuardMetadata;
 }
 
 export interface LambdaTypeNode extends ASTNode {
@@ -391,7 +392,8 @@ export type Statement =
   | AsmBlockStmt
   | TryStmt
   | ThrowStmt
-  | SwitchStmt;
+  | SwitchStmt
+  | AutoDestroyStmt;
 
 export interface Parameter extends ASTNode {
   kind: "Parameter";
@@ -434,6 +436,12 @@ export interface FunctionDecl extends ASTNode {
   params: Parameter[];
   returnType: TypeNode;
   body: BlockStmt;
+  typeGuard?: TypeGuardMetadata;
+}
+
+export interface TypeGuardMetadata {
+  parameterName: string;
+  targetType: TypeNode;
 }
 
 export interface StructDecl extends ASTNode {
@@ -611,6 +619,14 @@ export interface CatchClause extends ASTNode {
 export interface RuntimeDeferCleanupStmt extends ASTNode {
   kind: "RuntimeDeferCleanup";
   ctxVal: string; // The register holding the context pointer
+}
+
+export interface AutoDestroyStmt extends ASTNode {
+  kind: "AutoDestroy";
+  name: string;
+  address: string;
+  type: TypeNode;
+  method: FunctionDecl;
 }
 
 export interface ThrowStmt extends ASTNode {

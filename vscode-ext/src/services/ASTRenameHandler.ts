@@ -333,7 +333,7 @@ export class ASTRenameHandler {
         return found;
       };
 
-      // Helper: find the smallest Block OR Loop that contains a decl
+      // Helper: find the smallest local scope that contains a decl
       // Start from function body and traverse to find innermost containing block/loop
       const findSmallestContainingBlock = (
         decl: AST.VariableDecl,
@@ -341,14 +341,9 @@ export class ASTRenameHandler {
         let smallestBlock: AST.ASTNode = functionNode.body!;
 
         const searchBlocks = (node: AST.ASTNode) => {
-          // Check if this node is a Block or Loop and contains the decl
-          const isScope =
-            (node.kind === "Block" && node !== functionNode.body) ||
-            node.kind === "Loop";
-
-          if (isScope) {
+          if (this.isLocalRenameScope(node, functionNode.body!)) {
             if (isNodeInBlock(decl, node)) {
-              // Check if this block/loop is smaller than current smallest
+              // Check if this local scope is smaller than current smallest
               if (
                 !smallestBlock ||
                 (node.location &&
@@ -1209,21 +1204,16 @@ export class ASTRenameHandler {
       return found;
     };
 
-    // Helper: find the smallest Block or Loop that contains a declaration
+    // Helper: find the smallest local scope that contains a declaration
     const findSmallestContainingBlock = (
       decl: AST.VariableDecl,
     ): AST.ASTNode => {
       let smallestBlock: AST.ASTNode = functionNode.body!;
 
       const searchBlocks = (node: AST.ASTNode) => {
-        // Check if this node is a Block or Loop and contains the decl
-        const isScope =
-          (node.kind === "Block" && node !== functionNode.body) ||
-          node.kind === "Loop";
-
-        if (isScope) {
+        if (this.isLocalRenameScope(node, functionNode.body!)) {
           if (isNodeInBlock(decl, node)) {
-            // Check if this block/loop is smaller than current smallest
+            // Check if this local scope is smaller than current smallest
             if (
               !smallestBlock ||
               (node.location &&
@@ -1261,6 +1251,18 @@ export class ASTRenameHandler {
     }
 
     return false;
+  }
+
+  private isLocalRenameScope(
+    node: AST.ASTNode,
+    functionBody: AST.BlockStmt,
+  ): boolean {
+    return (
+      (node.kind === "Block" && node !== functionBody) ||
+      node.kind === "Loop" ||
+      node.kind === "Switch" ||
+      node.kind === "Case"
+    );
   }
 
   /**

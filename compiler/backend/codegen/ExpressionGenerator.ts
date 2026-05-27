@@ -423,6 +423,27 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     const type = this.resolveType(expr.resolvedType!);
     const addr = this.generateAddress(expr);
+
+    const declaredType = this.localTypes.get(name);
+    if (declaredType) {
+      const declaredLlvmType = this.resolveType(declaredType);
+      if (
+        declaredLlvmType !== type &&
+        declaredLlvmType.endsWith("*") &&
+        type.endsWith("*")
+      ) {
+        const originalReg = this.newRegister();
+        this.emit(
+          `  ${originalReg} = load ${declaredLlvmType}, ${declaredLlvmType}* ${addr}`,
+        );
+        const castReg = this.newRegister();
+        this.emit(
+          `  ${castReg} = bitcast ${declaredLlvmType} ${originalReg} to ${type}`,
+        );
+        return castReg;
+      }
+    }
+
     const reg = this.newRegister();
     this.emit(`  ${reg} = load ${type}, ${type}* ${addr}`);
     return reg;

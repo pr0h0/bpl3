@@ -22,7 +22,6 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     skipTerminator?: boolean,
   ): void;
   protected abstract generateStatement(stmt: AST.Statement): void;
-  protected localTypes: Map<string, AST.TypeNode> = new Map();
 
   protected generateTry(stmt: AST.TryStmt) {
     const catchLabel = this.newLabel("try.catch");

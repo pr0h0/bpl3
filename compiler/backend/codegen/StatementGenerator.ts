@@ -25,6 +25,124 @@ export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
 
+  private getStructDeclForAutoDestroy(
+    typeNode: AST.TypeNode | undefined,
+  ): AST.StructDecl | undefined {
+    if (!typeNode || typeNode.kind !== "BasicType") return undefined;
+    if (typeNode.pointerDepth !== 0 || typeNode.arrayDimensions.length > 0) {
+      return undefined;
+    }
+
+    if (
+      typeNode.resolvedDeclaration &&
+      typeNode.resolvedDeclaration.kind === "StructDecl"
+    ) {
+      return typeNode.resolvedDeclaration as AST.StructDecl;
+    }
+
+    return this.structMap.get(typeNode.name);
+  }
+
+  private findAutoDestroyMethod(
+    typeNode: AST.TypeNode | undefined,
+  ): AST.FunctionDecl | undefined {
+    const structDecl = this.getStructDeclForAutoDestroy(typeNode);
+    if (!structDecl) return undefined;
+
+    return structDecl.members.find((member): member is AST.FunctionDecl => {
+      if (member.kind !== "FunctionDecl" || member.name !== "destroy") {
+        return false;
+      }
+      if (!member.attributes.some((attr) => attr.name === "auto_destroy")) {
+        return false;
+      }
+      const thisParam = member.params[0];
+      if (!thisParam || thisParam.name !== "this") return false;
+      if (thisParam.type.kind !== "BasicType") return false;
+      return (
+        thisParam.type.name === structDecl.name &&
+        thisParam.type.pointerDepth === 1
+      );
+    });
+  }
+
+  private getAutoDestroyMethodType(
+    method: AST.FunctionDecl,
+    typeNode: AST.TypeNode,
+  ): AST.FunctionTypeNode {
+    let methodType = method.resolvedType as AST.FunctionTypeNode;
+    const structDecl = this.getStructDeclForAutoDestroy(typeNode);
+
+    if (
+      structDecl &&
+      typeNode.kind === "BasicType" &&
+      structDecl.genericParams.length > 0 &&
+      typeNode.genericArgs.length > 0
+    ) {
+      const typeMap = new Map<string, AST.TypeNode>();
+      for (let i = 0; i < structDecl.genericParams.length; i++) {
+        const arg = typeNode.genericArgs[i];
+        if (arg) {
+          typeMap.set(structDecl.genericParams[i]!.name, arg);
+        }
+      }
+      methodType = this.substituteType(
+        methodType,
+        typeMap,
+      ) as AST.FunctionTypeNode;
+    }
+
+    return methodType;
+  }
+
+  private registerAutoDestroy(
+    name: string,
+    address: string,
+    typeNode: AST.TypeNode | undefined,
+    location: AST.ASTNode["location"],
+  ): void {
+    if (this.scopeStack.length === 0 || !typeNode) return;
+
+    const method = this.findAutoDestroyMethod(typeNode);
+    if (!method) return;
+
+    this.scopeStack[this.scopeStack.length - 1]!.deferred.push({
+      kind: "AutoDestroy",
+      name,
+      address,
+      type: typeNode,
+      method,
+      location,
+    } as AST.AutoDestroyStmt);
+  }
+
+  private getMovedAutoDestroyAddress(
+    expr: AST.Expression | undefined,
+    destTypeNode: AST.TypeNode,
+  ): string | undefined {
+    if (!expr) return undefined;
+    if (expr.kind === "Group") {
+      return this.getMovedAutoDestroyAddress(
+        (expr as AST.GroupExpr).expression,
+        destTypeNode,
+      );
+    }
+    if (expr.kind !== "Identifier") return undefined;
+
+    const identifier = expr as AST.IdentifierExpr;
+    const address = this.localPointers.get(identifier.name);
+    const localType = this.localTypes.get(identifier.name);
+    if (!address || !localType || !this.findAutoDestroyMethod(localType)) {
+      return undefined;
+    }
+
+    if (this.resolveType(localType) !== this.resolveType(destTypeNode)) {
+      return undefined;
+    }
+
+    return address;
+  }
+
   private shouldEmitStackFrameHooksForFunction(
     decl: AST.FunctionDecl,
     emittedName: string,
@@ -468,6 +586,9 @@ export abstract class StatementGenerator extends AsmGenerator {
           stmt as unknown as AST.RuntimeDeferCleanupStmt,
         );
         break;
+      case "AutoDestroy":
+        this.generateAutoDestroy(stmt as AST.AutoDestroyStmt);
+        break;
       case "LambdaCall":
         this.generateLambdaCall(stmt as any);
         break;
@@ -507,6 +628,37 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`  ${currVoid} = bitcast %struct.DeferNode* ${curr} to i8*`);
 
     this.emit(`  call void @free(i8* ${currVoid})`);
+  }
+
+  protected generateAutoDestroy(stmt: AST.AutoDestroyStmt) {
+    if (this.movedAutoDestroyAddresses.has(stmt.address)) {
+      return;
+    }
+
+    const type = this.resolveType(stmt.type);
+    if (!type.startsWith("%struct.") || type.endsWith("*")) {
+      return;
+    }
+
+    const methodType = this.getAutoDestroyMethodType(stmt.method, stmt.type);
+    const returnType = this.resolveType(methodType.returnType);
+    const thisType = this.resolveType(methodType.paramTypes[0]!);
+    let structName = type.substring(8);
+    while (structName.endsWith("*")) {
+      structName = structName.slice(0, -1);
+    }
+
+    const methodName = `${structName}_${stmt.method.name}`;
+    const destroyName = this.getMangledName(methodName, methodType);
+
+    if (returnType === "void") {
+      this.emit(`  call void @${destroyName}(${thisType} ${stmt.address})`);
+    } else {
+      const result = this.newRegister();
+      this.emit(
+        `  ${result} = call ${returnType} @${destroyName}(${thisType} ${stmt.address})`,
+      );
+    }
   }
 
   protected generateFreeCaptureStruct(stmt: { ctxVal: string }) {
@@ -1043,6 +1195,13 @@ export abstract class StatementGenerator extends AsmGenerator {
         }
       }
     }
+
+    this.registerAutoDestroy(
+      decl.name as string,
+      addr,
+      typeNode,
+      decl.location,
+    );
   }
 
   protected generateReturn(stmt: AST.ReturnStmt) {
@@ -1057,6 +1216,10 @@ export abstract class StatementGenerator extends AsmGenerator {
       destType = matchContext.resultType;
       isMatchYield = true;
     }
+
+    const movedAddress = !isMatchYield
+      ? this.getMovedAutoDestroyAddress(stmt.value, destTypeNode)
+      : undefined;
 
     let retVal: string | undefined;
 
@@ -1076,6 +1239,10 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Only trigger function-level return hooks (like destructors) if not yielding from a match
     if (!isMatchYield) {
+      if (movedAddress) {
+        this.movedAutoDestroyAddresses.add(movedAddress);
+      }
+
       // Run defers (LIFO)
       for (let i = this.scopeStack.length - 1; i >= 0; i--) {
         const scope = this.scopeStack[i]!;
@@ -1443,6 +1610,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevLocalTypes = new Map(this.localTypes);
     const prevLocalNullFlags = new Map(this.localNullFlags);
     const prevPointerToLocal = new Map(this.pointerToLocal);
+    const prevMovedAutoDestroyAddresses = new Set(
+      this.movedAutoDestroyAddresses,
+    );
     const prevOnReturn = this.onReturn;
     const prevIsMainWithVoidReturn = this.isMainWithVoidReturn;
     const prevGeneratingFunctionBody = this.generatingFunctionBody;
@@ -1460,6 +1630,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.localTypes.clear();
     this.localNullFlags.clear();
     this.pointerToLocal.clear();
+    this.movedAutoDestroyAddresses.clear();
     this.generatingFunctionBody = true;
 
     let name = decl.name;
@@ -1881,6 +2052,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.localTypes = prevLocalTypes;
       this.localNullFlags = prevLocalNullFlags;
       this.pointerToLocal = prevPointerToLocal;
+      this.movedAutoDestroyAddresses = prevMovedAutoDestroyAddresses;
       this.onReturn = prevOnReturn;
       this.isMainWithVoidReturn = prevIsMainWithVoidReturn;
       this.generatingFunctionBody = prevGeneratingFunctionBody;
