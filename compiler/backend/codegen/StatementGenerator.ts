@@ -105,6 +105,213 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
   }
 
+  private getConstrainedGenericParamName(
+    type: AST.TypeNode,
+    constrainedNames: Set<string>,
+  ): string | undefined {
+    if (type.kind !== "BasicType") return undefined;
+
+    const basic = type as AST.BasicTypeNode;
+    if (!constrainedNames.has(basic.name)) return undefined;
+    if (basic.genericArgs.length > 0) return undefined;
+    if (basic.arrayDimensions.length > 0) return undefined;
+
+    return basic.name;
+  }
+
+  private getRuntimeStructCheckInfo(
+    type: AST.TypeNode,
+  ): { llvmType: string; structName: string; isPointer: boolean } | undefined {
+    const llvmType = this.resolveType(type);
+    const pointerMatch = llvmType.match(/\*+$/);
+    const pointerDepth = pointerMatch ? pointerMatch[0].length : 0;
+    if (pointerDepth > 1) return undefined;
+
+    const baseType =
+      pointerDepth === 0 ? llvmType : llvmType.slice(0, -pointerDepth);
+    if (!baseType.startsWith("%struct.")) return undefined;
+
+    const structName = baseType.slice("%struct.".length);
+    if (!this.hasRuntimeVTable(structName)) return undefined;
+
+    return {
+      llvmType,
+      structName,
+      isPointer: pointerDepth === 1,
+    };
+  }
+
+  private hasRuntimeVTable(structName: string): boolean {
+    const layout = this.vtableLayouts.get(structName);
+    if (!layout || layout.length === 0) return false;
+
+    if (!this.vtableGlobalNames.has(structName)) {
+      this.vtableGlobalNames.set(structName, `@${structName}_vtable`);
+    }
+
+    return true;
+  }
+
+  private getAllowedRuntimeStructNames(expectedStructName: string): string[] {
+    const names = new Set<string>();
+    names.add(expectedStructName);
+
+    for (const candidateName of this.structMap.keys()) {
+      if (this.checkInheritance(candidateName, expectedStructName)) {
+        names.add(candidateName);
+      }
+    }
+
+    return Array.from(names).filter((name) => this.hasRuntimeVTable(name));
+  }
+
+  private emitRuntimeGenericConstraintChecks(
+    decl: AST.FunctionDecl,
+    effectiveFuncType: AST.FunctionTypeNode,
+  ): void {
+    if (decl.genericParams.length === 0) return;
+
+    const constrainedNames = new Set(
+      decl.genericParams
+        .filter((param) => param.constraint)
+        .map((param) => param.name),
+    );
+    if (constrainedNames.size === 0) return;
+
+    for (let i = 0; i < decl.params.length; i++) {
+      const param = decl.params[i]!;
+      if (param.isVariadic) continue;
+
+      const genericName = this.getConstrainedGenericParamName(
+        param.type,
+        constrainedNames,
+      );
+      if (!genericName) continue;
+      if (!this.currentTypeMap.has(genericName)) continue;
+
+      const concreteParamType = effectiveFuncType.paramTypes[i];
+      if (!concreteParamType) continue;
+
+      const checkInfo = this.getRuntimeStructCheckInfo(concreteParamType);
+      if (!checkInfo) continue;
+
+      const stackAddr = this.localPointers.get(param.name);
+      if (!stackAddr) continue;
+
+      const allowedStructNames = this.getAllowedRuntimeStructNames(
+        checkInfo.structName,
+      );
+      if (allowedStructNames.length === 0) continue;
+
+      this.emitRuntimeGenericConstraintCheck(
+        decl.name,
+        param.name,
+        stackAddr,
+        checkInfo,
+        allowedStructNames,
+      );
+    }
+  }
+
+  private emitRuntimeGenericConstraintCheck(
+    functionName: string,
+    parameterName: string,
+    stackAddr: string,
+    checkInfo: { llvmType: string; structName: string; isPointer: boolean },
+    allowedStructNames: string[],
+  ): void {
+    const okLabel = this.newLabel(`generic_constraint_ok_${parameterName}`);
+    const failLabel = this.newLabel(`generic_constraint_fail_${parameterName}`);
+    const checkLabel = this.newLabel(
+      `generic_constraint_check_${parameterName}`,
+    );
+
+    let objectPtr = stackAddr;
+
+    if (checkInfo.isPointer) {
+      objectPtr = this.newRegister();
+      this.emit(
+        `  ${objectPtr} = load ${checkInfo.llvmType}, ${checkInfo.llvmType}* ${stackAddr}`,
+      );
+
+      const isNull = this.newRegister();
+      this.emit(
+        `  ${isNull} = icmp eq ${checkInfo.llvmType} ${objectPtr}, null`,
+      );
+      this.emit(
+        `  br i1 ${isNull}, label %${okLabel}, label %${checkLabel}`,
+      );
+      this.emit(`${checkLabel}:`);
+    }
+
+    const vtablePtrPtr = this.newRegister();
+    const structPtrType = `%struct.${checkInfo.structName}*`;
+    this.emit(
+      `  ${vtablePtrPtr} = bitcast ${structPtrType} ${objectPtr} to i8**`,
+    );
+
+    const actualVtable = this.newRegister();
+    this.emit(`  ${actualVtable} = load i8*, i8** ${vtablePtrPtr}`);
+
+    let aggregateMatch: string | undefined;
+    for (const allowedStructName of allowedStructNames) {
+      const vtableGlobal = this.vtableGlobalNames.get(allowedStructName);
+      const vtableLayout = this.vtableLayouts.get(allowedStructName);
+      if (!vtableGlobal || !vtableLayout || vtableLayout.length === 0) {
+        continue;
+      }
+
+      const expectedVtable = this.newRegister();
+      const vtableType = `[${vtableLayout.length} x i8*]`;
+      this.emit(
+        `  ${expectedVtable} = bitcast ${vtableType}* ${vtableGlobal} to i8*`,
+      );
+
+      const matchesThisType = this.newRegister();
+      this.emit(
+        `  ${matchesThisType} = icmp eq i8* ${actualVtable}, ${expectedVtable}`,
+      );
+
+      if (!aggregateMatch) {
+        aggregateMatch = matchesThisType;
+      } else {
+        const combined = this.newRegister();
+        this.emit(
+          `  ${combined} = or i1 ${aggregateMatch}, ${matchesThisType}`,
+        );
+        aggregateMatch = combined;
+      }
+    }
+
+    if (!aggregateMatch) {
+      this.emit(`  br label %${okLabel}`);
+    } else {
+      this.emit(
+        `  br i1 ${aggregateMatch}, label %${okLabel}, label %${failLabel}`,
+      );
+    }
+
+    this.emit(`${failLabel}:`);
+    const message =
+      "\n*** GENERIC CONSTRAINT CHECK FAILED ***\n" +
+      `Function: ${functionName}\n` +
+      `Parameter: ${parameterName}\n` +
+      `Expected runtime type: ${checkInfo.structName}\n\n`;
+    const messagePtr = this.getStringLiteralPtr(message);
+    const stderrPtr = this.newRegister();
+    this.emit(
+      `  ${stderrPtr} = load %struct._IO_FILE*, %struct._IO_FILE** @stderr`,
+    );
+    const fprintfResult = this.newRegister();
+    this.emit(
+      `  ${fprintfResult} = call i32 @fprintf(%struct._IO_FILE* ${stderrPtr}, i8* ${messagePtr})`,
+    );
+    this.emit("  call void @exit(i32 1)");
+    this.emit("  unreachable");
+
+    this.emit(`${okLabel}:`);
+  }
+
   protected generateBlock(
     block: AST.BlockStmt,
     isLoop: boolean = false,
@@ -1542,6 +1749,8 @@ export abstract class StatementGenerator extends AsmGenerator {
           );
         }
       }
+
+      this.emitRuntimeGenericConstraintChecks(decl, effectiveFuncType);
 
       // BUG-136 FIX: For `init` instance methods on structs with vtables,
       // inject vtable initialization at the start of the method body.
