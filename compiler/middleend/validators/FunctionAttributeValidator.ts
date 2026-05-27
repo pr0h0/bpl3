@@ -6,6 +6,10 @@ export interface FunctionAttributeValidationContext {
   resolveType(type: AST.TypeNode): AST.TypeNode;
 }
 
+export interface FunctionAttributeValidationOptions {
+  parentType?: AST.StructDecl | AST.EnumDecl;
+}
+
 const ALLOWED_FUNCTION_ATTRIBUTES = new Set([
   "inline",
   "always_inline",
@@ -33,6 +37,7 @@ const FUNCTION_ATTRIBUTE_CONFLICT_GROUPS = [
 export function validateFunctionAttributes(
   context: FunctionAttributeValidationContext,
   decl: AST.FunctionDecl,
+  options: FunctionAttributeValidationOptions = {},
 ): void {
   const attributes = decl.attributes ?? [];
   const seen = new Set<string>();
@@ -75,6 +80,10 @@ export function validateFunctionAttributes(
     }
   }
 
+  if (seen.has("auto_destroy")) {
+    validateAutoDestroyAttribute(context, decl, options.parentType);
+  }
+
   if (!seen.has("noreturn")) return;
 
   const returnType = context.resolveType(decl.returnType);
@@ -87,6 +96,81 @@ export function validateFunctionAttributes(
       new CompilerError(
         "Function attribute 'noreturn' requires a void return type",
         "Use 'ret void' or remove the noreturn attribute.",
+        decl.location,
+      ),
+    );
+  }
+}
+
+function isVoidType(type: AST.TypeNode): boolean {
+  return (
+    type.kind === "BasicType" &&
+    type.name === "void" &&
+    type.pointerDepth === 0
+  );
+}
+
+function validateAutoDestroyAttribute(
+  context: FunctionAttributeValidationContext,
+  decl: AST.FunctionDecl,
+  parentType?: AST.StructDecl | AST.EnumDecl,
+): void {
+  if (!parentType) {
+    context.addError(
+      new CompilerError(
+        "Function attribute 'auto_destroy' is only valid on destroy methods",
+        "Move the attribute to a struct or enum method named 'destroy'.",
+        decl.location,
+      ),
+    );
+    return;
+  }
+
+  if (decl.name !== "destroy") {
+    context.addError(
+      new CompilerError(
+        "Function attribute 'auto_destroy' requires method name 'destroy'",
+        "Rename the method to 'destroy' or remove the auto_destroy attribute.",
+        decl.location,
+      ),
+    );
+  }
+
+  const thisParam = decl.params[0];
+  if (!thisParam || thisParam.name !== "this") {
+    context.addError(
+      new CompilerError(
+        "Function attribute 'auto_destroy' requires first parameter named 'this'",
+        `Use 'this: *${parentType.name}' as the first parameter.`,
+        thisParam?.location ?? decl.location,
+      ),
+    );
+  }
+
+  if (thisParam) {
+    const thisType = context.resolveType(thisParam.type);
+    if (
+      thisType.kind !== "BasicType" ||
+      thisType.name !== parentType.name ||
+      thisType.pointerDepth !== 1 ||
+      thisType.arrayDimensions.length !== 0
+    ) {
+      context.addError(
+        new CompilerError(
+          `Function attribute 'auto_destroy' requires receiver type '*${parentType.name}'`,
+          `Change the first parameter to 'this: *${parentType.name}'.`,
+          thisParam.location,
+        ),
+      );
+    }
+  }
+
+  const returnType = context.resolveType(decl.returnType);
+  if (!isVoidType(returnType)) {
+    context.addError(
+      new CompilerError(
+        "Function attribute 'auto_destroy' requires a void return type",
+        "Use 'ret void' or remove the auto_destroy attribute.",
         decl.location,
       ),
     );

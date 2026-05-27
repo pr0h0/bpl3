@@ -69,6 +69,73 @@ describe("Function Attributes", () => {
     expect(errors.join("\n")).toContain("noreturn");
   });
 
+  it("rejects auto_destroy on free functions", () => {
+    const errors = checkSource(`
+      @[auto_destroy]
+      frame destroy() ret void {}
+    `);
+
+    expect(errors.join("\n")).toContain(
+      "Function attribute 'auto_destroy' is only valid on destroy methods",
+    );
+  });
+
+  it("rejects auto_destroy on methods not named destroy", () => {
+    const errors = checkSource(`
+      struct Resource {
+        @[auto_destroy]
+        frame cleanup(this: *Resource) ret void {}
+      }
+    `);
+
+    expect(errors.join("\n")).toContain(
+      "Function attribute 'auto_destroy' requires method name 'destroy'",
+    );
+  });
+
+  it("rejects auto_destroy without a this receiver", () => {
+    const errors = checkSource(`
+      struct Resource {
+        @[auto_destroy]
+        frame destroy(resource: *Resource) ret void {}
+      }
+    `);
+
+    expect(errors.join("\n")).toContain(
+      "Function attribute 'auto_destroy' requires first parameter named 'this'",
+    );
+  });
+
+  it("rejects auto_destroy when the receiver is not a pointer to the parent type", () => {
+    const errors = checkSource(`
+      struct Other {}
+
+      struct Resource {
+        @[auto_destroy]
+        frame destroy(this: *Other) ret void {}
+      }
+    `);
+
+    expect(errors.join("\n")).toContain(
+      "Function attribute 'auto_destroy' requires receiver type '*Resource'",
+    );
+  });
+
+  it("rejects auto_destroy methods that return values", () => {
+    const errors = checkSource(`
+      struct Resource {
+        @[auto_destroy]
+        frame destroy(this: *Resource) ret int {
+          return 1;
+        }
+      }
+    `);
+
+    expect(errors.join("\n")).toContain(
+      "Function attribute 'auto_destroy' requires a void return type",
+    );
+  });
+
   it("formats function attributes above declarations", () => {
     const program = parseSource(
       `@[always_inline, hot] frame f(value:int)ret int{return value;}`,

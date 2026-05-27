@@ -418,11 +418,17 @@ struct ArgParser {
                     Option.Some(flag) => {
                         # Handle flag
                         local val: String;
+                        local shouldSet: bool = true;
 
                         local eqIdx: int = StringUtils.find(argStr, cast<char>(61)); # '='
                         if (eqIdx != -1) {
-                            # TODO: parse value after =
-                            val = String.new("");
+                            if (flag.hasValue) {
+                                val = rawArg.substring(eqIdx + 1, rawArg.length - eqIdx - 1);
+                            } else {
+                                printf("Error: Flag %s does not take a value.\n", flag.name.data);
+                                val = String.new("");
+                                shouldSet = false;
+                            }
                         } else {
                             if (flag.hasValue) {
                                 i = i + 1;
@@ -437,11 +443,13 @@ struct ArgParser {
                             }
                         }
 
-                        if (!flag.alias.isEmpty()) {
-                            parsed.setFlag(flag.name.clone(), val.clone());
-                            parsed.setFlag(flag.alias.clone(), val);
-                        } else {
-                            parsed.setFlag(flag.name.clone(), val);
+                        if (shouldSet) {
+                            if (!flag.alias.isEmpty()) {
+                                parsed.setFlag(flag.name.clone(), val.clone());
+                                parsed.setFlag(flag.alias.clone(), val);
+                            } else {
+                                parsed.setFlag(flag.name.clone(), val);
+                            }
                         }
                     },
                     Option.None => {

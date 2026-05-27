@@ -498,8 +498,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Function Body Checking ==========
 
-  private checkFunctionAttributes(decl: AST.FunctionDecl): void {
-    validateFunctionAttributes(this, decl);
+  private checkFunctionAttributes(
+    decl: AST.FunctionDecl,
+    parentType?: AST.StructDecl | AST.EnumDecl,
+  ): void {
+    validateFunctionAttributes(this, decl, { parentType });
   }
 
   private checkTypeGuardDeclaration(decl: AST.FunctionDecl): void {
@@ -633,7 +636,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       );
     }
 
-    this.checkFunctionAttributes(decl);
+    this.checkFunctionAttributes(decl, parentStruct);
 
     // Add params to scope
     const paramNames = new Set<string>();
