@@ -1,0 +1,15 @@
+{
+  "expectedOutput": [
+    "1 + 1 = 2",
+    "operators: 17 9 52 3 1 64 7",
+    "compound: 15",
+    "cast: 7.5",
+    "interpolation: math 2 and 17",
+    "array sum: 20",
+    "loop product: 24",
+    "switch: good",
+    "tuple: min=3 max=9 sum=12",
+    "match: teen",
+    "ternary: positive"
+  ]
+}

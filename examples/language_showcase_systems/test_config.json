@@ -1,0 +1,11 @@
+{
+  "expectedOutput": [
+    "point: (8, 13)",
+    "method sum: 21",
+    "heap value: 144",
+    "ffi strlen: 7",
+    "sizeof Point:",
+    "caught error: divide by zero",
+    "defer cleanup: 15"
+  ]
+}

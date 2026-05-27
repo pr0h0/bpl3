@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "enum guard: positive",
+    "box value: 42",
+    "operator: 15",
+    "dog says: bark",
+    "func pointer: 42",
+    "lambda: 21"
+  ]
+}
