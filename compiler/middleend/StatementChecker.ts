@@ -88,57 +88,109 @@ function getShadowedValueKind(symbol: Symbol): "parameter" | "variable" {
     : "variable";
 }
 
-function getTypeGuardNarrowing(
-  context: CheckerContext,
-  condition: AST.Expression,
-):
-  | {
-      name: string;
-      type: AST.TypeNode;
-      declaration: AST.ASTNode;
-      isConst?: boolean;
-    }
-  | undefined {
-  if (condition.kind !== "Call") return undefined;
+type BranchNarrowing = {
+  name: string;
+  type: AST.TypeNode;
+  declaration: AST.ASTNode;
+  isConst?: boolean;
+};
 
-  const call = condition as AST.CallExpr;
-  const declaration = call.resolvedDeclaration;
-  if (!declaration || declaration.kind !== "FunctionDecl") return undefined;
+function unwrapCondition(condition: AST.Expression): AST.Expression {
+  if (condition.kind === "Group") {
+    return unwrapCondition((condition as AST.GroupExpr).expression);
+  }
+  return condition;
+}
 
-  const guard = (declaration as AST.FunctionDecl).typeGuard;
-  if (!guard) return undefined;
+function isObjectNarrowingTarget(type: AST.TypeNode): boolean {
+  if (type.kind !== "BasicType" || !type.resolvedDeclaration) {
+    return false;
+  }
 
-  const parameterIndex = (declaration as AST.FunctionDecl).params.findIndex(
-    (param) => param.name === guard.parameterName,
+  return (
+    type.resolvedDeclaration.kind === "StructDecl" ||
+    type.resolvedDeclaration.kind === "SpecDecl"
   );
-  if (parameterIndex === -1) return undefined;
+}
 
-  const guardedArg = call.args[parameterIndex];
-  if (!guardedArg || guardedArg.kind !== "Identifier") return undefined;
-
-  const identifier = guardedArg as AST.IdentifierExpr;
+function getNarrowingForIdentifier(
+  context: CheckerContext,
+  identifier: AST.IdentifierExpr,
+  targetType: AST.TypeNode,
+): BranchNarrowing | undefined {
   const original = context.currentScope.resolve(identifier.name);
-  if (!original) return undefined;
+  if (!original || !original.type) return undefined;
+
+  const originalType = context.resolveType(original.type);
+  const resolvedTarget = context.resolveType(targetType);
+  let narrowedType = resolvedTarget;
+
+  if (!isObjectNarrowingTarget(resolvedTarget)) {
+    return undefined;
+  }
+
+  if (
+    originalType.kind === "BasicType" &&
+    resolvedTarget.kind === "BasicType" &&
+    originalType.pointerDepth > 0 &&
+    resolvedTarget.pointerDepth === 0
+  ) {
+    narrowedType = {
+      ...resolvedTarget,
+      pointerDepth: originalType.pointerDepth,
+    };
+  }
+
+  if (!context.isCastAllowed(originalType, narrowedType)) {
+    return undefined;
+  }
 
   return {
     name: identifier.name,
-    type: context.resolveType(guard.targetType),
+    type: narrowedType,
     declaration: original.declaration,
     isConst: original.isConst,
   };
 }
 
+function getTypeGuardNarrowing(
+  context: CheckerContext,
+  condition: AST.Expression,
+): BranchNarrowing | undefined {
+  const unwrapped = unwrapCondition(condition);
+
+  if (unwrapped.kind === "Is") {
+    const isExpr = unwrapped as AST.IsExpr;
+    if (isExpr.expression.kind !== "Identifier") return undefined;
+    return getNarrowingForIdentifier(
+      context,
+      isExpr.expression as AST.IdentifierExpr,
+      isExpr.type,
+    );
+  }
+
+  if (unwrapped.kind === "TypeMatch") {
+    const matchExpr = unwrapped as AST.TypeMatchExpr;
+    if (
+      !("kind" in matchExpr.value) ||
+      (matchExpr.value as AST.ASTNode).kind !== "Identifier"
+    ) {
+      return undefined;
+    }
+    return getNarrowingForIdentifier(
+      context,
+      matchExpr.value as AST.IdentifierExpr,
+      matchExpr.targetType,
+    );
+  }
+
+  return undefined;
+}
+
 function checkThenBranchWithNarrowing(
   context: CheckerContext,
   branch: AST.Statement,
-  narrowing:
-    | {
-        name: string;
-        type: AST.TypeNode;
-        declaration: AST.ASTNode;
-        isConst?: boolean;
-      }
-    | undefined,
+  narrowing: BranchNarrowing | undefined,
 ): void {
   context.currentScope = context.currentScope.enterScope();
   if (narrowing) {

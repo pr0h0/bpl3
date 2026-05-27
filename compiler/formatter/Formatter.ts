@@ -235,11 +235,7 @@ export class Formatter {
       .join(", ");
     output += ")";
 
-    if (decl.typeGuard) {
-      output += ` ret ${decl.typeGuard.parameterName} is ${this.formatType(
-        decl.typeGuard.targetType,
-      )}`;
-    } else if (
+    if (
       decl.returnType &&
       (decl.returnType.kind !== "BasicType" ||
         decl.returnType.name !== "void" ||

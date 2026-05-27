@@ -4,6 +4,18 @@
 
 BPL provides the `match<Type>(value)` expression for runtime type checking. This feature currently works with **enum variants** and provides a foundation for future generic type checking.
 
+When `match<Type>(value)` appears directly in an `if` condition and `value` is a simple identifier, the true branch narrows that identifier to the matched type. The narrowing is scoped to the branch.
+
+```bpl
+frame describe(animal: *Animal) ret string {
+    if (match<Dog>(animal)) {
+        return animal.breed;  # animal is *Dog here
+    }
+
+    return animal.name;       # animal is *Animal here
+}
+```
+
 ## Basic Usage
 
 ### Checking Enum Variants

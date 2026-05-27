@@ -87,15 +87,16 @@ BPL provides runtime type checking for struct pointers using the `is` and `as` o
 
 The `is` operator checks if a struct pointer's runtime type matches or is derived from a target type.
 
-**Syntax:** `pointer is *TargetType`
+**Syntax:** `pointer is TargetType` or `pointer is *TargetType`
 
 ```bpl
 struct Animal { name: string }
 struct Dog : Animal { breed: string }
 
 frame processAnimal(animal: *Animal) {
-    if (animal is *Dog) {
-        printf("It's a dog!\n");
+    if (animal is Dog) {
+        # animal is narrowed to *Dog inside this branch
+        printf("Dog breed: %s\n", animal.breed);
     } else {
         printf("It's some other animal\n");
     }
@@ -111,6 +112,38 @@ frame main() ret int {
 ```
 
 **Implementation:** The `is` operator compares vtable pointers at runtime. Each struct type in an inheritance hierarchy has a unique vtable, enabling O(1) type identification.
+
+When the checked value is a simple identifier in an `if` condition, the true branch receives a scoped narrowed type. After the branch, the identifier returns to its original type.
+
+```bpl
+frame describe(animal: *Animal) ret string {
+    if (animal is Dog) {
+        return animal.breed;  # animal is *Dog here
+    }
+
+    return animal.name;       # animal is *Animal here
+}
+```
+
+`match<Type>(value)` uses the same scoped narrowing rule for simple identifiers:
+
+```bpl
+frame describe(animal: *Animal) ret string {
+    if (match<Dog>(animal)) {
+        return animal.breed;  # animal is *Dog here
+    }
+
+    return animal.name;
+}
+```
+
+Helper functions remain ordinary boolean functions. A call to a helper does not narrow the argument unless the condition directly uses `is` or `match<Type>`.
+
+```bpl
+frame isDog(value: *Animal) ret bool {
+    return value is Dog;
+}
+```
 
 ### The `as` Operator (Safe Downcast)
 
@@ -146,14 +179,13 @@ frame main() ret int {
 
 ### Combining `is` and `as`
 
-A common pattern is to use `is` for the check and then immediately use `as`:
+A common pattern is to use `is` for control flow and `as` when you need to store the casted value:
 
 ```bpl
 frame handleAnimal(animal: *Animal) {
-    if (animal is *Dog) {
-        local dog = animal as *Dog;  # Safe - we know it's a Dog
-        printf("Dog: %s (%s)\n", dog.name, dog.breed);
-    } else if (animal is *Cat) {
+    if (animal is Dog) {
+        printf("Dog: %s (%s)\n", animal.name, animal.breed);
+    } else if (animal is Cat) {
         local cat = animal as *Cat;
         printf("Cat: %s (indoor: %d)\n", cat.name, cat.indoor);
     }

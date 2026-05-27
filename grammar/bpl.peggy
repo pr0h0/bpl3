@@ -206,9 +206,8 @@
     return { kind: "VariableDecl", isGlobal, isConst, name, typeAnnotation, initializer, location: makeLoc(loc) };
   }
 
-  function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes, typeGuard) {
+  function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes) {
     const node = { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: makeLoc(loc) };
-    if (typeGuard) node.typeGuard = typeGuard;
     return node;
   }
 
@@ -610,7 +609,7 @@ FunctionDeclaration
       const returnType = ret ? ret.returnType : voidType(location());
       const isStatic = !(paramList.length > 0 && paramList[0] && paramList[0].name === "this");
       const attributes = attrs ? attrs[1] : [];
-      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes, ret ? ret.typeGuard : undefined);
+      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes);
     }
 
 StructDeclaration
@@ -1477,16 +1476,7 @@ GenericArgs
     }
 
 ReturnType
-  = K_ret _ guard:TypeGuardReturn { return guard; }
-  / K_ret _ type:Type { return { returnType: type }; }
-
-TypeGuardReturn
-  = parameter:Identifier _ K_is _ targetType:Type {
-      return {
-        returnType: boolType(location()),
-        typeGuard: { parameterName: parameter.name, targetType }
-      };
-    }
+  = K_ret _ type:Type { return { returnType: type }; }
 
 Type
   = isConst:K_const? _ t:BaseType {

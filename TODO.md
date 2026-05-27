@@ -241,8 +241,9 @@
     - ✅ Updated `cli/BinaryRunner.ts` and `cli/CompilationRunner.ts` to link runtime
     - ✅ Documented in `docs/66-runtime-library.md`
 
-- [ ] **Advanced Type System Features**
-  - [ ] Type Guards (User-defined `is` functions)
+- [x] **Advanced Type System Features** ✅
+  - ✅ Direct branch narrowing for `if (value is Type)` and `if (match<Type>(value))`
+  - ✅ Helper checks use ordinary `ret bool`; special `ret value is Type` guard syntax is not part of the language
 
 - [5] **Parallel Compilation**
   - Description: Utilize multi-core processors to compile independent modules in parallel.

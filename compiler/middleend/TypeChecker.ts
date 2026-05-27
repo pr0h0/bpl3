@@ -278,12 +278,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           isVariadic: isVariadic,
           location: stmt.location,
           declaration: stmt,
-          typeGuard: stmt.typeGuard
-            ? {
-                parameterName: stmt.typeGuard.parameterName,
-                targetType: this.resolveType(stmt.typeGuard.targetType),
-              }
-            : undefined,
         };
         this.defineSymbol(stmt.name, "Function", functionType, stmt);
         this.registerLinkerSymbol(stmt.name, "function", functionType, stmt);
@@ -505,50 +499,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     validateFunctionAttributes(this, decl, { parentType });
   }
 
-  private checkTypeGuardDeclaration(decl: AST.FunctionDecl): void {
-    if (!decl.typeGuard) return;
-
-    const parameter = decl.params.find(
-      (param) => param.name === decl.typeGuard!.parameterName,
-    );
-    if (!parameter) {
-      throw new CompilerError(
-        `Unknown type guard parameter '${decl.typeGuard.parameterName}'`,
-        "Type guard return syntax must reference one of the function parameters.",
-        decl.location,
-      );
-    }
-
-    const returnType = this.resolveType(decl.returnType);
-    if (!this.isBoolType(returnType)) {
-      throw new CompilerError(
-        "Type guard functions must return bool",
-        "The executable return type of a type guard is bool.",
-        decl.location,
-      );
-    }
-
-    const parameterType = this.resolveType(parameter.type);
-    const targetType = this.resolveType(decl.typeGuard.targetType);
-    decl.typeGuard.targetType = targetType;
-
-    const functionType = decl.resolvedType as AST.FunctionTypeNode | undefined;
-    if (functionType?.kind === "FunctionType") {
-      functionType.typeGuard = {
-        parameterName: decl.typeGuard.parameterName,
-        targetType,
-      };
-    }
-
-    if (!this.isCastAllowed(parameterType, targetType)) {
-      throw new CompilerError(
-        `Type guard target '${this.typeToString(targetType)}' is not compatible with parameter '${decl.typeGuard.parameterName}: ${this.typeToString(parameterType)}'`,
-        "Type guards can only narrow to a type that the guarded parameter can be cast to.",
-        decl.typeGuard.targetType.location,
-      );
-    }
-  }
-
   private checkFunctionBody(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
@@ -717,8 +667,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // Note: We used to define implicit _count variable here, but now we require
       // an explicit count parameter for native variadics.
     }
-
-    this.checkTypeGuardDeclaration(decl);
 
     const prevReturnType = this.currentFunctionReturnType;
     this.currentFunctionReturnType = decl.returnType;

@@ -62,7 +62,6 @@ export interface FunctionTypeNode extends ASTNode {
   isConst?: boolean;
   overloads?: FunctionTypeNode[];
   arrayDimensions?: (number | null)[];
-  typeGuard?: TypeGuardMetadata;
 }
 
 export interface LambdaTypeNode extends ASTNode {
@@ -436,12 +435,6 @@ export interface FunctionDecl extends ASTNode {
   params: Parameter[];
   returnType: TypeNode;
   body: BlockStmt;
-  typeGuard?: TypeGuardMetadata;
-}
-
-export interface TypeGuardMetadata {
-  parameterName: string;
-  targetType: TypeNode;
 }
 
 export interface StructDecl extends ASTNode {
