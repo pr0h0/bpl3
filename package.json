@@ -18,6 +18,7 @@
     "test:baseline": "bun test 2>&1 | tee test-baseline.txt",
     "fuzz": "bun fuzz/run_fuzz.ts",
     "fuzz:long": "FUZZ_ITERATIONS=${FUZZ_ITERATIONS:-100000} FUZZ_SEEDS=${FUZZ_SEEDS:-0x5eed1234,0xc0ffee,0xbad5eed} bun fuzz/run_fuzz.ts",
+    "fuzz:replay": "bun fuzz/replay_crash.ts",
     "format": "prettier -u --write *",
     "format-examples": "bun index.ts format -w **/**/*.bpl",
     "playground": "cd playground &&bash ./start.sh",

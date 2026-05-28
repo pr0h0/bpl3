@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
@@ -179,6 +179,54 @@ export interface FuzzCampaignOptions {
   logProgress?: (message: string) => void;
   runner?: FuzzRunner;
   inputForIteration?: (context: FuzzIterationContext) => FuzzInput;
+}
+
+export interface FuzzCrashReplayOptions {
+  sourcePath?: string;
+  metadataPath?: string;
+  expectedStage?: FuzzStage;
+  expectedMessageIncludes?: string;
+  runner?: FuzzRunner;
+}
+
+export interface FuzzCrashReplayResult {
+  sourcePath: string;
+  metadataPath?: string;
+  source: string;
+  outcome: PipelineOutcome;
+  crashed: boolean;
+  signatureMatches: boolean;
+  expectedStage?: FuzzStage;
+  expectedMessageIncludes?: string;
+}
+
+export interface FuzzCrashMinimizeOptions {
+  source: string;
+  filePath?: string;
+  expectedStage?: FuzzStage;
+  expectedMessageIncludes?: string;
+  runner?: FuzzRunner;
+  maxPasses?: number;
+}
+
+export interface FuzzCrashMinimizeResult {
+  originalSource: string;
+  minimizedSource: string;
+  originalTokenCount: number;
+  minimizedTokenCount: number;
+  attempts: number;
+  changed: boolean;
+  outcome: PipelineOutcome;
+}
+
+interface CrashMetadata {
+  seed?: number;
+  iteration?: number;
+  kind?: FuzzInputKind;
+  filePath?: string;
+  sourcePath?: string;
+  stage?: FuzzStage;
+  message?: string;
 }
 
 export function createSeededRandom(seed: number): () => number {
@@ -678,6 +726,131 @@ export function runFuzzCampaign(
   };
 }
 
+export function replayFuzzCrashArtifact(
+  options: FuzzCrashReplayOptions,
+): FuzzCrashReplayResult {
+  const metadata = options.metadataPath
+    ? readCrashMetadata(options.metadataPath)
+    : undefined;
+  const sourcePath = resolveCrashSourcePath(options, metadata);
+
+  const source = readFileSync(sourcePath, "utf8");
+  const runner = options.runner ?? defaultPipelineRunner;
+  const input = inputFromCrashMetadata(source, sourcePath, metadata);
+  const outcome = runner(source, metadata?.filePath ?? sourcePath, input);
+  const expectedStage = options.expectedStage ?? metadata?.stage;
+  const expectedMessageIncludes = options.expectedMessageIncludes;
+
+  return {
+    sourcePath,
+    metadataPath: options.metadataPath,
+    source,
+    outcome,
+    crashed: isCrashOutcome(outcome),
+    signatureMatches: crashMatchesSignature(outcome, {
+      expectedStage,
+      expectedMessageIncludes,
+    }),
+    expectedStage,
+    expectedMessageIncludes,
+  };
+}
+
+export function minimizeFuzzCrash(
+  options: FuzzCrashMinimizeOptions,
+): FuzzCrashMinimizeResult {
+  const runner = options.runner ?? defaultPipelineRunner;
+  const filePath = options.filePath ?? "fuzz_minimize.bpl";
+  const input = inputFromCrashMetadata(options.source, filePath);
+  const originalOutcome = runner(options.source, filePath, input);
+  const signature = {
+    expectedStage: options.expectedStage ?? originalOutcome.stage,
+    expectedMessageIncludes: options.expectedMessageIncludes,
+  };
+
+  if (!crashMatchesSignature(originalOutcome, signature)) {
+    throw new Error(
+      "Original source does not reproduce the requested crash signature.",
+    );
+  }
+
+  let tokens = tokenizeForMutation(options.source);
+  const originalTokenCount = tokens.length;
+  let attempts = 0;
+  let changed = false;
+  let outcome = originalOutcome;
+
+  if (tokens.length === 0) {
+    return {
+      originalSource: options.source,
+      minimizedSource: options.source,
+      originalTokenCount,
+      minimizedTokenCount: 0,
+      attempts,
+      changed: false,
+      outcome,
+    };
+  }
+
+  let chunkSize = Math.max(1, Math.floor(tokens.length / 2));
+  let passes = 0;
+  const maxPasses = options.maxPasses ?? Number.POSITIVE_INFINITY;
+
+  while (chunkSize >= 1 && passes < maxPasses) {
+    passes++;
+    let changedThisPass = false;
+
+    for (let index = 0; index < tokens.length; ) {
+      const candidate = [
+        ...tokens.slice(0, index),
+        ...tokens.slice(index + chunkSize),
+      ];
+
+      if (candidate.length === 0) {
+        index += chunkSize;
+        continue;
+      }
+
+      attempts++;
+      const candidateSource = candidate.join(" ");
+      const candidateInput = inputFromCrashMetadata(candidateSource, filePath);
+      const candidateOutcome = runner(candidateSource, filePath, candidateInput);
+
+      if (crashMatchesSignature(candidateOutcome, signature)) {
+        tokens = candidate;
+        outcome = candidateOutcome;
+        changed = true;
+        changedThisPass = true;
+      } else {
+        index += chunkSize;
+      }
+    }
+
+    if (changedThisPass) {
+      chunkSize = Math.min(
+        chunkSize,
+        Math.max(1, Math.floor(tokens.length / 2)),
+      );
+    } else if (chunkSize === 1) {
+      break;
+    } else {
+      chunkSize = Math.max(1, Math.floor(chunkSize / 2));
+    }
+  }
+
+  const minimizedSource = changed ? tokens.join(" ") : options.source;
+
+  return {
+    originalSource: options.source,
+    minimizedSource,
+    originalTokenCount,
+    minimizedTokenCount: tokens.length,
+    attempts,
+    changed,
+    outcome,
+  };
+}
+
 function writeCrashArtifact(
   crashDir: string,
   input: FuzzInput,
@@ -723,6 +896,83 @@ function createStageCounts(): Record<FuzzStage, number> {
     typecheck: 0,
     codegen: 0,
   };
+}
+
+function defaultPipelineRunner(source: string, filePath: string): PipelineOutcome {
+  return runCompilerPipeline(source, filePath, { skipImportResolution: true });
+}
+
+function inputFromCrashMetadata(
+  source: string,
+  sourcePath: string,
+  metadata: CrashMetadata = {},
+): FuzzInput {
+  return {
+    seed: metadata.seed ?? 0,
+    iteration: metadata.iteration ?? 0,
+    kind: metadata.kind ?? "tokens",
+    filePath: metadata.filePath ?? sourcePath,
+    source,
+  };
+}
+
+function readCrashMetadata(metadataPath: string): CrashMetadata {
+  return JSON.parse(readFileSync(metadataPath, "utf8")) as CrashMetadata;
+}
+
+function resolveCrashSourcePath(
+  options: FuzzCrashReplayOptions,
+  metadata: CrashMetadata | undefined,
+): string {
+  const candidates = [
+    options.sourcePath,
+    metadata?.sourcePath,
+    options.metadataPath ? siblingSourcePath(options.metadataPath) : undefined,
+  ].filter((candidate): candidate is string => candidate !== undefined);
+
+  if (candidates.length === 0) {
+    throw new Error("sourcePath is required when metadata has no sourcePath.");
+  }
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
+}
+
+function siblingSourcePath(metadataPath: string): string {
+  return metadataPath.endsWith(".json")
+    ? metadataPath.slice(0, -".json".length) + ".bpl"
+    : `${metadataPath}.bpl`;
+}
+
+function isCrashOutcome(outcome: PipelineOutcome): boolean {
+  return outcome.ok === false && outcome.expectedError !== true;
+}
+
+function crashMatchesSignature(
+  outcome: PipelineOutcome,
+  signature: {
+    expectedStage?: FuzzStage;
+    expectedMessageIncludes?: string;
+  },
+): boolean {
+  if (!isCrashOutcome(outcome)) {
+    return false;
+  }
+
+  if (
+    signature.expectedStage !== undefined &&
+    outcome.stage !== signature.expectedStage
+  ) {
+    return false;
+  }
+
+  if (
+    signature.expectedMessageIncludes !== undefined &&
+    !outcome.message?.includes(signature.expectedMessageIncludes)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function mixSeed(seed: number, iteration: number): number {
