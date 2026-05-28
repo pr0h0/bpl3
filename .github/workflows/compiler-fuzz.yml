@@ -38,7 +38,9 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          npm ci --prefix vscode-ext
 
       - name: Type check
         run: bun run check

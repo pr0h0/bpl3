@@ -4,6 +4,7 @@ import { ASTResolver } from "../services/ASTResolver";
 import { ASTRenameHandler } from "../services/ASTRenameHandler";
 import { SymbolIndex } from "../services/SymbolIndex";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import type { TextEdit } from "vscode-languageserver/node";
 import { pathToFileURL } from "url";
 import * as fs from "fs";
 
@@ -283,7 +284,7 @@ describe("Rename Handler - Comprehensive Tests", () => {
       expect(edits1!.length).toBe(2);
       expect(
         edits1!.every(
-          (e) => e.range.start.line >= 2 && e.range.start.line <= 3,
+          (e: TextEdit) => e.range.start.line >= 2 && e.range.start.line <= 3,
         ),
       ).toBe(true);
 
@@ -294,7 +295,7 @@ describe("Rename Handler - Comprehensive Tests", () => {
       expect(edits2!.length).toBe(2);
       expect(
         edits2!.every(
-          (e) => e.range.start.line >= 6 && e.range.start.line <= 7,
+          (e: TextEdit) => e.range.start.line >= 6 && e.range.start.line <= 7,
         ),
       ).toBe(true);
 

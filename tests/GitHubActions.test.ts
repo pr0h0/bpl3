@@ -17,6 +17,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
+    expect(workflow).toContain("npm ci --prefix vscode-ext");
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run fuzz:long");
     expect(workflow).toContain("FUZZ_SEEDS");
@@ -56,6 +57,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("pull_request:");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
+    expect(workflow).toContain("npm ci --prefix vscode-ext");
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run test:correctness");
     expect(workflow).toContain("sudo apt-get install -y clang llvm");
