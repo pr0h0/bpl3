@@ -50,6 +50,18 @@ Write structured JSON results:
 ./benchmark/run_all.sh --json > benchmark/latest-results.json
 ```
 
+Show BPL-vs-C median ratios without running the full language set:
+
+```bash
+./benchmark/run_all.sh --language bpl,c --runs 5
+```
+
+Fail the run when BPL is more than 5% slower than C on any benchmark:
+
+```bash
+./benchmark/run_all.sh --language bpl,c --runs 5 --max-bpl-slower 5
+```
+
 ## Requirements
 
 - `bun` (for running the BPL compiler)

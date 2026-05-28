@@ -33,6 +33,8 @@ interface RunnerOptions {
   warmups: number;
   validate: boolean;
   json: boolean;
+  summary: boolean;
+  maxBplSlowerPercent?: number;
   languages?: Set<LanguageKey>;
   benchmarks: string[];
 }
@@ -49,7 +51,7 @@ interface PreparedLanguage {
   cleanup: string[];
 }
 
-interface BenchmarkResult {
+export interface BenchmarkResult {
   benchmark: string;
   language: string;
   status: "ok" | "skipped" | "failed" | "mismatch";
@@ -59,6 +61,14 @@ interface BenchmarkResult {
   runs?: number;
   output?: string;
   message?: string;
+}
+
+export interface BplVsCComparison {
+  benchmark: string;
+  bplMedianMs: number;
+  cMedianMs: number;
+  ratio: number;
+  percentSlower: number;
 }
 
 const BENCHMARK_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -114,6 +124,77 @@ export function discoverBenchmarkSources(files: string[]): BenchmarkSources {
   return sources;
 }
 
+export function buildBplVsCComparisons(
+  results: BenchmarkResult[],
+): BplVsCComparison[] {
+  const byBenchmark = new Map<string, BenchmarkResult[]>();
+  for (const result of results) {
+    const rows = byBenchmark.get(result.benchmark) ?? [];
+    rows.push(result);
+    byBenchmark.set(result.benchmark, rows);
+  }
+
+  const comparisons: BplVsCComparison[] = [];
+  for (const [benchmark, rows] of byBenchmark) {
+    const bpl = rows.find(
+      (row) =>
+        row.status === "ok" &&
+        row.language.startsWith("BPL") &&
+        row.medianMs !== undefined,
+    );
+    const c = rows.find(
+      (row) =>
+        row.status === "ok" &&
+        row.language.startsWith("C ") &&
+        row.medianMs !== undefined &&
+        row.medianMs > 0,
+    );
+
+    if (!bpl || !c) continue;
+
+    const ratio = bpl.medianMs! / c.medianMs!;
+    comparisons.push({
+      benchmark,
+      bplMedianMs: bpl.medianMs!,
+      cMedianMs: c.medianMs!,
+      ratio,
+      percentSlower: Number(((ratio - 1) * 100).toFixed(10)),
+    });
+  }
+
+  return comparisons.sort((left, right) => right.ratio - left.ratio);
+}
+
+export function findBplVsCRegressions(
+  comparisons: BplVsCComparison[],
+  maxBplSlowerPercent: number,
+): BplVsCComparison[] {
+  return comparisons.filter(
+    (comparison) => comparison.percentSlower > maxBplSlowerPercent,
+  );
+}
+
+export function formatBplVsCSummary(
+  comparisons: BplVsCComparison[],
+  maxBplSlowerPercent?: number,
+): string {
+  if (comparisons.length === 0) {
+    return "";
+  }
+
+  const lines = ["", "=== BPL vs C median summary ==="];
+  for (const comparison of comparisons) {
+    const regression =
+      maxBplSlowerPercent !== undefined &&
+      comparison.percentSlower > maxBplSlowerPercent;
+    const sign = comparison.percentSlower >= 0 ? "+" : "";
+    lines.push(
+      `${comparison.benchmark.padEnd(15)} BPL ${comparison.bplMedianMs.toFixed(2).padStart(6)} ms  C ${comparison.cMedianMs.toFixed(2).padStart(6)} ms  ${comparison.ratio.toFixed(2)}x  ${sign}${comparison.percentSlower.toFixed(1)}%${regression ? "  REGRESSION" : ""}`,
+    );
+  }
+  return lines.join("\n");
+}
+
 function normalizeOutput(output: string): string {
   return output.replace(/\r\n/g, "\n").trim();
 }
@@ -124,6 +205,7 @@ function parseArgs(args: string[]): RunnerOptions {
     warmups: 1,
     validate: true,
     json: false,
+    summary: true,
     benchmarks: [],
   };
 
@@ -137,6 +219,13 @@ function parseArgs(args: string[]): RunnerOptions {
       options.validate = false;
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--no-summary") {
+      options.summary = false;
+    } else if (arg === "--max-bpl-slower") {
+      options.maxBplSlowerPercent = parseNonNegativeNumber(
+        args[++i],
+        "--max-bpl-slower",
+      );
     } else if (arg === "--language" || arg === "--languages") {
       options.languages = new Set(
         (args[++i] ?? "")
@@ -155,6 +244,14 @@ function parseArgs(args: string[]): RunnerOptions {
   return options;
 }
 
+function parseNonNegativeNumber(value: string | undefined, flag: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${flag} expects a non-negative number`);
+  }
+  return parsed;
+}
+
 function parseNonNegativeInt(value: string | undefined, flag: string): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
@@ -171,6 +268,8 @@ Options:
   --warmups N           untimed warmup runs per language (default: 1)
   --language a,b        comma-separated languages: bpl,c,go,javascript,python
   --no-validate         skip output comparison against BPL
+  --no-summary          skip BPL-vs-C ratio summary in text output
+  --max-bpl-slower P    exit non-zero if BPL median is more than P% slower than C
   --json                print JSON and write benchmark/results.json
 `);
 }
@@ -472,6 +571,11 @@ export function main(args: string[] = process.argv.slice(2)): void {
   const options = parseArgs(args);
   const benchmarkNames = discoverBenchmarkDirs(options);
   const results = benchmarkNames.flatMap((name) => runBenchmark(name, options));
+  const comparisons = buildBplVsCComparisons(results);
+  const regressions =
+    options.maxBplSlowerPercent === undefined
+      ? []
+      : findBplVsCRegressions(comparisons, options.maxBplSlowerPercent);
 
   if (options.json) {
     const json = JSON.stringify(results, null, 2);
@@ -479,9 +583,27 @@ export function main(args: string[] = process.argv.slice(2)): void {
     writeFileSync(join(BENCHMARK_ROOT, "results.json"), `${json}\n`);
   } else {
     printResults(results);
+    if (options.summary) {
+      const summary = formatBplVsCSummary(
+        comparisons,
+        options.maxBplSlowerPercent,
+      );
+      if (summary) {
+        console.log(summary);
+      }
+    }
   }
 
-  if (results.some((result) => result.status === "failed")) {
+  if (regressions.length > 0 && options.json) {
+    console.error(
+      formatBplVsCSummary(comparisons, options.maxBplSlowerPercent),
+    );
+  }
+
+  if (
+    results.some((result) => result.status === "failed") ||
+    regressions.length > 0
+  ) {
     process.exitCode = 1;
   }
 }

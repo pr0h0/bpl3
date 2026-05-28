@@ -3,9 +3,12 @@ import { existsSync } from "fs";
 import { join } from "path";
 
 import {
+  buildBplVsCComparisons,
   calculateStats,
   compareBenchmarkOutputs,
   discoverBenchmarkSources,
+  findBplVsCRegressions,
+  formatBplVsCSummary,
 } from "../benchmark/run_benchmark";
 
 describe("Benchmark runner helpers", () => {
@@ -61,5 +64,87 @@ describe("Benchmark runner helpers", () => {
       expect(sources.javascript).toBeDefined();
       expect(sources.python).toBeDefined();
     }
+  });
+
+  it("summarizes BPL versus C median ratios from benchmark results", () => {
+    const comparisons = buildBplVsCComparisons([
+      {
+        benchmark: "fast",
+        language: "BPL (-O3)",
+        status: "ok",
+        medianMs: 95,
+      },
+      {
+        benchmark: "fast",
+        language: "C (clang -O3)",
+        status: "ok",
+        medianMs: 100,
+      },
+      {
+        benchmark: "slow",
+        language: "BPL (-O3)",
+        status: "ok",
+        medianMs: 110,
+      },
+      {
+        benchmark: "slow",
+        language: "C (clang -O3)",
+        status: "ok",
+        medianMs: 100,
+      },
+    ]);
+
+    expect(comparisons).toEqual([
+      {
+        benchmark: "slow",
+        bplMedianMs: 110,
+        cMedianMs: 100,
+        ratio: 1.1,
+        percentSlower: 10,
+      },
+      {
+        benchmark: "fast",
+        bplMedianMs: 95,
+        cMedianMs: 100,
+        ratio: 0.95,
+        percentSlower: -5,
+      },
+    ]);
+  });
+
+  it("formats ratio summaries and flags threshold regressions", () => {
+    const comparisons = buildBplVsCComparisons([
+      {
+        benchmark: "ok_gap",
+        language: "BPL (-O3)",
+        status: "ok",
+        medianMs: 104,
+      },
+      {
+        benchmark: "ok_gap",
+        language: "C (clang -O3)",
+        status: "ok",
+        medianMs: 100,
+      },
+      {
+        benchmark: "bad_gap",
+        language: "BPL (-O3)",
+        status: "ok",
+        medianMs: 107,
+      },
+      {
+        benchmark: "bad_gap",
+        language: "C (clang -O3)",
+        status: "ok",
+        medianMs: 100,
+      },
+    ]);
+
+    expect(findBplVsCRegressions(comparisons, 5).map((row) => row.benchmark)).toEqual([
+      "bad_gap",
+    ]);
+    expect(formatBplVsCSummary(comparisons, 5)).toContain(
+      "bad_gap         BPL 107.00 ms  C 100.00 ms  1.07x  +7.0%  REGRESSION",
+    );
   });
 });
