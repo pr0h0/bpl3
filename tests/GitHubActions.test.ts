@@ -62,6 +62,9 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("bun run test:correctness");
     expect(workflow).toContain("sudo apt-get install -y clang llvm");
     expect(packageJson.scripts["test:correctness"]).toContain(
+      "bun run build:runtime && bun test",
+    );
+    expect(packageJson.scripts["test:correctness"]).toContain(
       "CompilerCorrectnessCorpus.test.ts",
     );
     expect(packageJson.scripts["test:correctness"]).toContain(
