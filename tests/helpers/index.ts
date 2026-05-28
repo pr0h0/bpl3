@@ -20,6 +20,12 @@ export {
 } from "./compileAndRun";
 
 export { compileToLLVM, countMatches } from "./compileToLLVM";
+export {
+  expectCleanCompilationFailure,
+  expectSameBehaviorAtO0AndO3,
+  expectValidLlvmAtOptimizations,
+  runBplAtOptimization,
+} from "./compilerCorrectness";
 
 export { parseSource, parseExpression, parseStatement } from "./parser";
 
