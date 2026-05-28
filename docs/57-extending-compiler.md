@@ -81,10 +81,17 @@ If the standard library is pre-compiled, you may need to rebuild it. In the curr
 
 ## Testing Your Changes
 
-Always run the test suite after making changes:
+Always run the relevant test suite after making changes:
 
 ```bash
-bun test
+# Fast local loop for focused changes
+bun test tests/SpecificFeature.test.ts
+
+# Broad CI-safe suite, including integration examples and playground examples
+bun run test:ci
+
+# Compiler correctness and deterministic fuzz regression suite
+bun run test:correctness
 ```
 
-For new features, add a new test case in `tests/` or a new example in `examples/`.
+For new language features, add a focused test in `tests/`, an integration example under `examples/` when runtime behavior matters, and a playground example when the feature is useful for users to learn interactively.

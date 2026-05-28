@@ -1,6 +1,6 @@
 # BPL Playground
 
-An interactive web-based playground for learning and experimenting with BPL (Best Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 60+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
+An interactive web-based playground for learning and experimenting with BPL (Best Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 65+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
 
 ## Features
 
@@ -12,7 +12,7 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 
 🎓 **Learn by Example**
 
-- 60+ curated examples covering all BPL features
+- 65+ curated examples covering all BPL features
 - Each example includes detailed descriptions and explanations
 - Progressive learning from "Hello World" to advanced topics
 
@@ -88,7 +88,7 @@ playground/
 ├── examples/
 │   ├── 01-hello-world.json
 │   ├── 02-variables.json
-│   └── ... (60+ examples)
+│   └── ... (65+ examples)
 └── tutorials/
     ├── 01-welcome-to-bpl.json
     ├── 02-variables-and-types.json
@@ -133,6 +133,14 @@ The "Zero to Hero" tutorial covers:
 24. Patterns & Idioms - Builder, Option, Result
 25. Best Practices - Coding standards
 26. What's Next - Continuing journey
+
+## Advanced Example Coverage
+
+The example catalog includes runnable coverage for recent compiler features:
+
+- `64-raii-auto-destroy.json` - opt-in `@[auto_destroy]` cleanup at scope exit
+- `65-runtime-type-guards.json` - runtime `is` checks and nullable `as` downcasts
+- `66-native-variadic-functions.json` - native variadic functions with compiler-supplied `count`
 
 ## API Endpoints
 

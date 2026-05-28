@@ -782,8 +782,15 @@ bpl run main.bpl
 ### Running Tests
 
 ```bash
-# Run all tests
-bun test
+# Run the default test suite
+bun run test
+
+# Run the CI-safe broad suite. This includes integration and playground
+# examples, but leaves fuzz/correctness corpora to their dedicated scripts.
+bun run test:ci
+
+# Run compiler correctness and deterministic fuzz regression coverage
+bun run test:correctness
 
 # Run specific test file
 bun test tests/Integration.test.ts
@@ -852,6 +859,7 @@ BPL is under active development. The compiler has **1,300+ tests** across 140+ t
 **Build Status:**
 
 - ✅ 1,300+ tests in the checked-in test suite
+- ✅ CI-safe suite includes integration tests and all playground examples
 - ✅ 0 ESLint errors/warnings
 - ✅ 0 TypeScript errors
 - ✅ 450+ checked-in examples and regression programs

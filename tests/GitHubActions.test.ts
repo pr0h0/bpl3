@@ -74,4 +74,33 @@ describe("GitHub Actions workflows", () => {
       "CompilerCorrectnessSeededFuzz.test.ts",
     );
   });
+
+  test("compiler correctness workflow runs a broad CI-safe test suite before correctness", () => {
+    const workflowPath = join(
+      import.meta.dir,
+      "../.github/workflows/compiler-correctness.yml",
+    );
+    const workflow = readFileSync(workflowPath, "utf8");
+    const packageJson = JSON.parse(
+      readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
+    );
+
+    expect(packageJson.scripts["test:ci"]).toContain("bun run build:runtime");
+    expect(packageJson.scripts["test:ci"]).toContain("Integration.test.ts");
+    expect(packageJson.scripts["test:ci"]).toContain("PlaygroundExamples.test.ts");
+    expect(packageJson.scripts["test:ci"]).toContain("! -name 'fuzz.test.ts'");
+    expect(packageJson.scripts["test:ci"]).toContain(
+      "! -name 'CompilerCorrectnessCorpus.test.ts'",
+    );
+
+    expect(workflow).toContain("Run CI-safe test suite");
+    expect(workflow).toContain("bun run test:ci");
+
+    const typecheckIndex = workflow.indexOf("Type check");
+    const ciSuiteIndex = workflow.indexOf("Run CI-safe test suite");
+    const correctnessIndex = workflow.indexOf("Run compiler correctness tests");
+
+    expect(ciSuiteIndex).toBeGreaterThan(typecheckIndex);
+    expect(correctnessIndex).toBeGreaterThan(ciSuiteIndex);
+  });
 });

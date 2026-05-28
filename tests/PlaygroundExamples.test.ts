@@ -33,6 +33,10 @@ function safeStringify(obj: any): string {
   return JSON.stringify(
     obj,
     (key, value) => {
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+
       if (typeof value === "object" && value !== null) {
         if (seen.has(value)) {
           return "[Circular]";
@@ -209,6 +213,16 @@ describe("BPL Playground Examples", () => {
     console.log("=".repeat(60));
     console.log(
       `\n📈 Results: ${passed} passed, ${failed} failed out of ${examples.length}`,
+    );
+  });
+
+  it("includes advanced examples for lifecycle, type guards, and native variadics", () => {
+    expect(examples.map((example) => example.title)).toEqual(
+      expect.arrayContaining([
+        "RAII Auto Destroy",
+        "Runtime Type Guards",
+        "Native Variadic Functions",
+      ]),
     );
   });
 

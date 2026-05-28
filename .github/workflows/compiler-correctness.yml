@@ -37,5 +37,10 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Run CI-safe test suite
+        env:
+          BPL_INTEGRATION_JOBS: "4"
+        run: bun run test:ci
+
       - name: Run compiler correctness tests
         run: bun run test:correctness

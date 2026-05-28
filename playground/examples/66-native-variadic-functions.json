@@ -1,0 +1,33 @@
+{
+  "order": 66,
+  "title": "Native Variadic Functions",
+  "snippet": "Type-safe varargs with an implicit count",
+  "description": "Native BPL variadic functions use a variadic parameter followed by an explicit count: int parameter. Callers pass only the visible values; the compiler packs the arguments and supplies the count automatically.",
+  "code": [
+    "extern printf(fmt: string, ...);",
+    "",
+    "frame sum(...nums: int, count: int) ret int {",
+    "    local total: int = 0;",
+    "    local i: int = 0;",
+    "    loop (i < count) {",
+    "        total = total + nums[i];",
+    "        i = i + 1;",
+    "    }",
+    "    return total;",
+    "}",
+    "",
+    "frame printLabels(prefix: string, items: ...string, count: int) ret void {",
+    "    local i: int = 0;",
+    "    loop (i < count) {",
+    "        printf(\"%s[%d]=%s\\n\", prefix, i, items[i]);",
+    "        i = i + 1;",
+    "    }",
+    "}",
+    "",
+    "frame main() ret int {",
+    "    printf(\"sum=%d\\n\", sum(2, 4, 6, 8));",
+    "    printLabels(\"tag\", \"alpha\", \"beta\", \"stable\");",
+    "    return 0;",
+    "}"
+  ]
+}
