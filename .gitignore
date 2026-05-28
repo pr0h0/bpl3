@@ -62,6 +62,10 @@ tests/ir.ll
 **/views/**/*.bpl
 !examples/web_server_demo/views/home.bpl
 
+# benchmark output artifacts
+benchmark/results.json
+benchmark/latest-results.json
+
 # Runtime build artifacts
 lib/*.o
 lib/*.a
