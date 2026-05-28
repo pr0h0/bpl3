@@ -1,6 +1,6 @@
 # BPL Benchmarks
 
-This directory contains benchmark programs to compare the performance of BPL against other languages like C, Go, and Python.
+This directory contains benchmark programs to compare the performance of BPL against C, Go, Python, and JavaScript.
 
 ## Structure
 
@@ -12,21 +12,48 @@ Inside each directory, you will find:
 - `loop.go`: The Go implementation
 - `loop.py`: The Python implementation
 - `loop.js`: The JavaScript implementation
-- `run.sh`: A script to compile and run all implementations and report execution times.
+- `run.sh`: A legacy per-benchmark script for the original benchmarks.
+
+The recommended runner is `run_benchmark.ts`. It compiles available languages, validates output against BPL, runs warmups/repeated timings, and reports min/median/average wall-clock time.
+
+## Benchmark Coverage
+
+- `bit_twiddle`: tight 32-bit xorshift/bitmask loop. Shows integer bitwise codegen and register-heavy loops.
+- `binary_tree`: pointer-heavy allocation, recursion, and tree traversal.
+- `fibonacci_recursive`: recursive call overhead.
+- `loop_to_million`: integer arithmetic loop with modulo.
+- `mandelbrot`: floating-point nested loops.
+- `matrix_multiplication`: raw pointer memory access and integer matrix multiplication.
+- `noinline_calls`: explicit non-inlined function call overhead.
+- `prime_sieve`: byte-addressed sieve over a 10M element working set.
+- `vector_dot_product`: raw int64 vector initialization and dot-product throughput.
 
 ## Running Benchmarks
 
-To run a specific benchmark, navigate to its directory and execute the `run.sh` script:
+Run all benchmarks:
 
 ```bash
-cd loop_to_million
-./run.sh
+./benchmark/run_all.sh
+```
+
+Run selected benchmarks or languages:
+
+```bash
+./benchmark/run_all.sh fibonacci_recursive mandelbrot --runs 5
+./benchmark/run_all.sh --language bpl,c,javascript --runs 3
+./benchmark/run_all.sh bit_twiddle prime_sieve vector_dot_product --runs 3 --warmups 1
+```
+
+Write structured JSON results:
+
+```bash
+./benchmark/run_all.sh --json > benchmark/latest-results.json
 ```
 
 ## Requirements
 
 - `bun` (for running the BPL compiler)
-- `gcc` (for C)
+- `clang` or `gcc` (for C; the runner prefers `clang`)
 - `go` (for Go)
 - `python3` (for Python)
 - `node` (for JavaScript)

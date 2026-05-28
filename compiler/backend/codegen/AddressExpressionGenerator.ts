@@ -624,6 +624,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     size: number,
     location: SourceLocation,
   ): void {
+    if (this.optimizationLevel >= 3) {
+      return;
+    }
+
     const inBounds = this.newRegister();
     this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${size}`);
 
@@ -654,6 +658,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     sizeVal: string,
     location: SourceLocation,
   ): void {
+    if (this.optimizationLevel >= 3) {
+      return;
+    }
+
     const inBounds = this.newRegister();
     this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${sizeVal}`);
 

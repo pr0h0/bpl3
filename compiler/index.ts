@@ -233,6 +233,7 @@ export class Compiler {
             this.options.filePath.replace(/\.[^/.]+$/, ""),
           target: this.options.target,
           sysroot: this.options.sysroot,
+          optimizationLevel: this.options.optimizationLevel,
           clangFlags: this.options.clangFlags,
           verbose: this.options.verbose,
         });
@@ -406,6 +407,7 @@ export class Compiler {
         useLinkOnceOdrForStdLib: isLinkingBpl,
         target: this.options.target,
         dwarf: this.options.dwarf,
+        optimizationLevel: this.options.optimizationLevel,
       });
 
       const llvmIR = codeGenerator.generate(combinedAST, this.options.filePath);
@@ -509,6 +511,7 @@ export class Compiler {
       const codeGenerator = new CodeGenerator({
         target: this.options.target,
         dwarf: this.options.dwarf,
+        optimizationLevel: this.options.optimizationLevel,
       });
       const llvmIR = codeGenerator.generate(combinedAST, entryModule.path);
 
@@ -518,6 +521,7 @@ export class Compiler {
         llvmIR,
         this.options.verbose,
         this.options.target,
+        this.options.optimizationLevel,
       );
 
       const objectFiles = [objectFile];

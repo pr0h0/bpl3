@@ -4,13 +4,16 @@ import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 
-function generate(source: string) {
+function generate(
+  source: string,
+  options: ConstructorParameters<typeof CodeGenerator>[0] = {},
+) {
   const tokens = lexWithGrammar(source, "test.bpl");
   const parser = new Parser(source, "test.bpl", tokens);
   const program = parser.parse();
   const typeChecker = new TypeChecker();
   typeChecker.checkProgram(program);
-  const codeGenerator = new CodeGenerator();
+  const codeGenerator = new CodeGenerator(options);
   return codeGenerator.generate(program);
 }
 
@@ -44,5 +47,19 @@ describe("CodeGen - Division By Zero", () => {
 
     // New codegen uses a runtime function call
     expect(ir).toContain("call void @__bpl_throw_division_by_zero");
+  });
+
+  it("should omit zero checks for optimized builds", () => {
+    const source = `
+      frame main() {
+        local a: i32 = 10;
+        local b: i32 = 2;
+        local x: i32 = a / b;
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).not.toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).not.toContain("div_err");
   });
 });

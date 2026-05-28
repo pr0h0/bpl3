@@ -1202,7 +1202,9 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "fdiv";
     }
 
-    this.emitDivisionByZeroCheck(right, rightType);
+    if (this.optimizationLevel < 3) {
+      this.emitDivisionByZeroCheck(right, rightType);
+    }
     return isUnsigned ? "udiv" : "sdiv";
   }
 
@@ -1219,7 +1221,9 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "frem";
     }
 
-    this.emitDivisionByZeroCheck(right, rightType);
+    if (this.optimizationLevel < 3) {
+      this.emitDivisionByZeroCheck(right, rightType);
+    }
     return isUnsigned ? "urem" : "srem";
   }
 

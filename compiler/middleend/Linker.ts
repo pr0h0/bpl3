@@ -41,6 +41,9 @@ export interface LinkOptions {
   /** Additional clang flags */
   clangFlags?: string[];
 
+  /** Optimization level (0-3) forwarded to clang */
+  optimizationLevel?: number;
+
   /** Enable verbose output */
   verbose?: boolean;
 }
@@ -199,6 +202,10 @@ export class Linker {
       // Add sysroot if specified
       if (options.sysroot) {
         clangArgs.push(`--sysroot=${options.sysroot}`);
+      }
+
+      if (options.optimizationLevel !== undefined) {
+        clangArgs.push(`-O${options.optimizationLevel}`);
       }
 
       // Add library search paths

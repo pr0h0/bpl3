@@ -158,6 +158,24 @@ describe("Direct type narrowing", () => {
         }
       `),
     ).not.toThrow();
+
+    expect(() =>
+      check(`
+        import [Any] from "std/type.bpl";
+
+        struct Point {
+          x: int,
+          y: int,
+        }
+
+        frame extract(arg: Any) ret int {
+          if (arg is *Point) {
+            return cast<int>(arg.data);
+          }
+          return 0;
+        }
+      `),
+    ).not.toThrow();
   });
 
   it("generates a cast when loading an is-narrowed pointer identifier", () => {

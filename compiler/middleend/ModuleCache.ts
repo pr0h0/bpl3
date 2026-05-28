@@ -134,9 +134,14 @@ export class ModuleCache {
     llvmIR: string,
     verbose: boolean = false,
     target?: string,
+    optimizationLevel?: number,
   ): string {
-    // Include target in hash to ensure different targets get different cache entries
-    const contentToHash = target ? `${content}|${target}` : content;
+    // Include codegen-affecting options so incompatible object files do not collide.
+    const contentToHash = [
+      content,
+      `target=${target ?? ""}`,
+      `opt=${optimizationLevel ?? 0}`,
+    ].join("|");
     const hash = this.calculateHash(contentToHash);
     const objectFileName = `${hash}.o`;
     const objectFilePath = path.join(this.cacheDir, objectFileName);
@@ -165,6 +170,9 @@ export class ModuleCache {
     const clangArgs = ["-c", "-Wno-override-module"];
     if (target) {
       clangArgs.push("-target", target);
+    }
+    if (optimizationLevel !== undefined) {
+      clangArgs.push(`-O${optimizationLevel}`);
     }
     clangArgs.push(llFilePath, "-o", objectFilePath);
 

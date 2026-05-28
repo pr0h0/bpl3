@@ -60,6 +60,7 @@ tests/ir.ll
 /tmp
 
 **/views/**/*.bpl
+!examples/web_server_demo/views/home.bpl
 
 # Runtime build artifacts
 lib/*.o

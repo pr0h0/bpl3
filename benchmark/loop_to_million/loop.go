@@ -4,12 +4,11 @@ import "fmt"
 
 func main() {
 	sum := 0
-	// Loop 100 million times
-	for i := 0; i < 100000000; i++ {
-		sum++
+	iterations := 20000000
+
+	for i := 0; i < iterations; i++ {
+		sum = ((sum * 3) + i) % 1000003
 	}
-	// Prevent optimization
-	if sum == 0 {
-		fmt.Println("Zero")
-	}
+
+	fmt.Printf("Loop sum: %d\n", sum)
 }

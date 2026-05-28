@@ -1,6 +1,6 @@
 extern printf(fmt: string, ...);
 
-frame fib(n: int) ret int {
+frame fib(n: i64) ret i64 {
     if (n < 2) {
         return n;
     }
@@ -8,8 +8,8 @@ frame fib(n: int) ret int {
 }
 
 frame main() ret int {
-    local n: int = 40;
-    local result: int = fib(n);
-    printf("Fib(%d) = %d\n", n, result);
+    local n: i64 = 40;
+    local result: i64 = fib(n);
+    printf("Fib(%ld) = %ld\n", n, result);
     return 0;
 }

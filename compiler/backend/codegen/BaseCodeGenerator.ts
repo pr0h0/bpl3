@@ -104,6 +104,7 @@ export class BaseCodeGenerator {
   protected generateDwarf: boolean = false;
   protected skipRuntime: boolean = false;
   protected optimizationLevel: number = 0;
+  protected debugIrPath: string | false = false;
   protected debugInfoGenerator: DebugInfoGenerator;
 
   constructor(
@@ -114,6 +115,7 @@ export class BaseCodeGenerator {
       dwarf?: boolean;
       skipRuntime?: boolean;
       optimizationLevel?: number;
+      debugIrPath?: string | false;
     } = {},
   ) {
     this.stdLibPath = options.stdLibPath;
@@ -122,10 +124,32 @@ export class BaseCodeGenerator {
     this.generateDwarf = options.dwarf || false;
     this.skipRuntime = options.skipRuntime || false;
     this.optimizationLevel = options.optimizationLevel || 0;
+    this.debugIrPath =
+      options.debugIrPath !== undefined
+        ? options.debugIrPath
+        : this.getDebugIrPathFromEnv();
+    this.functionAttributeGroups = new FunctionAttributeGroups({
+      preserveFramePointer: this.shouldPreserveFramePointers(),
+    });
     this.debugInfoGenerator = new DebugInfoGenerator("unknown.bpl", ".");
 
     // Register built-in struct layouts
     this.registerBuiltinLayouts();
+  }
+
+  private getDebugIrPathFromEnv(): string | false {
+    const value = process.env.BPL_DEBUG_IR;
+    if (!value || value === "0" || value.toLowerCase() === "false") {
+      return false;
+    }
+    if (value === "1" || value.toLowerCase() === "true") {
+      return "ir.ll";
+    }
+    return value;
+  }
+
+  protected shouldPreserveFramePointers(): boolean {
+    return this.generateDwarf || this.optimizationLevel < 2;
   }
 
   protected registerBuiltinLayouts() {
@@ -204,7 +228,9 @@ export class BaseCodeGenerator {
     this.functionAttributeGroups.reset();
   }
 
-  protected getFunctionAttributeGroupId(decl: AST.FunctionDecl): number {
+  protected getFunctionAttributeGroupId(
+    decl: AST.FunctionDecl,
+  ): number | undefined {
     return this.functionAttributeGroups.getFunctionGroupId(decl);
   }
 

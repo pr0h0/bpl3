@@ -30,13 +30,13 @@ frame calculate(width: int, height: int) ret int {
 
 frame testInlayHints() {
     # Type hints: should show `: int` after x
-    local x: int = 42;
+    local x = 42;
 
     # Type hints: should show `: string` after name
-    local name: string = "test";
+    local name = "test";
 
     # Type hints: should show `: bool` after flag
-    local flag: bool = true;
+    local flag = true;
 
     # Parameter hints: should show width: and height: before args
     local area: int = calculate(10, 20);

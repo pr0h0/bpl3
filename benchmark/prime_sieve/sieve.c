@@ -1,21 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 int main() {
     int limit = 10000000;
     int size = limit + 1;
-    bool* is_prime = (bool*)malloc(size * sizeof(bool));
+    unsigned char* is_prime = (unsigned char*)malloc(size);
     
-    for (int i = 0; i < size; i++) is_prime[i] = true;
+    for (int i = 0; i < size; i++) is_prime[i] = 1;
     
-    is_prime[0] = false;
-    is_prime[1] = false;
+    is_prime[0] = 0;
+    is_prime[1] = 0;
     
     for (int p = 2; p * p <= limit; p++) {
         if (is_prime[p]) {
             for (int j = p * p; j <= limit; j += p)
-                is_prime[j] = false;
+                is_prime[j] = 0;
         }
     }
     

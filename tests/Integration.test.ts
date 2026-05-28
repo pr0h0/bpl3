@@ -1,10 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import {
+  createLimiter,
+  getIntegrationJobs,
+  runProcess,
+} from "./helpers/integrationRunner";
 
 const EXAMPLES_DIR = path.join(process.cwd(), "examples");
-const CMP_SCRIPT = path.join(process.cwd(), "cmp.sh");
+const BPL_CLI = path.join(process.cwd(), "index.ts");
+const DEFAULT_EXAMPLE_TIMEOUT_MS = 30_000;
+const INTEGRATION_TEST_TIMEOUT_MS = 30 * 60 * 1000;
+const runLimited = createLimiter(getIntegrationJobs());
 
 // Helper to find example directories
 function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
@@ -72,51 +79,64 @@ describe("Integration Tests", () => {
         config.args.push("--dwarf");
       }
 
-      it(`should run example: ${example}`, () => {
-        // Prepare command
-        // We use cmp.sh which runs bun index.ts then lli
-        const result = spawnSync(
-          CMP_SCRIPT,
-          [relativeMainFile, ...(config.args || [])],
-          {
-            env: {
-              ...process.env,
-              BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
-              ...(config.env || {}),
-            },
-            input: config.input || "",
-            encoding: "utf-8",
-          },
-        );
+      it.concurrent(
+        `should run example: ${example}`,
+        async () => {
+          const timeout = Math.max(
+            config.timeout || DEFAULT_EXAMPLE_TIMEOUT_MS,
+            DEFAULT_EXAMPLE_TIMEOUT_MS,
+          );
 
-        if (result.error) {
-          throw new Error(`Failed to run cmp.sh: ${result.error.message}`);
-        }
+          // Prepare command
+          // Use the same CLI path as cmp.sh, but run it asynchronously so examples can overlap.
+          const result = await runLimited(() =>
+            runProcess(
+              process.execPath,
+              [BPL_CLI, "run", relativeMainFile, ...(config.args || [])],
+              {
+                env: {
+                  ...process.env,
+                  BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
+                  ...(config.env || {}),
+                },
+                input: config.input || "",
+                timeout,
+              },
+            ),
+          );
 
-        // Check exit code
-        // cmp.sh returns the exit code of the program
-        // But if compilation fails, it returns 1.
-        // We assume the example should compile and run successfully (exit code 0) unless specified otherwise in config
-        const exitCode = config.exitCode !== undefined ? config.exitCode : 0;
-        expect(result.status).toBe(exitCode);
-
-        // Check output
-        // cmp.sh appends "Program exited with code X"
-        // We should filter that out or check if output contains expected output.
-        // The user's hello world prints "Hello, World!\n"
-        // cmp.sh prints "Program exited with code 0\n"
-
-        const output = result.stdout + result.stderr;
-        if (config.expectedOutput) {
-          if (Array.isArray(config.expectedOutput)) {
-            config.expectedOutput.forEach((expectedLine: string) => {
-              expect(output).toContain(expectedLine);
-            });
-          } else if (typeof config.expectedOutput === "string") {
-            expect(output).toContain(config.expectedOutput);
+          const output = result.stdout + result.stderr;
+          if (result.timedOut) {
+            throw new Error(
+              `Example "${example}" timed out after ${timeout}ms\n${output}`,
+            );
           }
-        }
-      }, config.timeout);
+
+          // Check exit code
+          // cmp.sh returns the exit code of the program
+          // But if compilation fails, it returns 1.
+          // We assume the example should compile and run successfully (exit code 0) unless specified otherwise in config
+          const exitCode = config.exitCode !== undefined ? config.exitCode : 0;
+          expect(result.status).toBe(exitCode);
+
+          // Check output
+          // cmp.sh appends "Program exited with code X"
+          // We should filter that out or check if output contains expected output.
+          // The user's hello world prints "Hello, World!\n"
+          // cmp.sh prints "Program exited with code 0\n"
+
+          if (config.expectedOutput) {
+            if (Array.isArray(config.expectedOutput)) {
+              config.expectedOutput.forEach((expectedLine: string) => {
+                expect(output).toContain(expectedLine);
+              });
+            } else if (typeof config.expectedOutput === "string") {
+              expect(output).toContain(config.expectedOutput);
+            }
+          }
+        },
+        INTEGRATION_TEST_TIMEOUT_MS,
+      );
     }
   }
 });

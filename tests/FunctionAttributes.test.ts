@@ -179,4 +179,50 @@ describe("Function Attributes", () => {
     expect(ir).toContain("nounwind");
     expect(ir).toContain('"frame-pointer"="all"');
   });
+
+  it("omits frame pointers and marks local definitions for optimized non-debug builds", () => {
+    const ir = compileToLLVM(
+      `
+        frame add_one(value: int) ret int {
+          return value + 1;
+        }
+      `,
+      "optimized_attributes_test.bpl",
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toMatch(/define dso_local i32 @add_one_[^(]+\(i32 %value\)(?: #\d+)? align 64 \{/);
+    expect(ir).not.toContain('"frame-pointer"="all"');
+  });
+
+  it("aligns optimized function definitions for stable hot-loop layout", () => {
+    const ir = compileToLLVM(
+      `
+        frame fib(n: i64) ret i64 {
+          if (n < 2) {
+            return n;
+          }
+          return fib(n - 1) + fib(n - 2);
+        }
+      `,
+      "optimized_alignment_test.bpl",
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toMatch(/define dso_local i64 @fib_i64\(i64 %n\) align 64 \{/);
+  });
+
+  it("keeps frame pointers for optimized DWARF builds", () => {
+    const ir = compileToLLVM(
+      `
+        frame add_one(value: int) ret int {
+          return value + 1;
+        }
+      `,
+      "debug_optimized_attributes_test.bpl",
+      { optimizationLevel: 3, dwarf: true },
+    );
+
+    expect(ir).toContain('"frame-pointer"="all"');
+  });
 });

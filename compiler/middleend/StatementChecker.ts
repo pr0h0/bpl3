@@ -113,6 +113,10 @@ function isObjectNarrowingTarget(type: AST.TypeNode): boolean {
   );
 }
 
+function isAnyRuntimeContainer(type: AST.TypeNode): boolean {
+  return type.kind === "BasicType" && type.name === "Any";
+}
+
 function getNarrowingForIdentifier(
   context: CheckerContext,
   identifier: AST.IdentifierExpr,
@@ -124,6 +128,10 @@ function getNarrowingForIdentifier(
   const originalType = context.resolveType(original.type);
   const resolvedTarget = context.resolveType(targetType);
   let narrowedType = resolvedTarget;
+
+  if (isAnyRuntimeContainer(originalType)) {
+    return undefined;
+  }
 
   if (!isObjectNarrowingTarget(resolvedTarget)) {
     return undefined;

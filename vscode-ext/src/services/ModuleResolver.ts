@@ -4,6 +4,7 @@
  * - Local files (./file.bpl, ../file.bpl)
  * - Standard library (std/*)
  * - Local packages (bpl_modules/)
+ * - Workspace packages (packages/)
  * - Global packages (~/.bpl/packages/)
  */
 
@@ -80,9 +81,12 @@ export class ModuleResolver {
     }
 
     // 4. Package imports (no prefix)
-    // Try local packages first, then global packages
+    // Try local packages first, then workspace packages, then global packages
     const localPkg = this.resolveLocalPackage(importPath, currentDir);
     if (localPkg) return localPkg;
+
+    const workspacePkg = this.resolveWorkspacePackage(importPath, currentDir);
+    if (workspacePkg) return workspacePkg;
 
     const globalPkg = this.resolveGlobalPackage(importPath);
     if (globalPkg) return globalPkg;
@@ -204,6 +208,43 @@ export class ModuleResolver {
   }
 
   /**
+   * Resolve import from a workspace package (packages/)
+   */
+  private resolveWorkspacePackage(
+    importPath: string,
+    currentDir: string,
+  ): ResolvedModule | null {
+    const parts = importPath.split(/[\/\\]/);
+    const packageName = parts[0];
+    if (!packageName) return null;
+
+    const subPath = parts.slice(1).join(path.sep);
+
+    let dir = currentDir;
+    const maxDepth = 10;
+
+    for (let i = 0; i < maxDepth; i++) {
+      const packageDir = path.join(dir, "packages", packageName);
+      if (fs.existsSync(packageDir) && fs.statSync(packageDir).isDirectory()) {
+        const resolved = this.resolveWithinPackage(
+          packageDir,
+          subPath,
+          packageName,
+        );
+        if (resolved) {
+          return { ...resolved, source: "local-package" };
+        }
+      }
+
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+
+    return null;
+  }
+
+  /**
    * Resolve import from global package (~/.bpl/packages/)
    */
   private resolveGlobalPackage(importPath: string): ResolvedModule | null {
@@ -267,8 +308,8 @@ export class ModuleResolver {
     if (fs.existsSync(manifestPath)) {
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-        if (manifest.main) {
-          mainEntry = manifest.main;
+        if (manifest.main || manifest.entry) {
+          mainEntry = manifest.main || manifest.entry;
         }
       } catch {
         // Ignore manifest parse errors

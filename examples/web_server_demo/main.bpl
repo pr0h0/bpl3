@@ -5,6 +5,7 @@ import [String] from "std/string.bpl";
 import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [IO] from "std/io.bpl";
+import [Env] from "std/env.bpl";
 
 extern strcmp(s1: string, s2: string) ret int;
 extern printf(fmt: string, ...) ret int;
@@ -113,5 +114,9 @@ frame main() {
 
     # Log requests
     printf("Starting BPL Web Server on port 8080...\n");
+    if (Env.has("BPL_WEB_SERVER_DEMO_SMOKE")) {
+        printf("Web server demo smoke test configured\n");
+        return;
+    }
     app.listen(8080);
 }

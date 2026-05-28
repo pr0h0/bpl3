@@ -6,6 +6,7 @@ import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 export function compileToLLVM(
   source: string,
   fileName = "golden_shape_test.bpl",
+  codegenOptions: ConstructorParameters<typeof CodeGenerator>[0] = {},
 ): string {
   const tokens = lexWithGrammar(source, fileName);
   const parser = new Parser(source, fileName, tokens);
@@ -19,7 +20,7 @@ export function compileToLLVM(
     throw new Error(errors.map((error) => error.message).join("\n"));
   }
 
-  const generator = new CodeGenerator();
+  const generator = new CodeGenerator(codegenOptions);
   return generator.generate(program, fileName);
 }
 

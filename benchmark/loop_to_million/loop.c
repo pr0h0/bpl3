@@ -1,13 +1,13 @@
 #include <stdio.h>
 
 int main() {
-    long long i = 0;
-    long long sum = 0;
-    // Loop 100 million times
-    for (i = 0; i < 100000000; i++) {
-        sum++;
+    int sum = 0;
+    int iterations = 20000000;
+
+    for (int i = 0; i < iterations; i++) {
+        sum = ((sum * 3) + i) % 1000003;
     }
-    // Prevent optimization
-    if (sum == 0) printf("Zero\n");
+
+    printf("Loop sum: %d\n", sum);
     return 0;
 }

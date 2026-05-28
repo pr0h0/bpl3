@@ -1,14 +1,11 @@
 def main():
     sum = 0
-    # Loop 100 million times
-    for i in range(100000000):
-        sum += 1
+    iterations = 20000000
 
-    # Prevent optimization
-    if sum == 0:
-        print("Sum is zero")
+    for i in range(iterations):
+        sum = ((sum * 3) + i) % 1000003
 
-    return sum
+    print(f"Loop sum: {sum}")
 
 
 if __name__ == "__main__":

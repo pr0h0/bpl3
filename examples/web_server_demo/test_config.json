@@ -1,7 +1,11 @@
 {
-  "skip_compilation": true,
-  "expectedOutput": [],
+  "expectedOutput": [
+    "Starting BPL Web Server on port 8080...",
+    "Web server demo smoke test configured"
+  ],
   "args": [],
-  "env": {},
+  "env": {
+    "BPL_WEB_SERVER_DEMO_SMOKE": "1"
+  },
   "input": ""
 }

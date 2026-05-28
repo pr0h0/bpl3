@@ -58,6 +58,7 @@ export class ASTCompletionHandler {
       );
 
       if (memberMatch && memberMatch[1]) {
+        this.symbolIndex.getImportedSymbolsFromContent(filePath, content);
         const objectPath = memberMatch[1];
         const partialMember = memberMatch[2] || "";
         console.log(

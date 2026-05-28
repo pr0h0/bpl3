@@ -148,8 +148,7 @@ describe("BPL High Priority Features Tests", () => {
   });
 
   describe("Inlay Hints Tests", () => {
-    // We dont support type inferrence anymore on variable declarations
-    it.skip("shows type hints for inferred integer variables", () => {
+    it("shows type hints for inferred integer variables", () => {
       const params: InlayHintParams = {
         textDocument: { uri: testDocument.uri },
         range: {
@@ -166,8 +165,7 @@ describe("BPL High Priority Features Tests", () => {
       expect(xHint).toBeDefined();
     });
 
-    // We dont support type inferrence anymore on variable declarations
-    it.skip("shows type hints for string variables", () => {
+    it("shows type hints for string variables", () => {
       const params: InlayHintParams = {
         textDocument: { uri: testDocument.uri },
         range: {
@@ -183,8 +181,7 @@ describe("BPL High Priority Features Tests", () => {
       expect(stringHint).toBeDefined();
     });
 
-    // We dont support type inferrence anymore on variable declarations
-    it.skip("shows type hints for boolean variables", () => {
+    it("shows type hints for boolean variables", () => {
       const params: InlayHintParams = {
         textDocument: { uri: testDocument.uri },
         range: {

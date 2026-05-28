@@ -1781,9 +1781,9 @@ export abstract class StatementGenerator extends AsmGenerator {
         return;
       }
 
-      let linkage = "";
+      const linkageParts: string[] = [];
       if (name.startsWith("Type_")) {
-        linkage = "linkonce_odr ";
+        linkageParts.push("linkonce_odr");
       } else if (
         this.useLinkOnceOdrForStdLib &&
         this.stdLibPath &&
@@ -1791,15 +1791,22 @@ export abstract class StatementGenerator extends AsmGenerator {
         decl.location.file &&
         decl.location.file.startsWith(this.stdLibPath)
       ) {
-        linkage = "linkonce_odr ";
+        linkageParts.push("linkonce_odr");
       }
+      if (this.optimizationLevel >= 2) {
+        linkageParts.push("dso_local");
+      }
+      const linkage =
+        linkageParts.length > 0 ? `${linkageParts.join(" ")} ` : "";
       let dbgSuffix = "";
       if (this.generateDwarf && this.currentSubprogramId !== -1) {
         dbgSuffix = ` !dbg !${this.currentSubprogramId}`;
       }
       const attrGroupId = this.getFunctionAttributeGroupId(decl);
+      const attrSuffix = attrGroupId === undefined ? "" : ` #${attrGroupId}`;
+      const alignSuffix = this.optimizationLevel >= 3 ? " align 64" : "";
       this.emit(
-        `define ${linkage}${retType} @${name}(${params}) #${attrGroupId}${dbgSuffix} {`,
+        `define ${linkage}${retType} @${name}(${params})${attrSuffix}${alignSuffix}${dbgSuffix} {`,
       );
       this.emit("entry:");
 

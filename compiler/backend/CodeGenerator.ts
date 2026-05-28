@@ -40,6 +40,7 @@ export class CodeGenerator extends StatementGenerator {
       target?: string;
       dwarf?: boolean;
       optimizationLevel?: number;
+      debugIrPath?: string | false;
     } = {},
   ) {
     super(options);
@@ -341,12 +342,15 @@ export class CodeGenerator extends StatementGenerator {
       this.output.join("\n") +
       `\n${this.getLlvmAttributeGroupOutput()}\n`;
 
-    // Write debug IR file (non-critical, failures are logged but ignored)
-    try {
-      const fs = require("fs");
-      fs.writeFileSync("ir.ll", result);
-    } catch (e) {
-      codeGenLog.debug("Failed to write debug IR file:", { error: String(e) });
+    if (this.debugIrPath) {
+      try {
+        const fs = require("fs");
+        fs.writeFileSync(this.debugIrPath, result);
+      } catch (e) {
+        codeGenLog.debug("Failed to write debug IR file:", {
+          error: String(e),
+        });
+      }
     }
 
     return result;

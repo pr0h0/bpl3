@@ -753,84 +753,93 @@ export class SymbolIndex {
   ): SymbolInfo[] {
     const importedSymbols: SymbolInfo[] = [];
     const _seenFiles = new Set<string>();
+    let importStatements: Array<{
+      source: string;
+      items?: Array<{ name: string }>;
+    }> = [];
 
     try {
       const parser = new Parser(content, filePath);
       const program = parser.parse();
 
+      importStatements = program.statements.filter(
+        (stmt): stmt is AST.ImportStmt => stmt.kind === "Import",
+      );
+    } catch {
+      importStatements = this.extractImportsFromContent(content);
+    }
+
+    try {
       console.log(
         `[SymbolIndex] Getting imported symbols from content for ${filePath}`,
       );
 
-      for (const stmt of program.statements) {
-        if (stmt.kind === "Import") {
-          const importStmt = stmt as AST.ImportStmt;
+      for (const importStmt of importStatements) {
+        console.log(
+          `[SymbolIndex] Found import: ${importStmt.source}, items: ${importStmt.items?.length || 0}`,
+        );
+
+        const resolved = this.resolver.resolve(importStmt.source, filePath);
+
+        if (resolved) {
+          console.log(`[SymbolIndex] Resolved to: ${resolved.filePath}`);
+
+          // Index the imported file if not already indexed
+          this.indexFile(resolved.filePath, true);
+
+          // Get symbols from the imported file
+          const importedFileSymbols = this.getFileSymbols(resolved.filePath);
           console.log(
-            `[SymbolIndex] Found import: ${importStmt.source}, items: ${importStmt.items?.length || 0}`,
+            `[SymbolIndex] Found ${importedFileSymbols.length} symbols in imported file`,
           );
 
-          const resolved = this.resolver.resolve(importStmt.source, filePath);
-
-          if (resolved) {
-            console.log(`[SymbolIndex] Resolved to: ${resolved.filePath}`);
-
-            // Index the imported file if not already indexed
-            this.indexFile(resolved.filePath, true);
-
-            // Get symbols from the imported file
-            const importedFileSymbols = this.getFileSymbols(resolved.filePath);
+          // Filter based on what was imported
+          if (importStmt.items && importStmt.items.length > 0) {
+            // Specific imports: import [Foo, bar] from "module" OR import foo, bar from "module"
+            const importedNames = new Set(
+              importStmt.items.map((item) => item.name),
+            );
             console.log(
-              `[SymbolIndex] Found ${importedFileSymbols.length} symbols in imported file`,
+              `[SymbolIndex] Importing specific items: ${Array.from(importedNames).join(", ")}`,
             );
 
-            // Filter based on what was imported
-            if (importStmt.items && importStmt.items.length > 0) {
-              // Specific imports: import [Foo, bar] from "module" OR import foo, bar from "module"
-              const importedNames = new Set(
-                importStmt.items.map((item) => item.name),
-              );
+            // First try to find from the file itself
+            const filtered = importedFileSymbols.filter((sym) =>
+              importedNames.has(sym.name),
+            );
+            console.log(
+              `[SymbolIndex] Matched ${filtered.length} symbols from file`,
+            );
+
+            // If not found in file, search globally by name (for re-exports)
+            const notFound = Array.from(importedNames).filter(
+              (name) => !filtered.some((s) => s.name === name),
+            );
+
+            if (notFound.length > 0) {
               console.log(
-                `[SymbolIndex] Importing specific items: ${Array.from(importedNames).join(", ")}`,
+                `[SymbolIndex] Searching globally for: ${notFound.join(", ")}`,
               );
-
-              // First try to find from the file itself
-              const filtered = importedFileSymbols.filter((sym) =>
-                importedNames.has(sym.name),
-              );
-              console.log(
-                `[SymbolIndex] Matched ${filtered.length} symbols from file`,
-              );
-
-              // If not found in file, search globally by name (for re-exports)
-              const notFound = Array.from(importedNames).filter(
-                (name) => !filtered.some((s) => s.name === name),
-              );
-
-              if (notFound.length > 0) {
+              for (const name of notFound) {
+                const globalSymbols = this.symbols.get(name) || [];
+                // Add all symbols with this name (could be from different files)
+                filtered.push(...globalSymbols);
                 console.log(
-                  `[SymbolIndex] Searching globally for: ${notFound.join(", ")}`,
+                  `[SymbolIndex] Found ${globalSymbols.length} global symbols for "${name}"`,
                 );
-                for (const name of notFound) {
-                  const globalSymbols = this.symbols.get(name) || [];
-                  // Add all symbols with this name (could be from different files)
-                  filtered.push(...globalSymbols);
-                  console.log(
-                    `[SymbolIndex] Found ${globalSymbols.length} global symbols for "${name}"`,
-                  );
-                }
               }
-
-              importedSymbols.push(...filtered);
-            } else {
-              // Import all: import * from "module"
-              console.log(`[SymbolIndex] Import all (*)`);
-              importedSymbols.push(...importedFileSymbols);
             }
+
+            importedSymbols.push(...filtered);
           } else {
-            console.warn(
-              `[SymbolIndex] Failed to resolve import: ${importStmt.source}`,
-            );
+            // Import all: import * from "module"
+            console.log(`[SymbolIndex] Import all (*)`);
+            importedSymbols.push(...importedFileSymbols);
           }
+        } else {
+          console.warn(
+            `[SymbolIndex] Failed to resolve import: ${importStmt.source}`,
+          );
         }
       }
 
@@ -842,6 +851,42 @@ export class SymbolIndex {
     }
 
     return importedSymbols;
+  }
+
+  private extractImportsFromContent(
+    content: string,
+  ): Array<{ source: string; items?: Array<{ name: string }> }> {
+    const imports: Array<{ source: string; items?: Array<{ name: string }> }> =
+      [];
+    const importRegex = /\bimport\s+([\s\S]*?)\s+from\s+["']([^"']+)["']\s*;/g;
+
+    let match: RegExpExecArray | null;
+    while ((match = importRegex.exec(content)) !== null) {
+      const importList = match[1]?.trim() || "";
+      const source = match[2];
+      if (!source) continue;
+
+      if (importList === "*") {
+        imports.push({ source });
+        continue;
+      }
+
+      const names = importList
+        .replace(/[\[\]]/g, "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => item.split(/\s+as\s+|\s+/)[0])
+        .filter((name): name is string => Boolean(name))
+        .map((name) => ({ name }));
+
+      imports.push({
+        source,
+        items: names.length > 0 ? names : undefined,
+      });
+    }
+
+    return imports;
   }
 
   /**

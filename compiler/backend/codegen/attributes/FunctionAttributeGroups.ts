@@ -15,18 +15,32 @@ const LLVM_FUNCTION_ATTRIBUTE_MAP = new Map([
   ["minsize", "minsize"],
 ]);
 
+interface FunctionAttributeGroupOptions {
+  preserveFramePointer?: boolean;
+}
+
 export class FunctionAttributeGroups {
   private groupIds: Map<string, number> = new Map();
   private groups: Map<number, string[]> = new Map();
+  private preserveFramePointer: boolean;
+
+  constructor(options: FunctionAttributeGroupOptions = {}) {
+    this.preserveFramePointer = options.preserveFramePointer ?? true;
+  }
 
   reset(): void {
     this.groupIds.clear();
     this.groups.clear();
-    this.register([FRAME_POINTER_ATTRIBUTE]);
+    const defaults = this.getDefaultAttributes();
+    if (defaults.length > 0) {
+      this.register(defaults);
+    }
   }
 
-  getFunctionGroupId(decl: AST.FunctionDecl): number {
-    return this.register(this.getLlvmFunctionAttributes(decl));
+  getFunctionGroupId(decl: AST.FunctionDecl): number | undefined {
+    const attrs = this.getLlvmFunctionAttributes(decl);
+    if (attrs.length === 0) return undefined;
+    return this.register(attrs);
   }
 
   render(): string {
@@ -56,6 +70,10 @@ export class FunctionAttributeGroups {
       ),
     ).sort();
 
-    return [...attrs, FRAME_POINTER_ATTRIBUTE];
+    return [...attrs, ...this.getDefaultAttributes()];
+  }
+
+  private getDefaultAttributes(): string[] {
+    return this.preserveFramePointer ? [FRAME_POINTER_ATTRIBUTE] : [];
   }
 }

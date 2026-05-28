@@ -5,11 +5,11 @@ extern free(ptr: *void);
 frame main() ret int {
     local size: int = 300;
     local total_elements: int = size * size;
-    local bytes: int = total_elements * 8; # 8 bytes per int (64-bit)
+    local bytes: int = total_elements * 8; # 8 bytes per i64
 
-    local a: *int = cast<*int>(malloc(bytes));
-    local b: *int = cast<*int>(malloc(bytes));
-    local c: *int = cast<*int>(malloc(bytes));
+    local a: *i64 = cast<*i64>(malloc(bytes));
+    local b: *i64 = cast<*i64>(malloc(bytes));
+    local c: *i64 = cast<*i64>(malloc(bytes));
 
     # Initialize matrices
     local i: int = 0;
@@ -17,8 +17,8 @@ frame main() ret int {
         local j: int = 0;
         loop (j < size) {
             local idx: int = (i * size) + j;
-            *(a + idx) = i + j;
-            *(b + idx) = i - j;
+            *(a + idx) = cast<i64>(i + j);
+            *(b + idx) = cast<i64>(i - j);
             j = j + 1;
         }
         i = i + 1;
@@ -29,7 +29,7 @@ frame main() ret int {
     loop (i < size) {
         local j: int = 0;
         loop (j < size) {
-            local sum: int = 0;
+            local sum: i64 = 0;
             local k: int = 0;
             loop (k < size) {
                 # sum += a[i][k] * b[k][j];
@@ -43,7 +43,7 @@ frame main() ret int {
     }
 
     # Verify (sum of all elements in C)
-    local result_sum: int = 0;
+    local result_sum: i64 = 0;
     i = 0;
     loop (i < total_elements) {
         result_sum = result_sum + *(c + i);

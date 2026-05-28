@@ -4,13 +4,16 @@ import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 
-function generate(source: string) {
+function generate(
+  source: string,
+  options: ConstructorParameters<typeof CodeGenerator>[0] = {},
+) {
   const tokens = lexWithGrammar(source, "test.bpl");
   const parser = new Parser(source, "test.bpl", tokens);
   const program = parser.parse();
   const typeChecker = new TypeChecker();
   typeChecker.checkProgram(program);
-  const codeGenerator = new CodeGenerator();
+  const codeGenerator = new CodeGenerator(options);
   return codeGenerator.generate(program);
 }
 
@@ -29,5 +32,18 @@ describe("CodeGen - Bounds Check", () => {
     expect(ir).toContain("br i1"); // Branch
     // New codegen uses a runtime function call instead of inline error construction
     expect(ir).toContain("call void @__bpl_throw_index_out_of_bounds");
+  });
+
+  it("should omit bounds checks for optimized builds", () => {
+    const source = `
+      frame main() {
+        local arr: i32[10];
+        local x: i32 = arr[5];
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).not.toContain("call void @__bpl_throw_index_out_of_bounds");
+    expect(ir).not.toContain("bounds.throw");
   });
 });
