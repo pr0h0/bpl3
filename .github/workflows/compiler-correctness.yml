@@ -27,7 +27,7 @@ jobs:
       - name: Install LLVM toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm
+          sudo apt-get install -y clang llvm libclang-rt-dev
 
       - name: Install dependencies
         run: |
@@ -44,3 +44,6 @@ jobs:
 
       - name: Run compiler correctness tests
         run: bun run test:correctness
+
+      - name: Run sanitizer-backed runtime tests
+        run: bun run test:sanitizers

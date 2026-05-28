@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { spawnSync } from "child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
@@ -109,13 +118,30 @@ const TYPES = [
 ];
 
 export type FuzzStage = "lexer" | "parser" | "typecheck" | "codegen";
-export type FuzzInputKind = "structured" | "mutated" | "tokens";
+export type FuzzInputKind =
+  | "structured"
+  | "mutated"
+  | "tokens"
+  | "differential";
+export type FuzzFailureKind = "crash" | "mismatch";
+
+export interface DifferentialCommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export interface DifferentialMismatch {
+  o0: DifferentialCommandResult;
+  o3: DifferentialCommandResult;
+}
 
 export interface PipelineOutcome {
   ok: boolean;
   stage: FuzzStage;
   expectedError?: boolean;
   crash?: unknown;
+  mismatch?: DifferentialMismatch;
   message?: string;
 }
 
@@ -154,6 +180,7 @@ export interface FuzzSeedSummary {
   validPrograms: number;
   expectedErrors: number;
   crashes: number;
+  mismatches: number;
 }
 
 export interface CrashArtifact {
@@ -161,20 +188,27 @@ export interface CrashArtifact {
   metadataPath: string;
 }
 
+export interface FuzzFailureArtifact extends CrashArtifact {
+  failureKind: FuzzFailureKind;
+}
+
 export interface FuzzCampaignSummary {
   totalIterations: number;
   validPrograms: number;
   expectedErrors: number;
   crashes: number;
+  mismatches: number;
   stageCounts: Record<FuzzStage, number>;
   seedSummaries: FuzzSeedSummary[];
   crashArtifacts: CrashArtifact[];
+  failureArtifacts: FuzzFailureArtifact[];
 }
 
 export interface FuzzCampaignOptions {
   seeds: number[];
   iterationsPerSeed: number;
   crashDir?: string;
+  enableDifferential?: boolean;
   progressInterval?: number;
   logProgress?: (message: string) => void;
   runner?: FuzzRunner;
@@ -186,6 +220,7 @@ export interface FuzzCrashReplayOptions {
   metadataPath?: string;
   expectedStage?: FuzzStage;
   expectedMessageIncludes?: string;
+  expectedFailureKind?: FuzzFailureKind;
   runner?: FuzzRunner;
 }
 
@@ -195,9 +230,12 @@ export interface FuzzCrashReplayResult {
   source: string;
   outcome: PipelineOutcome;
   crashed: boolean;
+  failed: boolean;
+  failureKind: FuzzFailureKind | undefined;
   signatureMatches: boolean;
   expectedStage?: FuzzStage;
   expectedMessageIncludes?: string;
+  expectedFailureKind?: FuzzFailureKind;
 }
 
 export interface FuzzCrashMinimizeOptions {
@@ -205,6 +243,7 @@ export interface FuzzCrashMinimizeOptions {
   filePath?: string;
   expectedStage?: FuzzStage;
   expectedMessageIncludes?: string;
+  expectedFailureKind?: FuzzFailureKind;
   runner?: FuzzRunner;
   maxPasses?: number;
 }
@@ -223,11 +262,15 @@ interface CrashMetadata {
   seed?: number;
   iteration?: number;
   kind?: FuzzInputKind;
+  failureKind?: FuzzFailureKind;
   filePath?: string;
   sourcePath?: string;
   stage?: FuzzStage;
   message?: string;
+  mismatch?: DifferentialMismatch;
 }
+
+const BPL_CLI = join(__dirname, "../index.ts");
 
 export function createSeededRandom(seed: number): () => number {
   let state = Math.trunc(seed) >>> 0;
@@ -535,6 +578,15 @@ const STRUCTURED_GENERATORS = [
   generateTupleSource,
 ];
 
+const DIFFERENTIAL_RUNTIME_GENERATORS = [
+  generateDifferentialArithmeticSource,
+  generateDifferentialStructArraySource,
+  generateDifferentialEnumMatchSource,
+  generateDifferentialRecursiveSource,
+  generateDifferentialLambdaSource,
+  generateDifferentialTupleSource,
+];
+
 export function generateStructuredValidSource(
   seed: number,
   index: number,
@@ -552,6 +604,173 @@ export function generateStructuredValidSources(
   return Array.from({ length: count }, (_, index) =>
     generateStructuredValidSource(seed, index),
   );
+}
+
+function generateDifferentialArithmeticSource(rng: () => number): string {
+  const limit = getRandomInt(rng, 4, 9);
+  const scale = getRandomInt(rng, 2, 8);
+  const offset = getRandomInt(rng, 1, 11);
+  const initial = getRandomInt(rng, 0, 20);
+
+  return `
+    extern printf(fmt: string, ...);
+
+    frame main() ret int {
+      local total: int = ${initial};
+      local i: int = 0;
+
+      loop (i < ${limit}) {
+        if ((i % 2) == 0) {
+          total = total + (i * ${scale}) + ${offset};
+        } else {
+          total = total - i - ${offset};
+        }
+
+        i = i + 1;
+      }
+
+      printf("diff arithmetic total=%d\\n", total);
+      return 0;
+    }
+  `;
+}
+
+function generateDifferentialStructArraySource(rng: () => number): string {
+  const left = getRandomInt(rng, 1, 9);
+  const right = getRandomInt(rng, 2, 12);
+  const values = Array.from({ length: 4 }, () => getRandomInt(rng, 1, 5));
+
+  return `
+    extern printf(fmt: string, ...);
+
+    struct Pair {
+      left: int,
+      right: int,
+    }
+
+    frame bump(pair: *Pair, value: int) ret void {
+      pair.left = pair.left + value;
+      pair.right = pair.right + (value * 2);
+    }
+
+    frame main() ret int {
+      local pair: Pair = Pair { left: ${left}, right: ${right} };
+      local values: int[4] = [${values.join(", ")}];
+      local i: int = 0;
+
+      loop (i < 4) {
+        bump(&pair, values[i]);
+        i = i + 1;
+      }
+
+      printf("diff pair left=%d right=%d\\n", pair.left, pair.right);
+      return 0;
+    }
+  `;
+}
+
+function generateDifferentialEnumMatchSource(rng: () => number): string {
+  const base = getRandomInt(rng, 1, 20);
+  const red = getRandomInt(rng, 1, 8);
+  const green = getRandomInt(rng, 9, 16);
+  const blue = getRandomInt(rng, 17, 24);
+  const variants = ["Red", "Green", "Blue"] as const;
+  const first = getRandomElement(rng, variants);
+  const second = getRandomElement(rng, variants);
+
+  return `
+    extern printf(fmt: string, ...);
+
+    enum Color { Red, Green, Blue }
+
+    frame score(color: Color, base: int) ret int {
+      return match (color) {
+        Color.Red => base + ${red},
+        Color.Green => base + ${green},
+        Color.Blue => base + ${blue},
+      };
+    }
+
+    frame main() ret int {
+      local total: int = score(Color.${first}, ${base}) + score(Color.${second}, ${base + 1});
+      printf("diff enum total=%d\\n", total);
+      return 0;
+    }
+  `;
+}
+
+function generateDifferentialRecursiveSource(rng: () => number): string {
+  const input = getRandomInt(rng, 4, 7);
+
+  return `
+    extern printf(fmt: string, ...);
+
+    frame recur(value: int, acc: int) ret int {
+      if (value <= 0) {
+        return acc;
+      }
+
+      if ((value % 2) == 0) {
+        return recur(value - 1, acc + (value * 2));
+      }
+
+      return recur(value - 1, acc + value + 1);
+    }
+
+    frame main() ret int {
+      local total: int = recur(${input}, 3);
+      printf("diff recursive total=%d\\n", total);
+      return 0;
+    }
+  `;
+}
+
+function generateDifferentialLambdaSource(rng: () => number): string {
+  const base = getRandomInt(rng, 1, 15);
+  const input = getRandomInt(rng, 1, 15);
+  const multiplier = getRandomInt(rng, 2, 5);
+
+  return `
+    extern printf(fmt: string, ...);
+
+    frame main() ret int {
+      local base: int = ${base};
+      local transform: Lambda<int>(int) = |value: int| ret int {
+        return (value * ${multiplier}) + base;
+      };
+      local total: int = transform(${input});
+      printf("diff lambda total=%d\\n", total);
+      return 0;
+    }
+  `;
+}
+
+function generateDifferentialTupleSource(rng: () => number): string {
+  const left = getRandomInt(rng, 1, 20);
+  const right = getRandomInt(rng, 1, 20);
+
+  return `
+    extern printf(fmt: string, ...);
+
+    frame main() ret int {
+      local pair: (int, int) = (${left}, ${right});
+      local total: int = pair.0 + pair.1;
+      printf("diff tuple total=%d\\n", total);
+      return 0;
+    }
+  `;
+}
+
+export function generateDifferentialRuntimeSource(
+  seed: number,
+  index: number,
+): string {
+  const rng = createSeededRandom(mixSeed(seed ^ 0xd1ff0, index));
+  const generator =
+    DIFFERENTIAL_RUNTIME_GENERATORS[
+      index % DIFFERENTIAL_RUNTIME_GENERATORS.length
+    ]!;
+  return generator(rng).trim();
 }
 
 const TOKEN_PATTERN =
@@ -624,17 +843,29 @@ export function generateMutatedStructuredSources(
   return mutatedSources;
 }
 
-export function generateFuzzInput(seed: number, iteration: number): FuzzInput {
-  const lane = iteration % 6;
+export interface GenerateFuzzInputOptions {
+  enableDifferential?: boolean;
+}
+
+export function generateFuzzInput(
+  seed: number,
+  iteration: number,
+  options: GenerateFuzzInputOptions = {},
+): FuzzInput {
+  const lane = iteration % (options.enableDifferential ? 8 : 6);
   const kind: FuzzInputKind =
-    lane === 0 || lane === 3
-      ? "structured"
-      : lane === 1 || lane === 4
-        ? "mutated"
-        : "tokens";
+    options.enableDifferential && (lane === 0 || lane === 4)
+      ? "differential"
+      : lane === 1 || lane === 5
+        ? "structured"
+        : lane === 2 || lane === 6
+          ? "mutated"
+          : "tokens";
   let source: string;
 
-  if (kind === "structured") {
+  if (kind === "differential") {
+    source = generateDifferentialRuntimeSource(seed, iteration);
+  } else if (kind === "structured") {
     source = generateStructuredValidSource(seed, iteration);
   } else if (kind === "mutated") {
     source = generateMutatedStructuredSource(seed, iteration);
@@ -654,20 +885,21 @@ export function generateFuzzInput(seed: number, iteration: number): FuzzInput {
 export function runFuzzCampaign(
   options: FuzzCampaignOptions,
 ): FuzzCampaignSummary {
-  const runner =
-    options.runner ??
-    ((source: string, filePath: string) =>
-      runCompilerPipeline(source, filePath, { skipImportResolution: true }));
+  const runner = options.runner ?? defaultFuzzRunner;
   const inputForIteration =
     options.inputForIteration ??
     ((context: FuzzIterationContext) =>
-      generateFuzzInput(context.seed, context.iteration));
+      generateFuzzInput(context.seed, context.iteration, {
+        enableDifferential: options.enableDifferential,
+      }));
   const stageCounts = createStageCounts();
   const seedSummaries: FuzzSeedSummary[] = [];
   const crashArtifacts: CrashArtifact[] = [];
+  const failureArtifacts: FuzzFailureArtifact[] = [];
   let validPrograms = 0;
   let expectedErrors = 0;
   let crashes = 0;
+  let mismatches = 0;
 
   for (const seed of options.seeds) {
     const seedSummary: FuzzSeedSummary = {
@@ -676,6 +908,7 @@ export function runFuzzCampaign(
       validPrograms: 0,
       expectedErrors: 0,
       crashes: 0,
+      mismatches: 0,
     };
 
     for (let iteration = 0; iteration < options.iterationsPerSeed; iteration++) {
@@ -700,14 +933,27 @@ export function runFuzzCampaign(
       } else if (outcome.expectedError === true) {
         expectedErrors++;
         seedSummary.expectedErrors++;
+      } else if (outcome.mismatch !== undefined) {
+        mismatches++;
+        seedSummary.mismatches++;
+
+        if (options.crashDir) {
+          failureArtifacts.push(
+            writeFailureArtifact(options.crashDir, input, outcome),
+          );
+        }
       } else {
         crashes++;
         seedSummary.crashes++;
 
         if (options.crashDir) {
-          crashArtifacts.push(
-            writeCrashArtifact(options.crashDir, input, outcome),
+          const artifact = writeFailureArtifact(
+            options.crashDir,
+            input,
+            outcome,
           );
+          failureArtifacts.push(artifact);
+          crashArtifacts.push(artifact);
         }
       }
     }
@@ -720,13 +966,15 @@ export function runFuzzCampaign(
     validPrograms,
     expectedErrors,
     crashes,
+    mismatches,
     stageCounts,
     seedSummaries,
     crashArtifacts,
+    failureArtifacts,
   };
 }
 
-export function replayFuzzCrashArtifact(
+export function replayFuzzFailureArtifact(
   options: FuzzCrashReplayOptions,
 ): FuzzCrashReplayResult {
   const metadata = options.metadataPath
@@ -735,42 +983,60 @@ export function replayFuzzCrashArtifact(
   const sourcePath = resolveCrashSourcePath(options, metadata);
 
   const source = readFileSync(sourcePath, "utf8");
-  const runner = options.runner ?? defaultPipelineRunner;
+  const runner = options.runner ?? defaultFuzzRunner;
   const input = inputFromCrashMetadata(source, sourcePath, metadata);
   const outcome = runner(source, metadata?.filePath ?? sourcePath, input);
   const expectedStage = options.expectedStage ?? metadata?.stage;
   const expectedMessageIncludes = options.expectedMessageIncludes;
+  const expectedFailureKind =
+    options.expectedFailureKind ?? metadata?.failureKind;
+  const failureKind = inferFailureKind(outcome);
 
   return {
     sourcePath,
     metadataPath: options.metadataPath,
     source,
     outcome,
-    crashed: isCrashOutcome(outcome),
-    signatureMatches: crashMatchesSignature(outcome, {
+    crashed: failureKind === "crash",
+    failed: isFailureOutcome(outcome),
+    failureKind,
+    signatureMatches: failureMatchesSignature(outcome, {
       expectedStage,
       expectedMessageIncludes,
+      expectedFailureKind,
     }),
     expectedStage,
     expectedMessageIncludes,
+    expectedFailureKind,
   };
 }
 
-export function minimizeFuzzCrash(
+export function replayFuzzCrashArtifact(
+  options: FuzzCrashReplayOptions,
+): FuzzCrashReplayResult {
+  return replayFuzzFailureArtifact({
+    ...options,
+    expectedFailureKind: options.expectedFailureKind ?? "crash",
+  });
+}
+
+export function minimizeFuzzFailure(
   options: FuzzCrashMinimizeOptions,
 ): FuzzCrashMinimizeResult {
-  const runner = options.runner ?? defaultPipelineRunner;
+  const runner = options.runner ?? defaultFuzzRunner;
   const filePath = options.filePath ?? "fuzz_minimize.bpl";
   const input = inputFromCrashMetadata(options.source, filePath);
   const originalOutcome = runner(options.source, filePath, input);
   const signature = {
     expectedStage: options.expectedStage ?? originalOutcome.stage,
     expectedMessageIncludes: options.expectedMessageIncludes,
+    expectedFailureKind:
+      options.expectedFailureKind ?? inferFailureKind(originalOutcome),
   };
 
-  if (!crashMatchesSignature(originalOutcome, signature)) {
+  if (!failureMatchesSignature(originalOutcome, signature)) {
     throw new Error(
-      "Original source does not reproduce the requested crash signature.",
+      "Original source does not reproduce the requested fuzz failure signature.",
     );
   }
 
@@ -816,7 +1082,7 @@ export function minimizeFuzzCrash(
       const candidateInput = inputFromCrashMetadata(candidateSource, filePath);
       const candidateOutcome = runner(candidateSource, filePath, candidateInput);
 
-      if (crashMatchesSignature(candidateOutcome, signature)) {
+      if (failureMatchesSignature(candidateOutcome, signature)) {
         tokens = candidate;
         outcome = candidateOutcome;
         changed = true;
@@ -851,15 +1117,25 @@ export function minimizeFuzzCrash(
   };
 }
 
-function writeCrashArtifact(
+export function minimizeFuzzCrash(
+  options: FuzzCrashMinimizeOptions,
+): FuzzCrashMinimizeResult {
+  return minimizeFuzzFailure({
+    ...options,
+    expectedFailureKind: options.expectedFailureKind ?? "crash",
+  });
+}
+
+function writeFailureArtifact(
   crashDir: string,
   input: FuzzInput,
   outcome: PipelineOutcome,
-): CrashArtifact {
+): FuzzFailureArtifact {
   mkdirSync(crashDir, { recursive: true });
 
+  const failureKind = inferFailureKind(outcome) ?? "crash";
   const baseName = [
-    "crash",
+    failureKind === "mismatch" ? "mismatch" : "crash",
     `seed-${input.seed.toString(16)}`,
     `iter-${input.iteration}`,
     input.kind,
@@ -876,9 +1152,11 @@ function writeCrashArtifact(
         seedHex: formatSeed(input.seed),
         iteration: input.iteration,
         kind: input.kind,
+        failureKind,
         filePath: input.filePath,
         stage: outcome.stage,
         message: outcome.message,
+        mismatch: outcome.mismatch,
         sourcePath,
       },
       null,
@@ -886,7 +1164,7 @@ function writeCrashArtifact(
     ),
   );
 
-  return { sourcePath, metadataPath };
+  return { sourcePath, metadataPath, failureKind };
 }
 
 function createStageCounts(): Record<FuzzStage, number> {
@@ -896,6 +1174,97 @@ function createStageCounts(): Record<FuzzStage, number> {
     typecheck: 0,
     codegen: 0,
   };
+}
+
+export function runBplDifferentialPipeline(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-"));
+  const sourcePath = join(dir, "main.bpl");
+
+  try {
+    writeFileSync(sourcePath, source);
+    const o0 = runBplCommand(sourcePath, dir, 0);
+    const o3 = runBplCommand(sourcePath, dir, 3);
+    const mismatch = createMismatch(o0, o3);
+
+    if (mismatch !== undefined) {
+      return {
+        ok: false,
+        stage: "codegen",
+        message: "O0/O3 behavior mismatch",
+        mismatch,
+      };
+    }
+
+    if (o0.exitCode !== 0) {
+      return {
+        ok: false,
+        stage: "codegen",
+        message: [
+          `BPL program failed at both optimization levels for ${filePath}`,
+          o0.stderr ? `stderr:\n${o0.stderr}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
+
+    return { ok: true, stage: "codegen" };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function runBplCommand(
+  sourcePath: string,
+  cwd: string,
+  optimizationLevel: 0 | 3,
+): DifferentialCommandResult {
+  const result = spawnSync(
+    "bun",
+    [BPL_CLI, "run", sourcePath, "-O", String(optimizationLevel)],
+    {
+      cwd,
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 1024 * 1024 * 16,
+    },
+  );
+
+  return {
+    stdout: String(result.stdout ?? ""),
+    stderr: String(result.stderr ?? ""),
+    exitCode: result.status ?? -1,
+  };
+}
+
+function createMismatch(
+  o0: DifferentialCommandResult,
+  o3: DifferentialCommandResult,
+): DifferentialMismatch | undefined {
+  if (
+    o0.exitCode === o3.exitCode &&
+    o0.stdout === o3.stdout &&
+    o0.stderr === o3.stderr
+  ) {
+    return undefined;
+  }
+
+  return { o0, o3 };
+}
+
+function defaultFuzzRunner(
+  source: string,
+  filePath: string,
+  input: FuzzInput,
+): PipelineOutcome {
+  if (input.kind === "differential") {
+    return runBplDifferentialPipeline(source, filePath);
+  }
+
+  return defaultPipelineRunner(source, filePath);
 }
 
 function defaultPipelineRunner(source: string, filePath: string): PipelineOutcome {
@@ -943,18 +1312,36 @@ function siblingSourcePath(metadataPath: string): string {
     : `${metadataPath}.bpl`;
 }
 
-function isCrashOutcome(outcome: PipelineOutcome): boolean {
+function isFailureOutcome(outcome: PipelineOutcome): boolean {
   return outcome.ok === false && outcome.expectedError !== true;
 }
 
-function crashMatchesSignature(
+function inferFailureKind(
+  outcome: PipelineOutcome,
+): FuzzFailureKind | undefined {
+  if (!isFailureOutcome(outcome)) {
+    return undefined;
+  }
+
+  return outcome.mismatch !== undefined ? "mismatch" : "crash";
+}
+
+function failureMatchesSignature(
   outcome: PipelineOutcome,
   signature: {
     expectedStage?: FuzzStage;
     expectedMessageIncludes?: string;
+    expectedFailureKind?: FuzzFailureKind;
   },
 ): boolean {
-  if (!isCrashOutcome(outcome)) {
+  if (!isFailureOutcome(outcome)) {
+    return false;
+  }
+
+  if (
+    signature.expectedFailureKind !== undefined &&
+    inferFailureKind(outcome) !== signature.expectedFailureKind
+  ) {
     return false;
   }
 

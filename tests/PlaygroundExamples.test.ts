@@ -222,6 +222,7 @@ describe("BPL Playground Examples", () => {
         "RAII Auto Destroy",
         "Runtime Type Guards",
         "Native Variadic Functions",
+        "Runtime Correctness Patterns",
       ]),
     );
   });

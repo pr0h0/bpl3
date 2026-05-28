@@ -13,6 +13,8 @@ import { tmpdir } from "os";
 import {
   generateFuzzInput,
   minimizeFuzzCrash,
+  minimizeFuzzFailure,
+  replayFuzzFailureArtifact,
   replayFuzzCrashArtifact,
   runFuzzCampaign,
   type PipelineOutcome,
@@ -76,6 +78,7 @@ describe("Compiler fuzz runner", () => {
           validPrograms: 3,
           expectedErrors: 0,
           crashes: 0,
+          mismatches: 0,
         },
         {
           seed: 0x2222,
@@ -83,6 +86,7 @@ describe("Compiler fuzz runner", () => {
           validPrograms: 2,
           expectedErrors: 0,
           crashes: 1,
+          mismatches: 0,
         },
       ]);
 
@@ -105,6 +109,79 @@ describe("Compiler fuzz runner", () => {
         kind: "tokens",
         stage: "codegen",
         message: "synthetic crash",
+      });
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
+  test("records differential mismatch artifacts separately from crashes", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-mismatch-"));
+    const runner = (source: string): PipelineOutcome => {
+      if (source === "trigger mismatch") {
+        return {
+          ok: false,
+          stage: "codegen",
+          message: "O0/O3 behavior mismatch",
+          mismatch: {
+            o0: { exitCode: 0, stdout: "left\n", stderr: "" },
+            o3: { exitCode: 0, stdout: "right\n", stderr: "" },
+          },
+        };
+      }
+
+      return { ok: true, stage: "codegen" };
+    };
+
+    try {
+      const summary = runFuzzCampaign({
+        seeds: [0x5151],
+        iterationsPerSeed: 2,
+        crashDir,
+        runner,
+        inputForIteration: ({ seed, iteration }) => ({
+          seed,
+          iteration,
+          kind: "differential",
+          filePath: `synthetic_${seed}_${iteration}.bpl`,
+          source:
+            iteration === 1
+              ? "trigger mismatch"
+              : "frame main() ret int { return 0; }",
+        }),
+      });
+
+      expect(summary.validPrograms).toBe(1);
+      expect(summary.expectedErrors).toBe(0);
+      expect(summary.crashes).toBe(0);
+      expect(summary.mismatches).toBe(1);
+      expect(summary.seedSummaries[0]).toMatchObject({
+        seed: 0x5151,
+        totalIterations: 2,
+        validPrograms: 1,
+        expectedErrors: 0,
+        crashes: 0,
+        mismatches: 1,
+      });
+
+      const files = readdirSync(crashDir);
+      const sourceFile = files.find((file) => file.endsWith(".bpl"));
+      const metadataFile = files.find((file) => file.endsWith(".json"));
+
+      expect(sourceFile).toStartWith("mismatch_");
+      expect(metadataFile).toStartWith("mismatch_");
+
+      const metadata = JSON.parse(
+        readFileSync(join(crashDir, metadataFile!), "utf8"),
+      );
+
+      expect(metadata).toMatchObject({
+        failureKind: "mismatch",
+        stage: "codegen",
+        mismatch: {
+          o0: { exitCode: 0, stdout: "left\n", stderr: "" },
+          o3: { exitCode: 0, stdout: "right\n", stderr: "" },
+        },
       });
     } finally {
       rmSync(crashDir, { recursive: true, force: true });
@@ -169,6 +246,72 @@ describe("Compiler fuzz runner", () => {
       expect(minimized.originalTokenCount).toBe(5);
       expect(minimized.changed).toBe(true);
       expect(minimized.outcome.stage).toBe("codegen");
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
+  test("replays and minimizes differential mismatch artifacts", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-mismatch-replay-"));
+    const runner = (source: string): PipelineOutcome => {
+      if (source.includes("left") && source.includes("right")) {
+        return {
+          ok: false,
+          stage: "codegen",
+          message: "O0/O3 behavior mismatch",
+          mismatch: {
+            o0: { exitCode: 0, stdout: "left\n", stderr: "" },
+            o3: { exitCode: 0, stdout: "right\n", stderr: "" },
+          },
+        };
+      }
+
+      return {
+        ok: false,
+        stage: "parser",
+        expectedError: true,
+        message: "synthetic parse rejection",
+      };
+    };
+
+    try {
+      const summary = runFuzzCampaign({
+        seeds: [0x6161],
+        iterationsPerSeed: 1,
+        crashDir,
+        runner,
+        inputForIteration: ({ seed, iteration }) => ({
+          seed,
+          iteration,
+          kind: "differential",
+          filePath: `synthetic_${seed}_${iteration}.bpl`,
+          source: "noise left removable right tail",
+        }),
+      });
+
+      const artifact = summary.failureArtifacts[0]!;
+      const replay = replayFuzzFailureArtifact({
+        metadataPath: artifact.metadataPath,
+        runner,
+      });
+
+      expect(replay.failed).toBe(true);
+      expect(replay.signatureMatches).toBe(true);
+      expect(replay.outcome.mismatch?.o0.stdout).toBe("left\n");
+
+      const minimized = minimizeFuzzFailure({
+        source: readFileSync(artifact.sourcePath, "utf8"),
+        filePath: artifact.sourcePath,
+        expectedFailureKind: "mismatch",
+        expectedStage: replay.outcome.stage,
+        expectedMessageIncludes: "O0/O3 behavior mismatch",
+        runner,
+      });
+
+      expect(minimized.minimizedSource).toBe("left right");
+      expect(minimized.minimizedTokenCount).toBe(2);
+      expect(minimized.changed).toBe(true);
+      expect(minimized.outcome.mismatch?.o3.stdout).toBe("right\n");
     } finally {
       rmSync(crashDir, { recursive: true, force: true });
     }
@@ -240,6 +383,74 @@ describe("Compiler fuzz runner", () => {
       expect(result.stdout).toContain(promotedPath);
       expect(readFileSync(promotedPath, "utf8")).toBe(
         'frame main() ret int {\n  return "not an int";\n}\n',
+      );
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+      rmSync(corpusDir, { recursive: true, force: true });
+    }
+  });
+
+  test("promotes minimized differential mismatch artifacts into a correctness corpus", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-promote-"));
+    const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-corpus-"));
+    const sourcePath = join(
+      crashDir,
+      "mismatch_seed-abcd_iter-7_differential.bpl",
+    );
+    const minPath = join(
+      crashDir,
+      "mismatch_seed-abcd_iter-7_differential.min.bpl",
+    );
+    const metadataPath = join(
+      crashDir,
+      "mismatch_seed-abcd_iter-7_differential.json",
+    );
+
+    try {
+      writeFileSync(sourcePath, "frame main() ret int { return 1; }\n");
+      writeFileSync(minPath, "frame main() ret int { return 0; }\n");
+      writeFileSync(
+        metadataPath,
+        JSON.stringify(
+          {
+            seed: 0xabcd,
+            iteration: 7,
+            kind: "differential",
+            failureKind: "mismatch",
+            sourcePath,
+            stage: "codegen",
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--metadata",
+          metadataPath,
+          "--name",
+          "Bug 456: O3 Wrong Code",
+          "--corpus-dir",
+          corpusDir,
+          "--differential",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const promotedPath = join(corpusDir, "bug-456-o3-wrong-code.bpl");
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Outcome: differential");
+      expect(readFileSync(promotedPath, "utf8")).toBe(
+        "frame main() ret int { return 0; }\n",
       );
     } finally {
       rmSync(crashDir, { recursive: true, force: true });

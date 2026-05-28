@@ -5,7 +5,7 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, join } from "path";
-import { runCompilerPipeline } from "./compilerFuzz";
+import { runBplDifferentialPipeline, runCompilerPipeline } from "./compilerFuzz";
 
 interface CliOptions {
   sourcePath?: string;
@@ -13,6 +13,7 @@ interface CliOptions {
   name?: string;
   corpusDir: string;
   force: boolean;
+  differential: boolean;
 }
 
 interface CrashMetadata {
@@ -23,10 +24,14 @@ interface PromotionResult {
   sourcePath: string;
   destinationPath: string;
   outcomeStage: string;
-  outcomeKind: "ok" | "expected-error";
+  outcomeKind: "ok" | "expected-error" | "differential";
 }
 
 const DEFAULT_CORPUS_DIR = join(__dirname, "../tests/fuzz-regressions");
+const DEFAULT_DIFFERENTIAL_CORPUS_DIR = join(
+  __dirname,
+  "../tests/fuzz-differential-regressions",
+);
 
 function parseCliOptions(argv: string[]): CliOptions {
   const values = new Map<string, string>();
@@ -51,7 +56,7 @@ function parseCliOptions(argv: string[]): CliOptions {
       throw new Error(`Missing option name in '${arg}'. Use --help for usage.`);
     }
 
-    if (rawKey === "force") {
+    if (rawKey === "force" || rawKey === "differential") {
       flags.add(rawKey);
       continue;
     }
@@ -78,8 +83,13 @@ function parseCliOptions(argv: string[]): CliOptions {
     sourcePath: values.get("source") ?? positionals[0],
     metadataPath: values.get("metadata"),
     name: values.get("name"),
-    corpusDir: values.get("corpus-dir") ?? DEFAULT_CORPUS_DIR,
+    corpusDir:
+      values.get("corpus-dir") ??
+      (flags.has("differential")
+        ? DEFAULT_DIFFERENTIAL_CORPUS_DIR
+        : DEFAULT_CORPUS_DIR),
     force: flags.has("force"),
+    differential: flags.has("differential"),
   };
 }
 
@@ -95,6 +105,7 @@ Options:
   --metadata <path>    Path to a generated .json crash metadata file
   --name <name>        Regression corpus name, sanitized to <name>.bpl
   --corpus-dir <dir>   Destination corpus directory
+  --differential       Verify with O0/O3 runtime comparison before promotion
   --force              Overwrite an existing corpus file
   --help               Show this help text
 `);
@@ -112,15 +123,20 @@ function promoteFuzzRegression(options: CliOptions): PromotionResult {
     );
   }
 
-  const outcome = runCompilerPipeline(source, destinationPath, {
-    skipImportResolution: true,
-  });
-  const cleanOutcome = outcome.ok || outcome.expectedError === true;
+  const outcome = options.differential
+    ? runBplDifferentialPipeline(source, destinationPath)
+    : runCompilerPipeline(source, destinationPath, {
+        skipImportResolution: true,
+      });
+  const cleanOutcome =
+    options.differential ? outcome.ok : outcome.ok || outcome.expectedError === true;
 
   if (outcome.crash !== undefined || !cleanOutcome) {
     throw new Error(
       [
-        "Refusing to promote a repro that still triggers an internal compiler crash.",
+        options.differential
+          ? "Refusing to promote a differential repro that does not run equivalently at -O0 and -O3."
+          : "Refusing to promote a repro that still triggers an internal compiler crash.",
         `stage: ${outcome.stage}`,
         outcome.message ? `message:\n${outcome.message}` : "",
       ]
@@ -136,7 +152,11 @@ function promoteFuzzRegression(options: CliOptions): PromotionResult {
     sourcePath,
     destinationPath,
     outcomeStage: outcome.stage,
-    outcomeKind: outcome.ok ? "ok" : "expected-error",
+    outcomeKind: options.differential
+      ? "differential"
+      : outcome.ok
+        ? "ok"
+        : "expected-error",
   };
 }
 

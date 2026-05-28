@@ -795,6 +795,13 @@ bun run test:vscode-ext
 # Run compiler correctness and deterministic fuzz regression coverage
 bun run test:correctness
 
+# Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
+# under ASan/UBSan; local toolchains without sanitizer runtimes are detected.
+bun run test:sanitizers
+
+# Run a short deterministic O0/O3 differential fuzz campaign
+bun run fuzz:differential
+
 # Run specific test file
 bun test tests/Integration.test.ts
 

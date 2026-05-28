@@ -1,7 +1,8 @@
 import { writeFileSync } from "fs";
 import {
-  minimizeFuzzCrash,
-  replayFuzzCrashArtifact,
+  minimizeFuzzFailure,
+  replayFuzzFailureArtifact,
+  type FuzzFailureKind,
   type FuzzStage,
 } from "./compilerFuzz";
 
@@ -10,6 +11,7 @@ interface CliOptions {
   metadataPath?: string;
   expectedStage?: FuzzStage;
   expectedMessageIncludes?: string;
+  expectedFailureKind?: FuzzFailureKind;
   minimize: boolean;
   outPath?: string;
 }
@@ -20,6 +22,7 @@ const STAGES = new Set<FuzzStage>([
   "typecheck",
   "codegen",
 ]);
+const FAILURE_KINDS = new Set<FuzzFailureKind>(["crash", "mismatch"]);
 
 function parseCliOptions(argv: string[]): CliOptions {
   const values = new Map<string, string>();
@@ -72,6 +75,7 @@ function parseCliOptions(argv: string[]): CliOptions {
     metadataPath: values.get("metadata"),
     expectedStage: parseStage(values.get("stage")),
     expectedMessageIncludes: values.get("message"),
+    expectedFailureKind: parseFailureKind(values.get("failure-kind")),
     minimize: flags.has("minimize"),
     outPath: values.get("out"),
   };
@@ -91,18 +95,36 @@ function parseStage(value: string | undefined): FuzzStage | undefined {
   return value as FuzzStage;
 }
 
+function parseFailureKind(
+  value: string | undefined,
+): FuzzFailureKind | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!FAILURE_KINDS.has(value as FuzzFailureKind)) {
+    throw new Error(
+      `--failure-kind must be one of ${Array.from(FAILURE_KINDS).join(", ")}, got '${value}'.`,
+    );
+  }
+
+  return value as FuzzFailureKind;
+}
+
 function printHelp(): void {
   console.log(`Usage: bun fuzz/replay_crash.ts [source.bpl] [options]
 
-Re-run a compiler fuzz crash artifact and optionally reduce it by deleting tokens
-while preserving the crash signature.
+Re-run a compiler fuzz failure artifact and optionally reduce it by deleting
+tokens while preserving the failure signature.
 
 Options:
   --source <path>    Path to a .bpl crash repro source
   --metadata <path>  Path to the generated .json crash metadata
   --stage <stage>    Require the crash stage: lexer, parser, typecheck, codegen
   --message <text>   Require the crash message to include this text
-  --minimize         Write a token-minimized repro if replay still crashes
+  --failure-kind <kind>
+                     Require crash or mismatch
+  --minimize         Write a token-minimized repro if replay still fails
   --out <path>       Output path for --minimize (default: <source>.min.bpl)
   --help             Show this help text
 `);
@@ -116,11 +138,12 @@ function defaultMinimizedPath(sourcePath: string): string {
 
 async function main(): Promise<void> {
   const options = parseCliOptions(process.argv.slice(2));
-  const replay = replayFuzzCrashArtifact({
+  const replay = replayFuzzFailureArtifact({
     sourcePath: options.sourcePath,
     metadataPath: options.metadataPath,
     expectedStage: options.expectedStage,
     expectedMessageIncludes: options.expectedMessageIncludes,
+    expectedFailureKind: options.expectedFailureKind,
   });
 
   console.log(`Source: ${replay.sourcePath}`);
@@ -128,13 +151,15 @@ async function main(): Promise<void> {
     console.log(`Metadata: ${replay.metadataPath}`);
   }
   console.log(`Crashed: ${replay.crashed ? "yes" : "no"}`);
+  console.log(`Failed: ${replay.failed ? "yes" : "no"}`);
+  console.log(`Failure kind: ${replay.failureKind ?? "none"}`);
   console.log(`Stage: ${replay.outcome.stage}`);
   if (replay.outcome.message) {
     console.log(`Message: ${replay.outcome.message.split("\n")[0]}`);
   }
   console.log(`Signature matches: ${replay.signatureMatches ? "yes" : "no"}`);
 
-  if (!replay.crashed) {
+  if (!replay.failed) {
     process.exit(2);
   }
 
@@ -143,11 +168,12 @@ async function main(): Promise<void> {
   }
 
   if (options.minimize) {
-    const minimized = minimizeFuzzCrash({
+    const minimized = minimizeFuzzFailure({
       source: replay.source,
       filePath: replay.sourcePath,
       expectedStage: replay.expectedStage ?? replay.outcome.stage,
       expectedMessageIncludes: replay.expectedMessageIncludes,
+      expectedFailureKind: replay.expectedFailureKind ?? replay.failureKind,
     });
     const outPath = options.outPath ?? defaultMinimizedPath(replay.sourcePath);
     writeFileSync(outPath, minimized.minimizedSource);

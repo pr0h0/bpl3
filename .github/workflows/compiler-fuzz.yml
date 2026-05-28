@@ -25,6 +25,7 @@ jobs:
     env:
       FUZZ_ITERATIONS: ${{ github.event.inputs.iterations || '100000' }}
       FUZZ_SEEDS: ${{ github.event.inputs.seeds || '0x5eed1234,0xc0ffee,0xbad5eed' }}
+      FUZZ_DIFFERENTIAL_SEEDS: 0xd1ff0,0xd1ff1,0xd1ff2
       FUZZ_CRASH_DIR: fuzz/crashes
       FUZZ_PROGRESS: "1000"
 
@@ -52,6 +53,9 @@ jobs:
 
       - name: Run deterministic compiler fuzz
         run: bun run fuzz:long
+
+      - name: Run deterministic differential compiler fuzz
+        run: bun run fuzz:differential
 
       - name: Minimize fuzz crash artifacts
         if: failure()

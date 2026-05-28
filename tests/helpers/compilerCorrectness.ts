@@ -11,6 +11,16 @@ export interface CorrectnessCommandResult {
   exitCode: number;
 }
 
+export interface SanitizerSupportResult {
+  supported: boolean;
+  reason?: string;
+}
+
+interface RunCommandOptions {
+  timeout?: number;
+  env?: NodeJS.ProcessEnv;
+}
+
 export interface OptimizationComparisonResult {
   o0: CorrectnessCommandResult;
   o3: CorrectnessCommandResult;
@@ -73,16 +83,21 @@ const INTERNAL_EXCEPTION_PATTERNS = [
   /Cannot read (properties|property) of/i,
   /\bat .+\.(ts|js):\d+:\d+/,
 ];
+const SANITIZER_CLANG_FLAG = "--clang-flag=-fsanitize=address,undefined";
+let cachedSanitizerSupport: SanitizerSupportResult | undefined;
 
 function runCommand(
   args: string[],
   cwd: string,
-  timeout: number = 30000,
+  options: number | RunCommandOptions = 30000,
 ): CorrectnessCommandResult {
+  const normalizedOptions =
+    typeof options === "number" ? { timeout: options } : options;
   const result = spawnSync(args[0]!, args.slice(1), {
     cwd,
     encoding: "utf8",
-    timeout,
+    timeout: normalizedOptions.timeout ?? 30000,
+    env: normalizedOptions.env,
     maxBuffer: 1024 * 1024 * 16,
   });
 
@@ -143,6 +158,67 @@ export function runBplAtOptimization(
       dir,
     ),
   );
+}
+
+export function runBplWithSanitizers(
+  source: string,
+  optimizationLevel: 0 | 3,
+): CorrectnessCommandResult {
+  return withSourceFile(source, ({ dir, sourcePath }) =>
+    runCommand(
+      [
+        "bun",
+        BPL_CLI,
+        SANITIZER_CLANG_FLAG,
+        "run",
+        sourcePath,
+        "-O",
+        String(optimizationLevel),
+      ],
+      dir,
+      {
+        timeout: 60000,
+        env: {
+          ...process.env,
+          ASAN_OPTIONS: [
+            process.env.ASAN_OPTIONS,
+            "detect_leaks=0",
+            "halt_on_error=1",
+          ]
+            .filter(Boolean)
+            .join(":"),
+          UBSAN_OPTIONS: [
+            process.env.UBSAN_OPTIONS,
+            "halt_on_error=1",
+            "print_stacktrace=1",
+          ]
+            .filter(Boolean)
+            .join(":"),
+        },
+      },
+    ),
+  );
+}
+
+export function checkBplSanitizerSupport(): SanitizerSupportResult {
+  if (cachedSanitizerSupport !== undefined) {
+    return cachedSanitizerSupport;
+  }
+
+  const result = runBplWithSanitizers(
+    'extern printf(fmt: string, ...); frame main() ret int { printf("sanitizer-probe\\n"); return 0; }',
+    0,
+  );
+
+  cachedSanitizerSupport =
+    result.exitCode === 0
+      ? { supported: true }
+      : {
+          supported: false,
+          reason: [result.stderr, result.stdout].filter(Boolean).join("\n"),
+        };
+
+  return cachedSanitizerSupport;
 }
 
 export function expectSameBehaviorAtO0AndO3(

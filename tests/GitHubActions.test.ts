@@ -20,18 +20,29 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("npm ci --prefix vscode-ext");
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run fuzz:long");
+    expect(workflow).toContain("bun run fuzz:differential");
     expect(workflow).toContain("FUZZ_SEEDS");
     expect(workflow).toContain("0x5eed1234,0xc0ffee,0xbad5eed");
+    expect(workflow).toContain("FUZZ_DIFFERENTIAL_SEEDS");
+    expect(workflow).toContain("0xd1ff0,0xd1ff1,0xd1ff2");
     expect(workflow).toContain("actions/upload-artifact@v4");
     expect(workflow).toContain("fuzz/crashes");
     expect(workflow).toContain("if: always()");
     expect(packageJson.scripts["fuzz:long"]).toContain("FUZZ_SEEDS");
+    expect(packageJson.scripts["fuzz:differential"]).toContain(
+      "FUZZ_DIFFERENTIAL=1",
+    );
     expect(packageJson.scripts["fuzz:replay"]).toContain("fuzz/replay_crash.ts");
 
     const runFuzzIndex = workflow.indexOf("Run deterministic compiler fuzz");
+    const differentialIndex = workflow.indexOf(
+      "Run deterministic differential compiler fuzz",
+    );
     const minimizeIndex = workflow.indexOf("Minimize fuzz crash artifacts");
     const uploadIndex = workflow.indexOf("Upload fuzz crash artifacts");
 
+    expect(differentialIndex).toBeGreaterThan(runFuzzIndex);
+    expect(minimizeIndex).toBeGreaterThan(differentialIndex);
     expect(minimizeIndex).toBeGreaterThan(runFuzzIndex);
     expect(uploadIndex).toBeGreaterThan(minimizeIndex);
     expect(workflow).toContain("if: failure()");
@@ -60,7 +71,10 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("npm ci --prefix vscode-ext");
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run test:correctness");
-    expect(workflow).toContain("sudo apt-get install -y clang llvm");
+    expect(workflow).toContain("bun run test:sanitizers");
+    expect(workflow).toContain(
+      "sudo apt-get install -y clang llvm libclang-rt-dev",
+    );
     expect(packageJson.scripts["test:correctness"]).toContain(
       "bun run build:runtime && bun test",
     );
@@ -71,7 +85,13 @@ describe("GitHub Actions workflows", () => {
       "FuzzRegressionCorpus.test.ts",
     );
     expect(packageJson.scripts["test:correctness"]).toContain(
+      "FuzzDifferentialRegressionCorpus.test.ts",
+    );
+    expect(packageJson.scripts["test:correctness"]).toContain(
       "CompilerCorrectnessSeededFuzz.test.ts",
+    );
+    expect(packageJson.scripts["test:sanitizers"]).toContain(
+      "CompilerSanitizerRuntime.test.ts",
     );
   });
 
@@ -95,6 +115,12 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["test:ci"]).toContain("! -name 'fuzz.test.ts'");
     expect(packageJson.scripts["test:ci"]).toContain(
       "! -name 'CompilerCorrectnessCorpus.test.ts'",
+    );
+    expect(packageJson.scripts["test:ci"]).toContain(
+      "! -name 'FuzzDifferentialRegressionCorpus.test.ts'",
+    );
+    expect(packageJson.scripts["test:ci"]).toContain(
+      "! -name 'CompilerSanitizerRuntime.test.ts'",
     );
 
     expect(workflow).toContain("Run CI-safe test suite");

@@ -95,6 +95,20 @@ bun run test:vscode-ext
 
 # Compiler correctness and deterministic fuzz regression suite
 bun run test:correctness
+
+# Sanitizer-backed runtime checks for representative safe programs
+bun run test:sanitizers
+
+# Deterministic O0/O3 runtime differential fuzzing
+bun run fuzz:differential
 ```
 
 For new language features, add a focused test in `tests/`, an integration example under `examples/` when runtime behavior matters, and a playground example when the feature is useful for users to learn interactively.
+
+When fuzzing finds a compiler crash or an O0/O3 runtime mismatch, replay and
+minimize the artifact before promoting it:
+
+```bash
+bun run fuzz:replay -- --metadata fuzz/crashes/mismatch_seed-...json --minimize
+bun run fuzz:promote -- --metadata fuzz/crashes/mismatch_seed-...json --differential --name "bug-name"
+```
