@@ -24,12 +24,18 @@ export {
   expectCleanFailureSuite,
   expectCleanCompilationFailure,
   expectCorrectnessSuite,
+  expectSeededDifferentialCorpus,
+  generateSeededDifferentialPrograms,
   expectSameBehaviorAtO0AndO3,
   expectValidLlvmAtOptimizations,
   runBplAtOptimization,
   type CleanFailureCase,
   type CorrectnessProgram,
   type CorrectnessProgramResult,
+  type SeededDifferentialFamily,
+  type SeededDifferentialOptions,
+  type SeededDifferentialProgram,
+  type SeededDifferentialResult,
 } from "./compilerCorrectness";
 
 export { parseSource, parseExpression, parseStatement } from "./parser";

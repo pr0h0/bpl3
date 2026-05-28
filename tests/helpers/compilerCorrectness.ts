@@ -34,6 +34,36 @@ export interface CleanFailureCase {
   expectedMessage?: string | RegExp;
 }
 
+const SEEDED_DIFFERENTIAL_FAMILIES = [
+  "arithmetic-loop",
+  "struct-array",
+  "enum-match",
+  "generic-branch",
+  "lambda-capture",
+] as const;
+
+export type SeededDifferentialFamily =
+  (typeof SEEDED_DIFFERENTIAL_FAMILIES)[number];
+
+export interface SeededDifferentialProgram extends CorrectnessProgram {
+  seed: number;
+  family: SeededDifferentialFamily;
+  expectedStdout: string;
+}
+
+export interface SeededDifferentialResult
+  extends CorrectnessProgramResult {
+  seed: number;
+  family: SeededDifferentialFamily;
+  source: string;
+  expectedStdout: string;
+}
+
+export interface SeededDifferentialOptions {
+  seeds: readonly number[];
+  validateLlvm?: boolean;
+}
+
 const INTERNAL_EXCEPTION_PATTERNS = [
   /TypeError:/,
   /ReferenceError:/,
@@ -151,6 +181,278 @@ function formatUnknownError(error: unknown): string {
   }
 
   return String(error);
+}
+
+function createSeededRng(seed: number): () => number {
+  let state = Math.trunc(seed) >>> 0;
+  if (state === 0) {
+    state = 0x9e3779b9;
+  }
+
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function nextInt(rng: () => number, min: number, max: number): number {
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+function generateArithmeticLoopProgram(
+  seed: number,
+  rng: () => number,
+): Pick<SeededDifferentialProgram, "source" | "expectedStdout"> {
+  const count = nextInt(rng, 4, 8);
+  const scale = nextInt(rng, 2, 7);
+  const offset = nextInt(rng, 1, 9);
+
+  let total = offset;
+  for (let i = 0; i < count; i++) {
+    if (i % 2 === 0) {
+      total += i * scale + offset;
+    } else {
+      total -= i + scale;
+    }
+  }
+
+  return {
+    expectedStdout: `seed=${seed} family=arithmetic-loop total=${total}\n`,
+    source: `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local total: int = ${offset};
+        local i: int = 0;
+
+        loop (i < ${count}) {
+          if ((i % 2) == 0) {
+            total = total + (i * ${scale}) + ${offset};
+          } else {
+            total = total - i - ${scale};
+          }
+
+          i = i + 1;
+        }
+
+        printf("seed=%d family=arithmetic-loop total=%d\\n", ${seed}, total);
+        return 0;
+      }
+    `,
+  };
+}
+
+function generateStructArrayProgram(
+  seed: number,
+  rng: () => number,
+): Pick<SeededDifferentialProgram, "source" | "expectedStdout"> {
+  const left = nextInt(rng, 1, 9);
+  const right = nextInt(rng, 3, 12);
+  const values = Array.from({ length: 4 }, () => nextInt(rng, 1, 5));
+  const finalLeft = values.reduce((total, value) => total + value, left);
+  const finalRight = values.reduce((total, value) => total + value * 2, right);
+
+  return {
+    expectedStdout: `seed=${seed} family=struct-array pair=${finalLeft},${finalRight}\n`,
+    source: `
+      extern printf(fmt: string, ...);
+
+      struct Pair {
+        left: int,
+        right: int,
+      }
+
+      frame bump(pair: *Pair, value: int) ret void {
+        pair.left = pair.left + value;
+        pair.right = pair.right + (value * 2);
+      }
+
+      frame main() ret int {
+        local pair: Pair = Pair { left: ${left}, right: ${right} };
+        local values: int[4] = [${values.join(", ")}];
+        local i: int = 0;
+
+        loop (i < 4) {
+          bump(&pair, values[i]);
+          i = i + 1;
+        }
+
+        printf("seed=%d family=struct-array pair=%d,%d\\n", ${seed}, pair.left, pair.right);
+        return 0;
+      }
+    `,
+  };
+}
+
+function generateEnumMatchProgram(
+  seed: number,
+  rng: () => number,
+): Pick<SeededDifferentialProgram, "source" | "expectedStdout"> {
+  const redBonus = nextInt(rng, 1, 5);
+  const greenBonus = nextInt(rng, 6, 10);
+  const blueBonus = nextInt(rng, 11, 15);
+  const base = nextInt(rng, 2, 8);
+  const variants = ["Red", "Green", "Blue"] as const;
+  const firstIndex = nextInt(rng, 0, variants.length - 1);
+  const secondIndex = (firstIndex + nextInt(rng, 1, 2)) % variants.length;
+  const bonuses = [redBonus, greenBonus, blueBonus] as const;
+  const total = base + bonuses[firstIndex]! + base + 1 + bonuses[secondIndex]!;
+
+  return {
+    expectedStdout: `seed=${seed} family=enum-match total=${total}\n`,
+    source: `
+      extern printf(fmt: string, ...);
+
+      enum Color { Red, Green, Blue }
+
+      frame score(color: Color, base: int) ret int {
+        return match (color) {
+          Color.Red => base + ${redBonus},
+          Color.Green => base + ${greenBonus},
+          Color.Blue => base + ${blueBonus},
+        };
+      }
+
+      frame main() ret int {
+        local total: int = score(Color.${variants[firstIndex]}, ${base}) + score(Color.${variants[secondIndex]}, ${base + 1});
+        printf("seed=%d family=enum-match total=%d\\n", ${seed}, total);
+        return 0;
+      }
+    `,
+  };
+}
+
+function generateGenericBranchProgram(
+  seed: number,
+  rng: () => number,
+): Pick<SeededDifferentialProgram, "source" | "expectedStdout"> {
+  const left = nextInt(rng, 8, 25);
+  const right = nextInt(rng, 3, 22);
+  const adjustment = nextInt(rng, 2, 9);
+  const result =
+    left > right ? left - right + adjustment : right - left + adjustment * 2;
+
+  return {
+    expectedStdout: `seed=${seed} family=generic-branch result=${result}\n`,
+    source: `
+      extern printf(fmt: string, ...);
+
+      frame id<T>(value: T) ret T {
+        return value;
+      }
+
+      frame compareDistance(a: int, b: int) ret int {
+        local left: int = id<int>(a);
+        local right: int = id<int>(b);
+
+        if (left > right) {
+          return (left - right) + ${adjustment};
+        }
+
+        return (right - left) + ${adjustment * 2};
+      }
+
+      frame main() ret int {
+        local result: int = compareDistance(${left}, ${right});
+        printf("seed=%d family=generic-branch result=%d\\n", ${seed}, result);
+        return 0;
+      }
+    `,
+  };
+}
+
+function generateLambdaCaptureProgram(
+  seed: number,
+  rng: () => number,
+): Pick<SeededDifferentialProgram, "source" | "expectedStdout"> {
+  const base = nextInt(rng, 3, 15);
+  const multiplier = nextInt(rng, 2, 6);
+  const input = nextInt(rng, 4, 12);
+  const offset = nextInt(rng, 1, 5);
+  const result = input * multiplier + base - offset;
+
+  return {
+    expectedStdout: `seed=${seed} family=lambda-capture result=${result}\n`,
+    source: `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local base: int = ${base};
+        local multiplier: int = ${multiplier};
+        local transform: Lambda<int>(int) = |x: int| ret int {
+          return (x * multiplier) + base;
+        };
+        local result: int = transform(${input}) - ${offset};
+
+        printf("seed=%d family=lambda-capture result=%d\\n", ${seed}, result);
+        return 0;
+      }
+    `,
+  };
+}
+
+function generateSeededDifferentialProgram(
+  seed: number,
+): SeededDifferentialProgram {
+  const family =
+    SEEDED_DIFFERENTIAL_FAMILIES[
+      Math.abs(Math.trunc(seed)) % SEEDED_DIFFERENTIAL_FAMILIES.length
+    ]!;
+  const rng = createSeededRng(seed);
+  const generated =
+    family === "arithmetic-loop"
+      ? generateArithmeticLoopProgram(seed, rng)
+      : family === "struct-array"
+        ? generateStructArrayProgram(seed, rng)
+        : family === "enum-match"
+          ? generateEnumMatchProgram(seed, rng)
+          : family === "generic-branch"
+            ? generateGenericBranchProgram(seed, rng)
+            : generateLambdaCaptureProgram(seed, rng);
+
+  return {
+    seed,
+    family,
+    name: `seed ${seed} ${family}`,
+    ...generated,
+  };
+}
+
+export function generateSeededDifferentialPrograms(
+  seeds: readonly number[],
+): SeededDifferentialProgram[] {
+  return seeds.map(generateSeededDifferentialProgram);
+}
+
+export function expectSeededDifferentialCorpus(
+  options: SeededDifferentialOptions,
+): SeededDifferentialResult[] {
+  return generateSeededDifferentialPrograms(options.seeds).map((program) => {
+    try {
+      const result = expectCorrectnessSuite([
+        {
+          ...program,
+          validateLlvm: options.validateLlvm === true,
+        },
+      ])[0]!;
+
+      return {
+        seed: program.seed,
+        family: program.family,
+        source: program.source,
+        expectedStdout: program.expectedStdout,
+        ...result,
+      };
+    } catch (error) {
+      throw new Error(
+        [
+          `Seeded differential case failed: seed ${program.seed} (${program.family})`,
+          formatUnknownError(error),
+          `source:\n${program.source.trim()}`,
+        ].join("\n"),
+      );
+    }
+  });
 }
 
 export function expectCorrectnessSuite(
