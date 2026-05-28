@@ -22,7 +22,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -b",
     "watch": "tsc -b -w",
-    "test": "bun test src/test/**/*.test.ts"
+    "test": "bun test ./src/test"
   },
   "devDependencies": {
     "@types/node": "^16.11.7",

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, normalize } from "path";
 import { spawnSync } from "child_process";
 
@@ -16,6 +16,44 @@ function trackedMarkdownFiles(): string[] {
     .filter(Boolean);
 }
 
+function trackedFiles(): Set<string> {
+  const result = spawnSync("git", ["ls-files"], {
+    encoding: "utf8",
+  });
+
+  expect(result.status).toBe(0);
+
+  return new Set(
+    result.stdout
+      .split("\n")
+      .map((line) => normalize(line.trim()))
+      .filter(Boolean),
+  );
+}
+
+function isTrackedPath(path: string, files: Set<string>): boolean {
+  const normalizedPath = normalize(path);
+  if (files.has(normalizedPath)) {
+    return true;
+  }
+
+  if (!existsSync(normalizedPath) || !statSync(normalizedPath).isDirectory()) {
+    return false;
+  }
+
+  const prefix = normalizedPath.endsWith("/")
+    ? normalizedPath
+    : `${normalizedPath}/`;
+
+  for (const file of files) {
+    if (file.startsWith(prefix)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function headingSlug(text: string): string {
   return text
     .trim()
@@ -30,6 +68,7 @@ function headingSlug(text: string): string {
 describe("Markdown documentation", () => {
   test("local markdown links resolve", () => {
     const files = trackedMarkdownFiles();
+    const allTrackedFiles = trackedFiles();
     const headings = new Map<string, Set<string>>();
 
     for (const file of files) {
@@ -71,6 +110,11 @@ describe("Markdown documentation", () => {
         const resolvedPath = normalize(join(dirname(file), target));
         if (!existsSync(resolvedPath)) {
           failures.push(`${file} -> ${raw}`);
+          continue;
+        }
+
+        if (!isTrackedPath(resolvedPath, allTrackedFiles)) {
+          failures.push(`${file} -> ${raw} (target is not tracked)`);
           continue;
         }
 

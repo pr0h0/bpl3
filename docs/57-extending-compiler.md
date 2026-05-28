@@ -87,8 +87,11 @@ Always run the relevant test suite after making changes:
 # Fast local loop for focused changes
 bun test tests/SpecificFeature.test.ts
 
-# Broad CI-safe suite, including integration examples and playground examples
+# Broad CI-safe suite, including integration, playground, and VS Code extension tests
 bun run test:ci
+
+# VS Code extension tests only
+bun run test:vscode-ext
 
 # Compiler correctness and deterministic fuzz regression suite
 bun run test:correctness

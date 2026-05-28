@@ -785,9 +785,12 @@ bpl run main.bpl
 # Run the default test suite
 bun run test
 
-# Run the CI-safe broad suite. This includes integration and playground
-# examples, but leaves fuzz/correctness corpora to their dedicated scripts.
+# Run the CI-safe broad suite. This includes integration, playground, and
+# VS Code extension tests, but leaves fuzz/correctness corpora to dedicated scripts.
 bun run test:ci
+
+# Run only the VS Code extension tests
+bun run test:vscode-ext
 
 # Run compiler correctness and deterministic fuzz regression coverage
 bun run test:correctness
@@ -859,7 +862,7 @@ BPL is under active development. The compiler has **1,300+ tests** across 140+ t
 **Build Status:**
 
 - ✅ 1,300+ tests in the checked-in test suite
-- ✅ CI-safe suite includes integration tests and all playground examples
+- ✅ CI-safe suite includes integration tests, all playground examples, and VS Code extension tests
 - ✅ 0 ESLint errors/warnings
 - ✅ 0 TypeScript errors
 - ✅ 450+ checked-in examples and regression programs
@@ -904,7 +907,7 @@ See [TODO.md](TODO.md) for detailed task list.
 
 ## 📊 Benchmarks
 
-BPL produces C-class performance on the checked-in benchmark suite. Current checked-in medians from [`benchmark/latest-results.json`](benchmark/latest-results.json):
+BPL produces C-class performance on the checked-in benchmark suite. Representative medians from a recent `--language bpl,c --runs 5` run:
 
 | Benchmark               | BPL (-O3) | C (clang -O3) | Ratio |
 | ----------------------- | --------- | ------------- | ----- |
@@ -913,7 +916,7 @@ BPL produces C-class performance on the checked-in benchmark suite. Current chec
 | `matrix_multiplication` | 16.56ms   | 17.06ms       | 0.97x |
 | `prime_sieve`           | 18.33ms   | 21.17ms       | 0.87x |
 
-Run `./benchmark/run_all.sh --language bpl,c --runs 5` to refresh local numbers.
+Run `./benchmark/run_all.sh --language bpl,c --runs 5` to refresh local numbers, or add `--json > benchmark/latest-results.json` to write ignored local JSON output.
 
 ## 🔍 Comparison with Other Languages
 

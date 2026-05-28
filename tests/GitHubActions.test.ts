@@ -88,6 +88,10 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["test:ci"]).toContain("bun run build:runtime");
     expect(packageJson.scripts["test:ci"]).toContain("Integration.test.ts");
     expect(packageJson.scripts["test:ci"]).toContain("PlaygroundExamples.test.ts");
+    expect(packageJson.scripts["test:ci"]).toContain("bun run test:vscode-ext");
+    expect(packageJson.scripts["test:vscode-ext"]).toBe(
+      "npm test --prefix vscode-ext",
+    );
     expect(packageJson.scripts["test:ci"]).toContain("! -name 'fuzz.test.ts'");
     expect(packageJson.scripts["test:ci"]).toContain(
       "! -name 'CompilerCorrectnessCorpus.test.ts'",
@@ -95,6 +99,7 @@ describe("GitHub Actions workflows", () => {
 
     expect(workflow).toContain("Run CI-safe test suite");
     expect(workflow).toContain("bun run test:ci");
+    expect(workflow).toContain("npm ci --prefix vscode-ext");
 
     const typecheckIndex = workflow.indexOf("Type check");
     const ciSuiteIndex = workflow.indexOf("Run CI-safe test suite");
@@ -102,5 +107,19 @@ describe("GitHub Actions workflows", () => {
 
     expect(ciSuiteIndex).toBeGreaterThan(typecheckIndex);
     expect(correctnessIndex).toBeGreaterThan(ciSuiteIndex);
+  });
+
+  test("VS Code extension package test script runs Bun tests by directory", () => {
+    const extensionPackageJson = JSON.parse(
+      readFileSync(
+        join(import.meta.dir, "../vscode-ext/package.json"),
+        "utf8",
+      ),
+    );
+
+    expect(extensionPackageJson.scripts.test).toBe("bun test ./src/test");
+    expect(extensionPackageJson.dependencies).toHaveProperty(
+      "vscode-languageserver-textdocument",
+    );
   });
 });
