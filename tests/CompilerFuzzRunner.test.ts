@@ -187,6 +187,104 @@ describe("Compiler fuzz runner", () => {
     expect(result.stdout).toContain("--out");
   });
 
+  test("promotes minimized fuzz artifacts into the regression corpus", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-promote-"));
+    const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-corpus-"));
+    const sourcePath = join(crashDir, "crash_seed-abcd_iter-7_tokens.bpl");
+    const minPath = join(crashDir, "crash_seed-abcd_iter-7_tokens.min.bpl");
+    const metadataPath = join(crashDir, "crash_seed-abcd_iter-7_tokens.json");
+
+    try {
+      writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+      writeFileSync(
+        minPath,
+        'frame main() ret int {\n  return "not an int";\n}\n',
+      );
+      writeFileSync(
+        metadataPath,
+        JSON.stringify(
+          {
+            seed: 0xabcd,
+            iteration: 7,
+            kind: "tokens",
+            sourcePath,
+            stage: "typecheck",
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--metadata",
+          metadataPath,
+          "--name",
+          "Bug 123: Return String",
+          "--corpus-dir",
+          corpusDir,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const promotedPath = join(corpusDir, "bug-123-return-string.bpl");
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(promotedPath);
+      expect(readFileSync(promotedPath, "utf8")).toBe(
+        'frame main() ret int {\n  return "not an int";\n}\n',
+      );
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+      rmSync(corpusDir, { recursive: true, force: true });
+    }
+  });
+
+  test("refuses to overwrite promoted fuzz regression names without force", () => {
+    const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-corpus-"));
+    const sourcePath = join(corpusDir, "source.bpl");
+    const promotedPath = join(corpusDir, "duplicate-name.bpl");
+
+    try {
+      writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+      writeFileSync(promotedPath, "frame main() ret int { return 1; }\n");
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--source",
+          sourcePath,
+          "--name",
+          "duplicate name",
+          "--corpus-dir",
+          corpusDir,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("already exists");
+      expect(readFileSync(promotedPath, "utf8")).toBe(
+        "frame main() ret int { return 1; }\n",
+      );
+    } finally {
+      rmSync(corpusDir, { recursive: true, force: true });
+    }
+  });
+
   test("replays downloaded crash artifacts when metadata source paths are stale", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-downloaded-"));
     const sourcePath = join(crashDir, "crash_seed-4444_iter-0_tokens.bpl");
