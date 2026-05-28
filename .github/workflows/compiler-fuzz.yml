@@ -1,0 +1,61 @@
+name: Compiler Fuzz
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Iterations per seed"
+        required: false
+        default: "100000"
+      seeds:
+        description: "Comma-separated decimal or 0x-prefixed seeds"
+        required: false
+        default: "0x5eed1234,0xc0ffee,0xbad5eed"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Deterministic compiler fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      FUZZ_ITERATIONS: ${{ github.event.inputs.iterations || '100000' }}
+      FUZZ_SEEDS: ${{ github.event.inputs.seeds || '0x5eed1234,0xc0ffee,0xbad5eed' }}
+      FUZZ_CRASH_DIR: fuzz/crashes
+      FUZZ_PROGRESS: "1000"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run check
+
+      - name: Prepare crash artifact directory
+        run: |
+          rm -rf "$FUZZ_CRASH_DIR"
+          mkdir -p "$FUZZ_CRASH_DIR"
+
+      - name: Run deterministic compiler fuzz
+        run: bun run fuzz:long
+
+      - name: Upload fuzz crash artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-fuzz-crashes
+          path: fuzz/crashes
+          if-no-files-found: ignore
+          retention-days: 14
