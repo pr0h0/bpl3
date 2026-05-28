@@ -17,6 +17,23 @@ export interface OptimizationComparisonResult {
   stdout: string;
 }
 
+export interface CorrectnessProgram {
+  name: string;
+  source: string;
+  expectedStdout?: string;
+  validateLlvm?: boolean;
+}
+
+export interface CorrectnessProgramResult extends OptimizationComparisonResult {
+  name: string;
+}
+
+export interface CleanFailureCase {
+  name: string;
+  source: string;
+  expectedMessage?: string | RegExp;
+}
+
 const INTERNAL_EXCEPTION_PATTERNS = [
   /TypeError:/,
   /ReferenceError:/,
@@ -128,6 +145,52 @@ export function expectSameBehaviorAtO0AndO3(
   return { o0, o3, stdout: o0.stdout };
 }
 
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+}
+
+export function expectCorrectnessSuite(
+  cases: CorrectnessProgram[],
+): CorrectnessProgramResult[] {
+  return cases.map((testCase) => {
+    try {
+      const result = expectSameBehaviorAtO0AndO3(testCase.source);
+
+      if (
+        testCase.expectedStdout !== undefined &&
+        result.stdout !== testCase.expectedStdout
+      ) {
+        throw new Error(
+          [
+            `Expected stdout:\n${testCase.expectedStdout}`,
+            `Actual stdout:\n${result.stdout}`,
+          ].join("\n"),
+        );
+      }
+
+      if (testCase.validateLlvm === true) {
+        expectValidLlvmAtOptimizations(testCase.source);
+      }
+
+      return {
+        name: testCase.name,
+        ...result,
+      };
+    } catch (error) {
+      throw new Error(
+        [
+          `Correctness case failed: ${testCase.name}`,
+          formatUnknownError(error),
+        ].join("\n"),
+      );
+    }
+  });
+}
+
 export function expectValidLlvmAtOptimizations(source: string): void {
   withSourceFile(source, ({ dir, sourcePath }) => {
     for (const optimizationLevel of [0, 3] as const) {
@@ -148,7 +211,10 @@ export function expectValidLlvmAtOptimizations(source: string): void {
         dir,
       );
       if (build.exitCode !== 0) {
-        failWithResult(`BPL failed to emit LLVM IR at -O${optimizationLevel}`, build);
+        failWithResult(
+          `BPL failed to emit LLVM IR at -O${optimizationLevel}`,
+          build,
+        );
       }
 
       const clang = runCommand(
@@ -185,4 +251,51 @@ export function expectCleanCompilationFailure(
 
   assertNoInternalException(result);
   return result;
+}
+
+function matchesExpectedMessage(
+  output: string,
+  expectedMessage: string | RegExp,
+): boolean {
+  if (typeof expectedMessage === "string") {
+    return output.includes(expectedMessage);
+  }
+
+  expectedMessage.lastIndex = 0;
+  return expectedMessage.test(output);
+}
+
+export function expectCleanFailureSuite(
+  cases: CleanFailureCase[],
+): CorrectnessCommandResult[] {
+  return cases.map((testCase) => {
+    try {
+      const result = expectCleanCompilationFailure(testCase.source);
+      const output = `${result.stderr}\n${result.stdout}`;
+
+      if (
+        testCase.expectedMessage !== undefined &&
+        !matchesExpectedMessage(output, testCase.expectedMessage)
+      ) {
+        throw new Error(
+          [
+            `Expected failure output to match: ${testCase.expectedMessage}`,
+            result.stdout ? `stdout:\n${result.stdout}` : "",
+            result.stderr ? `stderr:\n${result.stderr}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
+      }
+
+      return result;
+    } catch (error) {
+      throw new Error(
+        [
+          `Clean failure case failed: ${testCase.name}`,
+          formatUnknownError(error),
+        ].join("\n"),
+      );
+    }
+  });
 }

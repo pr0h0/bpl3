@@ -21,10 +21,15 @@ export {
 
 export { compileToLLVM, countMatches } from "./compileToLLVM";
 export {
+  expectCleanFailureSuite,
   expectCleanCompilationFailure,
+  expectCorrectnessSuite,
   expectSameBehaviorAtO0AndO3,
   expectValidLlvmAtOptimizations,
   runBplAtOptimization,
+  type CleanFailureCase,
+  type CorrectnessProgram,
+  type CorrectnessProgramResult,
 } from "./compilerCorrectness";
 
 export { parseSource, parseExpression, parseStatement } from "./parser";
