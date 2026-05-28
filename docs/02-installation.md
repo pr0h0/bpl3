@@ -117,7 +117,7 @@ frame main() ret int {
 EOF
 
 # Compile and run
-bpl test.bpl --run
+bpl run test.bpl
 ```
 
 You should see:

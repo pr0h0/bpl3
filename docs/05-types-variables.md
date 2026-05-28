@@ -67,7 +67,7 @@ local ch: char = 65;  # ASCII 'A'
 local pi: float = 3.14159;       # f32
 local precise: double = 3.141592653589793;  # f64
 local small: float = 0.0001;
-local big: double = 1.7e308;     # NOTE: scientific notation not yet supported
+local big: double = 1700000.0;   # Scientific notation like 1.7e6 is not supported yet
 
 # Arithmetic
 local sum: float = 1.5 + 2.5;    # 4.0
@@ -546,7 +546,7 @@ local x: int = 42;
 local ptr: *float = cast<*float>(&x);  # Reinterprets memory!
 ```
 
-See [Casting](15-casting.md) for complete details.
+See [Operators](06-operators.md#cast-operator) for complete casting details.
 
 ### Type Aliases
 
@@ -757,6 +757,6 @@ if (a >= 0.3 - epsilon && a <= 0.3 + epsilon) { }
 See these examples:
 
 - `examples/primitives/` - Basic types
-- `examples/variables/` - Variable declarations
+- `examples/assignment_variations/` - Variable declarations and assignments
 - `examples/type_aliases/` - Type aliases
 - `examples/casts/` - Type casting

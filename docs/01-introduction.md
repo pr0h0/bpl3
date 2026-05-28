@@ -42,7 +42,7 @@ BPL uses `frame` as its keyword for functions, `local` and `global` for variable
 - **Package manager** - Easy dependency management with `bpl.json`
 - **Cross-platform** - Compile for Linux, macOS, Windows, and more
 - **VS Code integration** - Syntax highlighting, IntelliSense, and error diagnostics
-- **Watch mode** - Automatically recompile on file changes with `bpl watch`
+- **Watch mode** - Automatically recompile on file changes with `bpl dev`
 
 ## Why Choose BPL?
 

@@ -77,14 +77,14 @@ Location: line 5, column 14
 
 ## [5] ✅ Watch Mode (COMPLETED)
 
-**Description:** Add `--watch` mode to CLI to automatically recompile on file changes for rapid development.
+**Description:** Add `bpl dev` watch mode to automatically recompile on file changes for rapid development.
 
 **Implementation Status:** ✅ Fully Implemented (January 2026)
 
 **What Was Implemented:**
 
 - ✅ **File Watcher**: Created `cli/Watcher.ts` with Bun's native `fs.watch()` for monitoring file changes.
-- ✅ **CLI Integration**: Added `-w, --watch` flag to main CLI command.
+- ✅ **CLI Integration**: Added the `bpl dev <file>` command.
 - ✅ **Debouncing**: Implemented 100ms debounce to prevent excessive recompilation from rapid file saves.
 - ✅ **Error Recovery**: Continues watching even after compilation failures, displaying errors and waiting for fixes.
 - ✅ **Recursive Watching**: Monitors all `.bpl` files in the directory tree.
@@ -101,7 +101,7 @@ Location: line 5, column 14
 
 **What Was Implemented:**
 
-- ✅ **CLI Commands**: `bpl pack` (creates .tar.gz), `bpl install <path/to/package.tar.gz>`.
+- ✅ **CLI Commands**: `bpl pack` (creates `.tgz` archives), `bpl install <path/to/package.tgz>`.
 - ✅ **Resolution**: Updated `ImportHandler` and `ModuleResolver` to resolve packages from `bpl_modules`.
 - ✅ **Metadata**: Defined `bpl.json` format for package metadata.
 - ✅ **Verification**: Verified with `bpl-db` package and `db_client` example.
@@ -284,7 +284,7 @@ Location: line 5, column 14
 **What Was Implemented:**
 
 - ✅ **`is` Operator**: Runtime type checking (e.g., `if (x is int)`).
-- ✅ **`as` Operator**: Explicit type casting (e.g., `local y = x as float`).
+- ✅ **`as` Operator**: Explicit type casting (e.g., `local y: float = x as float`).
 - ✅ **Struct Upcasting**: Support for casting child structs to parent structs (e.g., `Dog` as `Animal`).
 - ✅ **Chained Casts**: Correct parsing and formatting for chained casts (e.g., `x as int as float`).
 - ✅ **Formatter**: Enforced parentheses for `as`/`is` expressions to ensure correct precedence.
@@ -572,8 +572,8 @@ Location: line 5, column 14
 **Examples:**
 
 - `examples/lambda_capture_test/` - Verification of capture semantics
-- `examples/lambda_simple/` - Basic usage
-- `examples/functional_patterns/` - Map/Filter/Reduce examples
+- `examples/simple_lambda/` - Basic usage
+- `examples/array_functional_methods/` - Map/Filter/Reduce examples
 - `examples/lambda_enum_match/` - Integration with Enum Pattern Matching
 
 **Documentation:**

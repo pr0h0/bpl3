@@ -111,7 +111,7 @@ The BPL Playground has been significantly upgraded with better UX, logging, and 
 ## 🚀 How to Start
 
 ```bash
-cd /home/pr0h0/Projects/bpl3/playground
+cd /path/to/bpl3/playground
 bash start.sh
 ```
 

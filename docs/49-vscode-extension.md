@@ -233,7 +233,7 @@ Contributions to the extension are welcome! Please:
 4. Test manually in Extension Development Host
 5. Submit a pull request
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+Open a pull request after running the extension tests listed above.
 
 ## License
 

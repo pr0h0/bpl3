@@ -18,8 +18,8 @@ The user requires a specific signature pattern to enable variadic functions:
 # 'numbers' will receive the pointer to the array
 # 'count' will automatically receive the number of elements
 frame sum(numbers: ...int, count: int) ret int {
-    local total = 0;
-    local i = 0;
+    local total: int = 0;
+    local i: int = 0;
     loop (i < count) {
         total += numbers[i];
         i += 1;
@@ -67,12 +67,12 @@ This allows passing a variable number of arguments of _any type_, with runtime t
 ```bpl
 # Definition
 frame printMixed(args: ..., arg_count: int) {
-    local i = 0;
+    local i: int = 0;
     loop (i < arg_count) {
         if (args[i] is int) {
-            printf("Int: %d\n", args[i] as int);
+            printf("Int: %d\n", cast<int>(args[i].data));
         } else if (args[i] is string) {
-            printf("String: %s\n", args[i] as string);
+            printf("String: %s\n", cast<string>(args[i].data));
         }
         i += 1;
     }
@@ -109,7 +109,7 @@ When calling `printMixed(2, 42, "Hello")`:
 **Runtime Type Checking (`is` / `match`):**
 
 - `args[i] is int` compiles to: `args[i].type_id == INT_ID`.
-- `args[i] as int` compiles to: `*(cast<*int>(args[i].data))`.
+- `cast<int>(args[i].data)` compiles to the appropriate unboxing path for that `Any` payload.
 
 ### Handling Primitives vs Structs
 
@@ -322,16 +322,16 @@ The compiler transforms the `match` into a switch on `val.type_id`:
 ```bpl
 switch (val.type_id) {
     case __type_id<int>(): {
-        local i = cast<int>(val.data); # Direct unbox
+        local i: int = cast<int>(val.data); # Direct unbox
         printf("Integer: %d\n", i);
     }
     case __type_id<string>(): {
-        local s = cast<string>(val.data); # Direct unbox (string is a pointer)
+        local s: string = cast<string>(val.data); # Direct unbox (string is a pointer)
         printf("String: %s\n", s);
     }
     case __type_id<Point>(): {
-        local p_ptr = cast<*Point>(val.data); # Pointer unbox
-        local p = *p_ptr;
+        local p_ptr: *Point = cast<*Point>(val.data); # Pointer unbox
+        local p: Point = *p_ptr;
         printf("Point: %d, %d\n", p.x, p.y);
     }
 }
@@ -343,12 +343,15 @@ With Heterogeneous Variadics, we can implement a type-safe `printf` in BPL using
 
 ```bpl
 # Note: 'args' is implicitly converted to 'Any[]' and 'count' is auto-filled
+extern strlen(s: string) ret int;
+
 frame myPrintf(fmt: string, args: ..., count: int) {
     local arg_idx: int = 0;
     local i: int = 0;
+    local fmt_len: int = strlen(fmt);
 
     # Iterate over format string (simplified)
-    loop (i < fmt.length()) {
+    loop (i < fmt_len) {
         local c: char = fmt[i];
 
         if (c == '%') {

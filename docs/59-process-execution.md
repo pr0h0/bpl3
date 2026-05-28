@@ -38,14 +38,14 @@ exec("echo", "hello; echo INJECTED");
 
 ### Functions
 
-All execution functions accept variadic arguments `...string`. Arguments are joined by spaces to form the shell command string, and each argument is automatically escaped (wrapped in single quotes with internal escaping) to ensure safety.
+All safe execution functions accept variadic `string` arguments plus the required trailing `count: int` parameter in their declarations. Callers pass only the command arguments; the compiler supplies `count` automatically. Arguments are joined by spaces to form the shell command string, and each argument is automatically escaped (wrapped in single quotes with internal escaping) to ensure safety.
 
 #### `exec`
 
 Executes a shell command and waits for it to complete. This function returns nothing and ignores the exit code.
 
 ```bpl
-frame exec(args: ...string)
+frame exec(args: ...string, count: int)
 ```
 
 - **Parameters**:
@@ -69,7 +69,7 @@ frame execShell(cmd: string) ret ProcessResult
 Executes a shell command safely but redirects both stdout and stderr to `/dev/null`. Useful for checking if a command works without cluttering the output.
 
 ```bpl
-frame execSilent(args: ...string) ret int
+frame execSilent(args: ...string, count: int) ret int
 ```
 
 - **Parameters**:
@@ -84,12 +84,20 @@ Pauses execution for the specified number of milliseconds.
 frame sleep(ms: int)
 ```
 
+#### `execStatus`
+
+Executes a shell command safely and returns its exit status code.
+
+```bpl
+frame execStatus(args: ...string, count: int) ret int
+```
+
 #### `execOutput`
 
 Executes a shell command, captures its standard output, and returns both the exit code and the output.
 
 ```bpl
-frame execOutput(args: ...string) ret ProcessResult
+frame execOutput(args: ...string, count: int) ret ProcessResult
 ```
 
 - **Parameters**:
@@ -130,7 +138,7 @@ Useful for control flow based on command success.
 
 ```bpl
 import execStatus from "std/process.bpl";
-import printf from "libc";
+extern printf(fmt: string, ...) ret int;
 
 frame main() {
     local status: int = execStatus("git", "status");
@@ -149,7 +157,7 @@ When you need to process the output of a command.
 
 ```bpl
 import execOutput, [ProcessResult] from "std/process.bpl";
-import printf from "libc";
+extern printf(fmt: string, ...) ret int;
 
 frame main() {
     # Capturing output from a constructed command
@@ -160,5 +168,6 @@ frame main() {
 
     if (res.exitCode == 0) {
         printf("Output: %s", res.output.data);
+    }
 }
 ```

@@ -46,7 +46,8 @@ Templates **must** start with header directives to define arguments and imports.
 - **`@import <module>`**: Imports external BPL modules (e.g., structs used in args).
 
 ```html
-@import [User] from "../models.bpl" @args user: *User, title: string
+@import [User] from "../models.bpl"
+@args user: *User, title: string
 ```
 
 #### 2. Interpolation
@@ -108,15 +109,26 @@ A template named `home.bte` is compiled into a struct `Home`.
 
 ```bpl
 import [StringBuilder] from "std/string_builder.bpl";
-import [HTMLEscape_appendEscaped] from "bpl-templ";
+import HTMLEscape_appendEscaped from "bpl-templ";
+extern free(ptr: *void);
 
 struct Home {
-    frame render(name: string) ret string {
-        local _sb = StringBuilder.new(1024);
+    frame write(_sb: *StringBuilder, name: string) {
         _sb.append("<h1>Hello ");
-        HTMLEscape_appendEscaped(&_sb, name);
+        HTMLEscape_appendEscaped(_sb, name);
         _sb.append("</h1>\n");
-        return _sb.toString();
+    }
+
+    frame render(name: string) ret string {
+        local sb: StringBuilder = StringBuilder.new(1024);
+        Home.write(&sb, name);
+        return sb.toString();
+    }
+
+    frame free(str: string) {
+        if (str != nullptr) {
+            free(cast<*void>(str));
+        }
     }
 }
 export [Home];

@@ -120,14 +120,14 @@ frame main() ret int {
 
 ### Bounds Checking
 
-**Warning:** BPL does not perform automatic bounds checking at runtime by default. Accessing out-of-bounds indices leads to undefined behavior:
+Fixed-size arrays, slices, and standard-library `Array<T>` accessors perform runtime bounds checks where the compiler or library knows the length. Raw pointer indexing still cannot be bounds checked automatically, so pointer-plus-length APIs must validate indices explicitly:
 
 ```bpl
 local arr: int[5] = [1, 2, 3, 4, 5];
 
-# DANGER: Out of bounds access!
-# local bad: int = arr[10];  # Undefined behavior!
-# arr[-1] = 0;               # Undefined behavior!
+# Checked fixed-array access: raises IndexOutOfBoundsError at runtime.
+# local bad: int = arr[10];
+# arr[-1] = 0;
 ```
 
 Always ensure indices are within valid range:
@@ -372,7 +372,7 @@ extern printf(fmt: string, ...);
 
 frame main() ret int {
     # Create dynamic array
-    local arr: Array<int> = Array<int>.new();
+    local arr: Array<int> = Array<int>.new(4);
 
     # Add elements
     arr.push(10);
@@ -381,10 +381,10 @@ frame main() ret int {
 
     # Access elements
     printf("First: %d\n", arr.get(0));
-    printf("Length: %d\n", arr.length());
+    printf("Length: %d\n", arr.len());
 
     # Iterate
-    loop (local i: int = 0; i < arr.length(); i = i + 1) {
+    loop (local i: int = 0; i < arr.len(); i = i + 1) {
         printf("arr[%d] = %d\n", i, arr.get(i));
     }
 

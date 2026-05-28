@@ -1,5 +1,5 @@
 # Module: math.bpl
-*File: /home/pr0h0/Projects/asm-bpl/transpiler/examples/docs_demo/math.bpl*
+*File: examples/docs_demo/math.bpl*
 
 ## Structs
 ### `Vec2`
@@ -67,7 +67,7 @@ Calculates the length of the vector.
 ---
 
 # Module: entities.bpl
-*File: /home/pr0h0/Projects/asm-bpl/transpiler/examples/docs_demo/entities.bpl*
+*File: examples/docs_demo/entities.bpl*
 
 ## Enums
 ### `EntityType`
@@ -143,7 +143,7 @@ xp: int
 ---
 
 # Module: engine.bpl
-*File: /home/pr0h0/Projects/asm-bpl/transpiler/examples/docs_demo/engine.bpl*
+*File: examples/docs_demo/engine.bpl*
 
 ## Structs
 ### `GameEngine`
@@ -154,7 +154,7 @@ The core system that manages the game loop and entity state.
 
 #### Usage
 ```bpl
-local engine = GameEngine.new();
+local engine: GameEngine = GameEngine.new();
 engine.start();
 ```
 
@@ -210,7 +210,7 @@ Creates a new entity in the world.
 ---
 
 # Module: main.bpl
-*File: /home/pr0h0/Projects/asm-bpl/transpiler/examples/docs_demo/main.bpl*
+*File: examples/docs_demo/main.bpl*
 
 ## Global Variables
 ### `MAX_ENTITIES`

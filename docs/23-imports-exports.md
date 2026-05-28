@@ -1,23 +1,85 @@
 # Imports and Exports
 
-BPL's module system allows you to organize code across multiple files and create reusable packages. This guide covers importing, exporting, module resolution, and package creation.
+BPL modules are ordinary `.bpl` files. Each file has its own scope, and symbols are private unless the file exports them explicitly.
 
-## Table of Contents
+## Import Syntax
 
-- [Module Basics](#module-basics)
-- [Import Statement](#import-statement)
-- [Export Statement](#export-statement)
-- [Module Resolution](#module-resolution)
-- [Standard Library](#standard-library)
-- [Module Best Practices](#module-best-practices)
+Import functions, globals, and other value symbols by name:
 
-## Module Basics
+```bpl
+import add, multiply from "./math.bpl";
+```
 
-### What is a Module?
+Import types by wrapping the imported name in brackets:
 
-A module is a `.bpl` file that contains code (functions, structs, constants, etc.). Modules help organize code and enable reuse.
+```bpl
+import [Point], distance from "./geometry.bpl";
+```
 
-**File: math.bpl**
+Import every exported symbol under a namespace:
+
+```bpl
+import * as math from "./math.bpl";
+```
+
+Import a module for side effects:
+
+```bpl
+import "std/errors.bpl";
+```
+
+Aliases are supported for bare value imports:
+
+```bpl
+import add as sum from "./math.bpl";
+```
+
+## Export Syntax
+
+Declare the symbol first, then export it with a separate `export` statement. Inline exports such as `export frame foo()` and `export struct Foo` are not part of the current grammar.
+
+```bpl
+# math.bpl
+frame add(a: int, b: int) ret int {
+    return a + b;
+}
+
+frame multiply(a: int, b: int) ret int {
+    return a * b;
+}
+
+export add;
+export multiply;
+```
+
+Export types with bracket syntax:
+
+```bpl
+# geometry.bpl
+struct Point {
+    x: int,
+    y: int,
+}
+
+frame distanceSquared(p: Point) ret int {
+    return (p.x * p.x) + (p.y * p.y);
+}
+
+export [Point];
+export distanceSquared;
+```
+
+Export globals the same way as functions:
+
+```bpl
+global const PI: float = 3.141592653589793;
+
+export PI;
+```
+
+## Module Example
+
+**math.bpl**
 
 ```bpl
 frame add(a: int, b: int) ret int {
@@ -27,665 +89,201 @@ frame add(a: int, b: int) ret int {
 frame multiply(a: int, b: int) ret int {
     return a * b;
 }
+
+export add;
+export multiply;
 ```
 
-**File: main.bpl**
+**main.bpl**
 
 ```bpl
-import [add, multiply] from "math.bpl";
+import add, multiply from "./math.bpl";
+extern printf(fmt: string, ...) ret int;
 
 frame main() ret int {
     local sum: int = add(5, 3);
     local product: int = multiply(5, 3);
+    printf("%d %d\n", sum, product);
     return 0;
 }
 ```
 
-### Module Scope
+Run it with:
 
-Each module has its own scope. Items are private by default and must be explicitly exported to be accessible from other modules.
-
-## Import Statement
-
-The `import` statement brings items from other modules into the current scope.
-
-### Named Imports
-
-Import specific items:
-
-```bpl
-import [add, subtract] from "math.bpl";
-
-frame main() ret int {
-    local result: int = add(5, 3);
-    return 0;
-}
-```
-
-### Importing Types
-
-Import structs and type aliases:
-
-```bpl
-import [Point, Color] from "graphics.bpl";
-
-frame main() ret int {
-    local p: Point;
-    p.x = 10;
-    p.y = 20;
-    return 0;
-}
-```
-
-### Importing Multiple Items
-
-```bpl
-import [
-    Vector2,
-    Vector3,
-    add,
-    subtract,
-    dot,
-    cross
-] from "math/vector.bpl";
-```
-
-### Import Syntax Variations
-
-```bpl
-# Single item
-import [sqrt] from "math.bpl";
-
-# Multiple items
-import [sin, cos, tan] from "math.bpl";
-
-# Types and functions
-import [Point, distance] from "geometry.bpl";
-```
-
-## Export Statement
-
-The `export` statement makes items available to other modules.
-
-### Exporting Functions
-
-```bpl
-# File: utils.bpl
-
-# Private function - not accessible outside this module
-frame helperFunction() ret void {
-    # ...
-}
-
-# Public function - accessible via import
-export frame publicFunction() ret int {
-    helperFunction();  # Can call private functions internally
-    return 42;
-}
-```
-
-### Exporting Structs
-
-```bpl
-# File: shapes.bpl
-
-# Public struct
-export struct Circle {
-    radius: float,
-
-    frame area(this: *Circle) ret float {
-        return 3.14159 * this.radius * this.radius;
-    }
-}
-
-# Private struct - only used internally
-struct InternalHelper {
-    data: int,
-}
-```
-
-### Exporting Constants
-
-```bpl
-# File: constants.bpl
-
-export global const PI: float = 3.14159265359;
-export global const E: float = 2.71828182846;
-
-# Private constant
-global const INTERNAL_BUFFER_SIZE: int = 1024;
-```
-
-### Multiple Exports
-
-```bpl
-# File: math.bpl
-
-export frame add(a: int, b: int) ret int {
-    return a + b;
-}
-
-export frame subtract(a: int, b: int) ret int {
-    return a - b;
-}
-
-export frame multiply(a: int, b: int) ret int {
-    return a * b;
-}
-
-export struct Complex {
-    real: float;
-    imag: float;
-
-    frame magnitude() ret float {
-        return sqrt(this.real * this.real + this.imag * this.imag);
-    }
-}
+```bash
+bpl run main.bpl
 ```
 
 ## Module Resolution
 
-BPL uses several strategies to locate imported modules:
-
-### Relative Imports
-
-Import from files relative to the current file:
-
-```bpl
-# In file: src/main.bpl
-import [helper] from "./utils.bpl";        # Same directory
-import [Config] from "./config/app.bpl";   # Subdirectory
-import [Parent] from "../shared.bpl";      # Parent directory
-```
-
-### Project Structure Example
-
-```
-project/
-  ├── main.bpl
-  ├── utils.bpl
-  ├── config/
-  │   └── app.bpl
-  └── src/
-      ├── module1.bpl
-      └── module2.bpl
-```
-
-**In main.bpl:**
-
-```bpl
-import [helper] from "./utils.bpl";
-import [Config] from "./config/app.bpl";
-```
-
-**In src/module1.bpl:**
-
-```bpl
-import [Config] from "../config/app.bpl";
-import [helper] from "../utils.bpl";
-```
-
-### Standard Library Imports
-
-Import from the standard library using `std/` prefix:
-
-```bpl
-import [String] from "std/string.bpl";
-import [Vec] from "std/vec.bpl";
-import [Map] from "std/map.bpl";
-import [Option, Some, None] from "std/option.bpl";
-```
-
-### Package Imports
-
-Import from installed packages:
-
-```bpl
-# Import from package in bpl_modules/
-import [JsonParser] from "json_package/parser.bpl";
-```
-
-### Search Order
-
 BPL resolves imports in this order:
 
-1. **Relative paths** (`./`, `../`)
-2. **Standard library** (`std/`)
-3. **Local bpl_modules** directory
-4. **Global bpl_modules** directory
+1. Relative paths such as `./utils.bpl` and `../shared.bpl`
+2. Standard library paths under `std/`
+3. Local packages in `bpl_modules/`
+4. Global packages in `~/.bpl/packages/`
 
-## Standard Library
+Relative imports are resolved from the importing file:
 
-BPL includes a comprehensive standard library.
+```bpl
+# src/module1.bpl
+import [Config] from "../config/app.bpl";
+import helper from "../utils.bpl";
+```
 
-### Common Standard Library Modules
+Standard library imports use the `std/` prefix:
 
-#### String Operations
+```bpl
+import [Array] from "std/array.bpl";
+import [String] from "std/string.bpl";
+import [Map] from "std/map.bpl";
+import [Option] from "std/option.bpl";
+```
+
+## Common Standard Library Imports
+
+### Strings
 
 ```bpl
 import [String] from "std/string.bpl";
+import [IO] from "std/io.bpl";
 
 frame main() ret int {
-    local s: String;
-    s.init("Hello, World!");
-
-    printf("Length: %d\n", s.length());
-    printf("Uppercase: %s\n", s.toUpper());
-
-    s.cleanup();
+    local s: String = String.new("Hello");
+    IO.printString(s.toString());
+    s.destroy();
     return 0;
 }
 ```
 
-#### Dynamic Arrays
+### Dynamic Arrays
 
 ```bpl
-import [Vec] from "std/vec.bpl";
+import [Array] from "std/array.bpl";
+import [IO] from "std/io.bpl";
 
 frame main() ret int {
-    local v: Vec<int>;
-    v.init();
+    local values: Array<int> = Array<int>.new(4);
+    values.push(10);
+    values.push(20);
 
-    v.push(10);
-    v.push(20);
-    v.push(30);
+    IO.printIntLn(values.get(0));
+    IO.printIntLn(values.len());
 
-    printf("Size: %d\n", v.size());
-    printf("First: %d\n", v.get(0));
-
-    v.cleanup();
+    values.destroy();
     return 0;
 }
 ```
 
-#### Hash Maps
+### Hash Maps
 
 ```bpl
 import [Map] from "std/map.bpl";
+import [Option] from "std/option.bpl";
+import [IO] from "std/io.bpl";
 
 frame main() ret int {
-    local m: Map<string, int>;
-    m.init();
+    local ages: Map<string, int> = Map<string, int>.new();
+    ages.set("Alice", 25);
 
-    m.insert("Alice", 25);
-    m.insert("Bob", 30);
+    local age: Option<int> = ages.get("Alice");
+    if (age.isSome()) {
+        IO.printIntLn(age.unwrap());
+    }
 
-    local age: int = m.get("Alice");
-    printf("Alice's age: %d\n", age);
-
-    m.cleanup();
+    ages.destroy();
     return 0;
 }
 ```
 
-#### Option Type
+### Option and Result
 
 ```bpl
-import [Option, Some, None] from "std/option.bpl";
+import [Option] from "std/option.bpl";
 
 frame safeDivide(a: int, b: int) ret Option<int> {
     if (b == 0) {
-        return None<int>();
+        return Option<int>.None;
     }
-    return Some<int>(a / b);
-}
-
-frame main() ret int {
-    local result: Option<int> = safeDivide(10, 2);
-
-    if (result.isSome()) {
-        printf("Result: %d\n", result.unwrap());
-    } else {
-        printf("Division by zero\n");
-    }
-
-    return 0;
+    return Option<int>.Some(a / b);
 }
 ```
-
-#### Result Type
 
 ```bpl
-import [Result, Ok, Err] from "std/result.bpl";
+import [Result] from "std/result.bpl";
 
-frame readFile(path: string) ret Result<string, string> {
-    local file: File* = fopen(path, "r");
-    if (file == nullptr) {
-        return Err<string, string>("Failed to open file");
+frame parseId(raw: int) ret Result<int, string> {
+    if (raw < 0) {
+        return Result<int, string>.Err("negative id");
     }
-    # ... read file ...
-    return Ok<string, string>(contents);
+    return Result<int, string>.Ok(raw);
 }
 ```
 
-### Full Standard Library Reference
+## Packages
 
-```bpl
-# Core utilities
-import [String] from "std/string.bpl";
-import [Array] from "std/array.bpl";
-import [Option, Some, None] from "std/option.bpl";
-import [Result, Ok, Err] from "std/result.bpl";
-
-# Collections
-import [Vec] from "std/vec.bpl";
-import [Map] from "std/map.bpl";
-import [Set] from "std/set.bpl";
-import [Stack] from "std/stack.bpl";
-import [Queue] from "std/queue.bpl";
-
-# Iterators
-import [Iter, Range] from "std/iter.bpl";
-
-# Algorithms
-import [sort, binarySearch, reverse] from "std/algorithm.bpl";
-
-# I/O
-import [print, println, readLine] from "std/io.bpl";
-import [File, FileMode] from "std/fs.bpl";
-import [Path] from "std/path.bpl";
-
-# Formatting
-import [format, sprintf] from "std/fmt.bpl";
-
-# Math
-import [abs, min, max, clamp] from "std/math.bpl";
-import [Random] from "std/rand.bpl";
-
-# JSON
-import [JsonValue, parseJson, toJson] from "std/json.bpl";
-
-# Logging
-import [log, error, warn, info, debug] from "std/log.bpl";
-
-# Assertions
-import [assert, assertEq, assertNe] from "std/assert.bpl";
-
-# Command-line arguments
-import [Args] from "std/args.bpl";
-```
-
-## Creating Packages
-
-Packages allow you to distribute and reuse code across projects.
-
-### Package Structure
-
-```
-my_package/
-  ├── bpl-package.json     # Package configuration
-  ├── README.md            # Documentation
-  ├── LICENSE              # License file
-  ├── src/
-  │   ├── lib.bpl         # Main library file
-  │   ├── utils.bpl       # Utility functions
-  │   └── types.bpl       # Type definitions
-  ├── examples/
-  │   └── example.bpl     # Usage examples
-  └── tests/
-      └── test.bpl        # Test files
-```
-
-### Creating a Simple Package
-
-**Step 1: Create bpl-package.json**
+A package is a directory with a `bpl.json` manifest and one or more `.bpl` files. The package manager currently works with local tarballs and installed `bpl_modules/` directories.
 
 ```json
 {
-  "name": "my_math_lib",
+  "name": "my-math-lib",
   "version": "1.0.0",
-  "description": "A simple math library",
-  "author": "Your Name",
-  "license": "MIT",
-  "main": "src/lib.bpl",
-  "dependencies": {},
-  "keywords": ["math", "utilities"]
+  "description": "A small math package",
+  "main": "index.bpl",
+  "dependencies": {}
 }
 ```
 
-**Step 2: Create src/lib.bpl**
-
-```bpl
-# Main library file
-
-export frame add(a: int, b: int) ret int {
-    return a + b;
-}
-
-export frame multiply(a: int, b: int) ret int {
-    return a * b;
-}
-
-export struct Complex {
-    real: float;
-    imag: float;
-
-    frame magnitude() ret float {
-        return sqrt(this.real * this.real + this.imag * this.imag);
-    }
-}
-```
-
-**Step 3: Using the Package**
-
-Install in another project:
+Create a package archive:
 
 ```bash
-bpl package install my_math_lib
+bpl pack
 ```
 
-Import and use:
+Install a package archive:
+
+```bash
+bpl install ./my-math-lib-1.0.0.tgz
+```
+
+Import from the installed package:
 
 ```bpl
-import [add, multiply, Complex] from "my_math_lib/lib.bpl";
-
-frame main() ret int {
-    local sum: int = add(5, 3);
-
-    local c: Complex;
-    c.real = 3.0;
-    c.imag = 4.0;
-    printf("Magnitude: %f\n", c.magnitude());
-
-    return 0;
-}
+import add, multiply from "my-math-lib";
 ```
 
-## Package Configuration
+## Re-exports
 
-### bpl-package.json Schema
-
-```json
-{
-  "name": "package_name",           # Required: package name
-  "version": "1.0.0",               # Required: semantic version
-  "description": "Package description",
-  "author": "Author Name <email@example.com>",
-  "license": "MIT",                 # MIT, Apache-2.0, GPL-3.0, etc.
-  "main": "src/lib.bpl",           # Entry point
-  "homepage": "https://github.com/user/package",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/user/package.git"
-  },
-  "keywords": ["keyword1", "keyword2"],
-  "dependencies": {
-    "other_package": "^1.2.0"
-  },
-  "devDependencies": {
-    "test_framework": "^2.0.0"
-  },
-  "scripts": {
-    "test": "bpl test",
-    "build": "bpl compile src/lib.bpl"
-  }
-}
-```
-
-### Version Specification
-
-```json
-{
-  "dependencies": {
-    "exact": "1.2.3",           # Exact version
-    "caret": "^1.2.3",          # Compatible (1.2.3 to <2.0.0)
-    "tilde": "~1.2.3",          # Patch updates (1.2.3 to <1.3.0)
-    "range": ">=1.0.0 <2.0.0",  # Version range
-    "latest": "*"               # Latest version (not recommended)
-  }
-}
-```
-
-## Module Best Practices
-
-### 1. One Module Per File
-
-Keep modules focused and single-purpose:
+To expose a package-level facade, import from submodules in `index.bpl` and then export the imported names.
 
 ```bpl
-# Good: math_utils.bpl
-export frame add(a: int, b: int) ret int { ... }
-export frame subtract(a: int, b: int) ret int { ... }
+# index.bpl
+import add, subtract from "./src/basic.bpl";
+import [Vector2] from "./src/vector.bpl";
 
-# Avoid: kitchen_sink.bpl with unrelated functions
+export add;
+export subtract;
+export [Vector2];
 ```
 
-### 2. Explicit Exports
-
-Only export what's necessary:
+Users can then import from the package entry point:
 
 ```bpl
-# Public API
-export frame publicFunction() ret void { ... }
-
-# Internal implementation (not exported)
-frame helperFunction() ret void { ... }
+import add, [Vector2] from "my-math-lib";
 ```
 
-### 3. Group Related Imports
+## Best Practices
 
-```bpl
-# Standard library
-import [Vec] from "std/vec.bpl";
-import [Map] from "std/map.bpl";
-
-# Third-party packages
-import [JsonParser] from "json_lib/parser.bpl";
-
-# Local modules
-import [Config] from "./config.bpl";
-import [Utils] from "./utils.bpl";
-```
-
-### 4. Avoid Circular Dependencies
-
-```bpl
-# BAD: Circular dependency
-# module_a.bpl imports from module_b.bpl
-# module_b.bpl imports from module_a.bpl
-
-# GOOD: Extract shared code to a third module
-# module_a.bpl imports from shared.bpl
-# module_b.bpl imports from shared.bpl
-```
-
-### 5. Use Package Namespacing
-
-```bpl
-# Instead of importing everything:
-import [Vec, Map, Set, Stack, Queue] from "std/collections.bpl";
-
-# Import what you need:
-import [Vec] from "std/vec.bpl";
-import [Map] from "std/map.bpl";
-```
-
-### 6. Document Public APIs
-
-```bpl
-# Calculates the factorial of n
-# Returns 1 for n <= 0
-export frame factorial(n: int) ret int {
-    if (n <= 0) return 1;
-    return n * factorial(n - 1);
-}
-```
-
-### 7. Version Your Packages
-
-Follow semantic versioning:
-
-- **Major (1.0.0)**: Breaking changes
-- **Minor (0.1.0)**: New features, backward compatible
-- **Patch (0.0.1)**: Bug fixes
-
-### 8. Test Your Exports
-
-Ensure exported items work as expected:
-
-```bpl
-# tests/test_math.bpl
-import [add, multiply] from "../src/math.bpl";
-import [assert] from "std/assert.bpl";
-
-frame testAdd() ret void {
-    assert(add(2, 3) == 5, "2 + 3 should equal 5");
-}
-
-frame testMultiply() ret void {
-    assert(multiply(2, 3) == 6, "2 * 3 should equal 6");
-}
-```
-
-## Common Patterns
-
-### Library Pattern
-
-Create a main library file that re-exports from submodules:
-
-**lib.bpl:**
-
-```bpl
-# Re-export from submodules
-import [add, subtract] from "./math/basic.bpl";
-import [sin, cos] from "./math/trig.bpl";
-import [Vec2, Vec3] from "./math/vector.bpl";
-
-export frame add(a: int, b: int) ret int;
-export frame subtract(a: int, b: int) ret int;
-export frame sin(x: float) ret float;
-export frame cos(x: float) ret float;
-export struct Vec2;
-export struct Vec3;
-```
-
-Users only need to import from lib.bpl.
-
-### Facade Pattern
-
-Provide a simplified interface to complex subsystems:
-
-**facade.bpl:**
-
-```bpl
-import [ComplexSystem1] from "./internal/system1.bpl";
-import [ComplexSystem2] from "./internal/system2.bpl";
-
-export frame simpleOperation() ret void {
-    # Hide complexity
-    local s1: ComplexSystem1;
-    local s2: ComplexSystem2;
-    s1.init();
-    s2.init();
-    s1.doComplexThing();
-    s2.doOtherComplexThing();
-    s1.cleanup();
-    s2.cleanup();
-}
-```
+- Keep one coherent module per file.
+- Export only the public API.
+- Prefer `index.bpl` as a package facade.
+- Use relative imports for local project files and `std/` for standard library modules.
+- Avoid circular imports by moving shared declarations into a third module.
+- Keep package manifests in `bpl.json` and use `main` for the entry file.
 
 ## Next Steps
 
-- [Standard Library Reference](24-stdlib-reference.md) - Complete stdlib documentation
-- [Package Manager](PACKAGE_MANAGER.md) - Detailed package management guide
-- [Build System](25-build-system.md) - Compiling multi-file projects
+- [Module Resolution](24-module-resolution.md)
+- [Package Management](25-package-management.md)
+- [Standard Library API](48-stdlib-api.md)
+- [Build Systems](50-build-systems.md)

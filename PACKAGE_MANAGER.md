@@ -136,7 +136,7 @@ frame main() ret int {
 When importing a module, BPL searches in this order:
 
 1. **Relative imports** (./path or ../path)
-2. **Standard library** (built-in modules like "std", "io", "math")
+2. **Standard library** (paths under `std/`, such as `std/io.bpl` and `std/math.bpl`)
 3. **Installed packages**:
    - Local packages in `./bpl_modules/`
    - Global packages in `~/.bpl/packages/`

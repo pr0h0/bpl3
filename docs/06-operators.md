@@ -103,7 +103,7 @@ local result: float = cast<float>(i) + f;  # Explicit cast required
 
 **Promotion Rules:**
 
-BPL does not support implicit type promotion. You must cast operands to the same type before operation.
+BPL does not perform broad C-style arithmetic promotion for mixed numeric expressions. Use explicit casts when operands have different numeric families or sizes. The compiler still supports limited implicit conversions documented in [LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md#conversion-semantics), such as compatible integer aliases and fixed-array to slice views.
 
 ## Comparison Operators
 
@@ -502,7 +502,7 @@ struct Animal { name: string }
 struct Dog : Animal { breed: string }
 
 frame checkType(animal: *Animal) {
-    if (animal is *Dog) {
+    if (animal is Dog) {
         printf("It's a dog!\n");
     }
 }
@@ -519,7 +519,7 @@ struct Animal { name: string }
 struct Dog : Animal { breed: string }
 
 frame processAnimal(animal: *Animal) {
-    local dog = animal as *Dog;
+    local dog: *Dog = animal as *Dog;
     if (dog != nullptr) {
         printf("Dog breed: %s\n", dog.breed);
     }
@@ -596,12 +596,12 @@ The `typeof` operator returns a runtime type identifier (TypeInfo) or is used fo
 ```bpl
 # Syntax: typeof<Type>() or typeof(expression)
 
-import { TypeInfo } from "std/reflection";
+import [TypeInfo], {TYPE_KIND_PRIMITIVE} from "std/reflection.bpl";
 
 local info: *TypeInfo = typeof<int>();
 local info2: *TypeInfo = typeof(10 + 20);
 
-if (info.kind == TypeKind.Integer) {
+if (info.kind == TYPE_KIND_PRIMITIVE) {
     printf("It is an integer");
 }
 ```

@@ -251,11 +251,11 @@
 
 - [x] **Watch Mode** ✅
   - **Status:** COMPLETED (January 2026)
-  - Description: Add `--watch` mode to CLI to recompile on file changes.
+  - Description: Add `bpl dev` watch mode to recompile on file changes.
   - Implementation notes: Use file watcher, integrate with incremental compilation, debounce events.
   - **What Was Implemented:**
     - ✅ Created `cli/Watcher.ts` with file watching logic
-    - ✅ Added `--watch` flag to CLI
+    - ✅ Added `bpl dev <file>` command to CLI
     - ✅ Implemented debouncing (100ms) to prevent excessive recompilation
     - ✅ Error recovery that continues watching after compilation failures
     - ✅ Recursive watching of all `.bpl` files in directory tree

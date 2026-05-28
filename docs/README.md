@@ -5,7 +5,7 @@ Welcome to the comprehensive documentation for **BPL (Best Programming Language)
 ## Quick Links
 
 - 🚀 [Quick Start](03-quick-start.md) - Write your first BPL program in 5 minutes
-- 📚 [Language Reference](AGENTS.MD) - Concise language reference
+- 📚 [Language Reference](../AGENTS.MD) - Concise language reference
 - 💡 [Examples](../examples/) - Real-world code examples
 
 ## Table of Contents
@@ -113,7 +113,7 @@ Every documentation page includes practical examples. For a complete collection 
 
 ## Contributing
 
-Found an error or want to improve the documentation? Contributions are welcome! See [CONTRIBUTING.md](../CONTRIBUTING.md).
+Found an error or want to improve the documentation? Open a pull request with the docs change and the relevant verification output.
 
 ## License
 

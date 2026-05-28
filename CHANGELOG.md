@@ -113,7 +113,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.
 - **Runtime Type Checking with `is` Operator (BUG-119)**: Fixed the `is` operator for struct pointer types to perform proper runtime vtable comparison. Previously, `is` only performed compile-time type checking, always returning `true` even for incorrect derived types. Now it correctly checks the actual runtime type via vtable comparison.
-- **Safe Downcasting with `as` Operator (BUG-120)**: Fixed the `as` operator for struct pointer types to perform safe runtime downcasting. Previously, `as` would cast any pointer without validation. Now it validates the runtime type via vtable comparison and returns `nullptr` if the types don't match, enabling safe downcast patterns like `local dog = animal as *Dog; if (dog != nullptr) { ... }`.
+- **Safe Downcasting with `as` Operator (BUG-120)**: Fixed the `as` operator for struct pointer types to perform safe runtime downcasting. Previously, `as` would cast any pointer without validation. Now it validates the runtime type via vtable comparison and returns `nullptr` if the types don't match, enabling safe downcast patterns like `local dog: *Dog = animal as *Dog; if (dog != nullptr) { ... }`.
 - **VTable Generation for Inherited Structs**: Structs that participate in inheritance hierarchies now properly receive vtables even if they don't define methods. This enables runtime type identification for all polymorphic types.
 - **Struct Equality**: Fixed invalid LLVM IR generation (`icmp` on aggregate types) for struct and lambda equality comparisons by implementing member-wise comparison and literal `memcmp` fallback.
 - **Pattern Matching Code Generation**:
@@ -135,21 +135,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Known Limitations
 
-- **BUG-104**: Nested tuple patterns in match expressions are not yet supported (e.g., `((a, b), c) => ...`)
-  - Workaround: Use separate match expressions or destructure tuples before matching
-  - See BUGS.md for details and examples
+- See [BUGS.md](BUGS.md) for the current bug ledger. BUG-104 nested tuple pattern matching has since been fixed.
 
 ## [Previous Release]
 
 ### Added
 
-- **Watch Mode** (`-w, --watch` flag) for automatic recompilation on file changes
+- **Watch Mode** (`bpl dev` command; formerly the main-command `--watch` flag) for automatic recompilation on file changes
   - Monitors all `.bpl` files in directory tree for changes
   - Automatic recompilation with 100ms debouncing to prevent excessive builds
   - Error recovery: continues watching even after compilation failures
   - Smart filtering: ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
   - Colorized console output with timestamps and status indicators
-  - Works with `--run` flag for automatic execution after successful compilation
+  - Runs the program after successful compilation by default; use `--no-run` to only compile
   - See `docs/39-compiler-options.md` for detailed usage guide
 - Created `test_config.json` for bug_086_test_simple integration test
   - Tests sizeof operations on type aliases (int, int[10], pointers)

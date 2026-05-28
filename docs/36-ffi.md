@@ -7,8 +7,8 @@ BPL can call functions written in C and other languages that support the C ABI.
 Use the `extern` keyword.
 
 ```bpl
-extern frame printf(fmt: string, ...) ret int;
-extern frame malloc(size: int) ret *void;
+extern printf(fmt: string, ...) ret int;
+extern malloc(size: long) ret *void;
 ```
 
 ## Linking

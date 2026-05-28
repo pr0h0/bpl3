@@ -30,7 +30,7 @@ struct Point { x: int, y: int }
 
 frame accessNull() {
     local p: *Point = nullptr;
-    local x = p.x;  # Runtime error!
+    local x: int = p.x;  # Runtime error!
 }
 ```
 
@@ -60,7 +60,7 @@ Triggered when array access exceeds array bounds.
 ```bpl
 frame main() {
     local arr: int[5] = [1, 2, 3, 4, 5];
-    local x = arr[10];  # Runtime error!
+    local x: int = arr[10];  # Runtime error!
 }
 ```
 
@@ -89,7 +89,7 @@ frame divide(a: int, b: int) ret int {
 }
 
 frame main() {
-    local result = divide(10, 0);
+    local result: int = divide(10, 0);
 }
 ```
 
@@ -300,10 +300,10 @@ Both `defer` and `try/catch` are implemented using `setjmp`/`longjmp` in `runtim
 
 ### Getting Better Stack Traces
 
-1. **Compile with debug info**: Use `--dwarf` flag
+1. **Compile with debug info**: Use `--debug` with `bpl build`
 
    ```bash
-   bpl build --dwarf myprogram.bpl
+   bpl build myprogram.bpl --debug
    ```
 
 2. **Use addr2line**: Convert addresses to file:line

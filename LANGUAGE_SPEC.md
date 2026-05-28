@@ -295,7 +295,7 @@ The `defer` statement schedules a block of code to be executed when the current 
 
 ```bpl
 frame processFile(path: string) {
-    local file = open(path);
+    local file: File = open(path);
     defer {
         close(file);
     }

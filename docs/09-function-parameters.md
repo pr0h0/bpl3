@@ -42,7 +42,7 @@ BPL supports two types of variadic functions: **FFI Variadics** (for C compatibi
 Used primarily for calling C functions like `printf`.
 
 ```bpl
-extern frame printf(fmt: string, ...);
+extern printf(fmt: string, ...) ret int;
 ```
 
 ### Native Variadics

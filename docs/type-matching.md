@@ -252,7 +252,7 @@ This allows you to write generic functions that behave differently based on the 
 
 ## See Also
 
-- [Pattern Matching](07-control-flow.md#pattern-matching) - Complete guide to pattern matching
-- [Enums](11-enums.md) - Enum declaration and usage
-- [Generics](10-generics.md) - Generic types and functions
+- [Match Expressions](07-control-flow.md#match-expressions) - Complete guide to pattern matching
+- [Control Flow](07-control-flow.md) - Switches, loops, and match expressions
+- [Generic Functions](10-generics-functions.md) - Generic types and functions
 - [Pattern Guards](07-control-flow.md#pattern-guards) - Conditional patterns in match expressions

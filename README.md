@@ -99,7 +99,7 @@ Download LLVM from [releases.llvm.org](https://releases.llvm.org/) or use WSL.
 ```bash
 bpl --version
 echo 'extern printf(fmt: string, ...); frame main() ret int { printf("It works!\n"); return 0; }' > test.bpl
-bpl test.bpl --run
+bpl run test.bpl
 ```
 
 For detailed installation instructions, see the [Installation Guide](docs/02-installation.md).
@@ -131,11 +131,11 @@ Or just compile:
 bpl hello.bpl -o hello
 ```
 
-### Run code without a file
+### Compile code without a file
 
-You can execute snippets or piped input directly:
+You can compile snippets or piped input directly:
 
-- Evaluate a snippet from the command line:
+- Compile a snippet from the command line:
 
   ```bash
   bpl -e 'frame main() ret int { return 0; }'
@@ -237,11 +237,11 @@ frame main() ret int {
 **Using Standard Library:**
 
 ```bpl
-import [Vec] from "std/vec.bpl";
+import [Array] from "std/array.bpl";
 import [IO] from "std/io.bpl";
 
 frame main() ret int {
-    local numbers: Vec<int> = Vec<int>.new(5);
+    local numbers: Array<int> = Array<int>.new(5);
     numbers.push(10);
     numbers.push(20);
     numbers.push(30);
@@ -253,6 +253,7 @@ frame main() ret int {
         i = i + 1;
     }
 
+    numbers.destroy();
     return 0;
 }
 ```
@@ -654,16 +655,15 @@ BPL includes a comprehensive standard library:
 | Module           | Description             | Example               |
 | ---------------- | ----------------------- | --------------------- |
 | `std/io.bpl`     | Input/output operations | `IO.log("Hello")`     |
-| `std/string.bpl` | String manipulation     | `String.concat(a, b)` |
+| `std/string.bpl` | String manipulation     | `String.new("text")`  |
 | `std/array.bpl`  | Dynamic arrays          | `Array<int>.new(10)`  |
-| `std/vec.bpl`    | Growable vectors        | `Vec<int>.new(0)`     |
 | `std/map.bpl`    | Hash maps               | `Map<K, V>.new()`     |
 | `std/set.bpl`    | Hash sets               | `Set<T>.new()`        |
 | `std/fs.bpl`     | File system ops         | `FS.readFile(path)`   |
 | `std/math.bpl`   | Math functions          | `Math.sqrt(x)`        |
 | `std/time.bpl`   | Time operations         | `Time.now()`          |
-| `std/json.bpl`   | JSON parsing            | `JSON.parse(str)`     |
-| `std/option.bpl` | Optional values         | `Option<T>.some(val)` |
+| `std/json.bpl`   | JSON parsing            | `JSON.parse<T>(str)`  |
+| `std/option.bpl` | Optional values         | `Option<T>.Some(val)` |
 | `std/result.bpl` | Error handling          | `Result<T, E>`        |
 
 See the [Standard Library documentation](docs/28-stdlib-io.md) for complete API reference.
@@ -694,8 +694,8 @@ bpl3/
 │   ├── 01-introduction.md
 │   ├── 02-installation.md
 │   ├── 03-quick-start.md
-│   └── ...             # 50+ documentation files
-├── examples/           # 70+ working examples
+│   └── ...             # 70+ documentation files
+├── examples/           # 450+ examples and regression programs
 │   ├── hello-world/
 │   ├── fibonacci/
 │   ├── generics/
@@ -706,10 +706,9 @@ bpl3/
 ├── lib/                # Standard library
 │   ├── io.bpl          # Input/output
 │   ├── array.bpl       # Dynamic arrays
-│   ├── vec.bpl         # Vectors
 │   ├── map.bpl         # Hash maps
 │   ├── string.bpl      # String utilities
-│   └── ...             # 20+ stdlib modules
+│   └── ...             # 50+ stdlib modules
 ├── tests/              # Comprehensive test suite
 │   ├── Integration.test.ts
 │   ├── Parser.test.ts
@@ -724,23 +723,23 @@ bpl3/
 
 ## 🧪 Examples
 
-The [`examples/`](examples/) directory contains 70+ working examples demonstrating every language feature:
+The [`examples/`](examples/) directory contains 450+ working examples and regression programs demonstrating language features and compiler edge cases:
 
 ### Beginner Examples
 
 - `hello-world/` - Your first program
-- `variables/` - Variable declarations
-- `math/` - Arithmetic operations
-- `if-statements/` - Conditionals
+- `assignment_variations/` - Variable declarations and assignment forms
+- `float_operations/` - Floating-point arithmetic
+- `control_flow_if_complex/` - Conditionals
 - `loops/` - Loop constructs
 
 ### Intermediate Examples
 
-- `functions/` - Function definitions
+- `func_nested_calls/` - Function definitions and calls
 - `structs/` - Custom data types
 - `arrays/` - Array operations
 - `pointers/` - Pointer manipulation
-- `strings/` - String handling
+- `stdlib_string_extended/` - String handling
 
 ### Advanced Examples
 
@@ -752,7 +751,7 @@ The [`examples/`](examples/) directory contains 70+ working examples demonstrati
 
 ### Standard Library Examples
 
-- `stdlib_io/` - I/O operations
+- `stdlib_demo/` - I/O, arrays, strings, and stdlib basics
 - `stdlib_vec/` - Dynamic arrays
 - `stdlib_map_set/` - Hash maps and sets
 - `stdlib_json/` - JSON parsing
@@ -775,7 +774,7 @@ Run any example:
 
 ```bash
 cd examples/fibonacci
-bpl main.bpl --run
+bpl run main.bpl
 ```
 
 ## 🧑‍💻 Development
@@ -807,7 +806,7 @@ bun run check
 bun run build
 
 # Development mode (no build)
-bun index.ts examples/hello-world/main.bpl --run
+bun index.ts run examples/hello-world/main.bpl
 ```
 
 ### Contributing
@@ -823,7 +822,7 @@ Contributions are welcome! Please:
 7. **Push** (`git push origin feature/amazing-feature`)
 8. **Open a Pull Request**
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+Open a pull request after running the relevant tests and type checks.
 
 ## 🎓 Learning Resources
 
@@ -848,14 +847,14 @@ Coming soon!
 
 ### Current Status: Beta
 
-BPL is under active development. The compiler is stable with **1,342 tests passing** across 88 test files.
+BPL is under active development. The compiler has **1,300+ tests** across 140+ test files, plus hundreds of example and regression programs.
 
 **Build Status:**
 
-- ✅ 1,342 tests passing (100%)
+- ✅ 1,300+ tests in the checked-in test suite
 - ✅ 0 ESLint errors/warnings
 - ✅ 0 TypeScript errors
-- ✅ 100+ working examples
+- ✅ 450+ checked-in examples and regression programs
 
 ### Completed ✅
 
@@ -867,10 +866,10 @@ BPL is under active development. The compiler is stable with **1,342 tests passi
 - [x] Package manager
 - [x] Code formatter
 - [x] Cross-compilation support
-- [x] Standard library (20+ modules)
+- [x] Standard library (50+ modules)
 - [x] VS Code extension
-- [x] Comprehensive test suite (1,342 tests)
-- [x] Documentation (50+ pages)
+- [x] Comprehensive test suite (1,300+ tests)
+- [x] Documentation (70+ pages)
 - [x] Enum types with pattern matching
 - [x] String interpolation
 - [x] Lambda expressions
@@ -897,15 +896,16 @@ See [TODO.md](TODO.md) for detailed task list.
 
 ## 📊 Benchmarks
 
-BPL produces competitive performance with C/C++:
+BPL produces C-class performance on the checked-in benchmark suite. Current checked-in medians from [`benchmark/latest-results.json`](benchmark/latest-results.json):
 
-| Benchmark             | BPL   | C (gcc -O2) | C++ (g++ -O2) |
-| --------------------- | ----- | ----------- | ------------- |
-| Fibonacci (recursive) | 1.23s | 1.19s       | 1.21s         |
-| Array sum             | 0.45s | 0.43s       | 0.44s         |
-| Matrix multiply       | 2.10s | 2.05s       | 2.08s         |
+| Benchmark               | BPL (-O3) | C (clang -O3) | Ratio |
+| ----------------------- | --------- | ------------- | ----- |
+| `bit_twiddle`           | 40.60ms   | 40.59ms       | 1.00x |
+| `fibonacci_recursive`   | 289.29ms  | 317.60ms      | 0.91x |
+| `matrix_multiplication` | 16.56ms   | 17.06ms       | 0.97x |
+| `prime_sieve`           | 18.33ms   | 21.17ms       | 0.87x |
 
-_Note: Benchmarks run on AMD Ryzen 9 5900X, Linux 5.15_
+Run `./benchmark/run_all.sh --language bpl,c --runs 5` to refresh local numbers.
 
 ## 🔍 Comparison with Other Languages
 

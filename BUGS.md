@@ -454,7 +454,7 @@ struct S { cb: Func<void>(), }
 local s: S;
 s.cb(); // Fails
 // Workaround:
-local f = s.cb;
+local f: Func<void>() = s.cb;
 f(); // Works
 ```
 
@@ -616,12 +616,11 @@ struct Shadow {
 
 ### BUG-043: Lambda Return Type Inference
 
-Lambda expressions seem to require an explicit return type or fail to parse/infer correctly in some contexts.
+Lambda expressions used to require an explicit return type or fail to infer correctly in some contexts. This has been fixed when the target function type is known.
 
 ```bpl
-local l = |x: int| { return x + 1; }; // Syntax Error
-// Workaround:
-local l: Func<int>(int) = |x: int| { return x + 1; };
+local l: Func<int>(int) = |x: int| { return x + 1; }; # Works
+local explicit: Func<int>(int) = |x: int| ret int { return x + 1; }; # Also works
 ```
 
 ### BUG-044: Infinite Generic Recursion
@@ -826,8 +825,8 @@ local ptr: *void = cast<*void>(compare); # CastError
 
 ```bpl
 struct Box<T> { frame new(v: T) ... }
-local b = Box.new(10); # Error: expected T, got int
-local b = Box<int>.new(10); # Works
+local b1: Box<int> = Box.new(10); # Error: expected T, got int
+local b2: Box<int> = Box<int>.new(10); # Works
 ```
 
 **Resolution**: Explicit generic type arguments are required for v0.1 constructor/static method calls. Confirmed current behavior: `Box.new(10)` fails with `Argument 1 type mismatch: expected T, got int`, while `Box<int>.new(10)` compiles and runs.
@@ -943,9 +942,9 @@ struct Counter {
 }
 
 frame main() {
-    local c = Counter { count: 0 };
+    local c: Counter = Counter { count: 0 };
     # 'inc' is a Lambda<void> that captures 'c'
-    local inc = c.increment;
+    local inc: Lambda<void>() = c.increment;
     inc();
 }
 ```
@@ -1252,34 +1251,16 @@ frame main() {
 
 **Description**: Match expressions with nested tuple patterns (e.g., `((a, b), c)`) are now implemented. The code generation for binding nested tuple identifiers has been completed by adding recursive handling for nested PatternTuple in MatchExpressionGenerator.ts.
 
-**Workaround**: Use separate match expressions or destructure tuples before matching:
+**Regression Example**:
 
 ```bpl
-# Does NOT work yet
 match (nested) {
     ((0, 0), 0) => printf("All zeros\n"),
     ((a, b), c) => printf("Nested: (%d, %d), %d\n", a, b, c),
 }
-
-# Workaround 1: Destructure first
-local ((a: int, b: int), c: int) = nested;
-match ((a, b, c)) {
-    (0, 0, 0) => printf("All zeros\n"),
-    (x, y, z) => printf("Values: %d, %d, %d\n", x, y, z),
-}
-
-# Workaround 2: Match outer, then inner
-match (nested) {
-    ((0, 0), c) => printf("First pair is (0, 0), c=%d\n", c),
-    (pair, c) => {
-        match (pair) {
-            (a, b) => printf("Nested: (%d, %d), %d\n", a, b, c),
-        };
-    },
-}
 ```
 
-**Technical Details**: The `generateTupleBindings()` method in `MatchExpressionGenerator.ts` has a TODO comment for recursive binding of nested tuples. The parser and type checker correctly handle nested tuple patterns, but code generation needs enhancement to recursively extract and bind nested tuple elements.
+**Technical Details**: `MatchExpressionGenerator.ts` recursively extracts nested tuple elements and binds nested pattern identifiers. Regression coverage lives in `tests/NestedTupleMatch.test.ts`.
 
 ### BUG-105: Infinite Monomorphization
 

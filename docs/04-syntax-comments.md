@@ -310,16 +310,13 @@ local quote: char = '\'';  # Escaped single quote
 local decimal: int = 42;        # Decimal
 local negative: int = -100;     # Negative
 local zero: int = 0;            # Zero
+local hex: int = 0x2A;          # Hexadecimal
+local binary: int = 0b101010;   # Binary
+local octal: int = 0o52;        # Octal
+local separated: int = 1_000_000; # Decimal separators
 ```
 
-BPL does **not** currently support:
-
-- Hexadecimal literals (`0x2A`)
-- Octal literals (`0o52`)
-- Binary literals (`0b101010`)
-- Number separators (`1_000_000`)
-
-Use decimal only.
+BPL supports underscores in decimal literals. Hexadecimal, binary, and octal literals use their usual prefixes and do not currently support underscores inside the digits.
 
 ### Floating-Point Literals
 

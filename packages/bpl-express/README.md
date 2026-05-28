@@ -13,8 +13,7 @@ A lightweight web framework for BPL, inspired by Express.js.
 ## Installation
 
 ```bash
-bpl install bpl-express
-# or via relative path in development
+bpl install packages/bpl-express/bpl-express-0.1.0.tgz
 ```
 
 ## Usage
@@ -75,7 +74,7 @@ BPL Express works seamlessly with **bpl-templ**, a compiled template engine for 
 **Installation:**
 
 ```bash
-bpl install bpl-templ
+bpl install packages/bpl-templ/bpl-templ-0.1.6.tgz
 ```
 
 **Example (`views/home.bte`):**

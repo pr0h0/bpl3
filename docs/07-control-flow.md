@@ -1156,5 +1156,6 @@ i = 1;
 ## Next Steps
 
 - [Functions Basics](08-functions-basics.md) - Function declarations and calls
-- [Functions Advanced](09-functions-advanced.md) - Overloading, recursion, pointers
+- [Functions](08-functions-basics.md) - Function declarations, recursion, and calls
+- [Function Pointers](19-function-pointers.md) - First-class function values
 - [Operators](06-operators.md) - Operator reference

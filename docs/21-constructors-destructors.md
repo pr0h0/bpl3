@@ -85,8 +85,9 @@ frame main() {
 
 ## Destructors
 
-Destructors are methods that clean up resources. BPL does not automatically call destructors; you must call them manually.
-If you have structs that inherits from other structs, when you call one destructor, others will be called automatically.
+Destructors are methods that clean up resources. By default, a `destroy(this: *T)` method is just an ordinary method and must be called manually. If it is marked with `@[auto_destroy]`, BPL automatically calls it for value locals when their scope exits, including early returns. Returned locals are treated as moved and are not destroyed before the caller receives them.
+
+If a struct inherits from other structs, calling its destructor also runs parent destructors through the generated destructor chain.
 
 ```bpl
 extern free(ptr: *void);
@@ -95,6 +96,7 @@ struct String {
     data: *char,
     len: int,
 
+    @[auto_destroy]
     frame destroy(this: *String) ret void {
         free(cast<*void>(this.data));
     }

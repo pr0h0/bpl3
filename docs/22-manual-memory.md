@@ -7,13 +7,13 @@ BPL relies on manual memory management for heap-allocated data.
 These functions are available via the standard library (libc).
 
 ```bpl
-extern frame malloc(size: int) ret *void;
-extern frame free(ptr: *void) ret void;
+extern malloc(size: long) ret *void;
+extern free(ptr: *void) ret void;
 
 frame main() ret void {
-    local ptr: *int = malloc(sizeof(int)) as *int;
+    local ptr: *int = cast<*int>(malloc(sizeof(int)));
     *ptr = 42;
-    free(ptr);
+    free(cast<*void>(ptr));
 }
 ```
 

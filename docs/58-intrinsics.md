@@ -70,16 +70,16 @@ frame main() {
     local x: int = 0b10110; # 22
 
     # Population Count
-    local bits = x.popCount();
+    local bits: int = x.popCount();
     # Result: 3 (10110 has three 1s)
 
     # Leading Zeros (for 32-bit int)
-    local lz = x.leadingZeros();
+    local lz: int = x.leadingZeros();
     # Result: 27 (32 total bits - 5 used bits)
 
     # Byte Swap (Endianness)
     local val: uint = 0x12345678;
-    local swapped = val.byteSwap();
+    local swapped: uint = val.byteSwap();
     # Result: 0x78563412
 }
 ```
@@ -101,14 +101,14 @@ Import these from `std/intrinsics.bpl`.
 ### Example
 
 ```bpl
-import [memcpy, memset] from "std/intrinsics.bpl";
+import memcpy, memset from "std/intrinsics.bpl";
 extern malloc(size: long) ret *void;
 
 frame main() {
     local buf: *void = malloc(1024);
 
     # Zero out memory
-    memset(buf, 0, 1024, false);
+    memset(buf, cast<u8>(0), 1024, false);
 
     # Copy data
     local src: *void = malloc(1024);
@@ -136,10 +136,7 @@ To use these, import them from `std/intrinsics.bpl`.
 ### Syntax
 
 ```bpl
-import [likely], [unlikely] from "std/intrinsics.bpl";
-
-extern likely(cond: bool) ret bool;
-extern unlikely(cond: bool) ret bool;
+import likely, unlikely from "std/intrinsics.bpl";
 ```
 
 ### Examples
@@ -177,9 +174,7 @@ The `prefetch` intrinsic allows you to hint to the CPU that a specific memory ad
 ### Syntax
 
 ```bpl
-import [prefetch] from "std/intrinsics.bpl";
-
-extern prefetch(ptr: *void, rw: int, locality: int);
+import prefetch from "std/intrinsics.bpl";
 ```
 
 - **`ptr`**: The address to prefetch.
@@ -218,10 +213,7 @@ BPL provides intrinsics to intentionally stop program execution, which is useful
 ### Syntax
 
 ```bpl
-import [trap], [debugtrap] from "std/intrinsics.bpl";
-
-extern trap();
-extern debugtrap();
+import trap, debugtrap from "std/intrinsics.bpl";
 ```
 
 ### `trap()`

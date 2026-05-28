@@ -115,23 +115,23 @@ bpl format main.bpl
 bpl format -w main.bpl
 ```
 
-## Global Flags
+## Common Flags
 
-These flags work with most commands:
+Flag availability depends on the command; run `bpl <command> --help` for the exact set.
 
-- `-o <file>`: Output file name
+- `-o <file>`: Output file name on the default compile command and `bpl build`
 - `-v, --verbose`: Verbose compiler output
 - `-q, --quiet`: Suppress non-error output
 - `-O <level>`: Optimization level (0, 1, 2, or 3)
-- `-d, --dwarf`: Generate DWARF debug information
-- `--debug`: Alias for --dwarf
+- `-d, --dwarf`: Generate DWARF debug information on the default compile command
+- `--debug`: Generate DWARF debug information on `run`, `dev`, and `build`
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
-- `--json`: Output in JSON format
+- `--json`: Output in JSON format where supported, especially `bpl check`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 
-## Direct Code Execution
+## Direct Code Compilation
 
 For quick testing without files:
 
@@ -279,12 +279,6 @@ Generate DWARF debug information for debugging with gdb/lldb:
 
 ```bash
 # Enable debug info
-bpl build main.bpl -d
-
-# Or use the long form
-bpl build main.bpl --dwarf
-
-# Or use the alias
 bpl build main.bpl --debug
 ```
 
@@ -405,7 +399,7 @@ bpl check main.bpl
 bpl build main.bpl -O 2 -o myapp
 
 # Build with debug symbols for debugging
-bpl build main.bpl -O 0 -d -o myapp-debug
+bpl build main.bpl -O 0 --debug -o myapp-debug
 
 # Cross-compile for multiple platforms
 bpl build main.bpl -O 2 --target x86_64-pc-linux-gnu -o myapp-linux

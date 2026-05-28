@@ -475,7 +475,7 @@ frame main() ret int {
 }
 ```
 
-**Note:** BPL doesn't support defining your own variadic functions, only calling extern ones.
+**Note:** BPL supports both C-style variadic `extern` declarations and native variadic functions. Native variadics require an explicit trailing `count: int` parameter so the callee can know how many arguments were packed.
 
 ### Linking
 
@@ -483,10 +483,10 @@ Extern functions must be available at link time:
 
 ```sh
 # Link with math library
-bpl compile -o program main.bpl -lm
+bpl build main.bpl -o program -l m
 
 # Link with custom library
-bpl compile -o program main.bpl -L./lib -lmylib
+bpl build main.bpl -o program -L ./lib -l mylib
 ```
 
 ## Forward Declarations
@@ -751,6 +751,7 @@ frame process(data: *LargeData) ret void {
 
 ## Next Steps
 
-- [Functions Advanced](09-functions-advanced.md) - Overloading, recursion, function pointers
+- [Function Parameters](09-function-parameters.md) - Parameters, return values, and variadics
+- [Function Pointers](19-function-pointers.md) - First-class function values
 - [Structs](11-structs.md) - Defining and using structures
 - [Pointers](15-pointers.md) - Deep dive into pointer operations

@@ -57,7 +57,7 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 1. Build the BPL compiler first:
 
 ```bash
-cd /home/pr0h0/Projects/asm-bpl/transpiler
+cd /path/to/bpl3
 bun install
 bun run build
 ```

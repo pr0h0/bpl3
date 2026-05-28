@@ -281,21 +281,21 @@ Point: (10, 20)
 ### Generate LLVM IR Only
 
 ```bash
-bpl hello.bpl
-# Creates hello.ll (LLVM IR file)
+bpl build hello.bpl --emit llvm
+# Creates hello.ll and a native executable
 ```
 
 ### Specify Output Name
 
 ```bash
-bpl hello.bpl -o myprogram
+bpl build hello.bpl -o myprogram
 # Creates 'myprogram' executable
 ```
 
 ### Verbose Output
 
 ```bash
-bpl hello.bpl -v --run
+bpl build hello.bpl -v
 # Shows detailed compilation steps
 ```
 
@@ -312,18 +312,18 @@ bpl hello.bpl --emit tokens
 bpl hello.bpl --emit formatted
 ```
 
-### Run code without a file
+### Compile code without a file
 
-- Evaluate a snippet passed on the command line:
+- Compile a snippet passed on the command line:
 
 ```bash
-bpl -e 'frame main() ret int { return 0; }' --run
+bpl -e 'frame main() ret int { return 0; }'
 ```
 
 - Compile from stdin (useful with pipes):
 
 ```bash
-cat examples/hello-world/main.bpl | bpl --stdin --run
+cat examples/hello-world/main.bpl | bpl --stdin
 ```
 
 `--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`; diagnostics label source locations as `<eval>` or `<stdin>`.
@@ -365,7 +365,7 @@ frame add(a: int, b: int) ret int {
 Compile with:
 
 ```bash
-bpl main.bpl --run
+bpl run main.bpl
 ```
 
 ## Using the Standard Library
@@ -396,24 +396,24 @@ See [Standard Library documentation](28-stdlib-io.md) for complete details.
 
 For quick experimentation and rapid iteration, BPL provides several options:
 
-### Watch Mode (Recommended)
+### Development Watch Mode (Recommended)
 
-The `--watch` flag automatically recompiles your code when files change:
+The `bpl dev` command automatically recompiles your code when files change:
 
 ```bash
 # Watch and run - recompiles on every save
-bpl mycode.bpl --watch --run
+bpl dev mycode.bpl
 ```
 
 This is the recommended way to develop BPL programs as it provides instant feedback without manual recompilation.
 
 ### Manual Compilation
 
-For quick one-off runs, use the `--run` flag:
+For quick one-off runs, use `bpl run`:
 
 ```bash
 # Edit, compile, run in one command
-bpl mycode.bpl --run
+bpl run mycode.bpl
 ```
 
 See [Compiler Options](39-compiler-options.md) for more details on watch mode and other development features.

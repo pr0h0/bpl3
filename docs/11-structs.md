@@ -427,7 +427,7 @@ free(cast<*void>(p));
 
 ## Constructors and Destructors
 
-BPL doesn't have automatic constructors/destructors, but you can use special methods:
+BPL supports constructor-style methods and opt-in automatic destructor cleanup. A `new(this: *T)` method can initialize locals declared without an explicit initializer. A `destroy(this: *T)` method runs automatically only when it is marked `@[auto_destroy]`; unmarked cleanup methods must still be called manually.
 
 ### Constructor Pattern
 
@@ -467,7 +467,8 @@ struct Buffer {
         this.size = s;
     }
 
-    frame cleanup(this: *Buffer) ret void {
+    @[auto_destroy]
+    frame destroy(this: *Buffer) ret void {
         if (this.data != nullptr) {
             free(cast<*void>(this.data));
             this.data = nullptr;
@@ -481,7 +482,7 @@ frame main() ret int {
     local buf: Buffer;
     buf.init(1024);
     # ... use buffer ...
-    buf.cleanup();  # Must call manually!
+    # buf.destroy() runs automatically at scope exit because it is marked @[auto_destroy]
     return 0;
 }
 ```
@@ -963,7 +964,7 @@ cfg.setWidth(1920).setHeight(1080).setFullscreen(true);
 
 ## Next Steps
 
-- [Methods and This](12-methods-this.md) - Deep dive into struct methods
+- [Struct Methods](12-struct-methods.md) - Deep dive into struct methods
 - [Inheritance](13-inheritance.md) - Advanced inheritance patterns
-- [Memory Management](14-memory.md) - Managing struct lifetimes
+- [Memory Basics](20-memory-basics.md) - Managing struct lifetimes
 - [Pointers](15-pointers.md) - Pointer operations with structs

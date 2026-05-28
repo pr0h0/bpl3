@@ -103,7 +103,7 @@ frame processAnimal(animal: *Animal) {
 }
 
 frame main() ret int {
-    local dog = Dog { name: "Buddy", breed: "Golden Retriever" };
+    local dog: Dog = Dog { name: "Buddy", breed: "Golden Retriever" };
     local animal: *Animal = &dog;  # Upcast to base type
 
     processAnimal(animal);  # Prints: "It's a dog!"
@@ -157,7 +157,7 @@ struct Dog : Animal { breed: string }
 struct Cat : Animal { indoor: bool }
 
 frame processDog(animal: *Animal) {
-    local dog = animal as *Dog;
+    local dog: *Dog = animal as *Dog;
     if (dog != nullptr) {
         printf("Dog breed: %s\n", dog.breed);
     } else {
@@ -166,8 +166,8 @@ frame processDog(animal: *Animal) {
 }
 
 frame main() ret int {
-    local dog = Dog { name: "Buddy", breed: "Lab" };
-    local cat = Cat { name: "Whiskers", indoor: true };
+    local dog: Dog = Dog { name: "Buddy", breed: "Lab" };
+    local cat: Cat = Cat { name: "Whiskers", indoor: true };
 
     processDog(cast<*Animal>(&dog));  # Prints: "Dog breed: Lab"
     processDog(cast<*Animal>(&cat));  # Prints: "Not a dog"
@@ -186,7 +186,7 @@ frame handleAnimal(animal: *Animal) {
     if (animal is Dog) {
         printf("Dog: %s (%s)\n", animal.name, animal.breed);
     } else if (animal is Cat) {
-        local cat = animal as *Cat;
+        local cat: *Cat = animal as *Cat;
         printf("Cat: %s (indoor: %d)\n", cat.name, cat.indoor);
     }
 }
@@ -221,7 +221,7 @@ The syntax `match<Type>` is designed to support checking against arbitrary types
 
   ```bpl
   # Pattern: Safe downcast with null check
-  local dog = animal as *Dog;
+  local dog: *Dog = animal as *Dog;
   if (dog != nullptr) {
       # Work with dog
   }

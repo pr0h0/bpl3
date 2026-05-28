@@ -7,7 +7,7 @@ When you import a module, the compiler looks for the file in specific locations.
 Imports starting with `./` or `../` are resolved relative to the current file.
 
 ```bpl
-import [foo] from "./utils.bpl";
+import foo from "./utils.bpl";
 ```
 
 ## Absolute Imports
@@ -15,7 +15,7 @@ import [foo] from "./utils.bpl";
 Imports without a relative path prefix are resolved from the project root or configured include paths.
 
 ```bpl
-import [std] from "std";
+import * as std from "std";
 ```
 
 ## File Extensions
@@ -23,5 +23,5 @@ import [std] from "std";
 The `.bpl` extension is optional in import statements.
 
 ```bpl
-import [foo] from "./utils"; # Resolves to ./utils.bpl
+import foo from "./utils"; # Resolves to ./utils.bpl
 ```

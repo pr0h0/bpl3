@@ -23,7 +23,7 @@ The configuration file defines the package metadata.
   "name": "my-package",
   "version": "0.1.0",
   "description": "A useful library",
-  "entry": "index.bpl",
+  "main": "index.bpl",
   "dependencies": {
     "other-package": "^1.0.0"
   }
@@ -41,14 +41,14 @@ The configuration file defines the package metadata.
 bpl pack
 ```
 
-This will create `my-package-0.1.0.tar.gz` in the current directory.
+This will create `my-package-0.1.0.tgz` in the current directory.
 
 ## Installing Packages
 
-To use a package in another project, you must install it. Currently, you can install from a local `.tar.gz` file.
+To use a package in another project, you must install it. Currently, you can install from a local `.tgz` file.
 
 ```bash
-bpl install ../path/to/my-package-0.1.0.tar.gz
+bpl install ../path/to/my-package-0.1.0.tgz
 ```
 
 This extracts the package into the `bpl_modules/` directory of your project.
@@ -58,14 +58,14 @@ This extracts the package into the `bpl_modules/` directory of your project.
 Once installed, you can import the package by its name in your BPL code.
 
 ```bpl
-import [MyStruct, myFunction] from "my-package";
+import [MyStruct], myFunction from "my-package";
 
 frame main() {
     myFunction();
 }
 ```
 
-The compiler resolves "my-package" to `bpl_modules/my-package/index.bpl` (or the file specified in `entry`).
+The compiler resolves "my-package" to `bpl_modules/my-package/index.bpl` (or the file specified in `main`).
 
 ## Dependency Resolution
 
@@ -80,7 +80,10 @@ When you run `bpl install`, the package manager:
 - **Entry Point**: Use `index.bpl` to re-export the public API of your package.
   ```bpl
   # index.bpl
-  export [MyStruct] from "./src/structs.bpl";
-  export [myFunction] from "./src/funcs.bpl";
+  import [MyStruct] from "./src/structs.bpl";
+  import myFunction from "./src/funcs.bpl";
+
+  export [MyStruct];
+  export myFunction;
   ```
 - **Names**: Use unique, lowercase names for packages (kebab-case recommended).

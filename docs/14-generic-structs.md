@@ -6,12 +6,12 @@ Structs can be parameterized with types.
 
 ```bpl
 struct Box<T> {
-    value: T;
+    value: T,
 }
 
 struct Pair<K, V> {
-    key: K;
-    value: V;
+    key: K,
+    value: V,
 }
 ```
 

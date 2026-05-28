@@ -31,13 +31,11 @@ See [Runtime Library](66-runtime-library.md) for complete details.
 
 ## Generating Debug Information
 
-To debug your BPL program effectively, you need to compile it with debug symbols enabled. Use the `--dwarf` flag when running the compiler.
-
-To debug your BPL program effectively, you need to compile it with debug symbols enabled. Use the `--dwarf` flag when running the compiler.
+To debug your BPL program effectively, compile it with debug symbols enabled. Use `--debug` with `bpl build`, `bpl run`, or `bpl dev`; the default compile command also accepts `-d`/`--dwarf`.
 
 ```bash
 # Compile with DWARF debug info
-bun index.ts examples/my_program/main.bpl --dwarf --emit llvm
+bun index.ts build examples/hello-world/main.bpl --debug
 ```
 
 This command does two things:
@@ -116,13 +114,13 @@ gdb ./my_program
 
 If you don't see source code or variables in the debugger:
 
-1.  **Check Compilation Flags**: Ensure you used `--dwarf` during BPL compilation and `-g` during the final linking step with Clang/GCC.
+1.  **Check Compilation Flags**: Ensure you used `--debug` during BPL compilation, or `--dwarf` on the default compile command, and `-g` during manual final linking with Clang/GCC.
 2.  **Source Paths**: Debuggers need to find the source files. If you moved the binary, you might need to set source mappings.
 3.  **Optimization**: High optimization levels (`-O2`, `-O3`) can optimize away variables or inline functions, making debugging confusing. Use `-O0` (no optimization) for the best debugging experience.
 
 ## Compiler Internals: How it Works
 
-When you pass `--dwarf`, the BPL compiler (`StatementGenerator.ts`) inserts calls to `llvm.dbg.declare` intrinsic functions.
+When debug info is enabled, the BPL compiler (`StatementGenerator.ts`) inserts calls to `llvm.dbg.declare` intrinsic functions.
 
 - **DIBuilder**: The compiler uses a `DIBuilder` helper to construct DWARF metadata nodes.
 - **Scopes**: It tracks lexical scopes (functions, blocks) to ensure variables are reported in the correct context.

@@ -296,8 +296,8 @@ local total: int = sumArray(numbers, 5);
 
 ```bpl
 struct Point {
-    x: int;
-    y: int;
+    x: int,
+    y: int,
 }
 
 local p: Point;
@@ -319,8 +319,8 @@ ptr->y = 40;
 
 ```bpl
 struct Person {
-    name: string;
-    age: int;
+    name: string,
+    age: int,
 }
 
 frame createPerson(name: string, age: int) ret Person* {
@@ -344,8 +344,8 @@ if (person != nullptr) {
 
 ```bpl
 struct Node {
-    data: int;
-    next: Node*;
+    data: int,
+    next: Node*,
 }
 
 frame createNode(value: int) ret Node* {
@@ -593,8 +593,8 @@ printf("17 / 5 = %d remainder %d\n", q, r);
 
 ```bpl
 struct Result {
-    success: bool;
-    value: int;
+    success: bool,
+    value: int,
 }
 
 frame safeDivide(a: int, b: int, result: Result*) ret void {
@@ -618,8 +618,8 @@ if (res.success) {
 
 ```bpl
 struct Iterator {
-    current: int*;
-    end: int*;
+    current: int*,
+    end: int*,
 
     frame hasNext() ret bool {
         return this.current < this.end;
@@ -793,6 +793,6 @@ loop (local i: int = 0; i < 1000; i++) {
 
 ## Next Steps
 
-- [Memory Management](14-memory.md) - Deep dive into malloc, free, and memory management
-- [Arrays](10-arrays-tuples.md) - Advanced array techniques
-- [Generics](17-generics.md) - Generic programming with pointers
+- [Memory Basics](20-memory-basics.md) - Stack, heap, and allocation basics
+- [Arrays](16-arrays.md) - Fixed arrays, slices, and dynamic arrays
+- [Generic Functions](10-generics-functions.md) - Generic programming with pointers

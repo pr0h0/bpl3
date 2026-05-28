@@ -109,8 +109,6 @@ cd vscode-ext
 bun test
 ```
 
-**Current Test Status**: ✅ **12/12 tests passing**
-
 Tests cover:
 
 - ✅ Member access completions (`user.`, `loopVar.`)
@@ -124,7 +122,7 @@ Tests cover:
 - ✅ Chained member access
 - ✅ Nested scope handling
 
-All language server features are fully tested and production-ready.
+Run `bun test` in `vscode-ext/` for the current pass count.
 
 ## Structure
 
