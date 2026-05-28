@@ -25,5 +25,19 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("fuzz/crashes");
     expect(workflow).toContain("if: always()");
     expect(packageJson.scripts["fuzz:long"]).toContain("FUZZ_SEEDS");
+    expect(packageJson.scripts["fuzz:replay"]).toContain("fuzz/replay_crash.ts");
+
+    const runFuzzIndex = workflow.indexOf("Run deterministic compiler fuzz");
+    const minimizeIndex = workflow.indexOf("Minimize fuzz crash artifacts");
+    const uploadIndex = workflow.indexOf("Upload fuzz crash artifacts");
+
+    expect(minimizeIndex).toBeGreaterThan(runFuzzIndex);
+    expect(uploadIndex).toBeGreaterThan(minimizeIndex);
+    expect(workflow).toContain("if: failure()");
+    expect(workflow).toContain("shopt -s nullglob");
+    expect(workflow).toContain('for metadata in "$FUZZ_CRASH_DIR"/*.json; do');
+    expect(workflow).toContain(
+      'bun run fuzz:replay -- --metadata "$metadata" --minimize --out "$out"',
+    );
   });
 });

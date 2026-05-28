@@ -51,6 +51,20 @@ jobs:
       - name: Run deterministic compiler fuzz
         run: bun run fuzz:long
 
+      - name: Minimize fuzz crash artifacts
+        if: failure()
+        run: |
+          shopt -s nullglob
+          status=0
+          for metadata in "$FUZZ_CRASH_DIR"/*.json; do
+            out="${metadata%.json}.min.bpl"
+            echo "Minimizing $metadata -> $out"
+            if ! bun run fuzz:replay -- --metadata "$metadata" --minimize --out "$out"; then
+              status=1
+            fi
+          done
+          exit "$status"
+
       - name: Upload fuzz crash artifacts
         if: always()
         uses: actions/upload-artifact@v4
