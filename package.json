@@ -16,6 +16,8 @@
     "lint:fix": "eslint compiler/ vscode-ext/src/ index.ts --fix",
     "test": "bun test tests/",
     "test:baseline": "bun test 2>&1 | tee test-baseline.txt",
+    "fuzz": "bun fuzz/run_fuzz.ts",
+    "fuzz:long": "FUZZ_ITERATIONS=100000 bun fuzz/run_fuzz.ts",
     "format": "prettier -u --write *",
     "format-examples": "bun index.ts format -w **/**/*.bpl",
     "playground": "cd playground &&bash ./start.sh",

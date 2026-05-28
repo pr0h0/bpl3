@@ -1,135 +1,168 @@
-import * as fs from "fs";
 import * as path from "path";
-import { fuzzCompiler } from "./fuzz_target";
+import {
+  runFuzzCampaign,
+  type FuzzCampaignOptions,
+} from "./compilerFuzz";
 
-const SEED_DIR = path.join(__dirname, "../examples");
-const MAX_ITERATIONS = 100000;
-const MAX_MUTATIONS = 20;
-
-function getAllBplFiles(dir: string): string[] {
-  let results: string[] = [];
-  const list = fs.readdirSync(dir);
-  list.forEach((file) => {
-    file = path.join(dir, file);
-    const stat = fs.statSync(file);
-    if (stat && stat.isDirectory()) {
-      results = results.concat(getAllBplFiles(file));
-    } else {
-      if (file.endsWith(".bpl")) {
-        results.push(file);
-      }
-    }
-  });
-  return results;
+interface CliOptions {
+  iterationsPerSeed: number;
+  seeds: number[];
+  crashDir: string;
+  progressInterval: number;
 }
 
-function mutate(source: string): string {
-  const buffer = Buffer.from(source);
-  const mutations = Math.floor(Math.random() * MAX_MUTATIONS) + 1;
+const DEFAULT_ITERATIONS_PER_SEED = 10000;
+const DEFAULT_SEEDS = [0x5eed1234];
 
-  for (let i = 0; i < mutations; i++) {
-    const type = Math.floor(Math.random() * 4);
-    const pos = Math.floor(Math.random() * buffer.length);
+function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
+  const values = new Map<string, string>();
 
-    switch (type) {
-      case 0: // Bit flip
-        if (buffer.length > 0) {
-          buffer[pos]! ^= 1 << Math.floor(Math.random() * 8);
-        }
-        break;
-      case 1: // Delete byte
-        if (buffer.length > 0) {
-          const newBuf = Buffer.concat([
-            buffer.subarray(0, pos),
-            buffer.subarray(pos + 1),
-          ]);
-          // We can't easily resize the buffer in place, so we just return the string here for simplicity
-          // But for multiple mutations we need to keep working on buffer.
-          // Let's just modify the byte to something random instead of delete to keep length same for now
-          buffer[pos] = Math.floor(Math.random() * 256);
-        }
-        break;
-      case 2: // Insert random byte (simulated by overwrite)
-        if (buffer.length > 0) {
-          buffer[pos] = Math.floor(Math.random() * 256);
-        }
-        break;
-      case 3: // Swap
-        if (buffer.length > 1) {
-          const pos2 = Math.floor(Math.random() * buffer.length);
-          const temp = buffer[pos]!;
-          buffer[pos] = buffer[pos2]!;
-          buffer[pos2] = temp;
-        }
-        break;
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index]!;
+    if (arg === "--help" || arg === "-h") {
+      printHelp();
+      process.exit(0);
     }
+
+    if (!arg.startsWith("--")) {
+      throw new Error(`Unexpected argument '${arg}'. Use --help for usage.`);
+    }
+
+    const parts = arg.slice(2).split("=", 2);
+    const rawKey = parts[0];
+    if (!rawKey) {
+      throw new Error(`Missing option name in '${arg}'. Use --help for usage.`);
+    }
+
+    const key = rawKey.trim();
+    const inlineValue = parts[1];
+    const nextArg = argv[index + 1];
+    const value =
+      inlineValue ??
+      (nextArg !== undefined && !nextArg.startsWith("--")
+        ? argv[++index]!
+        : "true");
+    values.set(key, value);
   }
-  return buffer.toString();
+
+  const iterationsValue =
+    values.get("iterations") ??
+    env.FUZZ_ITERATIONS ??
+    `${DEFAULT_ITERATIONS_PER_SEED}`;
+  const seedsValue =
+    values.get("seeds") ??
+    env.FUZZ_SEEDS ??
+    DEFAULT_SEEDS.map(formatSeed).join(",");
+  const crashDir =
+    values.get("crash-dir") ??
+    env.FUZZ_CRASH_DIR ??
+    path.join(__dirname, "crashes");
+  const progressValue = values.get("progress") ?? env.FUZZ_PROGRESS ?? "1000";
+
+  return {
+    iterationsPerSeed: parsePositiveInteger(iterationsValue, "iterations"),
+    seeds: parseSeeds(seedsValue),
+    crashDir,
+    progressInterval: parsePositiveInteger(progressValue, "progress"),
+  };
 }
 
-function generateRandom(): string {
-  const length = Math.floor(Math.random() * 1000);
-  const buffer = Buffer.alloc(length);
-  for (let i = 0; i < length; i++) {
-    buffer[i] = Math.floor(Math.random() * 256);
+function parsePositiveInteger(value: string, name: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer, got '${value}'.`);
   }
-  return buffer.toString();
+  return parsed;
 }
 
-async function main() {
-  console.log("Starting Fuzz Testing...");
+function parseSeeds(value: string): number[] {
+  const seeds = value
+    .split(",")
+    .map((seed) => seed.trim())
+    .filter(Boolean)
+    .map((seed) => Number(seed));
 
-  // 1. Collect seeds
-  console.log("Collecting seeds from examples...");
-  const seedFiles = getAllBplFiles(SEED_DIR);
-  const seeds: string[] = [];
-  for (const file of seedFiles) {
-    try {
-      seeds.push(fs.readFileSync(file, "utf-8"));
-    } catch (e) {
-      // Ignore read errors
-    }
-  }
-  console.log(`Loaded ${seeds.length} seeds.`);
-
-  let crashes = 0;
-  const startTime = Date.now();
-
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    if (i % 100 === 0) {
-      process.stdout.write(
-        `\rIteration ${i}/${MAX_ITERATIONS} (Crashes: ${crashes})`,
-      );
-    }
-
-    let input: string;
-    if (Math.random() < 0.1 || seeds.length === 0) {
-      // 10% pure random
-      input = generateRandom();
-    } else {
-      // 90% mutation
-      const seed = seeds[Math.floor(Math.random() * seeds.length)]!;
-      input = mutate(seed);
-    }
-
-    const success = fuzzCompiler(input);
-    if (!success) {
-      crashes++;
-      const crashFile = path.join(__dirname, `crash_${Date.now()}_${i}.bpl`);
-      fs.writeFileSync(crashFile, input);
-      console.log(`\nCRASH DETECTED! Saved to ${crashFile}`);
-    }
+  if (seeds.length === 0 || seeds.some((seed) => !Number.isInteger(seed))) {
+    throw new Error(`seeds must be comma-separated integers, got '${value}'.`);
   }
 
-  const duration = (Date.now() - startTime) / 1000;
-  console.log(`\n\nFuzzing complete.`);
-  console.log(`Time: ${duration.toFixed(2)}s`);
-  console.log(`Iterations: ${MAX_ITERATIONS}`);
-  console.log(`Crashes found: ${crashes}`);
+  return seeds;
+}
 
-  if (crashes > 0) {
+function printHelp(): void {
+  console.log(`Usage: bun fuzz/run_fuzz.ts [options]
+
+Options:
+  --iterations <n>   Iterations to run per seed (default: ${DEFAULT_ITERATIONS_PER_SEED})
+  --seeds <list>     Comma-separated decimal or 0x-prefixed seeds
+  --crash-dir <dir>  Directory for .bpl repros and .json metadata
+  --progress <n>     Progress log interval per seed (default: 1000)
+
+Environment:
+  FUZZ_ITERATIONS, FUZZ_SEEDS, FUZZ_CRASH_DIR, FUZZ_PROGRESS
+`);
+}
+
+function printSummary(summary: ReturnType<typeof runFuzzCampaign>): void {
+  console.log("\n--- Fuzz Campaign Results ---");
+  console.log(`Total iterations: ${summary.totalIterations}`);
+  console.log(`Valid programs: ${summary.validPrograms}`);
+  console.log(`Expected compiler errors: ${summary.expectedErrors}`);
+  console.log(`Crashes: ${summary.crashes}`);
+  console.log(`Stage counts: ${JSON.stringify(summary.stageCounts)}`);
+
+  for (const seedSummary of summary.seedSummaries) {
+    console.log(
+      [
+        `seed ${formatSeed(seedSummary.seed)}`,
+        `valid=${seedSummary.validPrograms}`,
+        `expected=${seedSummary.expectedErrors}`,
+        `crashes=${seedSummary.crashes}`,
+      ].join(" "),
+    );
+  }
+
+  if (summary.crashArtifacts.length > 0) {
+    console.log("\nCrash artifacts:");
+    for (const artifact of summary.crashArtifacts) {
+      console.log(`  ${artifact.sourcePath}`);
+      console.log(`  ${artifact.metadataPath}`);
+    }
+  }
+}
+
+function formatSeed(seed: number): string {
+  return `0x${(Math.trunc(seed) >>> 0).toString(16)}`;
+}
+
+async function main(): Promise<void> {
+  const options = parseCliOptions(process.argv.slice(2), process.env);
+  const startedAt = Date.now();
+
+  console.log("Starting compiler fuzz campaign...");
+  console.log(`Seeds: ${options.seeds.map(formatSeed).join(", ")}`);
+  console.log(`Iterations per seed: ${options.iterationsPerSeed}`);
+  console.log(`Crash dir: ${options.crashDir}`);
+
+  const campaignOptions: FuzzCampaignOptions = {
+    seeds: options.seeds,
+    iterationsPerSeed: options.iterationsPerSeed,
+    crashDir: options.crashDir,
+    progressInterval: options.progressInterval,
+    logProgress: (message) => console.log(message),
+  };
+  const summary = runFuzzCampaign(campaignOptions);
+  const durationSeconds = (Date.now() - startedAt) / 1000;
+
+  printSummary(summary);
+  console.log(`Duration: ${durationSeconds.toFixed(2)}s`);
+
+  if (summary.crashes > 0) {
     process.exit(1);
   }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
