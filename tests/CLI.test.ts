@@ -75,6 +75,67 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should check formatting without rewriting files", () => {
+    const tempFile = path.join(process.cwd(), "tests/temp_format_check.bpl");
+    const unformatted = "frame  main ( )  ret  int { return 0 ; }";
+    fs.writeFileSync(tempFile, unformatted);
+
+    try {
+      const result = runCLI(["format", "--check", tempFile]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr + result.stdout).toContain("not formatted");
+      expect(fs.readFileSync(tempFile, "utf-8")).toBe(unformatted);
+    } finally {
+      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+    }
+  });
+
+  it("should report lint diagnostics as JSON", () => {
+    const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
+    const result = runCLI(["lint", "--json", lintFile]);
+
+    expect(result.status).toBe(1);
+    const report = JSON.parse(result.stdout);
+    expect(report.success).toBe(false);
+    expect(report.errorCount).toBeGreaterThan(0);
+    expect(report.files[0].diagnostics[0]).toMatchObject({
+      code: "L001",
+      severity: "warning",
+      severityLabel: "warning",
+    });
+    expect(report.files[0].diagnostics[0].location.start.line).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("should report rich check diagnostics as JSON", () => {
+    const tempFile = path.join(process.cwd(), "tests/temp_check_json.bpl");
+    fs.writeFileSync(
+      tempFile,
+      ["frame main() {", '    local x: i32 = "bad";', "}"].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["check", "--json", tempFile]);
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(report.success).toBe(false);
+      expect(report.files[0].diagnostics[0]).toMatchObject({
+        code: "E001",
+        severity: "error",
+        severityLabel: "error",
+        source: {
+          line: '    local x: i32 = "bad";',
+        },
+      });
+      expect(report.files[0].diagnostics[0].location.start.line).toBe(2);
+    } finally {
+      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+    }
+  });
+
   it("should scaffold library projects with package-friendly defaults", () => {
     const tempDir = fs.mkdtempSync(path.join(process.cwd(), "tests/temp_new-"));
     const projectName = "sample-lib";

@@ -45,6 +45,7 @@ export interface CompileOptions {
  */
 export interface FormatOptions {
   write?: boolean;
+  check?: boolean;
   verbose?: boolean;
 }
 
@@ -53,6 +54,7 @@ export interface FormatOptions {
  */
 export interface LintOptions {
   verbose?: boolean;
+  json?: boolean;
 }
 
 /**

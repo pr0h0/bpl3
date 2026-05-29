@@ -42,7 +42,19 @@ export function registerCheckCommand(program: Command): void {
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
-    .action((files: string[], options: any) => {
+    .action((files: string[], rawOptions: any, command: Command) => {
+      const inheritedOptions =
+        typeof command.optsWithGlobals === "function"
+          ? command.optsWithGlobals()
+          : {};
+      const options = {
+        ...inheritedOptions,
+        ...rawOptions,
+        json: Boolean(rawOptions.json || inheritedOptions.json),
+        quiet: Boolean(rawOptions.quiet || inheritedOptions.quiet),
+        verbose: Boolean(rawOptions.verbose || inheritedOptions.verbose),
+      };
+
       // Handle quiet mode
       if (options.quiet) {
         setLogLevel(LogLevel.SILENT);
@@ -94,11 +106,8 @@ export function registerCheckCommand(program: Command): void {
                 results.push({
                   file: filePath,
                   success: false,
-                  errors: typeErrors.map((e: CompilerError) => ({
-                    message: e.message,
-                    line: e.location?.startLine,
-                    column: e.location?.startColumn,
-                  })),
+                  diagnostics:
+                    diagnosticFormatter.formatDiagnosticObjects(typeErrors),
                 });
               } else {
                 console.error(diagnosticFormatter.formatErrors(typeErrors));
@@ -134,11 +143,8 @@ export function registerCheckCommand(program: Command): void {
                 results.push({
                   file: filePath,
                   success: false,
-                  errors: typeErrors.map((e: CompilerError) => ({
-                    message: e.message,
-                    line: e.location?.startLine,
-                    column: e.location?.startColumn,
-                  })),
+                  diagnostics:
+                    diagnosticFormatter.formatDiagnosticObjects(typeErrors),
                 });
               } else {
                 console.error(diagnosticFormatter.formatErrors(typeErrors));
@@ -163,11 +169,19 @@ export function registerCheckCommand(program: Command): void {
           }
         } catch (e) {
           if (options.json) {
-            results.push({
-              file: filePath,
-              success: false,
-              error: e instanceof Error ? e.message : String(e),
-            });
+            if (e instanceof CompilerError) {
+              results.push({
+                file: filePath,
+                success: false,
+                diagnostics: diagnosticFormatter.formatDiagnosticObjects([e]),
+              });
+            } else {
+              results.push({
+                file: filePath,
+                success: false,
+                error: e instanceof Error ? e.message : String(e),
+              });
+            }
           } else if (e instanceof CompilerError) {
             console.error(diagnosticFormatter.formatError(e));
           } else {

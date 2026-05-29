@@ -52,6 +52,19 @@ describe("Rename Handler - Comprehensive Tests", () => {
     );
   }
 
+  describe("Rename Validation", () => {
+    it("should reject invalid replacement identifiers", () => {
+      const code = `frame test(value: int) ret int {
+    return value;
+}`;
+      const testFile = path.join(tmpDir, "rename-invalid-new-name.bpl");
+
+      expect(getRenameEdits(testFile, code, 0, 11, "if")).toBeNull();
+      expect(getRenameEdits(testFile, code, 0, 11, "not-valid")).toBeNull();
+      expect(getRenameEdits(testFile, code, 0, 11, "123value")).toBeNull();
+    });
+  });
+
   describe("Parameter Rename - Type Preservation", () => {
     it("should rename parameter without removing type annotation", () => {
       const code = `frame test(param: int) ret int {

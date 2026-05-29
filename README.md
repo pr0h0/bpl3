@@ -51,8 +51,9 @@ frame main() ret int {
 ### 🛠️ Developer Experience
 
 - **Clear Error Messages**: Helpful compiler diagnostics with location information
+- **Machine-Readable Diagnostics**: JSON output for `check`, `lint`, and `doctor` with stable source ranges for CI and editors
 - **Enhanced Runtime Errors**: Beautiful formatted error boxes with stack traces for null access, bounds checking, division by zero, and signed integer division overflow
-- **Built-in Formatter**: Automatic code formatting for consistent style
+- **Built-in Formatter**: Automatic code formatting and `format --check` for CI gates
 - **Watch Mode**: Automatic recompilation on file changes for rapid development
 - **Package Manager**: Easy dependency management with `bpl install`
 - **Cross-Platform**: Compile for Linux, macOS, Windows, ARM, and more
@@ -103,6 +104,19 @@ bpl run test.bpl
 ```
 
 For detailed installation instructions, see the [Installation Guide](docs/02-installation.md).
+
+### Release Verification
+
+Before publishing a local build or npm tarball, run:
+
+```bash
+bun run release:check
+bun run release:manifest
+```
+
+The release check builds and tests the standalone compiler, packed CLI, runtime
+artifacts, shell completions, and VS Code extension. The manifest command writes
+`dist/release-manifest.json` with SHA-256 checksums for shipped artifacts.
 
 ## 🚀 Quick Start
 

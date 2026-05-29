@@ -31,6 +31,43 @@ export interface FormatterConfig {
   machineReadable: boolean; // Output in machine-readable format (JSON)
 }
 
+export interface JSONDiagnostic {
+  severity: DiagnosticSeverity;
+  severityLabel: string;
+  message: string;
+  hint?: string;
+  code?: string;
+  location: {
+    file: string;
+    start: {
+      line: number;
+      column: number;
+    };
+    end: {
+      line: number;
+      column: number;
+    };
+  };
+  source?: {
+    line: string;
+    preview: string;
+  };
+  relatedLocations: Array<{
+    message: string;
+    location: {
+      file: string;
+      start: {
+        line: number;
+        column: number;
+      };
+      end: {
+        line: number;
+        column: number;
+      };
+    };
+  }>;
+}
+
 /**
  * Default formatter configuration
  */
@@ -407,34 +444,57 @@ export class DiagnosticFormatter {
    * Format as machine-readable JSON (for IDE integration)
    */
   formatAsJSON(errors: CompilerError[]): string {
-    const diagnostics = errors.map((err) => ({
-      severity: err.toDiagnostic().severity,
-      message: err.message,
-      hint: err.hint,
-      location: {
-        file: err.location.file,
-        start: {
-          line: err.location.startLine,
-          column: err.location.startColumn,
-        },
-        end: {
-          line: err.location.endLine,
-          column: err.location.endColumn,
-        },
-      },
-      relatedLocations: err.relatedLocations.map((rel) => ({
-        message: rel.message,
+    return JSON.stringify(this.formatDiagnosticObjects(errors), null, 2);
+  }
+
+  /**
+   * Build machine-readable diagnostic objects for CLI and editor integrations.
+   */
+  formatDiagnosticObjects(errors: CompilerError[]): JSONDiagnostic[] {
+    return errors.map((err) => {
+      const diagnostic = err.toDiagnostic();
+      const sourceLines = getSourceLines(err.location.file);
+      const sourceLine = getSourceLine(sourceLines, err.location.startLine);
+      return {
+        severity: diagnostic.severity,
+        severityLabel: getSeverityLabel(diagnostic.severity, false),
+        message: diagnostic.message,
+        hint: err.hint,
+        code: err.code,
         location: {
-          file: rel.location.file,
+          file: diagnostic.location.file,
           start: {
-            line: rel.location.startLine,
-            column: rel.location.startColumn,
+            line: diagnostic.location.startLine,
+            column: diagnostic.location.startColumn,
+          },
+          end: {
+            line: diagnostic.location.endLine,
+            column: diagnostic.location.endColumn,
           },
         },
-      })),
-    }));
-
-    return JSON.stringify(diagnostics, null, 2);
+        source:
+          sourceLine !== null
+            ? {
+                line: sourceLine,
+                preview: truncateLine(sourceLine, this.config.maxLineLength),
+              }
+            : undefined,
+        relatedLocations: (diagnostic.relatedLocations ?? []).map((rel) => ({
+          message: rel.message,
+          location: {
+            file: rel.location.file,
+            start: {
+              line: rel.location.startLine,
+              column: rel.location.startColumn,
+            },
+            end: {
+              line: rel.location.endLine,
+              column: rel.location.endColumn,
+            },
+          },
+        })),
+      };
+    });
   }
 
   /**

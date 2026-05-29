@@ -224,6 +224,7 @@ describe("BPL Playground Examples", () => {
         "Native Variadic Functions",
         "Runtime Correctness Patterns",
         "Tooling Friendly Modules",
+        "Release Package Checksums",
       ]),
     );
   });

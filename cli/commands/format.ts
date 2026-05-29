@@ -19,16 +19,22 @@ export function registerFormatCommand(program: Command): void {
     .command("format [files...]")
     .description("Format BPL source files")
     .option("-w, --write", "write formatted output back to file")
+    .option("--check", "check whether files are formatted without writing")
     .option("-v, --verbose", "enable verbose output")
     .action((files: string[], options: FormatOptions) => {
       if (!files || files.length === 0) {
         log.error("No files specified.");
         process.exit(1);
       }
+      if (options.write && options.check) {
+        log.error("Cannot use --write and --check together.");
+        process.exit(1);
+      }
 
       let totalFiles = 0;
       let updatedFiles = 0;
       let hasError = false;
+      let unformattedFiles = 0;
 
       for (const filePath of files) {
         totalFiles++;
@@ -46,7 +52,15 @@ export function registerFormatCommand(program: Command): void {
           const formatter = new Formatter();
           const formatted = formatter.format(ast);
 
-          if (options.write) {
+          if (options.check) {
+            if (content !== formatted) {
+              unformattedFiles++;
+              hasError = true;
+              log.error(`${filePath} is not formatted`);
+            } else {
+              log.info(`${filePath} is formatted`);
+            }
+          } else if (options.write) {
             if (content !== formatted) {
               fs.writeFileSync(filePath, formatted);
               updatedFiles++;
@@ -67,6 +81,10 @@ export function registerFormatCommand(program: Command): void {
 
       if (options.write) {
         log.info(`Formatted ${totalFiles} files, ${updatedFiles} updated`);
+      } else if (options.check && !hasError) {
+        log.info(`All ${totalFiles} files are formatted`);
+      } else if (options.check && unformattedFiles > 0) {
+        log.error(`${unformattedFiles} of ${totalFiles} files are not formatted`);
       }
 
       if (hasError) process.exit(1);

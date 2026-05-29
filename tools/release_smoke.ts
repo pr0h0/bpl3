@@ -10,6 +10,7 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { writeReleaseManifest } from "./release_manifest";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const bplBinary = join(
@@ -155,6 +156,17 @@ function runPackedPackageSmoke(): void {
     if (!existsSync(tarballPath)) {
       throw new Error(`npm pack did not create ${tarballPath}`);
     }
+    const releaseManifest = writeReleaseManifest(
+      join(tempDir, "release-manifest.json"),
+      {
+        repoRoot,
+        npmPackage: {
+          path: tarballPath,
+          metadata: packEntry,
+        },
+      },
+    );
+    assertReleaseManifest(releaseManifest);
 
     mkdirSync(installDir, { recursive: true });
     writeFileSync(
@@ -196,6 +208,47 @@ function runPackedPackageSmoke(): void {
     runPackedCacheStatsSmoke(installedBpl);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function assertReleaseManifest(manifest: {
+  schemaVersion: number;
+  artifacts: Array<{
+    path: string;
+    bytes: number;
+    sha256: string;
+    npmIntegrity?: string;
+    npmShasum?: string;
+  }>;
+}): void {
+  console.log("release smoke: validate release checksum manifest");
+
+  if (manifest.schemaVersion !== 1) {
+    throw new Error(`Unexpected release manifest schema version.`);
+  }
+
+  const artifactsByPath = new Map(
+    manifest.artifacts.map((artifact) => [artifact.path, artifact]),
+  );
+  for (const artifactPath of [
+    process.platform === "win32" ? "bpl.exe" : "bpl",
+    "lib/runtime.ll",
+    "lib/runtime_support.o",
+  ]) {
+    const artifact = artifactsByPath.get(artifactPath);
+    if (!artifact?.sha256 || artifact.sha256.length !== 64) {
+      throw new Error(`Release manifest is missing checksum for ${artifactPath}`);
+    }
+    if (artifact.bytes <= 0) {
+      throw new Error(`Release manifest recorded empty artifact ${artifactPath}`);
+    }
+  }
+
+  const npmArtifact = manifest.artifacts.find(
+    (artifact) => artifact.path.endsWith(".tgz"),
+  );
+  if (!npmArtifact?.npmIntegrity || !npmArtifact.npmShasum) {
+    throw new Error("Release manifest is missing npm package integrity data.");
   }
 }
 

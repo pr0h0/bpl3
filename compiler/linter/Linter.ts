@@ -43,7 +43,7 @@ export class Linter {
           node.location,
           code,
         );
-        // We store the error and the caller will format it as a warning.
+        error.setSeverity(_severity);
         this.errors.push(error);
       },
     };

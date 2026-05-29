@@ -99,6 +99,7 @@ cd bpl3
 
 # Verify installation
 bpl --version
+bpl doctor
 ```
 
 ## Verifying Installation
@@ -125,6 +126,19 @@ You should see:
 ```
 BPL is working!
 ```
+
+For release builds from source, run the local release gate before publishing or
+installing the generated package elsewhere:
+
+```bash
+bun run release:check
+bun run release:manifest
+```
+
+`release:check` validates the standalone compiler, packed npm CLI, runtime
+artifacts, shell completions, and VS Code language-server tests. The manifest
+step writes `dist/release-manifest.json` with SHA-256 hashes for the shipped
+compiler and runtime files.
 
 ## Editor Setup
 

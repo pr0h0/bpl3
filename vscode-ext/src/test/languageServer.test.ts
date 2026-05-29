@@ -204,5 +204,32 @@ frame test() {
       expect(labels.includes("new")).toBe(true);
       expect(completions.length).toBeGreaterThan(0);
     });
+
+    it("includes C-style loop initializer variables in body completions", () => {
+      const loopContent = [
+        "frame test() ret int {",
+        "    loop (local i: int = 0; i < 3; i = i + 1) {",
+        "        local total: int = i;",
+        "        ",
+        "    }",
+        "    return 0;",
+        "}",
+      ].join("\n");
+      const loopDoc = TextDocument.create(
+        "file:///test-loop-completion.bpl",
+        "bpl",
+        1,
+        loopContent,
+      );
+
+      const params: TextDocumentPositionParams = {
+        textDocument: { uri: loopDoc.uri },
+        position: { line: 3, character: 8 },
+      };
+      const labels = completionHandler.handle(params, loopDoc).map((c) => c.label);
+
+      expect(labels).toContain("i");
+      expect(labels).toContain("total");
+    });
   });
 });

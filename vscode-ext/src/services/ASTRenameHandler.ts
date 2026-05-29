@@ -18,6 +18,52 @@ import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
 
 export class ASTRenameHandler {
+  private static readonly reservedIdentifiers = new Set([
+    "global",
+    "local",
+    "const",
+    "type",
+    "frame",
+    "static",
+    "ret",
+    "struct",
+    "enum",
+    "spec",
+    "import",
+    "from",
+    "export",
+    "extern",
+    "asm",
+    "as",
+    "this",
+    "self",
+    "loop",
+    "if",
+    "else",
+    "break",
+    "continue",
+    "try",
+    "catch",
+    "return",
+    "throw",
+    "switch",
+    "case",
+    "default",
+    "fallthrough",
+    "cast",
+    "sizeof",
+    "typeof",
+    "offsetof",
+    "match",
+    "defer",
+    "Func",
+    "Lambda",
+    "null",
+    "nullptr",
+    "true",
+    "false",
+  ]);
+
   constructor(
     private astResolver: ASTResolver,
     private symbolIndex: SymbolIndex,
@@ -77,6 +123,10 @@ export class ASTRenameHandler {
    */
   rename(params: RenameParams, document: TextDocument): WorkspaceEdit | null {
     try {
+      if (!this.isValidRenameIdentifier(params.newName)) {
+        return null;
+      }
+
       const filePath = fileURLToPath(params.textDocument.uri);
       const line = params.position.line + 1;
       const character = params.position.character;
@@ -144,6 +194,13 @@ export class ASTRenameHandler {
       console.error("[ASTReferences] Error finding references:", error);
       return null;
     }
+  }
+
+  private isValidRenameIdentifier(name: string): boolean {
+    return (
+      /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
+      !ASTRenameHandler.reservedIdentifiers.has(name)
+    );
   }
 
   /**

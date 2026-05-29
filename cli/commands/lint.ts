@@ -20,7 +20,19 @@ export function registerLintCommand(program: Command): void {
     .command("lint [files...]")
     .description("Lint BPL source files")
     .option("-v, --verbose", "enable verbose output")
-    .action((files: string[], _options: LintOptions) => {
+    .option("--json", "output lint diagnostics in JSON format")
+    .action((files: string[], rawOptions: LintOptions, command: Command) => {
+      const inheritedOptions =
+        typeof command.optsWithGlobals === "function"
+          ? (command.optsWithGlobals() as LintOptions)
+          : {};
+      const options = {
+        ...inheritedOptions,
+        ...rawOptions,
+        json: Boolean(rawOptions.json || inheritedOptions.json),
+        verbose: Boolean(rawOptions.verbose || inheritedOptions.verbose),
+      };
+
       if (!files || files.length === 0) {
         log.error("No files specified.");
         process.exit(1);
@@ -28,11 +40,25 @@ export function registerLintCommand(program: Command): void {
 
       const linter = new Linter();
       let hasErrors = false;
+      const results: Array<{
+        file: string;
+        success: boolean;
+        diagnostics?: unknown[];
+        error?: string;
+      }> = [];
 
       for (const file of files) {
         try {
           if (!fs.existsSync(file)) {
-            log.error(`File not found: ${file}`);
+            if (options.json) {
+              results.push({
+                file,
+                success: false,
+                error: "File not found",
+              });
+            } else {
+              log.error(`File not found: ${file}`);
+            }
             hasErrors = true;
             continue;
           }
@@ -45,16 +71,62 @@ export function registerLintCommand(program: Command): void {
           const errors = linter.lint(ast);
           if (errors.length > 0) {
             hasErrors = true;
-            console.error(diagnosticFormatter.formatErrors(errors));
+            if (options.json) {
+              results.push({
+                file,
+                success: false,
+                diagnostics: diagnosticFormatter.formatDiagnosticObjects(errors),
+              });
+            } else {
+              console.error(diagnosticFormatter.formatErrors(errors));
+            }
+          } else if (options.json) {
+            results.push({
+              file,
+              success: true,
+              diagnostics: [],
+            });
           }
         } catch (e) {
           hasErrors = true;
-          if (e instanceof CompilerError) {
+          if (options.json && e instanceof CompilerError) {
+            results.push({
+              file,
+              success: false,
+              diagnostics: diagnosticFormatter.formatDiagnosticObjects([e]),
+            });
+          } else if (options.json) {
+            results.push({
+              file,
+              success: false,
+              error: e instanceof Error ? e.message : String(e),
+            });
+          } else if (e instanceof CompilerError) {
             console.error(diagnosticFormatter.formatError(e));
           } else {
             log.error(`Error processing ${file}: ${e}`);
           }
         }
+      }
+
+      if (options.json) {
+        const errorCount = results.reduce(
+          (count, result) =>
+            count + (result.success ? 0 : (result.diagnostics?.length ?? 1)),
+          0,
+        );
+        console.log(
+          JSON.stringify(
+            {
+              success: !hasErrors,
+              totalFiles: files.length,
+              errorCount,
+              files: results,
+            },
+            null,
+            2,
+          ),
+        );
       }
 
       if (hasErrors) {

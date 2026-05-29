@@ -165,3 +165,29 @@ This type-checks the TypeScript code, validates release metadata and workflow
 expectations, runs standalone `./bpl` and packed npm tarball smoke tests, and
 runs the VS Code extension tests. It is intentionally smaller than the full
 compiler correctness matrix so it stays useful as a local pre-release gate.
+
+To create a checksum manifest for the release artifacts, run:
+
+```bash
+bun run build
+bun run release:manifest
+```
+
+This writes `dist/release-manifest.json` and records SHA-256 hashes for the
+standalone compiler binary, `lib/runtime.ll`, `lib/runtime_support.o`, and the
+packed npm tarball. The npm artifact entry also includes the package integrity
+and shasum values emitted by `npm pack --json`, so downstream release jobs can
+compare the compiler package against the published archive.
+
+For source packages, keep these checks together:
+
+```bash
+bpl format --check src/*.bpl
+bpl lint --json src/*.bpl
+bpl check --json src/index.bpl
+bpl pack
+```
+
+`format --check` verifies that generated archives contain formatted sources,
+while `lint --json` and `check --json` provide stable diagnostic ranges for CI
+annotations.

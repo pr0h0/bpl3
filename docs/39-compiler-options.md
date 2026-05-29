@@ -87,6 +87,10 @@ bpl check src/*.bpl
 bpl check main.bpl --json
 ```
 
+`--json` reports rich diagnostics with `code`, `severity`, source ranges, and a
+source-line preview. Use it in editor integrations and CI tools that need
+machine-readable error locations instead of terminal-formatted snippets.
+
 ### `bpl new <name>`
 
 Create a new BPL project.
@@ -142,12 +146,32 @@ Format BPL source files.
 **Options:**
 
 - `-w, --write`: Write formatted output back to files
+- `--check`: Verify formatting without rewriting files
 
 **Examples:**
 
 ```bash
 bpl format main.bpl
 bpl format -w main.bpl
+bpl format --check src/*.bpl
+```
+
+Use `--check` in CI. It exits non-zero when any input would be changed.
+
+### `bpl lint [files...]`
+
+Lint BPL source files for style and package-quality issues.
+
+**Options:**
+
+- `--json`: Output lint diagnostics in JSON format
+- `-v, --verbose`: Verbose output
+
+**Examples:**
+
+```bash
+bpl lint src/*.bpl
+bpl lint --json src/*.bpl
 ```
 
 ## Common Flags
@@ -163,7 +187,7 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
-- `--json`: Output in JSON format where supported, especially `bpl check`
+- `--json`: Output in JSON format where supported, especially `bpl check`, `bpl lint`, and `bpl doctor`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 

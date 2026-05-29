@@ -185,6 +185,49 @@ describe("Enhanced Error Messaging", () => {
     expect(parsed[0].location.start.column).toBe(5);
   });
 
+  test("should include codes, ranges, and source preview in JSON diagnostics", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-json-diag-"));
+    const testFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(
+      testFile,
+      ["frame main() {", '    local x: i32 = "bad";', "}"].join("\n"),
+    );
+
+    try {
+      const formatter = new DiagnosticFormatter({ colorize: false });
+      const error = new CompilerError(
+        "Type mismatch",
+        "Use a conversion before assigning.",
+        {
+          file: testFile,
+          startLine: 2,
+          startColumn: 5,
+          endLine: 2,
+          endColumn: 27,
+        },
+        "E777",
+      );
+
+      const parsed = JSON.parse(formatter.formatAsJSON([error]));
+
+      expect(parsed[0]).toMatchObject({
+        code: "E777",
+        severity: DiagnosticSeverity.Error,
+        severityLabel: "error",
+        message: "Type mismatch",
+        hint: "Use a conversion before assigning.",
+        source: {
+          line: '    local x: i32 = "bad";',
+          preview: '    local x: i32 = "bad";',
+        },
+      });
+      expect(parsed[0].location.end.line).toBe(2);
+      expect(parsed[0].location.end.column).toBe(27);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("should format errors without ANSI colors when requested", () => {
     const formatter = new DiagnosticFormatter({
       colorize: false,

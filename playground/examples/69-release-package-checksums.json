@@ -1,0 +1,25 @@
+{
+  "order": 69,
+  "title": "Release Package Checksums",
+  "snippet": "Use stable checksums to label release artifacts and package manifests.",
+  "description": "Release pipelines can publish a checksum manifest for the compiler binary, runtime files, and package tarball. This example mirrors that workflow with standard-library hashing helpers.",
+  "code": [
+    "# Release package checksum helpers using std/hash.bpl",
+    "import [Hash] from \"std/hash.bpl\";",
+    "",
+    "extern printf(fmt: string, ...);",
+    "",
+    "frame main() ret int {",
+    "    local packageName: string = \"bpl-v3-0.1.1.tgz\";",
+    "    local manifestName: string = \"release-manifest.json\";",
+    "",
+    "    local packageChecksum: uint = Hash.checksum32(packageName);",
+    "    local manifestFingerprint: uint = Hash.fnv1a32(manifestName);",
+    "    local releaseFingerprint: uint = Hash.combine32(packageChecksum, manifestFingerprint);",
+    "",
+    "    printf(\"package checksum: %u\\n\", packageChecksum);",
+    "    printf(\"release fingerprint: %u\\n\", releaseFingerprint);",
+    "    return 0;",
+    "}"
+  ]
+}

@@ -484,38 +484,7 @@ export class ASTCompletionHandler {
       for (const stmt of ast.statements) {
         if (stmt.kind === "VariableDecl") {
           if (stmt.location && stmt.location.startLine <= line) {
-            // Handle both simple names and destructuring
-            if (typeof stmt.name === "string") {
-              if (!visited.has(stmt.name)) {
-                visited.add(stmt.name);
-
-                // Try to get type from annotation or infer from initializer
-                let varType: string | undefined;
-                if (stmt.typeAnnotation) {
-                  varType = this.typeNodeToString(stmt.typeAnnotation);
-                } else if (stmt.initializer) {
-                  varType = this.inferTypeFromExpression(stmt.initializer);
-                }
-
-                locals.push({
-                  name: stmt.name,
-                  type: varType,
-                });
-              }
-            } else if (Array.isArray(stmt.name)) {
-              // Destructuring
-              for (const target of stmt.name) {
-                if (!visited.has(target.name)) {
-                  visited.add(target.name);
-                  locals.push({
-                    name: target.name,
-                    type: target.type
-                      ? this.typeNodeToString(target.type)
-                      : undefined,
-                  });
-                }
-              }
-            }
+            this.addVariableDeclToScope(stmt, locals, visited);
           }
         }
       }
@@ -583,38 +552,7 @@ export class ASTCompletionHandler {
       }
 
       if (stmt.kind === "VariableDecl") {
-        // Handle both simple names and destructuring
-        if (typeof stmt.name === "string") {
-          if (!visited.has(stmt.name)) {
-            visited.add(stmt.name);
-
-            // Try to get type from annotation or infer from initializer
-            let varType: string | undefined;
-            if (stmt.typeAnnotation) {
-              varType = this.typeNodeToString(stmt.typeAnnotation);
-            } else if (stmt.initializer) {
-              varType = this.inferTypeFromExpression(stmt.initializer);
-            }
-
-            locals.push({
-              name: stmt.name,
-              type: varType,
-            });
-          }
-        } else if (Array.isArray(stmt.name)) {
-          // Destructuring
-          for (const target of stmt.name) {
-            if (!visited.has(target.name)) {
-              visited.add(target.name);
-              locals.push({
-                name: target.name,
-                type: target.type
-                  ? this.typeNodeToString(target.type)
-                  : undefined,
-              });
-            }
-          }
-        }
+        this.addVariableDeclToScope(stmt, locals, visited);
       }
 
       // Recursively check nested blocks (if, loop, etc.)
@@ -676,6 +614,9 @@ export class ASTCompletionHandler {
             stmt.body.location.startLine <= line &&
             stmt.body.location.endLine >= line
           ) {
+            if (stmt.init?.kind === "VariableDecl") {
+              this.addVariableDeclToScope(stmt.init, locals, visited);
+            }
             this.collectVariablesInScope(
               stmt.body,
               line,
@@ -705,6 +646,43 @@ export class ASTCompletionHandler {
               }
             }
           }
+        }
+      }
+    }
+  }
+
+  private addVariableDeclToScope(
+    decl: AST.VariableDecl,
+    locals: Array<{ name: string; type?: string }>,
+    visited: Set<string>,
+  ): void {
+    // Handle both simple names and destructuring
+    if (typeof decl.name === "string") {
+      if (!visited.has(decl.name)) {
+        visited.add(decl.name);
+
+        // Try to get type from annotation or infer from initializer
+        let varType: string | undefined;
+        if (decl.typeAnnotation) {
+          varType = this.typeNodeToString(decl.typeAnnotation);
+        } else if (decl.initializer) {
+          varType = this.inferTypeFromExpression(decl.initializer);
+        }
+
+        locals.push({
+          name: decl.name,
+          type: varType,
+        });
+      }
+    } else if (Array.isArray(decl.name)) {
+      // Destructuring
+      for (const target of decl.name) {
+        if (!visited.has(target.name)) {
+          visited.add(target.name);
+          locals.push({
+            name: target.name,
+            type: target.type ? this.typeNodeToString(target.type) : undefined,
+          });
         }
       }
     }
