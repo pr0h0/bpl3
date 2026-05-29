@@ -38,7 +38,7 @@ describe("Compiler fuzz runner", () => {
   });
 
   test("generates differential runtime inputs that exercise checked failures", () => {
-    const inputs = Array.from({ length: 40 }, (_, iteration) =>
+    const inputs = Array.from({ length: 48 }, (_, iteration) =>
       generateFuzzInput(0xd1ff0, iteration, { enableDifferential: true }),
     );
     const differentialSources = inputs
@@ -50,6 +50,9 @@ describe("Compiler fuzz runner", () => {
     expect(differentialSources).toContain("min / negativeOne");
     expect(differentialSources).toContain("node.value");
     expect(differentialSources).toContain("values[index]");
+    expect(differentialSources).toContain("type Row = int[3]");
+    expect(differentialSources).toContain("*(rows + row)");
+    expect(differentialSources).toContain("diff pointer-array");
   });
 
   test(

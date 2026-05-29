@@ -23,7 +23,7 @@
     "test:baseline": "bun test 2>&1 | tee test-baseline.txt",
     "fuzz": "bun fuzz/run_fuzz.ts",
     "fuzz:long": "FUZZ_ITERATIONS=${FUZZ_ITERATIONS:-100000} FUZZ_SEEDS=${FUZZ_SEEDS:-0x5eed1234,0xc0ffee,0xbad5eed} bun fuzz/run_fuzz.ts",
-    "fuzz:differential": "FUZZ_DIFFERENTIAL=1 FUZZ_ITERATIONS=${FUZZ_DIFFERENTIAL_ITERATIONS:-24} FUZZ_SEEDS=${FUZZ_DIFFERENTIAL_SEEDS:-0xd1ff0,0xd1ff1,0xd1ff2} bun fuzz/run_fuzz.ts",
+    "fuzz:differential": "FUZZ_DIFFERENTIAL=1 FUZZ_ITERATIONS=${FUZZ_DIFFERENTIAL_ITERATIONS:-48} FUZZ_SEEDS=${FUZZ_DIFFERENTIAL_SEEDS:-0xd1ff0,0xd1ff1,0xd1ff2} bun fuzz/run_fuzz.ts",
     "fuzz:promote": "bun fuzz/promote_regression.ts",
     "fuzz:replay": "bun fuzz/replay_crash.ts",
     "fuzz:validate-artifacts": "bun test tests/FuzzFailureArtifactCorpus.test.ts",

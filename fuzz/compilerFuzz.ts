@@ -618,6 +618,36 @@ function generateTupleSource(rng: () => number): string {
   `;
 }
 
+function generatePointerArraySource(rng: () => number): string {
+  const firstRow = Array.from({ length: 3 }, () => getRandomInt(rng, 1, 20));
+  const secondRow = Array.from({ length: 3 }, () => getRandomInt(rng, 1, 20));
+  const row = getRandomInt(rng, 0, 1);
+  const col = getRandomInt(rng, 0, 2);
+  const replacement = getRandomInt(rng, 21, 60);
+
+  return `
+    type Row = int[3];
+
+    frame readCell(rows: *Row, row: int, col: int) ret int {
+      return (*(rows + row))[col];
+    }
+
+    frame writeCell(rows: *Row, row: int, col: int, value: int) ret void {
+      (*(rows + row))[col] = value;
+    }
+
+    frame main() ret int {
+      local matrix: int[2][3] = [
+        [${firstRow.join(", ")}],
+        [${secondRow.join(", ")}],
+      ];
+      local rows: *Row = &matrix[0];
+      writeCell(rows, ${row}, ${col}, ${replacement});
+      return readCell(rows, ${row}, ${col}) + readCell(rows, 0, 0);
+    }
+  `;
+}
+
 const STRUCTURED_GENERATORS = [
   generateArithmeticLoopSource,
   generateStructArraySource,
@@ -625,6 +655,7 @@ const STRUCTURED_GENERATORS = [
   generateGenericBranchSource,
   generateLambdaCaptureSource,
   generateTupleSource,
+  generatePointerArraySource,
 ];
 
 const DIFFERENTIAL_RUNTIME_GENERATORS = [
@@ -638,6 +669,7 @@ const DIFFERENTIAL_RUNTIME_GENERATORS = [
   generateDifferentialRecursiveSource,
   generateDifferentialLambdaSource,
   generateDifferentialTupleSource,
+  generateDifferentialPointerArraySource,
 ];
 
 export function generateStructuredValidSource(
@@ -851,6 +883,41 @@ function generateDifferentialTupleSource(rng: () => number): string {
       local pair: (int, int) = (${left}, ${right});
       local total: int = pair.0 + pair.1;
       printf("diff tuple total=%d\\n", total);
+      return 0;
+    }
+  `;
+}
+
+function generateDifferentialPointerArraySource(rng: () => number): string {
+  const firstRow = Array.from({ length: 3 }, () => getRandomInt(rng, 1, 20));
+  const secondRow = Array.from({ length: 3 }, () => getRandomInt(rng, 1, 20));
+  const row = getRandomInt(rng, 0, 1);
+  const col = getRandomInt(rng, 0, 2);
+  const replacement = getRandomInt(rng, 21, 60);
+
+  return `
+    extern printf(fmt: string, ...);
+
+    type Row = int[3];
+
+    frame readCell(rows: *Row, row: int, col: int) ret int {
+      return (*(rows + row))[col];
+    }
+
+    frame writeCell(rows: *Row, row: int, col: int, value: int) ret void {
+      (*(rows + row))[col] = value;
+    }
+
+    frame main() ret int {
+      local matrix: int[2][3] = [
+        [${firstRow.join(", ")}],
+        [${secondRow.join(", ")}],
+      ];
+      local rows: *Row = &matrix[0];
+      writeCell(rows, ${row}, ${col}, ${replacement});
+      local cell: int = readCell(rows, ${row}, ${col});
+      local diagonal: int = readCell(rows, 0, 0) + readCell(rows, 1, 1);
+      printf("diff pointer-array cell=%d diag=%d\\n", cell, diagonal);
       return 0;
     }
   `;
