@@ -22,7 +22,10 @@ The same workflow also has a Windows runner lane that runs
 `bun run test:codegen-cross-platform`. That lane is intentionally limited to
 parser, typechecker, codegen, and golden LLVM shape coverage. It validates
 documented target triples, including `x86_64-pc-windows-gnu`, without requiring
-Windows runtime linking or native execution support.
+Windows runtime linking or native execution support. The codegen lane also
+guards optimizer-sensitive IR contracts such as preserving signed arithmetic
+wrap semantics and avoiding `inbounds` assumptions for unchecked raw pointer
+arithmetic.
 
 The broad `bun run test:ci` suite runs only on the primary Ubuntu release leg.
 Every matrix leg still runs `bun run check`, `bun run test:correctness`,

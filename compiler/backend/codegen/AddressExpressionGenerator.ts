@@ -440,7 +440,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     const elemType = this.resolveType(indexExpr.resolvedType!);
     const addr = this.newRegister();
     this.emit(
-      `  ${addr} = getelementptr inbounds ${elemType}, ${ptrType} ${ptrReg}, i64 ${indexVal}`,
+      `  ${addr} = getelementptr ${elemType}, ${ptrType} ${ptrReg}, i64 ${indexVal}`,
     );
     return addr;
   }

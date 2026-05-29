@@ -139,6 +139,9 @@ describe("GitHub Actions workflows", () => {
       "CodeGen_SignedOverflow.test.ts",
     );
     expect(packageJson.scripts["test:codegen-cross-platform"]).toContain(
+      "CodeGen_RawPointerInbounds.test.ts",
+    );
+    expect(packageJson.scripts["test:codegen-cross-platform"]).toContain(
       "GoldenLLVMShapes.test.ts",
     );
   });

@@ -637,7 +637,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       if (expr.operator.type === TokenType.Plus) {
         const reg = this.newRegister();
         this.emit(
-          `  ${reg} = getelementptr inbounds ${leftType.slice(0, -1)}, ${leftType} ${leftRaw}, i64 ${right}`,
+          `  ${reg} = getelementptr ${leftType.slice(0, -1)}, ${leftType} ${leftRaw}, i64 ${right}`,
         );
         return reg;
       }
@@ -647,7 +647,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         this.emit(`  ${negRight} = sub i64 0, ${right}`);
         const reg = this.newRegister();
         this.emit(
-          `  ${reg} = getelementptr inbounds ${leftType.slice(0, -1)}, ${leftType} ${leftRaw}, i64 ${negRight}`,
+          `  ${reg} = getelementptr ${leftType.slice(0, -1)}, ${leftType} ${leftRaw}, i64 ${negRight}`,
         );
         return reg;
       }
@@ -672,7 +672,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
       const reg = this.newRegister();
       this.emit(
-        `  ${reg} = getelementptr inbounds ${rightType.slice(0, -1)}, ${rightType} ${rightRaw}, i64 ${left}`,
+        `  ${reg} = getelementptr ${rightType.slice(0, -1)}, ${rightType} ${rightRaw}, i64 ${left}`,
       );
       return reg;
     }
