@@ -1,0 +1,7 @@
+{
+  "expectedOutput": ["argc:", "json: 42", "log: ready"],
+  "args": [],
+  "env": {},
+  "input": ""
+}
+

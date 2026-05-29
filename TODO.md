@@ -245,9 +245,13 @@
   - ✅ Direct branch narrowing for `if (value is Type)` and `if (match<Type>(value))`
   - ✅ Helper checks use ordinary `ret bool`; special `ret value is Type` guard syntax is not part of the language
 
-- [5] **Parallel Compilation**
+- [x] **Parallel Compilation Backend MVP** ✅
   - Description: Utilize multi-core processors to compile independent modules in parallel.
-  - Implementation notes: Analyze dependency graph, use worker threads/processes, manage shared resources.
+  - Implemented:
+    - ✅ `ModuleCache.compileModules(...)` compiles independent LLVM module inputs with a bounded async job pool.
+    - ✅ Preserves input ordering for linked object lists.
+    - ✅ Reuses module cache entries across optimization levels and target triples.
+  - Remaining: wire true per-module IR generation into the front-end compilation pipeline.
 
 - [x] **Watch Mode** ✅
   - **Status:** COMPLETED (January 2026)
@@ -293,26 +297,36 @@
 
 - [7] **Package Registry and Advanced Dependency Management**
   - Description: Create a centralized package registry and enhance package manager for publishing/versioning.
-  - Implementation notes: Design metadata format, implement semantic versioning, create registry API, add publish/install commands.
+  - Implemented:
+    - ✅ Local install lockfile v1 (`bpl.lock`) records package version, source archive, and content hash.
+  - Remaining: registry API, publish/install commands against a remote index, and version-range resolution.
 
-- [7] **WebAssembly (WASM) Target**
-  - Description: Add compilation target for WebAssembly (WASM) to run BPL in browsers.
-  - Implementation notes: Add wasm32 target support, handle ABI differences, map primitives, generate .wasm via LLVM.
+- [x] **WebAssembly (WASM) Target Metadata MVP** ✅
+  - Description: Add compilation target for WebAssembly (WASM).
+  - Implemented:
+    - ✅ `wasm32-unknown-unknown` target triple smoke coverage.
+    - ✅ wasm32 LLVM datalayout coverage.
+    - ✅ Shell completions and docs list the target.
+  - Remaining: WASI/browser runtime bindings and direct `.wasm` artifact generation.
 
-- [7] **Automatic C Binding Generation (bindgen)**
+- [x] **Automatic C Binding Generation (bindgen) MVP** ✅
   - Description: Tool to generate BPL `extern` declarations from C headers.
-  - Implementation notes: Use libclang to parse headers, map types, generate BPL files.
+  - Implemented:
+    - ✅ `bpl bindgen <header> [-o file]` for simple C function prototypes.
+    - ✅ Common primitive, pointer, string, `size_t`, and variadic mappings.
+  - Remaining: libclang-backed parsing for macros, typedef graphs, structs, enums, and platform ABI metadata.
 
 - [7] **Standard Library Expansions**
-  - [ ] Structured Logging (Log levels, formatters, output targets)
-  - [ ] CLI Argument Parser (Flags, Options, Subcommands, Help generation)
+  - [x] Structured Logging (Log levels, formatters, output targets)
+    - Current `Log` API provides debug/info/warn/error through standard IO; richer formatters/output targets remain a future enhancement.
+  - [x] CLI Argument Parser (Flags, Options, Subcommands, Help generation)
   - [ ] Networking & HTTP (TCP/UDP, HTTP client)
   - [ ] System Calls & OS Interaction (Signals, Env vars, Process control)
-  - [ ] Date & Time (Date, Time, Duration, Formatting)
-  - [ ] JSON & Serialization (Parse/Stringify)
+  - [x] Date & Time (Date, Time, Duration, Formatting)
+  - [x] JSON & Serialization (Parse/Stringify)
   - [ ] Cryptography & Hashing (SHA256, Random)
   - [ ] Regular Expressions (Match, Replace, Split)
-  - [ ] Advanced Collections (Set, LinkedList, Queue, Stack, PriorityQueue)
+  - [x] Advanced Collections (Set, LinkedList, Queue, Stack, PriorityQueue)
   - [ ] BigInt & Arbitrary Precision (GMP wrapper or native)
   - [ ] Compression & Archiving (zlib/gzip)
   - [ ] Encoding & Decoding (Base64, Hex, CSV)

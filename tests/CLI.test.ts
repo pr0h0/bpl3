@@ -74,4 +74,43 @@ describe("CLI Tests", () => {
       if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
     }
   });
+
+  it("should generate BPL extern declarations from simple C headers", () => {
+    const tempHeader = path.join(process.cwd(), "tests/temp_bindgen.h");
+    fs.writeFileSync(
+      tempHeader,
+      [
+        "int puts(const char *s);",
+        "void free(void *ptr);",
+        "double pow(double base, double exp);",
+        "int printf(const char *fmt, ...);",
+        "int abs(int);",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["bindgen", tempHeader]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("extern puts(s: string) ret int;");
+      expect(result.stdout).toContain("extern free(ptr: *void) ret void;");
+      expect(result.stdout).toContain(
+        "extern pow(base: double, exp: double) ret double;",
+      );
+      expect(result.stdout).toContain("extern printf(fmt: string, ...) ret int;");
+      expect(result.stdout).toContain("extern abs(arg0: int) ret int;");
+    } finally {
+      if (fs.existsSync(tempHeader)) fs.unlinkSync(tempHeader);
+    }
+  });
+
+  it("should advertise the wasm32 target in shell completions", () => {
+    const bash = runCLI(["completion", "bash"]);
+    const zsh = runCLI(["completion", "zsh"]);
+
+    expect(bash.status).toBe(0);
+    expect(zsh.status).toBe(0);
+    expect(bash.stdout).toContain("wasm32-unknown-unknown");
+    expect(zsh.stdout).toContain("wasm32-unknown-unknown");
+  });
 });

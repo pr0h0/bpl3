@@ -52,6 +52,25 @@ bpl install ../path/to/my-package-0.1.0.tgz
 ```
 
 This extracts the package into the `bpl_modules/` directory of your project.
+For local installs, BPL also writes `bpl.lock` with the exact installed package
+version, source archive, and content hash.
+
+```json
+{
+  "lockfileVersion": 1,
+  "packages": {
+    "my-package": {
+      "version": "0.1.0",
+      "source": "../path/to/my-package-0.1.0.tgz",
+      "hash": "..."
+    }
+  }
+}
+```
+
+Commit `bpl.lock` for applications so repeated installs resolve the same
+package contents. Libraries may commit it when they need reproducible examples
+or test fixtures.
 
 ## Using Packages
 
@@ -73,7 +92,9 @@ When you run `bpl install`, the package manager:
 
 1.  Extracts the package to `bpl_modules/<package-name>`.
 2.  Reads the package's `bpl.json`.
-3.  (Future) Resolves and installs dependencies listed in `bpl.json`.
+3.  Records the exact local install in `bpl.lock`.
+4.  Resolves imports through `bpl_modules/`, workspace `packages/`, and the
+    global package directory.
 
 ## Best Practices
 

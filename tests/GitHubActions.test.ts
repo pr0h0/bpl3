@@ -201,4 +201,14 @@ describe("GitHub Actions workflows", () => {
       "vscode-languageserver-textdocument",
     );
   });
+
+  test("sanitizer runtime tests have an explicit timeout for slower CI runners", () => {
+    const sanitizerTest = readFileSync(
+      join(import.meta.dir, "CompilerSanitizerRuntime.test.ts"),
+      "utf8",
+    );
+
+    expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS");
+    expect(sanitizerTest).toContain("30 * 1000");
+  });
 });

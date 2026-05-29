@@ -39,7 +39,20 @@ export interface PackageInfo {
   hash: string;
 }
 
+export interface PackageLockFile {
+  lockfileVersion: 1;
+  packages: Record<
+    string,
+    {
+      version: string;
+      source: string;
+      hash: string;
+    }
+  >;
+}
+
 export class PackageManager {
+  private projectRoot: string;
   private globalPackageDir: string;
   private localPackageDir: string;
   private globalBinDir: string;
@@ -52,6 +65,7 @@ export class PackageManager {
 
     // Local packages in project's node_modules equivalent
     const root = projectRoot || process.cwd();
+    this.projectRoot = root;
     this.localPackageDir = path.join(root, "bpl_modules");
     this.localBinDir = path.join(this.localPackageDir, ".bin");
 
@@ -110,6 +124,50 @@ export class PackageManager {
         );
       }
     }
+  }
+
+  private getLockFilePath(): string {
+    return path.join(this.projectRoot, "bpl.lock");
+  }
+
+  loadLockFile(): PackageLockFile {
+    const lockPath = this.getLockFilePath();
+    if (!fs.existsSync(lockPath)) {
+      return { lockfileVersion: 1, packages: {} };
+    }
+
+    const parsed = JSON.parse(fs.readFileSync(lockPath, "utf-8"));
+    return {
+      lockfileVersion: 1,
+      packages: parsed.packages || {},
+    };
+  }
+
+  private saveLockFile(lock: PackageLockFile): void {
+    fs.writeFileSync(this.getLockFilePath(), JSON.stringify(lock, null, 2));
+  }
+
+  private recordLocalInstall(
+    manifest: PackageManifest,
+    installPath: string,
+    source: string,
+  ): void {
+    const lock = this.loadLockFile();
+    lock.packages[manifest.name] = {
+      version: manifest.version,
+      source,
+      hash: this.calculatePackageHash(installPath),
+    };
+    this.saveLockFile(lock);
+  }
+
+  private removeLocalLockEntry(packageName: string): void {
+    const lockPath = this.getLockFilePath();
+    if (!fs.existsSync(lockPath)) return;
+
+    const lock = this.loadLockFile();
+    delete lock.packages[packageName];
+    this.saveLockFile(lock);
   }
 
   /**
@@ -483,6 +541,10 @@ export class PackageManager {
       // Link binaries
       this.linkBinaries(manifest, installPath, options.global || false);
 
+      if (!options.global) {
+        this.recordLocalInstall(manifest, installPath, packageSource);
+      }
+
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
 
       if (options.global) {
@@ -553,6 +615,10 @@ export class PackageManager {
 
     // Remove the package directory
     fs.rmSync(packagePath, { recursive: true, force: true });
+
+    if (!options.global) {
+      this.removeLocalLockEntry(manifest.name);
+    }
 
     compilerLog.info(`✓ Uninstalled ${manifest.name}@${manifest.version}`);
   }

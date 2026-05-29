@@ -32,6 +32,35 @@ File system operations. See [FS Documentation](31-stdlib-fs.md).
 
 Time and duration utilities. See [Time Documentation](33-stdlib-time.md).
 
+### CLI Args (`std/args.bpl`, `std/arg_parser.bpl`)
+
+Command-line argument helpers are available directly through `std`:
+
+```bpl
+import [Args], [ArgParser], [Command], [Flag], [ParsedArgs] from "std";
+```
+
+`Args.new(argc, argv)` wraps process arguments. `Command`, `Flag`, and
+`ArgParser` provide a small command parser for flags, aliases, arguments, help
+text, and parsed flag lookup.
+
+### JSON (`std/json.bpl`)
+
+JSON helpers are available directly through `std`:
+
+```bpl
+import [JSON], [Jsonable], [JsonToResult], [JsonParseResult] from "std";
+```
+
+`JSON.stringify<T>(&value)` serializes primitive and reflected values into a
+`String`. `JSON.parse<T>(json)` parses into an allocated `*T`; callers own the
+returned value and any nested resources.
+
+### Logging (`std/log.bpl`)
+
+`Log.debug`, `Log.info`, `Log.warn`, and `Log.error` are available through
+`std` and currently write through the standard IO log path.
+
 ---
 
 ## Numeric Types

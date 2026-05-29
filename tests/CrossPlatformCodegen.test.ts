@@ -23,6 +23,11 @@ const targets = [
     triple: "x86_64-pc-windows-gnu",
     layoutPrefix: "e-m:w",
   },
+  {
+    name: "WebAssembly 32-bit",
+    triple: "wasm32-unknown-unknown",
+    layoutPrefix: "e-m:e-p:32:32",
+  },
 ] as const;
 
 describe("Cross-platform codegen target smoke tests", () => {

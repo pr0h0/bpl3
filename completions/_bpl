@@ -19,6 +19,7 @@ _bpl() {
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
         'completion:Generate shell completion scripts'
+        'bindgen:Generate BPL extern declarations from C headers'
         'help:Display help information'
     )
 
@@ -30,7 +31,7 @@ _bpl() {
         '-o[Output file path]:file:_files'
         '--output[Output file path]:file:_files'
         '--emit[Emit type]:type:(llvm ast tokens formatted)'
-        '--target[Target triple for clang]:triple:(x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu)'
+        '--target[Target triple for clang]:triple:(x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown)'
         '--sysroot[Sysroot path for cross-compilation]:path:_directories'
         '--cpu[Target CPU for clang]:cpu'
         '--march[Target architecture for clang]:arch'

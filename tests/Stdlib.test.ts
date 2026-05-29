@@ -389,4 +389,29 @@ describe("Standard Library", () => {
     expect(output).toContain("Pop: 20");
     expect(output).toContain("Pop: 30");
   });
+
+  test("std umbrella exports CLI args, JSON, and logging utilities", async () => {
+    const output = compileAndRun(`
+      import [Args], [JSON], [Log], [String] from "std";
+
+      extern printf(fmt: *i8, ...) ret i32;
+
+      frame main(argc: int, argv: **char) ret int {
+        local args: Args = Args.new(argc, argv);
+        local value: int = 42;
+        local encoded: String = JSON.stringify<int>(&value);
+
+        printf("argc: %d\\n", args.count());
+        printf("json: %s\\n", encoded.data);
+        Log.info("log: ready");
+
+        encoded.destroy();
+        return 0;
+      }
+    `);
+
+    expect(output).toContain("argc:");
+    expect(output).toContain("json: 42");
+    expect(output).toContain("log: ready");
+  });
 });

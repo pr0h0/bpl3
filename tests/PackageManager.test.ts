@@ -180,6 +180,37 @@ describe("PackageManager", () => {
       expect(fs.existsSync(path.join(installedPath, "index.bpl"))).toBe(true);
     });
 
+    test("should write a lockfile for local installs", () => {
+      const manifest = {
+        name: "lock-test-pkg",
+        version: "1.2.3",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      const tarballPath = packageManager.pack(tempDir);
+
+      const installDir = path.join(tempDir, "lock-test");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      const lockPath = path.join(installDir, "bpl.lock");
+      expect(fs.existsSync(lockPath)).toBe(true);
+
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+      expect(lock.lockfileVersion).toBe(1);
+      expect(lock.packages["lock-test-pkg"]).toMatchObject({
+        version: "1.2.3",
+        source: tarballPath,
+      });
+      expect(lock.packages["lock-test-pkg"].hash).toMatch(/^[a-f0-9]{64}$/);
+    });
+
     test("should list installed packages", () => {
       // Create and install a package
       const manifest = {

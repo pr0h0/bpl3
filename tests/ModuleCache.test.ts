@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "fs";
+import { existsSync, mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -36,6 +36,64 @@ describe("ModuleCache", () => {
       );
 
       expect(o3).not.toBe(o0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("compiles multiple module objects with a bounded parallel job count", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parallel-"));
+
+    try {
+      const cache = new ModuleCache(dir);
+      const objects = await cache.compileModules(
+        [
+          {
+            modulePath: "left.bpl",
+            content: "frame left() ret int { return 1; }",
+            llvmIR: "define i32 @left() { ret i32 1 }",
+          },
+          {
+            modulePath: "right.bpl",
+            content: "frame right() ret int { return 2; }",
+            llvmIR: "define i32 @right() { ret i32 2 }",
+          },
+        ],
+        { jobs: 2, optimizationLevel: 0 },
+      );
+
+      expect(objects).toHaveLength(2);
+      expect(objects.every((objectFile) => existsSync(objectFile))).toBe(true);
+      expect(new Set(objects).size).toBe(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("handles identical module objects in the same parallel batch", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-identical-"));
+
+    try {
+      const cache = new ModuleCache(dir);
+      const objects = await cache.compileModules(
+        [
+          {
+            modulePath: "first.bpl",
+            content: "frame same() ret int { return 7; }",
+            llvmIR: "define i32 @same() { ret i32 7 }",
+          },
+          {
+            modulePath: "second.bpl",
+            content: "frame same() ret int { return 7; }",
+            llvmIR: "define i32 @same() { ret i32 7 }",
+          },
+        ],
+        { jobs: 2, optimizationLevel: 0 },
+      );
+
+      expect(objects).toHaveLength(2);
+      expect(objects[0]).toBe(objects[1]);
+      expect(existsSync(objects[0]!)).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

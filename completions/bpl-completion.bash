@@ -12,7 +12,7 @@ _bpl_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format init pack install list uninstall completion help lint"
+    local commands="format init pack install list uninstall completion help lint bindgen"
 
     # Global options (work with file arguments and commands)
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object --run -v --verbose --cache --write -h --help -V --version --dwarf"
@@ -57,7 +57,7 @@ _bpl_completion() {
         ;;
         --target)
             # Common target triples
-            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu"
+            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown"
             COMPREPLY=( $(compgen -W "${targets}" -- "${cur}") )
             return 0
         ;;

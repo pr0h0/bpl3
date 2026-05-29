@@ -135,6 +135,25 @@ export [Range];
 import [StringBuilder] from "std/string_builder.bpl";
 export [StringBuilder];
 
+import [Args] from "std/args.bpl";
+export [Args];
+
+import [Command], [Flag], [Argument], [ArgParser], [ParsedArgs] from "std/arg_parser.bpl";
+export [Command];
+export [Flag];
+export [Argument];
+export [ArgParser];
+export [ParsedArgs];
+
+import [JSON], [JsonToResult], [JsonParseResult], [Jsonable] from "std/json.bpl";
+export [JSON];
+export [JsonToResult];
+export [JsonParseResult];
+export [Jsonable];
+
+import [Log] from "std/log.bpl";
+export [Log];
+
 import exec, execStatus, execOutput, execShell, execSilent, sleep, [ProcessResult] from "std/process.bpl";
 export exec;
 export execStatus;

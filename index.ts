@@ -23,6 +23,7 @@ import {
   registerNewCommand,
   registerCleanCommand,
   registerRunScriptCommand,
+  registerBindgenCommand,
 } from "./cli";
 import type { CompileOptions } from "./cli/types";
 import { Logger } from "./compiler/common/Logger";
@@ -149,6 +150,7 @@ registerCompletionCommand(program);
 registerDocsCommand(program);
 registerNewCommand(program);
 registerCleanCommand(program);
+registerBindgenCommand(program);
 
 // ============================================================================
 // Parse and Execute

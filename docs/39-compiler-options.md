@@ -306,6 +306,7 @@ runtime, and runtime support for that platform.
 - `arm64-apple-darwin` (macOS ARM64)
 - `x86_64-apple-darwin` (macOS x64)
 - `x86_64-pc-windows-gnu` (Windows x64)
+- `wasm32-unknown-unknown` (WebAssembly 32-bit IR)
 
 **Examples:**
 
@@ -315,6 +316,9 @@ bpl build main.bpl --target aarch64-unknown-linux-gnu
 
 # Emit and link for Windows from Linux when a Windows-capable clang/sysroot is installed
 bpl build main.bpl --target x86_64-pc-windows-gnu
+
+# Emit WebAssembly-targeted LLVM IR
+bpl build main.bpl --target wasm32-unknown-unknown --emit llvm -o main.wasm.ll
 
 # Specify architecture details
 bpl build main.bpl --target aarch64-unknown-linux-gnu --march=armv8-a
@@ -380,7 +384,10 @@ Enable incremental compilation with module caching:
 bpl build main.bpl --cache
 ```
 
-Cached modules are stored in `bpl_modules/.cache/`. Use `bpl clean` to clear cache.
+Cached modules are stored in `.bpl-cache/`. Use `bpl clean` to clear cache.
+The module cache backend can compile independent LLVM module inputs with a
+bounded parallel job pool; the current CLI cache path still emits one combined
+program object until true per-module IR generation is wired into the front end.
 
 ## Complete Examples
 

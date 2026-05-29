@@ -21,7 +21,7 @@ _bpl_completion() {
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format run dev build check lint init pack install list uninstall completion clean new help docs"
+    local commands="format run dev build check lint init pack install list uninstall completion clean new help docs bindgen"
 
     # Global options (work with file arguments and commands)
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
@@ -66,7 +66,7 @@ _bpl_completion() {
         ;;
         --target)
             # Common target triples
-            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu"
+            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown"
             COMPREPLY=( $(compgen -W "\${targets}" -- "\${cur}") )
             return 0
         ;;
@@ -212,6 +212,7 @@ _bpl() {
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
         'docs:Generate documentation'
+        'bindgen:Generate BPL extern declarations from C headers'
         'completion:Generate shell completion scripts'
         'help:Display help information'
     )
@@ -224,7 +225,7 @@ _bpl() {
         '-o[Output file path]:file:_files'
         '--output[Output file path]:file:_files'
         '--emit[Emit type]:type:(llvm ast tokens formatted)'
-        '--target[Target triple for clang]:triple:(x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu)'
+        '--target[Target triple for clang]:triple:(x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown)'
         '--sysroot[Sysroot path for cross-compilation]:path:_directories'
         '--cpu[Target CPU for clang]:cpu'
         '--march[Target architecture for clang]:arch'

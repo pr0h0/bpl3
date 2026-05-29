@@ -6,7 +6,7 @@
  * is cached if unchanged.
  */
 
-import { spawnSync } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
@@ -24,6 +24,21 @@ export interface CachedModule {
 export interface CacheManifest {
   version: string;
   modules: Map<string, CachedModule>;
+}
+
+export interface ModuleCompileInput {
+  modulePath: string;
+  content: string;
+  llvmIR: string;
+  target?: string;
+  optimizationLevel?: number;
+}
+
+export interface ModuleCompileBatchOptions {
+  jobs?: number;
+  verbose?: boolean;
+  target?: string;
+  optimizationLevel?: number;
 }
 
 export class ModuleCache {
@@ -90,6 +105,38 @@ export class ModuleCache {
     fs.writeFileSync(this.manifestPath, JSON.stringify(data, null, 2));
   }
 
+  private getModuleHash(
+    content: string,
+    target?: string,
+    optimizationLevel?: number,
+  ): string {
+    return this.calculateHash(
+      [
+        content,
+        `target=${target ?? ""}`,
+        `opt=${optimizationLevel ?? 0}`,
+      ].join("|"),
+    );
+  }
+
+  private normalizeJobs(jobs: number | undefined): number {
+    if (!Number.isInteger(jobs) || jobs === undefined || jobs <= 0) {
+      return 1;
+    }
+    return jobs;
+  }
+
+  private getCachedModuleObject(
+    modulePath: string,
+    hash: string,
+  ): string | undefined {
+    const cached = this.manifest.modules.get(modulePath);
+    if (cached && cached.hash === hash && fs.existsSync(cached.objectFile)) {
+      return cached.objectFile;
+    }
+    return undefined;
+  }
+
   /**
    * Check if a module is cached and up-to-date
    */
@@ -137,12 +184,7 @@ export class ModuleCache {
     optimizationLevel?: number,
   ): string {
     // Include codegen-affecting options so incompatible object files do not collide.
-    const contentToHash = [
-      content,
-      `target=${target ?? ""}`,
-      `opt=${optimizationLevel ?? 0}`,
-    ].join("|");
-    const hash = this.calculateHash(contentToHash);
+    const hash = this.getModuleHash(content, target, optimizationLevel);
     const objectFileName = `${hash}.o`;
     const objectFilePath = path.join(this.cacheDir, objectFileName);
 
@@ -150,12 +192,12 @@ export class ModuleCache {
     // We use the modified hash, so isCached needs to know about it or we check manually
     // Since isCached calls calculateHash(content), we can't use it directly if we change hashing logic
     // Let's check manually here using our new hash
-    const cached = this.manifest.modules.get(modulePath);
-    if (cached && cached.hash === hash && fs.existsSync(cached.objectFile)) {
+    const cachedObjectFile = this.getCachedModuleObject(modulePath, hash);
+    if (cachedObjectFile) {
       if (verbose) {
         compilerLog.info(`Using cached: ${path.basename(modulePath)}`);
       }
-      return cached.objectFile;
+      return cachedObjectFile;
     }
 
     if (verbose) {
@@ -212,6 +254,148 @@ export class ModuleCache {
     this.saveManifest();
 
     return objectFilePath;
+  }
+
+  /**
+   * Compile multiple modules to object files with a bounded async worker pool.
+   *
+   * This is the backend primitive for parallel module compilation. It preserves
+   * input order in the returned object list while allowing independent clang
+   * invocations to overlap.
+   */
+  async compileModules(
+    modules: ModuleCompileInput[],
+    options: ModuleCompileBatchOptions = {},
+  ): Promise<string[]> {
+    const jobs = Math.min(this.normalizeJobs(options.jobs), modules.length || 1);
+    const results = new Array<string>(modules.length);
+    let nextIndex = 0;
+
+    const worker = async (): Promise<void> => {
+      while (nextIndex < modules.length) {
+        const index = nextIndex++;
+        const input = modules[index]!;
+        results[index] = await this.compileModuleAsync(input, options);
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: jobs }, () => worker()),
+    );
+    return results;
+  }
+
+  private async compileModuleAsync(
+    input: ModuleCompileInput,
+    options: ModuleCompileBatchOptions,
+  ): Promise<string> {
+    const target = input.target ?? options.target;
+    const optimizationLevel =
+      input.optimizationLevel ?? options.optimizationLevel;
+    const hash = this.getModuleHash(input.content, target, optimizationLevel);
+    const objectFilePath = path.join(this.cacheDir, `${hash}.o`);
+    const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    const tempObjectFilePath = path.join(this.cacheDir, `${hash}.${tempSuffix}.o`);
+    const cachedObjectFile = this.getCachedModuleObject(input.modulePath, hash);
+
+    if (cachedObjectFile) {
+      if (options.verbose) {
+        compilerLog.info(`Using cached: ${path.basename(input.modulePath)}`);
+      }
+      return cachedObjectFile;
+    }
+
+    if (options.verbose) {
+      compilerLog.info(`Compiling: ${path.basename(input.modulePath)}`);
+    }
+
+    const llFilePath = path.join(this.cacheDir, `${hash}.${tempSuffix}.ll`);
+    fs.writeFileSync(llFilePath, input.llvmIR);
+
+    const clangArgs = ["-c", "-Wno-override-module"];
+    if (target) {
+      clangArgs.push("-target", target);
+    }
+    if (optimizationLevel !== undefined) {
+      clangArgs.push(`-O${optimizationLevel}`);
+    }
+    clangArgs.push(llFilePath, "-o", tempObjectFilePath);
+
+    await this.runClang(clangArgs, input.modulePath, options.verbose);
+
+    fs.renameSync(tempObjectFilePath, objectFilePath);
+
+    try {
+      fs.unlinkSync(llFilePath);
+    } catch {
+      // Ignore cleanup errors - file may have been deleted or moved
+    }
+
+    this.manifest.modules.set(input.modulePath, {
+      path: input.modulePath,
+      hash,
+      objectFile: objectFilePath,
+      timestamp: Date.now(),
+    });
+    this.saveManifest();
+
+    return objectFilePath;
+  }
+
+  private runClang(
+    args: string[],
+    modulePath: string,
+    verbose: boolean = false,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const child = spawn("clang", args, {
+        stdio: verbose ? "inherit" : "pipe",
+      });
+
+      let stderr = "";
+      child.stderr?.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      child.on("error", (error) => {
+        reject(
+          new CompilerError(
+            `Failed to compile ${modulePath}: ${error.message}`,
+            "Check clang output for details.",
+            {
+              file: modulePath,
+              startLine: 0,
+              startColumn: 0,
+              endLine: 0,
+              endColumn: 0,
+            },
+          ),
+        );
+      });
+
+      child.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        reject(
+          new CompilerError(
+            `Failed to compile ${modulePath}: ${stderr || "Unknown compilation error"}`,
+            "Check clang output for details.",
+            {
+              file: modulePath,
+              startLine: 0,
+              startColumn: 0,
+              endLine: 0,
+              endColumn: 0,
+            },
+          ),
+        );
+      });
+    });
   }
 
   /**
