@@ -20,8 +20,11 @@ import { Formatter } from "./formatter/Formatter";
 import { lexWithGrammar } from "./frontend/GrammarLexer";
 import { Parser } from "./frontend/Parser";
 import { Linker } from "./middleend/Linker";
-import { ModuleCache } from "./middleend/ModuleCache";
-import { ModuleResolver } from "./middleend/ModuleResolver";
+import {
+  ModuleCache,
+  type ModuleCompileInput,
+} from "./middleend/ModuleCache";
+import { ModuleResolver, type ModuleInfo } from "./middleend/ModuleResolver";
 import { TypeChecker } from "./middleend/TypeChecker";
 
 import type * as AST from "./common/AST";
@@ -70,6 +73,8 @@ export interface CompilerOptions {
   collectAllErrors?: boolean;
   /** Optimization level (0-3, where 0=none, 3=aggressive) */
   optimizationLevel?: number;
+  /** Parallel module compilation jobs for cached builds */
+  jobs?: number;
 }
 
 /**
@@ -271,6 +276,17 @@ export class Compiler {
   }
 
   /**
+   * Async compilation entry point for backends that can run parallel work.
+   */
+  async compileAsync(sourceCode: string): Promise<CompilationResult> {
+    if (this.options.useCache && this.normalizeJobs(this.options.jobs) > 1) {
+      return await this.compileWithCacheAsync();
+    }
+
+    return this.compile(sourceCode);
+  }
+
+  /**
    * Compile with full module resolution (two-phase compilation)
    */
   private compileWithModuleResolution(): CompilationResult {
@@ -448,17 +464,9 @@ export class Compiler {
         compilerLog.info(`Found ${modules.length} modules`);
       }
 
-      // 2. Type check all modules in dependency order
-      const typeChecker = new TypeChecker({
-        collectAllErrors: this.options.collectAllErrors,
-      });
-      for (const module of modules) {
-        typeChecker.checkProgram(module.ast);
-        module.checked = true;
-      }
-      const typeErrors = typeChecker.getErrors();
-      if (typeErrors.length > 0) {
-        return { success: false, errors: typeErrors };
+      const moduleCheck = this.typeCheckResolvedModules(modules);
+      if (!moduleCheck.success) {
+        return { success: false, errors: moduleCheck.errors };
       }
 
       // 3. Generate combined LLVM IR (for now, until we implement proper per-module compilation)
@@ -540,6 +548,13 @@ export class Compiler {
         outputPath,
         this.options.verbose,
         this.options.target,
+        {
+          objectFiles: this.options.objectFiles,
+          libraries: this.options.libraries,
+          libraryPaths: this.options.libraryPaths,
+          sysroot: this.options.sysroot,
+          clangFlags: this.options.clangFlags,
+        },
       );
 
       if (this.options.verbose) {
@@ -562,6 +577,370 @@ export class Compiler {
       }
       throw error;
     }
+  }
+
+  /**
+   * Compile resolved modules as independent cached objects with parallel clang jobs.
+   */
+  private async compileWithCacheAsync(): Promise<CompilationResult> {
+    try {
+      const projectRoot = path.dirname(this.options.filePath);
+      const cache = new ModuleCache(projectRoot);
+
+      if (this.options.verbose) {
+        compilerLog.info("Resolving dependencies (parallel cached)...");
+      }
+
+      const resolver = new ModuleResolver();
+      const modules = resolver.resolveModules(this.options.filePath);
+
+      if (this.options.verbose) {
+        compilerLog.info(`Found ${modules.length} modules`);
+      }
+
+      const moduleCheck = this.typeCheckResolvedModules(modules);
+      if (!moduleCheck.success) {
+        return { success: false, errors: moduleCheck.errors };
+      }
+
+      const allContent = modules
+        .map((m) => `${m.path}\n${fs.readFileSync(m.path, "utf-8")}`)
+        .join("\n--- bpl module dependency snapshot ---\n");
+
+      const compileInputs: ModuleCompileInput[] = modules.map((module) => {
+        const moduleAST = this.createPerModuleCodegenAst(modules, module);
+        const codeGenerator = new CodeGenerator({
+          target: this.options.target,
+          dwarf: this.options.dwarf,
+          optimizationLevel: this.options.optimizationLevel,
+        });
+        const restoreExternalizedBodies =
+          this.externalizeNonCurrentFunctionBodies(modules, module);
+        let llvmIR: string;
+        try {
+          llvmIR = codeGenerator.generate(moduleAST, module.path);
+        } finally {
+          restoreExternalizedBodies();
+        }
+        const moduleContent = [
+          `module=${module.path}`,
+          fs.readFileSync(module.path, "utf-8"),
+          allContent,
+        ].join("\n--- bpl cache key ---\n");
+
+        return {
+          modulePath: module.path,
+          content: moduleContent,
+          llvmIR,
+          target: this.options.target,
+          optimizationLevel: this.options.optimizationLevel,
+        };
+      });
+
+      if (this.options.verbose) {
+        compilerLog.info(
+          `Compiling ${compileInputs.length} module objects with ${this.normalizeJobs(this.options.jobs)} jobs...`,
+        );
+      }
+
+      const objectFiles = await cache.compileModules(compileInputs, {
+        jobs: this.normalizeJobs(this.options.jobs),
+        verbose: this.options.verbose,
+        target: this.options.target,
+        optimizationLevel: this.options.optimizationLevel,
+      });
+
+      const outputPath =
+        this.options.outputPath ||
+        this.options.filePath.replace(/\.[^/.]+$/, "");
+
+      if (this.options.verbose) {
+        compilerLog.info("Linking modules...");
+      }
+
+      cache.linkModules(
+        objectFiles,
+        outputPath,
+        this.options.verbose,
+        this.options.target,
+        {
+          objectFiles: this.options.objectFiles,
+          libraries: this.options.libraries,
+          libraryPaths: this.options.libraryPaths,
+          sysroot: this.options.sysroot,
+          clangFlags: this.options.clangFlags,
+        },
+      );
+
+      if (this.options.verbose) {
+        const stats = cache.getStats();
+        compilerLog.info(
+          `Cache stats: ${stats.totalModules} modules, ${(stats.cacheSize / 1024).toFixed(2)} KB`,
+        );
+      }
+
+      return {
+        success: true,
+        output: `Executable created: ${outputPath}`,
+      };
+    } catch (error) {
+      if (error instanceof CompilerError) {
+        return {
+          success: false,
+          errors: [error],
+        };
+      }
+      throw error;
+    }
+  }
+
+  private typeCheckResolvedModules(
+    modules: ModuleInfo[],
+  ): { success: true } | { success: false; errors: CompilerError[] } {
+    const typeChecker = new TypeChecker({
+      skipImportResolution: true,
+      collectAllErrors: this.options.collectAllErrors,
+    });
+
+    for (const module of modules) {
+      typeChecker.registerModule(module.path, module.ast);
+    }
+
+    for (const module of modules) {
+      if (this.options.verbose) {
+        compilerLog.debug(`Checking: ${path.basename(module.path)}`);
+      }
+      typeChecker.setCurrentModulePath(module.path);
+      typeChecker.checkProgram(module.ast, module.path);
+      module.checked = true;
+
+      if (module.path.endsWith("primitives.bpl")) {
+        typeChecker.injectPrimitivesFromModule(module.path);
+      }
+    }
+
+    const linkerErrors = typeChecker.getLinkerSymbolTable().verifySymbols();
+    const typeErrors = typeChecker.getErrors();
+    if (linkerErrors.length > 0 || typeErrors.length > 0) {
+      return { success: false, errors: [...typeErrors, ...linkerErrors] };
+    }
+
+    return { success: true };
+  }
+
+  private createPerModuleCodegenAst(
+    modules: ModuleInfo[],
+    currentModule: ModuleInfo,
+  ): AST.Program {
+    const typeAndInterfaceStatements: AST.Statement[] = [];
+    const currentBodyStatements: AST.Statement[] = [];
+    const externalFunctionStatements: AST.Statement[] = [];
+    const seenDeclarations = new Set<string>();
+
+    const addPreparedStatement = (
+      stmt: AST.Statement,
+      bucket: AST.Statement[],
+    ) => {
+      const key = this.getCodegenStatementKey(stmt);
+      if (key && seenDeclarations.has(key)) {
+        return;
+      }
+      if (key) {
+        seenDeclarations.add(key);
+      }
+
+      bucket.push(stmt);
+    };
+
+    const addStatement = (stmt: AST.Statement, owner: ModuleInfo) => {
+      if (stmt.kind === "Import" || stmt.kind === "Export") {
+        return;
+      }
+
+      const prepared =
+        owner.path === currentModule.path
+          ? stmt
+          : this.createExternalDeclaration(stmt);
+      if (!prepared) {
+        return;
+      }
+
+      if (this.isTypeOrInterfaceStatement(prepared)) {
+        addPreparedStatement(prepared, typeAndInterfaceStatements);
+        return;
+      }
+
+      if (owner.path === currentModule.path) {
+        addPreparedStatement(prepared, currentBodyStatements);
+        return;
+      }
+
+      if (prepared.kind === "FunctionDecl") {
+        addPreparedStatement(prepared, externalFunctionStatements);
+      }
+    };
+
+    for (const module of modules) {
+      for (const stmt of module.ast.statements) {
+        addStatement(stmt, module);
+      }
+    }
+
+    const statements = [
+      ...typeAndInterfaceStatements,
+      ...currentBodyStatements,
+      ...externalFunctionStatements,
+    ];
+
+    return {
+      kind: "Program",
+      statements,
+      location: currentModule.ast.location,
+    };
+  }
+
+  private isTypeOrInterfaceStatement(stmt: AST.Statement): boolean {
+    return (
+      stmt.kind === "StructDecl" ||
+      stmt.kind === "EnumDecl" ||
+      stmt.kind === "SpecDecl" ||
+      stmt.kind === "TypeAlias" ||
+      stmt.kind === "Extern"
+    );
+  }
+
+  private createExternalDeclaration(
+    stmt: AST.Statement,
+  ): AST.Statement | undefined {
+    switch (stmt.kind) {
+      case "FunctionDecl":
+        return this.markFunctionExternal(stmt as AST.FunctionDecl);
+      case "StructDecl": {
+        const decl = stmt as AST.StructDecl;
+        return {
+          ...decl,
+          members: decl.members.map((member) =>
+            member.kind === "FunctionDecl"
+              ? this.markFunctionExternal(member as AST.FunctionDecl)
+              : member,
+          ),
+        };
+      }
+      case "EnumDecl": {
+        const decl = stmt as AST.EnumDecl;
+        return {
+          ...decl,
+          methods: decl.methods.map((method) =>
+            this.markFunctionExternal(method),
+          ),
+        };
+      }
+      case "VariableDecl": {
+        return undefined;
+      }
+      case "Extern":
+      case "SpecDecl":
+      case "TypeAlias":
+        return stmt;
+      default:
+        return undefined;
+    }
+  }
+
+  private markFunctionExternal(decl: AST.FunctionDecl): AST.FunctionDecl {
+    return {
+      ...decl,
+      location: {
+        ...decl.location,
+        file: "internal",
+      },
+    };
+  }
+
+  private externalizeNonCurrentFunctionBodies(
+    modules: ModuleInfo[],
+    currentModule: ModuleInfo,
+  ): () => void {
+    const originals: Array<{
+      decl: AST.FunctionDecl;
+      file: string;
+    }> = [];
+
+    const visitFunction = (decl: AST.FunctionDecl, isCurrent: boolean) => {
+      originals.push({ decl, file: decl.location.file });
+      decl.location = {
+        ...decl.location,
+        file: isCurrent ? decl.location.file : "internal",
+      };
+    };
+
+    const visitStatement = (stmt: AST.Statement, isCurrent: boolean) => {
+      if (stmt.kind === "FunctionDecl") {
+        visitFunction(stmt as AST.FunctionDecl, isCurrent);
+        return;
+      }
+
+      if (stmt.kind === "StructDecl") {
+        for (const member of (stmt as AST.StructDecl).members) {
+          if (member.kind === "FunctionDecl") {
+            visitFunction(member as AST.FunctionDecl, isCurrent);
+          }
+        }
+        return;
+      }
+
+      if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          visitFunction(method, isCurrent);
+        }
+      }
+    };
+
+    for (const module of modules) {
+      const isCurrent = module.path === currentModule.path;
+      for (const stmt of module.ast.statements) {
+        visitStatement(stmt, isCurrent);
+      }
+    }
+
+    return () => {
+      for (const { decl, file } of originals) {
+        decl.location = {
+          ...decl.location,
+          file,
+        };
+      }
+    };
+  }
+
+  private getCodegenStatementKey(stmt: AST.Statement): string | undefined {
+    switch (stmt.kind) {
+      case "StructDecl":
+        return `struct:${(stmt as AST.StructDecl).name}`;
+      case "EnumDecl":
+        return `enum:${(stmt as AST.EnumDecl).name}`;
+      case "SpecDecl":
+        return `spec:${(stmt as AST.SpecDecl).name}`;
+      case "TypeAlias":
+        return `type:${(stmt as AST.TypeAliasDecl).name}`;
+      case "VariableDecl": {
+        const name = (stmt as AST.VariableDecl).name;
+        return typeof name === "string" ? `global:${name}` : undefined;
+      }
+      case "Extern":
+        return `extern:${(stmt as AST.ExternDecl).name}`;
+      case "FunctionDecl":
+        return undefined;
+      default:
+        return undefined;
+    }
+  }
+
+  private normalizeJobs(jobs: number | undefined): number {
+    if (!Number.isInteger(jobs) || jobs === undefined || jobs <= 0) {
+      return 1;
+    }
+    return jobs;
   }
 
   /**

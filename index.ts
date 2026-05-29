@@ -10,6 +10,7 @@
 import { Command } from "commander";
 import {
   processFile,
+  processFileAsync,
   processCode,
   registerFormatCommand,
   registerLintCommand,
@@ -70,6 +71,10 @@ program
   .option("-v, --verbose", "enable verbose output")
   .option("-q, --quiet", "suppress non-error output")
   .option("--cache", "enable incremental compilation with module caching")
+  .option(
+    "-j, --jobs <count>",
+    "parallel module compilation jobs for cached builds",
+  )
   .option("--no-prelude", "do not load implicit primitives")
   .option("-O <level>", "optimization level: 0, 1, 2, or 3", "0")
   .option("--debug", "generate debug information (DWARF, alias for --dwarf)")
@@ -77,7 +82,7 @@ program
   .option("--json", "output in JSON format")
   .option("--color", "force colored output")
   .option("--no-color", "disable colored output")
-  .action((files: string[] | undefined, options: CompileOptions) => {
+  .action(async (files: string[] | undefined, options: CompileOptions) => {
     // Handle --eval flag
     if (options.eval) {
       processCode(options.eval, "<eval>", options);
@@ -126,11 +131,11 @@ program
     // For non-formatting, extra files are program arguments
     if (fileList.length > 1) {
       const programArgs = fileList.slice(1);
-      processFile(fileList[0], options, programArgs);
+      await processFileAsync(fileList[0], options, programArgs);
       return;
     }
 
-    processFile(fileList[0], options);
+    await processFileAsync(fileList[0], options);
   });
 
 // ============================================================================
@@ -156,4 +161,7 @@ registerBindgenCommand(program);
 // Parse and Execute
 // ============================================================================
 
-program.parse(process.argv);
+program.parseAsync(process.argv).catch((error: unknown) => {
+  log.error(`${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+});

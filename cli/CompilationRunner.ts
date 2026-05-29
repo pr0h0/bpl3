@@ -93,6 +93,40 @@ export function processFile(
 }
 
 /**
+ * Process a source file and compile it, using async compiler backends when requested.
+ */
+export async function processFileAsync(
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): Promise<void> {
+  applyOptions(options);
+
+  try {
+    if (!fs.existsSync(filePath)) {
+      log.error(`File not found: ${filePath}`);
+      process.exit(1);
+    }
+
+    const content = fs.readFileSync(filePath, "utf-8");
+    await processCodeInternalAsync(content, filePath, options, programArgs);
+  } catch (e) {
+    if (options.watch) {
+      if (e instanceof CompilerError) {
+        console.error(diagnosticFormatter.formatError(e));
+      } else {
+        log.error(`${e}`);
+        if (e instanceof Error && e.stack && options.verbose) {
+          log.error(e.stack);
+        }
+      }
+      throw e;
+    }
+    handleCompilationError(e, options);
+  }
+}
+
+/**
  * Process code from a string (stdin or eval)
  */
 export function processCode(
@@ -134,32 +168,7 @@ function processCodeInternal(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
-  // Inject runtime library unless skipped
-  if (!options.skipRuntime && !isWasmTarget(options.target)) {
-    const bplHome = getBplHome();
-
-    // Add LLVM IR declarations (core exception handling)
-    const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
-    if (fs.existsSync(runtimeLLPath)) {
-      if (!options.object) {
-        options.object = [];
-      } else if (!Array.isArray(options.object)) {
-        options.object = [options.object as string];
-      }
-      (options.object as string[]).push(runtimeLLPath);
-    }
-
-    // Add C runtime support (signal handlers, stack traces)
-    const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
-    if (fs.existsSync(runtimeSupportPath)) {
-      if (!options.object) {
-        options.object = [];
-      } else if (!Array.isArray(options.object)) {
-        options.object = [options.object as string];
-      }
-      (options.object as string[]).push(runtimeSupportPath);
-    }
-  }
+  injectRuntimeObjects(options);
 
   // Check if file has imports - if so, use module resolution
   const hasImports = content.includes("import ");
@@ -169,6 +178,54 @@ function processCodeInternal(
   } else {
     compileSingleFile(content, filePath, options, programArgs);
   }
+}
+
+/**
+ * Internal async compilation implementation.
+ */
+async function processCodeInternalAsync(
+  content: string,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): Promise<void> {
+  injectRuntimeObjects(options);
+
+  const hasImports = content.includes("import ");
+
+  if (hasImports) {
+    await compileWithModulesAsync(content, filePath, options, programArgs);
+  } else {
+    compileSingleFile(content, filePath, options, programArgs);
+  }
+}
+
+function injectRuntimeObjects(options: CompileOptions): void {
+  // Inject runtime library unless skipped
+  if (options.skipRuntime || isWasmTarget(options.target)) {
+    return;
+  }
+
+  const bplHome = getBplHome();
+  const objects = options.object
+    ? Array.isArray(options.object)
+      ? options.object
+      : [options.object as string]
+    : [];
+
+  const addObject = (objectPath: string) => {
+    if (fs.existsSync(objectPath) && !objects.includes(objectPath)) {
+      objects.push(objectPath);
+    }
+  };
+
+  // Add LLVM IR declarations (core exception handling)
+  addObject(path.join(bplHome, "lib", "runtime.ll"));
+
+  // Add C runtime support (signal handlers, stack traces)
+  addObject(path.join(bplHome, "lib", "runtime_support.o"));
+
+  options.object = objects;
 }
 
 /**
@@ -197,9 +254,105 @@ function compileWithModules(
       : undefined,
     dwarf: options.dwarf,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
+    jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
   });
 
   const result = compiler.compile(content);
+
+  if (!result.success) {
+    if (result.errors) {
+      console.error(diagnosticFormatter.formatErrors(result.errors));
+    }
+    if (options.watch) {
+      throw new Error("Compilation failed");
+    }
+    process.exit(1);
+  }
+
+  // Handle different emit types
+  if (options.emit === "ast" && result.ast) {
+    console.log(JSON.stringify(result.ast, null, 2));
+    return;
+  }
+
+  if (options.emit === "formatted" && result.output) {
+    if (options.write) {
+      fs.writeFileSync(filePath, result.output);
+      if (options.verbose) log.info(`Formatted ${filePath}`);
+    } else {
+      console.log(result.output);
+    }
+    return;
+  }
+
+  // For cached compilation, the executable is already created
+  if (options.cache) {
+    if (result.output) {
+      console.log(result.output);
+    }
+
+    if (options.run) {
+      const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
+      const execPath = path.isAbsolute(execPathBase)
+        ? execPathBase
+        : path.resolve(execPathBase);
+
+      const runResult = spawnSync(execPath, programArgs || [], {
+        stdio: "inherit",
+      });
+
+      if (runResult.status !== 0) {
+        process.exit(runResult.status ?? 1);
+      }
+    }
+    return;
+  }
+
+  // Write LLVM IR and optionally compile/run
+  if (result.output) {
+    const outputPath = getLlvmOutputPath(filePath, options);
+    fs.writeFileSync(outputPath, result.output);
+
+    if (options.verbose || (!options.run && options.emit === "llvm")) {
+      log.info(`LLVM IR written to ${outputPath}`);
+    }
+
+    if (options.emit === "llvm" || options.run || !options.emit) {
+      compileBinaryAndRun(outputPath, options, programArgs);
+    }
+  }
+}
+
+/**
+ * Compile imports with module resolution using async backends when available.
+ */
+async function compileWithModulesAsync(
+  content: string,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): Promise<void> {
+  const compiler = new Compiler({
+    filePath,
+    outputPath: options.output,
+    emitType: options.emit,
+    verbose: options.verbose,
+    resolveImports: !options.cache,
+    useCache: options.cache,
+    objectFiles: options.object ? normalizeArray(options.object) : undefined,
+    libraries: options.lib ? normalizeArray(options.lib) : undefined,
+    libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
+    target: options.target,
+    sysroot: options.sysroot,
+    clangFlags: options.clangFlag
+      ? normalizeArray(options.clangFlag)
+      : undefined,
+    dwarf: options.dwarf,
+    optimizationLevel: options.O ? parseInt(options.O) : 0,
+    jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
+  });
+
+  const result = await compiler.compileAsync(content);
 
   if (!result.success) {
     if (result.errors) {

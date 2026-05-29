@@ -180,4 +180,70 @@ describe("CLI Tests", () => {
       }
     }
   });
+
+  it("should cache and link imported modules as separate parallel objects", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_parallel_cache-"),
+    );
+    const constantsFile = path.join(tempDir, "constants.bpl");
+    const mathFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "parallel_app");
+    const manifestFile = path.join(tempDir, ".bpl-cache", "manifest.json");
+
+    fs.writeFileSync(
+      constantsFile,
+      [
+        "export seed;",
+        "frame seed() ret int {",
+        "    return 2;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mathFile,
+      [
+        'import seed from "./constants.bpl";',
+        "export answer;",
+        "frame answer(base: int) ret int {",
+        "    return base + seed();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./math.bpl";',
+        "frame main() ret int {",
+        "    return answer(40);",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(outputFile)).toBe(true);
+
+      const runResult = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(runResult.status).toBe(42);
+
+      const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf-8"));
+      const cachedModulePaths = Object.keys(manifest.modules);
+      expect(cachedModulePaths).toContain(constantsFile);
+      expect(cachedModulePaths).toContain(mathFile);
+      expect(cachedModulePaths).toContain(mainFile);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

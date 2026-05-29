@@ -24,7 +24,7 @@ _bpl_completion() {
     local commands="format run dev build check lint init pack install list uninstall completion clean new help docs bindgen"
 
     # Global options (work with file arguments and commands)
-    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
+    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
 
     # Format command options
     local format_opts="-w --write -v --verbose"
@@ -84,7 +84,7 @@ _bpl_completion() {
             # Don't complete, let user type library name
             return 0
         ;;
-        --cpu|--march|--clang-flag|-e|--eval)
+        --cpu|--march|--clang-flag|-e|--eval|-j|--jobs)
             # Don't complete, let user type
             return 0
         ;;
@@ -240,6 +240,8 @@ _bpl() {
         '-q[Suppress non-error output]'
         '--quiet[Suppress non-error output]'
         '--cache[Enable incremental compilation with module caching]'
+        '-j[Parallel module compilation jobs for cached builds]:count'
+        '--jobs[Parallel module compilation jobs for cached builds]:count'
         '-d[Generate DWARF debug information]'
         '--dwarf[Generate DWARF debug information]'
         '--debug[Generate DWARF debug information (alias for --dwarf)]'

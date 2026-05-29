@@ -4,7 +4,7 @@
  */
 
 import { Command } from "commander";
-import { processFile } from "../CompilationRunner";
+import { processFileAsync } from "../CompilationRunner";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 
@@ -35,11 +35,15 @@ export function registerRunCommand(program: Command): void {
     .option("--debug", "generate debug information (DWARF)")
     .option("--time", "show compilation time statistics")
     .option("--cache", "enable incremental compilation with module caching")
+    .option(
+      "-j, --jobs <count>",
+      "parallel module compilation jobs for cached builds",
+    )
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
     .action(
-      (
+      async (
         file: string,
         args: string[],
         options: CompileOptions,
@@ -55,7 +59,7 @@ export function registerRunCommand(program: Command): void {
             dwarf: options.debug || options.dwarf,
           };
 
-          processFile(file, compileOptions, args);
+          await processFileAsync(file, compileOptions, args);
         } catch (e) {
           log.error(`${e instanceof Error ? e.message : String(e)}`);
           process.exit(1);

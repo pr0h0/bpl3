@@ -4,7 +4,7 @@
  */
 
 import { Command } from "commander";
-import { processFile } from "../CompilationRunner";
+import { processFileAsync } from "../CompilationRunner";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 
@@ -50,11 +50,15 @@ export function registerBuildCommand(program: Command): void {
     .option("-L, --lib-path <path...>", "library search paths")
     .option("--object <file...>", "object files to link (.o, .ll, etc.)")
     .option("--cache", "enable incremental compilation with module caching")
+    .option(
+      "-j, --jobs <count>",
+      "parallel module compilation jobs for cached builds",
+    )
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
     .option("--json", "output in JSON format")
-    .action((file: string, options: CompileOptions, command: Command) => {
+    .action(async (file: string, options: CompileOptions, command: Command) => {
       try {
         // Merge parent options if any
         const globalOpts = command.parent?.opts() || {};
@@ -64,7 +68,7 @@ export function registerBuildCommand(program: Command): void {
           dwarf: options.debug || options.dwarf,
         };
 
-        processFile(file, compileOptions);
+        await processFileAsync(file, compileOptions);
       } catch (e) {
         log.error(`${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);

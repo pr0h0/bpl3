@@ -41,6 +41,14 @@ export interface ModuleCompileBatchOptions {
   optimizationLevel?: number;
 }
 
+export interface ModuleLinkOptions {
+  objectFiles?: string[];
+  libraries?: string[];
+  libraryPaths?: string[];
+  sysroot?: string;
+  clangFlags?: string[];
+}
+
 export class ModuleCache {
   private cacheDir: string;
   private manifest: CacheManifest;
@@ -406,14 +414,29 @@ export class ModuleCache {
     outputPath: string,
     verbose: boolean = false,
     target?: string,
+    options: ModuleLinkOptions = {},
   ): void {
     if (verbose) {
       compilerLog.info(`Linking ${objectFiles.length} modules...`);
     }
 
-    const clangArgs = [...objectFiles, "-o", outputPath];
+    const clangArgs = [
+      ...objectFiles,
+      ...(options.objectFiles ?? []),
+      ...(options.libraryPaths ?? []).flatMap((libraryPath) => [
+        "-L",
+        libraryPath,
+      ]),
+      ...(options.libraries ?? []).map((library) => `-l${library}`),
+      ...(options.clangFlags ?? []),
+      "-o",
+      outputPath,
+    ];
     if (target) {
       clangArgs.unshift("-target", target);
+    }
+    if (options.sysroot) {
+      clangArgs.unshift(`--sysroot=${options.sysroot}`);
     }
 
     const result = spawnSync("clang", clangArgs, {

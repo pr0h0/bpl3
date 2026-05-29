@@ -16,7 +16,7 @@ export {
   runExecutable,
   compileBinaryAndRun,
 } from "./BinaryRunner";
-export { processFile, processCode } from "./CompilationRunner";
+export { processFile, processFileAsync, processCode } from "./CompilationRunner";
 export { watchMode } from "./Watcher";
 
 // Completions
