@@ -61,8 +61,12 @@ export class ModuleResolver {
     const currentDir = path.dirname(currentFilePath);
 
     // 1. Standard library imports (std/*)
-    if (importPath.startsWith("std/") || importPath.startsWith("std\\")) {
-      return this.resolveStdLib(importPath);
+    if (
+      importPath === "std" ||
+      importPath.startsWith("std/") ||
+      importPath.startsWith("std\\")
+    ) {
+      return this.resolveStdLib(importPath, currentDir);
     }
 
     // 2. Relative imports (./*, ../*)
@@ -97,12 +101,16 @@ export class ModuleResolver {
   /**
    * Resolve standard library import
    */
-  private resolveStdLib(importPath: string): ResolvedModule | null {
+  private resolveStdLib(
+    importPath: string,
+    currentDir?: string,
+  ): ResolvedModule | null {
     // Remove std/ prefix
-    const stdPath = importPath.replace(/^std[\/\\]/, "");
+    const stdPath =
+      importPath === "std" ? "std.bpl" : importPath.replace(/^std[\/\\]/, "");
 
     // Try to find lib directory
-    const libDir = this.findLibDirectory();
+    const libDir = this.findLibDirectory(currentDir);
     if (!libDir) return null;
 
     const candidates = [
@@ -120,6 +128,33 @@ export class ModuleResolver {
     }
 
     return null;
+  }
+
+  listStdLibModules(currentFilePath?: string): string[] {
+    const libDir = this.findLibDirectory(
+      currentFilePath ? path.dirname(currentFilePath) : undefined,
+    );
+    if (!libDir) return [];
+
+    const modules = new Set<string>(["std"]);
+    const visit = (dir: string, prefix = "") => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name.startsWith(".")) continue;
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          visit(fullPath, `${prefix}${entry.name}/`);
+        } else if (entry.isFile() && entry.name.endsWith(".bpl")) {
+          const moduleName = entry.name.replace(/\.bpl$/, "");
+          if (prefix || moduleName !== "std") {
+            modules.add(`std/${prefix}${entry.name}`);
+            modules.add(`std/${prefix}${moduleName}`);
+          }
+        }
+      }
+    };
+
+    visit(libDir);
+    return Array.from(modules).sort();
   }
 
   /**
@@ -349,7 +384,7 @@ export class ModuleResolver {
    * 1. BPL_HOME/lib (if BPL_HOME is set)
    * 2. Walk up from current directory to find lib/ with string.bpl
    */
-  private findLibDirectory(): string | null {
+  private findLibDirectory(startDir?: string): string | null {
     // 1. Try BPL_HOME
     if (this.bplHome) {
       const candidates = [
@@ -367,22 +402,27 @@ export class ModuleResolver {
       }
     }
 
-    // 2. Walk up from cwd to find lib/
-    let dir = process.cwd();
+    // 2. Walk up from the current file directory, then cwd, to find lib/
+    const roots = [startDir, process.cwd()].filter(
+      (candidate): candidate is string => Boolean(candidate),
+    );
     const maxDepth = 10;
 
-    for (let i = 0; i < maxDepth; i++) {
-      const libDir = path.join(dir, "lib");
-      if (
-        fs.existsSync(libDir) &&
-        fs.existsSync(path.join(libDir, "string.bpl"))
-      ) {
-        return libDir;
-      }
+    for (const root of roots) {
+      let dir = root;
+      for (let i = 0; i < maxDepth; i++) {
+        const libDir = path.join(dir, "lib");
+        if (
+          fs.existsSync(libDir) &&
+          fs.existsSync(path.join(libDir, "string.bpl"))
+        ) {
+          return libDir;
+        }
 
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+      }
     }
 
     return null;

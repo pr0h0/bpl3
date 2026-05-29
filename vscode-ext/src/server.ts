@@ -123,7 +123,10 @@ const workspaceSymbolProvider = new WorkspaceSymbolProvider(
 const codeLensProvider = new CodeLensProvider(astResolver);
 
 // Document link provider for clickable imports
-const documentLinkProvider = new DocumentLinkProvider(astResolver);
+const documentLinkProvider = new DocumentLinkProvider(
+  astResolver,
+  symbolIndex.getResolver(),
+);
 
 console.log("[Server] BPL Language Server initializing...");
 console.log("[Server] AST-based handlers initialized:");
@@ -382,10 +385,17 @@ function resolveImportToFile(
 ): string | null {
   if (!importPath) return null;
 
-  if (importPath.startsWith("std/") || importPath.startsWith("std\\")) {
+  if (
+    importPath === "std" ||
+    importPath.startsWith("std/") ||
+    importPath.startsWith("std\\")
+  ) {
     const libDir =
       findWorkspaceLibDir(currentDir) || path.join(currentDir, "lib");
-    let candidate = path.join(libDir, importPath.replace(/^std[\/]/, ""));
+    let candidate =
+      importPath === "std"
+        ? path.join(libDir, "std.bpl")
+        : path.join(libDir, importPath.replace(/^std[\/\\]/, ""));
     if (!candidate.endsWith(".bpl")) candidate += ".bpl";
     return fs.existsSync(candidate) ? candidate : null;
   }
@@ -494,7 +504,9 @@ function _shouldSuppressImportError(
     // Suppress for valid std/* imports
     if (
       importPath &&
-      (importPath.startsWith("std/") || importPath.startsWith("std\\"))
+      (importPath === "std" ||
+        importPath.startsWith("std/") ||
+        importPath.startsWith("std\\"))
     ) {
       const resolvedStd = resolveImportToFile(importPath, currentDir);
       if (resolvedStd && fs.existsSync(resolvedStd)) {

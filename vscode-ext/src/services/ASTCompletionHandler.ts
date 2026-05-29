@@ -11,6 +11,8 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
+import * as fs from "fs";
+import * as path from "path";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex, type SymbolInfo } from "./SymbolIndex";
@@ -37,17 +39,25 @@ export class ASTCompletionHandler {
         `[ASTCompletion] Completion at ${filePath}:${line}:${character + 1}`,
       );
 
-      // Parse the document content (support unsaved documents)
       const content = document.getText();
-      this.astResolver.parseDocumentContent(filePath, content);
-
-      // Get the line text to detect context
       const lineText = document.getText({
         start: { line: params.position.line, character: 0 },
         end: { line: params.position.line + 1, character: 0 },
       });
 
       const beforeCursor = lineText.substring(0, character);
+
+      const importPathCompletions = this.tryImportPathCompletion(
+        beforeCursor,
+        filePath,
+      );
+      if (importPathCompletions) {
+        return importPathCompletions;
+      }
+
+      // Parse the document content after cheap string-literal completions so
+      // unfinished import paths do not emit noisy parser errors.
+      this.astResolver.parseDocumentContent(filePath, content);
 
       // Check if we're after a dot (member access) with optional partial text
       // Match: obj. or Array<int>. or obj.getNa or obj.field1.field2. or obj.field.partial
@@ -80,6 +90,71 @@ export class ASTCompletionHandler {
       console.error(`[ASTCompletion] Error:`, error);
       return [];
     }
+  }
+
+  private tryImportPathCompletion(
+    beforeCursor: string,
+    filePath: string,
+  ): CompletionItem[] | null {
+    const importPathMatch = beforeCursor.match(/\bfrom\s+["']([^"']*)$/);
+    if (!importPathMatch) return null;
+
+    const partial = importPathMatch[1] ?? "";
+    const items: CompletionItem[] = [];
+
+    if (partial === "" || partial.startsWith("std")) {
+      for (const modulePath of this.symbolIndex
+        .getResolver()
+        .listStdLibModules(filePath)) {
+        if (modulePath.startsWith(partial)) {
+          items.push({
+            label: modulePath,
+            kind: CompletionItemKind.Module,
+            detail: "BPL standard library module",
+            insertText: modulePath,
+          });
+        }
+      }
+    }
+
+    if (partial === "" || partial.startsWith(".")) {
+      const currentDir = path.dirname(filePath);
+      const prefixDir = partial.endsWith("/")
+        ? partial
+        : partial.includes("/")
+          ? partial.slice(0, partial.lastIndexOf("/") + 1)
+          : "./";
+      const scanDir = path.resolve(currentDir, prefixDir);
+      if (fs.existsSync(scanDir) && fs.statSync(scanDir).isDirectory()) {
+        for (const entry of fs.readdirSync(scanDir, { withFileTypes: true })) {
+          if (entry.name.startsWith(".")) continue;
+          const suffix = entry.isDirectory() ? "/" : "";
+          if (!entry.isDirectory() && !entry.name.endsWith(".bpl")) continue;
+          const candidate = `${prefixDir}${entry.name}${suffix}`;
+          if (candidate.startsWith(partial || "./")) {
+            items.push({
+              label: candidate,
+              kind: entry.isDirectory()
+                ? CompletionItemKind.Folder
+                : CompletionItemKind.File,
+              detail: entry.isDirectory()
+                ? "Workspace folder"
+                : "BPL source file",
+              insertText: candidate,
+            });
+          }
+        }
+      }
+    }
+
+    const seen = new Set<string>();
+    return items
+      .filter((item) => {
+        if (seen.has(item.label)) return false;
+        seen.add(item.label);
+        return true;
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   /**

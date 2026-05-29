@@ -160,6 +160,13 @@
                   <button id="run-btn" class="btn btn-primary">
                     <i class="fas fa-play"></i> Run Code
                   </button>
+                  <button
+                    id="run-wasm-btn"
+                    class="btn btn-secondary"
+                    title="Compile hosted WebAssembly and execute it in this browser"
+                  >
+                    <i class="fas fa-cube"></i> Run Wasm
+                  </button>
                 </div>
               </div>
               <div id="editor" class="editor"></div>
@@ -221,6 +228,9 @@
                 <button class="tab-btn" data-tab="tokens">
                   <i class="fas fa-list-ul"></i> Tokens
                 </button>
+                <button class="tab-btn" data-tab="wasm">
+                  <i class="fas fa-cube"></i> Wasm
+                </button>
                 <button
                   class="copy-output-btn"
                   id="copy-output-btn"
@@ -276,6 +286,11 @@ representing the syntax and semantics of your program.</pre>
 
 Tokens are the basic building blocks identified by the lexer:
 keywords, identifiers, operators, literals, etc.</pre>
+                </div>
+                <div id="tab-wasm" class="tab-pane">
+                  <pre
+                    id="wasm-content"
+                  ><i class="fas fa-cube"></i> Hosted WebAssembly output will appear here after "Run Wasm".</pre>
                 </div>
               </div>
             </div>

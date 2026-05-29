@@ -225,6 +225,7 @@ describe("BPL Playground Examples", () => {
         "Runtime Correctness Patterns",
         "Tooling Friendly Modules",
         "Release Package Checksums",
+        "Browser WebAssembly Showcase",
       ]),
     );
   });

@@ -51,6 +51,7 @@ export interface JSONDiagnostic {
   source?: {
     line: string;
     preview: string;
+    pointer: string;
   };
   relatedLocations: Array<{
     message: string;
@@ -217,12 +218,32 @@ function formatErrorPointer(
 ): string {
   const lineStr = "    ".padStart(4, " ");
   const length = Math.max(1, endCol - startCol);
-  const pointer = "^".repeat(length).padStart(startCol + length, " ");
+  const pointer = `${" ".repeat(Math.max(0, startCol - 1))}${"^".repeat(length)}`;
 
   if (colorize) {
     return `  ${lineStr} | ${COLORS.red}${pointer}${COLORS.reset}`;
   }
   return `  ${lineStr} | ${pointer}`;
+}
+
+function buildPointer(startCol: number, endCol: number): string {
+  const length = Math.max(1, endCol - startCol);
+  return `${" ".repeat(Math.max(0, startCol - 1))}${"^".repeat(length)}`;
+}
+
+function formatPointerForLine(
+  location: SourceLocation,
+  lineNum: number,
+  content: string,
+  colorize: boolean,
+): string {
+  const startCol = lineNum === location.startLine ? location.startColumn : 1;
+  const endCol =
+    lineNum === location.endLine
+      ? location.endColumn
+      : Math.max(startCol + 1, content.length + 1);
+
+  return formatErrorPointer(startCol, endCol, colorize);
 }
 
 /**
@@ -260,45 +281,22 @@ function formatCodeSnippet(
     }
   }
 
-  // Add error line(s)
-  if (location.startLine === location.endLine) {
-    const content = getSourceLine(sourceLines, location.startLine);
+  // Add error line(s) with per-line underlines for multi-line diagnostics.
+  for (let i = location.startLine; i <= location.endLine; i++) {
+    const content = getSourceLine(sourceLines, i);
     if (content !== null) {
       lines.push(
         formatDiagnosticLine(
-          location.startLine,
+          i,
           content,
           true,
           config.colorize,
           config.maxLineLength,
         ),
       );
-    }
-  } else {
-    for (let i = location.startLine; i <= location.endLine; i++) {
-      const content = getSourceLine(sourceLines, i);
-      if (content !== null) {
-        lines.push(
-          formatDiagnosticLine(
-            i,
-            content,
-            true,
-            config.colorize,
-            config.maxLineLength,
-          ),
-        );
-      }
+      lines.push(formatPointerForLine(location, i, content, config.colorize));
     }
   }
-
-  // Add error pointer
-  lines.push(
-    formatErrorPointer(
-      location.startColumn,
-      location.endColumn,
-      config.colorize,
-    ),
-  );
 
   // Add context lines after error
   for (let i = location.endLine + 1; i <= endLine; i++) {
@@ -477,6 +475,10 @@ export class DiagnosticFormatter {
             ? {
                 line: sourceLine,
                 preview: truncateLine(sourceLine, this.config.maxLineLength),
+                pointer: buildPointer(
+                  err.location.startColumn,
+                  err.location.endColumn,
+                ),
               }
             : undefined,
         relatedLocations: (diagnostic.relatedLocations ?? []).map((rel) => ({

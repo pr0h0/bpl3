@@ -2,6 +2,8 @@
 let editor;
 let currentExample = null;
 let allExamples = []; // Store all examples for searching
+const API_BASE =
+  window.location.protocol === "file:" ? "http://localhost:3001" : "";
 
 require.config({
   paths: {
@@ -179,6 +181,13 @@ require(["vs/editor/editor.main"], function () {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
     document.getElementById("run-btn").click();
   });
+
+  editor.addCommand(
+    monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
+    () => {
+      document.getElementById("run-wasm-btn").click();
+    },
+  );
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, (e) => {
     e.preventDefault();
@@ -358,7 +367,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
     document.getElementById("loading-status").textContent =
       "Compiling to LLVM IR...";
 
-    const response = await fetch("http://localhost:3001/compile", {
+    const response = await fetch(`${API_BASE}/compile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, input: stdin, args }),
@@ -429,6 +438,207 @@ document.getElementById("run-btn").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("run-wasm-btn").addEventListener("click", async () => {
+  const code = editor.getValue();
+  if (!code.trim()) {
+    showToast("Editor is empty. Please write some code first!", "warning");
+    return;
+  }
+
+  const argsInput = document.getElementById("args-input").value;
+  const args = argsInput ? argsInput.split(/\s+/).filter((a) => a) : [];
+  const startTime = Date.now();
+
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("loading-status").textContent =
+    "Compiling hosted WebAssembly...";
+  activateTab("wasm");
+
+  const wasmContent = document.getElementById("wasm-content");
+  wasmContent.textContent = "Compiling hosted wasm module...";
+  document.getElementById("exec-time").textContent = "...";
+  document.getElementById("output-size").textContent = "...";
+  document.getElementById("exec-status").textContent = "Wasm";
+  document.getElementById("exec-status").style.color = "var(--info)";
+
+  try {
+    const response = await fetch(`${API_BASE}/wasm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, args }),
+    });
+    const result = await response.json();
+
+    if (!result.success) {
+      wasmContent.textContent = result.error || "WebAssembly build failed";
+      wasmContent.className = "error";
+      document.getElementById("exec-status").textContent = "Wasm failed";
+      document.getElementById("exec-status").style.color = "var(--error)";
+      showToast("WebAssembly build failed", "error");
+      return;
+    }
+
+    document.getElementById("loading-status").textContent =
+      "Instantiating in browser...";
+    const runResult = await runHostedWasmInBrowser(result.wasmBase64, args);
+    const duration = Date.now() - startTime;
+    const imports = (result.imports || [])
+      .map((entry) => `${entry.module}.${entry.name}`)
+      .join("\n");
+
+    wasmContent.className = runResult.trapped ? "error" : "success";
+    wasmContent.textContent = [
+      `Return code: ${runResult.returnCode}`,
+      `Wasm bytes: ${result.wasmBytes}`,
+      imports ? `Imports:\n${imports}` : "Imports: none",
+      "",
+      "stdout:",
+      runResult.stdout || "(empty)",
+      "",
+      "stderr:",
+      runResult.stderr || "(empty)",
+      runResult.error ? `\ntrap:\n${runResult.error}` : "",
+    ]
+      .filter((line) => line !== "")
+      .join("\n");
+
+    if (result.ir) {
+      document.getElementById("ir-content").textContent = result.ir;
+    }
+    document.getElementById("exec-time").textContent = duration + "ms";
+    document.getElementById("output-size").textContent =
+      `${result.wasmBytes || 0} bytes`;
+    document.getElementById("exec-status").textContent = runResult.trapped
+      ? "Wasm trapped"
+      : "Wasm success";
+    document.getElementById("exec-status").style.color = runResult.trapped
+      ? "var(--error)"
+      : "var(--success)";
+    showToast("WebAssembly executed in browser", "success");
+  } catch (error) {
+    wasmContent.textContent = `WebAssembly run failed: ${error.message}`;
+    wasmContent.className = "error";
+    document.getElementById("exec-status").textContent = "Wasm failed";
+    document.getElementById("exec-status").style.color = "var(--error)";
+    showToast("WebAssembly run failed", "error");
+  } finally {
+    document.getElementById("loading").style.display = "none";
+  }
+});
+
+function activateTab(tab) {
+  document
+    .querySelectorAll(".tab-btn")
+    .forEach((button) => button.classList.remove("active"));
+  document.querySelector(`[data-tab="${tab}"]`)?.classList.add("active");
+  document
+    .querySelectorAll(".tab-pane")
+    .forEach((pane) => pane.classList.remove("active"));
+  document.getElementById(`tab-${tab}`)?.classList.add("active");
+}
+
+function decodeBase64Bytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function runHostedWasmInBrowser(wasmBase64, argv) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const encodedArgs = ["program", ...argv].map((arg) => encoder.encode(arg));
+  let exports;
+  let stdout = "";
+  let stderr = "";
+  let returnCode = null;
+  let trapped = false;
+  let error = "";
+
+  const getMemory = () => {
+    if (!(exports?.memory instanceof WebAssembly.Memory)) {
+      throw new Error("Wasm module did not export memory.");
+    }
+    return exports.memory;
+  };
+
+  const readBytes = (ptr, len) => new Uint8Array(getMemory().buffer, ptr, len);
+  const readString = (ptr) => {
+    if (!ptr) return null;
+    const memory = new Uint8Array(getMemory().buffer);
+    let end = ptr;
+    while (end < memory.length && memory[end] !== 0) {
+      end++;
+    }
+    return decoder.decode(memory.subarray(ptr, end));
+  };
+
+  class WasmExit extends Error {
+    constructor(code) {
+      super(`wasm exit(${code})`);
+      this.code = code;
+    }
+  }
+
+  const imports = {
+    env: {
+      __bpl_host_write(fd, ptr, len) {
+        const text = decoder.decode(readBytes(ptr, len));
+        if (fd === 2) {
+          stderr += text;
+        } else {
+          stdout += text;
+        }
+      },
+      __bpl_host_exit(code) {
+        throw new WasmExit(code);
+      },
+      __bpl_host_argc() {
+        return encodedArgs.length;
+      },
+      __bpl_host_argv_len(index) {
+        return encodedArgs[index]?.length ?? -1;
+      },
+      __bpl_host_argv_copy(index, ptr) {
+        const arg = encodedArgs[index];
+        if (arg) {
+          readBytes(ptr, arg.length).set(arg);
+        }
+      },
+      __bpl_host_error(code, detailPtr, funcPtr, line, col) {
+        stderr += `BPL runtime error ${code}`;
+        const detail = readString(detailPtr);
+        const func = readString(funcPtr);
+        if (detail) stderr += ` ${detail}`;
+        if (func) stderr += ` in ${func}`;
+        if (line || col) stderr += ` at ${line}:${col}`;
+        stderr += "\n";
+      },
+    },
+  };
+
+  const instantiated = await WebAssembly.instantiate(
+    decodeBase64Bytes(wasmBase64),
+    imports,
+  );
+  exports = instantiated.instance.exports;
+
+  try {
+    returnCode = exports.main(0, 0);
+  } catch (caught) {
+    if (caught instanceof WasmExit) {
+      returnCode = caught.code;
+    } else {
+      trapped = true;
+      error = caught?.message || String(caught);
+    }
+  }
+
+  return { stdout, stderr, returnCode, trapped, error };
+}
+
 // Format code
 document.getElementById("format-btn").addEventListener("click", async () => {
   const code = editor.getValue();
@@ -439,7 +649,7 @@ document.getElementById("format-btn").addEventListener("click", async () => {
   }
 
   try {
-    const response = await fetch("http://localhost:3001/format", {
+    const response = await fetch(`${API_BASE}/format`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
@@ -464,7 +674,7 @@ document.getElementById("format-btn").addEventListener("click", async () => {
 // Load examples from backend
 async function loadExamples() {
   try {
-    const response = await fetch("http://localhost:3001/examples");
+    const response = await fetch(`${API_BASE}/examples`);
     const examples = await response.json();
 
     const listEl = document.getElementById("examples-list");
@@ -533,6 +743,8 @@ function loadExample(example, itemEl) {
     "Abstract Syntax Tree will appear here after parsing...";
   document.getElementById("tokens-content").textContent =
     "Lexer tokens will appear here after parsing...";
+  document.getElementById("wasm-content").textContent =
+    'Hosted WebAssembly output will appear here after "Run Wasm".';
 
   // Reset execution info
   document.getElementById("exec-time").textContent = "-";
@@ -554,7 +766,7 @@ function loadExample(example, itemEl) {
 // Poll server stats
 async function pollServerStats() {
   try {
-    const response = await fetch("http://localhost:3001/stats");
+    const response = await fetch(`${API_BASE}/stats`);
     const stats = await response.json();
 
     // Update status indicator

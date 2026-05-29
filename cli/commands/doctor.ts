@@ -18,6 +18,7 @@ interface DoctorCheck {
   ok: boolean;
   detail: string;
   hint?: string;
+  required?: boolean;
 }
 
 interface DoctorReport {
@@ -74,17 +75,40 @@ function createDoctorReport(version: string): DoctorReport {
       path.join(bplHome, "lib", "runtime_support.o"),
       "Run `bun run build:runtime` or reinstall BPL.",
     ),
+    checkPath(
+      "WebAssembly runtime IR",
+      path.join(bplHome, "lib", "runtime_wasm.ll"),
+      "Reinstall BPL or restore lib/runtime_wasm.ll from the release package.",
+    ),
+    checkPath(
+      "Hosted WebAssembly runtime IR",
+      path.join(bplHome, "lib", "runtime_wasm_host.ll"),
+      "Reinstall BPL or restore lib/runtime_wasm_host.ll from the release package.",
+    ),
     checkCommand(
       "clang",
       ["--version"],
       "Install clang/LLVM and add it to PATH.",
+    ),
+    checkAnyCommand(
+      "wasm linker",
+      [
+        [process.env.WASM_LD, ["--version"]],
+        ["wasm-ld", ["--version"]],
+        ["wasm-ld-18", ["--version"]],
+        ["wasm-ld-17", ["--version"]],
+        ["wasm-ld-16", ["--version"]],
+        ["ld.lld", ["--version"]],
+      ],
+      "Install LLVM lld or set WASM_LD to a working wasm-ld binary before building wasm targets.",
+      false,
     ),
   ];
 
   const bunVersion = getCommandVersion("bun", ["--version"]);
 
   return {
-    success: checks.every((check) => check.ok),
+    success: checks.every((check) => check.ok || check.required === false),
     version,
     platform: {
       os: os.platform(),
@@ -103,16 +127,23 @@ function checkPath(name: string, filePath: string, hint: string): DoctorCheck {
         name,
         ok: true,
         detail: filePath,
+        required: true,
       }
     : {
         name,
         ok: false,
         detail: `${filePath} not found`,
         hint,
+        required: true,
       };
 }
 
-function checkCommand(name: string, args: string[], hint: string): DoctorCheck {
+function checkCommand(
+  name: string,
+  args: string[],
+  hint: string,
+  required = true,
+): DoctorCheck {
   const result = spawnSync(name, args, { encoding: "utf-8" });
   const detail =
     result.stdout?.split("\n")[0]?.trim() ||
@@ -124,13 +155,50 @@ function checkCommand(name: string, args: string[], hint: string): DoctorCheck {
         name,
         ok: true,
         detail,
+        required,
       }
     : {
         name,
         ok: false,
         detail,
         hint,
+        required,
       };
+}
+
+function checkAnyCommand(
+  name: string,
+  candidates: Array<[string | undefined, string[]]>,
+  hint: string,
+  required = true,
+): DoctorCheck {
+  const failures: string[] = [];
+
+  for (const [command, args] of candidates) {
+    if (!command) continue;
+    const result = spawnSync(command, args, { encoding: "utf-8" });
+    if (result.status === 0) {
+      const detail =
+        result.stdout?.split("\n")[0]?.trim() ||
+        result.stderr?.split("\n")[0]?.trim() ||
+        command;
+      return {
+        name,
+        ok: true,
+        detail: `${command}: ${detail}`,
+        required,
+      };
+    }
+    failures.push(`${command}: ${result.status ?? result.error?.message ?? "unavailable"}`);
+  }
+
+  return {
+    name,
+    ok: false,
+    detail: failures.length > 0 ? failures.join("; ") : "not found on PATH",
+    hint,
+    required,
+  };
 }
 
 function getCommandVersion(name: string, args: string[]): string | undefined {
@@ -154,7 +222,8 @@ function printDoctorReport(report: DoctorReport): void {
   console.log("");
 
   for (const check of report.checks) {
-    console.log(`${check.ok ? "OK" : "FAIL"} ${check.name}: ${check.detail}`);
+    const status = check.ok ? "OK" : check.required === false ? "WARN" : "FAIL";
+    console.log(`${status} ${check.name}: ${check.detail}`);
     if (!check.ok && check.hint) {
       console.log(`  hint: ${check.hint}`);
     }

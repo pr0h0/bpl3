@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { exec, execFile, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
@@ -15,6 +15,7 @@ import { Compiler } from "../../compiler/index";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ============================================================================
 // Logging Utilities
@@ -180,6 +181,16 @@ interface CompileResponse {
   ir?: string;
   ast?: string;
   tokens?: string;
+}
+
+interface WasmCompileResponse {
+  success: boolean;
+  error?: string;
+  wasmBase64?: string;
+  wasmBytes?: number;
+  ir?: string;
+  imports?: Array<{ module: string; name: string; kind: string }>;
+  warnings?: string[];
 }
 
 // Get examples
@@ -458,9 +469,127 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   }
 }
 
+function findWasmLinker(): string | null {
+  const candidates = [
+    process.env.WASM_LD,
+    "wasm-ld",
+    "wasm-ld-18",
+    "wasm-ld-17",
+    "wasm-ld-16",
+    "ld.lld",
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate, ["--version"], { stdio: "ignore" });
+    if (result.status === 0) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> {
+  const requestId = `wasm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const startTime = Date.now();
+  const linker = findWasmLinker();
+  if (!linker) {
+    return {
+      success: false,
+      error:
+        "WebAssembly linker unavailable. Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
+    };
+  }
+
+  const tempDir = path.join("/tmp", `bpl-playground-wasm-${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  const repoRoot = path.resolve(__dirname, "../..");
+  const sourceFile = path.join(tempDir, "main.bpl");
+  const wasmFile = path.join(tempDir, "main.wasm");
+  const irFile = `${wasmFile}.ll`;
+
+  try {
+    fs.writeFileSync(sourceFile, req.code, "utf-8");
+    logger.info(`[${requestId}] Compiling hosted wasm`, {
+      codeLength: req.code.length,
+      linker,
+    });
+
+    const { stdout, stderr } = await execFileAsync(
+      "bun",
+      [
+        path.join(repoRoot, "index.ts"),
+        "build",
+        sourceFile,
+        "--target",
+        "wasm32-unknown-unknown",
+        "--wasm-runtime",
+        "host",
+        "-o",
+        wasmFile,
+      ],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          BPL_HOME: repoRoot,
+          NO_COLOR: "1",
+          WASM_LD: linker,
+        },
+        timeout: 10_000,
+        maxBuffer: 1024 * 1024 * 16,
+      },
+    );
+
+    if (!fs.existsSync(wasmFile)) {
+      throw new Error("BPL build completed without producing a wasm artifact.");
+    }
+
+    const wasm = fs.readFileSync(wasmFile);
+    const ir = fs.existsSync(irFile) ? fs.readFileSync(irFile, "utf-8") : "";
+    const module = new WebAssembly.Module(wasm);
+    const imports = WebAssembly.Module.imports(module).map((entry) => ({
+      module: entry.module,
+      name: entry.name,
+      kind: entry.kind,
+    }));
+
+    updateStats(true, Date.now() - startTime);
+    return {
+      success: true,
+      wasmBase64: wasm.toString("base64"),
+      wasmBytes: wasm.byteLength,
+      ir,
+      imports,
+      warnings: [stdout, stderr].filter(Boolean),
+    };
+  } catch (e: any) {
+    logger.error(`[${requestId}] Wasm compilation failed`, {
+      stderr: e.stderr,
+      stdout: e.stdout,
+      message: e.message,
+    });
+    updateStats(false, Date.now() - startTime);
+
+    return {
+      success: false,
+      error: [
+        e.stderr || e.message || String(e),
+        e.stdout ? `stdout:\n${e.stdout}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    };
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 // Server
+const port = Number.parseInt(process.env.PORT || "3001", 10);
 const server = Bun.serve({
-  port: 3001,
+  port,
   async fetch(req) {
     const url = new URL(req.url);
     const startTime = Date.now();
@@ -587,6 +716,24 @@ const server = Bun.serve({
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
         logger.error("Compile endpoint error", { error: e.message });
+        return new Response(
+          JSON.stringify({ success: false, error: e.message }),
+          {
+            status: 500,
+            headers,
+          },
+        );
+      }
+    }
+
+    // POST /wasm
+    if (url.pathname === "/wasm" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as CompileRequest;
+        const result = await compileToWasm(body);
+        return new Response(JSON.stringify(result), { headers });
+      } catch (e: any) {
+        logger.error("Wasm endpoint error", { error: e.message });
         return new Response(
           JSON.stringify({ success: false, error: e.message }),
           {

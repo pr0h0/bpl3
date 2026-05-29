@@ -50,14 +50,14 @@ frame main() ret int {
 
 ### 🛠️ Developer Experience
 
-- **Clear Error Messages**: Helpful compiler diagnostics with location information
-- **Machine-Readable Diagnostics**: JSON output for `check`, `lint`, and `doctor` with stable source ranges for CI and editors
+- **Clear Error Messages**: Helpful compiler diagnostics with exact source-span underlines
+- **Machine-Readable Diagnostics**: JSON output for `check`, `lint`, and `doctor` with stable source ranges, source previews, and underline pointers for CI and editors
 - **Enhanced Runtime Errors**: Beautiful formatted error boxes with stack traces for null access, bounds checking, division by zero, and signed integer division overflow
 - **Built-in Formatter**: Automatic code formatting and `format --check` for CI gates
 - **Watch Mode**: Automatic recompilation on file changes for rapid development
 - **Package Manager**: Easy dependency management with `bpl install`
 - **Cross-Platform**: Compile for Linux, macOS, Windows, ARM, and more
-- **VS Code Extension**: Full language server with IntelliSense, go-to-definition, hover tooltips, and smart completions
+- **VS Code Extension**: Full language server with IntelliSense, go-to-definition, hover tooltips, clickable imports, and smart stdlib path completions
 - **Incremental Compilation**: Fast rebuilds with module caching
 
 ## 📦 Installation
@@ -817,6 +817,10 @@ bun run test:correctness
 # Run standalone and hosted WebAssembly runtime coverage
 bun run test:wasm
 # CI sets BPL_REQUIRE_WASM_LD=1 so this fails instead of skipping when wasm-ld is missing.
+
+# Start the playground. The Run Wasm button compiles hosted wasm and executes it
+# in the browser with JavaScript host imports.
+cd playground && bun run start
 
 # Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
 # safe programs and checked failure paths under ASan/UBSan; local toolchains

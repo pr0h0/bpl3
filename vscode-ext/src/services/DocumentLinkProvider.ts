@@ -6,20 +6,23 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
-import * as path from "path";
-import * as fs from "fs";
+import { ModuleResolver } from "./ModuleResolver";
+import { fileURLToPath, pathToFileURL } from "url";
 
 /**
  * Provides document links - makes import paths clickable
  */
 export class DocumentLinkProvider {
-  constructor(private astResolver: ASTResolver) {}
+  constructor(
+    private astResolver: ASTResolver,
+    private moduleResolver = new ModuleResolver(),
+  ) {}
 
   /**
    * Provide document links for imports
    */
   provide(params: DocumentLinkParams, document: TextDocument): DocumentLink[] {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 
     // Parse document
@@ -33,7 +36,7 @@ export class DocumentLinkProvider {
     for (const stmt of ast.statements) {
       if (stmt.kind === "Import") {
         const importStmt = stmt as AST.ImportStmt;
-        const link = this.createLinkForImport(importStmt, filePath);
+        const link = this.createLinkForImport(importStmt, filePath, document);
         if (link) {
           links.push(link);
         }
@@ -49,122 +52,59 @@ export class DocumentLinkProvider {
   private createLinkForImport(
     importStmt: AST.ImportStmt,
     currentFile: string,
+    document: TextDocument,
   ): DocumentLink | null {
     const importPath = importStmt.source;
     if (!importPath || !importStmt.location) return null;
 
     // Resolve the import path to an actual file
-    const resolvedPath = this.resolveImportPath(importPath, currentFile);
-    if (!resolvedPath) return null;
+    const resolved = this.moduleResolver.resolve(importPath, currentFile);
+    if (!resolved) return null;
 
     // Create range for the import path string
-    const range = this.getImportPathRange(importStmt);
+    const range = this.getImportPathRange(importStmt, document);
     if (!range) return null;
 
     return {
       range: range,
-      target: `file://${resolvedPath}`,
-      tooltip: `Go to ${resolvedPath}`,
+      target: pathToFileURL(resolved.filePath).toString(),
+      tooltip: `Go to ${resolved.filePath}`,
     };
-  }
-
-  /**
-   * Resolve import path to actual file path
-   */
-  private resolveImportPath(
-    importPath: string,
-    currentFile: string,
-  ): string | null {
-    try {
-      // Check if it's a relative import
-      if (importPath.startsWith("./") || importPath.startsWith("../")) {
-        const currentDir = path.dirname(currentFile);
-        let resolved = path.resolve(currentDir, importPath);
-
-        // Add .bpl extension if not present
-        if (!resolved.endsWith(".bpl")) {
-          resolved += ".bpl";
-        }
-
-        // Check if file exists
-        if (fs.existsSync(resolved)) {
-          return resolved;
-        }
-      }
-
-      // Check if it's a stdlib import
-      if (importPath.startsWith("std/")) {
-        // Try to find lib directory
-        const libDir = this.findLibDir(currentFile);
-        if (libDir) {
-          const relativePath = importPath.substring(4); // Remove "std/"
-          let resolved = path.join(libDir, relativePath);
-
-          if (!resolved.endsWith(".bpl")) {
-            resolved += ".bpl";
-          }
-
-          if (fs.existsSync(resolved)) {
-            return resolved;
-          }
-        }
-      }
-
-      return null;
-    } catch (_error) {
-      return null;
-    }
-  }
-
-  /**
-   * Find the lib directory by searching upwards from current file
-   */
-  private findLibDir(startFile: string): string | null {
-    let dir = path.dirname(startFile);
-    for (let i = 0; i < 10; i++) {
-      const libDir = path.join(dir, "lib");
-      if (fs.existsSync(libDir)) {
-        return libDir;
-      }
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-
-    // Check BPL_HOME environment variable
-    if (process.env.BPL_HOME) {
-      const bplHomeLib = path.join(process.env.BPL_HOME, "lib");
-      if (fs.existsSync(bplHomeLib)) {
-        return bplHomeLib;
-      }
-    }
-
-    return null;
   }
 
   /**
    * Get the range of the import path string in the source
    */
-  private getImportPathRange(importStmt: AST.ImportStmt): Range | null {
+  private getImportPathRange(
+    importStmt: AST.ImportStmt,
+    document: TextDocument,
+  ): Range | null {
     if (!importStmt.location) return null;
 
     const loc = importStmt.location;
+    const startLine = (loc.startLine ?? 1) - 1;
+    const endLine = (loc.endLine ?? loc.startLine ?? 1) - 1;
+    const statementText = document.getText(
+      Range.create(startLine, 0, endLine + 1, 0),
+    );
+    const fromIndex = statementText.indexOf("from");
+    const quotedPath = new RegExp(
+      `["']${escapeRegExp(importStmt.source)}["']`,
+    ).exec(statementText.slice(Math.max(0, fromIndex)));
+    if (!quotedPath) return this.nodeToRange(importStmt);
 
-    // The import path is typically after "from" keyword
-    // For: import X from "path"
-    // We want to highlight just the "path" part
+    const quoteStart =
+      Math.max(0, fromIndex) + quotedPath.index + 1;
+    const beforePath = statementText.slice(0, quoteStart);
+    const lineOffset = beforePath.split(/\r?\n/).length - 1;
+    const pathLine = startLine + lineOffset;
+    const pathColumn = beforePath.split(/\r?\n/).at(-1)?.length ?? 0;
 
-    // Find the string literal position in the import statement
-    // This is a simplified approach - we estimate based on the statement location
-    const startLine = loc.startLine ?? 1;
-    const startCol = (loc.startColumn ?? 1) + 12; // Rough estimate after "import X from "
-
-    // Create a range for the import path (simplified)
     return Range.create(
-      startLine - 1,
-      startCol,
-      startLine - 1,
-      startCol + importStmt.source.length,
+      pathLine,
+      pathColumn,
+      pathLine,
+      pathColumn + importStmt.source.length,
     );
   }
 
@@ -182,4 +122,8 @@ export class DocumentLinkProvider {
       (loc.endColumn ?? loc.startColumn ?? 1) - 1,
     );
   }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

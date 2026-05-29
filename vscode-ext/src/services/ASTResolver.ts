@@ -166,7 +166,7 @@ export class ASTResolver {
     line: number,
     character: number,
   ): AST.ASTNode | null {
-    const ast = this.getAST(filePath);
+    const ast = this.getCachedAST(filePath) ?? this.getAST(filePath);
     if (!ast) return null;
 
     // Convert to 1-indexed for AST comparison (compiler uses 1-indexed)

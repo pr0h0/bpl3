@@ -35,6 +35,8 @@ export class ASTHoverHandler {
         `[ASTHover] Hover at ${filePath}:${params.position.line + 1}:${params.position.character + 1}`,
       );
 
+      this.astResolver.parseDocumentContent(filePath, document.getText());
+
       // Find the AST node at the cursor position
       const node = this.astResolver.findNodeAtPosition(
         filePath,

@@ -1,6 +1,6 @@
 # BPL Playground
 
-An interactive web-based playground for learning and experimenting with BPL (Best Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 65+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
+An interactive web-based playground for learning and experimenting with BPL (Best Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 70+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
 
 ## Features
 
@@ -31,6 +31,7 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 - **LLVM IR Tab**: View generated intermediate representation
 - **AST Tab**: Explore the Abstract Syntax Tree
 - **Tokens Tab**: Examine lexer tokens
+- **Wasm Tab**: Compile hosted WebAssembly and execute it directly in the browser
 
 📥 **Input & Arguments**
 
@@ -43,6 +44,7 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 - Bun-powered backend for quick responses
 - Real-time compilation and execution
 - Detailed error messages with line numbers
+- Hosted wasm builds use `wasm-ld`/LLVM lld and the playground runs the module through browser `WebAssembly.instantiate`
 
 ## Quick Start
 
@@ -50,6 +52,7 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 
 - [Bun](https://bun.sh) (v1.0+)
 - [Clang/LLVM](https://llvm.org/) (for compiling LLVM IR)
+- LLVM lld with `wasm-ld` on PATH, or `WASM_LD` set, for the Run Wasm path
 - Node.js and TypeScript (for building BPL compiler)
 
 ### Installation
@@ -69,7 +72,13 @@ cd playground
 bun run start
 ```
 
-3. Open your browser to `http://localhost:3001`
+If port 3001 is already in use:
+
+```bash
+PORT=3011 bun run start
+```
+
+3. Open your browser to `http://localhost:3001` or the custom `PORT` you selected.
 
 ## Project Structure
 

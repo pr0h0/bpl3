@@ -288,11 +288,17 @@ describe("CLI Tests", () => {
         "BPL home",
         "Runtime IR",
         "Runtime support object",
+        "WebAssembly runtime IR",
+        "Hosted WebAssembly runtime IR",
+        "wasm linker",
         "clang",
       ]),
     );
     expect(
-      report.checks.every((check: { ok: boolean }) => check.ok === true),
+      report.checks.every(
+        (check: { ok: boolean; required?: boolean }) =>
+          check.ok === true || check.required === false,
+      ),
     ).toBe(true);
   });
 

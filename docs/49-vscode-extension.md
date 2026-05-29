@@ -23,6 +23,7 @@ Smart, context-aware autocompletion powered by the compiler's type checker:
 - **Partial Matching**: Type `user.getNa` to filter to `getName`, `getAge`, etc.
 - **Method Signatures**: See parameter names and types as snippets
 - **Import Completions**: Autocomplete imported symbols from packages and stdlib
+- **Import Path Completions**: Complete `std`, `std/string.bpl`, and nearby relative `.bpl` files while typing `from "..."`
 - **Generic Types**: Full support for `Array<int>.` completions
 - **Enum Variants**: Type `Status.` to see `Active`, `Inactive`, etc.
 - **Keyword Suggestions**: All BPL keywords available in appropriate contexts
@@ -61,6 +62,7 @@ Jump to symbol definitions:
 - **Imported Symbols**: Navigate to definitions in imported modules
 - **Stdlib Symbols**: Jump to standard library implementations
 - **Package Symbols**: Navigate into installed packages
+- **Clickable Imports**: Import string paths are document links with exact ranges
 
 ### Inlay Hints
 
@@ -77,6 +79,7 @@ Real-time error checking:
 - **Type Errors**: Catch type mismatches before compilation
 - **Syntax Errors**: Immediate feedback on invalid syntax
 - **Import Errors**: Detect missing or invalid imports
+- **Unsaved Buffers**: Hover, completion, definition, and rename use the current document text rather than stale disk contents
 - **Location Information**: Click to jump to error locations
 
 ## Installation

@@ -219,6 +219,7 @@ describe("Enhanced Error Messaging", () => {
         source: {
           line: '    local x: i32 = "bad";',
           preview: '    local x: i32 = "bad";',
+          pointer: "    ^^^^^^^^^^^^^^^^^^^^^^",
         },
       });
       expect(parsed[0].location.end.line).toBe(2);
@@ -265,5 +266,65 @@ describe("Enhanced Error Messaging", () => {
 
     expect(formatted).toContain("error");
     expect(formatted).toContain("Compilation error");
+  });
+
+  test("should underline the exact first column without an off-by-one space", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pointer-"));
+    const testFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(testFile, "frame main() {}\n", "utf-8");
+
+    try {
+      const formatter = new DiagnosticFormatter({ colorize: false });
+      const error = new CompilerError("Bad token", "Remove it.", {
+        file: testFile,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 6,
+      });
+
+      const formatted = formatter.formatError(error);
+      expect(formatted).toContain("  1 | frame main() {}");
+      expect(formatted).toContain("    | ^^^^^");
+      expect(formatted).not.toContain("    |  ^^^^^");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("should show an underline for each line in multi-line diagnostics", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-multiline-"));
+    const testFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(
+      testFile,
+      ["frame main() {", "    local x: int = 1;", "    return x;", "}"].join(
+        "\n",
+      ),
+      "utf-8",
+    );
+
+    try {
+      const formatter = new DiagnosticFormatter({
+        colorize: false,
+        contextLines: 0,
+      });
+      const error = new CompilerError("Invalid block", "Rewrite this block.", {
+        file: testFile,
+        startLine: 2,
+        startColumn: 5,
+        endLine: 3,
+        endColumn: 13,
+      });
+
+      const formatted = formatter.formatError(error);
+      const pointerLines = formatted
+        .split("\n")
+        .filter((line) => line.includes("|") && line.includes("^"));
+      expect(pointerLines.length).toBe(2);
+      expect(pointerLines[0]).toContain("    ^");
+      expect(pointerLines[1]).toContain("^^^^^^^^^^^^");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

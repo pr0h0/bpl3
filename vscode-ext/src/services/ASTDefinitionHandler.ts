@@ -25,13 +25,15 @@ export class ASTDefinitionHandler {
    */
   handle(
     params: TextDocumentPositionParams,
-    _document: TextDocument,
+    document: TextDocument,
   ): Location | null {
     try {
       const filePath = fileURLToPath(params.textDocument.uri);
       console.log(
         `[ASTDefinition] Definition at ${filePath}:${params.position.line + 1}:${params.position.character + 1}`,
       );
+
+      this.astResolver.parseDocumentContent(filePath, document.getText());
 
       // Find the AST node at the cursor position
       const node = this.astResolver.findNodeAtPosition(
