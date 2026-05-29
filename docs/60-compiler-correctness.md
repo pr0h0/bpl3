@@ -3,7 +3,10 @@
 BPL treats compiler correctness as a release gate. The dedicated correctness
 suite compares runtime behavior at `-O0` and `-O3`, validates emitted LLVM IR,
 runs promoted fuzz regressions, and exercises representative programs with
-sanitizer-backed native binaries when the host toolchain supports them.
+sanitizer-backed native binaries when the host toolchain supports them. Checked
+runtime failures such as null access, division by zero, bounds errors, and stack
+overflow are part of the correctness surface; optimized builds must preserve the
+same BPL-level failure category as debug builds.
 
 ## Cross-Platform CI
 
@@ -14,6 +17,12 @@ The `Compiler Correctness` GitHub Actions workflow runs a toolchain matrix:
 - macOS 15 with Apple `clang` and a release runtime build.
 - macOS 15 with Homebrew LLVM first on `PATH` and a debug runtime build.
 
+The same workflow also has a Windows runner lane that runs
+`bun run test:codegen-cross-platform`. That lane is intentionally limited to
+parser, typechecker, codegen, and golden LLVM shape coverage. It validates
+documented target triples, including `x86_64-pc-windows-gnu`, without requiring
+Windows runtime linking or native execution support.
+
 The broad `bun run test:ci` suite runs only on the primary Ubuntu release leg.
 Every matrix leg still runs `bun run check`, `bun run test:correctness`,
 `bun run fuzz:validate-artifacts`, and `bun run test:sanitizers`.
@@ -23,6 +32,12 @@ To reproduce a matrix runtime build locally:
 ```bash
 CC=clang BPL_RUNTIME_BUILD=release bun run build:runtime
 CC=clang-18 BPL_RUNTIME_BUILD=debug bun run build:runtime
+```
+
+To reproduce the Windows-safe lane locally:
+
+```bash
+bun run test:codegen-cross-platform
 ```
 
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.
@@ -59,7 +74,9 @@ Modes:
 - `typecheck` stops after semantic checks.
 - `codegen` runs LLVM generation without executing the program.
 - `runtime` compiles and runs at `-O0`.
-- `differential` compares `-O0` and `-O3` runtime behavior.
+- `differential` compares `-O0` and `-O3` runtime behavior. For checked BPL
+  runtime failures it compares the failure category instead of raw stack-trace
+  text, because native addresses vary between runs.
 - `sanitizer` compiles and runs with `-fsanitize=address,undefined`.
 
 The default replay behavior still validates that an artifact reproduces its

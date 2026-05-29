@@ -49,7 +49,7 @@ describe("CodeGen - Division By Zero", () => {
     expect(ir).toContain("call void @__bpl_throw_division_by_zero");
   });
 
-  it("should omit zero checks for optimized builds", () => {
+  it("should preserve zero checks for optimized builds", () => {
     const source = `
       frame main() {
         local a: i32 = 10;
@@ -59,7 +59,7 @@ describe("CodeGen - Division By Zero", () => {
     `;
     const ir = generate(source, { optimizationLevel: 3 });
 
-    expect(ir).not.toContain("call void @__bpl_throw_division_by_zero");
-    expect(ir).not.toContain("div_err");
+    expect(ir).toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).toContain("div_err");
   });
 });

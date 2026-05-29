@@ -16,6 +16,7 @@ import {
   minimizeFuzzFailure,
   replayFuzzFailureArtifact,
   replayFuzzCrashArtifact,
+  runBplDifferentialPipeline,
   runFuzzCampaign,
   type PipelineOutcome,
 } from "../fuzz/compilerFuzz";
@@ -34,6 +35,42 @@ describe("Compiler fuzz runner", () => {
     expect(firstRun.map((input) => input.kind)).toContain("mutated");
     expect(firstRun.map((input) => input.kind)).toContain("tokens");
   });
+
+  test("generates differential runtime inputs that exercise checked failures", () => {
+    const inputs = Array.from({ length: 40 }, (_, iteration) =>
+      generateFuzzInput(0xd1ff0, iteration, { enableDifferential: true }),
+    );
+    const differentialSources = inputs
+      .filter((input) => input.kind === "differential")
+      .map((input) => input.source)
+      .join("\n");
+
+    expect(differentialSources).toContain("10 / zero");
+    expect(differentialSources).toContain("node.value");
+    expect(differentialSources).toContain("values[index]");
+  });
+
+  test(
+    "treats equivalent checked runtime failures as stable differential behavior",
+    () => {
+      const outcome = runBplDifferentialPipeline(
+        `
+          frame main() ret int {
+            local zero: int = 0;
+            return 10 / zero;
+          }
+        `,
+        "differential_division_by_zero.bpl",
+      );
+
+      expect(outcome).toMatchObject({
+        ok: true,
+        stage: "codegen",
+      });
+      expect(outcome.mismatch).toBeUndefined();
+    },
+    60000,
+  );
 
   test("records crash repro source and metadata during a campaign", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-crashes-"));

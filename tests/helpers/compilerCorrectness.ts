@@ -44,6 +44,12 @@ export interface CleanFailureCase {
   expectedMessage?: string | RegExp;
 }
 
+export interface RuntimeFailureCase {
+  name: string;
+  source: string;
+  expectedMessage: string | RegExp;
+}
+
 const SEEDED_DIFFERENTIAL_FAMILIES = [
   "arithmetic-loop",
   "struct-array",
@@ -249,6 +255,59 @@ export function expectSameBehaviorAtO0AndO3(
   }
 
   return { o0, o3, stdout: o0.stdout };
+}
+
+export function expectSameRuntimeFailureAtO0AndO3(
+  source: string,
+  expectedMessage: string | RegExp,
+): OptimizationComparisonResult {
+  const o0 = runBplAtOptimization(source, 0);
+  const o3 = runBplAtOptimization(source, 3);
+
+  if (o0.exitCode === 0) {
+    failWithResult("Expected BPL program to fail at -O0", o0);
+  }
+
+  if (o3.exitCode === 0) {
+    failWithResult("Expected BPL program to fail at -O3", o3);
+  }
+
+  const o0Output = `${o0.stderr}\n${o0.stdout}`;
+  const o3Output = `${o3.stderr}\n${o3.stdout}`;
+  if (!matchesExpectedMessage(o0Output, expectedMessage)) {
+    failWithResult(
+      `Expected -O0 failure output to match ${expectedMessage}`,
+      o0,
+    );
+  }
+  if (!matchesExpectedMessage(o3Output, expectedMessage)) {
+    failWithResult(
+      `Expected -O3 failure output to match ${expectedMessage}`,
+      o3,
+    );
+  }
+
+  return { o0, o3, stdout: o0.stdout };
+}
+
+export function expectRuntimeFailureSuite(
+  cases: RuntimeFailureCase[],
+): OptimizationComparisonResult[] {
+  return cases.map((testCase) => {
+    try {
+      return expectSameRuntimeFailureAtO0AndO3(
+        testCase.source,
+        testCase.expectedMessage,
+      );
+    } catch (error) {
+      throw new Error(
+        [
+          `Runtime failure case failed: ${testCase.name}`,
+          formatUnknownError(error),
+        ].join("\n"),
+      );
+    }
+  });
 }
 
 function formatUnknownError(error: unknown): string {

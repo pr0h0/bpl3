@@ -14,6 +14,16 @@ function generate(source: string) {
   return codeGenerator.generate(program);
 }
 
+function generateOptimized(source: string) {
+  const tokens = lexWithGrammar(source, "test.bpl");
+  const parser = new Parser(source, "test.bpl", tokens);
+  const program = parser.parse();
+  const typeChecker = new TypeChecker();
+  typeChecker.checkProgram(program);
+  const codeGenerator = new CodeGenerator({ optimizationLevel: 3 });
+  return codeGenerator.generate(program);
+}
+
 describe("CodeGen - Stack Overflow", () => {
   it("should generate stack depth check", () => {
     const source = `
@@ -24,6 +34,22 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generate(source);
 
     // Check for runtime calls
+    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("call void @__bpl_exit_stack_frame()");
+  });
+
+  it("should preserve stack depth checks for optimized builds", () => {
+    const source = `
+      frame recur(n: int) ret int {
+        return recur(n + 1);
+      }
+
+      frame main() ret int {
+        return recur(0);
+      }
+    `;
+    const ir = generateOptimized(source);
+
     expect(ir).toContain("call void @__bpl_enter_stack_frame()");
     expect(ir).toContain("call void @__bpl_exit_stack_frame()");
   });

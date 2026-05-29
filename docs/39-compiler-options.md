@@ -296,6 +296,11 @@ Compile for different target platforms:
 
 **Supported Targets:**
 
+These triples are covered by code generation smoke tests. They confirm that the
+compiler emits target metadata and LLVM IR for each target. Native binary
+linking and execution still require an appropriate host toolchain, sysroot, C
+runtime, and runtime support for that platform.
+
 - `x86_64-pc-linux-gnu` (Linux x64)
 - `aarch64-unknown-linux-gnu` (Linux ARM64)
 - `arm64-apple-darwin` (macOS ARM64)
@@ -308,7 +313,7 @@ Compile for different target platforms:
 # Cross-compile for ARM64 Linux
 bpl build main.bpl --target aarch64-unknown-linux-gnu
 
-# Cross-compile for Windows from Linux
+# Emit and link for Windows from Linux when a Windows-capable clang/sysroot is installed
 bpl build main.bpl --target x86_64-pc-windows-gnu
 
 # Specify architecture details

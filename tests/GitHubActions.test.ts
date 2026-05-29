@@ -78,6 +78,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("fail-fast: false");
     expect(workflow).toContain("ubuntu-24.04");
     expect(workflow).toContain("macos-15");
+    expect(workflow).toContain("windows-latest");
     expect(workflow).toContain("ubuntu-clang-18");
     expect(workflow).toContain("macos-brew-llvm");
     expect(workflow).toContain("runtime_build: debug");
@@ -94,6 +95,8 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run test:correctness");
     expect(workflow).toContain("bun run test:sanitizers");
+    expect(workflow).toContain("Windows parser/typecheck/codegen smoke");
+    expect(workflow).toContain("bun run test:codegen-cross-platform");
     expect(workflow).toContain(
       "sudo apt-get install -y clang llvm libclang-rt-dev clang-18 llvm-18 libclang-rt-18-dev",
     );
@@ -118,10 +121,19 @@ describe("GitHub Actions workflows", () => {
       "CompilerCorrectnessSeededFuzz.test.ts",
     );
     expect(packageJson.scripts["test:correctness"]).toContain(
+      "CompilerRuntimeFailureSemantics.test.ts",
+    );
+    expect(packageJson.scripts["test:correctness"]).toContain(
       "FuzzFailureArtifactCorpus.test.ts",
     );
     expect(packageJson.scripts["test:sanitizers"]).toContain(
       "CompilerSanitizerRuntime.test.ts",
+    );
+    expect(packageJson.scripts["test:codegen-cross-platform"]).toContain(
+      "CrossPlatformCodegen.test.ts",
+    );
+    expect(packageJson.scripts["test:codegen-cross-platform"]).toContain(
+      "GoldenLLVMShapes.test.ts",
     );
   });
 

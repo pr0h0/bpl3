@@ -147,7 +147,6 @@ export abstract class StatementGenerator extends AsmGenerator {
     decl: AST.FunctionDecl,
     emittedName: string,
   ): boolean {
-    if (this.optimizationLevel >= 2) return false;
     if (decl.name === "main" || emittedName === "main") return true;
 
     return !this.isTrivialLeafReturnFunction(decl);
@@ -1836,7 +1835,6 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Stack overflow check
-      // For optimization levels >= 2, we skip the runtime call for performance
       if (this.currentFunctionEmitsStackFrameHooks) {
         this.emit(`  call void @__bpl_enter_stack_frame()`);
       }

@@ -792,14 +792,20 @@ bun run test:ci
 # Run only the VS Code extension tests
 bun run test:vscode-ext
 
+# Run parser/typechecker/codegen tests that are safe on Windows runners.
+# This validates documented target triples without native runtime execution.
+bun run test:codegen-cross-platform
+
 # Run compiler correctness and deterministic fuzz regression coverage
 bun run test:correctness
 
 # Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
-# under ASan/UBSan; local toolchains without sanitizer runtimes are detected.
+# safe programs and checked failure paths under ASan/UBSan; local toolchains
+# without sanitizer runtimes are detected.
 bun run test:sanitizers
 
-# Run a short deterministic O0/O3 differential fuzz campaign
+# Run a short deterministic O0/O3 differential fuzz campaign. Differential
+# inputs include successful programs and checked BPL runtime failures.
 bun run fuzz:differential
 
 # Validate saved active fuzz failures under tests/fuzz-failure-artifacts

@@ -49,4 +49,63 @@ describe("Compiler sanitizer-backed runtime tests", () => {
       expect(result.stderr).not.toContain("runtime error:");
     }
   });
+
+  test("routes checked runtime failures through BPL errors under ASan and UBSan", () => {
+    const support = checkBplSanitizerSupport();
+    if (!support.supported) {
+      expect(support.reason).toContain("libclang_rt");
+      return;
+    }
+
+    const cases = [
+      {
+        name: "division by zero",
+        expectedMessage: "DIVISION BY ZERO",
+        source: `
+          frame main() ret int {
+            local zero: int = 0;
+            return 10 / zero;
+          }
+        `,
+      },
+      {
+        name: "null pointer member access",
+        expectedMessage: "NULL POINTER ACCESS",
+        source: `
+          struct Node {
+            value: int,
+          }
+
+          frame main() ret int {
+            local node: *Node = nullptr;
+            return node.value;
+          }
+        `,
+      },
+      {
+        name: "fixed array index out of bounds",
+        expectedMessage: "INDEX OUT OF BOUNDS",
+        source: `
+          frame main() ret int {
+            local values: int[2] = [10, 20];
+            return values[3];
+          }
+        `,
+      },
+    ];
+
+    for (const testCase of cases) {
+      for (const optimizationLevel of [0, 3] as const) {
+        const result = runBplWithSanitizers(
+          testCase.source,
+          optimizationLevel,
+        );
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.stderr).toContain(testCase.expectedMessage);
+        expect(result.stderr).not.toContain("ERROR: AddressSanitizer");
+        expect(result.stderr).not.toContain("runtime error:");
+      }
+    }
+  });
 });

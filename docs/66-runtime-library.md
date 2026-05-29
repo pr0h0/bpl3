@@ -339,13 +339,17 @@ For debugging with external tools like Valgrind or gdb, you may want to disable 
 
 ## Platform Support
 
-| Platform     | Stack Traces | Signal Handling |
-| ------------ | ------------ | --------------- |
-| Linux x86_64 | ✅ Full      | ✅ Full         |
-| Linux ARM64  | ✅ Full      | ✅ Full         |
-| macOS x86_64 | ✅ Full      | ✅ Full         |
-| macOS ARM64  | ✅ Full      | ✅ Full         |
-| Windows      | ❌ Not yet   | ❌ Not yet      |
+| Platform     | Target IR codegen | Native runtime execution | Stack Traces | Signal Handling |
+| ------------ | ----------------- | ------------------------ | ------------ | --------------- |
+| Linux x86_64 | ✅ Tested         | ✅ Supported             | ✅ Full      | ✅ Full         |
+| Linux ARM64  | ✅ Tested         | ✅ Supported             | ✅ Full      | ✅ Full         |
+| macOS x86_64 | ✅ Tested         | ✅ Supported             | ✅ Full      | ✅ Full         |
+| macOS ARM64  | ✅ Tested         | ✅ Supported             | ✅ Full      | ✅ Full         |
+| Windows x64  | ✅ Tested         | ❌ Not yet               | ❌ Not yet   | ❌ Not yet      |
+
+The Windows row means the compiler emits target metadata and LLVM IR for
+`x86_64-pc-windows-gnu` in CI. It does not yet mean the bundled runtime library
+can link and execute native Windows binaries.
 
 ## Future Improvements
 

@@ -93,13 +93,16 @@ bun run test:ci
 # VS Code extension tests only
 bun run test:vscode-ext
 
+# Windows-safe parser, typechecker, codegen, and target triple smoke tests
+bun run test:codegen-cross-platform
+
 # Compiler correctness and deterministic fuzz regression suite
 bun run test:correctness
 
-# Sanitizer-backed runtime checks for representative safe programs
+# Sanitizer-backed runtime checks for representative safe programs and checked failures
 bun run test:sanitizers
 
-# Deterministic O0/O3 runtime differential fuzzing
+# Deterministic O0/O3 runtime differential fuzzing, including checked failures
 bun run fuzz:differential
 
 # Validate saved active fuzz failures

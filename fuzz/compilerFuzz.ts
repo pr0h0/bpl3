@@ -628,8 +628,11 @@ const STRUCTURED_GENERATORS = [
 
 const DIFFERENTIAL_RUNTIME_GENERATORS = [
   generateDifferentialArithmeticSource,
+  generateDifferentialDivisionByZeroSource,
   generateDifferentialStructArraySource,
+  generateDifferentialNullAccessSource,
   generateDifferentialEnumMatchSource,
+  generateDifferentialBoundsFailureSource,
   generateDifferentialRecursiveSource,
   generateDifferentialLambdaSource,
   generateDifferentialTupleSource,
@@ -713,6 +716,38 @@ function generateDifferentialStructArraySource(rng: () => number): string {
 
       printf("diff pair left=%d right=%d\\n", pair.left, pair.right);
       return 0;
+    }
+  `;
+}
+
+function generateDifferentialDivisionByZeroSource(_rng: () => number): string {
+  return `
+    frame main() ret int {
+      local zero: int = 0;
+      return 10 / zero;
+    }
+  `;
+}
+
+function generateDifferentialNullAccessSource(_rng: () => number): string {
+  return `
+    struct Node {
+      value: int,
+    }
+
+    frame main() ret int {
+      local node: *Node = nullptr;
+      return node.value;
+    }
+  `;
+}
+
+function generateDifferentialBoundsFailureSource(_rng: () => number): string {
+  return `
+    frame main() ret int {
+      local values: int[2] = [10, 20];
+      local index: int = 2;
+      return values[index];
     }
   `;
 }
@@ -1351,6 +1386,7 @@ export function runBplDifferentialPipeline(
     writeFileSync(sourcePath, source);
     const o0 = runBplCommand(sourcePath, dir, 0);
     const o3 = runBplCommand(sourcePath, dir, 3);
+    const equivalentRuntimeFailure = areEquivalentRuntimeFailures(o0, o3);
     const mismatch = createMismatch(o0, o3);
 
     if (mismatch !== undefined) {
@@ -1362,7 +1398,7 @@ export function runBplDifferentialPipeline(
       };
     }
 
-    if (o0.exitCode !== 0) {
+    if (o0.exitCode !== 0 && !equivalentRuntimeFailure) {
       return {
         ok: false,
         stage: "codegen",
@@ -1472,7 +1508,84 @@ function createMismatch(
     return undefined;
   }
 
+  if (areEquivalentRuntimeFailures(o0, o3)) {
+    return undefined;
+  }
+
   return { o0, o3 };
+}
+
+type RuntimeFailureKind =
+  | "division-by-zero"
+  | "null-access"
+  | "index-out-of-bounds"
+  | "stack-overflow"
+  | "native-signal"
+  | "sanitizer";
+
+interface RuntimeFailureSignature {
+  kind: RuntimeFailureKind;
+  stdout: string;
+}
+
+const ANSI_ESCAPE_PATTERN = /\x1B\[[0-9;]*m/g;
+
+function areEquivalentRuntimeFailures(
+  o0: DifferentialCommandResult,
+  o3: DifferentialCommandResult,
+): boolean {
+  const left = classifyRuntimeFailure(o0);
+  const right = classifyRuntimeFailure(o3);
+
+  return (
+    left !== undefined &&
+    right !== undefined &&
+    left.kind === right.kind &&
+    left.stdout === right.stdout
+  );
+}
+
+function classifyRuntimeFailure(
+  result: DifferentialCommandResult,
+): RuntimeFailureSignature | undefined {
+  if (result.exitCode === 0) {
+    return undefined;
+  }
+
+  const output = `${result.stderr}\n${result.stdout}`
+    .replace(ANSI_ESCAPE_PATTERN, "")
+    .toUpperCase();
+
+  if (output.includes("DIVISION BY ZERO")) {
+    return { kind: "division-by-zero", stdout: result.stdout };
+  }
+  if (output.includes("NULL POINTER ACCESS")) {
+    return { kind: "null-access", stdout: result.stdout };
+  }
+  if (output.includes("INDEX OUT OF BOUNDS")) {
+    return { kind: "index-out-of-bounds", stdout: result.stdout };
+  }
+  if (output.includes("STACK OVERFLOW")) {
+    return { kind: "stack-overflow", stdout: result.stdout };
+  }
+  if (
+    output.includes("SIGSEGV") ||
+    output.includes("SIGFPE") ||
+    output.includes("SIGABRT") ||
+    output.includes("SIGBUS") ||
+    output.includes("SIGILL")
+  ) {
+    return { kind: "native-signal", stdout: result.stdout };
+  }
+  if (
+    output.includes("ERROR: ADDRESSSANITIZER") ||
+    output.includes("UNDEFINEDBEHAVIORSANITIZER") ||
+    output.includes("RUNTIME ERROR:")
+  ) {
+    return { kind: "sanitizer", stdout: result.stdout };
+  }
+
+  return undefined;
 }
 
 function defaultFuzzRunner(

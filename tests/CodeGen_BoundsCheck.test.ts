@@ -34,7 +34,7 @@ describe("CodeGen - Bounds Check", () => {
     expect(ir).toContain("call void @__bpl_throw_index_out_of_bounds");
   });
 
-  it("should omit bounds checks for optimized builds", () => {
+  it("should preserve bounds checks for optimized builds", () => {
     const source = `
       frame main() {
         local arr: i32[10];
@@ -43,7 +43,7 @@ describe("CodeGen - Bounds Check", () => {
     `;
     const ir = generate(source, { optimizationLevel: 3 });
 
-    expect(ir).not.toContain("call void @__bpl_throw_index_out_of_bounds");
-    expect(ir).not.toContain("bounds.throw");
+    expect(ir).toContain("call void @__bpl_throw_index_out_of_bounds");
+    expect(ir).toContain("bounds.throw");
   });
 });

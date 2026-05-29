@@ -603,17 +603,14 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   ): void {
     const ptrAsI8 = this.newRegister();
     this.emit(`  ${ptrAsI8} = bitcast ${ptrType} ${ptrVal} to i8*`);
-    // For optimization levels >= 2, we skip the runtime call for performance
-    if (this.optimizationLevel < 2) {
-      const funcNameStr = this.currentFunctionName || "unknown";
-      const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
-      const exprStrPtr = this.getStringLiteralPtr(exprStr);
-      const line = location.startLine;
-      const col = location.startColumn || 0;
-      this.emit(
-        `  call void @__bpl_check_null(i8* ${ptrAsI8}, i8* ${funcNamePtr}, i8* ${exprStrPtr}, i32 ${line}, i32 ${col})`,
-      );
-    }
+    const funcNameStr = this.currentFunctionName || "unknown";
+    const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
+    const exprStrPtr = this.getStringLiteralPtr(exprStr);
+    const line = location.startLine;
+    const col = location.startColumn || 0;
+    this.emit(
+      `  call void @__bpl_check_null(i8* ${ptrAsI8}, i8* ${funcNamePtr}, i8* ${exprStrPtr}, i32 ${line}, i32 ${col})`,
+    );
   }
 
   /**
@@ -624,10 +621,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     size: number,
     location: SourceLocation,
   ): void {
-    if (this.optimizationLevel >= 3) {
-      return;
-    }
-
     const inBounds = this.newRegister();
     this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${size}`);
 
@@ -658,10 +651,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     sizeVal: string,
     location: SourceLocation,
   ): void {
-    if (this.optimizationLevel >= 3) {
-      return;
-    }
-
     const inBounds = this.newRegister();
     this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${sizeVal}`);
 
