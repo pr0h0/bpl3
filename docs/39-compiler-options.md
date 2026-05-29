@@ -463,10 +463,14 @@ artifact without requiring a host-native wasm linker.
 
 The current wasm runtime is intentionally freestanding. It supports pure BPL
 control flow, enums, generics, lambdas, simple memory allocation, and small
-helpers such as `strlen` and `strcmp`. Programs that depend on host C library
-or operating-system APIs such as `printf`, files, sockets, process calls, or
-platform-specific inline assembly need a WASI/browser host layer before they can
-run as standalone wasm.
+helpers such as `strlen`, `strcmp`, `strncmp`, `strcpy`, `strcat`, and `atoi`.
+Programs that depend on host C library or operating-system APIs such as
+`printf`, files, sockets, process calls, or platform-specific inline assembly
+need a WASI/browser host layer before they can run as standalone wasm.
+
+The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`, and
+`examples/wasm_memory_strings` examples are intentionally portable: they run as
+native x86_64 programs and as standalone `wasm32-unknown-unknown` modules.
 
 ## Complete Examples
 

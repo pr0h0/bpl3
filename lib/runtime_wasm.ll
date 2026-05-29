@@ -200,6 +200,39 @@ equal:
   ret i32 0
 }
 
+define i32 @strncmp(i8* %left, i8* %right, i64 %n) {
+entry:
+  %is_empty = icmp eq i64 %n, 0
+  br i1 %is_empty, label %equal, label %loop
+
+loop:
+  %i = phi i64 [ 0, %entry ], [ %next, %same ]
+  %left_ptr = getelementptr i8, i8* %left, i64 %i
+  %right_ptr = getelementptr i8, i8* %right, i64 %i
+  %left_byte = load i8, i8* %left_ptr
+  %right_byte = load i8, i8* %right_ptr
+  %differs = icmp ne i8 %left_byte, %right_byte
+  br i1 %differs, label %different, label %check_end
+
+check_end:
+  %done_string = icmp eq i8 %left_byte, 0
+  br i1 %done_string, label %equal, label %same
+
+same:
+  %next = add i64 %i, 1
+  %done_count = icmp eq i64 %next, %n
+  br i1 %done_count, label %equal, label %loop
+
+different:
+  %left_ext = zext i8 %left_byte to i32
+  %right_ext = zext i8 %right_byte to i32
+  %diff = sub i32 %left_ext, %right_ext
+  ret i32 %diff
+
+equal:
+  ret i32 0
+}
+
 define i64 @strlen(i8* %ptr) {
 entry:
   br label %loop
@@ -217,6 +250,129 @@ cont:
 
 end:
   ret i64 %i
+}
+
+define i8* @strcpy(i8* %dest, i8* %src) {
+entry:
+  br label %loop
+
+loop:
+  %i = phi i64 [ 0, %entry ], [ %next, %continue ]
+  %src_ptr = getelementptr i8, i8* %src, i64 %i
+  %dest_ptr = getelementptr i8, i8* %dest, i64 %i
+  %byte = load i8, i8* %src_ptr
+  store i8 %byte, i8* %dest_ptr
+  %done = icmp eq i8 %byte, 0
+  br i1 %done, label %end, label %continue
+
+continue:
+  %next = add i64 %i, 1
+  br label %loop
+
+end:
+  ret i8* %dest
+}
+
+define i8* @strcat(i8* %dest, i8* %src) {
+entry:
+  br label %find_end
+
+find_end:
+  %dest_index = phi i64 [ 0, %entry ], [ %next_dest_index, %find_next ]
+  %dest_ptr = getelementptr i8, i8* %dest, i64 %dest_index
+  %dest_byte = load i8, i8* %dest_ptr
+  %at_end = icmp eq i8 %dest_byte, 0
+  br i1 %at_end, label %copy_loop, label %find_next
+
+find_next:
+  %next_dest_index = add i64 %dest_index, 1
+  br label %find_end
+
+copy_loop:
+  %src_index = phi i64 [ 0, %find_end ], [ %next_src_index, %copy_next ]
+  %offset = add i64 %dest_index, %src_index
+  %copy_dest_ptr = getelementptr i8, i8* %dest, i64 %offset
+  %src_ptr = getelementptr i8, i8* %src, i64 %src_index
+  %byte = load i8, i8* %src_ptr
+  store i8 %byte, i8* %copy_dest_ptr
+  %done = icmp eq i8 %byte, 0
+  br i1 %done, label %end, label %copy_next
+
+copy_next:
+  %next_src_index = add i64 %src_index, 1
+  br label %copy_loop
+
+end:
+  ret i8* %dest
+}
+
+define i32 @atoi(i8* %str) {
+entry:
+  br label %skip_ws
+
+skip_ws:
+  %ws_index = phi i64 [ 0, %entry ], [ %next_ws_index, %skip_next ]
+  %ws_ptr = getelementptr i8, i8* %str, i64 %ws_index
+  %ws_byte = load i8, i8* %ws_ptr
+  %is_space = icmp eq i8 %ws_byte, 32
+  %is_tab = icmp eq i8 %ws_byte, 9
+  %is_lf = icmp eq i8 %ws_byte, 10
+  %is_cr = icmp eq i8 %ws_byte, 13
+  %is_vtab = icmp eq i8 %ws_byte, 11
+  %is_form_feed = icmp eq i8 %ws_byte, 12
+  %ws_a = or i1 %is_space, %is_tab
+  %ws_b = or i1 %is_lf, %is_cr
+  %ws_c = or i1 %is_vtab, %is_form_feed
+  %ws_ab = or i1 %ws_a, %ws_b
+  %is_ws = or i1 %ws_ab, %ws_c
+  br i1 %is_ws, label %skip_next, label %sign
+
+skip_next:
+  %next_ws_index = add i64 %ws_index, 1
+  br label %skip_ws
+
+sign:
+  %is_minus = icmp eq i8 %ws_byte, 45
+  br i1 %is_minus, label %minus, label %plus_check
+
+minus:
+  %minus_start = add i64 %ws_index, 1
+  br label %parse
+
+plus_check:
+  %is_plus = icmp eq i8 %ws_byte, 43
+  br i1 %is_plus, label %plus, label %parse
+
+plus:
+  %plus_start = add i64 %ws_index, 1
+  br label %parse
+
+parse:
+  %index = phi i64 [ %minus_start, %minus ], [ %plus_start, %plus ], [ %ws_index, %plus_check ]
+  %sign_value = phi i32 [ -1, %minus ], [ 1, %plus ], [ 1, %plus_check ]
+  br label %digits
+
+digits:
+  %digit_index = phi i64 [ %index, %parse ], [ %next_digit_index, %accumulate ]
+  %acc = phi i32 [ 0, %parse ], [ %next_acc, %accumulate ]
+  %digit_ptr = getelementptr i8, i8* %str, i64 %digit_index
+  %digit_byte = load i8, i8* %digit_ptr
+  %at_least_zero = icmp uge i8 %digit_byte, 48
+  %at_most_nine = icmp ule i8 %digit_byte, 57
+  %is_digit = and i1 %at_least_zero, %at_most_nine
+  br i1 %is_digit, label %accumulate, label %done
+
+accumulate:
+  %digit_raw = sub i8 %digit_byte, 48
+  %digit_value = zext i8 %digit_raw to i32
+  %times_ten = mul i32 %acc, 10
+  %next_acc = add i32 %times_ten, %digit_value
+  %next_digit_index = add i64 %digit_index, 1
+  br label %digits
+
+done:
+  %result = mul i32 %acc, %sign_value
+  ret i32 %result
 }
 
 define void @__bpl_enter_stack_frame() {

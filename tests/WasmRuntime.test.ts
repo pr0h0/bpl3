@@ -37,6 +37,9 @@ const WASM_EXAMPLE_CORPUS: WasmExampleCase[] = [
   { file: "examples/enum_test/simple_tuple/main.bpl", expectedReturn: 0 },
   { file: "examples/enum_test/unit_only/main.bpl", expectedReturn: 0 },
   { file: "examples/lint_test/main.bpl", expectedReturn: 0 },
+  { file: "examples/wasm_control_flow/main.bpl", expectedReturn: 0 },
+  { file: "examples/wasm_lambdas_generics/main.bpl", expectedReturn: 0 },
+  { file: "examples/wasm_memory_strings/main.bpl", expectedReturn: 0 },
 ];
 
 function findStandaloneWasmLinker(): string | undefined {
@@ -210,18 +213,41 @@ frame main() ret int {
     const exports = await compileWasmSource(`
 extern strlen(value: string) ret long;
 extern strcmp(left: string, right: string) ret int;
+extern strcpy(dest: string, src: string) ret string;
+extern strcat(dest: string, src: string) ret string;
+extern strncmp(left: string, right: string, count: long) ret int;
+extern atoi(value: string) ret int;
+extern malloc(size: long) ret *void;
+extern free(ptr: *void) ret void;
 
 frame main() ret int {
-    local len: long = strlen("bpl");
-    local same: int = strcmp("bpl", "bpl");
-    local different: int = strcmp("bpl", "bpm");
-    if (same != 0) {
+    local buffer: string = cast<string>(malloc(32));
+    strcpy(buffer, "bp");
+    strcat(buffer, "l");
+
+    if (strlen(buffer) != 3) {
+        free(cast<*void>(buffer));
         return 1000;
     }
-    if (different >= 0) {
+    if (strcmp(buffer, "bpl") != 0) {
+        free(cast<*void>(buffer));
         return 2000;
     }
-    return cast<int>(len);
+    if (strncmp(buffer, "bpm", 2) != 0) {
+        free(cast<*void>(buffer));
+        return 3000;
+    }
+    if (strncmp(buffer, "bpa", 3) <= 0) {
+        free(cast<*void>(buffer));
+        return 4000;
+    }
+    if (atoi(" -42xyz") != -42) {
+        free(cast<*void>(buffer));
+        return 5000;
+    }
+
+    free(cast<*void>(buffer));
+    return 3;
 }
 `);
 
