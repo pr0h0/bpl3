@@ -24,6 +24,7 @@ import {
   ModuleCache,
   type ModuleCompileInput,
 } from "./middleend/ModuleCache";
+import { createModuleCacheContent } from "./middleend/ModuleCacheKey";
 import { ModuleResolver, type ModuleInfo } from "./middleend/ModuleResolver";
 import { TypeChecker } from "./middleend/TypeChecker";
 
@@ -603,10 +604,6 @@ export class Compiler {
         return { success: false, errors: moduleCheck.errors };
       }
 
-      const allContent = modules
-        .map((m) => `${m.path}\n${fs.readFileSync(m.path, "utf-8")}`)
-        .join("\n--- bpl module dependency snapshot ---\n");
-
       const compileInputs: ModuleCompileInput[] = modules.map((module) => {
         const moduleAST = this.createPerModuleCodegenAst(modules, module);
         const codeGenerator = new CodeGenerator({
@@ -622,15 +619,10 @@ export class Compiler {
         } finally {
           restoreExternalizedBodies();
         }
-        const moduleContent = [
-          `module=${module.path}`,
-          fs.readFileSync(module.path, "utf-8"),
-          allContent,
-        ].join("\n--- bpl cache key ---\n");
 
         return {
           modulePath: module.path,
-          content: moduleContent,
+          content: createModuleCacheContent(modules, module),
           llvmIR,
           target: this.options.target,
           optimizationLevel: this.options.optimizationLevel,
