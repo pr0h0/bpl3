@@ -33,7 +33,11 @@ Every matrix leg still runs `bun run check`, `bun run test:correctness`,
 `test:correctness` includes standalone wasm runtime execution and the wasm
 compatibility sweep, so examples that are declared wasm-compatible must build,
 instantiate, and execute under `wasm32-unknown-unknown` when `wasm-ld` is
-available.
+available. CI sets `BPL_REQUIRE_WASM_LD=1` and configures `WASM_LD`, so wasm
+coverage is a required gate instead of an optional skip. The compatibility
+matrix in `tests/helpers/wasmCompatibilityMatrix.ts` records whether each
+tracked example is `wasm-freestanding`, `wasm-hosted`, `blocked-by-host-api`,
+or `native-only`.
 
 To reproduce a matrix runtime build locally:
 

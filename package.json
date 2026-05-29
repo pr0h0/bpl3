@@ -9,6 +9,8 @@
     "bpl",
     "bpl-wrapper.sh",
     "completions",
+    "docs",
+    "examples",
     "grammar",
     "lib",
     "README.md",

@@ -38,6 +38,20 @@ entry:
   ret i32 %len32
 }
 
+define i32 @dprintf(i32 %fd, i8* %fmt, ...) {
+entry:
+  %len64 = call i64 @__bpl_strlen(i8* %fmt)
+  %len32 = trunc i64 %len64 to i32
+  call void @__bpl_host_write(i32 %fd, i8* %fmt, i32 %len32)
+  ret i32 %len32
+}
+
+define i32 @write(i32 %fd, i8* %buf, i32 %count) {
+entry:
+  call void @__bpl_host_write(i32 %fd, i8* %buf, i32 %count)
+  ret i32 %count
+}
+
 define i32 @puts(i8* %value) {
 entry:
   %len64 = call i64 @__bpl_strlen(i8* %value)

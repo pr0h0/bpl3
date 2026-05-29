@@ -1,8 +1,22 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join, relative, resolve } from "path";
+import {
+  WASM_COMPATIBILITY_MATRIX,
+  WASM_FREESTANDING_EXAMPLES,
+  WASM_HOSTED_EXAMPLES,
+  type WasmCompatibilityEntry,
+  type WasmCompatibilityMode,
+} from "./helpers/wasmCompatibilityMatrix";
 
 const BPL_CLI = resolve(__dirname, "../index.ts");
 const EXAMPLES_DIR = resolve(__dirname, "../examples");
@@ -15,28 +29,11 @@ const WASM_LINKER_CANDIDATES = [
   "ld.lld",
 ].filter((candidate): candidate is string => Boolean(candidate));
 
-const KNOWN_WASM_COMPATIBLE = [
-  "examples/bug_043_lambda_inference/main.bpl",
-  "examples/bug_044_generic_recursion/main.bpl",
-  "examples/enum_complex_match/main.bpl",
-  "examples/enum_exhaustiveness/main.bpl",
-  "examples/enum_imports/wildcard/main.bpl",
-  "examples/enum_imports_wildcard/main.bpl",
-  "examples/enum_methods_simple/main.bpl",
-  "examples/enum_mixed_variants/main.bpl",
-  "examples/enum_struct_variants/main.bpl",
-  "examples/enum_test/all_variants/main.bpl",
-  "examples/enum_test/data_variants/main.bpl",
-  "examples/enum_test/enum_return/main.bpl",
-  "examples/enum_test/simple_tuple/main.bpl",
-  "examples/enum_test/unit_only/main.bpl",
-  "examples/lint_test/main.bpl",
-  "examples/wasm_control_flow/main.bpl",
-  "examples/wasm_lambdas_generics/main.bpl",
-  "examples/wasm_memory_strings/main.bpl",
-  "examples/wasm_memory_intrinsics/main.bpl",
-  "examples/wasm_stdlib_array/main.bpl",
-  "examples/wasm_stdlib_bitset/main.bpl",
+const EXPECTED_MODES: WasmCompatibilityMode[] = [
+  "wasm-freestanding",
+  "wasm-hosted",
+  "blocked-by-host-api",
+  "native-only",
 ];
 
 type WasmBuildClassification =
@@ -46,6 +43,38 @@ type WasmBuildClassification =
   | "compile-or-type-error"
   | "linker-unavailable"
   | "other-build-failure";
+interface WasmBuildResult {
+  classification: WasmBuildClassification;
+  imports: string[];
+}
+
+const HOST_API_IMPORTS = new Set([
+  "accept",
+  "bind",
+  "close",
+  "connect",
+  "exec",
+  "fclose",
+  "fopen",
+  "fork",
+  "fread",
+  "fwrite",
+  "getenv",
+  "listen",
+  "localtime",
+  "mmap",
+  "munmap",
+  "open",
+  "read",
+  "setenv",
+  "socket",
+  "system",
+  "tcgetattr",
+  "tcsetattr",
+  "time",
+  "wait",
+  "write",
+]);
 
 function findStandaloneWasmLinker(): string | undefined {
   return WASM_LINKER_CANDIDATES.find((candidate) => {
@@ -117,35 +146,52 @@ function classifyWasmBuildResult(result: {
   return "other-build-failure";
 }
 
-function buildWasmExample(file: string): WasmBuildClassification {
+function buildWasmExample(
+  entryOrFile: WasmCompatibilityEntry | string,
+): WasmBuildResult {
+  const file =
+    typeof entryOrFile === "string" ? entryOrFile : entryOrFile.file;
+  const mode =
+    typeof entryOrFile === "string" ? "wasm-freestanding" : entryOrFile.mode;
   const dir = mkdtempSync(join(tmpdir(), "bpl-wasm-sweep-"));
   const wasmPath = join(dir, "main.wasm");
+  const buildArgs = [
+    BPL_CLI,
+    "build",
+    resolve(process.cwd(), file),
+    "--target",
+    "wasm32-unknown-unknown",
+    "-o",
+    wasmPath,
+  ];
+
+  if (mode === "wasm-hosted" || mode === "blocked-by-host-api") {
+    buildArgs.push("--wasm-runtime", "host");
+  }
 
   try {
-    const result = spawnSync(
-      "bun",
-      [
-        BPL_CLI,
-        "build",
-        resolve(process.cwd(), file),
-        "--target",
-        "wasm32-unknown-unknown",
-        "-o",
-        wasmPath,
-      ],
-      {
-        cwd: process.cwd(),
-        encoding: "utf-8",
-        env: { ...process.env, NO_COLOR: "1" },
-        maxBuffer: 1024 * 1024 * 16,
-      },
-    );
+    const result = spawnSync("bun", buildArgs, {
+      cwd: process.cwd(),
+      encoding: "utf-8",
+      env: { ...process.env, NO_COLOR: "1" },
+      maxBuffer: 1024 * 1024 * 16,
+    });
 
-    return classifyWasmBuildResult({
+    const classification = classifyWasmBuildResult({
       status: result.status,
       stdout: result.stdout,
       stderr: result.stderr,
     });
+
+    if (classification !== "ok" || !existsSync(wasmPath)) {
+      return { classification, imports: [] };
+    }
+
+    const module = new WebAssembly.Module(readFileSync(wasmPath));
+    const imports = WebAssembly.Module.imports(module).map(
+      (imported) => imported.name,
+    );
+    return { classification, imports };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -154,24 +200,69 @@ function buildWasmExample(file: string): WasmBuildClassification {
 describe("WebAssembly compatibility sweep", () => {
   const standaloneWasmLinker = findStandaloneWasmLinker();
   const wasmIt = standaloneWasmLinker ? it : it.skip;
+  const requireWasmLinker = /^(1|true)$/i.test(
+    process.env.BPL_REQUIRE_WASM_LD ?? "",
+  );
 
-  it("discovers all example entrypoints and tracks known wasm-compatible examples", () => {
+  it("has a standalone wasm linker when required by CI", () => {
+    if (requireWasmLinker && !standaloneWasmLinker) {
+      throw new Error(
+        [
+          "BPL_REQUIRE_WASM_LD=1 requires a wasm linker.",
+          `Checked candidates: ${WASM_LINKER_CANDIDATES.join(", ")}`,
+          "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
+        ].join("\n"),
+      );
+    }
+  });
+
+  it("discovers all example entrypoints and validates the wasm compatibility matrix", () => {
     const examples = findExampleEntrypoints();
+    const matrixFiles = new Set<string>();
+    const modes = new Set<WasmCompatibilityMode>();
 
     expect(examples.length).toBeGreaterThan(100);
-    for (const file of KNOWN_WASM_COMPATIBLE) {
-      expect(examples).toContain(file);
+    for (const entry of WASM_COMPATIBILITY_MATRIX) {
+      expect(entry.reason.length).toBeGreaterThan(10);
+      expect(examples).toContain(entry.file);
+      expect(matrixFiles.has(entry.file)).toBe(false);
+      matrixFiles.add(entry.file);
+      modes.add(entry.mode);
+    }
+
+    for (const mode of EXPECTED_MODES) {
+      expect(modes.has(mode)).toBe(true);
+    }
+
+    for (const file of examples.filter((example) =>
+      example.split("/").some((part) => part.startsWith("wasm_")),
+    )) {
+      expect(matrixFiles.has(file)).toBe(true);
     }
   });
 
   wasmIt("builds the wasm-compatible example set and classifies representative unsupported examples", () => {
-    for (const file of KNOWN_WASM_COMPATIBLE) {
-      expect(buildWasmExample(file)).toBe("ok");
+    for (const entry of [
+      ...WASM_FREESTANDING_EXAMPLES,
+      ...WASM_HOSTED_EXAMPLES,
+    ]) {
+      expect(buildWasmExample(entry).classification).toBe("ok");
     }
 
-    expect(buildWasmExample("examples/stdlib_fs/main.bpl")).toBe("host-api");
-    expect(buildWasmExample("examples/asm_test/main.bpl")).toBe(
-      "target-specific-source",
-    );
+    for (const entry of WASM_COMPATIBILITY_MATRIX) {
+      if (entry.mode === "blocked-by-host-api") {
+        const result = buildWasmExample(entry);
+        expect(["host-api", "ok"]).toContain(result.classification);
+        if (result.classification === "ok") {
+          expect(
+            result.imports.some((importName) => HOST_API_IMPORTS.has(importName)),
+          ).toBe(true);
+        }
+      } else if (entry.mode === "native-only") {
+        expect(buildWasmExample(entry).classification).toBe(
+          "target-specific-source",
+        );
+      }
+    }
   }, 60_000);
 });

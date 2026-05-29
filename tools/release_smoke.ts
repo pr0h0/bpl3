@@ -146,8 +146,16 @@ function runPackedPackageSmoke(): void {
       "package.json",
       "README.md",
       "LICENSE",
+      "completions/_bpl",
+      "completions/bpl-completion.bash",
+      "docs/39-compiler-options.md",
+      "docs/60-compiler-correctness.md",
+      "examples/wasm_control_flow/test_config.json",
+      "examples/wasm_hosted_io/test_config.json",
       "grammar/grammar.bpl",
       "lib/runtime.ll",
+      "lib/runtime_wasm.ll",
+      "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
     ]);
     assertPackedFileAllowlist(packEntry);
@@ -233,6 +241,8 @@ function assertReleaseManifest(manifest: {
   for (const artifactPath of [
     process.platform === "win32" ? "bpl.exe" : "bpl",
     "lib/runtime.ll",
+    "lib/runtime_wasm.ll",
+    "lib/runtime_wasm_host.ll",
     "lib/runtime_support.o",
   ]) {
     const artifact = artifactsByPath.get(artifactPath);
@@ -493,14 +503,18 @@ function assertPackedFileAllowlist(packEntry: NpmPackEntry): void {
     "README.md",
     "LICENSE",
   ];
-  const allowedPrefixes = ["completions/", "grammar/", "lib/"];
+  const allowedPrefixes = [
+    "completions/",
+    "docs/",
+    "examples/",
+    "grammar/",
+    "lib/",
+  ];
   const forbiddenPrefixes = [
     ".github/",
     ".worktrees/",
     "benchmark/",
     "compiler/",
-    "docs/",
-    "examples/",
     "fuzz/",
     "node_modules/",
     "playground/",

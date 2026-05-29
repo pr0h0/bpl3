@@ -68,6 +68,16 @@ export function createReleaseManifest(
     artifactFor(repoRoot, join(repoRoot, "lib", "runtime.ll"), "runtime"),
     artifactFor(
       repoRoot,
+      join(repoRoot, "lib", "runtime_wasm.ll"),
+      "runtime",
+    ),
+    artifactFor(
+      repoRoot,
+      join(repoRoot, "lib", "runtime_wasm_host.ll"),
+      "runtime",
+    ),
+    artifactFor(
+      repoRoot,
       join(repoRoot, "lib", "runtime_support.o"),
       "runtime",
     ),

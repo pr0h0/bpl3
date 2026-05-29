@@ -27,6 +27,8 @@ describe("Release metadata", () => {
         "bpl",
         "bpl-wrapper.sh",
         "completions",
+        "docs",
+        "examples",
         "grammar",
         "lib",
         "README.md",
@@ -72,6 +74,14 @@ describe("Release metadata", () => {
       writeFileSync(join(tempRoot, "bpl"), "standalone compiler\n");
       writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
       writeFileSync(
+        join(tempRoot, "lib", "runtime_wasm.ll"),
+        "wasm runtime ir\n",
+      );
+      writeFileSync(
+        join(tempRoot, "lib", "runtime_wasm_host.ll"),
+        "wasm host runtime ir\n",
+      );
+      writeFileSync(
         join(tempRoot, "lib", "runtime_support.o"),
         "runtime support\n",
       );
@@ -108,6 +118,12 @@ describe("Release metadata", () => {
       );
       expect(byPath.get("lib/runtime.ll")?.sha256).toBe(
         createHash("sha256").update("runtime ir\n").digest("hex"),
+      );
+      expect(byPath.get("lib/runtime_wasm.ll")?.sha256).toBe(
+        createHash("sha256").update("wasm runtime ir\n").digest("hex"),
+      );
+      expect(byPath.get("lib/runtime_wasm_host.ll")?.sha256).toBe(
+        createHash("sha256").update("wasm host runtime ir\n").digest("hex"),
       );
       expect(byPath.get("lib/runtime_support.o")?.sha256).toBe(
         createHash("sha256").update("runtime support\n").digest("hex"),

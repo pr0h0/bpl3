@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["host:alpha", "!", "host stderr"],
+  "args": ["alpha", "beta"],
+  "env": {},
+  "input": ""
+}

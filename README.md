@@ -115,7 +115,8 @@ bun run release:manifest
 ```
 
 The release check builds and tests the standalone compiler, packed CLI, runtime
-artifacts, shell completions, and VS Code extension. The manifest command writes
+artifacts, wasm runtime shims, shell completions, documentation, example
+configs, and VS Code extension. The manifest command writes
 `dist/release-manifest.json` with SHA-256 checksums for shipped artifacts.
 
 ## 🚀 Quick Start
@@ -815,6 +816,7 @@ bun run test:correctness
 
 # Run standalone and hosted WebAssembly runtime coverage
 bun run test:wasm
+# CI sets BPL_REQUIRE_WASM_LD=1 so this fails instead of skipping when wasm-ld is missing.
 
 # Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
 # safe programs and checked failure paths under ASan/UBSan; local toolchains

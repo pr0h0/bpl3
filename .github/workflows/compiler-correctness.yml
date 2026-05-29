@@ -101,11 +101,31 @@ jobs:
           brew install llvm
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
 
+      - name: Install WebAssembly linker (macOS Apple clang)
+        if: matrix.toolchain == 'macos-apple-clang'
+        run: brew install llvm
+
+      - name: Configure WebAssembly linker
+        shell: bash
+        run: |
+          if command -v wasm-ld >/dev/null 2>&1; then
+            echo "WASM_LD=$(command -v wasm-ld)" >> "$GITHUB_ENV"
+          elif command -v wasm-ld-18 >/dev/null 2>&1; then
+            echo "WASM_LD=$(command -v wasm-ld-18)" >> "$GITHUB_ENV"
+          elif command -v ld.lld >/dev/null 2>&1; then
+            echo "WASM_LD=$(command -v ld.lld)" >> "$GITHUB_ENV"
+          elif [ -x "$(brew --prefix llvm 2>/dev/null)/bin/wasm-ld" ]; then
+            echo "WASM_LD=$(brew --prefix llvm)/bin/wasm-ld" >> "$GITHUB_ENV"
+          else
+            echo "wasm-ld is required for compiler correctness CI"
+            exit 1
+          fi
+
       - name: Show selected toolchain
         run: |
           "$CC" --version
           clang --version
-          wasm-ld --version || wasm-ld-18 --version || true
+          "$WASM_LD" --version
 
       - name: Install dependencies
         run: |
@@ -115,6 +135,11 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Run WebAssembly runtime tests
+        env:
+          BPL_REQUIRE_WASM_LD: "1"
+        run: bun run test:wasm
+
       - name: Run CI-safe test suite
         if: matrix.ci_safe == true
         env:
@@ -122,6 +147,8 @@ jobs:
         run: bun run test:ci
 
       - name: Run compiler correctness tests
+        env:
+          BPL_REQUIRE_WASM_LD: "1"
         run: bun run test:correctness
 
       - name: Validate saved fuzz failure artifacts

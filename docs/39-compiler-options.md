@@ -475,10 +475,11 @@ Use `--wasm-runtime host` when the module should communicate with a browser,
 WASI-style adapter, or test harness. Hosted wasm imports `env.__bpl_host_write`,
 `env.__bpl_host_exit`, `env.__bpl_host_argc`, `env.__bpl_host_argv_len`,
 `env.__bpl_host_argv_copy`, and `env.__bpl_host_error`. The host adapter routes
-basic `printf`/`puts`/`putchar`, argv access, `exit`, and checked BPL runtime
-errors through those imports. `wasm32-wasi` and Emscripten-flavored target
-triples select hosted mode by default; `wasm32-unknown-unknown` stays
-freestanding unless `--wasm-runtime host` is provided.
+basic `printf`/`dprintf`/`write`/`puts`/`putchar`, argv access, `exit`, and
+checked BPL runtime errors through those imports. `wasm32-wasi` and
+Emscripten-flavored target triples select hosted mode by default;
+`wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
+provided.
 
 Programs that depend on full operating-system APIs such as files, sockets,
 process calls, or platform-specific inline assembly still need a richer
@@ -488,7 +489,13 @@ The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`,
 `examples/wasm_memory_strings`, `examples/wasm_memory_intrinsics`,
 `examples/wasm_stdlib_array`, and `examples/wasm_stdlib_bitset` examples are
 intentionally portable: they run as native x86_64 programs and as standalone
-`wasm32-unknown-unknown` modules.
+`wasm32-unknown-unknown` modules. `examples/wasm_hosted_io` covers the hosted
+mode and remains native-compatible; wasm tests execute it with host-provided
+argv, stdout, stderr, and stdlib `String` support.
+
+The compatibility matrix in `tests/helpers/wasmCompatibilityMatrix.ts` is the
+source of truth for CI. Each tracked example is marked as `wasm-freestanding`,
+`wasm-hosted`, `blocked-by-host-api`, or `native-only`.
 
 ## Complete Examples
 

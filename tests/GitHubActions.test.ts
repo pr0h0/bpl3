@@ -103,10 +103,17 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain(
       "sudo apt-get install -y clang llvm lld libclang-rt-dev clang-18 llvm-18 lld-18 libclang-rt-18-dev",
     );
-    expect(workflow).toContain(
+    expect(workflow).toContain("Install WebAssembly linker (macOS Apple clang)");
+    expect(workflow).toContain("Configure WebAssembly linker");
+    expect(workflow).toContain("WASM_LD=$(command -v wasm-ld)");
+    expect(workflow).toContain('"$WASM_LD" --version');
+    expect(workflow).not.toContain(
       "wasm-ld --version || wasm-ld-18 --version || true",
     );
     expect(workflow).toContain("brew install llvm");
+    expect(workflow).toContain("Run WebAssembly runtime tests");
+    expect(workflow).toContain('BPL_REQUIRE_WASM_LD: "1"');
+    expect(workflow).toContain("bun run test:wasm");
     expect(workflow).toContain("Run CI-safe test suite");
     expect(workflow).toContain("if: matrix.ci_safe == true");
     expect(workflow).toContain("Validate saved fuzz failure artifacts");

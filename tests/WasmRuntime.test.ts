@@ -3,6 +3,10 @@ import { spawnSync } from "child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import {
+  WASM_FREESTANDING_EXAMPLES,
+  WASM_HOSTED_EXAMPLES,
+} from "./helpers/wasmCompatibilityMatrix";
 
 const BPL_CLI = resolve(__dirname, "../index.ts");
 const WASM_LINKER_CANDIDATES = [
@@ -21,35 +25,34 @@ interface WasmExampleCase {
   file: string;
   expectedReturn: number;
 }
+interface HostedWasmExampleCase extends WasmExampleCase {
+  argv: string[];
+  expectedStdout: string;
+  expectedStderr: string;
+}
 interface CompileWasmOptions {
   target?: string;
   wasmRuntime?: "freestanding" | "host";
   imports?: WasmImportObject;
 }
 
-const WASM_EXAMPLE_CORPUS: WasmExampleCase[] = [
-  { file: "examples/bug_043_lambda_inference/main.bpl", expectedReturn: 0 },
-  { file: "examples/bug_044_generic_recursion/main.bpl", expectedReturn: 0 },
-  { file: "examples/enum_complex_match/main.bpl", expectedReturn: 99 },
-  { file: "examples/enum_exhaustiveness/main.bpl", expectedReturn: 27 },
-  { file: "examples/enum_imports/wildcard/main.bpl", expectedReturn: 100 },
-  { file: "examples/enum_imports_wildcard/main.bpl", expectedReturn: 100 },
-  { file: "examples/enum_methods_simple/main.bpl", expectedReturn: 0 },
-  { file: "examples/enum_mixed_variants/main.bpl", expectedReturn: 33 },
-  { file: "examples/enum_struct_variants/main.bpl", expectedReturn: 58 },
-  { file: "examples/enum_test/all_variants/main.bpl", expectedReturn: 6 },
-  { file: "examples/enum_test/data_variants/main.bpl", expectedReturn: 0 },
-  { file: "examples/enum_test/enum_return/main.bpl", expectedReturn: 2 },
-  { file: "examples/enum_test/simple_tuple/main.bpl", expectedReturn: 0 },
-  { file: "examples/enum_test/unit_only/main.bpl", expectedReturn: 0 },
-  { file: "examples/lint_test/main.bpl", expectedReturn: 0 },
-  { file: "examples/wasm_control_flow/main.bpl", expectedReturn: 0 },
-  { file: "examples/wasm_lambdas_generics/main.bpl", expectedReturn: 0 },
-  { file: "examples/wasm_memory_strings/main.bpl", expectedReturn: 0 },
-  { file: "examples/wasm_memory_intrinsics/main.bpl", expectedReturn: 0 },
-  { file: "examples/wasm_stdlib_array/main.bpl", expectedReturn: 0 },
-  { file: "examples/wasm_stdlib_bitset/main.bpl", expectedReturn: 0 },
-];
+const WASM_EXAMPLE_CORPUS: WasmExampleCase[] = WASM_FREESTANDING_EXAMPLES.map(
+  (entry) => ({
+    file: entry.file,
+    expectedReturn: entry.expectedReturn ?? 0,
+  }),
+);
+const HOSTED_WASM_EXAMPLE_CORPUS: HostedWasmExampleCase[] =
+  WASM_HOSTED_EXAMPLES.map((entry) => ({
+    file: entry.file,
+    expectedReturn: entry.expectedReturn ?? 0,
+    argv: entry.argv ?? [],
+    expectedStdout: entry.expectedStdout ?? "",
+    expectedStderr: entry.expectedStderr ?? "",
+  }));
+const REQUIRE_WASM_LINKER = /^(1|true)$/i.test(
+  process.env.BPL_REQUIRE_WASM_LD ?? "",
+);
 
 function findStandaloneWasmLinker(): string | undefined {
   return WASM_LINKER_CANDIDATES.find((candidate) => {
@@ -244,6 +247,18 @@ function getMain(exports: WasmExports): MainExport {
 }
 
 describe("WebAssembly runtime execution", () => {
+  it("has a standalone wasm linker when required by CI", () => {
+    if (REQUIRE_WASM_LINKER && !standaloneWasmLinker) {
+      throw new Error(
+        [
+          "BPL_REQUIRE_WASM_LD=1 requires a wasm linker.",
+          `Checked candidates: ${WASM_LINKER_CANDIDATES.join(", ")}`,
+          "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
+        ].join("\n"),
+      );
+    }
+  });
+
   wasmIt("executes exported main from a standalone wasm artifact", async () => {
     const exports = await compileWasmSource(`
 frame main() ret int {
@@ -451,8 +466,45 @@ frame main() ret int {
     );
     host.attach(exports);
 
-    expect(() => getMain(exports)(0, 0)).toThrow(WasmExit);
+    let exitCode: number | undefined;
+    try {
+      getMain(exports)(0, 0);
+    } catch (error) {
+      expect(error).toBeInstanceOf(WasmExit);
+      exitCode = (error as WasmExit).code;
+    }
+    expect(exitCode).toBe(7);
     expect(host.stdout()).toBe("hello wasm\n!");
+  });
+
+  wasmIt("routes hosted wasm stdout and stderr through fd-based imports", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern dprintf(fd: int, fmt: string, ...) ret int;
+extern write(fd: int, buf: *char, count: int) ret int;
+
+frame main() ret int {
+    local bang: char = '!';
+    local outLen: int = dprintf(1, "stdout line\\n");
+    local errLen: int = dprintf(2, "stderr line\\n");
+    write(1, &bang, 1);
+    if (outLen != 12) {
+        return 1;
+    }
+    if (errLen != 12) {
+        return 2;
+    }
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("stdout line\n!");
+    expect(host.stderr()).toBe("stderr line\n");
   });
 
   wasmIt("routes hosted wasm args through host imports", async () => {
@@ -483,6 +535,35 @@ frame main() ret int {
     expect(getMain(exports)(0, 0)).toBe(0);
   });
 
+  wasmIt("runs hosted wasm argv through stdlib String helpers", async () => {
+    const host = createHostImports(["program", "alpha", "beta"]);
+    const exports = await compileWasmSource(
+      `
+import [String] from "std/string.bpl";
+
+extern __bpl_argc() ret int;
+extern __bpl_argv_get(index: int) ret string;
+
+frame main() ret int {
+    if (__bpl_argc() != 3) {
+        return 10;
+    }
+
+    local first: String = String.new(__bpl_argv_get(1));
+    local second: String = String.new(__bpl_argv_get(2));
+    local result: int = first.length * 10 + second.length;
+    first.destroy();
+    second.destroy();
+    return result;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(54);
+  });
+
   wasmIt("routes checked runtime failures to wasm traps", async () => {
     const exports = await compileWasmSource(`
 frame main() ret int {
@@ -511,6 +592,63 @@ frame main() ret int {
     expect(host.errors[0]?.code).toBe(3);
     expect(host.errors[0]?.func).toBe("main");
   });
+
+  for (const testCase of [
+    {
+      name: "null access",
+      code: 2,
+      source: `
+struct Pair {
+    left: int,
+}
+
+frame main() ret int {
+    local pair: *Pair = nullptr;
+    return pair.left;
+}
+`,
+    },
+    {
+      name: "index out of bounds",
+      code: 5,
+      source: `
+frame main() ret int {
+    local values: int[2] = [10, 20];
+    return values[2];
+}
+`,
+    },
+  ]) {
+    wasmIt(`reports hosted wasm checked ${testCase.name} errors`, async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(testCase.source, {
+        wasmRuntime: "host",
+        imports: host.imports,
+      });
+      host.attach(exports);
+
+      expect(() => getMain(exports)(0, 0)).toThrow(WebAssembly.RuntimeError);
+      expect(host.errors[0]?.code).toBe(testCase.code);
+      expect([host.errors[0]?.detail, host.errors[0]?.func]).toContain(
+        testCase.name === "null access" ? "pair.left" : "main",
+      );
+    });
+  }
+
+  for (const testCase of HOSTED_WASM_EXAMPLE_CORPUS) {
+    wasmIt(`executes hosted wasm-compatible example: ${testCase.file}`, async () => {
+      const host = createHostImports(testCase.argv);
+      const exports = await compileWasmFile(resolve(process.cwd(), testCase.file), {
+        wasmRuntime: "host",
+        imports: host.imports,
+      });
+      host.attach(exports);
+
+      expect(getMain(exports)(0, 0)).toBe(testCase.expectedReturn);
+      expect(host.stdout()).toBe(testCase.expectedStdout);
+      expect(host.stderr()).toBe(testCase.expectedStderr);
+    });
+  }
 
   for (const testCase of WASM_EXAMPLE_CORPUS) {
     wasmIt(
