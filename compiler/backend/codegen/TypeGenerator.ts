@@ -1323,6 +1323,20 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           return this.applyArrayDimensions(llvmType, arrDiff);
         }
 
+        if (
+          basicType.isPointerToArray &&
+          basicType.pointerDepth > 0 &&
+          basicType.arrayDimensions.length > 0
+        ) {
+          const pointeeType: AST.BasicTypeNode = {
+            ...basicType,
+            pointerDepth: basicType.pointerDepth - 1,
+            isPointerToArray: false,
+          };
+          const pointeeLlvmType = this.resolveType(pointeeType);
+          return `${pointeeLlvmType}*`;
+        }
+
         // Check for aliasDeclaration (from TypeChecker) to preserve alias structure (e.g. pointer to array)
         if (
           basicType.aliasDeclaration &&

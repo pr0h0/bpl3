@@ -20,33 +20,33 @@ describe("Compiler correctness seeded differential corpus", () => {
     ).toEqual([
       {
         seed: 10,
-        family: "arithmetic-loop",
-        name: "seed 10 arithmetic-loop",
+        family: "lambda-capture",
+        name: "seed 10 lambda-capture",
       },
       {
         seed: 11,
-        family: "struct-array",
-        name: "seed 11 struct-array",
+        family: "pointer-array",
+        name: "seed 11 pointer-array",
       },
       {
         seed: 12,
-        family: "enum-match",
-        name: "seed 12 enum-match",
+        family: "arithmetic-loop",
+        name: "seed 12 arithmetic-loop",
       },
       {
         seed: 13,
-        family: "generic-branch",
-        name: "seed 13 generic-branch",
+        family: "struct-array",
+        name: "seed 13 struct-array",
       },
       {
         seed: 14,
-        family: "lambda-capture",
-        name: "seed 14 lambda-capture",
+        family: "enum-match",
+        name: "seed 14 enum-match",
       },
       {
         seed: 15,
-        family: "arithmetic-loop",
-        name: "seed 15 arithmetic-loop",
+        family: "generic-branch",
+        name: "seed 15 generic-branch",
       },
     ]);
     expect(new Set(programs.map((program) => program.source)).size).toBe(

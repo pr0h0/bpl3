@@ -452,8 +452,9 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     objType: AST.BasicTypeNode,
     skipNullObjectCheck: boolean,
   ): string {
-    // For pointer-to-array like [10 x i32]*
-    // Load the pointer, then GEP with 0 and the index
+    // For pointer-to-array like [10 x i32]*, ptr[index] indexes inside the
+    // pointed-to array. Use pointer arithmetic plus explicit dereference to
+    // step between multiple adjacent arrays: (*(ptr + row))[col].
     const ptrReg = this.newRegister();
     const ptrType = this.resolveType(objType);
     this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
@@ -470,9 +471,16 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
 
     // Get the underlying array type (remove the trailing *)
     const arrayType = ptrType.slice(0, -1); // Remove trailing *
-    const _elemType = this.resolveType(indexExpr.resolvedType!);
+    const match = arrayType.match(/^\[(\d+) x/);
+    if (match) {
+      this.emitBoundsCheck(
+        indexVal,
+        parseInt(match[1]!, 10),
+        indexExpr.location,
+      );
+    }
+
     const addr = this.newRegister();
-    // GEP with 0 to dereference the pointer, then index into the array
     this.emit(
       `  ${addr} = getelementptr inbounds ${arrayType}, ${ptrType} ${ptrReg}, i64 0, i64 ${indexVal}`,
     );

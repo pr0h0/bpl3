@@ -58,6 +58,7 @@ const SEEDED_DIFFERENTIAL_FAMILIES = [
   "enum-match",
   "generic-branch",
   "lambda-capture",
+  "pointer-array",
 ] as const;
 
 export type SeededDifferentialFamily =
@@ -528,6 +529,56 @@ function generateLambdaCaptureProgram(
   };
 }
 
+function generatePointerArrayProgram(
+  seed: number,
+  rng: () => number,
+): Pick<SeededDifferentialProgram, "source" | "expectedStdout"> {
+  const values = Array.from({ length: 6 }, () => nextInt(rng, 1, 9));
+  const row = nextInt(rng, 0, 1);
+  const col = nextInt(rng, 0, 2);
+  const replacement = nextInt(rng, 20, 60);
+  const matrix = [
+    values.slice(0, 3),
+    values.slice(3, 6),
+  ];
+  matrix[row]![col] = replacement;
+  const diagonal = matrix[0]![0]! + matrix[1]![2]!;
+
+  return {
+    expectedStdout: `seed=${seed} family=pointer-array cell=${replacement} diag=${diagonal}\n`,
+    source: `
+      extern printf(fmt: string, ...);
+
+      type IntArray = int[3];
+
+      frame writeCell(rows: *IntArray, row: int, col: int, value: int) {
+        (*(rows + row))[col] = value;
+      }
+
+      frame readCell(rows: *IntArray, row: int, col: int) ret int {
+        return (*(rows + row))[col];
+      }
+
+      frame main() ret int {
+        local matrix: int[2][3] = [
+          [${values.slice(0, 3).join(", ")}],
+          [${values.slice(3, 6).join(", ")}],
+        ];
+        local rows: *IntArray = &matrix[0];
+
+        writeCell(rows, ${row}, ${col}, ${replacement});
+        printf(
+          "seed=%d family=pointer-array cell=%d diag=%d\\n",
+          ${seed},
+          readCell(rows, ${row}, ${col}),
+          matrix[0][0] + matrix[1][2],
+        );
+        return 0;
+      }
+    `,
+  };
+}
+
 function generateSeededDifferentialProgram(
   seed: number,
 ): SeededDifferentialProgram {
@@ -545,7 +596,9 @@ function generateSeededDifferentialProgram(
           ? generateEnumMatchProgram(seed, rng)
           : family === "generic-branch"
             ? generateGenericBranchProgram(seed, rng)
-            : generateLambdaCaptureProgram(seed, rng);
+            : family === "lambda-capture"
+              ? generateLambdaCaptureProgram(seed, rng)
+              : generatePointerArrayProgram(seed, rng);
 
   return {
     seed,

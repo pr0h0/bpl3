@@ -116,6 +116,29 @@ describe("Compiler correctness corpus", () => {
           }
         `,
         },
+        {
+          name: "pointer-to-array row arithmetic",
+          expectedStdout: "cell=42\n",
+          validateLlvm: true,
+          source: `
+          extern printf(fmt: string, ...);
+
+          type IntArray = int[3];
+
+          frame readCell(rows: *IntArray, row: int, col: int) ret int {
+            return (*(rows + row))[col];
+          }
+
+          frame main() ret int {
+            local matrix: int[2][3];
+            matrix[1][2] = 42;
+
+            local rows: *IntArray = &matrix[0];
+            printf("cell=%d\\n", readCell(rows, 1, 2));
+            return 0;
+          }
+        `,
+        },
       ]);
 
       expect(results.map((result) => result.name)).toEqual([
@@ -124,6 +147,7 @@ describe("Compiler correctness corpus", () => {
         "lambda capture",
         "short-circuit and ternary",
         "explicit generic function",
+        "pointer-to-array row arithmetic",
       ]);
     },
     60000,

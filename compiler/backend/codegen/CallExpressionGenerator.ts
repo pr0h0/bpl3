@@ -1841,7 +1841,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           }
         }
 
-        if (srcType.startsWith("[") && destType.endsWith("*")) {
+        if (
+          srcType.startsWith("[") &&
+          !srcType.endsWith("*") &&
+          destType.endsWith("*")
+        ) {
           if (
             arg.kind === "Identifier" ||
             arg.kind === "Member" ||

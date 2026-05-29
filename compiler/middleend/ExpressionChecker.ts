@@ -777,6 +777,9 @@ export function checkUnary(
         ...operandType,
         pointerDepth: operandType.pointerDepth + 1,
       };
+      if (operandType.arrayDimensions.length > 0) {
+        result.isPointerToArray = true;
+      }
 
       // Attach resolvedDeclaration if operand is a variable/parameter
       // This helps TypeGenerator reconstruct complex types like pointer-to-array
@@ -915,7 +918,7 @@ export function checkArrayLiteral(
   if (firstType && firstType.kind === "BasicType") {
     return {
       ...firstType,
-      arrayDimensions: [...firstType.arrayDimensions, expr.elements.length],
+      arrayDimensions: [expr.elements.length, ...firstType.arrayDimensions],
     };
   }
   return undefined;

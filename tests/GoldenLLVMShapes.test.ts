@@ -153,4 +153,26 @@ describe("Golden LLVM Shape Checks", () => {
     expect(ir).toMatch(/getelementptr inbounds i32|getelementptr i32/);
     expect(ir).not.toMatch(/call .*index/i);
   });
+
+  it("passes pointer-to-array aliases as row pointers without array decay", () => {
+    const ir = compileToLLVM(`
+      type IntArray = int[3];
+
+      frame readCell(rows: *IntArray, row: int, col: int) ret int {
+        return (*(rows + row))[col];
+      }
+
+      frame main() ret int {
+        local matrix: int[2][3];
+        local rows: *IntArray = &matrix[0];
+        return readCell(rows, 1, 2);
+      }
+    `);
+
+    expect(ir).toMatch(/define i32 @readCell_[^(]+\(\[3 x i32\]\* %rows/);
+    expect(ir).toMatch(/call i32 @readCell_[^(]+\(\[3 x i32\]\* %\d+/);
+    expect(ir).not.toMatch(
+      /getelementptr inbounds \[3 x i32\]\*, \[3 x i32\]\*\* %rows_ptr/,
+    );
+  });
 });

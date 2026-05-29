@@ -48,4 +48,21 @@ describe("CodeGen - Raw Pointer Inbounds Semantics", () => {
     expect(ir).toMatch(/getelementptr i32, i32\* %[^,]+, i64 %/);
     expect(ir).not.toMatch(/getelementptr inbounds i32, i32\* %[^,]+, i64 %/);
   });
+
+  it("does not mark unchecked pointer-to-array row arithmetic as inbounds", () => {
+    const ir = generateIr(`
+      type IntArray = int[3];
+
+      frame readCell(rows: *IntArray, row: int, col: int) ret int {
+        return (*(rows + row))[col];
+      }
+    `);
+
+    expect(ir).toMatch(
+      /getelementptr \[3 x i32\], \[3 x i32\]\* %[^,]+, i64 %/,
+    );
+    expect(ir).not.toMatch(
+      /getelementptr inbounds \[3 x i32\], \[3 x i32\]\* %[^,]+, i64 %/,
+    );
+  });
 });

@@ -7,6 +7,34 @@ import { TokenType } from "../frontend/TokenType";
 import { TypeUtils } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 
+function withoutAliasShape(type: AST.BasicTypeNode): AST.BasicTypeNode {
+  const result = { ...type };
+  delete result.aliasDeclaration;
+  delete result.variableDeclaration;
+  return result;
+}
+
+function getPointerToAliasedArrayElementType(
+  context: CheckerContext,
+  type: AST.BasicTypeNode,
+): AST.BasicTypeNode | undefined {
+  if (!type.aliasDeclaration || type.pointerDepth === 0) return undefined;
+
+  const aliasedType = context.resolveType(type.aliasDeclaration.type);
+  const pointsToAliasedArray =
+    aliasedType.kind === "BasicType" &&
+    aliasedType.arrayDimensions.length > 0 &&
+    type.pointerDepth > aliasedType.pointerDepth;
+
+  if (!pointsToAliasedArray) return undefined;
+
+  return withoutAliasShape({
+    ...aliasedType,
+    arrayDimensions: aliasedType.arrayDimensions.slice(1),
+    location: type.location,
+  });
+}
+
 /**
  * Check a call expression
  */
@@ -1085,6 +1113,20 @@ export function checkIndex(
 
   if (!objectType) return undefined;
 
+  if (
+    objectType.kind === "BasicType" &&
+    getPointerToAliasedArrayElementType(this, objectType)
+  ) {
+    if (indexType && !TypeUtils.isIntegerType(indexType)) {
+      throw new CompilerError(
+        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
+        "Ensure the index expression evaluates to an integer.",
+        expr.index.location,
+      );
+    }
+    return getPointerToAliasedArrayElementType(this, objectType);
+  }
+
   // Handle array indexing
   if (
     "arrayDimensions" in objectType &&
@@ -1100,6 +1142,9 @@ export function checkIndex(
     }
     const innerType = { ...objectType };
     innerType.arrayDimensions = innerType.arrayDimensions!.slice(1);
+    if (innerType.kind === "BasicType") {
+      return withoutAliasShape(innerType);
+    }
     return innerType;
   }
 
