@@ -1,10 +1,11 @@
 # Compiler Correctness and Fuzz Triage
 
 BPL treats compiler correctness as a release gate. The dedicated correctness
-suite compares runtime behavior at `-O0` and `-O3`, validates emitted LLVM IR,
-runs promoted fuzz regressions, and exercises representative programs with
-sanitizer-backed native binaries when the host toolchain supports them. Checked
-runtime failures such as null access, division by zero, bounds errors, and stack
+suite compares runtime behavior at `-O0` and `-O3`, validates emitted LLVM IR
+with the strongest available verifier, runs promoted fuzz regressions, and
+exercises representative programs with sanitizer-backed native binaries when the
+host toolchain supports them. Checked runtime failures such as null access,
+division by zero, signed integer division overflow, bounds errors, and stack
 overflow are part of the correctness surface; optimized builds must preserve the
 same BPL-level failure category as debug builds.
 
@@ -74,10 +75,16 @@ Modes:
 - `typecheck` stops after semantic checks.
 - `codegen` runs LLVM generation without executing the program.
 - `runtime` compiles and runs at `-O0`.
-- `differential` compares `-O0` and `-O3` runtime behavior. For checked BPL
-  runtime failures it compares the failure category instead of raw stack-trace
-  text, because native addresses vary between runs.
+- `differential` verifies emitted LLVM IR, then compares `-O0` and `-O3`
+  runtime behavior. For checked BPL runtime failures it compares the failure
+  category instead of raw stack-trace text, because native addresses vary
+  between runs.
 - `sanitizer` compiles and runs with `-fsanitize=address,undefined`.
+
+LLVM verification prefers `opt -passes=verify`, then `llvm-as`, then `llc`, and
+falls back to clang object compilation when dedicated LLVM tools are not
+available. This catches malformed generated IR before native linking hides the
+problem behind a broader compile failure.
 
 The default replay behavior still validates that an artifact reproduces its
 recorded failure signature:

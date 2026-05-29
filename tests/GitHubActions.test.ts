@@ -124,6 +124,9 @@ describe("GitHub Actions workflows", () => {
       "CompilerRuntimeFailureSemantics.test.ts",
     );
     expect(packageJson.scripts["test:correctness"]).toContain(
+      "LlvmVerifier.test.ts",
+    );
+    expect(packageJson.scripts["test:correctness"]).toContain(
       "FuzzFailureArtifactCorpus.test.ts",
     );
     expect(packageJson.scripts["test:sanitizers"]).toContain(

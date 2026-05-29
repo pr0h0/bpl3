@@ -20,6 +20,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @.str.box_null = private unnamed_addr constant [25 x i8] c"NULL POINTER ACCESS     \00", align 1
 @.str.box_stack = private unnamed_addr constant [25 x i8] c"STACK OVERFLOW          \00", align 1
 @.str.box_divzero = private unnamed_addr constant [25 x i8] c"DIVISION BY ZERO        \00", align 1
+@.str.box_int_overflow = private unnamed_addr constant [25 x i8] c"INTEGER OVERFLOW        \00", align 1
 @.str.box_index = private unnamed_addr constant [25 x i8] c"INDEX OUT OF BOUNDS     \00", align 1
 
 ; --- Error Labels ---
@@ -424,6 +425,7 @@ throw:
 
 @.str.panic_so = private unnamed_addr constant [16 x i8] c"Stack overflow\0A\00", align 1
 @.str.panic_div = private unnamed_addr constant [18 x i8] c"Division by zero\0A\00", align 1
+@.str.panic_int_overflow = private unnamed_addr constant [27 x i8] c"Integer division overflow\0A\00", align 1
 @.str.panic_oob = private unnamed_addr constant [21 x i8] c"Index out of bounds\0A\00", align 1
 
 declare i32 @printf(i8*, ...)
@@ -484,6 +486,25 @@ throw:
   %buf_ptr = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* %handler, i32 0, i32 0
   %buf = bitcast [32 x i64]* %buf_ptr to i8*
   call void @longjmp(i8* %buf, i32 1)
+  unreachable
+}
+
+define linkonce_odr void @__bpl_throw_integer_overflow(i8* %func, i32 %line, i32 %col) #0 {
+  call void @__bpl_print_error_box(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.box_int_overflow, i64 0, i64 0))
+  call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str.panic_int_overflow, i64 0, i64 0))
+
+  %has_func = icmp ne i8* %func, null
+  br i1 %has_func, label %print_func_io, label %print_location_io
+
+print_func_io:
+  call void @__bpl_print_error_detail(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.label_func, i64 0, i64 0), i8* %func)
+  br label %print_location_io
+
+print_location_io:
+  call void @__bpl_print_error_location(i32 %line, i32 %col)
+  call void @__bpl_print_bpl_stack_trace()
+  call void @__bpl_print_stack_trace()
+  call void @exit(i32 1)
   unreachable
 }
 

@@ -17,6 +17,7 @@ import {
   replayFuzzFailureArtifact,
   replayFuzzCrashArtifact,
   runBplDifferentialPipeline,
+  runBplLlvmVerifierPipeline,
   runFuzzCampaign,
   type PipelineOutcome,
 } from "../fuzz/compilerFuzz";
@@ -46,6 +47,7 @@ describe("Compiler fuzz runner", () => {
       .join("\n");
 
     expect(differentialSources).toContain("10 / zero");
+    expect(differentialSources).toContain("min / negativeOne");
     expect(differentialSources).toContain("node.value");
     expect(differentialSources).toContain("values[index]");
   });
@@ -68,6 +70,31 @@ describe("Compiler fuzz runner", () => {
         stage: "codegen",
       });
       expect(outcome.mismatch).toBeUndefined();
+    },
+    60000,
+  );
+
+  test(
+    "verifies generated LLVM IR for differential fuzz inputs",
+    () => {
+      const outcome = runBplLlvmVerifierPipeline(
+        `
+          extern printf(fmt: string, ...);
+
+          frame main() ret int {
+            local value: int = 40 + 2;
+            printf("value=%d\\n", value);
+            return 0;
+          }
+        `,
+        "differential_verifier.bpl",
+      );
+
+      expect(outcome).toMatchObject({
+        ok: true,
+        stage: "codegen",
+      });
+      expect(outcome.message).toBeUndefined();
     },
     60000,
   );

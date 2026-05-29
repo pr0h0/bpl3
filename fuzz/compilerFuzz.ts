@@ -14,6 +14,7 @@ import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
+import { verifyLlvmFile } from "../compiler/common/LlvmVerifier";
 
 export const DEFAULT_MIN_TOKENS = 20;
 export const DEFAULT_MAX_TOKENS = 100;
@@ -629,6 +630,7 @@ const STRUCTURED_GENERATORS = [
 const DIFFERENTIAL_RUNTIME_GENERATORS = [
   generateDifferentialArithmeticSource,
   generateDifferentialDivisionByZeroSource,
+  generateDifferentialIntegerOverflowSource,
   generateDifferentialStructArraySource,
   generateDifferentialNullAccessSource,
   generateDifferentialEnumMatchSource,
@@ -725,6 +727,16 @@ function generateDifferentialDivisionByZeroSource(_rng: () => number): string {
     frame main() ret int {
       local zero: int = 0;
       return 10 / zero;
+    }
+  `;
+}
+
+function generateDifferentialIntegerOverflowSource(_rng: () => number): string {
+  return `
+    frame main() ret int {
+      local min: int = -2147483648;
+      local negativeOne: int = -1;
+      return min / negativeOne;
     }
   `;
 }
@@ -950,7 +962,7 @@ export function generateFuzzInput(
   let source: string;
 
   if (kind === "differential") {
-    source = generateDifferentialRuntimeSource(seed, iteration);
+    source = generateDifferentialRuntimeSource(seed, Math.floor(iteration / 4));
   } else if (kind === "structured") {
     source = generateStructuredValidSource(seed, iteration);
   } else if (kind === "mutated") {
@@ -1379,6 +1391,11 @@ export function runBplDifferentialPipeline(
   source: string,
   filePath: string,
 ): PipelineOutcome {
+  const verifierOutcome = runBplLlvmVerifierPipeline(source, filePath);
+  if (!verifierOutcome.ok) {
+    return verifierOutcome;
+  }
+
   const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-"));
   const sourcePath = join(dir, "main.bpl");
 
@@ -1409,6 +1426,64 @@ export function runBplDifferentialPipeline(
           .filter(Boolean)
           .join("\n"),
       };
+    }
+
+    return { ok: true, stage: "codegen" };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+export function runBplLlvmVerifierPipeline(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-llvm-"));
+  const sourcePath = join(dir, "main.bpl");
+
+  try {
+    writeFileSync(sourcePath, source);
+
+    for (const optimizationLevel of [0, 3] as const) {
+      const irPath = join(dir, `main-O${optimizationLevel}.ll`);
+      const build = runBplBuildLlvmCommand(
+        sourcePath,
+        irPath,
+        dir,
+        optimizationLevel,
+      );
+
+      if (build.exitCode !== 0) {
+        return {
+          ok: false,
+          stage: "codegen",
+          message: [
+            `BPL failed to emit LLVM IR for ${filePath} at -O${optimizationLevel}`,
+            build.stdout ? `stdout:\n${build.stdout}` : "",
+            build.stderr ? `stderr:\n${build.stderr}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        };
+      }
+
+      const verifier = verifyLlvmFile(irPath, { cwd: dir });
+      if (verifier.exitCode !== 0) {
+        return {
+          ok: false,
+          stage: "codegen",
+          message: [
+            `LLVM verifier (${verifier.tool}) rejected ${filePath} at -O${optimizationLevel}`,
+            verifier.args.length > 0
+              ? `command: ${verifier.tool} ${verifier.args.join(" ")}`
+              : "",
+            verifier.stdout ? `stdout:\n${verifier.stdout}` : "",
+            verifier.stderr ? `stderr:\n${verifier.stderr}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        };
+      }
     }
 
     return { ok: true, stage: "codegen" };
@@ -1496,6 +1571,40 @@ function runBplCommand(
   };
 }
 
+function runBplBuildLlvmCommand(
+  sourcePath: string,
+  irPath: string,
+  cwd: string,
+  optimizationLevel: 0 | 3,
+): DifferentialCommandResult {
+  const result = spawnSync(
+    "bun",
+    [
+      BPL_CLI,
+      "build",
+      sourcePath,
+      "-O",
+      String(optimizationLevel),
+      "--emit",
+      "llvm",
+      "-o",
+      irPath,
+    ],
+    {
+      cwd,
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 1024 * 1024 * 16,
+    },
+  );
+
+  return {
+    stdout: String(result.stdout ?? ""),
+    stderr: String(result.stderr ?? result.error?.message ?? ""),
+    exitCode: result.status ?? -1,
+  };
+}
+
 function createMismatch(
   o0: DifferentialCommandResult,
   o3: DifferentialCommandResult,
@@ -1517,6 +1626,7 @@ function createMismatch(
 
 type RuntimeFailureKind =
   | "division-by-zero"
+  | "integer-overflow"
   | "null-access"
   | "index-out-of-bounds"
   | "stack-overflow"
@@ -1558,6 +1668,9 @@ function classifyRuntimeFailure(
 
   if (output.includes("DIVISION BY ZERO")) {
     return { kind: "division-by-zero", stdout: result.stdout };
+  }
+  if (output.includes("INTEGER OVERFLOW")) {
+    return { kind: "integer-overflow", stdout: result.stdout };
   }
   if (output.includes("NULL POINTER ACCESS")) {
     return { kind: "null-access", stdout: result.stdout };

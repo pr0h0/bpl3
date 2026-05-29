@@ -69,6 +69,17 @@ describe("Compiler sanitizer-backed runtime tests", () => {
         `,
       },
       {
+        name: "signed integer division overflow",
+        expectedMessage: "INTEGER OVERFLOW",
+        source: `
+          frame main() ret int {
+            local min: int = -2147483648;
+            local negativeOne: int = -1;
+            return min / negativeOne;
+          }
+        `,
+      },
+      {
         name: "null pointer member access",
         expectedMessage: "NULL POINTER ACCESS",
         source: `

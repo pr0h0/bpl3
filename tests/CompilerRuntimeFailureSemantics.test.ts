@@ -18,6 +18,17 @@ describe("Compiler runtime failure semantics", () => {
           `,
         },
         {
+          name: "signed integer division overflow",
+          expectedMessage: "INTEGER OVERFLOW",
+          source: `
+            frame main() ret int {
+              local min: int = -2147483648;
+              local negativeOne: int = -1;
+              return min / negativeOne;
+            }
+          `,
+        },
+        {
           name: "null pointer member access",
           expectedMessage: "NULL POINTER ACCESS",
           source: `
@@ -56,7 +67,7 @@ describe("Compiler runtime failure semantics", () => {
         },
       ]);
 
-      expect(results).toHaveLength(4);
+      expect(results).toHaveLength(5);
       for (const result of results) {
         expect(result.o0.exitCode).not.toBe(0);
         expect(result.o3.exitCode).not.toBe(0);

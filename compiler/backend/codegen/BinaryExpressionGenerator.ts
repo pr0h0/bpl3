@@ -716,7 +716,13 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         }
         break;
       case TokenType.Slash:
-        op = this.getDivisionOp(isFloat, isUnsigned, right, rightType);
+        op = this.getDivisionOp(
+          isFloat,
+          isUnsigned,
+          left,
+          right,
+          leftType,
+        );
         break;
       case TokenType.EqualEqual:
         // Check for array equality
@@ -831,7 +837,13 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         }
         break;
       case TokenType.Percent:
-        op = this.getModuloOp(isFloat, isUnsigned, right, rightType);
+        op = this.getModuloOp(
+          isFloat,
+          isUnsigned,
+          left,
+          right,
+          leftType,
+        );
         break;
       case TokenType.Ampersand:
         op = "and";
@@ -1195,14 +1207,18 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   private getDivisionOp(
     isFloat: boolean,
     isUnsigned: boolean,
+    left: string,
     right: string,
-    rightType: string,
+    valueType: string,
   ): string {
     if (isFloat) {
       return "fdiv";
     }
 
-    this.emitDivisionByZeroCheck(right, rightType);
+    this.emitDivisionByZeroCheck(right, valueType);
+    if (!isUnsigned) {
+      this.emitSignedDivisionOverflowCheck(left, right, valueType);
+    }
     return isUnsigned ? "udiv" : "sdiv";
   }
 
@@ -1212,14 +1228,18 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   private getModuloOp(
     isFloat: boolean,
     isUnsigned: boolean,
+    left: string,
     right: string,
-    rightType: string,
+    valueType: string,
   ): string {
     if (isFloat) {
       return "frem";
     }
 
-    this.emitDivisionByZeroCheck(right, rightType);
+    this.emitDivisionByZeroCheck(right, valueType);
+    if (!isUnsigned) {
+      this.emitSignedDivisionOverflowCheck(left, right, valueType);
+    }
     return isUnsigned ? "urem" : "srem";
   }
 
@@ -1252,6 +1272,65 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     this.emit(`  unreachable`);
 
     this.emit(`${okLabel}:`);
+  }
+
+  /**
+   * Emit signed division overflow check for INT_MIN / -1 and INT_MIN % -1.
+   */
+  private emitSignedDivisionOverflowCheck(
+    left: string,
+    right: string,
+    valueType: string,
+  ): void {
+    const minValue = this.getSignedIntegerMinValue(valueType);
+    if (minValue === null) {
+      return;
+    }
+
+    const isMin = this.newRegister();
+    this.emit(`  ${isMin} = icmp eq ${valueType} ${left}, ${minValue}`);
+    const isNegativeOne = this.newRegister();
+    this.emit(`  ${isNegativeOne} = icmp eq ${valueType} ${right}, -1`);
+    const isOverflow = this.newRegister();
+    this.emit(`  ${isOverflow} = and i1 ${isMin}, ${isNegativeOne}`);
+
+    const okLabel = this.newLabel("div_overflow_ok");
+    const errLabel = this.newLabel("div_overflow_err");
+    this.emit(`  br i1 ${isOverflow}, label %${errLabel}, label %${okLabel}`);
+
+    this.emit(`${errLabel}:`);
+
+    const funcNameStr = this.currentFunctionName || "unknown";
+    const funcNamePtr = this.getStringLiteralPtr(funcNameStr);
+
+    let line = 0;
+    let column = 0;
+    if (this.currentStatementLocation) {
+      line = this.currentStatementLocation.startLine;
+      column = this.currentStatementLocation.startColumn || 0;
+    }
+
+    this.emit(
+      `  call void @__bpl_throw_integer_overflow(i8* ${funcNamePtr}, i32 ${line}, i32 ${column})`,
+    );
+    this.emit(`  unreachable`);
+
+    this.emit(`${okLabel}:`);
+  }
+
+  private getSignedIntegerMinValue(valueType: string): string | null {
+    switch (valueType) {
+      case "i8":
+        return "-128";
+      case "i16":
+        return "-32768";
+      case "i32":
+        return "-2147483648";
+      case "i64":
+        return "-9223372036854775808";
+      default:
+        return null;
+    }
   }
 
   /**

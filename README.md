@@ -51,7 +51,7 @@ frame main() ret int {
 ### 🛠️ Developer Experience
 
 - **Clear Error Messages**: Helpful compiler diagnostics with location information
-- **Enhanced Runtime Errors**: Beautiful formatted error boxes with stack traces for null access, bounds checking, division by zero
+- **Enhanced Runtime Errors**: Beautiful formatted error boxes with stack traces for null access, bounds checking, division by zero, and signed integer division overflow
 - **Built-in Formatter**: Automatic code formatting for consistent style
 - **Watch Mode**: Automatic recompilation on file changes for rapid development
 - **Package Manager**: Easy dependency management with `bpl install`

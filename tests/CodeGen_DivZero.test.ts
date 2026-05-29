@@ -62,4 +62,20 @@ describe("CodeGen - Division By Zero", () => {
     expect(ir).toContain("call void @__bpl_throw_division_by_zero");
     expect(ir).toContain("div_err");
   });
+
+  it("should generate signed integer division overflow checks", () => {
+    const source = `
+      frame main() ret int {
+        local min: int = -2147483648;
+        local negativeOne: int = -1;
+        return min / negativeOne;
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).toContain("icmp eq i32");
+    expect(ir).toContain("-2147483648");
+    expect(ir).toContain("call void @__bpl_throw_integer_overflow");
+    expect(ir).toContain("div_overflow_err");
+  });
 });

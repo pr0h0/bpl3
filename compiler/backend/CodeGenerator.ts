@@ -246,6 +246,10 @@ export class CodeGenerator extends StatementGenerator {
     );
     this.declaredFunctions.add("__bpl_throw_division_by_zero");
     this.emitDeclaration(
+      `declare void @__bpl_throw_integer_overflow(i8*, i32, i32)`,
+    );
+    this.declaredFunctions.add("__bpl_throw_integer_overflow");
+    this.emitDeclaration(
       `declare void @__bpl_throw_index_out_of_bounds(i32, i32, i8*, i32, i32)`,
     );
     this.declaredFunctions.add("__bpl_throw_index_out_of_bounds");

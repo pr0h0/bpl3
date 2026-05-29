@@ -3,6 +3,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 
+import { verifyLlvmFile } from "../../compiler/common/LlvmVerifier";
+
 const BPL_CLI = resolve(__dirname, "../../index.ts");
 
 export interface CorrectnessCommandResult {
@@ -651,6 +653,14 @@ export function expectValidLlvmAtOptimizations(source: string): void {
         failWithResult(
           `BPL failed to emit LLVM IR at -O${optimizationLevel}`,
           build,
+        );
+      }
+
+      const verifier = verifyLlvmFile(irPath, { cwd: dir });
+      if (verifier.exitCode !== 0) {
+        failWithResult(
+          `LLVM verifier (${verifier.tool}) rejected emitted LLVM IR at -O${optimizationLevel}`,
+          verifier,
         );
       }
 

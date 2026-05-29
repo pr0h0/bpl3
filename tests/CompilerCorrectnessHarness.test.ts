@@ -68,7 +68,7 @@ describe("Compiler correctness stability harness", () => {
     expect(result.stdout).toBe("pair=12,25\n");
   });
 
-  it("emits clang-accepted LLVM IR at O0 and O3 for runtime programs", () => {
+  it("emits verifier- and clang-accepted LLVM IR at O0 and O3 for runtime programs", () => {
     expectValidLlvmAtOptimizations(`
       extern printf(fmt: string, ...);
 
