@@ -7,6 +7,7 @@
 target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
+%struct.Type = type { i8* }
 %struct._IO_FILE = type opaque
 %struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }
 %struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }
@@ -20,10 +21,34 @@ target triple = "wasm32-unknown-unknown"
 @exception_type = weak global i32 0
 @stderr = weak global %struct._IO_FILE* null
 
+@.str.Type = private unnamed_addr constant [5 x i8] c"Type\00", align 1
+
 ; Conservative bump allocator start. The linker creates linear memory and data
 ; segments below this address for the small standalone programs BPL currently
 ; supports on wasm32-unknown-unknown.
 @__bpl_heap_cursor = internal global i32 1048576
+
+define linkonce_odr i8* @Type_getTypeName_Type_ptr(%struct.Type* %this) {
+entry:
+  ret i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str.Type, i64 0, i64 0)
+}
+
+define linkonce_odr i8* @Type_toString_Type_ptr(%struct.Type* %this) {
+entry:
+  %vtable_ptr_ptr = getelementptr %struct.Type, %struct.Type* %this, i32 0, i32 0
+  %vtable_ptr = load i8*, i8** %vtable_ptr_ptr
+  %vtable = bitcast i8* %vtable_ptr to i8**
+  %func_ptr_ptr = getelementptr i8*, i8** %vtable, i32 0
+  %func_ptr = load i8*, i8** %func_ptr_ptr
+  %func = bitcast i8* %func_ptr to i8* (%struct.Type*)*
+  %name = call i8* %func(%struct.Type* %this)
+  ret i8* %name
+}
+
+define linkonce_odr void @Type_destroy_Type_ptr(%struct.Type* %this) {
+entry:
+  ret void
+}
 
 define i8* @malloc(i64 %size) {
 entry:

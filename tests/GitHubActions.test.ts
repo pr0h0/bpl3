@@ -101,7 +101,10 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("Windows parser/typecheck/codegen smoke");
     expect(workflow).toContain("bun run test:codegen-cross-platform");
     expect(workflow).toContain(
-      "sudo apt-get install -y clang llvm libclang-rt-dev clang-18 llvm-18 libclang-rt-18-dev",
+      "sudo apt-get install -y clang llvm lld libclang-rt-dev clang-18 llvm-18 lld-18 libclang-rt-18-dev",
+    );
+    expect(workflow).toContain(
+      "wasm-ld --version || wasm-ld-18 --version || true",
     );
     expect(workflow).toContain("brew install llvm");
     expect(workflow).toContain("Run CI-safe test suite");

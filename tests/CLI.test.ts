@@ -309,7 +309,16 @@ describe("CLI Tests", () => {
         wasmFile,
       ]);
 
-      expect(result.status).toBe(0);
+      if (result.status !== 0) {
+        throw new Error(
+          [
+            "Expected wasm build to succeed.",
+            `status: ${result.status}`,
+            `stdout:\n${result.stdout}`,
+            `stderr:\n${result.stderr}`,
+          ].join("\n"),
+        );
+      }
       expect(fs.existsSync(wasmFile)).toBe(true);
       expect(fs.readFileSync(wasmFile).subarray(0, 4).toString("binary")).toBe(
         "\0asm",
@@ -320,6 +329,23 @@ describe("CLI Tests", () => {
         if (fs.existsSync(file)) fs.unlinkSync(file);
       }
     }
+  });
+
+  it("should ship wasm runtime symbols required by generated Type vtables", () => {
+    const runtime = fs.readFileSync(
+      path.join(process.cwd(), "lib/runtime_wasm.ll"),
+      "utf-8",
+    );
+
+    expect(runtime).toContain(
+      "define linkonce_odr i8* @Type_getTypeName_Type_ptr",
+    );
+    expect(runtime).toContain(
+      "define linkonce_odr i8* @Type_toString_Type_ptr",
+    );
+    expect(runtime).toContain(
+      "define linkonce_odr void @Type_destroy_Type_ptr",
+    );
   });
 
   it("should cache and link imported modules as separate parallel objects", () => {
