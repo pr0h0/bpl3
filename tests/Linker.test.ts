@@ -3,9 +3,16 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
+import { getNativeLinkerFlags } from "../cli/utils";
 import { Linker } from "../compiler/middleend/Linker";
 
 describe("Linker", () => {
+  it("uses platform-specific native linker flags", () => {
+    expect(getNativeLinkerFlags("linux")).toEqual(["-lm", "-ldl", "-rdynamic"]);
+    expect(getNativeLinkerFlags("darwin")).toEqual(["-lm"]);
+    expect(getNativeLinkerFlags("win32")).toEqual([]);
+  });
+
   it("forwards optimization level to clang", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-"));
     const irPath = join(dir, "main.ll");

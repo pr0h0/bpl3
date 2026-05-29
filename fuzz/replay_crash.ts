@@ -2,6 +2,8 @@ import { writeFileSync } from "fs";
 import {
   minimizeFuzzFailure,
   replayFuzzFailureArtifact,
+  runFuzzReplayMode,
+  type FuzzReplayMode,
   type FuzzFailureKind,
   type FuzzStage,
 } from "./compilerFuzz";
@@ -12,17 +14,23 @@ interface CliOptions {
   expectedStage?: FuzzStage;
   expectedMessageIncludes?: string;
   expectedFailureKind?: FuzzFailureKind;
+  modes: FuzzReplayMode[];
   minimize: boolean;
   outPath?: string;
 }
 
-const STAGES = new Set<FuzzStage>([
+const STAGES = new Set<FuzzStage>(["lexer", "parser", "typecheck", "codegen"]);
+const FAILURE_KINDS = new Set<FuzzFailureKind>(["crash", "mismatch"]);
+const REPLAY_MODES = new Set<FuzzReplayMode>([
+  "artifact",
   "lexer",
   "parser",
   "typecheck",
   "codegen",
+  "runtime",
+  "differential",
+  "sanitizer",
 ]);
-const FAILURE_KINDS = new Set<FuzzFailureKind>(["crash", "mismatch"]);
 
 function parseCliOptions(argv: string[]): CliOptions {
   const values = new Map<string, string>();
@@ -76,6 +84,7 @@ function parseCliOptions(argv: string[]): CliOptions {
     expectedStage: parseStage(values.get("stage")),
     expectedMessageIncludes: values.get("message"),
     expectedFailureKind: parseFailureKind(values.get("failure-kind")),
+    modes: parseReplayModes(values.get("mode")),
     minimize: flags.has("minimize"),
     outPath: values.get("out"),
   };
@@ -93,6 +102,38 @@ function parseStage(value: string | undefined): FuzzStage | undefined {
   }
 
   return value as FuzzStage;
+}
+
+function parseReplayModes(value: string | undefined): FuzzReplayMode[] {
+  if (value === undefined) {
+    return [];
+  }
+
+  const modes = value
+    .split(",")
+    .map((mode) => mode.trim())
+    .filter(Boolean);
+
+  if (modes.includes("all")) {
+    return [
+      "parser",
+      "typecheck",
+      "codegen",
+      "runtime",
+      "differential",
+      "sanitizer",
+    ];
+  }
+
+  for (const mode of modes) {
+    if (!REPLAY_MODES.has(mode as FuzzReplayMode)) {
+      throw new Error(
+        `--mode must include parser,typecheck,codegen,runtime,differential,sanitizer,artifact,all; got '${mode}'.`,
+      );
+    }
+  }
+
+  return modes as FuzzReplayMode[];
 }
 
 function parseFailureKind(
@@ -124,6 +165,9 @@ Options:
   --message <text>   Require the crash message to include this text
   --failure-kind <kind>
                      Require crash or mismatch
+  --mode <modes>     Run explicit modes from one artifact:
+                     parser,typecheck,codegen,runtime,differential,sanitizer
+                     Also accepts artifact, all, and comma-separated lists.
   --minimize         Write a token-minimized repro if replay still fails
   --out <path>       Output path for --minimize (default: <source>.min.bpl)
   --help             Show this help text
@@ -158,6 +202,30 @@ async function main(): Promise<void> {
     console.log(`Message: ${replay.outcome.message.split("\n")[0]}`);
   }
   console.log(`Signature matches: ${replay.signatureMatches ? "yes" : "no"}`);
+
+  if (options.modes.length > 0) {
+    let failedModes = 0;
+    for (const mode of options.modes) {
+      const result = runFuzzReplayMode(
+        replay.source,
+        replay.sourcePath,
+        mode,
+        replay.metadata,
+      );
+      const state = result.outcome.ok ? "ok" : "failed";
+      console.log(`Mode ${mode}: ${state} at ${result.outcome.stage}`);
+      if (result.outcome.message) {
+        console.log(
+          `Mode ${mode} message: ${result.outcome.message.split("\n")[0]}`,
+        );
+      }
+      if (!result.outcome.ok) {
+        failedModes++;
+      }
+    }
+
+    process.exit(failedModes === 0 ? 0 : 4);
+  }
 
   if (!replay.failed) {
     process.exit(2);

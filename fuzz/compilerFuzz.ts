@@ -124,6 +124,15 @@ export type FuzzInputKind =
   | "tokens"
   | "differential";
 export type FuzzFailureKind = "crash" | "mismatch";
+export type FuzzReplayMode =
+  | "artifact"
+  | "lexer"
+  | "parser"
+  | "typecheck"
+  | "codegen"
+  | "runtime"
+  | "differential"
+  | "sanitizer";
 
 export interface DifferentialCommandResult {
   stdout: string;
@@ -147,6 +156,7 @@ export interface PipelineOutcome {
 
 export interface CompilerPipelineOptions {
   skipImportResolution?: boolean;
+  stopAfter?: FuzzStage;
 }
 
 export interface MutationOptions {
@@ -209,6 +219,8 @@ export interface FuzzCampaignOptions {
   iterationsPerSeed: number;
   crashDir?: string;
   enableDifferential?: boolean;
+  minimizeFailures?: boolean;
+  maxMinimizePasses?: number;
   progressInterval?: number;
   logProgress?: (message: string) => void;
   runner?: FuzzRunner;
@@ -227,6 +239,7 @@ export interface FuzzCrashReplayOptions {
 export interface FuzzCrashReplayResult {
   sourcePath: string;
   metadataPath?: string;
+  metadata?: CrashMetadata;
   source: string;
   outcome: PipelineOutcome;
   crashed: boolean;
@@ -258,16 +271,42 @@ export interface FuzzCrashMinimizeResult {
   outcome: PipelineOutcome;
 }
 
-interface CrashMetadata {
+export interface FuzzReplayModeResult {
+  mode: FuzzReplayMode;
+  outcome: PipelineOutcome;
+  failureKind: FuzzFailureKind | undefined;
+}
+
+export interface CrashMetadata {
   seed?: number;
+  seedHex?: string;
   iteration?: number;
+  pass?: number;
   kind?: FuzzInputKind;
   failureKind?: FuzzFailureKind;
   filePath?: string;
   sourcePath?: string;
+  minimizedSourcePath?: string;
   stage?: FuzzStage;
   message?: string;
   mismatch?: DifferentialMismatch;
+  failure?: {
+    kind?: FuzzFailureKind;
+    stage?: FuzzStage;
+    message?: string;
+  };
+  optimizationLevels?: number[];
+  expected?: DifferentialCommandResult & { optimizationLevel: number };
+  actual?: DifferentialCommandResult & { optimizationLevel: number };
+  replayCommand?: string;
+  minimization?: {
+    originalTokenCount?: number;
+    minimizedTokenCount?: number;
+    attempts?: number;
+    changed?: boolean;
+    error?: string;
+  };
+  promotedTo?: string;
 }
 
 const BPL_CLI = join(__dirname, "../index.ts");
@@ -386,10 +425,16 @@ export function runCompilerPipeline(
 
   try {
     const tokens = lexWithGrammar(source, filePath);
+    if (options.stopAfter === "lexer") {
+      return { ok: true, stage };
+    }
 
     stage = "parser";
     const parser = new Parser(source, filePath, tokens);
     const ast = parser.parse();
+    if (options.stopAfter === "parser") {
+      return { ok: true, stage };
+    }
 
     stage = "typecheck";
     const typeChecker = new TypeChecker({
@@ -406,6 +451,9 @@ export function runCompilerPipeline(
         expectedError: true,
         message: typeErrors.map((error) => error.message).join("\n"),
       };
+    }
+    if (options.stopAfter === "typecheck") {
+      return { ok: true, stage };
     }
 
     stage = "codegen";
@@ -809,7 +857,10 @@ export function generateMutatedStructuredSource(
   seed: number,
   iteration: number,
 ): string {
-  const baseSource = generateStructuredValidSource(seed ^ 0xa5a5a5a5, iteration);
+  const baseSource = generateStructuredValidSource(
+    seed ^ 0xa5a5a5a5,
+    iteration,
+  );
   const rng = createSeededRandom(mixSeed(seed ^ 0xbad5eed, iteration));
   return mutateTokens(tokenizeForMutation(baseSource), rng).join(" ");
 }
@@ -911,7 +962,11 @@ export function runFuzzCampaign(
       mismatches: 0,
     };
 
-    for (let iteration = 0; iteration < options.iterationsPerSeed; iteration++) {
+    for (
+      let iteration = 0;
+      iteration < options.iterationsPerSeed;
+      iteration++
+    ) {
       if (
         options.progressInterval &&
         iteration > 0 &&
@@ -939,7 +994,11 @@ export function runFuzzCampaign(
 
         if (options.crashDir) {
           failureArtifacts.push(
-            writeFailureArtifact(options.crashDir, input, outcome),
+            writeFailureArtifact(options.crashDir, input, outcome, {
+              runner,
+              minimizeFailures: options.minimizeFailures,
+              maxMinimizePasses: options.maxMinimizePasses,
+            }),
           );
         }
       } else {
@@ -951,6 +1010,11 @@ export function runFuzzCampaign(
             options.crashDir,
             input,
             outcome,
+            {
+              runner,
+              minimizeFailures: options.minimizeFailures,
+              maxMinimizePasses: options.maxMinimizePasses,
+            },
           );
           failureArtifacts.push(artifact);
           crashArtifacts.push(artifact);
@@ -995,6 +1059,7 @@ export function replayFuzzFailureArtifact(
   return {
     sourcePath,
     metadataPath: options.metadataPath,
+    metadata,
     source,
     outcome,
     crashed: failureKind === "crash",
@@ -1018,6 +1083,37 @@ export function replayFuzzCrashArtifact(
     ...options,
     expectedFailureKind: options.expectedFailureKind ?? "crash",
   });
+}
+
+export function runFuzzReplayMode(
+  source: string,
+  filePath: string,
+  mode: FuzzReplayMode,
+  metadata: CrashMetadata = {},
+): FuzzReplayModeResult {
+  const input = inputFromCrashMetadata(source, filePath, metadata);
+  const outcome =
+    mode === "artifact"
+      ? defaultFuzzRunner(source, filePath, input)
+      : mode === "lexer" ||
+          mode === "parser" ||
+          mode === "typecheck" ||
+          mode === "codegen"
+        ? runCompilerPipeline(source, filePath, {
+            skipImportResolution: true,
+            stopAfter: mode,
+          })
+        : mode === "runtime"
+          ? runBplRuntimePipeline(source, filePath, 0, false)
+          : mode === "sanitizer"
+            ? runBplRuntimePipeline(source, filePath, 0, true)
+            : runBplDifferentialPipeline(source, filePath);
+
+  return {
+    mode,
+    outcome,
+    failureKind: inferFailureKind(outcome),
+  };
 }
 
 export function minimizeFuzzFailure(
@@ -1080,7 +1176,11 @@ export function minimizeFuzzFailure(
       attempts++;
       const candidateSource = candidate.join(" ");
       const candidateInput = inputFromCrashMetadata(candidateSource, filePath);
-      const candidateOutcome = runner(candidateSource, filePath, candidateInput);
+      const candidateOutcome = runner(
+        candidateSource,
+        filePath,
+        candidateInput,
+      );
 
       if (failureMatchesSignature(candidateOutcome, signature)) {
         tokens = candidate;
@@ -1126,10 +1226,17 @@ export function minimizeFuzzCrash(
   });
 }
 
+interface WriteFailureArtifactOptions {
+  runner: FuzzRunner;
+  minimizeFailures?: boolean;
+  maxMinimizePasses?: number;
+}
+
 function writeFailureArtifact(
   crashDir: string,
   input: FuzzInput,
   outcome: PipelineOutcome,
+  options: WriteFailureArtifactOptions,
 ): FuzzFailureArtifact {
   mkdirSync(crashDir, { recursive: true });
 
@@ -1142,29 +1249,86 @@ function writeFailureArtifact(
   ].join("_");
   const sourcePath = join(crashDir, `${baseName}.bpl`);
   const metadataPath = join(crashDir, `${baseName}.json`);
-
-  writeFileSync(sourcePath, input.source);
-  writeFileSync(
+  const metadata = createFailureMetadata(
+    input,
+    outcome,
+    failureKind,
+    sourcePath,
     metadataPath,
-    JSON.stringify(
-      {
-        seed: input.seed,
-        seedHex: formatSeed(input.seed),
-        iteration: input.iteration,
-        kind: input.kind,
-        failureKind,
-        filePath: input.filePath,
-        stage: outcome.stage,
-        message: outcome.message,
-        mismatch: outcome.mismatch,
-        sourcePath,
-      },
-      null,
-      2,
-    ),
   );
 
+  writeFileSync(sourcePath, input.source);
+  if (options.minimizeFailures) {
+    const minimizedSourcePath = join(crashDir, `${baseName}.min.bpl`);
+    metadata.minimizedSourcePath = minimizedSourcePath;
+
+    try {
+      const minimized = minimizeFuzzFailure({
+        source: input.source,
+        filePath: input.filePath,
+        expectedStage: outcome.stage,
+        expectedFailureKind: failureKind,
+        runner: options.runner,
+        maxPasses: options.maxMinimizePasses,
+      });
+
+      writeFileSync(minimizedSourcePath, minimized.minimizedSource);
+      metadata.minimization = {
+        originalTokenCount: minimized.originalTokenCount,
+        minimizedTokenCount: minimized.minimizedTokenCount,
+        attempts: minimized.attempts,
+        changed: minimized.changed,
+      };
+    } catch (error) {
+      metadata.minimization = { error: formatError(error) };
+    }
+  }
+
+  writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+
   return { sourcePath, metadataPath, failureKind };
+}
+
+function createFailureMetadata(
+  input: FuzzInput,
+  outcome: PipelineOutcome,
+  failureKind: FuzzFailureKind,
+  sourcePath: string,
+  metadataPath: string,
+): CrashMetadata {
+  const metadata: CrashMetadata = {
+    seed: input.seed,
+    seedHex: formatSeed(input.seed),
+    iteration: input.iteration,
+    pass: input.iteration,
+    kind: input.kind,
+    failureKind,
+    filePath: input.filePath,
+    sourcePath,
+    stage: outcome.stage,
+    message: outcome.message,
+    failure: {
+      kind: failureKind,
+      stage: outcome.stage,
+      message: outcome.message,
+    },
+    replayCommand: `bun run fuzz:replay -- --metadata ${metadataPath}`,
+  };
+
+  if (outcome.mismatch !== undefined) {
+    metadata.mismatch = outcome.mismatch;
+    metadata.optimizationLevels = [0, 3];
+    metadata.expected = {
+      optimizationLevel: 0,
+      ...outcome.mismatch.o0,
+    };
+    metadata.actual = {
+      optimizationLevel: 3,
+      ...outcome.mismatch.o3,
+    };
+  }
+
+  return metadata;
 }
 
 function createStageCounts(): Record<FuzzStage, number> {
@@ -1217,21 +1381,77 @@ export function runBplDifferentialPipeline(
   }
 }
 
+export function runBplRuntimePipeline(
+  source: string,
+  filePath: string,
+  optimizationLevel: 0 | 3 = 0,
+  sanitizer = false,
+): PipelineOutcome {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-runtime-"));
+  const sourcePath = join(dir, "main.bpl");
+
+  try {
+    writeFileSync(sourcePath, source);
+
+    const result = runBplCommand(sourcePath, dir, optimizationLevel, sanitizer);
+
+    if (result.exitCode === 0) {
+      return { ok: true, stage: "codegen" };
+    }
+
+    return {
+      ok: false,
+      stage: "codegen",
+      message: [
+        `BPL runtime mode failed for ${filePath} at -O${optimizationLevel}`,
+        sanitizer ? "sanitizers: address,undefined" : "",
+        result.stdout ? `stdout:\n${result.stdout}` : "",
+        result.stderr ? `stderr:\n${result.stderr}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function runBplCommand(
   sourcePath: string,
   cwd: string,
   optimizationLevel: 0 | 3,
+  sanitizer = false,
 ): DifferentialCommandResult {
-  const result = spawnSync(
-    "bun",
-    [BPL_CLI, "run", sourcePath, "-O", String(optimizationLevel)],
-    {
-      cwd,
-      encoding: "utf8",
-      timeout: 30000,
-      maxBuffer: 1024 * 1024 * 16,
-    },
-  );
+  const args = [BPL_CLI, "run", sourcePath, "-O", String(optimizationLevel)];
+  if (sanitizer) {
+    args.splice(1, 0, "--clang-flag=-fsanitize=address,undefined");
+  }
+
+  const result = spawnSync("bun", args, {
+    cwd,
+    encoding: "utf8",
+    timeout: 30000,
+    env: sanitizer
+      ? {
+          ...process.env,
+          ASAN_OPTIONS: [
+            process.env.ASAN_OPTIONS,
+            "detect_leaks=0",
+            "halt_on_error=1",
+          ]
+            .filter(Boolean)
+            .join(":"),
+          UBSAN_OPTIONS: [
+            process.env.UBSAN_OPTIONS,
+            "halt_on_error=1",
+            "print_stacktrace=1",
+          ]
+            .filter(Boolean)
+            .join(":"),
+        }
+      : process.env,
+    maxBuffer: 1024 * 1024 * 16,
+  });
 
   return {
     stdout: String(result.stdout ?? ""),
@@ -1267,7 +1487,10 @@ function defaultFuzzRunner(
   return defaultPipelineRunner(source, filePath);
 }
 
-function defaultPipelineRunner(source: string, filePath: string): PipelineOutcome {
+function defaultPipelineRunner(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
   return runCompilerPipeline(source, filePath, { skipImportResolution: true });
 }
 
@@ -1295,21 +1518,29 @@ function resolveCrashSourcePath(
 ): string {
   const candidates = [
     options.sourcePath,
+    metadata?.minimizedSourcePath,
+    options.metadataPath
+      ? siblingSourcePath(options.metadataPath, ".min.bpl")
+      : undefined,
     metadata?.sourcePath,
-    options.metadataPath ? siblingSourcePath(options.metadataPath) : undefined,
+    options.metadataPath
+      ? siblingSourcePath(options.metadataPath, ".bpl")
+      : undefined,
   ].filter((candidate): candidate is string => candidate !== undefined);
 
   if (candidates.length === 0) {
     throw new Error("sourcePath is required when metadata has no sourcePath.");
   }
 
-  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
+  return (
+    candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!
+  );
 }
 
-function siblingSourcePath(metadataPath: string): string {
+function siblingSourcePath(metadataPath: string, extension: string): string {
   return metadataPath.endsWith(".json")
-    ? metadataPath.slice(0, -".json".length) + ".bpl"
-    : `${metadataPath}.bpl`;
+    ? metadataPath.slice(0, -".json".length) + extension
+    : `${metadataPath}${extension}`;
 }
 
 function isFailureOutcome(outcome: PipelineOutcome): boolean {

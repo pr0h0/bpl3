@@ -101,6 +101,9 @@ bun run test:sanitizers
 
 # Deterministic O0/O3 runtime differential fuzzing
 bun run fuzz:differential
+
+# Validate saved active fuzz failures
+bun run fuzz:validate-artifacts
 ```
 
 For new language features, add a focused test in `tests/`, an integration example under `examples/` when runtime behavior matters, and a playground example when the feature is useful for users to learn interactively.
@@ -109,6 +112,12 @@ When fuzzing finds a compiler crash or an O0/O3 runtime mismatch, replay and
 minimize the artifact before promoting it:
 
 ```bash
+FUZZ_MINIMIZE=1 FUZZ_MINIMIZE_PASSES=8 bun run fuzz:differential
+bun run fuzz:replay -- --metadata fuzz/crashes/mismatch_seed-...json --mode parser,typecheck,codegen,runtime,differential,sanitizer
 bun run fuzz:replay -- --metadata fuzz/crashes/mismatch_seed-...json --minimize
 bun run fuzz:promote -- --metadata fuzz/crashes/mismatch_seed-...json --differential --name "bug-name"
 ```
+
+See [Compiler Correctness and Fuzz Triage](60-compiler-correctness.md) for the
+cross-platform CI matrix, replay modes, artifact metadata, and saved-artifact
+validation rules.

@@ -5,6 +5,7 @@
 
 import * as os from "os";
 import type { HostDefaults } from "./types";
+export { getNativeLinkerFlags } from "../compiler/common/NativeLinkerFlags";
 
 /**
  * Get host platform defaults for cross-compilation

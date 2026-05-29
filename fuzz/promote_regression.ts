@@ -1,11 +1,9 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, join } from "path";
-import { runBplDifferentialPipeline, runCompilerPipeline } from "./compilerFuzz";
+import {
+  runBplDifferentialPipeline,
+  runCompilerPipeline,
+} from "./compilerFuzz";
 
 interface CliOptions {
   sourcePath?: string;
@@ -18,6 +16,7 @@ interface CliOptions {
 
 interface CrashMetadata {
   sourcePath?: string;
+  promotedTo?: string;
 }
 
 interface PromotionResult {
@@ -128,8 +127,9 @@ function promoteFuzzRegression(options: CliOptions): PromotionResult {
     : runCompilerPipeline(source, destinationPath, {
         skipImportResolution: true,
       });
-  const cleanOutcome =
-    options.differential ? outcome.ok : outcome.ok || outcome.expectedError === true;
+  const cleanOutcome = options.differential
+    ? outcome.ok
+    : outcome.ok || outcome.expectedError === true;
 
   if (outcome.crash !== undefined || !cleanOutcome) {
     throw new Error(
@@ -146,7 +146,13 @@ function promoteFuzzRegression(options: CliOptions): PromotionResult {
   }
 
   mkdirSync(options.corpusDir, { recursive: true });
-  writeFileSync(destinationPath, source.endsWith("\n") ? source : `${source}\n`);
+  writeFileSync(
+    destinationPath,
+    source.endsWith("\n") ? source : `${source}\n`,
+  );
+  if (options.metadataPath !== undefined) {
+    markMetadataPromoted(options.metadataPath, destinationPath);
+  }
 
   return {
     sourcePath,
@@ -188,6 +194,15 @@ function resolveSourcePath(options: CliOptions): string {
 
 function readCrashMetadata(metadataPath: string): CrashMetadata {
   return JSON.parse(readFileSync(metadataPath, "utf8")) as CrashMetadata;
+}
+
+function markMetadataPromoted(
+  metadataPath: string,
+  destinationPath: string,
+): void {
+  const metadata = readCrashMetadata(metadataPath);
+  metadata.promotedTo = destinationPath;
+  writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 }
 
 function siblingPath(metadataPath: string, extension: string): string {

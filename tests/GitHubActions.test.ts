@@ -25,6 +25,8 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("0x5eed1234,0xc0ffee,0xbad5eed");
     expect(workflow).toContain("FUZZ_DIFFERENTIAL_SEEDS");
     expect(workflow).toContain("0xd1ff0,0xd1ff1,0xd1ff2");
+    expect(workflow).toContain('FUZZ_MINIMIZE: "1"');
+    expect(workflow).toContain("FUZZ_MINIMIZE_PASSES");
     expect(workflow).toContain("actions/upload-artifact@v4");
     expect(workflow).toContain("fuzz/crashes");
     expect(workflow).toContain("if: always()");
@@ -32,7 +34,12 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["fuzz:differential"]).toContain(
       "FUZZ_DIFFERENTIAL=1",
     );
-    expect(packageJson.scripts["fuzz:replay"]).toContain("fuzz/replay_crash.ts");
+    expect(packageJson.scripts["fuzz:replay"]).toContain(
+      "fuzz/replay_crash.ts",
+    );
+    expect(packageJson.scripts["fuzz:validate-artifacts"]).toBe(
+      "bun test tests/FuzzFailureArtifactCorpus.test.ts",
+    );
 
     const runFuzzIndex = workflow.indexOf("Run deterministic compiler fuzz");
     const differentialIndex = workflow.indexOf(
@@ -53,7 +60,7 @@ describe("GitHub Actions workflows", () => {
     );
   });
 
-  test("compiler correctness workflow runs on push and pull request", () => {
+  test("compiler correctness workflow runs cross-platform toolchain matrix coverage", () => {
     const workflowPath = join(
       import.meta.dir,
       "../.github/workflows/compiler-correctness.yml",
@@ -66,6 +73,17 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("name: Compiler Correctness");
     expect(workflow).toContain("push:");
     expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("fail-fast: false");
+    expect(workflow).toContain("ubuntu-24.04");
+    expect(workflow).toContain("macos-15");
+    expect(workflow).toContain("ubuntu-clang-18");
+    expect(workflow).toContain("macos-brew-llvm");
+    expect(workflow).toContain("runtime_build: debug");
+    expect(workflow).toContain("runtime_build: release");
+    expect(workflow).toContain(
+      "BPL_RUNTIME_BUILD: ${{ matrix.runtime_build }}",
+    );
+    expect(workflow).toContain("CC: ${{ matrix.cc }}");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("npm ci --prefix vscode-ext");
@@ -73,8 +91,13 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("bun run test:correctness");
     expect(workflow).toContain("bun run test:sanitizers");
     expect(workflow).toContain(
-      "sudo apt-get install -y clang llvm libclang-rt-dev",
+      "sudo apt-get install -y clang llvm libclang-rt-dev clang-18 llvm-18 libclang-rt-18-dev",
     );
+    expect(workflow).toContain("brew install llvm");
+    expect(workflow).toContain("Run CI-safe test suite");
+    expect(workflow).toContain("if: matrix.ci_safe == true");
+    expect(workflow).toContain("Validate saved fuzz failure artifacts");
+    expect(workflow).toContain("bun run fuzz:validate-artifacts");
     expect(packageJson.scripts["test:correctness"]).toContain(
       "bun run build:runtime && bun test",
     );
@@ -89,6 +112,9 @@ describe("GitHub Actions workflows", () => {
     );
     expect(packageJson.scripts["test:correctness"]).toContain(
       "CompilerCorrectnessSeededFuzz.test.ts",
+    );
+    expect(packageJson.scripts["test:correctness"]).toContain(
+      "FuzzFailureArtifactCorpus.test.ts",
     );
     expect(packageJson.scripts["test:sanitizers"]).toContain(
       "CompilerSanitizerRuntime.test.ts",
@@ -107,7 +133,9 @@ describe("GitHub Actions workflows", () => {
 
     expect(packageJson.scripts["test:ci"]).toContain("bun run build:runtime");
     expect(packageJson.scripts["test:ci"]).toContain("Integration.test.ts");
-    expect(packageJson.scripts["test:ci"]).toContain("PlaygroundExamples.test.ts");
+    expect(packageJson.scripts["test:ci"]).toContain(
+      "PlaygroundExamples.test.ts",
+    );
     expect(packageJson.scripts["test:ci"]).toContain("bun run test:vscode-ext");
     expect(packageJson.scripts["test:vscode-ext"]).toBe(
       "npm test --prefix vscode-ext",
@@ -137,10 +165,7 @@ describe("GitHub Actions workflows", () => {
 
   test("VS Code extension package test script runs Bun tests by directory", () => {
     const extensionPackageJson = JSON.parse(
-      readFileSync(
-        join(import.meta.dir, "../vscode-ext/package.json"),
-        "utf8",
-      ),
+      readFileSync(join(import.meta.dir, "../vscode-ext/package.json"), "utf8"),
     );
 
     expect(extensionPackageJson.scripts.test).toBe("bun test ./src/test");

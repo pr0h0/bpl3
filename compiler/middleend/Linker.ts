@@ -13,6 +13,7 @@ import * as fs from "fs";
 
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import { ObjectFileParser } from "./ObjectFileParser";
 
@@ -234,10 +235,7 @@ export class Linker {
         }
       }
 
-      // Always link libm and libdl
-      clangArgs.push("-lm");
-      clangArgs.push("-ldl");
-      clangArgs.push("-rdynamic");
+      clangArgs.push(...getNativeLinkerFlags());
 
       // Add output
       clangArgs.push("-o");

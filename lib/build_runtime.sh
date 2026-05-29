@@ -12,6 +12,9 @@ cd "$SCRIPT_DIR"
 
 echo "Building BPL Runtime Support Library..."
 
+CC="${CC:-clang}"
+BPL_RUNTIME_BUILD="${BPL_RUNTIME_BUILD:-release}"
+
 # Detect platform
 UNAME=$(uname -s)
 case "$UNAME" in
@@ -32,16 +35,31 @@ case "$UNAME" in
 esac
 
 echo "Platform: $PLATFORM"
+echo "Compiler: $CC"
+echo "Runtime build: $BPL_RUNTIME_BUILD"
 
-# Check for clang
-if ! command -v clang &> /dev/null; then
-    echo "Error: clang not found. Please install LLVM/Clang."
+# Check for clang-compatible C compiler
+if ! command -v "$CC" &> /dev/null; then
+    echo "Error: compiler '$CC' not found. Please install LLVM/Clang or set CC."
     exit 1
 fi
 
+case "$BPL_RUNTIME_BUILD" in
+    debug)
+        OPT_FLAGS=(-O0 -g3 -DBPL_RUNTIME_DEBUG=1)
+    ;;
+    release)
+        OPT_FLAGS=(-O2 -g)
+    ;;
+    *)
+        echo "Unsupported BPL_RUNTIME_BUILD: $BPL_RUNTIME_BUILD (expected debug or release)"
+        exit 1
+    ;;
+esac
+
 # Compile runtime_support.c to object file
 echo "Compiling runtime_support.c -> runtime_support.o"
-clang -c -fPIC -O2 -g \
+"$CC" -c -fPIC "${OPT_FLAGS[@]}" \
 -Wall -Wextra \
 -Wno-unused-parameter \
 runtime_support.c -o runtime_support.o

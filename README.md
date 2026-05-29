@@ -802,6 +802,16 @@ bun run test:sanitizers
 # Run a short deterministic O0/O3 differential fuzz campaign
 bun run fuzz:differential
 
+# Validate saved active fuzz failures under tests/fuzz-failure-artifacts
+bun run fuzz:validate-artifacts
+
+# Save minimized fuzz artifacts while running a campaign
+FUZZ_MINIMIZE=1 FUZZ_MINIMIZE_PASSES=8 bun run fuzz:differential
+
+# Replay one artifact through parser, typechecker, codegen, runtime,
+# O0/O3 differential, and sanitizer modes
+bun run fuzz:replay -- --metadata fuzz/crashes/mismatch_seed-...json --mode parser,typecheck,codegen,runtime,differential,sanitizer
+
 # Run specific test file
 bun test tests/Integration.test.ts
 

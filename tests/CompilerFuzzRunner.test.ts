@@ -115,6 +115,73 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("automatically minimizes failure artifacts and records replay metadata", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-auto-min-"));
+    const runner = (source: string): PipelineOutcome => {
+      if (source.includes("trigger") && source.includes("crash")) {
+        return {
+          ok: false,
+          stage: "codegen",
+          crash: new Error("synthetic crash"),
+          message: "synthetic crash",
+        };
+      }
+
+      return {
+        ok: false,
+        stage: "parser",
+        expectedError: true,
+        message: "synthetic parse rejection",
+      };
+    };
+
+    try {
+      const summary = runFuzzCampaign({
+        seeds: [0x4444],
+        iterationsPerSeed: 1,
+        crashDir,
+        minimizeFailures: true,
+        runner,
+        inputForIteration: ({ seed, iteration }) => ({
+          seed,
+          iteration,
+          kind: "tokens",
+          filePath: `synthetic_${seed}_${iteration}.bpl`,
+          source: "noise trigger removable crash tail",
+        }),
+      });
+
+      const artifact = summary.failureArtifacts[0]!;
+      const metadata = JSON.parse(readFileSync(artifact.metadataPath, "utf8"));
+
+      expect(metadata).toMatchObject({
+        seed: 0x4444,
+        pass: 0,
+        failureKind: "crash",
+        failure: {
+          kind: "crash",
+          stage: "codegen",
+          message: "synthetic crash",
+        },
+        minimization: {
+          originalTokenCount: 5,
+          minimizedTokenCount: 2,
+          changed: true,
+        },
+      });
+      expect(metadata.minimizedSourcePath).toBe(
+        artifact.sourcePath.replace(/\.bpl$/, ".min.bpl"),
+      );
+      expect(metadata.replayCommand).toContain("bun run fuzz:replay --");
+      expect(metadata.replayCommand).toContain("--metadata");
+      expect(readFileSync(metadata.minimizedSourcePath, "utf8")).toBe(
+        "trigger crash",
+      );
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
   test("records differential mismatch artifacts separately from crashes", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-mismatch-"));
     const runner = (source: string): PipelineOutcome => {
@@ -176,7 +243,16 @@ describe("Compiler fuzz runner", () => {
       );
 
       expect(metadata).toMatchObject({
+        pass: 1,
         failureKind: "mismatch",
+        failure: {
+          kind: "mismatch",
+          stage: "codegen",
+          message: "O0/O3 behavior mismatch",
+        },
+        optimizationLevels: [0, 3],
+        expected: { optimizationLevel: 0, stdout: "left\n", stderr: "" },
+        actual: { optimizationLevel: 3, stdout: "right\n", stderr: "" },
         stage: "codegen",
         mismatch: {
           o0: { exitCode: 0, stdout: "left\n", stderr: "" },
@@ -328,6 +404,58 @@ describe("Compiler fuzz runner", () => {
     expect(result.stdout).toContain("--metadata");
     expect(result.stdout).toContain("--minimize");
     expect(result.stdout).toContain("--out");
+    expect(result.stdout).toContain("--mode");
+    expect(result.stdout).toContain(
+      "parser,typecheck,codegen,runtime,differential,sanitizer",
+    );
+  });
+
+  test("replay CLI can run explicit compiler modes from one artifact", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-replay-modes-"));
+    const sourcePath = join(crashDir, "replay_modes.bpl");
+    const metadataPath = join(crashDir, "replay_modes.json");
+
+    try {
+      writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+      writeFileSync(
+        metadataPath,
+        JSON.stringify(
+          {
+            seed: 0x7777,
+            iteration: 3,
+            kind: "structured",
+            filePath: "replay_modes.bpl",
+            sourcePath,
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:replay",
+          "--",
+          "--metadata",
+          metadataPath,
+          "--mode",
+          "parser,typecheck,codegen",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Mode parser: ok at parser");
+      expect(result.stdout).toContain("Mode typecheck: ok at typecheck");
+      expect(result.stdout).toContain("Mode codegen: ok at codegen");
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
   });
 
   test("promotes minimized fuzz artifacts into the regression corpus", () => {
@@ -384,6 +512,9 @@ describe("Compiler fuzz runner", () => {
       expect(readFileSync(promotedPath, "utf8")).toBe(
         'frame main() ret int {\n  return "not an int";\n}\n',
       );
+      expect(JSON.parse(readFileSync(metadataPath, "utf8"))).toMatchObject({
+        promotedTo: promotedPath,
+      });
     } finally {
       rmSync(crashDir, { recursive: true, force: true });
       rmSync(corpusDir, { recursive: true, force: true });
@@ -452,6 +583,9 @@ describe("Compiler fuzz runner", () => {
       expect(readFileSync(promotedPath, "utf8")).toBe(
         "frame main() ret int { return 0; }\n",
       );
+      expect(JSON.parse(readFileSync(metadataPath, "utf8"))).toMatchObject({
+        promotedTo: promotedPath,
+      });
     } finally {
       rmSync(crashDir, { recursive: true, force: true });
       rmSync(corpusDir, { recursive: true, force: true });

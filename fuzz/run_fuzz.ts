@@ -1,8 +1,5 @@
 import * as path from "path";
-import {
-  runFuzzCampaign,
-  type FuzzCampaignOptions,
-} from "./compilerFuzz";
+import { runFuzzCampaign, type FuzzCampaignOptions } from "./compilerFuzz";
 
 interface CliOptions {
   iterationsPerSeed: number;
@@ -10,6 +7,8 @@ interface CliOptions {
   crashDir: string;
   progressInterval: number;
   enableDifferential: boolean;
+  minimizeFailures: boolean;
+  maxMinimizePasses?: number;
 }
 
 const DEFAULT_ITERATIONS_PER_SEED = 10000;
@@ -66,6 +65,9 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
   const progressValue = values.get("progress") ?? env.FUZZ_PROGRESS ?? "1000";
   const differentialValue =
     values.get("differential") ?? env.FUZZ_DIFFERENTIAL ?? "false";
+  const minimizeValue = values.get("minimize") ?? env.FUZZ_MINIMIZE ?? "false";
+  const minimizePassesValue =
+    values.get("minimize-passes") ?? env.FUZZ_MINIMIZE_PASSES;
 
   return {
     iterationsPerSeed: parsePositiveInteger(iterationsValue, "iterations"),
@@ -73,6 +75,11 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
     crashDir,
     progressInterval: parsePositiveInteger(progressValue, "progress"),
     enableDifferential: parseBoolean(differentialValue, "differential"),
+    minimizeFailures: parseBoolean(minimizeValue, "minimize"),
+    maxMinimizePasses:
+      minimizePassesValue === undefined
+        ? undefined
+        : parsePositiveInteger(minimizePassesValue, "minimize-passes"),
   };
 }
 
@@ -120,9 +127,13 @@ Options:
   --crash-dir <dir>   Directory for .bpl repros and .json metadata
   --progress <n>      Progress log interval per seed (default: 1000)
   --differential      Include deterministic O0/O3 runtime comparison inputs
+  --minimize <bool>   Write token-minimized .min.bpl artifacts for failures
+  --minimize-passes <n>
+                     Maximum minimization passes per failed artifact
 
 Environment:
-  FUZZ_ITERATIONS, FUZZ_SEEDS, FUZZ_CRASH_DIR, FUZZ_PROGRESS, FUZZ_DIFFERENTIAL
+  FUZZ_ITERATIONS, FUZZ_SEEDS, FUZZ_CRASH_DIR, FUZZ_PROGRESS, FUZZ_DIFFERENTIAL,
+  FUZZ_MINIMIZE, FUZZ_MINIMIZE_PASSES
 `);
 }
 
@@ -172,12 +183,17 @@ async function main(): Promise<void> {
   console.log(
     `Differential runtime inputs: ${options.enableDifferential ? "enabled" : "disabled"}`,
   );
+  console.log(
+    `Automatic failure minimization: ${options.minimizeFailures ? "enabled" : "disabled"}`,
+  );
 
   const campaignOptions: FuzzCampaignOptions = {
     seeds: options.seeds,
     iterationsPerSeed: options.iterationsPerSeed,
     crashDir: options.crashDir,
     enableDifferential: options.enableDifferential,
+    minimizeFailures: options.minimizeFailures,
+    maxMinimizePasses: options.maxMinimizePasses,
     progressInterval: options.progressInterval,
     logProgress: (message) => console.log(message),
   };

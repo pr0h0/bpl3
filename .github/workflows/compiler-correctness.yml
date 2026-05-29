@@ -11,9 +11,40 @@ permissions:
 
 jobs:
   correctness:
-    name: Typecheck and compiler correctness tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu system clang release
+            os: ubuntu-24.04
+            toolchain: ubuntu-system
+            cc: clang
+            runtime_build: release
+            ci_safe: true
+          - name: Ubuntu clang 18 debug
+            os: ubuntu-24.04
+            toolchain: ubuntu-clang-18
+            cc: clang-18
+            runtime_build: debug
+            ci_safe: false
+          - name: macOS Apple clang release
+            os: macos-15
+            toolchain: macos-apple-clang
+            cc: clang
+            runtime_build: release
+            ci_safe: false
+          - name: macOS brew LLVM debug
+            os: macos-15
+            toolchain: macos-brew-llvm
+            cc: clang
+            runtime_build: debug
+            ci_safe: false
+    env:
+      CC: ${{ matrix.cc }}
+      BPL_RUNTIME_BUILD: ${{ matrix.runtime_build }}
 
     steps:
       - name: Checkout
@@ -24,10 +55,29 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install LLVM toolchain
+      - name: Install LLVM toolchain (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm libclang-rt-dev
+          sudo apt-get install -y clang llvm libclang-rt-dev clang-18 llvm-18 libclang-rt-18-dev
+
+      - name: Select clang 18
+        if: matrix.toolchain == 'ubuntu-clang-18'
+        run: |
+          mkdir -p "$RUNNER_TEMP/bpl-toolchain/bin"
+          ln -sf "$(command -v clang-18)" "$RUNNER_TEMP/bpl-toolchain/bin/clang"
+          echo "$RUNNER_TEMP/bpl-toolchain/bin" >> "$GITHUB_PATH"
+
+      - name: Install LLVM toolchain (macOS brew)
+        if: matrix.toolchain == 'macos-brew-llvm'
+        run: |
+          brew install llvm
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+
+      - name: Show selected toolchain
+        run: |
+          "$CC" --version
+          clang --version
 
       - name: Install dependencies
         run: |
@@ -38,12 +88,16 @@ jobs:
         run: bun run check
 
       - name: Run CI-safe test suite
+        if: matrix.ci_safe == true
         env:
           BPL_INTEGRATION_JOBS: "4"
         run: bun run test:ci
 
       - name: Run compiler correctness tests
         run: bun run test:correctness
+
+      - name: Validate saved fuzz failure artifacts
+        run: bun run fuzz:validate-artifacts
 
       - name: Run sanitizer-backed runtime tests
         run: bun run test:sanitizers

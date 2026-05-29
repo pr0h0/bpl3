@@ -6,8 +6,12 @@
 import { spawnSync } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
-import type { CompileOptions } from "./types";
-import { getHostDefaults, normalizeArrayOption } from "./utils";
+import type { CompileOptions, HostDefaults } from "./types";
+import {
+  getHostDefaults,
+  getNativeLinkerFlags,
+  normalizeArrayOption,
+} from "./utils";
 import { Logger } from "../compiler/common/Logger";
 import { getBplHome } from "../compiler/common/PathResolver";
 
@@ -142,7 +146,7 @@ function buildClangArgs(
   irPath: string,
   execPath: string,
   options: CompileOptions,
-  hostDefaults: { target: string },
+  hostDefaults: HostDefaults,
 ): string[] {
   const args: string[] = ["-Wno-override-module"];
 
@@ -186,12 +190,7 @@ function buildClangArgs(
     args.push(`-l${l}`);
   }
 
-  // Always link libm and libdl (for stack traces)
-  args.push("-lm");
-  args.push("-ldl");
-
-  // Export symbols for dladdr
-  args.push("-rdynamic");
+  args.push(...getNativeLinkerFlags(hostDefaults.os));
 
   // Additional clang flags
   for (const flag of normalizeArrayOption(options.clangFlag)) {

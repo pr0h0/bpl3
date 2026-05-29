@@ -260,8 +260,15 @@ This produces:
 The C runtime is compiled with:
 
 - `-fPIC` - Position-independent code
-- `-O2` - Optimization level 2
-- `-rdynamic` - Export symbols for stack traces
+- `-O2 -g` for `BPL_RUNTIME_BUILD=release`
+- `-O0 -g3` for `BPL_RUNTIME_BUILD=debug`
+
+Select the C compiler with `CC`:
+
+```bash
+CC=clang BPL_RUNTIME_BUILD=release ./build_runtime.sh
+CC=clang-18 BPL_RUNTIME_BUILD=debug ./build_runtime.sh
+```
 
 ## Linking
 
@@ -271,7 +278,9 @@ The BPL compiler automatically links both runtime components:
 clang -o program program.ll lib/runtime.ll lib/runtime_support.o -rdynamic -lm
 ```
 
-The `-rdynamic` flag is essential for `dladdr()` to resolve symbol names in stack traces.
+On Linux, the compiler adds `-lm -ldl -rdynamic` so `dladdr()` can resolve
+symbol names in stack traces. On macOS, `dladdr()` is provided by libSystem, so
+the compiler links only `-lm` for the native runtime support flags.
 
 ## Exception Handling Integration
 

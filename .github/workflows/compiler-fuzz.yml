@@ -28,6 +28,8 @@ jobs:
       FUZZ_DIFFERENTIAL_SEEDS: 0xd1ff0,0xd1ff1,0xd1ff2
       FUZZ_CRASH_DIR: fuzz/crashes
       FUZZ_PROGRESS: "1000"
+      FUZZ_MINIMIZE: "1"
+      FUZZ_MINIMIZE_PASSES: "8"
 
     steps:
       - name: Checkout
