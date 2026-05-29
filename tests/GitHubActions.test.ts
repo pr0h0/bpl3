@@ -15,6 +15,8 @@ describe("GitHub Actions workflows", () => {
 
     expect(workflow).toContain("schedule:");
     expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("actions/checkout@v6");
+    expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("npm ci --prefix vscode-ext");
@@ -84,6 +86,8 @@ describe("GitHub Actions workflows", () => {
       "BPL_RUNTIME_BUILD: ${{ matrix.runtime_build }}",
     );
     expect(workflow).toContain("CC: ${{ matrix.cc }}");
+    expect(workflow).toContain("actions/checkout@v6");
+    expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("npm ci --prefix vscode-ext");
