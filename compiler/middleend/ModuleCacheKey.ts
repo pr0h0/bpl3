@@ -65,8 +65,9 @@ function getModuleCacheInterfaceDependencies(
 }
 
 function createModuleInterfaceSignature(module: ModuleInfo): string {
+  const exportedNames = getExportedNames(module.ast);
   const declarations = module.ast.statements
-    .map((statement) => createDeclarationSignature(statement))
+    .map((statement) => createDeclarationSignature(statement, exportedNames))
     .filter((signature): signature is Record<string, unknown> =>
       Boolean(signature),
     );
@@ -74,8 +75,25 @@ function createModuleInterfaceSignature(module: ModuleInfo): string {
   return JSON.stringify(declarations);
 }
 
+function getExportedNames(ast: AST.Program): Set<string> {
+  const exportedNames = new Set<string>();
+
+  for (const statement of ast.statements) {
+    if (statement.kind !== "Export") {
+      continue;
+    }
+
+    for (const item of (statement as AST.ExportStmt).items) {
+      exportedNames.add(item.name);
+    }
+  }
+
+  return exportedNames;
+}
+
 function createDeclarationSignature(
   statement: AST.Statement,
+  exportedNames: Set<string>,
 ): Record<string, unknown> | undefined {
   switch (statement.kind) {
     case "Export": {
@@ -89,8 +107,12 @@ function createDeclarationSignature(
         })),
       };
     }
-    case "FunctionDecl":
-      return createFunctionSignature(statement as AST.FunctionDecl);
+    case "FunctionDecl": {
+      const declaration = statement as AST.FunctionDecl;
+      return exportedNames.has(declaration.name)
+        ? createFunctionSignature(declaration)
+        : undefined;
+    }
     case "StructDecl": {
       const declaration = statement as AST.StructDecl;
       return {
@@ -169,6 +191,13 @@ function createDeclarationSignature(
     }
     case "VariableDecl": {
       const declaration = statement as AST.VariableDecl;
+      if (
+        typeof declaration.name !== "string" ||
+        !exportedNames.has(declaration.name)
+      ) {
+        return undefined;
+      }
+
       return {
         kind: declaration.kind,
         isGlobal: declaration.isGlobal,
@@ -183,6 +212,10 @@ function createDeclarationSignature(
     }
     case "Extern": {
       const declaration = statement as AST.ExternDecl;
+      if (!exportedNames.has(declaration.name)) {
+        return undefined;
+      }
+
       return {
         kind: declaration.kind,
         name: declaration.name,

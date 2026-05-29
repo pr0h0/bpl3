@@ -345,4 +345,99 @@ describe("CLI Tests", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("should not recache importers when dependency private helper signatures change", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_parallel_cache_private-"),
+    );
+    const mathFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "parallel_app");
+    const manifestFile = path.join(tempDir, ".bpl-cache", "manifest.json");
+
+    const writeMath = (extraParam: boolean) => {
+      fs.writeFileSync(
+        mathFile,
+        extraParam
+          ? [
+              "frame hidden(base: int, bonus: int) ret int {",
+              "    return base + bonus;",
+              "}",
+              "export answer;",
+              "frame answer(base: int) ret int {",
+              "    return hidden(base, 0) + 2;",
+              "}",
+            ].join("\n")
+          : [
+              "frame hidden(base: int) ret int {",
+              "    return base;",
+              "}",
+              "export answer;",
+              "frame answer(base: int) ret int {",
+              "    return hidden(base) + 2;",
+              "}",
+            ].join("\n"),
+      );
+    };
+    const readManifestModules = () =>
+      JSON.parse(fs.readFileSync(manifestFile, "utf-8")).modules;
+
+    writeMath(false);
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./math.bpl";',
+        "frame main() ret int {",
+        "    return answer(40);",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const first = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(first.status).toBe(0);
+
+      const firstRun = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(firstRun.status).toBe(42);
+
+      const firstManifest = readManifestModules();
+      const firstMath = firstManifest[mathFile];
+      const firstMain = firstManifest[mainFile];
+      expect(firstMath).toBeTruthy();
+      expect(firstMain).toBeTruthy();
+
+      writeMath(true);
+
+      const second = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(second.status).toBe(0);
+
+      const secondRun = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(secondRun.status).toBe(42);
+
+      const secondManifest = readManifestModules();
+      expect(secondManifest[mathFile].hash).not.toBe(firstMath.hash);
+      expect(secondManifest[mainFile].hash).toBe(firstMain.hash);
+      expect(secondManifest[mainFile].objectFile).toBe(firstMain.objectFile);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
