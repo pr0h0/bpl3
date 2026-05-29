@@ -6,6 +6,15 @@
   "bin": {
     "bpl": "./bpl"
   },
+  "files": [
+    "bpl",
+    "bpl-wrapper.sh",
+    "completions",
+    "grammar",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "bun index.ts",
     "build": "bun run build:runtime && bun run build:compiler",

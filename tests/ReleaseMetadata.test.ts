@@ -12,6 +12,17 @@ describe("Release metadata", () => {
     expect(packageJson.private).toBe(false);
     expect(packageJson.license).toBe("Apache-2.0");
     expect(packageJson.bin).toEqual({ bpl: "./bpl" });
+    expect(packageJson.files).toEqual(
+      expect.arrayContaining([
+        "bpl",
+        "bpl-wrapper.sh",
+        "completions",
+        "grammar",
+        "lib",
+        "README.md",
+        "LICENSE",
+      ]),
+    );
     expect(packageJson.scripts["release:check"]).toContain("bun run check");
     expect(packageJson.scripts["release:check"]).toContain(
       "tests/ReleaseMetadata.test.ts",
