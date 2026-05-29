@@ -162,6 +162,6 @@ bun run release:check
 ```
 
 This type-checks the TypeScript code, validates release metadata and workflow
-expectations, and runs the VS Code extension tests. It is intentionally smaller
-than the full compiler correctness matrix so it stays useful as a local
-pre-release gate.
+expectations, runs a standalone `./bpl` binary smoke test, and runs the VS Code
+extension tests. It is intentionally smaller than the full compiler correctness
+matrix so it stays useful as a local pre-release gate.

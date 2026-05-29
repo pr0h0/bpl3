@@ -178,6 +178,9 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["test:ci"]).toContain(
       "! -name 'CompilerSanitizerRuntime.test.ts'",
     );
+    expect(packageJson.scripts["test:ci"]).toContain(
+      "! -name 'ReleaseSmoke.test.ts'",
+    );
 
     expect(workflow).toContain("Run CI-safe test suite");
     expect(workflow).toContain("bun run test:ci");

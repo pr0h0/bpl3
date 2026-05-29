@@ -17,7 +17,13 @@ describe("Release metadata", () => {
       "tests/ReleaseMetadata.test.ts",
     );
     expect(packageJson.scripts["release:check"]).toContain(
+      "bun run release:smoke",
+    );
+    expect(packageJson.scripts["release:check"]).toContain(
       "npm test --prefix vscode-ext",
+    );
+    expect(packageJson.scripts["release:smoke"]).toBe(
+      "bun tools/release_smoke.ts",
     );
   });
 
