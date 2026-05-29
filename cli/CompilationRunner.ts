@@ -290,6 +290,7 @@ function compileWithModules(
     if (result.output) {
       console.log(result.output);
     }
+    printCacheStatsIfRequested(result, options);
 
     if (options.run) {
       const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
@@ -385,6 +386,7 @@ async function compileWithModulesAsync(
     if (result.output) {
       console.log(result.output);
     }
+    printCacheStatsIfRequested(result, options);
 
     if (options.run) {
       const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
@@ -535,5 +537,40 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
     return filePath.replace(/\.[^/.]+$/, "") + ".ll";
   }
 
-  return options.output.endsWith(".ll") ? options.output : `${options.output}.ll`;
+  return options.output.endsWith(".ll")
+    ? options.output
+    : `${options.output}.ll`;
+}
+
+function printCacheStatsIfRequested(
+  result: { stats?: { cache?: CacheStatsForOutput } },
+  options: CompileOptions,
+): void {
+  if (!options.cacheStats || !result.stats?.cache) {
+    return;
+  }
+
+  const stats = result.stats.cache;
+  console.log(
+    [
+      "Cache stats:",
+      `modules=${stats.totalModules}`,
+      `hits=${stats.hits}`,
+      `misses=${stats.misses}`,
+      `compiled=${stats.compiled}`,
+      `reused=${stats.reused}`,
+      `jobs=${stats.jobs}`,
+      `sizeKb=${(stats.cacheSize / 1024).toFixed(2)}`,
+    ].join(" "),
+  );
+}
+
+interface CacheStatsForOutput {
+  totalModules: number;
+  cacheSize: number;
+  hits: number;
+  misses: number;
+  compiled: number;
+  reused: number;
+  jobs: number;
 }

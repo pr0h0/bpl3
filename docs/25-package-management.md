@@ -32,6 +32,31 @@ The configuration file defines the package metadata.
 
 ## Creating a Package
 
+The quickest path is the library template:
+
+```bash
+bpl new my-package --template library
+cd my-package
+bpl check src/index.bpl
+```
+
+This creates:
+
+```
+my-package/
+  bpl.json
+  src/
+    index.bpl
+  examples/
+    usage.bpl
+```
+
+`src/index.bpl` is the public package entry point. Keep exports there small and
+intentional so editor tooling, package consumers, and cache invalidation all see
+a stable API surface.
+
+To create a package manually:
+
 1.  Create a directory for your package.
 2.  Create a `bpl.json` file.
 3.  Write your code.
@@ -116,6 +141,7 @@ When you run `bpl install`, the package manager:
 ## Best Practices
 
 - **Entry Point**: Use `index.bpl` to re-export the public API of your package.
+
   ```bpl
   # index.bpl
   import [MyStruct] from "./src/structs.bpl";
@@ -124,4 +150,18 @@ When you run `bpl install`, the package manager:
   export [MyStruct];
   export myFunction;
   ```
+
 - **Names**: Use unique, lowercase names for packages (kebab-case recommended).
+
+## Release Checks
+
+Before publishing or cutting a release, run:
+
+```bash
+bun run release:check
+```
+
+This type-checks the TypeScript code, validates release metadata and workflow
+expectations, and runs the VS Code extension tests. It is intentionally smaller
+than the full compiler correctness matrix so it stays useful as a local
+pre-release gate.

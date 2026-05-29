@@ -55,7 +55,20 @@ bpl build hello.bpl
 
 # Specify output file
 bpl build hello.bpl -o myprogram
+
+# Build with incremental module cache stats
+bpl build main.bpl --cache --jobs 4 --cache-stats
 ```
+
+`--cache-stats` prints the module cache summary for cached builds:
+
+```text
+Executable created: ./main
+Cache stats: modules=11 hits=8 misses=3 compiled=3 reused=8 jobs=4 sizeKb=304.64
+```
+
+Use this when tuning compile times or checking whether a dependency change
+invalidates more modules than expected.
 
 ### `bpl check <files...>`
 
@@ -82,7 +95,29 @@ Create a new BPL project.
 
 ```bash
 bpl new my-project
+bpl new my-library --template library
 ```
+
+Templates:
+
+- `app` (default): executable project with `main.bpl` and `lib/`
+- `library`: package-oriented project with `src/index.bpl`, an exported public
+  API, and `examples/usage.bpl`
+
+Use `--no-git` to skip git initialization.
+
+### `bpl doctor`
+
+Check the local BPL installation, runtime artifacts, and host toolchain.
+
+```bash
+bpl doctor
+bpl doctor --json
+```
+
+The JSON form is intended for bug reports and CI diagnostics. It reports
+`BPL_HOME`, platform details, runtime file presence, and whether `clang` is
+available.
 
 ### `bpl clean`
 
@@ -127,6 +162,7 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--debug`: Generate DWARF debug information on `run`, `dev`, and `build`
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
+- `--cache-stats`: Show incremental cache hit/miss statistics
 - `--json`: Output in JSON format where supported, especially `bpl check`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output

@@ -17,3 +17,4 @@ export { registerNewCommand } from "./new";
 export { registerCleanCommand } from "./clean";
 export { registerRunScriptCommand } from "./runScript";
 export { registerBindgenCommand } from "./bindgen";
+export { registerDoctorCommand } from "./doctor";

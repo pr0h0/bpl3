@@ -41,6 +41,16 @@ export interface ModuleCompileBatchOptions {
   optimizationLevel?: number;
 }
 
+export interface ModuleCacheStats {
+  totalModules: number;
+  cacheSize: number;
+  hits: number;
+  misses: number;
+  compiled: number;
+  reused: number;
+  jobs: number;
+}
+
 export interface ModuleLinkOptions {
   objectFiles?: string[];
   libraries?: string[];
@@ -53,6 +63,15 @@ export class ModuleCache {
   private cacheDir: string;
   private manifest: CacheManifest;
   private manifestPath: string;
+  private lastStats: ModuleCacheStats = {
+    totalModules: 0,
+    cacheSize: 0,
+    hits: 0,
+    misses: 0,
+    compiled: 0,
+    reused: 0,
+    jobs: 1,
+  };
 
   constructor(projectRoot?: string) {
     // Use project-local cache directory
@@ -119,11 +138,9 @@ export class ModuleCache {
     optimizationLevel?: number,
   ): string {
     return this.calculateHash(
-      [
-        content,
-        `target=${target ?? ""}`,
-        `opt=${optimizationLevel ?? 0}`,
-      ].join("|"),
+      [content, `target=${target ?? ""}`, `opt=${optimizationLevel ?? 0}`].join(
+        "|",
+      ),
     );
   }
 
@@ -132,6 +149,18 @@ export class ModuleCache {
       return 1;
     }
     return jobs;
+  }
+
+  resetStats(jobs: number | undefined = 1): void {
+    this.lastStats = {
+      totalModules: 0,
+      cacheSize: 0,
+      hits: 0,
+      misses: 0,
+      compiled: 0,
+      reused: 0,
+      jobs: this.normalizeJobs(jobs),
+    };
   }
 
   private getCachedModuleObject(
@@ -202,11 +231,16 @@ export class ModuleCache {
     // Let's check manually here using our new hash
     const cachedObjectFile = this.getCachedModuleObject(modulePath, hash);
     if (cachedObjectFile) {
+      this.lastStats.hits++;
+      this.lastStats.reused++;
       if (verbose) {
         compilerLog.info(`Using cached: ${path.basename(modulePath)}`);
       }
       return cachedObjectFile;
     }
+
+    this.lastStats.misses++;
+    this.lastStats.compiled++;
 
     if (verbose) {
       compilerLog.info(`Compiling: ${path.basename(modulePath)}`);
@@ -275,7 +309,11 @@ export class ModuleCache {
     modules: ModuleCompileInput[],
     options: ModuleCompileBatchOptions = {},
   ): Promise<string[]> {
-    const jobs = Math.min(this.normalizeJobs(options.jobs), modules.length || 1);
+    const jobs = Math.min(
+      this.normalizeJobs(options.jobs),
+      modules.length || 1,
+    );
+    this.resetStats(jobs);
     const results = new Array<string>(modules.length);
     let nextIndex = 0;
 
@@ -287,9 +325,7 @@ export class ModuleCache {
       }
     };
 
-    await Promise.all(
-      Array.from({ length: jobs }, () => worker()),
-    );
+    await Promise.all(Array.from({ length: jobs }, () => worker()));
     return results;
   }
 
@@ -305,15 +341,23 @@ export class ModuleCache {
     const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
       .toString(16)
       .slice(2)}`;
-    const tempObjectFilePath = path.join(this.cacheDir, `${hash}.${tempSuffix}.o`);
+    const tempObjectFilePath = path.join(
+      this.cacheDir,
+      `${hash}.${tempSuffix}.o`,
+    );
     const cachedObjectFile = this.getCachedModuleObject(input.modulePath, hash);
 
     if (cachedObjectFile) {
+      this.lastStats.hits++;
+      this.lastStats.reused++;
       if (options.verbose) {
         compilerLog.info(`Using cached: ${path.basename(input.modulePath)}`);
       }
       return cachedObjectFile;
     }
+
+    this.lastStats.misses++;
+    this.lastStats.compiled++;
 
     if (options.verbose) {
       compilerLog.info(`Compiling: ${path.basename(input.modulePath)}`);
@@ -477,7 +521,7 @@ export class ModuleCache {
   /**
    * Get cache statistics
    */
-  getStats(): { totalModules: number; cacheSize: number } {
+  getStats(): ModuleCacheStats {
     let totalSize = 0;
     for (const cached of this.manifest.modules.values()) {
       if (fs.existsSync(cached.objectFile)) {
@@ -486,6 +530,7 @@ export class ModuleCache {
       }
     }
     return {
+      ...this.lastStats,
       totalModules: this.manifest.modules.size,
       cacheSize: totalSize,
     };

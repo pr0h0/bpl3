@@ -25,6 +25,7 @@ import {
   registerCleanCommand,
   registerRunScriptCommand,
   registerBindgenCommand,
+  registerDoctorCommand,
 } from "./cli";
 import type { CompileOptions } from "./cli/types";
 import { Logger } from "./compiler/common/Logger";
@@ -71,6 +72,7 @@ program
   .option("-v, --verbose", "enable verbose output")
   .option("-q, --quiet", "suppress non-error output")
   .option("--cache", "enable incremental compilation with module caching")
+  .option("--cache-stats", "show incremental cache hit/miss statistics")
   .option(
     "-j, --jobs <count>",
     "parallel module compilation jobs for cached builds",
@@ -156,6 +158,7 @@ registerDocsCommand(program);
 registerNewCommand(program);
 registerCleanCommand(program);
 registerBindgenCommand(program);
+registerDoctorCommand(program, packageJson.version);
 
 // ============================================================================
 // Parse and Execute

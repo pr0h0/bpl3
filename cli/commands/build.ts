@@ -50,6 +50,7 @@ export function registerBuildCommand(program: Command): void {
     .option("-L, --lib-path <path...>", "library search paths")
     .option("--object <file...>", "object files to link (.o, .ll, etc.)")
     .option("--cache", "enable incremental compilation with module caching")
+    .option("--cache-stats", "show incremental cache hit/miss statistics")
     .option(
       "-j, --jobs <count>",
       "parallel module compilation jobs for cached builds",

@@ -1,0 +1,28 @@
+{
+  "order": 68,
+  "title": "Tooling Friendly Modules",
+  "snippet": "Small exported APIs make diagnostics, editor tooling, and package checks easier to reason about.",
+  "description": "Demonstrates a compact public API shape that works well with bpl check, package entry points, and editor snippets.",
+  "code": [
+    "extern printf(fmt: string, ...);",
+    "",
+    "struct Accumulator {",
+    "    value: int,",
+    "",
+    "    frame add(this: *Accumulator, amount: int) ret void {",
+    "        this.value = this.value + amount;",
+    "    }",
+    "}",
+    "",
+    "frame makeAccumulator(seed: int) ret Accumulator {",
+    "    return Accumulator { value: seed };",
+    "}",
+    "",
+    "frame main() ret int {",
+    "    local acc: Accumulator = makeAccumulator(37);",
+    "    acc.add(5);",
+    "    printf(\"tooling-friendly total = %d\\n\", acc.value);",
+    "    return acc.value - 42;",
+    "}"
+  ]
+}

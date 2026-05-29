@@ -23,6 +23,7 @@ import { Linker } from "./middleend/Linker";
 import {
   ModuleCache,
   type ModuleCompileInput,
+  type ModuleCacheStats,
 } from "./middleend/ModuleCache";
 import { createModuleCacheContent } from "./middleend/ModuleCacheKey";
 import { ModuleResolver, type ModuleInfo } from "./middleend/ModuleResolver";
@@ -90,6 +91,10 @@ export interface CompilationResult {
   errors?: CompilerError[];
   /** Parsed AST if available */
   ast?: AST.Program;
+  /** Optional structured performance and tooling metadata */
+  stats?: {
+    cache?: ModuleCacheStats;
+  };
 }
 
 /**
@@ -524,6 +529,7 @@ export class Compiler {
       });
       const llvmIR = codeGenerator.generate(combinedAST, entryModule.path);
 
+      cache.resetStats(1);
       const objectFile = cache.compileModule(
         entryModule.path,
         allContent,
@@ -560,14 +566,15 @@ export class Compiler {
 
       if (this.options.verbose) {
         const stats = cache.getStats();
-        compilerLog.info(
-          `Cache stats: ${stats.totalModules} modules, ${(stats.cacheSize / 1024).toFixed(2)} KB`,
-        );
+        compilerLog.info(formatCacheStats(stats));
       }
 
       return {
         success: true,
         output: `Executable created: ${outputPath}`,
+        stats: {
+          cache: cache.getStats(),
+        },
       };
     } catch (error) {
       if (error instanceof CompilerError) {
@@ -666,14 +673,15 @@ export class Compiler {
 
       if (this.options.verbose) {
         const stats = cache.getStats();
-        compilerLog.info(
-          `Cache stats: ${stats.totalModules} modules, ${(stats.cacheSize / 1024).toFixed(2)} KB`,
-        );
+        compilerLog.info(formatCacheStats(stats));
       }
 
       return {
         success: true,
         output: `Executable created: ${outputPath}`,
+        stats: {
+          cache: cache.getStats(),
+        },
       };
     } catch (error) {
       if (error instanceof CompilerError) {
@@ -944,6 +952,19 @@ export class Compiler {
     const printer = new ASTPrinter();
     return printer.print(ast);
   }
+}
+
+function formatCacheStats(stats: ModuleCacheStats): string {
+  return [
+    "Cache stats:",
+    `modules=${stats.totalModules}`,
+    `hits=${stats.hits}`,
+    `misses=${stats.misses}`,
+    `compiled=${stats.compiled}`,
+    `reused=${stats.reused}`,
+    `jobs=${stats.jobs}`,
+    `sizeKb=${(stats.cacheSize / 1024).toFixed(2)}`,
+  ].join(" ");
 }
 
 // =============================================================================

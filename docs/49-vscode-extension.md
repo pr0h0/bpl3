@@ -27,6 +27,20 @@ Smart, context-aware autocompletion powered by the compiler's type checker:
 - **Enum Variants**: Type `Status.` to see `Active`, `Inactive`, etc.
 - **Keyword Suggestions**: All BPL keywords available in appropriate contexts
 
+### Snippets
+
+The extension ships snippets for common source shapes:
+
+- `main`: executable entry point
+- `frame`, `struct`, `enum`, `spec`: declarations
+- `match`, `match-type`: value and type matching
+- `package-main`: small exported package entry point
+- `try`, `defer`, `throw`: error-handling and cleanup patterns
+
+These snippets are intentionally source-level only. Shell workflows such as
+`bpl doctor`, `bpl build --cache-stats`, and `bpl new --template library` remain
+CLI commands rather than editor snippets.
+
 ### Hover Information
 
 Rich tooltips with full type information:
@@ -202,6 +216,7 @@ Tests cover:
 - Go-to-definition navigation
 - Symbol resolution across files
 - Type inference and checking
+- Snippet JSON validity for package and type-match snippets
 
 ## Troubleshooting
 

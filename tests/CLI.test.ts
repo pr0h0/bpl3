@@ -75,6 +75,55 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should scaffold library projects with package-friendly defaults", () => {
+    const tempDir = fs.mkdtempSync(path.join(process.cwd(), "tests/temp_new-"));
+    const projectName = "sample-lib";
+    const projectDir = path.join(tempDir, projectName);
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [BPL_CLI, "new", projectName, "--template", "library", "--no-git"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(path.join(projectDir, "bpl.json"))).toBe(true);
+      expect(fs.existsSync(path.join(projectDir, "src", "index.bpl"))).toBe(
+        true,
+      );
+      expect(
+        fs.existsSync(path.join(projectDir, "examples", "usage.bpl")),
+      ).toBe(true);
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(projectDir, "bpl.json"), "utf-8"),
+      );
+      expect(manifest.main).toBe("src/index.bpl");
+      expect(manifest.type).toBe("library");
+
+      const source = fs.readFileSync(
+        path.join(projectDir, "src", "index.bpl"),
+        "utf-8",
+      );
+      expect(source).toContain("export add;");
+      expect(source).toContain("frame add(left: int, right: int) ret int");
+
+      const readme = fs.readFileSync(
+        path.join(projectDir, "README.md"),
+        "utf-8",
+      );
+      expect(readme).toContain("bpl pack");
+      expect(readme).toContain("bpl check src/index.bpl");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should generate BPL extern declarations from simple C headers", () => {
     const tempHeader = path.join(process.cwd(), "tests/temp_bindgen.h");
     fs.writeFileSync(
@@ -151,6 +200,35 @@ describe("CLI Tests", () => {
     expect(zsh.status).toBe(0);
     expect(bash.stdout).toContain("wasm32-unknown-unknown");
     expect(zsh.stdout).toContain("wasm32-unknown-unknown");
+    expect(bash.stdout).toContain("doctor");
+    expect(zsh.stdout).toContain("doctor:Check local BPL toolchain");
+    expect(bash.stdout).toContain("--cache-stats");
+    expect(zsh.stdout).toContain("--cache-stats");
+    expect(bash.stdout).toContain("--template");
+    expect(zsh.stdout).toContain("--template");
+  });
+
+  it("should report host toolchain diagnostics from doctor as JSON", () => {
+    const result = runCLI(["doctor", "--json"]);
+
+    expect(result.status).toBe(0);
+
+    const report = JSON.parse(result.stdout);
+    expect(report.success).toBe(true);
+    expect(report.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(report.platform.os).toBeTruthy();
+    expect(report.platform.arch).toBeTruthy();
+    expect(report.checks.map((check: { name: string }) => check.name)).toEqual(
+      expect.arrayContaining([
+        "BPL home",
+        "Runtime IR",
+        "Runtime support object",
+        "clang",
+      ]),
+    );
+    expect(
+      report.checks.every((check: { ok: boolean }) => check.ok === true),
+    ).toBe(true);
   });
 
   it("should build a direct wasm artifact for wasm32 targets", () => {
@@ -241,6 +319,81 @@ describe("CLI Tests", () => {
       expect(cachedModulePaths).toContain(constantsFile);
       expect(cachedModulePaths).toContain(mathFile);
       expect(cachedModulePaths).toContain(mainFile);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should print cache stats for cached parallel builds on request", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_parallel_cache_stats-"),
+    );
+    const constantsFile = path.join(tempDir, "constants.bpl");
+    const mathFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "parallel_app");
+
+    fs.writeFileSync(
+      constantsFile,
+      ["export seed;", "frame seed() ret int {", "    return 2;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mathFile,
+      [
+        'import seed from "./constants.bpl";',
+        "export answer;",
+        "frame answer(base: int) ret int {",
+        "    return base + seed();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./math.bpl";',
+        "frame main() ret int {",
+        "    return answer(40);",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const first = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--cache-stats",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(first.status).toBe(0);
+      expect(first.stdout).toContain("Cache stats:");
+      const firstModules = Number(first.stdout.match(/modules=(\d+)/)?.[1]);
+      expect(firstModules).toBeGreaterThanOrEqual(3);
+      expect(first.stdout).toContain("hits=0");
+      expect(first.stdout).toContain(`misses=${firstModules}`);
+
+      const second = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--cache-stats",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(second.status).toBe(0);
+      expect(second.stdout).toContain("Cache stats:");
+      expect(second.stdout).toContain(`modules=${firstModules}`);
+      expect(second.stdout).toContain(`hits=${firstModules}`);
+      expect(second.stdout).toContain("misses=0");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

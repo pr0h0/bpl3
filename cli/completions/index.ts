@@ -21,10 +21,10 @@ _bpl_completion() {
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format run dev build check lint init pack install list uninstall completion clean new help docs bindgen"
+    local commands="format run dev build check lint init pack install list uninstall completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
-    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
+    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
 
     # Format command options
     local format_opts="-w --write -v --verbose"
@@ -34,6 +34,15 @@ _bpl_completion() {
 
     # Init command options
     local init_opts="-v --verbose"
+
+    # New command options
+    local new_opts="-v --verbose --template --no-git"
+
+    # New command templates
+    local new_templates="app library"
+
+    # Doctor command options
+    local doctor_opts="--json"
 
     # Pack command options
     local pack_opts="-v --verbose"
@@ -84,6 +93,10 @@ _bpl_completion() {
             # Don't complete, let user type library name
             return 0
         ;;
+        --template)
+            COMPREPLY=( $(compgen -W "\${new_templates}" -- "\${cur}") )
+            return 0
+        ;;
         --cpu|--march|--clang-flag|-e|--eval|-j|--jobs)
             # Don't complete, let user type
             return 0
@@ -124,6 +137,16 @@ _bpl_completion() {
             ;;
             init)
                 COMPREPLY=( $(compgen -W "\${init_opts}" -- "\${cur}") )
+                return 0
+            ;;
+            new)
+                if [[ "$cur" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "\${new_opts}" -- "\${cur}") )
+                fi
+                return 0
+            ;;
+            doctor)
+                COMPREPLY=( $(compgen -W "\${doctor_opts}" -- "\${cur}") )
                 return 0
             ;;
             pack)
@@ -213,6 +236,7 @@ _bpl() {
         'uninstall:Uninstall a BPL package'
         'docs:Generate documentation'
         'bindgen:Generate BPL extern declarations from C headers'
+        'doctor:Check local BPL toolchain and runtime setup'
         'completion:Generate shell completion scripts'
         'help:Display help information'
     )
@@ -240,6 +264,7 @@ _bpl() {
         '-q[Suppress non-error output]'
         '--quiet[Suppress non-error output]'
         '--cache[Enable incremental compilation with module caching]'
+        '--cache-stats[Show incremental cache hit/miss statistics]'
         '-j[Parallel module compilation jobs for cached builds]:count'
         '--jobs[Parallel module compilation jobs for cached builds]:count'
         '-d[Generate DWARF debug information]'
@@ -281,6 +306,18 @@ _bpl() {
                     _arguments \\
                         '-v[Enable verbose output]' \\
                         '--verbose[Enable verbose output]'
+                    ;;
+                new)
+                    _arguments \\
+                        '-v[Enable verbose output]' \\
+                        '--verbose[Enable verbose output]' \\
+                        '--template[Project template]:template:(app library)' \\
+                        '--no-git[Do not initialize git repository]' \\
+                        '1:name:'
+                    ;;
+                doctor)
+                    _arguments \\
+                        '--json[Output machine-readable diagnostics]'
                     ;;
                 pack)
                     _arguments \\

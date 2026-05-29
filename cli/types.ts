@@ -20,6 +20,7 @@ export interface CompileOptions {
   run?: boolean;
   verbose?: boolean;
   cache?: boolean;
+  cacheStats?: boolean;
   jobs?: string | number;
   write?: boolean;
   prelude?: boolean;

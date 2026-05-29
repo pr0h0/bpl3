@@ -38,6 +38,7 @@ export function registerDevCommand(program: Command): void {
     .option("--debug", "generate debug information (DWARF)")
     .option("--time", "show compilation time statistics")
     .option("--cache", "enable incremental compilation with module caching")
+    .option("--cache-stats", "show incremental cache hit/miss statistics")
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")

@@ -223,6 +223,7 @@ describe("BPL Playground Examples", () => {
         "Runtime Type Guards",
         "Native Variadic Functions",
         "Runtime Correctness Patterns",
+        "Tooling Friendly Modules",
       ]),
     );
   });

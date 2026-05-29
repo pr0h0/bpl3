@@ -12,14 +12,23 @@ _bpl() {
 
     local -a commands
     commands=(
+        'run:Compile and execute a BPL program'
+        'dev:Development mode with watch and auto-run'
+        'build:Compile a BPL program'
+        'check:Type check BPL files without generating code'
         'format:Format BPL source files'
+        'lint:Lint BPL source files'
+        'new:Create a new BPL project with standard structure'
+        'clean:Remove build artifacts and caches'
         'init:Initialize a new BPL package'
         'pack:Package a BPL project'
         'install:Install a BPL package'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
-        'completion:Generate shell completion scripts'
+        'docs:Generate documentation'
         'bindgen:Generate BPL extern declarations from C headers'
+        'doctor:Check local BPL toolchain and runtime setup'
+        'completion:Generate shell completion scripts'
         'help:Display help information'
     )
 
@@ -41,11 +50,22 @@ _bpl() {
         '-L[Library search paths]:path:_directories'
         '--lib-path[Library search paths]:path:_directories'
         '--object[Object files to link]:file:_files -g "*.{o,ll,bc}"'
-        '--run[Run the generated code]'
         '-v[Enable verbose output]'
         '--verbose[Enable verbose output]'
+        '-q[Suppress non-error output]'
+        '--quiet[Suppress non-error output]'
         '--cache[Enable incremental compilation with module caching]'
-        '--write[Write formatted output back to file]'
+        '--cache-stats[Show incremental cache hit/miss statistics]'
+        '-j[Parallel module compilation jobs for cached builds]:count'
+        '--jobs[Parallel module compilation jobs for cached builds]:count'
+        '-d[Generate DWARF debug information]'
+        '--dwarf[Generate DWARF debug information]'
+        '--debug[Generate DWARF debug information (alias for --dwarf)]'
+        '--time[Show compilation time statistics]'
+        '--json[Output in JSON format]'
+        '--color[Force colored output]'
+        '--no-color[Disable colored output]'
+        '-O[Optimization level]:level:(0 1 2 3)'
         '-h[Display help information]'
         '--help[Display help information]'
         '-V[Display version information]'
@@ -77,6 +97,18 @@ _bpl() {
                     _arguments \
                         '-v[Enable verbose output]' \
                         '--verbose[Enable verbose output]'
+                    ;;
+                new)
+                    _arguments \
+                        '-v[Enable verbose output]' \
+                        '--verbose[Enable verbose output]' \
+                        '--template[Project template]:template:(app library)' \
+                        '--no-git[Do not initialize git repository]' \
+                        '1:name:'
+                    ;;
+                doctor)
+                    _arguments \
+                        '--json[Output machine-readable diagnostics]'
                     ;;
                 pack)
                     _arguments \

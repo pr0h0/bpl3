@@ -94,6 +94,20 @@
     ],
     "description": "Match expression"
   },
+  "Type Match Expression": {
+    "prefix": "match-type",
+    "body": [
+      "match<${1:Type}>(${2:value}) {",
+      "\t${3:Target} => {",
+      "\t\t$4",
+      "\t},",
+      "\t_ => {",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Type match expression"
+  },
   "Try Catch": {
     "prefix": "try",
     "body": ["try {", "\t$0", "} catch (e: ${1:int}) {", "\t", "}"],
@@ -173,6 +187,17 @@
     "prefix": "export",
     "body": ["export ${1:symbol};"],
     "description": "Export a symbol"
+  },
+  "Package Entry Point": {
+    "prefix": "package-main",
+    "body": [
+      "export ${1:symbol};",
+      "",
+      "frame ${1:symbol}(${2:args}) ret ${3:int} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Exported package entry point"
   },
   "Extern Function": {
     "prefix": "extern",
