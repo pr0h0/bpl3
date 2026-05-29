@@ -272,11 +272,14 @@ export class PackageManager {
               `Restoring ${packageName}@${entry.version} from ${entry.source}`,
             );
           }
-          this.install(this.resolveDependencySource(packageName, entry.source), {
-            ...options,
-            global: false,
-            locked: false,
-          });
+          this.install(
+            this.resolveDependencySource(packageName, entry.source),
+            {
+              ...options,
+              global: false,
+              locked: false,
+            },
+          );
         }
         return;
       }
@@ -430,18 +433,81 @@ export class PackageManager {
    */
   private calculatePackageHash(packageDir: string): string {
     const hash = crypto.createHash("sha256");
+    const packageRoot = path.resolve(packageDir);
 
-    // Get all .bpl files recursively
-    const files = this.getAllBplFiles(packageDir);
-    files.sort(); // Ensure consistent order
+    const files = this.getPackageHashFiles(packageRoot);
+    files.sort((left, right) =>
+      path
+        .relative(packageRoot, left)
+        .localeCompare(path.relative(packageRoot, right)),
+    );
 
     for (const file of files) {
-      const content = fs.readFileSync(file, "utf-8");
-      hash.update(file.replace(packageDir, "")); // Relative path
+      const relativePath = path
+        .relative(packageRoot, file)
+        .split(path.sep)
+        .join("/");
+      const content = fs.readFileSync(file);
+      hash.update(relativePath);
+      hash.update("\0");
       hash.update(content);
+      hash.update("\0");
     }
 
     return hash.digest("hex");
+  }
+
+  private getPackageHashFiles(packageDir: string): string[] {
+    const files = new Set<string>();
+    const manifestPath = path.join(packageDir, "bpl.json");
+
+    if (fs.existsSync(manifestPath)) {
+      files.add(manifestPath);
+    }
+
+    for (const file of this.getAllBplFiles(packageDir)) {
+      files.add(file);
+    }
+
+    const manifest = this.tryReadManifestJson(manifestPath);
+    if (
+      manifest?.bin &&
+      typeof manifest.bin === "object" &&
+      !Array.isArray(manifest.bin)
+    ) {
+      for (const relativeBinaryPath of Object.values(manifest.bin)) {
+        if (typeof relativeBinaryPath !== "string") continue;
+
+        const binaryPath = path.resolve(packageDir, relativeBinaryPath);
+        if (!this.isWithinPackage(packageDir, binaryPath)) continue;
+        if (fs.existsSync(binaryPath) && fs.statSync(binaryPath).isFile()) {
+          files.add(binaryPath);
+        }
+      }
+    }
+
+    return [...files];
+  }
+
+  private tryReadManifestJson(
+    manifestPath: string,
+  ): Partial<PackageManifest> | null {
+    try {
+      return JSON.parse(
+        fs.readFileSync(manifestPath, "utf-8"),
+      ) as Partial<PackageManifest>;
+    } catch {
+      return null;
+    }
+  }
+
+  private isWithinPackage(packageDir: string, filePath: string): boolean {
+    const relativePath = path.relative(packageDir, filePath);
+    return (
+      relativePath !== "" &&
+      !relativePath.startsWith("..") &&
+      !path.isAbsolute(relativePath)
+    );
   }
 
   /**
@@ -617,18 +683,16 @@ export class PackageManager {
       : this.localPackageDir;
 
     let tarballPath: string;
+    let lockSource = packageSource;
 
     // Check if source is a file path or package name
     if (fs.existsSync(packageSource)) {
       tarballPath = packageSource;
     } else {
       // Look for package in global registry
-      const files = fs.readdirSync(this.globalPackageDir);
-      const matching = files.filter(
-        (f) => f.startsWith(packageSource) && f.endsWith(".tgz"),
-      );
+      const globalTarballPath = this.resolveGlobalPackageSource(packageSource);
 
-      if (matching.length === 0) {
+      if (!globalTarballPath) {
         throw new CompilerError(
           `Package not found: ${packageSource}`,
           "Check the package name or path.",
@@ -642,12 +706,8 @@ export class PackageManager {
         );
       }
 
-      // Use latest version (simple string sort for now)
-      matching.sort();
-      tarballPath = path.join(
-        this.globalPackageDir,
-        matching[matching.length - 1]!,
-      );
+      tarballPath = globalTarballPath;
+      lockSource = path.basename(globalTarballPath);
     }
 
     if (options.verbose) {
@@ -704,7 +764,7 @@ export class PackageManager {
       this.linkBinaries(manifest, installPath, options.global || false);
 
       if (!options.global) {
-        this.recordLocalInstall(manifest, installPath, packageSource);
+        this.recordLocalInstall(manifest, installPath, lockSource);
       }
 
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
@@ -716,6 +776,54 @@ export class PackageManager {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  }
+
+  private resolveGlobalPackageSource(packageSource: string): string | null {
+    const exactTarballPath = path.join(this.globalPackageDir, packageSource);
+    if (packageSource.endsWith(".tgz") && fs.existsSync(exactTarballPath)) {
+      return exactTarballPath;
+    }
+
+    const matching = this.findGlobalPackageTarballs(packageSource);
+    if (matching.length === 0) {
+      return null;
+    }
+
+    return path.join(this.globalPackageDir, matching[0]!.file);
+  }
+
+  private findGlobalPackageTarballs(packageName: string): Array<{
+    file: string;
+    version: [number, number, number];
+  }> {
+    const packagePattern = new RegExp(
+      `^${escapeRegExp(packageName)}-(\\d+)\\.(\\d+)\\.(\\d+)\\.tgz$`,
+    );
+
+    return fs
+      .readdirSync(this.globalPackageDir)
+      .map((file) => {
+        const match = packagePattern.exec(file);
+        if (!match) return null;
+
+        return {
+          file,
+          version: [Number(match[1]), Number(match[2]), Number(match[3])] as [
+            number,
+            number,
+            number,
+          ],
+        };
+      })
+      .filter(
+        (
+          entry,
+        ): entry is {
+          file: string;
+          version: [number, number, number];
+        } => entry !== null,
+      )
+      .sort((left, right) => compareSemverDesc(left.version, right.version));
   }
 
   /**
@@ -940,4 +1048,20 @@ export class PackageManager {
 
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
   }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function compareSemverDesc(
+  left: [number, number, number],
+  right: [number, number, number],
+): number {
+  for (let i = 0; i < 3; i++) {
+    const delta = right[i]! - left[i]!;
+    if (delta !== 0) return delta;
+  }
+
+  return 0;
 }

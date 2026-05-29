@@ -280,6 +280,258 @@ describe("PackageManager", () => {
       expect(verification.errors.join("\n")).toContain("hash mismatch");
     });
 
+    test("should verify installed package manifests against bpl.lock", () => {
+      const manifest = {
+        name: "manifest-lock-test",
+        version: "1.0.0",
+        main: "index.bpl",
+        description: "original manifest",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export stable;");
+
+      const tarballPath = packageManager.pack(tempDir);
+
+      const installDir = path.join(tempDir, "manifest-lock-test");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      const installedManifestPath = path.join(
+        installDir,
+        "bpl_modules",
+        "manifest-lock-test",
+        "bpl.json",
+      );
+      const installedManifest = JSON.parse(
+        fs.readFileSync(installedManifestPath, "utf8"),
+      );
+      installedManifest.description = "tampered manifest";
+      fs.writeFileSync(
+        installedManifestPath,
+        JSON.stringify(installedManifest, null, 2),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.errors.join("\n")).toContain("hash mismatch");
+    });
+
+    test("should verify installed package binaries against bpl.lock", () => {
+      const manifest = {
+        name: "bin-lock-test",
+        version: "1.0.0",
+        main: "index.bpl",
+        bin: {
+          "bin-lock-tool": "bin/tool.sh",
+        },
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export stable;");
+      fs.mkdirSync("bin");
+      fs.writeFileSync("bin/tool.sh", "#!/usr/bin/env sh\necho original\n");
+
+      const tarballPath = packageManager.pack(tempDir);
+
+      const installDir = path.join(tempDir, "bin-lock-test");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      fs.writeFileSync(
+        path.join(installDir, "bpl_modules", "bin-lock-test", "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tampered\n",
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.errors.join("\n")).toContain("hash mismatch");
+    });
+
+    test("should install the highest exact semver match from the global package cache", () => {
+      const globalPackageDir = path.join(tempDir, "global-packages");
+      const appDir = path.join(tempDir, "semver-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      const createCachedPackage = (
+        name: string,
+        version: string,
+        exportName: string,
+      ) => {
+        const packageDir = path.join(tempDir, `${name}-${version}`);
+        fs.mkdirSync(packageDir);
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify({ name, version, main: "index.bpl" }, null, 2),
+        );
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          `export ${exportName};`,
+        );
+
+        const packer = new PackageManager(packageDir);
+        const tarballPath = packer.pack(packageDir);
+        fs.copyFileSync(
+          tarballPath,
+          path.join(globalPackageDir, path.basename(tarballPath)),
+        );
+      };
+
+      createCachedPackage("math", "1.2.0", "v120");
+      createCachedPackage("math", "1.10.0", "v1100");
+      createCachedPackage("math-extra", "9.9.9", "wrongPackage");
+
+      process.chdir(appDir);
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.install("math", { global: false, verbose: false });
+
+      const installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "math", "bpl.json"),
+          "utf8",
+        ),
+      );
+      const installedSource = fs.readFileSync(
+        path.join(appDir, "bpl_modules", "math", "index.bpl"),
+        "utf8",
+      );
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+
+      expect(installedManifest.name).toBe("math");
+      expect(installedManifest.version).toBe("1.10.0");
+      expect(installedSource).toContain("export v1100;");
+      expect(lock.packages.math.source).toBe("math-1.10.0.tgz");
+    });
+
+    test("should install versioned dependency tarballs from the global package cache", () => {
+      const globalPackageDir = path.join(tempDir, "dependency-cache");
+      const appDir = path.join(tempDir, "dependency-app");
+      const packageDir = path.join(tempDir, "dependency-math");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(packageDir);
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "dependency-math", version: "1.2.3", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+      const packer = new PackageManager(packageDir);
+      const tarballPath = packer.pack(packageDir);
+      fs.copyFileSync(
+        tarballPath,
+        path.join(globalPackageDir, path.basename(tarballPath)),
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "dependency-app",
+            version: "1.0.0",
+            dependencies: {
+              "dependency-math": "1.2.3",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      process.chdir(appDir);
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "dependency-math", "bpl.json"),
+          "utf8",
+        ),
+      );
+
+      expect(installedManifest.version).toBe("1.2.3");
+    });
+
+    test("should restore the locked global package version when newer cache versions exist", () => {
+      const globalPackageDir = path.join(tempDir, "locked-global-cache");
+      const appDir = path.join(tempDir, "locked-global-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      const createCachedPackage = (version: string, exportName: string) => {
+        const packageDir = path.join(tempDir, `locked-math-${version}`);
+        fs.mkdirSync(packageDir);
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            { name: "locked-math", version, main: "index.bpl" },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          `export ${exportName};`,
+        );
+
+        const packer = new PackageManager(packageDir);
+        const tarballPath = packer.pack(packageDir);
+        fs.copyFileSync(
+          tarballPath,
+          path.join(globalPackageDir, path.basename(tarballPath)),
+        );
+      };
+
+      createCachedPackage("1.0.0", "v100");
+
+      process.chdir(appDir);
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.install("locked-math", { global: false, verbose: false });
+
+      createCachedPackage("2.0.0", "v200");
+      fs.rmSync(path.join(appDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+
+      localPM.installProject({ global: false, verbose: false });
+
+      const installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "locked-math", "bpl.json"),
+          "utf8",
+        ),
+      );
+      const installedSource = fs.readFileSync(
+        path.join(appDir, "bpl_modules", "locked-math", "index.bpl"),
+        "utf8",
+      );
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+
+      expect(installedManifest.version).toBe("1.0.0");
+      expect(installedSource).toContain("export v100;");
+      expect(lock.packages["locked-math"].version).toBe("1.0.0");
+    });
+
     test("should list installed packages", () => {
       // Create and install a package
       const manifest = {

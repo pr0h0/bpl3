@@ -77,7 +77,7 @@ export function registerPackageCommands(program: Command): void {
                 [
                   "-S",
                   "-o",
-                  "/dev/null",
+                  os.devNull,
                   "-x",
                   "ir",
                   tempLL,

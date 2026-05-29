@@ -51,6 +51,18 @@ describe("Package Manager CLI", () => {
   });
 
   describe("pack command", () => {
+    test("should use the host null device for clang IR verification", () => {
+      const packageCommandSource = fs.readFileSync(
+        path.join(__dirname, "..", "cli", "commands", "package.ts"),
+        "utf-8",
+      );
+
+      expect(packageCommandSource).toContain("os.devNull");
+      expect(packageCommandSource).not.toContain(
+        '"-o",\n                  "/dev/null"',
+      );
+    });
+
     test("should create package tarball", () => {
       const manifest = {
         name: "cli-test-pkg",
