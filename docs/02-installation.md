@@ -51,8 +51,8 @@ sudo dnf install nodejs npm
 # Install Clang (comes with Xcode Command Line Tools)
 xcode-select --install
 
-# Or install via Homebrew
-brew install llvm
+# Or install via Homebrew. The lld formula provides wasm-ld.
+brew install llvm lld
 
 # Install Bun (recommended)
 curl -fsSL https://bun.sh/install | bash

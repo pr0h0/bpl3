@@ -106,11 +106,14 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("Install WebAssembly linker (macOS Apple clang)");
     expect(workflow).toContain("Configure WebAssembly linker");
     expect(workflow).toContain("WASM_LD=$(command -v wasm-ld)");
+    expect(workflow).toContain("brew install llvm lld");
+    expect(workflow).toContain("brew install lld");
+    expect(workflow).toContain('echo "$(brew --prefix lld)/bin"');
+    expect(workflow).toContain("WASM_LD=$(brew --prefix lld)/bin/wasm-ld");
     expect(workflow).toContain('"$WASM_LD" --version');
     expect(workflow).not.toContain(
       "wasm-ld --version || wasm-ld-18 --version || true",
     );
-    expect(workflow).toContain("brew install llvm");
     expect(workflow).toContain("Run WebAssembly runtime tests");
     expect(workflow).toContain('BPL_REQUIRE_WASM_LD: "1"');
     expect(workflow).toContain("bun run test:wasm");

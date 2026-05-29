@@ -81,14 +81,14 @@ You'll need:
 **Linux (Ubuntu/Debian):**
 
 ```bash
-sudo apt-get install clang llvm
+sudo apt-get install clang llvm lld
 curl -fsSL https://bun.sh/install | bash
 ```
 
 **macOS:**
 
 ```bash
-brew install llvm
+brew install llvm lld
 curl -fsSL https://bun.sh/install | bash
 ```
 
