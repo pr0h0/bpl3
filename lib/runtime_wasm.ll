@@ -20,13 +20,14 @@ target triple = "wasm32-unknown-unknown"
 @exception_value = weak global i64 0
 @exception_type = weak global i32 0
 @stderr = weak global %struct._IO_FILE* null
+@__heap_base = external global i8
 
 @.str.Type = private unnamed_addr constant [5 x i8] c"Type\00", align 1
 
-; Conservative bump allocator start. The linker creates linear memory and data
-; segments below this address for the small standalone programs BPL currently
-; supports on wasm32-unknown-unknown.
-@__bpl_heap_cursor = internal global i32 1048576
+; The WebAssembly linker defines __heap_base after static data, stack, and
+; runtime segments. Start the bump allocator there instead of guessing a fixed
+; address; small standalone modules may have less than 1 MiB of initial memory.
+@__bpl_heap_cursor = internal global i32 0
 
 define linkonce_odr i8* @Type_getTypeName_Type_ptr(%struct.Type* %this) {
 entry:
@@ -55,7 +56,10 @@ entry:
   %size32 = trunc i64 %size to i32
   %plus_align = add i32 %size32, 7
   %aligned = and i32 %plus_align, -8
-  %old = load i32, i32* @__bpl_heap_cursor
+  %cursor = load i32, i32* @__bpl_heap_cursor
+  %needs_init = icmp eq i32 %cursor, 0
+  %heap_base = ptrtoint i8* @__heap_base to i32
+  %old = select i1 %needs_init, i32 %heap_base, i32 %cursor
   %new = add i32 %old, %aligned
   store i32 %new, i32* @__bpl_heap_cursor
   %ptr = inttoptr i32 %old to i8*
