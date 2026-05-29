@@ -122,32 +122,13 @@ export function registerPackageCommands(program: Command): void {
     .description("Install a BPL package")
     .option("-g, --global", "install package globally")
     .option("-v, --verbose", "verbose output")
+    .option("--locked", "verify bpl.lock without changing installed packages")
     .action((pkg: string | undefined, options: PackageOptionsVerbose) => {
       try {
         const pm = new PackageManager();
 
         if (!pkg) {
-          // Install dependencies from bpl.json in current directory
-          if (!fs.existsSync("bpl.json")) {
-            log.error("No bpl.json found in current directory");
-            process.exit(1);
-          }
-
-          const manifest = pm.loadManifest(process.cwd());
-          const deps = {
-            ...manifest.dependencies,
-            ...manifest.devDependencies,
-          };
-
-          if (Object.keys(deps).length === 0) {
-            log.info("No dependencies to install");
-            return;
-          }
-
-          log.info(`Installing ${Object.keys(deps).length} dependencies...`);
-          for (const [name, version] of Object.entries(deps)) {
-            pm.install(`${name}-${version}.tgz`, options);
-          }
+          pm.installProject(options);
         } else {
           pm.install(pkg, options);
         }

@@ -211,6 +211,75 @@ describe("PackageManager", () => {
       expect(lock.packages["lock-test-pkg"].hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
+    test("should restore local packages from bpl.lock", () => {
+      const manifest = {
+        name: "restore-test-pkg",
+        version: "1.2.3",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export restored;");
+
+      const tarballPath = packageManager.pack(tempDir);
+
+      const installDir = path.join(tempDir, "restore-test");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      fs.rmSync(path.join(installDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+
+      localPM.installProject({ global: false, verbose: false });
+
+      const restoredPath = path.join(
+        installDir,
+        "bpl_modules",
+        "restore-test-pkg",
+        "index.bpl",
+      );
+      expect(fs.existsSync(restoredPath)).toBe(true);
+      expect(fs.readFileSync(restoredPath, "utf8")).toContain(
+        "export restored;",
+      );
+    });
+
+    test("should verify installed packages against bpl.lock", () => {
+      const manifest = {
+        name: "verify-test-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export original;");
+
+      const tarballPath = packageManager.pack(tempDir);
+
+      const installDir = path.join(tempDir, "verify-test");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      expect(localPM.verifyLockFile().ok).toBe(true);
+
+      fs.writeFileSync(
+        path.join(installDir, "bpl_modules", "verify-test-pkg", "index.bpl"),
+        "export tampered;",
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.errors.join("\n")).toContain("hash mismatch");
+    });
+
     test("should list installed packages", () => {
       // Create and install a package
       const manifest = {

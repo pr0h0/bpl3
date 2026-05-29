@@ -72,6 +72,22 @@ Commit `bpl.lock` for applications so repeated installs resolve the same
 package contents. Libraries may commit it when they need reproducible examples
 or test fixtures.
 
+To restore exactly what is recorded in `bpl.lock`, run:
+
+```bash
+bpl install
+```
+
+To verify CI is using the checked-in package contents without mutating
+`bpl_modules/`, run:
+
+```bash
+bpl install --locked
+```
+
+`--locked` fails if a package is missing, has a different version, or its source
+hash no longer matches the lockfile.
+
 ## Using Packages
 
 Once installed, you can import the package by its name in your BPL code.
@@ -90,10 +106,11 @@ The compiler resolves "my-package" to `bpl_modules/my-package/index.bpl` (or the
 
 When you run `bpl install`, the package manager:
 
-1.  Extracts the package to `bpl_modules/<package-name>`.
-2.  Reads the package's `bpl.json`.
-3.  Records the exact local install in `bpl.lock`.
-4.  Resolves imports through `bpl_modules/`, workspace `packages/`, and the
+1.  Restores packages from `bpl.lock` when lock entries exist.
+2.  Otherwise reads `dependencies` and `devDependencies` from `bpl.json`.
+3.  Extracts packages to `bpl_modules/<package-name>`.
+4.  Records the exact local install in `bpl.lock`.
+5.  Resolves imports through `bpl_modules/`, workspace `packages/`, and the
     global package directory.
 
 ## Best Practices

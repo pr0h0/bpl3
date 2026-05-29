@@ -201,6 +201,14 @@ Hexadecimal encoding and decoding.
 - `Hex.decodeString(input: string) ret string`
 - `Hex.isValid(input: string) ret bool`
 
+### Hash (`std/hash.bpl`)
+
+Stable non-cryptographic hashing helpers.
+
+- `Hash.fnv1a32(input: string) ret uint`
+- `Hash.checksum32(input: string) ret uint`
+- `Hash.combine32(left: uint, right: uint) ret uint`
+
 ---
 
 ## Data Structures

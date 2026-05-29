@@ -104,6 +104,43 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should generate typedefs, structs, enums, and constants from C headers", () => {
+    const tempHeader = path.join(process.cwd(), "tests/temp_bindgen_rich.h");
+    fs.writeFileSync(
+      tempHeader,
+      [
+        "#define ANSWER 42",
+        "typedef unsigned int bpl_size;",
+        "typedef struct Point { int x; double y; } Point;",
+        "typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;",
+        "Point make_point(int x, double y);",
+        "bpl_size measure(Point *point);",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["bindgen", tempHeader]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("global const ANSWER: int = 42;");
+      expect(result.stdout).toContain("type bpl_size = uint;");
+      expect(result.stdout).toContain("struct Point {");
+      expect(result.stdout).toContain("x: int,");
+      expect(result.stdout).toContain("y: double,");
+      expect(result.stdout).toContain("enum Color {");
+      expect(result.stdout).toContain("COLOR_RED,");
+      expect(result.stdout).toContain("COLOR_BLUE,");
+      expect(result.stdout).toContain(
+        "extern make_point(x: int, y: double) ret Point;",
+      );
+      expect(result.stdout).toContain(
+        "extern measure(point: *Point) ret bpl_size;",
+      );
+    } finally {
+      if (fs.existsSync(tempHeader)) fs.unlinkSync(tempHeader);
+    }
+  });
+
   it("should advertise the wasm32 target in shell completions", () => {
     const bash = runCLI(["completion", "bash"]);
     const zsh = runCLI(["completion", "zsh"]);
@@ -112,5 +149,35 @@ describe("CLI Tests", () => {
     expect(zsh.status).toBe(0);
     expect(bash.stdout).toContain("wasm32-unknown-unknown");
     expect(zsh.stdout).toContain("wasm32-unknown-unknown");
+  });
+
+  it("should build a direct wasm artifact for wasm32 targets", () => {
+    const tempFile = path.join(process.cwd(), "tests/temp_wasm_build.bpl");
+    const wasmFile = path.join(process.cwd(), "tests/temp_wasm_build.wasm");
+    const llvmFile = `${wasmFile}.ll`;
+
+    fs.writeFileSync(tempFile, "frame main() ret int { return 42; }");
+
+    try {
+      const result = runCLI([
+        "build",
+        tempFile,
+        "--target",
+        "wasm32-unknown-unknown",
+        "-o",
+        wasmFile,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(wasmFile)).toBe(true);
+      expect(fs.readFileSync(wasmFile).subarray(0, 4).toString("binary")).toBe(
+        "\0asm",
+      );
+      expect(fs.existsSync(llvmFile)).toBe(true);
+    } finally {
+      for (const file of [tempFile, wasmFile, llvmFile]) {
+        if (fs.existsSync(file)) fs.unlinkSync(file);
+      }
+    }
   });
 });

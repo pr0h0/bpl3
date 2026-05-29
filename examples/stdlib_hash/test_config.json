@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["fnv1a32 hello: 1335831723", "checksum abc: 294"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

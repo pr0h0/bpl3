@@ -724,7 +724,7 @@ frame funcB(param: int) ret int {
       expect(edits2!.length).toBe(2);
       expect(
         edits2!.every(
-          (e) => e.range.start.line >= 6 && e.range.start.line <= 7,
+          (e: TextEdit) => e.range.start.line >= 6 && e.range.start.line <= 7,
         ),
       ).toBe(true);
 

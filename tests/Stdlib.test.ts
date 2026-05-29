@@ -414,4 +414,21 @@ describe("Standard Library", () => {
     expect(output).toContain("json: 42");
     expect(output).toContain("log: ready");
   });
+
+  test("std umbrella exports stable hashing utilities", async () => {
+    const output = compileAndRun(`
+      import [Hash] from "std";
+
+      extern printf(fmt: string, ...) ret int;
+
+      frame main() ret int {
+        printf("hash: %u\\n", Hash.fnv1a32("hello"));
+        printf("checksum: %u\\n", Hash.checksum32("abc"));
+        return 0;
+      }
+    `);
+
+    expect(output).toContain("hash: 1335831723");
+    expect(output).toContain("checksum: 294");
+  });
 });

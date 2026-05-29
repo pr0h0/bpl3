@@ -173,6 +173,9 @@ export [Base64];
 import [Hex] from "std/hex.bpl";
 export [Hex];
 
+import [Hash] from "std/hash.bpl";
+export [Hash];
+
 import [UUID] from "std/uuid.bpl";
 export [UUID];
 

@@ -17,6 +17,26 @@ import { getBplHome } from "../compiler/common/PathResolver";
 
 const log = new Logger("BinaryRunner");
 
+export function isWasmTarget(target?: string): boolean {
+  return target?.toLowerCase().includes("wasm") ?? false;
+}
+
+function findWasmLinker(): string | undefined {
+  const candidates = [
+    process.env.WASM_LD,
+    "wasm-ld",
+    "wasm-ld-18",
+    "wasm-ld-17",
+    "wasm-ld-16",
+    "ld.lld",
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  return candidates.find((candidate) => {
+    const result = spawnSync(candidate, ["--version"], { stdio: "ignore" });
+    return result.status === 0;
+  });
+}
+
 /**
  * Result of binary compilation
  */
@@ -41,12 +61,17 @@ export function compileToBinary(
   irPath: string,
   options: CompileOptions,
 ): CompileResult {
-  const execPathBase = irPath.replace(/\.ll$/, "");
+  const hostDefaults = getHostDefaults();
+  const target = options.target ?? hostDefaults.target;
+  const execPathBase = isWasmTarget(target)
+    ? irPath.endsWith(".wasm.ll")
+      ? irPath.replace(/\.ll$/, "")
+      : irPath.replace(/\.ll$/, ".wasm")
+    : irPath.replace(/\.ll$/, "");
   const execPath = path.isAbsolute(execPathBase)
     ? execPathBase
     : path.resolve(execPathBase);
 
-  const hostDefaults = getHostDefaults();
   const clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
 
   if (options.verbose) {
@@ -149,6 +174,10 @@ function buildClangArgs(
   hostDefaults: HostDefaults,
 ): string[] {
   const args: string[] = ["-Wno-override-module"];
+  const target = options.target ?? hostDefaults.target;
+  const wasmTarget = isWasmTarget(target);
+  const wasmLinker = wasmTarget ? findWasmLinker() : undefined;
+  const linkWasm = Boolean(wasmLinker);
 
   // Debug info
   if (options.dwarf) {
@@ -161,9 +190,27 @@ function buildClangArgs(
   }
 
   // Target triple
-  const target = options.target ?? hostDefaults.target;
   if (target) {
     args.push("-target", target);
+  }
+
+  if (wasmLinker === "ld.lld") {
+    args.push("-fuse-ld=lld");
+  } else if (wasmLinker && wasmLinker === process.env.WASM_LD) {
+    args.push(`-fuse-ld=${wasmLinker}`);
+  }
+
+  if (wasmTarget) {
+    if (linkWasm) {
+      args.push(
+        "-nostdlib",
+        "-Wl,--no-entry",
+        "-Wl,--export-all",
+        "-Wl,--export-memory",
+      );
+    } else {
+      args.push("-c");
+    }
   }
 
   // Sysroot for cross-compilation
@@ -190,7 +237,9 @@ function buildClangArgs(
     args.push(`-l${l}`);
   }
 
-  args.push(...getNativeLinkerFlags(hostDefaults.os));
+  if (!wasmTarget) {
+    args.push(...getNativeLinkerFlags(hostDefaults.os));
+  }
 
   // Additional clang flags
   for (const flag of normalizeArrayOption(options.clangFlag)) {
@@ -204,7 +253,7 @@ function buildClangArgs(
   }
 
   // Link runtime logic unless skipped
-  if (!options.skipRuntime) {
+  if (!options.skipRuntime && !wasmTarget) {
     const bplHome = getBplHome();
 
     // Link LLVM IR declarations (core exception handling)
@@ -231,6 +280,20 @@ function buildClangArgs(
 
       if (!alreadyLinkedSupport) {
         args.push(runtimeSupportPath);
+      }
+    }
+  }
+
+  if (!options.skipRuntime && linkWasm) {
+    const runtimeWasmPath = path.join(getBplHome(), "lib", "runtime_wasm.ll");
+    if (fs.existsSync(runtimeWasmPath)) {
+      const alreadyLinked =
+        (options.object &&
+          normalizeArrayOption(options.object).includes(runtimeWasmPath)) ||
+        args.includes(runtimeWasmPath);
+
+      if (!alreadyLinked) {
+        args.push(runtimeWasmPath);
       }
     }
   }

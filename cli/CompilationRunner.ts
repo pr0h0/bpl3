@@ -18,7 +18,7 @@ import {
 } from "../compiler";
 import { getBplHome } from "../compiler/common/PathResolver";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
-import { compileBinaryAndRun } from "./BinaryRunner";
+import { compileBinaryAndRun, isWasmTarget } from "./BinaryRunner";
 import { getHostDefaults } from "./utils";
 import type { CompileOptions } from "./types";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
@@ -135,7 +135,7 @@ function processCodeInternal(
   programArgs?: string[],
 ): void {
   // Inject runtime library unless skipped
-  if (!options.skipRuntime) {
+  if (!options.skipRuntime && !isWasmTarget(options.target)) {
     const bplHome = getBplHome();
 
     // Add LLVM IR declarations (core exception handling)
@@ -252,8 +252,7 @@ function compileWithModules(
 
   // Write LLVM IR and optionally compile/run
   if (result.output) {
-    const outputPath =
-      options.output || filePath.replace(/\.[^/.]+$/, "") + ".ll";
+    const outputPath = getLlvmOutputPath(filePath, options);
     fs.writeFileSync(outputPath, result.output);
 
     if (options.verbose || (!options.run && options.emit === "llvm")) {
@@ -376,4 +375,12 @@ function compileSingleFile(
 function normalizeArray(value: string | string[] | undefined): string[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
+  if (!options.output) {
+    return filePath.replace(/\.[^/.]+$/, "") + ".ll";
+  }
+
+  return options.output.endsWith(".ll") ? options.output : `${options.output}.ll`;
 }

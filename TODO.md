@@ -299,22 +299,30 @@
   - Description: Create a centralized package registry and enhance package manager for publishing/versioning.
   - Implemented:
     - ✅ Local install lockfile v1 (`bpl.lock`) records package version, source archive, and content hash.
-  - Remaining: registry API, publish/install commands against a remote index, and version-range resolution.
+    - ✅ `bpl install` restores exact packages from `bpl.lock`.
+    - ✅ `bpl install --locked` verifies installed versions and content hashes for CI.
+  - Remaining: registry API, publish/install commands against a remote index, and richer version-range resolution.
 
-- [x] **WebAssembly (WASM) Target Metadata MVP** ✅
+- [x] **WebAssembly (WASM) Target MVP** ✅
   - Description: Add compilation target for WebAssembly (WASM).
   - Implemented:
     - ✅ `wasm32-unknown-unknown` target triple smoke coverage.
     - ✅ wasm32 LLVM datalayout coverage.
     - ✅ Shell completions and docs list the target.
-  - Remaining: WASI/browser runtime bindings and direct `.wasm` artifact generation.
+    - ✅ Direct `.wasm` artifact output through a wasm linker path when available.
+    - ✅ Freestanding `runtime_wasm.ll` shim for standalone no-entry modules.
+    - ✅ Relocatable wasm object fallback when `wasm-ld`/`ld.lld` is not installed.
+  - Remaining: WASI/browser host bindings and executable runtime harnesses.
 
-- [x] **Automatic C Binding Generation (bindgen) MVP** ✅
+- [x] **Automatic C Binding Generation (bindgen) v2** ✅
   - Description: Tool to generate BPL `extern` declarations from C headers.
   - Implemented:
     - ✅ `bpl bindgen <header> [-o file]` for simple C function prototypes.
     - ✅ Common primitive, pointer, string, `size_t`, and variadic mappings.
-  - Remaining: libclang-backed parsing for macros, typedef graphs, structs, enums, and platform ABI metadata.
+    - ✅ Numeric/string `#define` constants.
+    - ✅ Primitive typedef aliases.
+    - ✅ Plain structs and enums.
+  - Remaining: libclang-backed parsing for complex macros, typedef graphs, packed layouts, bitfields, and platform ABI metadata.
 
 - [7] **Standard Library Expansions**
   - [x] Structured Logging (Log levels, formatters, output targets)
@@ -324,7 +332,8 @@
   - [ ] System Calls & OS Interaction (Signals, Env vars, Process control)
   - [x] Date & Time (Date, Time, Duration, Formatting)
   - [x] JSON & Serialization (Parse/Stringify)
-  - [ ] Cryptography & Hashing (SHA256, Random)
+  - [x] Hashing (stable FNV-1a/checksum helpers)
+    - Remaining: cryptographic hashes such as SHA-256 and platform entropy APIs.
   - [ ] Regular Expressions (Match, Replace, Split)
   - [x] Advanced Collections (Set, LinkedList, Queue, Stack, PriorityQueue)
   - [ ] BigInt & Arbitrary Precision (GMP wrapper or native)

@@ -58,7 +58,10 @@ export interface LintOptions {
  */
 export type PackageOptionsOutput = { output: string };
 export type PackageOptionsGlobal = { global: boolean };
-export type PackageOptionsVerbose = PackageOptionsGlobal & { verbose: boolean };
+export type PackageOptionsVerbose = PackageOptionsGlobal & {
+  verbose: boolean;
+  locked?: boolean;
+};
 export type PackageOptions =
   | PackageOptionsOutput
   | PackageOptionsGlobal

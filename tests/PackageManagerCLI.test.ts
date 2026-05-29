@@ -124,6 +124,63 @@ describe("Package Manager CLI", () => {
         fs.existsSync(path.join(projectDir, "bpl_modules", "install-cli-test")),
       ).toBe(true);
     });
+
+    test("should enforce --locked package verification", () => {
+      const packageDir = path.join(tempDir, "package");
+      fs.mkdirSync(packageDir);
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-cli-test",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export original;");
+
+      const packResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(packResult.status).toBe(0);
+
+      const projectDir = path.join(tempDir, "locked-project");
+      fs.mkdirSync(projectDir);
+      const tarballPath = path.join(packageDir, "locked-cli-test-1.0.0.tgz");
+
+      const installResult = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
+      expect(installResult.status).toBe(0);
+
+      const lockedOk = spawnSync("bun", [bplPath, "install", "--locked"], {
+        cwd: projectDir,
+        encoding: "utf-8",
+      });
+      expect(lockedOk.status).toBe(0);
+
+      fs.writeFileSync(
+        path.join(projectDir, "bpl_modules", "locked-cli-test", "index.bpl"),
+        "export tampered;",
+      );
+
+      const lockedFail = spawnSync("bun", [bplPath, "install", "--locked"], {
+        cwd: projectDir,
+        encoding: "utf-8",
+      });
+      expect(lockedFail.status).toBe(1);
+      expect(lockedFail.stderr).toContain("hash mismatch");
+    });
   });
 
   describe("list command", () => {

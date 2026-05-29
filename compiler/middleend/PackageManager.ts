@@ -51,6 +51,12 @@ export interface PackageLockFile {
   >;
 }
 
+export interface PackageLockVerification {
+  ok: boolean;
+  errors: string[];
+  packagesChecked: number;
+}
+
 export class PackageManager {
   private projectRoot: string;
   private globalPackageDir: string;
@@ -159,6 +165,162 @@ export class PackageManager {
       hash: this.calculatePackageHash(installPath),
     };
     this.saveLockFile(lock);
+  }
+
+  verifyLockFile(): PackageLockVerification {
+    const lockPath = this.getLockFilePath();
+    if (!fs.existsSync(lockPath)) {
+      return {
+        ok: false,
+        errors: [`No bpl.lock found in ${this.projectRoot}`],
+        packagesChecked: 0,
+      };
+    }
+
+    const lock = this.loadLockFile();
+    const errors: string[] = [];
+    let packagesChecked = 0;
+
+    for (const [packageName, entry] of Object.entries(lock.packages)) {
+      packagesChecked++;
+      const installPath = path.join(this.localPackageDir, packageName);
+
+      if (!fs.existsSync(installPath)) {
+        errors.push(`${packageName}: package is missing from bpl_modules`);
+        continue;
+      }
+
+      let manifest: PackageManifest;
+      try {
+        manifest = this.loadManifest(installPath);
+      } catch (error) {
+        errors.push(
+          `${packageName}: invalid installed package (${error instanceof Error ? error.message : String(error)})`,
+        );
+        continue;
+      }
+
+      if (manifest.version !== entry.version) {
+        errors.push(
+          `${packageName}: version mismatch, lock has ${entry.version} but installed package has ${manifest.version}`,
+        );
+      }
+
+      const actualHash = this.calculatePackageHash(installPath);
+      if (actualHash !== entry.hash) {
+        errors.push(
+          `${packageName}: hash mismatch, lock has ${entry.hash} but installed package has ${actualHash}`,
+        );
+      }
+    }
+
+    return {
+      ok: errors.length === 0,
+      errors,
+      packagesChecked,
+    };
+  }
+
+  installProject(
+    options: PackageOptionsVerbose = { verbose: false, global: false },
+  ): void {
+    if (options.global) {
+      throw new CompilerError(
+        "Project dependency install cannot be global",
+        "Run 'bpl install <package> --global' for a single global package.",
+        {
+          file: this.projectRoot,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (options.locked) {
+      const verification = this.verifyLockFile();
+      if (!verification.ok) {
+        throw new CompilerError(
+          `Lockfile verification failed:\n${verification.errors.join("\n")}`,
+          "Run 'bpl install' to restore packages from bpl.lock.",
+          {
+            file: this.getLockFilePath(),
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      compilerLog.info(
+        `✓ Lockfile verified (${verification.packagesChecked} package${verification.packagesChecked === 1 ? "" : "s"})`,
+      );
+      return;
+    }
+
+    const lockPath = this.getLockFilePath();
+    if (fs.existsSync(lockPath)) {
+      const lock = this.loadLockFile();
+      const entries = Object.entries(lock.packages);
+      if (entries.length > 0) {
+        compilerLog.info(`Restoring ${entries.length} locked packages...`);
+        for (const [packageName, entry] of entries) {
+          if (options.verbose) {
+            compilerLog.info(
+              `Restoring ${packageName}@${entry.version} from ${entry.source}`,
+            );
+          }
+          this.install(this.resolveDependencySource(packageName, entry.source), {
+            ...options,
+            global: false,
+            locked: false,
+          });
+        }
+        return;
+      }
+    }
+
+    const manifest = this.loadManifest(this.projectRoot);
+    const deps = {
+      ...manifest.dependencies,
+      ...manifest.devDependencies,
+    };
+
+    if (Object.keys(deps).length === 0) {
+      compilerLog.info("No dependencies to install");
+      return;
+    }
+
+    compilerLog.info(`Installing ${Object.keys(deps).length} dependencies...`);
+    for (const [name, source] of Object.entries(deps)) {
+      this.install(this.resolveDependencySource(name, source), {
+        ...options,
+        global: false,
+      });
+    }
+  }
+
+  private resolveDependencySource(packageName: string, source: string): string {
+    const fileSource = source.startsWith("file:") ? source.slice(5) : source;
+    const projectRelativePath = path.resolve(this.projectRoot, fileSource);
+
+    if (
+      fileSource.endsWith(".tgz") ||
+      fileSource.startsWith(".") ||
+      fileSource.includes(path.sep)
+    ) {
+      return fs.existsSync(projectRelativePath)
+        ? projectRelativePath
+        : fileSource;
+    }
+
+    if (/^\d+\.\d+\.\d+$/.test(fileSource)) {
+      return `${packageName}-${fileSource}.tgz`;
+    }
+
+    return packageName;
   }
 
   private removeLocalLockEntry(packageName: string): void {

@@ -32,16 +32,52 @@ const TYPE_MAP: Record<string, string> = {
 
 export function generateBplBindings(options: BindgenOptions): string {
   const source = fs.readFileSync(options.headerPath, "utf8");
+  const constants = extractConstants(source);
+  const structs = extractStructs(source);
+  const enums = extractEnums(source);
+  const typedefs = extractTypedefs(source, structs, enums);
+  const aliases = Object.fromEntries(
+    typedefs.map((typedef) => [typedef.name, typedef.mappedType]),
+  );
   const prototypes = extractFunctionPrototypes(source);
   const lines = [
     `# Generated from ${options.headerPath}`,
     "# Review pointer and platform-specific integer mappings before publishing.",
     "",
-    ...prototypes.map(formatPrototype),
+    ...constants.map(formatConstant),
+    ...sectionBreak(constants.length > 0),
+    ...typedefs.map(formatTypedef),
+    ...sectionBreak(typedefs.length > 0),
+    ...structs.map((struct) => formatStruct(struct, aliases)),
+    ...sectionBreak(structs.length > 0),
+    ...enums.map(formatEnum),
+    ...sectionBreak(enums.length > 0),
+    ...prototypes.map((prototype) => formatPrototype(prototype, aliases)),
     "",
   ];
 
   return lines.join("\n");
+}
+
+interface CConstant {
+  name: string;
+  value: string;
+  type: string;
+}
+
+interface CTypedef {
+  name: string;
+  mappedType: string;
+}
+
+interface CStruct {
+  name: string;
+  fields: CParameter[];
+}
+
+interface CEnum {
+  name: string;
+  variants: string[];
 }
 
 interface CPrototype {
@@ -82,10 +118,141 @@ function extractFunctionPrototypes(source: string): CPrototype[] {
 }
 
 function stripCommentsAndDirectives(source: string): string {
+  return stripComments(source).replace(/^\s*#.*$/gm, "");
+}
+
+function stripComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\/\/.*$/gm, "")
-    .replace(/^\s*#.*$/gm, "");
+    .replace(/\/\/.*$/gm, "");
+}
+
+function extractConstants(source: string): CConstant[] {
+  const constants: CConstant[] = [];
+  const pattern =
+    /^\s*#define\s+([A-Za-z_]\w*)\s+("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?)\s*$/gm;
+
+  for (const match of stripComments(source).matchAll(pattern)) {
+    const name = match[1]!;
+    const value = match[2]!;
+    constants.push({
+      name,
+      value,
+      type: inferConstantType(value),
+    });
+  }
+
+  return constants;
+}
+
+function inferConstantType(value: string): string {
+  if (value.startsWith('"')) return "string";
+  if (value.includes(".")) return "double";
+  return "int";
+}
+
+function extractStructs(source: string): CStruct[] {
+  const cleaned = stripCommentsAndDirectives(source);
+  const structs: CStruct[] = [];
+  const typedefPattern =
+    /typedef\s+struct(?:\s+[A-Za-z_]\w*)?\s*\{([\s\S]*?)\}\s*([A-Za-z_]\w*)\s*;/g;
+  const plainPattern =
+    /(?:^|;)\s*struct\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}\s*;/g;
+
+  for (const match of cleaned.matchAll(typedefPattern)) {
+    structs.push({
+      name: match[2]!,
+      fields: parseStructFields(match[1] ?? ""),
+    });
+  }
+
+  for (const match of cleaned.matchAll(plainPattern)) {
+    const name = match[1]!;
+    if (structs.some((struct) => struct.name === name)) continue;
+    structs.push({
+      name,
+      fields: parseStructFields(match[2] ?? ""),
+    });
+  }
+
+  return structs;
+}
+
+function extractEnums(source: string): CEnum[] {
+  const cleaned = stripCommentsAndDirectives(source);
+  const enums: CEnum[] = [];
+  const typedefPattern =
+    /typedef\s+enum(?:\s+[A-Za-z_]\w*)?\s*\{([\s\S]*?)\}\s*([A-Za-z_]\w*)\s*;/g;
+  const plainPattern =
+    /(?:^|;)\s*enum\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}\s*;/g;
+
+  for (const match of cleaned.matchAll(typedefPattern)) {
+    enums.push({
+      name: match[2]!,
+      variants: parseEnumVariants(match[1] ?? ""),
+    });
+  }
+
+  for (const match of cleaned.matchAll(plainPattern)) {
+    const name = match[1]!;
+    if (enums.some((enumDecl) => enumDecl.name === name)) continue;
+    enums.push({
+      name,
+      variants: parseEnumVariants(match[2] ?? ""),
+    });
+  }
+
+  return enums;
+}
+
+function extractTypedefs(
+  source: string,
+  structs: CStruct[],
+  enums: CEnum[],
+): CTypedef[] {
+  const cleaned = stripCommentsAndDirectives(source)
+    .replace(
+      /typedef\s+struct(?:\s+[A-Za-z_]\w*)?\s*\{[\s\S]*?\}\s*[A-Za-z_]\w*\s*;/g,
+      "",
+    )
+    .replace(
+      /typedef\s+enum(?:\s+[A-Za-z_]\w*)?\s*\{[\s\S]*?\}\s*[A-Za-z_]\w*\s*;/g,
+      "",
+    );
+  const aggregateNames = new Set([
+    ...structs.map((struct) => struct.name),
+    ...enums.map((enumDecl) => enumDecl.name),
+  ]);
+  const typedefs: CTypedef[] = [];
+  const pattern = /typedef\s+([^;{}]+?)\s+([A-Za-z_]\w*)\s*;/g;
+
+  for (const match of cleaned.matchAll(pattern)) {
+    const name = match[2]!;
+    if (aggregateNames.has(name)) continue;
+    typedefs.push({
+      name,
+      mappedType: mapCType(match[1]!.trim(), {}),
+    });
+  }
+
+  return typedefs;
+}
+
+function parseStructFields(body: string): CParameter[] {
+  return body
+    .split(";")
+    .map((field) => field.trim())
+    .filter(Boolean)
+    .map((field, index) => parseNamedDeclaration(field, index));
+}
+
+function parseEnumVariants(body: string): string[] {
+  return body
+    .split(",")
+    .map((variant) => variant.trim())
+    .filter(Boolean)
+    .map((variant) => variant.replace(/\s*=.*$/, "").trim())
+    .filter(Boolean);
 }
 
 function parseParameters(rawParams: string): CParameter[] {
@@ -99,43 +266,99 @@ function parseParameters(rawParams: string): CParameter[] {
       return { type: "", variadic: true };
     }
 
-    const nameMatch = /^(.*?)([A-Za-z_]\w*)$/.exec(param);
-    if (!nameMatch) {
-      return { name: `arg${index}`, type: param };
-    }
-
-    const beforeName = nameMatch[1]!.trim();
-    const name = nameMatch[2]!;
-    if (beforeName === "" && TYPE_MAP[name]) {
-      return { name: `arg${index}`, type: param };
-    }
-    if (beforeName === "" || beforeName.endsWith("*")) {
-      return { name, type: beforeName || param };
-    }
-
-    return { name, type: beforeName };
+    return parseNamedDeclaration(param, index);
   });
 }
 
-function formatPrototype(prototype: CPrototype): string {
+function parseNamedDeclaration(param: string, index: number): CParameter {
+  const arrayMatch = /^(.*?)([A-Za-z_]\w*)\s*\[(\d+)\]$/.exec(param);
+  if (arrayMatch) {
+    return {
+      name: arrayMatch[2]!,
+      type: `${arrayMatch[1]!.trim()}[${arrayMatch[3]!}]`,
+    };
+  }
+
+  const nameMatch = /^(.*?)([A-Za-z_]\w*)$/.exec(param);
+  if (!nameMatch) {
+    return { name: `arg${index}`, type: param };
+  }
+
+  const beforeName = nameMatch[1]!.trim();
+  const name = nameMatch[2]!;
+  if (beforeName === "" && TYPE_MAP[name]) {
+    return { name: `arg${index}`, type: param };
+  }
+  if (beforeName === "" || beforeName.endsWith("*")) {
+    return { name, type: beforeName || param };
+  }
+
+  return { name, type: beforeName };
+}
+
+function sectionBreak(enabled: boolean): string[] {
+  return enabled ? [""] : [];
+}
+
+function formatConstant(constant: CConstant): string {
+  return `global const ${constant.name}: ${constant.type} = ${constant.value};`;
+}
+
+function formatTypedef(typedef: CTypedef): string {
+  return `type ${typedef.name} = ${typedef.mappedType};`;
+}
+
+function formatStruct(struct: CStruct, aliases: Record<string, string>): string {
+  const lines = [`struct ${struct.name} {`];
+  for (const field of struct.fields) {
+    lines.push(`    ${field.name}: ${mapCType(field.type, aliases)},`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function formatEnum(enumDecl: CEnum): string {
+  const lines = [`enum ${enumDecl.name} {`];
+  for (const variant of enumDecl.variants) {
+    lines.push(`    ${variant},`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function formatPrototype(
+  prototype: CPrototype,
+  aliases: Record<string, string>,
+): string {
   const params = prototype.parameters
     .map((param, index) =>
       param.variadic
         ? "..."
-        : `${param.name ?? `arg${index}`}: ${mapCType(param.type)}`,
+        : `${param.name ?? `arg${index}`}: ${mapCType(param.type, aliases)}`,
     )
     .join(", ");
-  return `extern ${prototype.name}(${params}) ret ${mapCType(prototype.returnType)};`;
+  return `extern ${prototype.name}(${params}) ret ${mapCType(prototype.returnType, aliases)};`;
 }
 
-function mapCType(rawType: string): string {
+function mapCType(
+  rawType: string,
+  aliases: Record<string, string> = {},
+): string {
+  const arrayMatch = /^(.*?)\[(\d+)\]$/.exec(rawType.trim());
+  if (arrayMatch) {
+    return `${mapCType(arrayMatch[1]!, aliases)}[${arrayMatch[2]!}]`;
+  }
+
   const pointerDepth = (rawType.match(/\*/g) ?? []).length;
   const base = rawType
     .replace(/\*/g, " ")
     .replace(/\b(const|volatile|restrict|static|extern)\b/g, " ")
+    .replace(/\b(struct|enum)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const mappedBase = TYPE_MAP[base] ?? sanitizeUnknownType(base);
+  const mappedBase = aliases[base]
+    ? base
+    : TYPE_MAP[base] ?? sanitizeUnknownType(base);
 
   if (pointerDepth === 0) {
     return mappedBase;

@@ -306,7 +306,7 @@ runtime, and runtime support for that platform.
 - `arm64-apple-darwin` (macOS ARM64)
 - `x86_64-apple-darwin` (macOS x64)
 - `x86_64-pc-windows-gnu` (Windows x64)
-- `wasm32-unknown-unknown` (WebAssembly 32-bit IR)
+- `wasm32-unknown-unknown` (WebAssembly 32-bit)
 
 **Examples:**
 
@@ -317,8 +317,11 @@ bpl build main.bpl --target aarch64-unknown-linux-gnu
 # Emit and link for Windows from Linux when a Windows-capable clang/sysroot is installed
 bpl build main.bpl --target x86_64-pc-windows-gnu
 
-# Emit WebAssembly-targeted LLVM IR
-bpl build main.bpl --target wasm32-unknown-unknown --emit llvm -o main.wasm.ll
+# Build a WebAssembly artifact
+bpl build main.bpl --target wasm32-unknown-unknown -o main.wasm
+
+# Emit WebAssembly-targeted LLVM IR next to the artifact
+bpl build main.bpl --target wasm32-unknown-unknown --emit llvm -o main.wasm
 
 # Specify architecture details
 bpl build main.bpl --target aarch64-unknown-linux-gnu --march=armv8-a
@@ -388,6 +391,15 @@ Cached modules are stored in `.bpl-cache/`. Use `bpl clean` to clear cache.
 The module cache backend can compile independent LLVM module inputs with a
 bounded parallel job pool; the current CLI cache path still emits one combined
 program object until true per-module IR generation is wired into the front end.
+
+## WebAssembly Output
+
+When targeting `wasm32-unknown-unknown`, `bpl build` uses the WebAssembly
+linker path instead of native Linux/macOS linker flags. If `wasm-ld`/`ld.lld`
+is available, BPL links a standalone no-entry module and includes the
+freestanding `runtime_wasm.ll` shim. If the linker is unavailable, BPL still
+emits a relocatable wasm object so CI and cross-toolchains can consume the
+artifact without requiring a host-native wasm linker.
 
 ## Complete Examples
 
