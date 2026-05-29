@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -145,6 +146,34 @@ describe("PackageManager", () => {
       expect(fs.existsSync(tarballPath)).toBe(true);
       // If the test passes, the package was created without errors
     });
+
+    test("should reject bin paths that escape the package root", () => {
+      const packageDir = path.join(tempDir, "unsafe-bin-package");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "unsafe-bin-package",
+            version: "1.0.0",
+            bin: {
+              unsafe: "../outside-tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(tempDir, "outside-tool.sh"),
+        "#!/usr/bin/env sh\necho outside\n",
+      );
+
+      expect(() => packageManager.pack(packageDir)).toThrow(
+        /Invalid 'bin' path/,
+      );
+    });
   });
 
   describe("Package Installation", () => {
@@ -178,6 +207,125 @@ describe("PackageManager", () => {
       expect(fs.existsSync(installedPath)).toBe(true);
       expect(fs.existsSync(path.join(installedPath, "bpl.json"))).toBe(true);
       expect(fs.existsSync(path.join(installedPath, "index.bpl"))).toBe(true);
+    });
+
+    test("should reject bin command names that escape the bin directory", () => {
+      const manifest = {
+        name: "unsafe-bin-name",
+        version: "1.0.0",
+        main: "index.bpl",
+        bin: {
+          "../escape": "index.bpl",
+        },
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      expect(() => packageManager.loadManifest(tempDir)).toThrow(
+        /Invalid 'bin' command/,
+      );
+    });
+
+    test("should reject package archives with unsafe member paths", () => {
+      const sourceDir = path.join(tempDir, "unsafe-archive-source");
+      const installDir = path.join(tempDir, "unsafe-archive-install");
+      const tarballPath = path.join(tempDir, "unsafe-archive.tgz");
+      fs.mkdirSync(sourceDir);
+      fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(sourceDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "unsafe-archive",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(sourceDir, "escaped.txt"), "escaped");
+
+      spawnSync(
+        "tar",
+        [
+          "-czf",
+          tarballPath,
+          "-C",
+          sourceDir,
+          "--transform=s|bpl.json|package/bpl.json|",
+          "bpl.json",
+          "--transform=s|index.bpl|package/index.bpl|",
+          "index.bpl",
+          "--transform=s|escaped.txt|package/../escaped.txt|",
+          "escaped.txt",
+        ],
+        { stdio: "pipe" },
+      );
+
+      expect(fs.existsSync(tarballPath)).toBe(true);
+
+      process.chdir(installDir);
+      const localPM = new PackageManager(installDir);
+
+      expect(() =>
+        localPM.install(tarballPath, { global: false, verbose: false }),
+      ).toThrow(/Unsafe package archive member/);
+      expect(
+        fs.existsSync(path.join(installDir, "bpl_modules", "unsafe-archive")),
+      ).toBe(false);
+    });
+
+    test("should reject package archives containing symlinks", () => {
+      const sourceDir = path.join(tempDir, "symlink-archive-source");
+      const installDir = path.join(tempDir, "symlink-archive-install");
+      const tarballPath = path.join(tempDir, "symlink-archive.tgz");
+      const externalSourcePath = path.join(tempDir, "external-index.bpl");
+      fs.mkdirSync(sourceDir);
+      fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(sourceDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-archive",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(externalSourcePath, "export escaped;");
+      fs.symlinkSync(externalSourcePath, path.join(sourceDir, "index.bpl"));
+
+      spawnSync(
+        "tar",
+        [
+          "-czf",
+          tarballPath,
+          "-C",
+          sourceDir,
+          "--transform=s|bpl.json|package/bpl.json|",
+          "bpl.json",
+          "--transform=s|index.bpl|package/index.bpl|",
+          "index.bpl",
+        ],
+        { stdio: "pipe" },
+      );
+
+      expect(fs.existsSync(tarballPath)).toBe(true);
+
+      process.chdir(installDir);
+      const localPM = new PackageManager(installDir);
+
+      expect(() =>
+        localPM.install(tarballPath, { global: false, verbose: false }),
+      ).toThrow(/Unsupported package archive entry/);
+      expect(
+        fs.existsSync(path.join(installDir, "bpl_modules", "symlink-archive")),
+      ).toBe(false);
     });
 
     test("should write a lockfile for local installs", () => {

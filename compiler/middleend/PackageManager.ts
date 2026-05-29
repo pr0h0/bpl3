@@ -103,7 +103,27 @@ export class PackageManager {
     }
 
     for (const [name, relativePath] of Object.entries(manifest.bin)) {
-      const sourcePath = path.resolve(installPath, relativePath);
+      if (
+        !this.isSafeBinCommandName(name) ||
+        !this.isSafePackageRelativePath(relativePath)
+      ) {
+        throw new CompilerError(
+          "Invalid 'bin' field",
+          "'bin' entries must use safe command names and package-relative executable paths.",
+          {
+            file: path.join(installPath, "bpl.json"),
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      const sourcePath = this.resolvePackageRelativePath(
+        installPath,
+        relativePath,
+      );
       const targetPath = path.join(binDir, name);
 
       // Remove existing link/file
@@ -416,6 +436,7 @@ export class PackageManager {
           location,
         );
       }
+      this.validateManifestBinEntries(manifest, packageDir, location);
 
       return manifest;
     } catch (e) {
@@ -426,6 +447,74 @@ export class PackageManager {
         location,
       );
     }
+  }
+
+  private validateManifestBinEntries(
+    manifest: PackageManifest,
+    packageDir: string,
+    location: SourceLocation,
+  ): void {
+    if (!manifest.bin) return;
+
+    for (const [commandName, executablePath] of Object.entries(manifest.bin)) {
+      if (!this.isSafeBinCommandName(commandName)) {
+        throw new CompilerError(
+          `Invalid 'bin' command: ${commandName}`,
+          "Use a plain command name without path separators.",
+          location,
+        );
+      }
+
+      if (
+        typeof executablePath !== "string" ||
+        !this.isSafePackageRelativePath(executablePath)
+      ) {
+        throw new CompilerError(
+          `Invalid 'bin' path for ${commandName}: ${String(executablePath)}`,
+          "Use a package-relative executable path that does not contain '..'.",
+          location,
+        );
+      }
+
+      const resolvedPath = this.resolvePackageRelativePath(
+        packageDir,
+        executablePath,
+      );
+      if (!this.isWithinPackage(packageDir, resolvedPath)) {
+        throw new CompilerError(
+          `Invalid 'bin' path for ${commandName}: ${executablePath}`,
+          "Use a package-relative executable path inside the package root.",
+          location,
+        );
+      }
+    }
+  }
+
+  private isSafeBinCommandName(commandName: string): boolean {
+    return (
+      commandName.length > 0 &&
+      commandName !== "." &&
+      commandName !== ".." &&
+      !commandName.includes("/") &&
+      !commandName.includes("\\")
+    );
+  }
+
+  private isSafePackageRelativePath(relativePath: string): boolean {
+    if (relativePath.length === 0) return false;
+    if (path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) {
+      return false;
+    }
+
+    const parts = relativePath.split(/[\\/]+/);
+    return parts.every((part) => part.length > 0 && part !== "..");
+  }
+
+  private resolvePackageRelativePath(
+    packageDir: string,
+    relativePath: string,
+  ): string {
+    return path.resolve(packageDir, ...relativePath.split(/[\\/]+/));
   }
 
   /**
@@ -477,8 +566,12 @@ export class PackageManager {
     ) {
       for (const relativeBinaryPath of Object.values(manifest.bin)) {
         if (typeof relativeBinaryPath !== "string") continue;
+        if (!this.isSafePackageRelativePath(relativeBinaryPath)) continue;
 
-        const binaryPath = path.resolve(packageDir, relativeBinaryPath);
+        const binaryPath = this.resolvePackageRelativePath(
+          packageDir,
+          relativeBinaryPath,
+        );
         if (!this.isWithinPackage(packageDir, binaryPath)) continue;
         if (fs.existsSync(binaryPath) && fs.statSync(binaryPath).isFile()) {
           files.add(binaryPath);
@@ -579,7 +672,10 @@ export class PackageManager {
     // Also include 'bin' files
     if (manifest.bin) {
       for (const binaryPath of Object.values(manifest.bin)) {
-        const fullPath = path.join(packageDir, binaryPath as string);
+        const fullPath = this.resolvePackageRelativePath(
+          packageDir,
+          binaryPath as string,
+        );
         if (fs.existsSync(fullPath)) {
           files.push(fullPath);
         } else {
@@ -719,6 +815,8 @@ export class PackageManager {
     fs.mkdirSync(tempDir, { recursive: true });
 
     try {
+      this.validatePackageArchiveMembers(tarballPath);
+
       // Extract tarball
       const extractResult = spawnSync(
         "tar",
@@ -744,6 +842,7 @@ export class PackageManager {
       }
 
       const packageDir = path.join(tempDir, "package");
+      this.validateExtractedPackageTree(packageDir, tarballPath);
       const manifest = this.loadManifest(packageDir);
 
       compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
@@ -790,6 +889,135 @@ export class PackageManager {
     }
 
     return path.join(this.globalPackageDir, matching[0]!.file);
+  }
+
+  private validatePackageArchiveMembers(tarballPath: string): void {
+    const listResult = spawnSync("tar", ["-tzf", tarballPath], {
+      stdio: "pipe",
+    });
+
+    if (listResult.status !== 0) {
+      const error = listResult.stderr?.toString() || "Unknown error";
+      throw new CompilerError(
+        `Failed to inspect package archive: ${error}`,
+        "Check if the package archive is a valid tarball.",
+        {
+          file: tarballPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    const members = listResult.stdout
+      .toString()
+      .split(/\r?\n/)
+      .filter((member) => member.length > 0);
+
+    for (const member of members) {
+      if (!this.isSafePackageArchiveMember(member)) {
+        throw new CompilerError(
+          `Unsafe package archive member: ${member}`,
+          "Package archives may only contain relative paths inside the package/ directory.",
+          {
+            file: tarballPath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+    }
+  }
+
+  private isSafePackageArchiveMember(member: string): boolean {
+    const normalized = member.replace(/\/+$/g, "");
+    if (normalized.length === 0) return false;
+    if (normalized.includes("\\")) return false;
+    if (
+      path.posix.isAbsolute(normalized) ||
+      path.win32.isAbsolute(normalized)
+    ) {
+      return false;
+    }
+
+    const parts = normalized.split("/");
+    if (
+      parts.some((part) => part.length === 0 || part === "." || part === "..")
+    ) {
+      return false;
+    }
+
+    return normalized === "package" || normalized.startsWith("package/");
+  }
+
+  private validateExtractedPackageTree(
+    packageDir: string,
+    tarballPath: string,
+  ): void {
+    if (!fs.existsSync(packageDir)) return;
+
+    const packageRoot = fs.realpathSync(packageDir);
+    const visit = (currentDir: string) => {
+      for (const item of fs.readdirSync(currentDir)) {
+        const itemPath = path.join(currentDir, item);
+        const stat = fs.lstatSync(itemPath);
+        const archivePath = path
+          .relative(packageDir, itemPath)
+          .split(path.sep)
+          .join("/");
+
+        if (stat.isSymbolicLink()) {
+          this.throwUnsupportedPackageArchiveEntry(
+            tarballPath,
+            archivePath,
+            "Package archives may not contain symbolic links.",
+          );
+        }
+
+        const realPath = fs.realpathSync(itemPath);
+        if (!this.isWithinPackage(packageRoot, realPath)) {
+          this.throwUnsupportedPackageArchiveEntry(
+            tarballPath,
+            archivePath,
+            "Package archive entries must resolve inside the package root.",
+          );
+        }
+
+        if (stat.isDirectory()) {
+          visit(itemPath);
+        } else if (!stat.isFile()) {
+          this.throwUnsupportedPackageArchiveEntry(
+            tarballPath,
+            archivePath,
+            "Package archives may only contain regular files and directories.",
+          );
+        }
+      }
+    };
+
+    visit(packageDir);
+  }
+
+  private throwUnsupportedPackageArchiveEntry(
+    tarballPath: string,
+    archivePath: string,
+    help: string,
+  ): never {
+    throw new CompilerError(
+      `Unsupported package archive entry: ${archivePath}`,
+      help,
+      {
+        file: tarballPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private findGlobalPackageTarballs(packageName: string): Array<{
