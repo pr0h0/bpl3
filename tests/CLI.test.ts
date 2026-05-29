@@ -97,7 +97,9 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain(
         "extern pow(base: double, exp: double) ret double;",
       );
-      expect(result.stdout).toContain("extern printf(fmt: string, ...) ret int;");
+      expect(result.stdout).toContain(
+        "extern printf(fmt: string, ...) ret int;",
+      );
       expect(result.stdout).toContain("extern abs(arg0: int) ret int;");
     } finally {
       if (fs.existsSync(tempHeader)) fs.unlinkSync(tempHeader);
@@ -193,12 +195,9 @@ describe("CLI Tests", () => {
 
     fs.writeFileSync(
       constantsFile,
-      [
-        "export seed;",
-        "frame seed() ret int {",
-        "    return 2;",
-        "}",
-      ].join("\n"),
+      ["export seed;", "frame seed() ret int {", "    return 2;", "}"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       mathFile,
@@ -273,12 +272,9 @@ describe("CLI Tests", () => {
 
     fs.writeFileSync(
       constantsFile,
-      [
-        "export seed;",
-        "frame seed() ret int {",
-        "    return 2;",
-        "}",
-      ].join("\n"),
+      ["export seed;", "frame seed() ret int {", "    return 2;", "}"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       mathFile,
@@ -540,6 +536,226 @@ describe("CLI Tests", () => {
       expect(secondManifest[mathFile].hash).not.toBe(firstMath.hash);
       expect(secondManifest[mainFile].hash).toBe(firstMain.hash);
       expect(secondManifest[mainFile].objectFile).toBe(firstMain.objectFile);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should not recache importers when transitive dependency unrelated exports change", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_parallel_cache_transitive-"),
+    );
+    const leafFile = path.join(tempDir, "leaf.bpl");
+    const middleFile = path.join(tempDir, "middle.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "parallel_app");
+    const manifestFile = path.join(tempDir, ".bpl-cache", "manifest.json");
+
+    const writeLeaf = (changedExtraExport: boolean) => {
+      fs.writeFileSync(
+        leafFile,
+        changedExtraExport
+          ? [
+              "export helper;",
+              "export extra;",
+              "frame helper(base: int) ret int {",
+              "    return base + 1;",
+              "}",
+              "frame extra(value: int, bonus: int) ret int {",
+              "    return value + bonus + 2;",
+              "}",
+            ].join("\n")
+          : [
+              "export helper;",
+              "export extra;",
+              "frame helper(base: int) ret int {",
+              "    return base + 1;",
+              "}",
+              "frame extra(value: int) ret int {",
+              "    return value + 2;",
+              "}",
+            ].join("\n"),
+      );
+    };
+    const readManifestModules = () =>
+      JSON.parse(fs.readFileSync(manifestFile, "utf-8")).modules;
+
+    writeLeaf(false);
+    fs.writeFileSync(
+      middleFile,
+      [
+        'import helper from "./leaf.bpl";',
+        "export answer;",
+        "frame answer(base: int) ret int {",
+        "    return helper(base) + 1;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./middle.bpl";',
+        "frame main() ret int {",
+        "    return answer(40);",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const first = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(first.status).toBe(0);
+
+      const firstRun = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(firstRun.status).toBe(42);
+
+      const firstManifest = readManifestModules();
+      const firstLeaf = firstManifest[leafFile];
+      const firstMain = firstManifest[mainFile];
+      expect(firstLeaf).toBeTruthy();
+      expect(firstMain).toBeTruthy();
+
+      writeLeaf(true);
+
+      const second = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(second.status).toBe(0);
+
+      const secondRun = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(secondRun.status).toBe(42);
+
+      const secondManifest = readManifestModules();
+      expect(secondManifest[leafFile].hash).not.toBe(firstLeaf.hash);
+      expect(secondManifest[mainFile].hash).toBe(firstMain.hash);
+      expect(secondManifest[mainFile].objectFile).toBe(firstMain.objectFile);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should recache importers when transitive dependency types are exposed through direct ABI", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_parallel_cache_transitive_type-"),
+    );
+    const leafFile = path.join(tempDir, "leaf.bpl");
+    const middleFile = path.join(tempDir, "middle.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "parallel_app");
+    const manifestFile = path.join(tempDir, ".bpl-cache", "manifest.json");
+
+    const writeLeaf = (extraField: boolean) => {
+      fs.writeFileSync(
+        leafFile,
+        extraField
+          ? [
+              "export [Leaf];",
+              "export makeLeaf;",
+              "struct Leaf {",
+              "    value: int,",
+              "    bonus: int,",
+              "}",
+              "frame makeLeaf() ret Leaf {",
+              "    return Leaf { value: 7, bonus: 1 };",
+              "}",
+            ].join("\n")
+          : [
+              "export [Leaf];",
+              "export makeLeaf;",
+              "struct Leaf {",
+              "    value: int,",
+              "}",
+              "frame makeLeaf() ret Leaf {",
+              "    return Leaf { value: 7 };",
+              "}",
+            ].join("\n"),
+      );
+    };
+    const readManifestModules = () =>
+      JSON.parse(fs.readFileSync(manifestFile, "utf-8")).modules;
+
+    writeLeaf(false);
+    fs.writeFileSync(
+      middleFile,
+      [
+        'import [Leaf], makeLeaf from "./leaf.bpl";',
+        "export forward;",
+        "frame forward() ret Leaf {",
+        "    return makeLeaf();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import forward from "./middle.bpl";',
+        "frame main() ret int {",
+        "    forward();",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const first = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(first.status).toBe(0);
+
+      const firstRun = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(firstRun.status).toBe(0);
+
+      const firstManifest = readManifestModules();
+      const firstLeaf = firstManifest[leafFile];
+      const firstMain = firstManifest[mainFile];
+      expect(firstLeaf).toBeTruthy();
+      expect(firstMain).toBeTruthy();
+
+      writeLeaf(true);
+
+      const second = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(second.status).toBe(0);
+
+      const secondRun = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(secondRun.status).toBe(0);
+
+      const secondManifest = readManifestModules();
+      expect(secondManifest[leafFile].hash).not.toBe(firstLeaf.hash);
+      expect(secondManifest[mainFile].hash).not.toBe(firstMain.hash);
+      expect(secondManifest[mainFile].objectFile).not.toBe(
+        firstMain.objectFile,
+      );
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

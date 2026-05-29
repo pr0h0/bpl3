@@ -30,31 +30,59 @@ function getModuleCacheInterfaceDependencies(
   currentModule: ModuleInfo,
 ): ModuleInfo[] {
   const modulesByPath = new Map(modules.map((module) => [module.path, module]));
+  const typeDeclarationOwners = getTypeDeclarationOwners(modules);
+  const exportedTypeDeclarationsByName =
+    getExportedTypeDeclarationsByName(modules);
   const dependencies = new Set<string>();
+  const scannedAbiModules = new Set<string>();
 
-  const visit = (modulePath: string) => {
+  const addDependency = (modulePath: string) => {
     if (modulePath === currentModule.path || dependencies.has(modulePath)) {
       return;
     }
+
+    if (!modulesByPath.has(modulePath)) {
+      return;
+    }
+
+    dependencies.add(modulePath);
+  };
+
+  const addAbiTypeOwners = (modulePath: string) => {
+    if (scannedAbiModules.has(modulePath)) {
+      return;
+    }
+    scannedAbiModules.add(modulePath);
 
     const module = modulesByPath.get(modulePath);
     if (!module) {
       return;
     }
 
-    dependencies.add(modulePath);
-    for (const dependencyPath of module.dependencies) {
-      visit(dependencyPath);
+    const externalTypeDeclarations = getExternalAbiTypeDeclarations(
+      module,
+      typeDeclarationOwners,
+      exportedTypeDeclarationsByName,
+    );
+    for (const declaration of externalTypeDeclarations) {
+      const owner = typeDeclarationOwners.get(declaration);
+      if (!owner) {
+        continue;
+      }
+
+      addDependency(owner.path);
+      addAbiTypeOwners(owner.path);
     }
   };
 
   for (const dependencyPath of currentModule.dependencies) {
-    visit(dependencyPath);
+    addDependency(dependencyPath);
+    addAbiTypeOwners(dependencyPath);
   }
 
   for (const module of modules) {
     if (path.basename(module.path) === "primitives.bpl") {
-      visit(module.path);
+      addDependency(module.path);
     }
   }
 
@@ -99,6 +127,149 @@ type NamedTypeDeclaration =
   | AST.SpecDecl
   | AST.EnumDecl
   | AST.TypeAliasDecl;
+
+function getTypeDeclarationOwners(
+  modules: ModuleInfo[],
+): Map<NamedTypeDeclaration, ModuleInfo> {
+  const owners = new Map<NamedTypeDeclaration, ModuleInfo>();
+
+  for (const module of modules) {
+    for (const declaration of getTypeDeclarations(module.ast).values()) {
+      owners.set(declaration, module);
+    }
+  }
+
+  return owners;
+}
+
+function getExportedTypeDeclarationsByName(
+  modules: ModuleInfo[],
+): Map<string, NamedTypeDeclaration[]> {
+  const exportedTypes = new Map<string, NamedTypeDeclaration[]>();
+
+  for (const module of modules) {
+    const exportedNames = getExportedNames(module.ast);
+    for (const declaration of getTypeDeclarations(module.ast).values()) {
+      if (!exportedNames.has(declaration.name)) {
+        continue;
+      }
+
+      const declarations = exportedTypes.get(declaration.name) ?? [];
+      declarations.push(declaration);
+      exportedTypes.set(declaration.name, declarations);
+    }
+  }
+
+  return exportedTypes;
+}
+
+function getExternalAbiTypeDeclarations(
+  module: ModuleInfo,
+  typeDeclarationOwners: Map<NamedTypeDeclaration, ModuleInfo>,
+  exportedTypeDeclarationsByName: Map<string, NamedTypeDeclaration[]>,
+): Set<NamedTypeDeclaration> {
+  const exportedNames = getExportedNames(module.ast);
+  const localTypeDeclarations = new Set(
+    getTypeDeclarations(module.ast).values(),
+  );
+  const abiTypeNames = getAbiRelevantTypeNames(module.ast, exportedNames);
+  const externalTypeDeclarations = new Set<NamedTypeDeclaration>();
+
+  const collectExternalType = (type: AST.TypeNode | undefined) => {
+    collectTypeNodes(type, (typeNode) => {
+      if (typeNode.kind !== "BasicType") {
+        return;
+      }
+
+      const markExternalDeclaration = (declaration: unknown) => {
+        if (
+          isNamedTypeDeclaration(declaration) &&
+          !localTypeDeclarations.has(declaration) &&
+          typeDeclarationOwners.has(declaration)
+        ) {
+          externalTypeDeclarations.add(declaration);
+        }
+      };
+
+      markExternalDeclaration(typeNode.resolvedDeclaration);
+      markExternalDeclaration(typeNode.aliasDeclaration);
+
+      if (!typeNode.resolvedDeclaration && !typeNode.aliasDeclaration) {
+        for (const declaration of exportedTypeDeclarationsByName.get(
+          typeNode.name,
+        ) ?? []) {
+          markExternalDeclaration(declaration);
+        }
+      }
+    });
+  };
+
+  for (const statement of module.ast.statements) {
+    switch (statement.kind) {
+      case "FunctionDecl": {
+        const declaration = statement as AST.FunctionDecl;
+        if (exportedNames.has(declaration.name)) {
+          collectFunctionAbiTypeReferences(declaration, collectExternalType);
+        }
+        break;
+      }
+      case "VariableDecl": {
+        const declaration = statement as AST.VariableDecl;
+        if (
+          typeof declaration.name === "string" &&
+          exportedNames.has(declaration.name)
+        ) {
+          collectExternalType(declaration.typeAnnotation);
+          if (declaration.isConst) {
+            collectExpressionTypeNodeReferences(
+              declaration.initializer,
+              collectExternalType,
+            );
+          }
+        }
+        break;
+      }
+      case "Extern": {
+        const declaration = statement as AST.ExternDecl;
+        if (exportedNames.has(declaration.name)) {
+          for (const param of declaration.params) {
+            collectExternalType(param.type);
+          }
+          collectExternalType(declaration.returnType);
+        }
+        break;
+      }
+      case "StructDecl":
+      case "SpecDecl":
+      case "EnumDecl":
+      case "TypeAlias": {
+        const declaration = statement as NamedTypeDeclaration;
+        if (abiTypeNames.has(declaration.name)) {
+          collectTypeDeclarationTypeNodes(declaration, collectExternalType);
+        }
+        break;
+      }
+    }
+  }
+
+  return externalTypeDeclarations;
+}
+
+function isNamedTypeDeclaration(value: unknown): value is NamedTypeDeclaration {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  switch ((value as { kind?: unknown }).kind) {
+    case "StructDecl":
+    case "SpecDecl":
+    case "EnumDecl":
+    case "TypeAlias":
+      return true;
+    default:
+      return false;
+  }
+}
 
 function getAbiRelevantTypeNames(
   ast: AST.Program,
@@ -208,10 +379,15 @@ function collectTypeDeclarationReferences(
   declaration: NamedTypeDeclaration,
   markTypeName: (name: string | undefined) => void,
 ): void {
-  const collectType = (type: AST.TypeNode | undefined) => {
+  collectTypeDeclarationTypeNodes(declaration, (type) => {
     collectTypeReferences(type, markTypeName);
-  };
+  });
+}
 
+function collectTypeDeclarationTypeNodes(
+  declaration: NamedTypeDeclaration,
+  collectType: (type: AST.TypeNode | undefined) => void,
+): void {
   switch (declaration.kind) {
     case "StructDecl": {
       collectGenericParamReferences(declaration.genericParams, collectType);
@@ -220,7 +396,10 @@ function collectTypeDeclarationReferences(
       }
       for (const member of declaration.members) {
         if (member.kind === "FunctionDecl") {
-          collectFunctionTypeReferences(member as AST.FunctionDecl, collectType);
+          collectFunctionAbiTypeReferences(
+            member as AST.FunctionDecl,
+            collectType,
+          );
         } else {
           collectType(member.type);
         }
@@ -250,7 +429,7 @@ function collectTypeDeclarationReferences(
         collectEnumVariantDataTypeReferences(variant.dataType, collectType);
       }
       for (const method of declaration.methods) {
-        collectFunctionTypeReferences(method, collectType);
+        collectFunctionAbiTypeReferences(method, collectType);
       }
       break;
     }
@@ -271,6 +450,22 @@ function collectFunctionTypeReferences(
     collectType(param.type);
   }
   collectType(declaration.returnType);
+}
+
+function collectFunctionAbiTypeReferences(
+  declaration: AST.FunctionDecl,
+  collectType: (type: AST.TypeNode | undefined) => void,
+): void {
+  collectFunctionTypeReferences(declaration, collectType);
+
+  if (declaration.resolvedType?.kind !== "FunctionType") {
+    return;
+  }
+
+  collectType(declaration.resolvedType.returnType);
+  for (const param of declaration.resolvedType.paramTypes) {
+    collectType(param);
+  }
 }
 
 function collectGenericParamReferences(
@@ -308,31 +503,43 @@ function collectTypeReferences(
   type: AST.TypeNode | undefined,
   markTypeName: (name: string | undefined) => void,
 ): void {
+  collectTypeNodes(type, (typeNode) => {
+    if (typeNode.kind === "BasicType") {
+      markTypeName(typeNode.name);
+    }
+  });
+}
+
+function collectTypeNodes(
+  type: AST.TypeNode | undefined,
+  collectType: (type: AST.TypeNode) => void,
+): void {
   if (!type) {
     return;
   }
 
+  collectType(type);
+
   switch (type.kind) {
     case "BasicType":
-      markTypeName(type.name);
       for (const arg of type.genericArgs) {
-        collectTypeReferences(arg, markTypeName);
+        collectTypeNodes(arg, collectType);
       }
       break;
     case "TupleType":
       for (const item of type.types) {
-        collectTypeReferences(item, markTypeName);
+        collectTypeNodes(item, collectType);
       }
       break;
     case "FunctionType":
     case "LambdaType":
-      collectTypeReferences(type.returnType, markTypeName);
+      collectTypeNodes(type.returnType, collectType);
       for (const param of type.paramTypes) {
-        collectTypeReferences(param, markTypeName);
+        collectTypeNodes(param, collectType);
       }
       break;
     case "MetaType":
-      collectTypeReferences(type.type, markTypeName);
+      collectTypeNodes(type.type, collectType);
       break;
   }
 }
@@ -394,6 +601,58 @@ function collectAstTypeReferences(
   }
 }
 
+function collectExpressionTypeNodeReferences(
+  expression: AST.Expression | undefined,
+  collectType: (type: AST.TypeNode | undefined) => void,
+): void {
+  collectAstTypeNodeReferences(expression, collectType);
+}
+
+function collectAstTypeNodeReferences(
+  value: unknown,
+  collectType: (type: AST.TypeNode | undefined) => void,
+  seen = new WeakSet<object>(),
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectAstTypeNodeReferences(item, collectType, seen);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object" || seen.has(value)) {
+    return;
+  }
+  seen.add(value);
+
+  const objectValue = value as Record<string, unknown>;
+  if (isTypeNodeObject(objectValue)) {
+    collectType(objectValue as AST.TypeNode);
+    return;
+  }
+
+  if (isTypeNodeObject(objectValue.resolvedType)) {
+    collectType(objectValue.resolvedType as AST.TypeNode);
+  }
+
+  switch (objectValue.kind) {
+    case "Block":
+      return;
+    case "LambdaExpression":
+      collectAstTypeNodeReferences(objectValue.params, collectType, seen);
+      collectAstTypeNodeReferences(objectValue.returnType, collectType, seen);
+      return;
+  }
+
+  for (const key of Object.keys(objectValue)) {
+    if (AST_TYPE_REFERENCE_IGNORED_KEYS.has(key)) {
+      continue;
+    }
+
+    collectAstTypeNodeReferences(objectValue[key], collectType, seen);
+  }
+}
+
 const AST_TYPE_REFERENCE_IGNORED_KEYS = new Set([
   "location",
   "documentation",
@@ -414,14 +673,19 @@ const AST_TYPE_REFERENCE_IGNORED_KEYS = new Set([
 ]);
 
 function isTypeNodeObject(
-  value: Record<string, unknown>,
+  value: unknown,
 ): value is Record<string, unknown> & AST.TypeNode {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const objectValue = value as Record<string, unknown>;
   return (
-    value.kind === "BasicType" ||
-    value.kind === "TupleType" ||
-    value.kind === "FunctionType" ||
-    value.kind === "LambdaType" ||
-    value.kind === "MetaType"
+    objectValue.kind === "BasicType" ||
+    objectValue.kind === "TupleType" ||
+    objectValue.kind === "FunctionType" ||
+    objectValue.kind === "LambdaType" ||
+    objectValue.kind === "MetaType"
   );
 }
 
@@ -457,9 +721,7 @@ function createDeclarationSignature(
       return {
         kind: declaration.kind,
         name: declaration.name,
-        genericParams: createGenericParamSignatures(
-          declaration.genericParams,
-        ),
+        genericParams: createGenericParamSignatures(declaration.genericParams),
         inheritanceList: declaration.inheritanceList.map((type) =>
           createTypeSignature(type),
         ),
@@ -483,9 +745,7 @@ function createDeclarationSignature(
       return {
         kind: declaration.kind,
         name: declaration.name,
-        genericParams: createGenericParamSignatures(
-          declaration.genericParams,
-        ),
+        genericParams: createGenericParamSignatures(declaration.genericParams),
         extends: declaration.extends.map((type) => createTypeSignature(type)),
         methods: declaration.methods.map((method) => ({
           kind: method.kind,
@@ -509,9 +769,7 @@ function createDeclarationSignature(
       return {
         kind: declaration.kind,
         name: declaration.name,
-        genericParams: createGenericParamSignatures(
-          declaration.genericParams,
-        ),
+        genericParams: createGenericParamSignatures(declaration.genericParams),
         implements: declaration.implements.map((type) =>
           createTypeSignature(type),
         ),
@@ -534,9 +792,7 @@ function createDeclarationSignature(
       return {
         kind: declaration.kind,
         name: declaration.name,
-        genericParams: createGenericParamSignatures(
-          declaration.genericParams,
-        ),
+        genericParams: createGenericParamSignatures(declaration.genericParams),
         type: createTypeSignature(declaration.type),
       };
     }
@@ -667,9 +923,7 @@ function createTypeSignature(
       return {
         kind: type.kind,
         returnType: createTypeSignature(type.returnType),
-        paramTypes: type.paramTypes.map((param) =>
-          createTypeSignature(param),
-        ),
+        paramTypes: type.paramTypes.map((param) => createTypeSignature(param)),
         isVariadic: type.isVariadic ?? false,
         isConst: type.isConst ?? false,
         arrayDimensions: type.arrayDimensions ?? [],
@@ -678,9 +932,7 @@ function createTypeSignature(
       return {
         kind: type.kind,
         returnType: createTypeSignature(type.returnType),
-        paramTypes: type.paramTypes.map((param) =>
-          createTypeSignature(param),
-        ),
+        paramTypes: type.paramTypes.map((param) => createTypeSignature(param)),
         isVariadic: type.isVariadic ?? false,
         isConst: type.isConst ?? false,
         arrayDimensions: type.arrayDimensions ?? [],
