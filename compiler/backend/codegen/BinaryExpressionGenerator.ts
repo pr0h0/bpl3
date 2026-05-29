@@ -699,21 +699,12 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     switch (expr.operator.type) {
       case TokenType.Plus:
         op = isFloat ? "fadd" : "add";
-        if (!isFloat && !isUnsigned && this.optimizationLevel >= 3) {
-          op += " nsw"; // No Signed Wrap optimization
-        }
         break;
       case TokenType.Minus:
         op = isFloat ? "fsub" : "sub";
-        if (!isFloat && !isUnsigned && this.optimizationLevel >= 3) {
-          op += " nsw";
-        }
         break;
       case TokenType.Star:
         op = isFloat ? "fmul" : "mul";
-        if (!isFloat && !isUnsigned && this.optimizationLevel >= 3) {
-          op += " nsw";
-        }
         break;
       case TokenType.Slash:
         op = this.getDivisionOp(

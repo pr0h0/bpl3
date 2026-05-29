@@ -66,7 +66,11 @@ local remainder: int = a % b;  # 1 (modulo)
 **Important Notes:**
 
 - Integer division truncates toward zero
-- Division by zero is undefined behavior
+- Division by zero is a checked runtime error
+- Signed integer division and modulo also check the `INT_MIN / -1` overflow
+  case and report an integer overflow runtime error
+- Ordinary fixed-width integer addition, subtraction, and multiplication wrap
+  modulo the type width unless a future checked-arithmetic feature is used
 - Modulo requires integer operands
 - Float modulo uses `fmod` semantics
 
