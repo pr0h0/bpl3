@@ -1072,6 +1072,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
 
             // Copy min(srcDataSize, destDataSize) bytes
             const copySize = Math.min(srcDataSize, destDataSize);
+            this.usedLlvmMemIntrinsics.add("memcpy");
             this.emit(
               `  call void @llvm.memcpy.p0i8.p0i8.i64(i8* ${destDataI8Ptr}, i8* ${srcDataI8Ptr}, i64 ${copySize}, i1 false)`,
             );

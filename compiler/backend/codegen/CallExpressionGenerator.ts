@@ -630,10 +630,35 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           this.emit(`  ${reg} = call i32 @llvm.${funcName}.i32(i32 ${arg})`);
         }
         return reg;
+      } else if (
+        funcName === "strlen" &&
+        this.target?.toLowerCase().includes("wasm")
+      ) {
+        const arg = this.generateExpression(expr.args[0]!);
+        const argType = this.resolveType(expr.args[0]!.resolvedType!);
+        let finalArg = arg;
+        if (argType !== "i8*") {
+          finalArg = this.newRegister();
+          this.emit(`  ${finalArg} = bitcast ${argType} ${arg} to i8*`);
+        }
+
+        const len64 = this.newRegister();
+        this.emit(`  ${len64} = call i64 @__bpl_strlen(i8* ${finalArg})`);
+        const resultType = this.resolveType(expr.resolvedType!);
+        if (resultType === "i64") {
+          return len64;
+        }
+        if (resultType === "i32") {
+          const len32 = this.newRegister();
+          this.emit(`  ${len32} = trunc i64 ${len64} to i32`);
+          return len32;
+        }
+        return len64;
       } else if (funcName === "memcpy" || funcName === "memmove") {
+        this.usedLlvmMemIntrinsics.add(funcName);
         const dest = this.generateExpression(expr.args[0]!);
         const src = this.generateExpression(expr.args[1]!);
-        const len = this.generateExpression(expr.args[2]!);
+        let len = this.generateExpression(expr.args[2]!);
         let isVolatile = "0";
         if (expr.args.length > 3 && expr.args[3]) {
           isVolatile = this.generateExpression(expr.args[3]!);
@@ -641,6 +666,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
         const destType = this.resolveType(expr.args[0]!.resolvedType!);
         const srcType = this.resolveType(expr.args[1]!.resolvedType!);
+        const lenType = this.resolveType(expr.args[2]!.resolvedType!);
 
         let finalDest = dest;
         if (destType !== "i8*") {
@@ -654,29 +680,77 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           this.emit(`  ${finalSrc} = bitcast ${srcType} ${src} to i8*`);
         }
 
+        if (lenType !== "i64") {
+          const widenedLen = this.newRegister();
+          this.emit(`  ${widenedLen} = zext ${lenType} ${len} to i64`);
+          len = widenedLen;
+        }
+
         this.emit(
           `  call void @llvm.${funcName}.p0i8.p0i8.i64(i8* ${finalDest}, i8* ${finalSrc}, i64 ${len}, i1 ${isVolatile})`,
         );
+        const resultType = this.resolveType(expr.resolvedType!);
+        if (resultType === "void") {
+          return "0";
+        }
+        if (resultType === "i8*") {
+          return finalDest;
+        }
+        if (resultType.endsWith("*")) {
+          const castResult = this.newRegister();
+          this.emit(
+            `  ${castResult} = bitcast i8* ${finalDest} to ${resultType}`,
+          );
+          return castResult;
+        }
         return "0";
       } else if (funcName === "memset") {
+        this.usedLlvmMemIntrinsics.add("memset");
         const dest = this.generateExpression(expr.args[0]!);
-        const val = this.generateExpression(expr.args[1]!);
-        const len = this.generateExpression(expr.args[2]!);
+        let val = this.generateExpression(expr.args[1]!);
+        let len = this.generateExpression(expr.args[2]!);
         let isVolatile = "0";
         if (expr.args.length > 3 && expr.args[3]) {
           isVolatile = this.generateExpression(expr.args[3]!);
         }
 
         const destType = this.resolveType(expr.args[0]!.resolvedType!);
+        const valType = this.resolveType(expr.args[1]!.resolvedType!);
+        const lenType = this.resolveType(expr.args[2]!.resolvedType!);
         let finalDest = dest;
         if (destType !== "i8*") {
           finalDest = this.newRegister();
           this.emit(`  ${finalDest} = bitcast ${destType} ${dest} to i8*`);
         }
 
+        if (valType !== "i8") {
+          const narrowedVal = this.newRegister();
+          this.emit(`  ${narrowedVal} = trunc ${valType} ${val} to i8`);
+          val = narrowedVal;
+        }
+        if (lenType !== "i64") {
+          const widenedLen = this.newRegister();
+          this.emit(`  ${widenedLen} = zext ${lenType} ${len} to i64`);
+          len = widenedLen;
+        }
+
         this.emit(
           `  call void @llvm.memset.p0i8.i64(i8* ${finalDest}, i8 ${val}, i64 ${len}, i1 ${isVolatile})`,
         );
+        const resultType = this.resolveType(expr.resolvedType!);
+        if (resultType === "void") {
+          return "0";
+        }
+        if (resultType === "i8*") {
+          return finalDest;
+        }
+        if (resultType.endsWith("*")) {
+          const castResult = this.newRegister();
+          this.emit(
+            `  ${castResult} = bitcast i8* ${finalDest} to ${resultType}`,
+          );
+          return castResult;
+        }
         return "0";
       }
 

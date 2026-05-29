@@ -9,6 +9,7 @@ target triple = "wasm32-unknown-unknown"
 
 %struct.Type = type { i8* }
 %struct._IO_FILE = type opaque
+%struct.Dl_info = type { i8*, i8*, i8*, i8* }
 %struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }
 %struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }
 
@@ -71,12 +72,55 @@ entry:
   ret void
 }
 
-define void @exit(i32 %code) {
+define weak void @exit(i32 %code) {
 entry:
   unreachable
 }
 
-define i32 @fprintf(%struct._IO_FILE* %stream, i8* %fmt, ...) {
+define weak i32 @fprintf(%struct._IO_FILE* %stream, i8* %fmt, ...) {
+entry:
+  ret i32 0
+}
+
+define weak i32 @printf(i8* %fmt, ...) {
+entry:
+  ret i32 0
+}
+
+define weak i32 @dprintf(i32 %fd, i8* %fmt, ...) {
+entry:
+  ret i32 0
+}
+
+define weak i32 @sprintf(i8* %dest, i8* %fmt, ...) {
+entry:
+  %has_dest = icmp ne i8* %dest, null
+  br i1 %has_dest, label %write_nul, label %end
+
+write_nul:
+  store i8 0, i8* %dest
+  br label %end
+
+end:
+  ret i32 0
+}
+
+define weak i32 @snprintf(i8* %dest, i64 %size, i8* %fmt, ...) {
+entry:
+  %has_dest = icmp ne i8* %dest, null
+  %has_space = icmp ugt i64 %size, 0
+  %can_write = and i1 %has_dest, %has_space
+  br i1 %can_write, label %write_nul, label %end
+
+write_nul:
+  store i8 0, i8* %dest
+  br label %end
+
+end:
+  ret i32 0
+}
+
+define weak i32 @dladdr(i8* %addr, %struct.Dl_info* %info) {
 entry:
   ret i32 0
 }
@@ -91,13 +135,13 @@ entry:
   unreachable
 }
 
-define i32 @__bpl_argc() {
+define weak i32 @__bpl_argc() {
 entry:
   %argc = load i32, i32* @__bpl_argc_value
   ret i32 %argc
 }
 
-define i8* @__bpl_argv_get(i32 %index) {
+define weak i8* @__bpl_argv_get(i32 %index) {
 entry:
   %argv = load i8**, i8*** @__bpl_argv_value
   %has_argv = icmp ne i8** %argv, null
@@ -136,6 +180,87 @@ ret_true:
 
 ret_false:
   ret i1 0
+}
+
+define i8* @memcpy(i8* %dest, i8* %src, i32 %n) {
+entry:
+  br label %loop
+
+loop:
+  %i = phi i32 [ 0, %entry ], [ %next, %copy ]
+  %done = icmp eq i32 %i, %n
+  br i1 %done, label %end, label %copy
+
+copy:
+  %src_ptr = getelementptr i8, i8* %src, i32 %i
+  %dest_ptr = getelementptr i8, i8* %dest, i32 %i
+  %byte = load i8, i8* %src_ptr
+  store i8 %byte, i8* %dest_ptr
+  %next = add i32 %i, 1
+  br label %loop
+
+end:
+  ret i8* %dest
+}
+
+define i8* @memmove(i8* %dest, i8* %src, i32 %n) {
+entry:
+  %dest_addr = ptrtoint i8* %dest to i32
+  %src_addr = ptrtoint i8* %src to i32
+  %src_end = add i32 %src_addr, %n
+  %dest_before_src = icmp ult i32 %dest_addr, %src_addr
+  %dest_after_src = icmp uge i32 %dest_addr, %src_end
+  %copy_forward = or i1 %dest_before_src, %dest_after_src
+  br i1 %copy_forward, label %forward_loop, label %backward_loop
+
+forward_loop:
+  %forward_i = phi i32 [ 0, %entry ], [ %forward_next, %forward_copy ]
+  %forward_done = icmp eq i32 %forward_i, %n
+  br i1 %forward_done, label %end, label %forward_copy
+
+forward_copy:
+  %forward_src_ptr = getelementptr i8, i8* %src, i32 %forward_i
+  %forward_dest_ptr = getelementptr i8, i8* %dest, i32 %forward_i
+  %forward_byte = load i8, i8* %forward_src_ptr
+  store i8 %forward_byte, i8* %forward_dest_ptr
+  %forward_next = add i32 %forward_i, 1
+  br label %forward_loop
+
+backward_loop:
+  %backward_i = phi i32 [ %n, %entry ], [ %backward_next, %backward_copy ]
+  %backward_done = icmp eq i32 %backward_i, 0
+  br i1 %backward_done, label %end, label %backward_copy
+
+backward_copy:
+  %backward_next = sub i32 %backward_i, 1
+  %backward_src_ptr = getelementptr i8, i8* %src, i32 %backward_next
+  %backward_dest_ptr = getelementptr i8, i8* %dest, i32 %backward_next
+  %backward_byte = load i8, i8* %backward_src_ptr
+  store i8 %backward_byte, i8* %backward_dest_ptr
+  br label %backward_loop
+
+end:
+  ret i8* %dest
+}
+
+define i8* @memset(i8* %dest, i32 %value, i32 %n) {
+entry:
+  %byte = trunc i32 %value to i8
+  br label %loop
+
+loop:
+  %i = phi i32 [ 0, %entry ], [ %next, %store ]
+  %done = icmp eq i32 %i, %n
+  br i1 %done, label %end, label %store
+
+store:
+  %dest_ptr = getelementptr i8, i8* %dest, i32 %i
+  store i8 %byte, i8* %dest_ptr
+  %next = add i32 %i, 1
+  br label %loop
+
+end:
+  ret i8* %dest
 }
 
 define i32 @memcmp(i8* %left, i8* %right, i64 %n) {
@@ -233,7 +358,7 @@ equal:
   ret i32 0
 }
 
-define i64 @strlen(i8* %ptr) {
+define i64 @__bpl_strlen(i8* %ptr) {
 entry:
   br label %loop
 
@@ -250,6 +375,13 @@ cont:
 
 end:
   ret i64 %i
+}
+
+define i32 @strlen(i8* %ptr) {
+entry:
+  %len = call i64 @__bpl_strlen(i8* %ptr)
+  %len32 = trunc i64 %len to i32
+  ret i32 %len32
 }
 
 define i8* @strcpy(i8* %dest, i8* %src) {
@@ -404,33 +536,44 @@ entry:
   br i1 %is_null, label %trap, label %ok
 
 trap:
+  call void @__bpl_report_error(i32 2, i8* %expr, i8* %func, i32 %line, i32 %col)
   unreachable
 
 ok:
   ret void
 }
 
+define weak void @__bpl_report_error(i32 %code, i8* %detail, i8* %func, i32 %line, i32 %col) {
+entry:
+  ret void
+}
+
 define void @__bpl_throw_stack_overflow() {
 entry:
+  call void @__bpl_report_error(i32 1, i8* null, i8* null, i32 0, i32 0)
   unreachable
 }
 
 define void @__bpl_throw_null_access(i8* %expr, i8* %func, i32 %line, i32 %col) {
 entry:
+  call void @__bpl_report_error(i32 2, i8* %expr, i8* %func, i32 %line, i32 %col)
   unreachable
 }
 
 define void @__bpl_throw_division_by_zero(i8* %func, i32 %line, i32 %col) {
 entry:
+  call void @__bpl_report_error(i32 3, i8* null, i8* %func, i32 %line, i32 %col)
   unreachable
 }
 
 define void @__bpl_throw_integer_overflow(i8* %func, i32 %line, i32 %col) {
 entry:
+  call void @__bpl_report_error(i32 4, i8* null, i8* %func, i32 %line, i32 %col)
   unreachable
 }
 
 define void @__bpl_throw_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col) {
 entry:
+  call void @__bpl_report_error(i32 5, i8* null, i8* %func, i32 %line, i32 %col)
   unreachable
 }

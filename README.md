@@ -813,6 +813,9 @@ bun run test:codegen-cross-platform
 # Run compiler correctness and deterministic fuzz regression coverage
 bun run test:correctness
 
+# Run standalone and hosted WebAssembly runtime coverage
+bun run test:wasm
+
 # Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
 # safe programs and checked failure paths under ASan/UBSan; local toolchains
 # without sanitizer runtimes are detected.
@@ -924,6 +927,7 @@ BPL is under active development. The compiler has **1,300+ tests** across 140+ t
 - [x] Tuple destructuring (including nested)
 - [x] Operator overloading (24 operators)
 - [x] Intrinsics (math, bit manipulation, memory)
+- [x] WebAssembly target (freestanding wasm32 plus hosted runtime hooks)
 
 ### In Progress 🚧
 
@@ -937,7 +941,6 @@ BPL is under active development. The compiler has **1,300+ tests** across 140+ t
 - [ ] Incremental compilation improvements
 - [ ] Inline assembly improvements
 - [ ] C++ interop improvements
-- [ ] WebAssembly target
 - [ ] Self-hosting compiler
 
 See [TODO.md](TODO.md) for detailed task list.

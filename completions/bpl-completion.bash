@@ -15,7 +15,7 @@ _bpl_completion() {
     local commands="format run dev build check lint init pack install list uninstall completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
-    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
+    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
 
     # Format command options
     local format_opts="-w --write -v --verbose"
@@ -52,6 +52,7 @@ _bpl_completion() {
 
     # Emit types
     local emit_types="llvm ast tokens formatted"
+    local wasm_runtime_modes="freestanding host"
 
     # Check if we're after a specific option that needs a value
     case "${prev}" in
@@ -66,8 +67,12 @@ _bpl_completion() {
         ;;
         --target)
             # Common target triples
-            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown"
+            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown wasm32-wasi"
             COMPREPLY=( $(compgen -W "${targets}" -- "${cur}") )
+            return 0
+        ;;
+        --wasm-runtime)
+            COMPREPLY=( $(compgen -W "${wasm_runtime_modes}" -- "${cur}") )
             return 0
         ;;
         --sysroot|--lib-path|-L)

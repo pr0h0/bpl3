@@ -46,6 +46,10 @@ export function registerBuildCommand(program: Command): void {
       "--clang-flag <flag...>",
       "additional flags forwarded directly to clang",
     )
+    .option(
+      "--wasm-runtime <mode>",
+      "wasm runtime mode: freestanding or host",
+    )
     .option("-l, --lib <lib...>", "libraries to link with")
     .option("-L, --lib-path <path...>", "library search paths")
     .option("--object <file...>", "object files to link (.o, .ll, etc.)")

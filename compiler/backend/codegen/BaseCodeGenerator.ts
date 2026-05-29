@@ -223,6 +223,8 @@ export class BaseCodeGenerator {
   protected vtableLayouts: Map<string, string[]> = new Map(); // StructName -> [MethodName]
   protected vtableGlobalNames: Map<string, string> = new Map(); // StructName -> @StructName_vtable
   protected functionAttributeGroups = new FunctionAttributeGroups();
+  protected usedLlvmMemIntrinsics: Set<"memcpy" | "memmove" | "memset"> =
+    new Set();
 
   protected resetLlvmAttributeGroups(): void {
     this.functionAttributeGroups.reset();

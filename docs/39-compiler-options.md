@@ -380,6 +380,9 @@ bpl build main.bpl --target x86_64-pc-windows-gnu
 # Build a WebAssembly artifact
 bpl build main.bpl --target wasm32-unknown-unknown -o main.wasm
 
+# Build a WebAssembly artifact that imports host I/O, argv, exit, and error hooks
+bpl build main.bpl --target wasm32-unknown-unknown --wasm-runtime host -o main.wasm
+
 # Emit WebAssembly-targeted LLVM IR next to the artifact
 bpl build main.bpl --target wasm32-unknown-unknown --emit llvm -o main.wasm
 
@@ -461,16 +464,31 @@ freestanding `runtime_wasm.ll` shim. If the linker is unavailable, BPL still
 emits a relocatable wasm object so CI and cross-toolchains can consume the
 artifact without requiring a host-native wasm linker.
 
-The current wasm runtime is intentionally freestanding. It supports pure BPL
-control flow, enums, generics, lambdas, simple memory allocation, and small
-helpers such as `strlen`, `strcmp`, `strncmp`, `strcpy`, `strcat`, and `atoi`.
-Programs that depend on host C library or operating-system APIs such as
-`printf`, files, sockets, process calls, or platform-specific inline assembly
-need a WASI/browser host layer before they can run as standalone wasm.
+The default wasm runtime is freestanding. It supports pure BPL control flow,
+enums, generics, lambdas, simple memory allocation, memory intrinsics
+(`memcpy`, `memmove`, `memset`), and small helpers such as `strlen`, `strcmp`,
+`strncmp`, `strcpy`, `strcat`, and `atoi`. Formatting and debug-only C symbols
+that can be pulled in by stdlib modules are present as no-op stubs so unused
+methods do not prevent standalone wasm linking.
 
-The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`, and
-`examples/wasm_memory_strings` examples are intentionally portable: they run as
-native x86_64 programs and as standalone `wasm32-unknown-unknown` modules.
+Use `--wasm-runtime host` when the module should communicate with a browser,
+WASI-style adapter, or test harness. Hosted wasm imports `env.__bpl_host_write`,
+`env.__bpl_host_exit`, `env.__bpl_host_argc`, `env.__bpl_host_argv_len`,
+`env.__bpl_host_argv_copy`, and `env.__bpl_host_error`. The host adapter routes
+basic `printf`/`puts`/`putchar`, argv access, `exit`, and checked BPL runtime
+errors through those imports. `wasm32-wasi` and Emscripten-flavored target
+triples select hosted mode by default; `wasm32-unknown-unknown` stays
+freestanding unless `--wasm-runtime host` is provided.
+
+Programs that depend on full operating-system APIs such as files, sockets,
+process calls, or platform-specific inline assembly still need a richer
+WASI/browser host implementation before they can run as standalone wasm.
+
+The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`,
+`examples/wasm_memory_strings`, `examples/wasm_memory_intrinsics`,
+`examples/wasm_stdlib_array`, and `examples/wasm_stdlib_bitset` examples are
+intentionally portable: they run as native x86_64 programs and as standalone
+`wasm32-unknown-unknown` modules.
 
 ## Complete Examples
 

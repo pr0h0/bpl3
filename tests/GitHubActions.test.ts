@@ -135,6 +135,13 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["test:correctness"]).toContain(
       "FuzzFailureArtifactCorpus.test.ts",
     );
+    expect(packageJson.scripts["test:correctness"]).toContain(
+      "WasmRuntime.test.ts",
+    );
+    expect(packageJson.scripts["test:correctness"]).toContain(
+      "WasmCompatibilitySweep.test.ts",
+    );
+    expect(packageJson.scripts["test:wasm"]).toContain("WasmRuntime.test.ts");
     expect(packageJson.scripts["test:sanitizers"]).toContain(
       "CompilerSanitizerRuntime.test.ts",
     );

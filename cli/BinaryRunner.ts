@@ -21,6 +21,38 @@ export function isWasmTarget(target?: string): boolean {
   return target?.toLowerCase().includes("wasm") ?? false;
 }
 
+export function getWasmRuntimeMode(
+  options: CompileOptions,
+  target?: string,
+): "freestanding" | "host" {
+  if (
+    options.wasmRuntime &&
+    options.wasmRuntime !== "host" &&
+    options.wasmRuntime !== "freestanding"
+  ) {
+    throw new Error(
+      `Unsupported wasm runtime mode "${options.wasmRuntime}". Use "freestanding" or "host".`,
+    );
+  }
+
+  if (options.wasmRuntime === "host") {
+    return "host";
+  }
+  if (options.wasmRuntime === "freestanding") {
+    return "freestanding";
+  }
+
+  const normalizedTarget = target?.toLowerCase() ?? "";
+  if (
+    normalizedTarget.includes("wasi") ||
+    normalizedTarget.includes("emscripten")
+  ) {
+    return "host";
+  }
+
+  return "freestanding";
+}
+
 function findWasmLinker(): string | undefined {
   const candidates = [
     process.env.WASM_LD,
@@ -176,6 +208,7 @@ function buildClangArgs(
   const args: string[] = ["-Wno-override-module"];
   const target = options.target ?? hostDefaults.target;
   const wasmTarget = isWasmTarget(target);
+  const wasmRuntimeMode = getWasmRuntimeMode(options, target);
   const wasmLinker = wasmTarget ? findWasmLinker() : undefined;
   const linkWasm = Boolean(wasmLinker);
 
@@ -208,6 +241,9 @@ function buildClangArgs(
         "-Wl,--export-all",
         "-Wl,--export-memory",
       );
+      if (wasmRuntimeMode === "host") {
+        args.push("-Wl,--allow-undefined");
+      }
     } else {
       args.push("-c");
     }
@@ -294,6 +330,26 @@ function buildClangArgs(
 
       if (!alreadyLinked) {
         args.push(runtimeWasmPath);
+      }
+    }
+
+    if (wasmRuntimeMode === "host") {
+      const runtimeWasmHostPath = path.join(
+        getBplHome(),
+        "lib",
+        "runtime_wasm_host.ll",
+      );
+      if (fs.existsSync(runtimeWasmHostPath)) {
+        const alreadyLinked =
+          (options.object &&
+            normalizeArrayOption(options.object).includes(
+              runtimeWasmHostPath,
+            )) ||
+          args.includes(runtimeWasmHostPath);
+
+        if (!alreadyLinked) {
+          args.push(runtimeWasmHostPath);
+        }
       }
     }
   }

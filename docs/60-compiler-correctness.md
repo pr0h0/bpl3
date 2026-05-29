@@ -30,6 +30,10 @@ arithmetic.
 The broad `bun run test:ci` suite runs only on the primary Ubuntu release leg.
 Every matrix leg still runs `bun run check`, `bun run test:correctness`,
 `bun run fuzz:validate-artifacts`, and `bun run test:sanitizers`.
+`test:correctness` includes standalone wasm runtime execution and the wasm
+compatibility sweep, so examples that are declared wasm-compatible must build,
+instantiate, and execute under `wasm32-unknown-unknown` when `wasm-ld` is
+available.
 
 To reproduce a matrix runtime build locally:
 
@@ -42,6 +46,12 @@ To reproduce the Windows-safe lane locally:
 
 ```bash
 bun run test:codegen-cross-platform
+```
+
+To reproduce just the wasm runtime and compatibility coverage:
+
+```bash
+bun run test:wasm
 ```
 
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.

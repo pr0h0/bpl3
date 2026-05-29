@@ -81,6 +81,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emittedFunctions.clear();
     this.typeAliasMap.clear();
     this.specMap.clear();
+    this.usedLlvmMemIntrinsics.clear();
     this.resetLlvmAttributeGroups();
 
     // Populate structMap and enumDeclMap with user-defined types first
@@ -270,6 +271,9 @@ export class CodeGenerator extends StatementGenerator {
 
     // Helper: memory zero-check function used for 'struct == null' comparisons
     this.emitDeclaration("declare i1 @__bpl_mem_is_zero(i8*, i64)");
+    if (this.target?.toLowerCase().includes("wasm")) {
+      this.emitDeclaration("declare i64 @__bpl_strlen(i8*)");
+    }
 
     // Process pending lambdas and monomorphized functions iteratively
     // This is necessary because monomorphized functions might generate lambdas,
@@ -306,6 +310,22 @@ export class CodeGenerator extends StatementGenerator {
       for (const task of currentGenerations) {
         task();
       }
+    }
+
+    if (this.usedLlvmMemIntrinsics.has("memcpy")) {
+      this.emitDeclaration(
+        "declare void @llvm.memcpy.p0i8.p0i8.i64(i8*, i8*, i64, i1)",
+      );
+    }
+    if (this.usedLlvmMemIntrinsics.has("memmove")) {
+      this.emitDeclaration(
+        "declare void @llvm.memmove.p0i8.p0i8.i64(i8*, i8*, i64, i1)",
+      );
+    }
+    if (this.usedLlvmMemIntrinsics.has("memset")) {
+      this.emitDeclaration(
+        "declare void @llvm.memset.p0i8.i64(i8*, i8, i64, i1)",
+      );
     }
 
     if (this.generateDwarf) {
@@ -413,6 +433,16 @@ export class CodeGenerator extends StatementGenerator {
 
   private generateExtern(decl: AST.ExternDecl) {
     const name = decl.name;
+    if (
+      ["memcpy", "memmove", "memset"].includes(name) &&
+      decl.params.length >= 3
+    ) {
+      return;
+    }
+    if (this.target?.toLowerCase().includes("wasm") && name === "strlen") {
+      return;
+    }
+
     if (this.declaredFunctions.has(name)) return;
     this.declaredFunctions.add(name);
 

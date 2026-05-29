@@ -260,7 +260,11 @@ describe("CLI Tests", () => {
     expect(bash.status).toBe(0);
     expect(zsh.status).toBe(0);
     expect(bash.stdout).toContain("wasm32-unknown-unknown");
+    expect(bash.stdout).toContain("wasm32-wasi");
+    expect(bash.stdout).toContain("--wasm-runtime");
     expect(zsh.stdout).toContain("wasm32-unknown-unknown");
+    expect(zsh.stdout).toContain("wasm32-wasi");
+    expect(zsh.stdout).toContain("--wasm-runtime");
     expect(bash.stdout).toContain("doctor");
     expect(zsh.stdout).toContain("doctor:Check local BPL toolchain");
     expect(bash.stdout).toContain("--cache-stats");
