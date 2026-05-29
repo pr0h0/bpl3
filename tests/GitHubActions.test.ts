@@ -103,14 +103,17 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain(
       "sudo apt-get install -y clang llvm lld libclang-rt-dev clang-18 llvm-18 lld-18 libclang-rt-18-dev",
     );
-    expect(workflow).toContain("Install WebAssembly linker (macOS Apple clang)");
-    expect(workflow).toContain("Configure WebAssembly linker");
+    expect(workflow).toContain(
+      "Install WebAssembly toolchain (macOS Apple clang)",
+    );
+    expect(workflow).toContain("Configure WebAssembly toolchain");
+    expect(workflow).toContain("BPL_WASM_CC=$(brew --prefix llvm)/bin/clang");
     expect(workflow).toContain("WASM_LD=$(command -v wasm-ld)");
     expect(workflow).toContain("brew install llvm lld");
-    expect(workflow).toContain("brew install lld");
     expect(workflow).toContain('echo "$(brew --prefix lld)/bin"');
     expect(workflow).toContain("WASM_LD=$(brew --prefix lld)/bin/wasm-ld");
     expect(workflow).toContain('"$WASM_LD" --version');
+    expect(workflow).toContain('"${BPL_WASM_CC:-clang}" --version');
     expect(workflow).not.toContain(
       "wasm-ld --version || wasm-ld-18 --version || true",
     );

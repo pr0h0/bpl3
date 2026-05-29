@@ -466,6 +466,16 @@ freestanding `runtime_wasm.ll` shim. If the linker is unavailable, BPL still
 emits a relocatable wasm object so CI and cross-toolchains can consume the
 artifact without requiring a host-native wasm linker.
 
+Set `BPL_WASM_CC` or `WASM_CC` when the default `clang` on PATH cannot compile
+WebAssembly targets. This is useful on macOS when native builds should continue
+using Apple `clang`, but wasm builds need Homebrew LLVM:
+
+```bash
+BPL_WASM_CC="$(brew --prefix llvm)/bin/clang" \
+WASM_LD="$(brew --prefix lld)/bin/wasm-ld" \
+bpl build main.bpl --target wasm32-unknown-unknown -o main.wasm
+```
+
 The default wasm runtime is freestanding. It supports pure BPL control flow,
 enums, generics, lambdas, simple memory allocation, memory intrinsics
 (`memcpy`, `memmove`, `memset`), and small helpers such as `strlen`, `strcmp`,

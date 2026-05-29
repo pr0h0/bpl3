@@ -69,6 +69,13 @@ function findWasmLinker(): string | undefined {
   });
 }
 
+function getClangCommand(target?: string): string {
+  if (isWasmTarget(target)) {
+    return process.env.BPL_WASM_CC || process.env.WASM_CC || "clang";
+  }
+  return "clang";
+}
+
 /**
  * Result of binary compilation
  */
@@ -104,24 +111,26 @@ export function compileToBinary(
     ? execPathBase
     : path.resolve(execPathBase);
 
+  const clangCommand = getClangCommand(target);
   const clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
 
   if (options.verbose) {
     log.info("---------------------------------------------");
     log.info("Compiling LLVM IR to executable with clang...");
     log.info("---------------------------------------------");
-    log.debug(`clang ${clangArgs.join(" ")}`);
+    log.debug(`${clangCommand} ${clangArgs.join(" ")}`);
   }
 
-  const compileResult = spawnSync("clang", clangArgs, {
+  const compileResult = spawnSync(clangCommand, clangArgs, {
     stdio: options.verbose ? "inherit" : "pipe",
   });
 
   if (compileResult.status !== 0) {
     const stderr = compileResult.stderr?.toString() ?? "";
+    const spawnError = compileResult.error?.message ?? "";
     return {
       success: false,
-      error: `Failed to compile LLVM IR with clang${stderr ? `\n${stderr}` : ""}`,
+      error: `Failed to compile LLVM IR with ${clangCommand}${stderr || spawnError ? `\n${stderr || spawnError}` : ""}`,
     };
   }
 

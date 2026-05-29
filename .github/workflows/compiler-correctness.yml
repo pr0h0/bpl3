@@ -102,13 +102,17 @@ jobs:
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
 
-      - name: Install WebAssembly linker (macOS Apple clang)
+      - name: Install WebAssembly toolchain (macOS Apple clang)
         if: matrix.toolchain == 'macos-apple-clang'
-        run: brew install lld
+        run: brew install llvm lld
 
-      - name: Configure WebAssembly linker
+      - name: Configure WebAssembly toolchain
         shell: bash
         run: |
+          if [ -x "$(brew --prefix llvm 2>/dev/null)/bin/clang" ]; then
+            echo "BPL_WASM_CC=$(brew --prefix llvm)/bin/clang" >> "$GITHUB_ENV"
+          fi
+
           if command -v wasm-ld >/dev/null 2>&1; then
             echo "WASM_LD=$(command -v wasm-ld)" >> "$GITHUB_ENV"
           elif command -v wasm-ld-18 >/dev/null 2>&1; then
@@ -128,6 +132,7 @@ jobs:
         run: |
           "$CC" --version
           clang --version
+          "${BPL_WASM_CC:-clang}" --version
           "$WASM_LD" --version
 
       - name: Install dependencies
