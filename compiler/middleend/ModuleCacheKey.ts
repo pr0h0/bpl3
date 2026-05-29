@@ -66,8 +66,11 @@ function getModuleCacheInterfaceDependencies(
 
 function createModuleInterfaceSignature(module: ModuleInfo): string {
   const exportedNames = getExportedNames(module.ast);
+  const abiTypeNames = getAbiRelevantTypeNames(module.ast, exportedNames);
   const declarations = module.ast.statements
-    .map((statement) => createDeclarationSignature(statement, exportedNames))
+    .map((statement) =>
+      createDeclarationSignature(statement, exportedNames, abiTypeNames),
+    )
     .filter((signature): signature is Record<string, unknown> =>
       Boolean(signature),
     );
@@ -91,9 +94,341 @@ function getExportedNames(ast: AST.Program): Set<string> {
   return exportedNames;
 }
 
+type NamedTypeDeclaration =
+  | AST.StructDecl
+  | AST.SpecDecl
+  | AST.EnumDecl
+  | AST.TypeAliasDecl;
+
+function getAbiRelevantTypeNames(
+  ast: AST.Program,
+  exportedNames: Set<string>,
+): Set<string> {
+  const typeDeclarations = getTypeDeclarations(ast);
+  const abiTypeNames = new Set<string>();
+  const pending: NamedTypeDeclaration[] = [];
+
+  const markTypeName = (name: string | undefined) => {
+    if (!name || abiTypeNames.has(name)) {
+      return;
+    }
+
+    const declaration = typeDeclarations.get(name);
+    if (!declaration) {
+      return;
+    }
+
+    abiTypeNames.add(name);
+    pending.push(declaration);
+  };
+
+  const collectType = (type: AST.TypeNode | undefined) => {
+    collectTypeReferences(type, markTypeName);
+  };
+
+  const collectFunction = (declaration: AST.FunctionDecl) => {
+    collectGenericParamReferences(declaration.genericParams, collectType);
+    for (const param of declaration.params) {
+      collectType(param.type);
+    }
+    collectType(declaration.returnType);
+  };
+
+  for (const name of exportedNames) {
+    markTypeName(name);
+  }
+
+  for (const statement of ast.statements) {
+    switch (statement.kind) {
+      case "FunctionDecl": {
+        const declaration = statement as AST.FunctionDecl;
+        if (exportedNames.has(declaration.name)) {
+          collectFunction(declaration);
+        }
+        break;
+      }
+      case "VariableDecl": {
+        const declaration = statement as AST.VariableDecl;
+        if (
+          typeof declaration.name === "string" &&
+          exportedNames.has(declaration.name)
+        ) {
+          collectType(declaration.typeAnnotation);
+          if (declaration.isConst) {
+            collectExpressionTypeReferences(
+              declaration.initializer,
+              markTypeName,
+            );
+          }
+        }
+        break;
+      }
+      case "Extern": {
+        const declaration = statement as AST.ExternDecl;
+        if (exportedNames.has(declaration.name)) {
+          for (const param of declaration.params) {
+            collectType(param.type);
+          }
+          collectType(declaration.returnType);
+        }
+        break;
+      }
+    }
+  }
+
+  while (pending.length > 0) {
+    collectTypeDeclarationReferences(pending.shift()!, markTypeName);
+  }
+
+  return abiTypeNames;
+}
+
+function getTypeDeclarations(
+  ast: AST.Program,
+): Map<string, NamedTypeDeclaration> {
+  const declarations = new Map<string, NamedTypeDeclaration>();
+
+  for (const statement of ast.statements) {
+    switch (statement.kind) {
+      case "StructDecl":
+      case "SpecDecl":
+      case "EnumDecl":
+      case "TypeAlias": {
+        const declaration = statement as NamedTypeDeclaration;
+        declarations.set(declaration.name, declaration);
+        break;
+      }
+    }
+  }
+
+  return declarations;
+}
+
+function collectTypeDeclarationReferences(
+  declaration: NamedTypeDeclaration,
+  markTypeName: (name: string | undefined) => void,
+): void {
+  const collectType = (type: AST.TypeNode | undefined) => {
+    collectTypeReferences(type, markTypeName);
+  };
+
+  switch (declaration.kind) {
+    case "StructDecl": {
+      collectGenericParamReferences(declaration.genericParams, collectType);
+      for (const inheritedType of declaration.inheritanceList) {
+        collectType(inheritedType);
+      }
+      for (const member of declaration.members) {
+        if (member.kind === "FunctionDecl") {
+          collectFunctionTypeReferences(member as AST.FunctionDecl, collectType);
+        } else {
+          collectType(member.type);
+        }
+      }
+      break;
+    }
+    case "SpecDecl": {
+      collectGenericParamReferences(declaration.genericParams, collectType);
+      for (const inheritedType of declaration.extends) {
+        collectType(inheritedType);
+      }
+      for (const method of declaration.methods) {
+        collectGenericParamReferences(method.genericParams, collectType);
+        for (const param of method.params) {
+          collectType(param.type);
+        }
+        collectType(method.returnType);
+      }
+      break;
+    }
+    case "EnumDecl": {
+      collectGenericParamReferences(declaration.genericParams, collectType);
+      for (const implementedType of declaration.implements) {
+        collectType(implementedType);
+      }
+      for (const variant of declaration.variants) {
+        collectEnumVariantDataTypeReferences(variant.dataType, collectType);
+      }
+      for (const method of declaration.methods) {
+        collectFunctionTypeReferences(method, collectType);
+      }
+      break;
+    }
+    case "TypeAlias": {
+      collectGenericParamReferences(declaration.genericParams, collectType);
+      collectType(declaration.type);
+      break;
+    }
+  }
+}
+
+function collectFunctionTypeReferences(
+  declaration: AST.FunctionDecl,
+  collectType: (type: AST.TypeNode | undefined) => void,
+): void {
+  collectGenericParamReferences(declaration.genericParams, collectType);
+  for (const param of declaration.params) {
+    collectType(param.type);
+  }
+  collectType(declaration.returnType);
+}
+
+function collectGenericParamReferences(
+  genericParams: AST.GenericParam[],
+  collectType: (type: AST.TypeNode | undefined) => void,
+): void {
+  for (const param of genericParams) {
+    collectType(param.constraint);
+  }
+}
+
+function collectEnumVariantDataTypeReferences(
+  dataType: AST.EnumVariantData | undefined,
+  collectType: (type: AST.TypeNode | undefined) => void,
+): void {
+  if (!dataType) {
+    return;
+  }
+
+  switch (dataType.kind) {
+    case "EnumVariantTuple":
+      for (const type of dataType.types) {
+        collectType(type);
+      }
+      break;
+    case "EnumVariantStruct":
+      for (const field of dataType.fields) {
+        collectType(field.type);
+      }
+      break;
+  }
+}
+
+function collectTypeReferences(
+  type: AST.TypeNode | undefined,
+  markTypeName: (name: string | undefined) => void,
+): void {
+  if (!type) {
+    return;
+  }
+
+  switch (type.kind) {
+    case "BasicType":
+      markTypeName(type.name);
+      for (const arg of type.genericArgs) {
+        collectTypeReferences(arg, markTypeName);
+      }
+      break;
+    case "TupleType":
+      for (const item of type.types) {
+        collectTypeReferences(item, markTypeName);
+      }
+      break;
+    case "FunctionType":
+    case "LambdaType":
+      collectTypeReferences(type.returnType, markTypeName);
+      for (const param of type.paramTypes) {
+        collectTypeReferences(param, markTypeName);
+      }
+      break;
+    case "MetaType":
+      collectTypeReferences(type.type, markTypeName);
+      break;
+  }
+}
+
+function collectExpressionTypeReferences(
+  expression: AST.Expression | undefined,
+  markTypeName: (name: string | undefined) => void,
+): void {
+  collectAstTypeReferences(expression, markTypeName);
+}
+
+function collectAstTypeReferences(
+  value: unknown,
+  markTypeName: (name: string | undefined) => void,
+  seen = new WeakSet<object>(),
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectAstTypeReferences(item, markTypeName, seen);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object" || seen.has(value)) {
+    return;
+  }
+  seen.add(value);
+
+  const objectValue = value as Record<string, unknown>;
+  if (isTypeNodeObject(objectValue)) {
+    collectTypeReferences(objectValue as AST.TypeNode, markTypeName);
+    return;
+  }
+
+  switch (objectValue.kind) {
+    case "Block":
+      return;
+    case "LambdaExpression":
+      collectAstTypeReferences(objectValue.params, markTypeName, seen);
+      collectAstTypeReferences(objectValue.returnType, markTypeName, seen);
+      return;
+    case "StructLiteral":
+      markTypeName(objectValue.structName as string | undefined);
+      break;
+    case "EnumStructVariant":
+    case "PatternEnum":
+    case "PatternEnumTuple":
+    case "PatternEnumStruct":
+      markTypeName(objectValue.enumName as string | undefined);
+      break;
+  }
+
+  for (const key of Object.keys(objectValue)) {
+    if (AST_TYPE_REFERENCE_IGNORED_KEYS.has(key)) {
+      continue;
+    }
+
+    collectAstTypeReferences(objectValue[key], markTypeName, seen);
+  }
+}
+
+const AST_TYPE_REFERENCE_IGNORED_KEYS = new Set([
+  "location",
+  "documentation",
+  "resolvedType",
+  "resolvedDeclaration",
+  "aliasDeclaration",
+  "variableDeclaration",
+  "declaration",
+  "captures",
+  "overloads",
+  "operator",
+  "operatorOverload",
+  "enumVariantInfo",
+  "desugared",
+  "capturedVariables",
+  "closureStructType",
+  "captureStructName",
+]);
+
+function isTypeNodeObject(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & AST.TypeNode {
+  return (
+    value.kind === "BasicType" ||
+    value.kind === "TupleType" ||
+    value.kind === "FunctionType" ||
+    value.kind === "LambdaType" ||
+    value.kind === "MetaType"
+  );
+}
+
 function createDeclarationSignature(
   statement: AST.Statement,
   exportedNames: Set<string>,
+  abiTypeNames: Set<string>,
 ): Record<string, unknown> | undefined {
   switch (statement.kind) {
     case "Export": {
@@ -115,6 +450,10 @@ function createDeclarationSignature(
     }
     case "StructDecl": {
       const declaration = statement as AST.StructDecl;
+      if (!abiTypeNames.has(declaration.name)) {
+        return undefined;
+      }
+
       return {
         kind: declaration.kind,
         name: declaration.name,
@@ -137,6 +476,10 @@ function createDeclarationSignature(
     }
     case "SpecDecl": {
       const declaration = statement as AST.SpecDecl;
+      if (!abiTypeNames.has(declaration.name)) {
+        return undefined;
+      }
+
       return {
         kind: declaration.kind,
         name: declaration.name,
@@ -159,6 +502,10 @@ function createDeclarationSignature(
     }
     case "EnumDecl": {
       const declaration = statement as AST.EnumDecl;
+      if (!abiTypeNames.has(declaration.name)) {
+        return undefined;
+      }
+
       return {
         kind: declaration.kind,
         name: declaration.name,
@@ -180,6 +527,10 @@ function createDeclarationSignature(
     }
     case "TypeAlias": {
       const declaration = statement as AST.TypeAliasDecl;
+      if (!abiTypeNames.has(declaration.name)) {
+        return undefined;
+      }
+
       return {
         kind: declaration.kind,
         name: declaration.name,
