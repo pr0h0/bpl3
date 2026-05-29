@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
 import { join } from "path";
 
-const RELEASE_SMOKE_TIMEOUT_MS = 120 * 1000;
+const RELEASE_SMOKE_TIMEOUT_MS = 180 * 1000;
 
 describe("Release smoke", () => {
   test(
@@ -19,12 +19,39 @@ describe("Release smoke", () => {
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("release smoke: pack npm tarball");
+      expect(result.stdout).toContain(
+        "release smoke: validate packed npm metadata",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: validate packed npm file allowlist",
+      );
       expect(result.stdout).toContain("release smoke: install packed npm CLI");
       expect(result.stdout).toContain(
         "release smoke: check packed npm CLI doctor",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI bash completion",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI zsh completion",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: scaffold packed npm CLI library template",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI library template",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: run packed npm CLI library example",
+      );
+      expect(result.stdout).toContain(
         "release smoke: compile tiny program with packed npm CLI",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: build packed npm CLI wasm artifact",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: build packed npm CLI cached module app",
       );
       expect(result.stdout).toContain("release smoke passed");
     },

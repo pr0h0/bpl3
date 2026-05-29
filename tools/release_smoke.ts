@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -24,12 +25,25 @@ interface DoctorReport {
 
 interface NpmPackEntry {
   filename: string;
+  name?: string;
+  version?: string;
+  size?: number;
+  unpackedSize?: number;
+  shasum?: string;
+  integrity?: string;
   files?: Array<{ path: string }>;
 }
 
 interface RunStepOptions {
   cwd?: string;
   bplHome?: string | null;
+}
+
+interface PackageJson {
+  name: string;
+  version: string;
+  license: string;
+  bin: Record<string, string>;
 }
 
 export function runReleaseSmoke(): void {
@@ -125,6 +139,7 @@ function runPackedPackageSmoke(): void {
       tempDir,
     ]);
     const packEntry = parseNpmPackEntry(pack.stdout);
+    assertPackedMetadata(packEntry);
     assertPackedFiles(packEntry, [
       "bpl",
       "package.json",
@@ -134,6 +149,7 @@ function runPackedPackageSmoke(): void {
       "lib/runtime.ll",
       "lib/runtime_support.o",
     ]);
+    assertPackedFileAllowlist(packEntry);
 
     const tarballPath = join(tempDir, packEntry.filename);
     if (!existsSync(tarballPath)) {
@@ -173,7 +189,154 @@ function runPackedPackageSmoke(): void {
       throw new Error(`Packed npm CLI doctor reported failures:\n${failures}`);
     }
 
+    runCompletionSmoke(installedBpl, installDir);
+    runLibraryTemplateSmoke(installedBpl, installDir);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
+    runPackedWasmSmoke(installedBpl);
+    runPackedCacheStatsSmoke(installedBpl);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runCompletionSmoke(installedBpl: string, installDir: string): void {
+  const bash = runStep(
+    "check packed npm CLI bash completion",
+    installedBpl,
+    ["completion", "bash"],
+    { cwd: installDir, bplHome: null },
+  );
+  assertOutputContains(bash.stdout, [
+    "doctor",
+    "--cache-stats",
+    "wasm32-unknown-unknown",
+  ]);
+
+  const zsh = runStep(
+    "check packed npm CLI zsh completion",
+    installedBpl,
+    ["completion", "zsh"],
+    { cwd: installDir, bplHome: null },
+  );
+  assertOutputContains(zsh.stdout, [
+    "doctor:Check local BPL toolchain",
+    "--template",
+    "wasm32-unknown-unknown",
+  ]);
+}
+
+function runLibraryTemplateSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-template-"));
+
+  try {
+    runStep(
+      "scaffold packed npm CLI library template",
+      installedBpl,
+      ["new", "smoke-lib", "--template", "library", "--no-git"],
+      { cwd: workspaceDir, bplHome: null },
+    );
+
+    runStep(
+      "check packed npm CLI library template",
+      installedBpl,
+      ["check", join("smoke-lib", "src", "index.bpl")],
+      { cwd: workspaceDir, bplHome: null },
+    );
+
+    const example = runStep(
+      "run packed npm CLI library example",
+      installedBpl,
+      ["run", join("smoke-lib", "examples", "usage.bpl")],
+      { cwd: workspaceDir, bplHome: null },
+    );
+    if (!example.stdout.includes("total = 42")) {
+      throw new Error(
+        [
+          "Packed npm CLI library example did not print expected output.",
+          `stdout:\n${example.stdout}`,
+          `stderr:\n${example.stderr}`,
+        ].join("\n"),
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedWasmSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-wasm-"));
+  const wasmPath = join(tempDir, "smoke.wasm");
+
+  try {
+    writeFileSync(
+      join(tempDir, "wasm.bpl"),
+      "frame main() ret int { return 7; }\n",
+    );
+
+    runStep(
+      "build packed npm CLI wasm artifact",
+      installedBpl,
+      [
+        "build",
+        "wasm.bpl",
+        "--target",
+        "wasm32-unknown-unknown",
+        "-o",
+        wasmPath,
+      ],
+      { cwd: tempDir, bplHome: null },
+    );
+
+    if (readFileSync(wasmPath).subarray(0, 4).toString("binary") !== "\0asm") {
+      throw new Error(`Packed npm CLI did not emit a valid wasm artifact.`);
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedCacheStatsSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-cache-"));
+
+  try {
+    writeFileSync(
+      join(tempDir, "constants.bpl"),
+      ["export seed;", "frame seed() ret int {", "    return 9;", "}", ""].join(
+        "\n",
+      ),
+    );
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        'import seed from "./constants.bpl";',
+        "extern printf(fmt: string, ...);",
+        "",
+        "frame main() ret int {",
+        '    printf("cache-smoke %d\\n", seed());',
+        "    return 0;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    const result = runStep(
+      "build packed npm CLI cached module app",
+      installedBpl,
+      ["build", "main.bpl", "--cache", "--cache-stats", "-o", "cache-smoke"],
+      { cwd: tempDir, bplHome: null },
+    );
+    if (!result.stdout.includes("Cache stats:")) {
+      throw new Error(
+        [
+          "Packed npm CLI cached build did not print cache stats.",
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -212,6 +375,39 @@ function parseNpmPackEntry(stdout: string): NpmPackEntry {
   }
 }
 
+function assertPackedMetadata(packEntry: NpmPackEntry): void {
+  console.log("release smoke: validate packed npm metadata");
+
+  const packageJson = JSON.parse(
+    readFileSync(join(repoRoot, "package.json"), "utf-8"),
+  ) as PackageJson;
+
+  if (packEntry.name !== packageJson.name) {
+    throw new Error(
+      `npm pack name mismatch: expected ${packageJson.name}, got ${packEntry.name}`,
+    );
+  }
+  if (packEntry.version !== packageJson.version) {
+    throw new Error(
+      `npm pack version mismatch: expected ${packageJson.version}, got ${packEntry.version}`,
+    );
+  }
+  if (!packEntry.filename.endsWith(".tgz")) {
+    throw new Error(
+      `npm pack filename is not a tarball: ${packEntry.filename}`,
+    );
+  }
+  if (!packEntry.integrity || !packEntry.shasum) {
+    throw new Error("npm pack metadata is missing integrity or shasum.");
+  }
+  if ((packEntry.size ?? 0) <= 0 || (packEntry.unpackedSize ?? 0) <= 0) {
+    throw new Error("npm pack metadata reports an empty package.");
+  }
+  if (packageJson.bin.bpl !== "./bpl") {
+    throw new Error("package.json bin.bpl must point at ./bpl.");
+  }
+}
+
 function assertPackedFiles(
   packEntry: NpmPackEntry,
   expectedFiles: string[],
@@ -229,6 +425,73 @@ function assertPackedFiles(
       [
         "npm tarball is missing required release files:",
         ...missing.map((file) => `- ${file}`),
+      ].join("\n"),
+    );
+  }
+}
+
+function assertPackedFileAllowlist(packEntry: NpmPackEntry): void {
+  console.log("release smoke: validate packed npm file allowlist");
+
+  const allowedPaths = [
+    "bpl",
+    "bpl-wrapper.sh",
+    "package.json",
+    "README.md",
+    "LICENSE",
+  ];
+  const allowedPrefixes = ["completions/", "grammar/", "lib/"];
+  const forbiddenPrefixes = [
+    ".github/",
+    ".worktrees/",
+    "benchmark/",
+    "compiler/",
+    "docs/",
+    "examples/",
+    "fuzz/",
+    "node_modules/",
+    "playground/",
+    "tests/",
+    "tools/",
+    "vscode-ext/",
+  ];
+
+  const packedPaths = packEntry.files?.map((file) => file.path) ?? [];
+  const forbidden = packedPaths.filter((filePath) =>
+    forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix)),
+  );
+  if (forbidden.length > 0) {
+    throw new Error(
+      [
+        "npm tarball includes development-only paths:",
+        ...forbidden.map((filePath) => `- ${filePath}`),
+      ].join("\n"),
+    );
+  }
+
+  const unexpected = packedPaths.filter(
+    (filePath) =>
+      !allowedPaths.includes(filePath) &&
+      !allowedPrefixes.some((prefix) => filePath.startsWith(prefix)),
+  );
+  if (unexpected.length > 0) {
+    throw new Error(
+      [
+        "npm tarball includes paths outside the release allowlist:",
+        ...unexpected.map((filePath) => `- ${filePath}`),
+      ].join("\n"),
+    );
+  }
+}
+
+function assertOutputContains(output: string, expected: string[]): void {
+  const missing = expected.filter((item) => !output.includes(item));
+  if (missing.length > 0) {
+    throw new Error(
+      [
+        "Command output is missing expected text:",
+        ...missing.map((item) => `- ${item}`),
+        `stdout:\n${output}`,
       ].join("\n"),
     );
   }

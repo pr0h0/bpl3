@@ -11,6 +11,7 @@ describe("Release metadata", () => {
     expect(packageJson.name).toBe("bpl-v3");
     expect(packageJson.private).toBe(false);
     expect(packageJson.license).toBe("Apache-2.0");
+    expect(packageJson.main).toBeUndefined();
     expect(packageJson.bin).toEqual({ bpl: "./bpl" });
     expect(packageJson.files).toEqual(
       expect.arrayContaining([
