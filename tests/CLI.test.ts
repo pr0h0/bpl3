@@ -909,6 +909,9 @@ describe("CLI Tests", () => {
       expect(dryRun.status).toBe(0);
       const dryRunReport = JSON.parse(dryRun.stdout);
       expect(dryRunReport).toMatchObject({
+        schemaVersion: 1,
+        check: "clean",
+        success: true,
         dryRun: true,
         count: 2,
       });
@@ -930,6 +933,11 @@ describe("CLI Tests", () => {
       });
       expect(clean.status).toBe(0);
       const cleanReport = JSON.parse(clean.stdout);
+      expect(cleanReport).toMatchObject({
+        schemaVersion: 1,
+        check: "clean",
+        success: true,
+      });
       expect(cleanReport.dryRun).toBe(false);
       expect(cleanReport.count).toBe(2);
       expect(fs.existsSync(path.join(tempDir, "main.ll"))).toBe(false);

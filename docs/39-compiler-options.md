@@ -251,7 +251,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. |
 | `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`. |
 | `bpl run-script --list --json` | Script list with `success: true` and `scripts`; manifest or script validation failures return `{ "success": false, "error": "..." }` on stdout. |
-| `bpl clean --dry-run --json` | Cleanup preview with `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
+| `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
 | `bpl list --json` / `bpl list --tree --json` | Installed package summaries or dependency tree data for package tooling. |
 
 ## Direct Code Compilation

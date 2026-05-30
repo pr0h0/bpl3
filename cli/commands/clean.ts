@@ -18,6 +18,9 @@ interface CleanEntry {
 }
 
 interface CleanReport {
+  schemaVersion: 1;
+  check: "clean";
+  success: boolean;
   dryRun: boolean;
   count: number;
   entries: CleanEntry[];
@@ -176,6 +179,9 @@ export function registerCleanCommand(program: Command): void {
           }
 
           const report: CleanReport = {
+            schemaVersion: 1,
+            check: "clean",
+            success: true,
             dryRun: Boolean(options.dryRun),
             count: entriesToDelete.length,
             entries: entriesToDelete,

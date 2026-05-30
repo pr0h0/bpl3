@@ -59,6 +59,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
+- **Clean JSON Stability** - `bpl clean --json` and
+  `bpl clean --dry-run --json` now include stable `schemaVersion: 1`,
+  `check: "clean"`, and `success` fields alongside existing `dryRun`, `count`,
+  and `entries` fields.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors
