@@ -1337,7 +1337,7 @@ export class PackageManager {
     const manifest = this.loadManifest(packageDir);
     const outputPath = outputDir || packageDir;
     const manifestPath = path.join(packageDir, "bpl.json");
-    fs.mkdirSync(outputPath, { recursive: true });
+    this.ensurePackageOutputDirectory(outputPath, manifestPath);
 
     // Create tarball filename
     const tarballName = `${manifest.name}-${manifest.version}.tgz`;
@@ -1488,6 +1488,27 @@ export class PackageManager {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  }
+
+  private ensurePackageOutputDirectory(
+    outputPath: string,
+    manifestPath: string,
+  ): void {
+    if (fs.existsSync(outputPath) && !fs.statSync(outputPath).isDirectory()) {
+      throw new CompilerError(
+        `Package output path is not a directory: ${outputPath}`,
+        "Choose a directory path for package output.",
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    fs.mkdirSync(outputPath, { recursive: true });
   }
 
   /**

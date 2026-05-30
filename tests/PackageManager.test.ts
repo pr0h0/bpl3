@@ -240,6 +240,20 @@ describe("PackageManager", () => {
       expect(fs.existsSync(`${tarballPath}.bplmeta.json`)).toBe(true);
     });
 
+    test("should reject package output paths that are files", () => {
+      const outputPath = path.join(tempDir, "package-output");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ name: "bad-output-pkg", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync(outputPath, "not a directory");
+
+      expect(() => packageManager.pack(tempDir, outputPath)).toThrow(
+        /Package output path is not a directory/,
+      );
+    });
+
     test("should exclude node_modules and bpl_modules from package", () => {
       const manifest = {
         name: "exclude-test",
