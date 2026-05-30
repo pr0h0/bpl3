@@ -2208,6 +2208,20 @@ describe("PackageManager", () => {
       }).toThrow(/not installed/);
     });
 
+    test("should reject invalid package names during uninstall", () => {
+      const outsideDir = path.join(tempDir, "outside-package");
+      fs.mkdirSync(outsideDir);
+      fs.writeFileSync(
+        path.join(outsideDir, "bpl.json"),
+        JSON.stringify({ name: "outside-package", version: "1.0.0" }, null, 2),
+      );
+
+      expect(() => {
+        packageManager.uninstall("../outside-package", { global: false });
+      }).toThrow(/Invalid package name/);
+      expect(fs.existsSync(outsideDir)).toBe(true);
+    });
+
     test("should throw error for invalid package directory", () => {
       // Create a directory without bpl.json
       const fakePackageDir = path.join(tempDir, "bpl_modules", "fake-pkg");
@@ -2217,6 +2231,48 @@ describe("PackageManager", () => {
       expect(() => {
         packageManager.uninstall("fake-pkg", { global: false });
       }).toThrow(/Invalid package directory/);
+    });
+
+    test("should reject package binary unlink targets that are directories", () => {
+      const packageDir = path.join(tempDir, "uninstall-bin-package");
+      const installDir = path.join(tempDir, "uninstall-bin-install");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "uninstall-bin-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const localPM = new PackageManager(installDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+      const targetPath = path.join(installDir, "bpl_modules", ".bin", "tool");
+      fs.rmSync(targetPath, { force: true });
+      fs.mkdirSync(targetPath, { recursive: true });
+
+      expect(() =>
+        localPM.uninstall("uninstall-bin-package", { global: false }),
+      ).toThrow(/Cannot unlink package binary 'tool'/);
+      expect(
+        fs.existsSync(
+          path.join(installDir, "bpl_modules", "uninstall-bin-package"),
+        ),
+      ).toBe(true);
     });
   });
 
