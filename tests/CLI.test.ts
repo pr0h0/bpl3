@@ -101,6 +101,30 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("llvm, ast, tokens, formatted");
   });
 
+  it("should apply explicit color flags to diagnostics", () => {
+    const source = 'frame main() { local x: int = "bad"; }';
+    const env: Record<string, string | undefined> = { ...process.env };
+    delete env.NO_COLOR;
+
+    const color = spawnSync("bun", [BPL_CLI, "--eval", source, "--color"], {
+      encoding: "utf-8",
+      env,
+    });
+    const noColor = spawnSync(
+      "bun",
+      [BPL_CLI, "--eval", source, "--no-color"],
+      {
+        encoding: "utf-8",
+        env,
+      },
+    );
+
+    expect(color.status).toBe(1);
+    expect(color.stderr).toContain("\x1b[");
+    expect(noColor.status).toBe(1);
+    expect(noColor.stderr).not.toContain("\x1b[");
+  });
+
   it("should label stdin diagnostics as stdin", () => {
     const result = spawnSync("bun", [BPL_CLI, "--stdin"], {
       input: ['frame main() {', '    local x: int = "bad";', "}"].join("\n"),

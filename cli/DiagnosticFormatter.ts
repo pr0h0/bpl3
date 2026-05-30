@@ -12,7 +12,7 @@ export { DiagnosticFormatter } from "../compiler";
  * Singleton instance for CLI usage with CLI-specific configuration
  */
 export const diagnosticFormatter = new CompilerDiagnosticFormatter({
-  colorize: process.env.NO_COLOR !== "1",
+  colorize: process.env.NO_COLOR === undefined,
   contextLines: 3,
   showCodeSnippets: true,
 });

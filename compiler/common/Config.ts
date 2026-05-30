@@ -148,7 +148,7 @@ function getCacheDir(): string {
  */
 function shouldColorize(): boolean {
   // NO_COLOR standard: https://no-color.org/
-  if (process.env[ENV_VARS.NO_COLOR] === "1") {
+  if (process.env[ENV_VARS.NO_COLOR] !== undefined) {
     return false;
   }
 

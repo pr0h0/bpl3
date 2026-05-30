@@ -57,6 +57,7 @@ function applyOptions(options: CompileOptions): void {
     updateConfig({
       features: { colorize: options.color },
     });
+    diagnosticFormatter.setConfig({ colorize: options.color });
   }
 
   // Handle debug flag (alias for dwarf)

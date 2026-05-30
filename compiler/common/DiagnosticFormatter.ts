@@ -73,7 +73,8 @@ export interface JSONDiagnostic {
  * Default formatter configuration
  */
 const DEFAULT_CONFIG: FormatterConfig = {
-  colorize: process.env.NO_COLOR !== "1" && process.stdout.isTTY !== false,
+  colorize:
+    process.env.NO_COLOR === undefined && process.stdout.isTTY !== false,
   contextLines: 2,
   maxLineLength: 200,
   showCodeSnippets: true,
