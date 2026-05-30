@@ -60,10 +60,10 @@ export function registerDoctorCommand(program: Command, version: string): void {
     .description("Check local BPL toolchain and runtime setup")
     .option("--json", "output machine-readable diagnostics")
     .action((scope: string | undefined, options: { json?: boolean }, command: Command) => {
-      try {
-        const globalOpts = command.parent?.opts() || {};
-        const outputJson = options.json || globalOpts.json;
+      const globalOpts = command.parent?.opts() || {};
+      const outputJson = options.json || globalOpts.json;
 
+      try {
         if (scope === "packages") {
           const report = new PackageManager().doctorPackages();
           if (outputJson) {
@@ -96,7 +96,23 @@ export function registerDoctorCommand(program: Command, version: string): void {
           process.exit(1);
         }
       } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        const message = e instanceof Error ? e.message : String(e);
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              {
+                schemaVersion: 1,
+                check: "doctor",
+                success: false,
+                error: message,
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          log.error(message);
+        }
         process.exit(1);
       }
     });

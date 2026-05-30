@@ -47,7 +47,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   provenance warning shapes.
 - **Toolchain Doctor JSON Stability** - `bpl doctor --json` now includes stable
   `schemaVersion: 1` and `check: "toolchain"` fields alongside the existing
-  `success`, `version`, `platform`, `bplHome`, and `checks` fields.
+  `success`, `version`, `platform`, `bplHome`, and `checks` fields. Unknown
+  doctor scopes in JSON mode now emit structured `{ success: false, error }`
+  output on stdout instead of human logger text on stderr.
 - **Package Cache Verify JSON Stability** - `bpl package-cache verify --json`
   now includes stable `schemaVersion: 1`, `check: "package-cache-verify"`, and
   `success` fields, with CLI regressions for missing-provenance issue shapes.
