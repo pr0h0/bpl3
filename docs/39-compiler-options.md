@@ -390,6 +390,8 @@ Native binary builds, object-file linking, and cached module compilation use
 builds use `BPL_WASM_CC`, then `WASM_CC`, then `clang`. Cached object keys
 include the selected driver, target, sysroot, optimization level, and forwarded
 compiler flags so incompatible toolchain invocations do not reuse stale objects.
+When inspecting precompiled object-file symbols, BPL uses `BPL_NM`, then `NM`,
+then `nm`.
 
 **Supported Targets:**
 

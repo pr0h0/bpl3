@@ -11,10 +11,15 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { spawnSync } from "child_process";
 
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { LinkerSymbolTable, type ObjectFileSymbol } from "./LinkerSymbolTable";
+
+export function getObjectSymbolTool(): string {
+  return process.env.BPL_NM || process.env.NM || "nm";
+}
 
 export class ObjectFileParser {
   /**
@@ -93,65 +98,74 @@ export class ObjectFileParser {
       );
     }
 
-    // For now, we'll use the `nm` tool if available
-    // This is a simplified approach - production use might leverage better tools
-    const { spawnSync } = require("child_process");
+    const symbolTool = getObjectSymbolTool();
 
     try {
-      const result = spawnSync("nm", [filePath], {
+      const result = spawnSync(symbolTool, [filePath], {
         encoding: "utf-8",
         maxBuffer: 10 * 1024 * 1024,
       });
 
       if (result.error) {
         compilerLog.warn(
-          `Could not parse ELF object with nm: ${result.error.message}`,
+          `Could not parse object file with ${symbolTool}: ${result.error.message}`,
         );
         return [];
       }
 
-      const symbols: ObjectFileSymbol[] = [];
-      const lines = result.stdout.split("\n");
-
-      // Parse nm output: <address> <type> <name>
-      // Types: T (text/function), D (data), B (BSS), U (undefined), etc.
-      const nmRegex = /^[0-9a-fA-F]*\s+([TDBUW])\s+(.+)$/;
-
-      for (const line of lines) {
-        const match = nmRegex.exec(line);
-        if (match) {
-          const type = match[1];
-          const name = match[2]!.trim();
-
-          // Skip empty names and internal symbols
-          if (!name || name.startsWith(".")) {
-            continue;
-          }
-
-          // Determine if it's a function or variable
-          let symbolType: "function" | "variable" | "undefined" = "variable";
-          if (type === "T" || type === "W") {
-            symbolType = "function";
-          } else if (type === "U") {
-            symbolType = "undefined";
-          }
-
-          // Determine if it's global (external/defined)
-          const isGlobal = type !== "U";
-
-          symbols.push({
-            name,
-            type: symbolType,
-            isGlobal,
-          });
-        }
+      if (result.status !== 0) {
+        const detail =
+          result.stderr?.trim() ||
+          result.stdout?.trim() ||
+          `exited with status ${result.status}`;
+        compilerLog.warn(
+          `Could not parse object file with ${symbolTool}: ${detail}`,
+        );
+        return [];
       }
 
-      return symbols;
+      return this.parseNmOutput(result.stdout);
     } catch (e) {
-      compilerLog.warn(`Could not use nm tool: ${e}`);
+      compilerLog.warn(`Could not use object symbol tool ${symbolTool}: ${e}`);
       return [];
     }
+  }
+
+  static parseNmOutput(output: string): ObjectFileSymbol[] {
+    const symbols: ObjectFileSymbol[] = [];
+    const lines = output.split("\n");
+
+    // Parse nm output: <address> <type> <name>
+    // Types: T (text/function), D (data), B (BSS), U (undefined), etc.
+    const nmRegex = /^[0-9a-fA-F]*\s+([TDBUW])\s+(.+)$/;
+
+    for (const line of lines) {
+      const match = nmRegex.exec(line);
+      if (!match) continue;
+
+      const type = match[1]!;
+      const name = match[2]!.trim();
+
+      // Skip empty names and internal symbols.
+      if (!name || name.startsWith(".")) {
+        continue;
+      }
+
+      let symbolType: "function" | "variable" | "undefined" = "variable";
+      if (type === "T" || type === "W") {
+        symbolType = "function";
+      } else if (type === "U") {
+        symbolType = "undefined";
+      }
+
+      symbols.push({
+        name,
+        type: symbolType,
+        isGlobal: type !== "U",
+      });
+    }
+
+    return symbols;
   }
 
   /**
