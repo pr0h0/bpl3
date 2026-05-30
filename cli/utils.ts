@@ -120,30 +120,61 @@ export function writeFileAtomically(filePath: string, content: string): void {
   const existingFile = tryLstat(filePath);
   const mode =
     existingFile && existingFile.isFile() ? existingFile.mode & 0o777 : undefined;
-  const tempPath = path.join(
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const tempPath = getAtomicWriteTempPath(filePath, attempt);
+    let createdTemp = false;
+
+    try {
+      fs.writeFileSync(tempPath, content, {
+        flag: "wx",
+        ...(mode === undefined ? {} : { mode }),
+      });
+      createdTemp = true;
+      if (mode !== undefined) {
+        fs.chmodSync(tempPath, mode);
+      }
+      fs.renameSync(tempPath, filePath);
+      return;
+    } catch (error) {
+      if (isNodeErrorCode(error, "EEXIST")) {
+        continue;
+      }
+      throw error;
+    } finally {
+      if (createdTemp) {
+        removeBestEffort(tempPath);
+      }
+    }
+  }
+
+  throw new Error(`Failed to create temporary output file for ${filePath}`);
+}
+
+function getAtomicWriteTempPath(filePath: string, attempt: number): string {
+  return path.join(
     path.dirname(path.resolve(filePath)),
     `.${path.basename(filePath)}.${process.pid}-${Date.now()}-${Math.random()
       .toString(16)
-      .slice(2)}.tmp`,
+      .slice(2)}-${attempt}.tmp`,
   );
+}
 
+function removeBestEffort(filePath: string): void {
   try {
-    fs.writeFileSync(
-      tempPath,
-      content,
-      mode === undefined ? undefined : { mode },
-    );
-    if (mode !== undefined) {
-      fs.chmodSync(tempPath, mode);
-    }
-    fs.renameSync(tempPath, filePath);
-  } finally {
-    try {
-      fs.rmSync(tempPath, { force: true });
-    } catch {
-      // Best-effort cleanup only.
-    }
+    fs.rmSync(filePath, { force: true });
+  } catch {
+    // Best-effort cleanup only.
   }
+}
+
+function isNodeErrorCode(error: unknown, code: string): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === code
+  );
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
@@ -151,10 +182,8 @@ function tryLstat(filePath: string): fs.Stats | null {
     return fs.lstatSync(filePath);
   } catch (error) {
     if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error.code === "ENOENT" || error.code === "ENOTDIR")
+      isNodeErrorCode(error, "ENOENT") ||
+      isNodeErrorCode(error, "ENOTDIR")
     ) {
       return null;
     }
