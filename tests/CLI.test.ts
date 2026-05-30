@@ -130,9 +130,10 @@ describe("CLI Tests", () => {
     const tempFile = path.join(process.cwd(), "tests/temp_check_color.bpl");
     const env: Record<string, string | undefined> = { ...process.env };
     delete env.NO_COLOR;
-    fs.writeFileSync(tempFile, 'frame main() { local x: int = "bad"; }');
 
     try {
+      fs.writeFileSync(tempFile, 'frame main() { local x: int = "bad"; }');
+
       const color = spawnSync("bun", [BPL_CLI, "check", tempFile, "--color"], {
         encoding: "utf-8",
         env,
@@ -799,9 +800,10 @@ describe("CLI Tests", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");
     const unformatted = "frame  main ( )  ret  int { return 0 ; }";
-    fs.writeFileSync(tempFile, unformatted);
 
     try {
+      fs.writeFileSync(tempFile, unformatted);
+
       const result = runCLI(["format", tempFile]);
       expect(result.status).toBe(0);
       // Formatter should output formatted code to stdout
@@ -817,12 +819,13 @@ describe("CLI Tests", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-format-write-"));
     const tempFile = path.join(tempDir, "main.bpl");
     const unformatted = "frame  main ( )  ret  int { return 0 ; }";
-    fs.writeFileSync(tempFile, unformatted);
-    if (process.platform !== "win32") {
-      fs.chmodSync(tempFile, 0o640);
-    }
 
     try {
+      fs.writeFileSync(tempFile, unformatted);
+      if (process.platform !== "win32") {
+        fs.chmodSync(tempFile, 0o640);
+      }
+
       const result = runCLI(["format", "--write", tempFile]);
 
       expect(result.status).toBe(0);
@@ -847,9 +850,10 @@ describe("CLI Tests", () => {
   it("should check formatting without rewriting files", () => {
     const tempFile = path.join(process.cwd(), "tests/temp_format_check.bpl");
     const unformatted = "frame  main ( )  ret  int { return 0 ; }";
-    fs.writeFileSync(tempFile, unformatted);
 
     try {
+      fs.writeFileSync(tempFile, unformatted);
+
       const result = runCLI(["format", "--check", tempFile]);
 
       expect(result.status).toBe(1);
@@ -1366,12 +1370,13 @@ describe("CLI Tests", () => {
 
   it("should report rich check diagnostics as JSON", () => {
     const tempFile = path.join(process.cwd(), "tests/temp_check_json.bpl");
-    fs.writeFileSync(
-      tempFile,
-      ["frame main() {", '    local x: i32 = "bad";', "}"].join("\n"),
-    );
 
     try {
+      fs.writeFileSync(
+        tempFile,
+        ["frame main() {", '    local x: i32 = "bad";', "}"].join("\n"),
+      );
+
       const result = runCLI(["check", "--json", tempFile]);
 
       expect(result.status).toBe(1);
@@ -2274,9 +2279,9 @@ describe("CLI Tests", () => {
     const wasmFile = path.join(process.cwd(), "tests/temp_wasm_build.wasm");
     const llvmFile = `${wasmFile}.ll`;
 
-    fs.writeFileSync(tempFile, "frame main() ret int { return 42; }");
-
     try {
+      fs.writeFileSync(tempFile, "frame main() ret int { return 42; }");
+
       const result = runCLI([
         "build",
         tempFile,
