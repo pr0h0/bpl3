@@ -90,7 +90,7 @@ export class ObjectFileParser {
 
       if (result.error) {
         compilerLog.warn(
-          `Could not parse object file with ${symbolTool}: ${result.error.message}`,
+          `Could not parse object file with ${symbolTool}: ${this.formatSpawnFailure(result.error)}`,
         );
         return [];
       }
@@ -111,6 +111,24 @@ export class ObjectFileParser {
       compilerLog.warn(`Could not use object symbol tool ${symbolTool}: ${e}`);
       return [];
     }
+  }
+
+  private static formatSpawnFailure(error: Error): string {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : undefined;
+    if (code === "ENOENT") {
+      return "command not found";
+    }
+    if (code === "EACCES") {
+      return "permission denied";
+    }
+    if (code === "ENOEXEC") {
+      return "not executable";
+    }
+
+    return error.message;
   }
 
   static parseNmOutput(output: string): ObjectFileSymbol[] {

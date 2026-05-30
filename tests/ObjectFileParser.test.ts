@@ -109,6 +109,35 @@ describe("ObjectFileParser", () => {
     ]);
   });
 
+  test("reports object symbol tool spawn failures without raw system errors", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-object-symbol-tool-"),
+    );
+    const objectFile = path.join(tempDir, "main.o");
+    const missingTool = path.join(tempDir, "missing-nm");
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+
+    try {
+      fs.writeFileSync(objectFile, "not a real object\n");
+      process.env.BPL_NM = missingTool;
+      console.warn = (...args: unknown[]) => {
+        warnings.push(args.map(String).join(" "));
+      };
+
+      const symbols = ObjectFileParser.parseELFObject(objectFile);
+
+      expect(symbols).toEqual([]);
+      const output = warnings.join("\n");
+      expect(output).toContain(missingTool);
+      expect(output).toContain("command not found");
+      expect(output).not.toContain("ENOENT");
+    } finally {
+      console.warn = originalWarn;
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("rejects missing and directory object parser inputs", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-object-parser-"));
     const missingObject = path.join(tempDir, "missing.ll");
