@@ -172,6 +172,64 @@ describe("Package Manager CLI", () => {
 
       expect(result.status).toBe(1);
     });
+
+    test("should reject invalid package entry paths before verification", () => {
+      const dirProject = path.join(tempDir, "dir-entry");
+      const linkProject = path.join(tempDir, "link-entry");
+      fs.mkdirSync(path.join(dirProject, "src"), { recursive: true });
+      fs.mkdirSync(linkProject);
+
+      fs.writeFileSync(
+        path.join(dirProject, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "dir-entry-pkg",
+            version: "1.0.0",
+            main: "src",
+          },
+          null,
+          2,
+        ),
+      );
+      const dirResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: dirProject,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(dirResult.status).toBe(1);
+      expect(dirResult.stderr).toContain("Package entry point is not a file");
+      expect(dirResult.stderr).not.toContain("EISDIR");
+
+      fs.writeFileSync(
+        path.join(linkProject, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "link-entry-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.symlinkSync(
+        path.join(linkProject, "missing.bpl"),
+        path.join(linkProject, "index.bpl"),
+        "file",
+      );
+      const linkResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: linkProject,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(linkResult.status).toBe(1);
+      expect(linkResult.stderr).toContain(
+        "Package entry point is a symbolic link",
+      );
+      expect(linkResult.stderr).not.toContain("ENOENT");
+    });
   });
 
   describe("install command", () => {

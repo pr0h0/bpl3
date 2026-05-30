@@ -50,7 +50,17 @@ export function registerPackageCommands(program: Command): void {
         const mainFile = manifest.main || "index.bpl";
         const entryPath = path.join(packageDir, mainFile);
 
-        if (fs.existsSync(entryPath)) {
+        const entryStats = tryLstat(entryPath);
+        if (entryStats) {
+          if (entryStats.isSymbolicLink()) {
+            throw new Error(
+              `Package entry point is a symbolic link: ${entryPath}`,
+            );
+          }
+          if (!entryStats.isFile()) {
+            throw new Error(`Package entry point is not a file: ${entryPath}`);
+          }
+
           log.info(`Verifying package integrity: ${mainFile}`);
           const content = fs.readFileSync(entryPath, "utf-8");
 
@@ -452,6 +462,23 @@ function formatPackageCommandError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function formatDependencyTree(nodes: PackageDependencyTreeNode[]): string[] {
