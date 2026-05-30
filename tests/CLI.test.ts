@@ -2109,6 +2109,37 @@ describe("CLI Tests", () => {
     expect(compilerCheck.detail).not.toContain("ENOENT");
   });
 
+  it("should time out hanging compiler probes in doctor diagnostics", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-timeout-"),
+    );
+    const hangingCompiler = path.join(tempDir, "hanging-cc");
+    fs.writeFileSync(hangingCompiler, "#!/bin/sh\nsleep 60\n");
+    fs.chmodSync(hangingCompiler, 0o755);
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_CC: hangingCompiler,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      const compilerCheck = report.checks.find(
+        (check: { name: string }) => check.name === "native compiler",
+      );
+      expect(compilerCheck.ok).toBe(false);
+      expect(compilerCheck.detail).toContain(hangingCompiler);
+      expect(compilerCheck.detail).toMatch(/ETIMEDOUT|timed out|timeout/i);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should honor BPL_NM in doctor diagnostics", () => {
     const missingTool = path.join(os.tmpdir(), "definitely-missing-bpl-nm");
     const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {

@@ -22,6 +22,8 @@ import {
 } from "../../compiler";
 
 const log = new Logger("Doctor");
+const DOCTOR_COMMAND_TIMEOUT_MS = 2000;
+const DOCTOR_COMMAND_MAX_BUFFER = 1024 * 1024;
 
 interface DoctorCheck {
   name: string;
@@ -295,7 +297,7 @@ function checkCommand(
   hint: string,
   required = true,
 ): DoctorCheck {
-  const result = spawnSync(command, args, { encoding: "utf-8" });
+  const result = spawnSync(command, args, getCommandProbeOptions());
   const commandDetail = formatCommandResult(command, result);
   const detail = `${command}: ${commandDetail}`;
 
@@ -325,7 +327,7 @@ function checkAnyCommand(
 
   for (const [command, args] of candidates) {
     if (!command) continue;
-    const result = spawnSync(command, args, { encoding: "utf-8" });
+    const result = spawnSync(command, args, getCommandProbeOptions());
     if (result.status === 0) {
       const detail =
         result.stdout?.split("\n")[0]?.trim() ||
@@ -351,7 +353,7 @@ function checkAnyCommand(
 }
 
 function getCommandVersion(name: string, args: string[]): string | undefined {
-  const result = spawnSync(name, args, { encoding: "utf-8" });
+  const result = spawnSync(name, args, getCommandProbeOptions());
   if (result.status !== 0) {
     return undefined;
   }
@@ -369,6 +371,18 @@ function formatCommandResult(
     formatSpawnError(result.error) ||
     `${command} exited with status ${result.status ?? "unknown"}`
   );
+}
+
+function getCommandProbeOptions(): {
+  encoding: BufferEncoding;
+  timeout: number;
+  maxBuffer: number;
+} {
+  return {
+    encoding: "utf-8",
+    timeout: DOCTOR_COMMAND_TIMEOUT_MS,
+    maxBuffer: DOCTOR_COMMAND_MAX_BUFFER,
+  };
 }
 
 function getFirstOutputLine(output: string | Buffer | null | undefined): string {
