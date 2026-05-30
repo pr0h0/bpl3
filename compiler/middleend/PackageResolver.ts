@@ -202,6 +202,9 @@ function resolvePackageFromBaseDir(
       trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}.`;
       return null;
     }
+    if (!validatePackageManifestMatchesImport(packageRoot, manifest, trace)) {
+      return null;
+    }
 
     const filePath =
       parts.length === 1
@@ -306,6 +309,39 @@ function readPackageManifest(
   } catch {
     return null;
   }
+}
+
+function validatePackageManifestMatchesImport(
+  packageRoot: string,
+  manifest: Record<string, unknown>,
+  trace: PackageResolutionTrace,
+): boolean {
+  const manifestPath = path.join(packageRoot, "bpl.json");
+  const packageName = trace.packageName!;
+  if (manifest.name !== packageName) {
+    trace.failureReason = "manifest-invalid";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest name '${String(
+      manifest.name,
+    )}' does not match requested package '${packageName}'.`;
+    return false;
+  }
+
+  const versionedDirectory = parseVersionedPackageDirectory(
+    packageName,
+    path.basename(packageRoot),
+  );
+  if (versionedDirectory) {
+    const expectedVersion = versionedDirectory.join(".");
+    if (manifest.version !== expectedVersion) {
+      trace.failureReason = "manifest-invalid";
+      trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest version '${String(
+        manifest.version,
+      )}' does not match package directory version '${expectedVersion}'.`;
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function resolvePackageEntryPoint(

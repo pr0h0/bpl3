@@ -112,4 +112,54 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("unsafe entrypoint");
   });
+
+  test("does not resolve package roots whose manifest name does not match the import", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        { name: "not-math", version: "1.0.0", main: "index.bpl" },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "manifest name 'not-math' does not match requested package 'math'",
+    );
+  });
+
+  test("does not resolve versioned global directories whose manifest version does not match the directory", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const packageDir = path.join(globalPackageDir, "math-2.0.0");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        { name: "math", version: "1.0.0", main: "index.bpl" },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "manifest version '1.0.0' does not match package directory version '2.0.0'",
+    );
+  });
 });

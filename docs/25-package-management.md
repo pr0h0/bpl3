@@ -235,6 +235,12 @@ directory and walks upward, so `src/main.bpl` can import packages installed at
 the project root even when `bpl check /path/to/project/src/main.bpl` is run from
 another working directory.
 
+During package resolution, the package directory name and manifest must agree:
+`bpl_modules/my-package/bpl.json` must declare `"name": "my-package"`. Global
+versioned directories such as `~/.bpl/packages/my-package-1.2.3/` must also
+declare the same `"version": "1.2.3"` in `bpl.json`. Mismatches are treated as
+malformed package metadata rather than silently importing the wrong package.
+
 Packages can expose source files below their root through subpath imports:
 
 ```bpl
