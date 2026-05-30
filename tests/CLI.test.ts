@@ -1020,6 +1020,56 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should compose run-script PATH without a parent PATH", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    const outputFile = path.join(tempDir, "script-path.txt");
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "run-script-path-test",
+          version: "1.0.0",
+          scripts: {
+            capturePath: `${JSON.stringify(process.execPath)} -e "require('fs').writeFileSync(process.argv[1], process.env.PATH || '')" ${JSON.stringify(outputFile)}`,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    try {
+      const env: Record<string, string | undefined> = {
+        ...process.env,
+        NO_COLOR: "1",
+      };
+      delete env.PATH;
+      delete env.Path;
+      delete env.path;
+
+      const result = spawnSync(
+        process.execPath,
+        [BPL_CLI, "run-script", "capturePath"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env,
+        },
+      );
+
+      expect(result.status).toBe(0);
+      const scriptPath = fs.readFileSync(outputFile, "utf-8");
+      expect(scriptPath).not.toContain("undefined");
+      expect(scriptPath.split(path.delimiter)).toEqual([
+        path.join(tempDir, "bpl_modules", ".bin"),
+        path.join(os.homedir(), ".bpl", "bin"),
+        path.join(tempDir, "node_modules", ".bin"),
+      ]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should list package scripts as JSON without executing them", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     const outputFile = path.join(tempDir, "should-not-exist.txt");

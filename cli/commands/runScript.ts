@@ -112,7 +112,11 @@ export function registerRunScriptCommand(program: Command): void {
         const globalBin = path.join(os.homedir(), ".bpl", "bin");
         const nodeBin = path.join(process.cwd(), "node_modules", ".bin");
 
-        const PATH = `${localBin}${path.delimiter}${globalBin}${path.delimiter}${nodeBin}${path.delimiter}${process.env.PATH}`;
+        const parentPath =
+          process.env.PATH ?? process.env.Path ?? process.env.path ?? "";
+        const PATH = [localBin, globalBin, nodeBin, parentPath]
+          .filter((entry) => entry.length > 0)
+          .join(path.delimiter);
 
         const env = { ...process.env, PATH };
 
