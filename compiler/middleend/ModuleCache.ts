@@ -260,6 +260,7 @@ export class ModuleCache {
         if (this.isNodeErrorCode(error, "EEXIST")) {
           continue;
         }
+        this.removeCacheTempFile(tempManifestPath);
         throw error;
       } finally {
         if (createdTemp) {
@@ -443,33 +444,32 @@ export class ModuleCache {
       compilerLog.info(`Compiling: ${path.basename(modulePath)}`);
     }
 
-    // Write LLVM IR to temporary file
     const llFilePath = path.join(this.cacheDir, `${hash}.ll`);
     this.assertWritableCacheFilePath(
       llFilePath,
       modulePath,
       "Module cache IR path",
     );
-    fs.writeFileSync(llFilePath, llvmIR);
-
-    // Compile to object file using the selected LLVM-capable compiler driver.
-    const clangArgs = ["-c", "-Wno-override-module"];
-    if (target) {
-      clangArgs.push("-target", target);
-    }
-    if (options.sysroot) {
-      clangArgs.push("--sysroot", options.sysroot);
-    }
-    if (optimizationLevel !== undefined) {
-      clangArgs.push(`-O${optimizationLevel}`);
-    }
-    clangArgs.push(...(options.clangFlags ?? []));
-    clangArgs.push(llFilePath, "-o", tempObjectFilePath);
-
-    const compilerCommand = getCompilerDriver(target);
     let compiled = false;
 
     try {
+      fs.writeFileSync(llFilePath, llvmIR);
+
+      // Compile to object file using the selected LLVM-capable compiler driver.
+      const clangArgs = ["-c", "-Wno-override-module"];
+      if (target) {
+        clangArgs.push("-target", target);
+      }
+      if (options.sysroot) {
+        clangArgs.push("--sysroot", options.sysroot);
+      }
+      if (optimizationLevel !== undefined) {
+        clangArgs.push(`-O${optimizationLevel}`);
+      }
+      clangArgs.push(...(options.clangFlags ?? []));
+      clangArgs.push(llFilePath, "-o", tempObjectFilePath);
+
+      const compilerCommand = getCompilerDriver(target);
       const result = spawnSync(compilerCommand, clangArgs, {
         stdio: verbose ? "inherit" : "pipe",
       });
@@ -599,23 +599,23 @@ export class ModuleCache {
       input.modulePath,
       "Module cache IR path",
     );
-    fs.writeFileSync(llFilePath, input.llvmIR);
-
-    const clangArgs = ["-c", "-Wno-override-module"];
-    if (target) {
-      clangArgs.push("-target", target);
-    }
-    if (sysroot) {
-      clangArgs.push("--sysroot", sysroot);
-    }
-    if (optimizationLevel !== undefined) {
-      clangArgs.push(`-O${optimizationLevel}`);
-    }
-    clangArgs.push(...(clangFlags ?? []));
-    clangArgs.push(llFilePath, "-o", tempObjectFilePath);
-
     let compiled = false;
     try {
+      fs.writeFileSync(llFilePath, input.llvmIR);
+
+      const clangArgs = ["-c", "-Wno-override-module"];
+      if (target) {
+        clangArgs.push("-target", target);
+      }
+      if (sysroot) {
+        clangArgs.push("--sysroot", sysroot);
+      }
+      if (optimizationLevel !== undefined) {
+        clangArgs.push(`-O${optimizationLevel}`);
+      }
+      clangArgs.push(...(clangFlags ?? []));
+      clangArgs.push(llFilePath, "-o", tempObjectFilePath);
+
       await this.runCompilerDriver(
         clangArgs,
         input.modulePath,

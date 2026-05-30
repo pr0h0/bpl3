@@ -616,6 +616,7 @@ export class PackageManager {
         if (this.isNodeErrorCode(error, "EEXIST")) {
           continue;
         }
+        this.removeBestEffort(tempPath);
         throw error;
       } finally {
         if (createdTemp) {
