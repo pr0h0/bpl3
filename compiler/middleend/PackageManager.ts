@@ -977,7 +977,8 @@ export class PackageManager {
       endColumn: 1,
     };
 
-    if (!fs.existsSync(manifestPath)) {
+    const manifestStats = this.tryLstat(manifestPath);
+    if (!manifestStats) {
       throw new CompilerError(
         `No bpl.json found in ${packageDir}`,
         "Run 'bpl init' to create a new package.",
@@ -986,7 +987,15 @@ export class PackageManager {
     }
 
     try {
-      if (!fs.statSync(manifestPath).isFile()) {
+      if (manifestStats.isSymbolicLink()) {
+        throw new CompilerError(
+          "Invalid package manifest path: symbolic link",
+          "bpl.json must be a regular file, not a symbolic link.",
+          location,
+        );
+      }
+
+      if (!manifestStats.isFile()) {
         throw new CompilerError(
           "Invalid package manifest path",
           "bpl.json must be a regular file.",
@@ -3131,7 +3140,7 @@ export class PackageManager {
       endColumn: 1,
     };
 
-    if (fs.existsSync(manifestPath)) {
+    if (this.tryLstat(manifestPath)) {
       throw new CompilerError(
         `bpl.json already exists in ${dir}`,
         "Delete the existing bpl.json if you want to re-initialize.",

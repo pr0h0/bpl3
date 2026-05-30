@@ -111,6 +111,17 @@ describe("PackageManager", () => {
       expect(fs.existsSync(path.join(tempDir, "bpl.json"))).toBe(false);
     });
 
+    test("should reject init when bpl.json is a symlink", () => {
+      const projectDir = path.join(tempDir, "init-symlink-manifest");
+      const manifestPath = path.join(projectDir, "bpl.json");
+      fs.mkdirSync(projectDir);
+      fs.symlinkSync(path.join(tempDir, "missing-manifest"), manifestPath);
+
+      expect(() => packageManager.init(projectDir)).toThrow(
+        /bpl\.json already exists/,
+      );
+    });
+
     test("should reject package roots whose bpl_modules path is a file", () => {
       const projectDir = path.join(tempDir, "bad-local-package-dir");
       fs.mkdirSync(projectDir, { recursive: true });
@@ -2791,6 +2802,18 @@ describe("PackageManager", () => {
 
       expect(() => packageManager.loadManifest(tempDir)).toThrow(
         /Invalid package manifest path/,
+      );
+
+      fs.rmSync("bpl.json", { recursive: true, force: true });
+      const targetManifest = path.join(tempDir, "target-manifest.json");
+      fs.writeFileSync(
+        targetManifest,
+        JSON.stringify({ name: "target-manifest", version: "1.0.0" }),
+      );
+      fs.symlinkSync(targetManifest, "bpl.json", "file");
+
+      expect(() => packageManager.loadManifest(tempDir)).toThrow(
+        /symbolic link/,
       );
     });
 
