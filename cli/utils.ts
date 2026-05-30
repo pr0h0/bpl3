@@ -149,6 +149,7 @@ export function writeFileAtomically(filePath: string, content: string): void {
       if (isNodeErrorCode(error, "EEXIST")) {
         continue;
       }
+      removeBestEffort(tempPath);
       throw error;
     } finally {
       if (createdTemp) {
