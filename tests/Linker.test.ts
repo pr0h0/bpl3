@@ -1,8 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
+import { Compiler } from "../compiler";
 import { getNativeLinkerFlags } from "../cli/utils";
 import { Linker } from "../compiler/middleend/Linker";
 
@@ -78,6 +85,48 @@ describe("Linker", () => {
       expect(ok).toBe(true);
       expect(readFileSync(siblingLl, "utf-8")).toBe("keep me");
     } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not leave requested compiler output as IR after object-link failure", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-compiler-link-fail-"));
+    const sourceFile = join(dir, "main.bpl");
+    const outputPath = join(dir, "app");
+    const missingCompiler = join(dir, "definitely-missing-cc");
+    const previousBplCc = process.env.BPL_CC;
+    const originalError = console.error;
+    const errors: string[] = [];
+
+    writeFileSync(
+      sourceFile,
+      ["frame main() ret int {", "    return 0;", "}"].join("\n"),
+    );
+
+    try {
+      process.env.BPL_CC = missingCompiler;
+      console.error = (...args: unknown[]) => {
+        errors.push(args.map(String).join(" "));
+      };
+      const compiler = new Compiler({
+        filePath: sourceFile,
+        outputPath,
+        libraries: ["m"],
+      });
+
+      const result = compiler.compile(readFileSync(sourceFile, "utf-8"));
+
+      expect(result.success).toBe(false);
+      expect(result.errors?.[0]?.message).toBe("Linking failed");
+      expect(errors.join("\n")).toContain(missingCompiler);
+      expect(existsSync(outputPath)).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      console.error = originalError;
       rmSync(dir, { recursive: true, force: true });
     }
   });

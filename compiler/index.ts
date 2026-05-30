@@ -9,6 +9,7 @@
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 
 import { resolveBplPath } from "./common/PathResolver";
@@ -230,24 +231,31 @@ export class Compiler {
           compilerLog.info("Linking with object files...");
         }
 
-        const irFile = this.options.outputPath || "temp.ll";
-        fs.writeFileSync(irFile, llvmIR);
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-link-ir-"));
+        const irFile = path.join(tempDir, "input.ll");
+        let linkSuccess = false;
 
-        const linker = new Linker();
-        const linkSuccess = linker.link({
-          irFiles: [irFile],
-          objectFiles: this.options.objectFiles,
-          libraries: this.options.libraries,
-          libraryPaths: this.options.libraryPaths,
-          outputPath:
-            this.options.outputPath?.replace(/\.ll$/, "") ||
-            this.options.filePath.replace(/\.[^/.]+$/, ""),
-          target: this.options.target,
-          sysroot: this.options.sysroot,
-          optimizationLevel: this.options.optimizationLevel,
-          clangFlags: this.options.clangFlags,
-          verbose: this.options.verbose,
-        });
+        try {
+          fs.writeFileSync(irFile, llvmIR);
+
+          const linker = new Linker();
+          linkSuccess = linker.link({
+            irFiles: [irFile],
+            objectFiles: this.options.objectFiles,
+            libraries: this.options.libraries,
+            libraryPaths: this.options.libraryPaths,
+            outputPath:
+              this.options.outputPath?.replace(/\.ll$/, "") ||
+              this.options.filePath.replace(/\.[^/.]+$/, ""),
+            target: this.options.target,
+            sysroot: this.options.sysroot,
+            optimizationLevel: this.options.optimizationLevel,
+            clangFlags: this.options.clangFlags,
+            verbose: this.options.verbose,
+          });
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
 
         if (!linkSuccess) {
           return {
