@@ -4,6 +4,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -19,6 +20,7 @@ const bplBinary = join(
   process.platform === "win32" ? "bpl.exe" : "bpl",
 );
 const smokeTimeoutMs = 60 * 1000;
+const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
 
 interface DoctorReport {
   success: boolean;
@@ -151,20 +153,7 @@ function runPackedPackageSmoke(): void {
       "completions/bpl-completion.bash",
       "docs/39-compiler-options.md",
       "docs/60-compiler-correctness.md",
-      "examples/wasm_control_flow/main.bpl",
-      "examples/wasm_control_flow/test_config.json",
-      "examples/wasm_hosted_io/main.bpl",
-      "examples/wasm_hosted_io/test_config.json",
-      "examples/wasm_lambdas_generics/main.bpl",
-      "examples/wasm_lambdas_generics/test_config.json",
-      "examples/wasm_memory_intrinsics/main.bpl",
-      "examples/wasm_memory_intrinsics/test_config.json",
-      "examples/wasm_memory_strings/main.bpl",
-      "examples/wasm_memory_strings/test_config.json",
-      "examples/wasm_stdlib_array/main.bpl",
-      "examples/wasm_stdlib_array/test_config.json",
-      "examples/wasm_stdlib_bitset/main.bpl",
-      "examples/wasm_stdlib_bitset/test_config.json",
+      ...discoverDedicatedWasmExampleFiles(repoRoot),
       "grammar/grammar.bpl",
       "lib/runtime.ll",
       "lib/runtime_wasm.ll",
@@ -441,6 +430,44 @@ export function assertStandaloneCompilerArtifact(binaryPath: string): void {
       `Standalone compiler is not a non-empty file: ${binaryPath}`,
     );
   }
+}
+
+export function discoverDedicatedWasmExampleFiles(sourceRoot: string): string[] {
+  const examplesDir = join(sourceRoot, "examples");
+  const exampleNames = readdirSync(examplesDir).sort();
+  const files: string[] = [];
+
+  for (const exampleName of exampleNames) {
+    if (!exampleName.startsWith("wasm_")) {
+      continue;
+    }
+
+    const exampleDir = join(examplesDir, exampleName);
+    const exampleStats = tryLstat(exampleDir);
+    if (!exampleStats?.isDirectory()) {
+      continue;
+    }
+
+    const mainFile = join(exampleDir, "main.bpl");
+    const mainStats = tryLstat(mainFile);
+    if (!mainStats?.isFile()) {
+      continue;
+    }
+
+    for (const fileName of DEDICATED_WASM_EXAMPLE_FILES) {
+      const filePath = join(exampleDir, fileName);
+      const stats = tryLstat(filePath);
+      const relativePath = `examples/${exampleName}/${fileName}`;
+      if (!stats?.isFile()) {
+        throw new Error(
+          `Dedicated wasm example release file is missing or not a file: ${relativePath}`,
+        );
+      }
+      files.push(relativePath);
+    }
+  }
+
+  return files;
 }
 
 function tryLstat(filePath: string) {

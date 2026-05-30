@@ -86,6 +86,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Runtime Asset Diagnostics** - `bpl doctor` now points missing runtime
   support objects at `bun run build:runtime` plus `bpl doctor`, and missing
   runtime IR files at `bpl doctor` plus reinstall/restore guidance.
+- **Release Smoke Wasm Coverage** - Release smoke now discovers dedicated
+  `examples/wasm_*` fixtures dynamically and requires both `main.bpl` and
+  `test_config.json` to be present in the package.
 - Updated `lib/process.bpl` to use variadic arguments for all execution functions, improving UX and safety.
 - Expanded `std` exports to include `std/process.bpl`.
 

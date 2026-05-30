@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -14,7 +16,10 @@ import {
   createReleaseManifest,
   writeReleaseManifest,
 } from "../tools/release_manifest";
-import { assertStandaloneCompilerArtifact } from "../tools/release_smoke";
+import {
+  assertStandaloneCompilerArtifact,
+  discoverDedicatedWasmExampleFiles,
+} from "../tools/release_smoke";
 
 describe("Release metadata", () => {
   test("package metadata exposes a release check and stable CLI entrypoint", () => {
@@ -187,6 +192,26 @@ describe("Release metadata", () => {
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  test("release smoke discovers dedicated wasm example files dynamically", () => {
+    const repoRoot = join(import.meta.dir, "..");
+    const wasmExampleDirs = readdirSync(join(repoRoot, "examples"))
+      .filter(
+        (name) =>
+          name.startsWith("wasm_") &&
+          existsSync(join(repoRoot, "examples", name, "main.bpl")),
+      )
+      .sort();
+    const expectedFiles = wasmExampleDirs.flatMap((name) => [
+      `examples/${name}/main.bpl`,
+      `examples/${name}/test_config.json`,
+    ]);
+
+    expect(discoverDedicatedWasmExampleFiles(repoRoot)).toEqual(expectedFiles);
+    expect(expectedFiles).toContain(
+      "examples/wasm_hosted_transform/main.bpl",
+    );
   });
 
   test("release manifest refuses symlinked output paths", () => {
