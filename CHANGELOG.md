@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to exercise argv, stdout/stderr, stdlib `String`, enum matching, generics, and
   lambda capture through both native integration tests and hosted wasm runtime
   execution.
+- **Fuzz Artifact Repro Helper** - Added `bun run fuzz:repro -- <artifact-path>`
+  to turn downloaded scheduled fuzz crash artifacts into deterministic local
+  replay, minimization, seed rerun, and regression promotion commands.
 - **CI Triage Helper** - Added `bun run ci:triage -- <actions-run-url>` to summarize failed GitHub Actions jobs and print local reproduction commands without requiring GitHub admin access.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS

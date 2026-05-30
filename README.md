@@ -839,6 +839,9 @@ bun run fuzz:differential
 # Validate saved active fuzz failures under tests/fuzz-failure-artifacts
 bun run fuzz:validate-artifacts
 
+# Print local replay/minimize/promote commands for downloaded scheduled fuzz artifacts
+bun run fuzz:repro -- fuzz/crashes
+
 # Save minimized fuzz artifacts while running a campaign
 FUZZ_MINIMIZE=1 FUZZ_MINIMIZE_PASSES=8 bun run fuzz:differential
 

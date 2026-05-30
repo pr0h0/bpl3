@@ -78,6 +78,22 @@ For each crash or O0/O3 mismatch, the fuzzer writes:
 The `pass` field is the fuzz iteration within the seed. For differential
 artifacts, `expected` is the `-O0` result and `actual` is the `-O3` result.
 
+When the scheduled `Compiler Fuzz` workflow fails, download the
+`compiler-fuzz-crashes` artifact, unpack it so the metadata and source siblings
+are in one directory, then ask the helper for deterministic local commands:
+
+```bash
+bun run fuzz:repro -- fuzz/crashes
+```
+
+The helper accepts an artifact directory, a single `.json` metadata file, or a
+`.bpl` source with sibling metadata. It prints commands to replay the exact
+artifact, run all explicit replay modes, minimize to the local `.min.bpl` path,
+rerun the deterministic seed through the original pass, and promote the fixed
+repro into the regression corpus. Paths are rewritten relative to the current
+repository, so stale absolute paths from CI metadata do not leak into local
+triage commands.
+
 ## Replay Modes
 
 Use one artifact to rerun every compiler stage that matters during triage:
@@ -112,8 +128,10 @@ bun run fuzz:replay -- --metadata fuzz/crashes/crash_seed-...json
 
 ## Triage Loop
 
-1. Run fuzzing with `FUZZ_MINIMIZE=1`.
-2. Upload or inspect `fuzz/crashes`.
+1. Run fuzzing with `FUZZ_MINIMIZE=1`, or download the scheduled workflow's
+   `compiler-fuzz-crashes` artifact.
+2. Run `bun run fuzz:repro -- fuzz/crashes` to print deterministic local
+   commands for every saved artifact.
 3. Replay the `.json` artifact with explicit modes to locate the failing phase.
 4. Fix the compiler or runtime bug.
 5. Promote the minimized repro:
