@@ -144,10 +144,11 @@ export class ModuleCache {
       try {
         const data = fs.readFileSync(this.manifestPath, "utf-8");
         const parsed = JSON.parse(data);
-        return {
-          version: parsed.version || "1.0.0",
-          modules: new Map(Object.entries(parsed.modules || {})),
-        };
+        const manifest = this.parseManifest(parsed);
+        if (manifest) {
+          return manifest;
+        }
+        compilerLog.warn("Invalid cache manifest schema, creating new one");
       } catch {
         compilerLog.warn("Failed to load cache manifest, creating new one");
       }
@@ -156,6 +157,49 @@ export class ModuleCache {
       version: "1.0.0",
       modules: new Map(),
     };
+  }
+
+  private parseManifest(parsed: unknown): CacheManifest | null {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const record = parsed as { version?: unknown; modules?: unknown };
+    const version =
+      typeof record.version === "string" && record.version.length > 0
+        ? record.version
+        : "1.0.0";
+    const rawModules = record.modules ?? {};
+    if (
+      !rawModules ||
+      typeof rawModules !== "object" ||
+      Array.isArray(rawModules)
+    ) {
+      return null;
+    }
+
+    const modules = new Map<string, CachedModule>();
+    for (const [modulePath, value] of Object.entries(rawModules)) {
+      if (!this.isCachedModule(value)) {
+        return null;
+      }
+      modules.set(modulePath, value);
+    }
+
+    return { version, modules };
+  }
+
+  private isCachedModule(value: unknown): value is CachedModule {
+    return (
+      Boolean(value) &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      typeof (value as CachedModule).path === "string" &&
+      typeof (value as CachedModule).hash === "string" &&
+      typeof (value as CachedModule).objectFile === "string" &&
+      typeof (value as CachedModule).timestamp === "number" &&
+      Number.isFinite((value as CachedModule).timestamp)
+    );
   }
 
   /**

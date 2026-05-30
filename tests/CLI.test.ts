@@ -1460,6 +1460,50 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should rebuild cached modules when the cache manifest schema is invalid", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cache-manifest-schema-"),
+    );
+    const cacheDir = path.join(tempDir, ".bpl-cache");
+    const manifestFile = path.join(cacheDir, "manifest.json");
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.mkdirSync(cacheDir);
+    fs.writeFileSync(
+      manifestFile,
+      JSON.stringify({ version: 1, modules: "not a module map" }, null, 2),
+    );
+    fs.writeFileSync(
+      moduleFile,
+      ["export value;", "frame value() ret int {", "    return 7;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import value from "./math.bpl";',
+        "frame main() ret int {",
+        "    return value();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["build", mainFile, "--cache", "--cache-stats"]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Executable created:");
+      expect(result.stdout).toContain("Cache stats:");
+      expect(result.stderr).not.toContain("TypeError");
+      const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf-8"));
+      expect(typeof manifest.modules).toBe("object");
+      expect(Object.keys(manifest.modules).length).toBeGreaterThan(0);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should cache and link imported modules as separate parallel objects", () => {
     const tempDir = fs.mkdtempSync(
       path.join(process.cwd(), "tests/temp_parallel_cache-"),
