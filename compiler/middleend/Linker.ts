@@ -605,7 +605,7 @@ export class Linker {
   private removeBestEffort(filePath: string | undefined): void {
     if (!filePath) return;
     try {
-      fs.rmSync(filePath, { force: true });
+      fs.rmSync(filePath, { force: true, recursive: true });
     } catch {
       // Best-effort cleanup only.
     }

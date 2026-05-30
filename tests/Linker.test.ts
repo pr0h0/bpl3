@@ -240,6 +240,63 @@ describe("Linker", () => {
     }
   });
 
+  it("cleans temporary linked output directories after compiler failures", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-temp-dir-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const previousBplCc = process.env.BPL_CC;
+    const originalError = console.error;
+    const errors: string[] = [];
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        "fs.mkdirSync(args[outputIndex]);",
+        'process.stderr.write("simulated directory link failure\\n");',
+        "process.exit(1);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      console.error = (...args: unknown[]) => {
+        errors.push(args.map(String).join(" "));
+      };
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+
+      expect(ok).toBe(false);
+      expect(errors.join("\n")).toContain("simulated directory link failure");
+      expect(
+        readdirSync(dir).some(
+          (entry) => entry.startsWith(".main.") && entry.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      console.error = originalError;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps managed linker output after custom compiler flags", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-output-flag-"));
     const irPath = join(dir, "main.ll");

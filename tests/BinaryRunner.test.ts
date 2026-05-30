@@ -244,6 +244,41 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("cleans temporary executable directories after compiler failures", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-temp-dir-"),
+    );
+    const irPath = path.join(tempDir, "program.ll");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(path.join(tempDir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        "fs.mkdirSync(args[outputIndex]);",
+        'process.stderr.write("simulated output directory failure\\n");',
+        "process.exit(1);",
+      ]);
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, { skipRuntime: true });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("simulated output directory failure");
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (entry) => entry.startsWith(".program.") && entry.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("honors BPL_WASM_CC when compiling wasm targets", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-wasm-"));
     const irPath = path.join(tempDir, "program.ll");

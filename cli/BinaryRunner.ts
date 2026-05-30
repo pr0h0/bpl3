@@ -513,7 +513,7 @@ function createTemporaryOutputPath(outputPath: string): string {
 
 function removeBestEffort(filePath: string): void {
   try {
-    fs.rmSync(filePath, { force: true });
+    fs.rmSync(filePath, { force: true, recursive: true });
   } catch {
     // Best-effort cleanup only.
   }
