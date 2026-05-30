@@ -10,9 +10,10 @@ function compileAndRun(sourceCode: string) {
     __dirname,
     `temp_${Math.random().toString(36).substring(7)}.bpl`,
   );
-  fs.writeFileSync(tempFile, sourceCode);
 
   try {
+    fs.writeFileSync(tempFile, sourceCode);
+
     const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
       encoding: "utf-8",
       cwd: __dirname,
@@ -84,9 +85,10 @@ describe("Nullptr Handling", () => {
       __dirname,
       `temp_${Math.random().toString(36).substring(7)}.bpl`,
     );
-    fs.writeFileSync(tempFile, source);
 
     try {
+      fs.writeFileSync(tempFile, source);
+
       const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
         encoding: "utf-8",
         cwd: __dirname,

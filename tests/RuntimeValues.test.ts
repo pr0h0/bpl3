@@ -14,9 +14,10 @@ function runBPL(source: string): {
     __dirname,
     `temp_${Math.random().toString(36).substring(7)}.bpl`,
   );
-  fs.writeFileSync(tempFile, source);
 
   try {
+    fs.writeFileSync(tempFile, source);
+
     const result = spawnSync("bun", [COMPILER_PATH, "run", tempFile], {
       encoding: "utf-8",
       env: { ...process.env, NO_COLOR: "1" },
