@@ -358,7 +358,7 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should skip package IR verification when clang is unavailable", () => {
+  it("should honor BPL_CC when skipping unavailable package IR verification", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-no-cc-"));
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
@@ -378,18 +378,21 @@ describe("CLI Tests", () => {
     );
 
     try {
+      const missingCompiler = path.join(tempDir, "definitely-missing-clang");
       const result = spawnSync("bun", [BPL_CLI, "pack"], {
         cwd: tempDir,
         encoding: "utf-8",
         env: {
           ...process.env,
-          CC: path.join(tempDir, "definitely-missing-clang"),
+          BPL_CC: missingCompiler,
+          CC: "clang",
           NO_COLOR: "1",
         },
       });
 
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("Skipping IR verification");
+      expect(result.stderr).toContain(missingCompiler);
       expect(
         fs.existsSync(path.join(tempDir, "missing-cc-pack-1.0.0.tgz")),
       ).toBe(true);

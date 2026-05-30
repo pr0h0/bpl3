@@ -23,6 +23,7 @@ import type {
   PackageOptionsOutput,
   PackageOptionsVerbose,
 } from "../types";
+import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import { Logger } from "../../compiler/common/Logger";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 
@@ -73,14 +74,14 @@ export function registerPackageCommands(program: Command): void {
           // Verify LLVM IR validity by running clang -S
           // This catches CodeGen errors like invalid instructions that TypeChecker missed
           if (result.output) {
-            const tempLL = path.join(
-              os.tmpdir(),
-              `bpl_pack_verify_${Date.now()}.ll`,
+            const tempDir = fs.mkdtempSync(
+              path.join(os.tmpdir(), "bpl-pack-verify-"),
             );
+            const tempLL = path.join(tempDir, "input.ll");
             fs.writeFileSync(tempLL, result.output);
 
             try {
-              const cc = process.env.CC || "clang";
+              const cc = getCompilerDriver();
               const check = spawnSync(
                 cc,
                 [
@@ -110,9 +111,7 @@ export function registerPackageCommands(program: Command): void {
                 `Skipping IR verification: ${e instanceof Error ? e.message : String(e)}`,
               );
             } finally {
-              if (fs.existsSync(tempLL)) {
-                fs.unlinkSync(tempLL);
-              }
+              fs.rmSync(tempDir, { recursive: true, force: true });
             }
           }
         } else {
