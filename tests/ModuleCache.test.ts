@@ -1,7 +1,9 @@
 import { createHash } from "crypto";
 import { describe, expect, it } from "bun:test";
 import {
+  chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -474,6 +476,71 @@ describe("ModuleCache", () => {
       expect(cache.getCachedObjectFile(modulePath)).toBeNull();
       expect(cache.getStats().cacheSize).toBe(0);
     } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not follow symlinked temporary cache manifests while saving", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-manifest-temp-"));
+    const originalDateNow = Date.now;
+    const originalRandom = Math.random;
+    const previousBplCc = process.env.BPL_CC;
+    const fixedTimestamp = 1700000000000;
+    const poisonedSuffix = `${process.pid}-${fixedTimestamp}-8-0`;
+
+    try {
+      const fakeCompiler = join(dir, "fake-cc.js");
+      writeFileSync(
+        fakeCompiler,
+        [
+          "#!/usr/bin/env node",
+          'const fs = require("fs");',
+          "const args = process.argv.slice(2);",
+          'const outputIndex = args.lastIndexOf("-o") + 1;',
+          "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+          'fs.writeFileSync(args[outputIndex], "object\\n");',
+          "",
+        ].join("\n"),
+      );
+      chmodSync(fakeCompiler, 0o755);
+      process.env.BPL_CC = fakeCompiler;
+
+      const cache = new ModuleCache(dir);
+      const cacheDir = join(dir, ".bpl-cache");
+      const outsideManifest = join(dir, "outside-manifest.json");
+      const poisonedTempManifest = join(
+        cacheDir,
+        `manifest.${poisonedSuffix}.json.tmp`,
+      );
+      writeFileSync(outsideManifest, "outside\n");
+      symlinkSync(outsideManifest, poisonedTempManifest, "file");
+      Date.now = () => fixedTimestamp;
+      Math.random = () => 0.5;
+
+      const objectFile = cache.compileModule(
+        "main.bpl",
+        "frame main() ret int { return 0; }",
+        EMPTY_MAIN_IR,
+        false,
+        undefined,
+        0,
+      );
+
+      const manifest = JSON.parse(
+        readFileSync(join(cacheDir, "manifest.json"), "utf-8"),
+      );
+      expect(existsSync(objectFile)).toBe(true);
+      expect(manifest.modules["main.bpl"].objectFile).toBe(objectFile);
+      expect(readFileSync(outsideManifest, "utf-8")).toBe("outside\n");
+      expect(lstatSync(poisonedTempManifest).isSymbolicLink()).toBe(true);
+    } finally {
+      Date.now = originalDateNow;
+      Math.random = originalRandom;
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
       rmSync(dir, { recursive: true, force: true });
     }
   });

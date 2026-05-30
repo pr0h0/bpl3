@@ -244,20 +244,47 @@ export class ModuleCache {
     };
     this.assertWritableCacheManifestPath();
 
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempManifestPath = this.getManifestTempPath(attempt);
+      let createdTemp = false;
+
+      try {
+        fs.writeFileSync(tempManifestPath, JSON.stringify(data, null, 2), {
+          flag: "wx",
+        });
+        createdTemp = true;
+        fs.renameSync(tempManifestPath, this.manifestPath);
+        return;
+      } catch (error) {
+        if (this.isNodeErrorCode(error, "EEXIST")) {
+          continue;
+        }
+        throw error;
+      } finally {
+        if (createdTemp) {
+          this.removeCacheTempFile(tempManifestPath);
+        }
+      }
+    }
+
+    throw new CompilerError(
+      `Failed to create module cache manifest temp file: ${this.manifestPath}`,
+      "Remove stale temporary files from .bpl-cache or run 'bpl clean'.",
+      {
+        file: this.manifestPath,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+    );
+  }
+
+  private getManifestTempPath(attempt: number): string {
     const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
       .toString(16)
-      .slice(2)}`;
-    const tempManifestPath = path.join(
-      this.cacheDir,
-      `manifest.${tempSuffix}.json.tmp`,
-    );
-
-    try {
-      fs.writeFileSync(tempManifestPath, JSON.stringify(data, null, 2));
-      fs.renameSync(tempManifestPath, this.manifestPath);
-    } finally {
-      this.removeCacheTempFile(tempManifestPath);
-    }
+      .slice(2)}-${attempt}`;
+    return path.join(this.cacheDir, `manifest.${tempSuffix}.json.tmp`);
   }
 
   private getModuleHash(
@@ -743,15 +770,22 @@ export class ModuleCache {
       return fs.lstatSync(filePath);
     } catch (error) {
       if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error.code === "ENOENT" || error.code === "ENOTDIR")
+        this.isNodeErrorCode(error, "ENOENT") ||
+        this.isNodeErrorCode(error, "ENOTDIR")
       ) {
         return undefined;
       }
       throw error;
     }
+  }
+
+  private isNodeErrorCode(error: unknown, code: string): boolean {
+    return (
+      error !== null &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === code
+    );
   }
 
   private runCompilerDriver(
