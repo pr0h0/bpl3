@@ -30,7 +30,21 @@ const TYPE_MAP: Record<string, string> = {
   double: "double",
 };
 const NUMERIC_CONSTANT_PATTERN =
-  /^([+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d+)?))([uUlLfF]*)$/;
+  /^([+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([uUlLfF]*)$/;
+const STRING_CONSTANT_PATTERN = /^"(?:[^"\\]|\\.)*"$/;
+const SCALAR_CONSTANT_TYPES = new Set([
+  "char",
+  "i8",
+  "u8",
+  "i16",
+  "u16",
+  "int",
+  "uint",
+  "long",
+  "ulong",
+  "float",
+  "double",
+]);
 
 export function generateBplBindings(options: BindgenOptions): string {
   if (!fs.existsSync(options.headerPath)) {
@@ -139,21 +153,100 @@ function stripComments(source: string): string {
 
 function extractConstants(source: string): CConstant[] {
   const constants: CConstant[] = [];
-  const pattern =
-    /^\s*#define\s+([A-Za-z_]\w*)\s+("(?:[^"\\]|\\.)*"|[+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d+)?)(?:[uUlLfF]+)?)\s*$/gm;
+  const pattern = /^\s*#define\s+([A-Za-z_]\w*)\s+(.+?)\s*$/gm;
 
   for (const match of stripComments(source).matchAll(pattern)) {
     const name = match[1]!;
     const rawValue = match[2]!;
-    const value = normalizeConstantValue(rawValue);
+    const value = parseConstantValue(rawValue);
+    if (!value) continue;
     constants.push({
       name,
-      value,
-      type: inferConstantType(rawValue),
+      value: value.value,
+      type: value.type,
     });
   }
 
   return constants;
+}
+
+interface ParsedConstantValue {
+  value: string;
+  type: string;
+}
+
+function parseConstantValue(rawValue: string): ParsedConstantValue | null {
+  const normalized = normalizeConstantExpression(rawValue);
+  if (normalized.value.startsWith('"')) {
+    if (!STRING_CONSTANT_PATTERN.test(normalized.value)) return null;
+    return { value: normalized.value, type: "string" };
+  }
+
+  if (!NUMERIC_CONSTANT_PATTERN.test(normalized.value)) {
+    return null;
+  }
+
+  return {
+    value: normalizeConstantValue(normalized.value),
+    type: normalized.castType ?? inferConstantType(normalized.value),
+  };
+}
+
+function normalizeConstantExpression(value: string): {
+  value: string;
+  castType?: string;
+} {
+  let expression = stripEnclosingParentheses(value.trim());
+  const cast = stripLeadingScalarCast(expression);
+  if (!cast) return { value: expression };
+
+  expression = stripEnclosingParentheses(cast.expression);
+  return { value: expression, castType: cast.type };
+}
+
+function stripLeadingScalarCast(value: string):
+  | { expression: string; type: string }
+  | null {
+  const match = /^\(\s*([A-Za-z_][\w\s]*?)\s*\)\s*(.+)$/.exec(value);
+  if (!match) return null;
+
+  const type = mapConstantCastType(match[1]!.trim());
+  if (!type) return null;
+
+  return { expression: match[2]!.trim(), type };
+}
+
+function mapConstantCastType(rawType: string): string | null {
+  const mappedType = TYPE_MAP[normalizeCBaseType(rawType)];
+  if (!mappedType || !SCALAR_CONSTANT_TYPES.has(mappedType)) {
+    return null;
+  }
+
+  return mappedType;
+}
+
+function stripEnclosingParentheses(value: string): string {
+  let current = value.trim();
+  while (isWrappedInSingleParenthesisPair(current)) {
+    current = current.slice(1, -1).trim();
+  }
+
+  return current;
+}
+
+function isWrappedInSingleParenthesisPair(value: string): boolean {
+  if (!value.startsWith("(") || !value.endsWith(")")) return false;
+
+  let depth = 0;
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    if (char === "(") depth++;
+    if (char === ")") depth--;
+    if (depth === 0 && index < value.length - 1) return false;
+    if (depth < 0) return false;
+  }
+
+  return depth === 0;
 }
 
 function inferConstantType(value: string): string {

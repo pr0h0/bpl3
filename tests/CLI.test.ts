@@ -994,6 +994,13 @@ describe("CLI Tests", () => {
         "#define FLAGS 0xFFu",
         "#define BIG_COUNT 42UL",
         "#define SCALE 1.5f",
+        "#define WRAPPED_ANSWER (42u)",
+        "#define CAST_LIMIT ((unsigned long)4096)",
+        "#define NEGATIVE_LIMIT (-7L)",
+        "#define SCIENTIFIC_SCALE (1e-3f)",
+        '#define WRAPPED_GREETING ("hello")',
+        "#define SHIFT_EXPRESSION (1 << 2)",
+        '#define CONCAT_GREETING "hello" "world"',
         "typedef unsigned int bpl_size;",
         "typedef long unsigned int odd_size;",
         "typedef struct Point { int x; double y; } Point;",
@@ -1011,6 +1018,23 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain("global const FLAGS: uint = 0xFF;");
       expect(result.stdout).toContain("global const BIG_COUNT: ulong = 42;");
       expect(result.stdout).toContain("global const SCALE: float = 1.5;");
+      expect(result.stdout).toContain(
+        "global const WRAPPED_ANSWER: uint = 42;",
+      );
+      expect(result.stdout).toContain(
+        "global const CAST_LIMIT: ulong = 4096;",
+      );
+      expect(result.stdout).toContain(
+        "global const NEGATIVE_LIMIT: long = -7;",
+      );
+      expect(result.stdout).toContain(
+        "global const SCIENTIFIC_SCALE: float = 1e-3;",
+      );
+      expect(result.stdout).toContain(
+        'global const WRAPPED_GREETING: string = "hello";',
+      );
+      expect(result.stdout).not.toContain("SHIFT_EXPRESSION");
+      expect(result.stdout).not.toContain("CONCAT_GREETING");
       expect(result.stdout).toContain("type bpl_size = uint;");
       expect(result.stdout).toContain("type odd_size = ulong;");
       expect(result.stdout).toContain("struct Point {");
