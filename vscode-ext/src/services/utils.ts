@@ -10,6 +10,21 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { TextDocuments } from "vscode-languageserver/node";
 import type * as AST from "../../../compiler/common/AST";
 
+/**
+ * Language-server trace logging is opt-in because raw stdout writes are noisy in
+ * tests and can interfere with stdio-based LSP transports.
+ */
+export function isDebugLoggingEnabled(): boolean {
+  const value = process.env.BPL_LSP_DEBUG?.toLowerCase();
+  return value === "1" || value === "true" || value === "yes" || value === "on";
+}
+
+export function debugLog(...messages: unknown[]): void {
+  if (isDebugLoggingEnabled()) {
+    console.error(...messages);
+  }
+}
+
 // Re-export AST traversal utilities from compiler for convenience
 export {
   findNodeAtPosition,

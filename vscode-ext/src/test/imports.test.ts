@@ -228,6 +228,7 @@ describe("BPL import tooling", () => {
     const mathPath = path.join(tmpDir, "math.bpl");
     const originalDebug = process.env.BPL_LSP_DEBUG;
     const originalLog = console.log;
+    const originalError = console.error;
 
     fs.writeFileSync(mathPath, "frame add() ret i32 { return 1; }\n");
     fs.writeFileSync(
@@ -243,6 +244,9 @@ describe("BPL import tooling", () => {
       console.log = (...args: unknown[]) => {
         logs.push(args.map(String).join(" "));
       };
+      console.error = (...args: unknown[]) => {
+        logs.push(args.map(String).join(" "));
+      };
 
       const quietIndex = new SymbolIndex(repoRoot);
       quietIndex.indexFile(mainPath);
@@ -251,7 +255,7 @@ describe("BPL import tooling", () => {
 
       const debugLogs: string[] = [];
       process.env.BPL_LSP_DEBUG = "1";
-      console.log = (...args: unknown[]) => {
+      console.error = (...args: unknown[]) => {
         debugLogs.push(args.map(String).join(" "));
       };
 
@@ -267,6 +271,7 @@ describe("BPL import tooling", () => {
         process.env.BPL_LSP_DEBUG = originalDebug;
       }
       console.log = originalLog;
+      console.error = originalError;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });

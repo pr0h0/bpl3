@@ -10,6 +10,7 @@ import {
 } from "vscode-languageserver/node";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
+import { debugLog } from "./utils";
 
 /**
  * Semantic token types as defined by LSP spec
@@ -131,15 +132,15 @@ export class SemanticTokenProvider {
    * Provide semantic tokens for an entire document
    */
   provideSemanticTokens(filePath: string): SemanticTokens | null {
-    console.log(`[SemanticTokens] Providing tokens for ${filePath}`);
+    debugLog(`[SemanticTokens] Providing tokens for ${filePath}`);
 
     const ast = this.astResolver.getAST(filePath);
     if (!ast) {
-      console.log(`[SemanticTokens] Could not parse ${filePath}`);
+      debugLog(`[SemanticTokens] Could not parse ${filePath}`);
       return null;
     }
 
-    console.log(
+    debugLog(
       `[SemanticTokens] AST parsed successfully, starting token generation`,
     );
 
@@ -150,7 +151,7 @@ export class SemanticTokenProvider {
     this.visitNode(ast, builder, source);
 
     const result = builder.build();
-    console.log(`[SemanticTokens] Generated ${result.data.length / 5} tokens`);
+    debugLog(`[SemanticTokens] Generated ${result.data.length / 5} tokens`);
     return result;
   }
 
@@ -549,7 +550,7 @@ export class SemanticTokenProvider {
     builder: SemanticTokensBuilder,
   ): void {
     if (!node.location) {
-      console.log(`[SemanticTokens] Parameter ${node.name} has no location`);
+      debugLog(`[SemanticTokens] Parameter ${node.name} has no location`);
       return;
     }
 
@@ -573,7 +574,7 @@ export class SemanticTokenProvider {
     builder: SemanticTokensBuilder,
   ): void {
     if (!node.location) {
-      console.log(
+      debugLog(
         `[SemanticTokens] LambdaParameter ${node.name} has no location`,
       );
       return;

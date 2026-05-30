@@ -9,6 +9,7 @@ import * as path from "path";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex, HoverProvider } from "./index";
 import * as AST from "../../../compiler/common/AST";
+import { debugLog } from "./utils";
 
 /**
  * AST-based hover handler using the compiler's parser
@@ -31,7 +32,7 @@ export class ASTHoverHandler {
     try {
       const filePath = fileURLToPath(params.textDocument.uri);
       this.currentFilePath = filePath;
-      console.log(
+      debugLog(
         `[ASTHover] Hover at ${filePath}:${params.position.line + 1}:${params.position.character + 1}`,
       );
 
@@ -45,11 +46,11 @@ export class ASTHoverHandler {
       );
 
       if (!node) {
-        console.log(`[ASTHover] No AST node found at position`);
+        debugLog(`[ASTHover] No AST node found at position`);
         return this.handleFallback(document, params);
       }
 
-      console.log(`[ASTHover] Found node kind: ${node.kind}`);
+      debugLog(`[ASTHover] Found node kind: ${node.kind}`);
 
       // Handle different node types
       switch (node.kind) {
@@ -103,7 +104,7 @@ export class ASTHoverHandler {
           );
 
         default:
-          console.log(`[ASTHover] Unhandled node kind: ${node.kind}`);
+          debugLog(`[ASTHover] Unhandled node kind: ${node.kind}`);
           return this.handleFallback(document, params);
       }
     } catch (error) {
@@ -120,7 +121,7 @@ export class ASTHoverHandler {
     filePath: string,
   ): Hover | null {
     const name = node.name;
-    console.log(`[ASTHover] Identifier: ${name}`);
+    debugLog(`[ASTHover] Identifier: ${name}`);
 
     // Check if resolved declaration is a function
     if (node.resolvedDeclaration?.kind === "FunctionDecl") {
@@ -143,17 +144,17 @@ export class ASTHoverHandler {
     // If no resolved declaration, search AST for local variable
     const ast = this.astResolver.getAST(filePath);
     if (ast) {
-      console.log(`[ASTHover] Searching AST for local variable: ${name}`);
+      debugLog(`[ASTHover] Searching AST for local variable: ${name}`);
       const varDecl = this.findVariableDeclaration(ast, name, node);
       if (varDecl) {
-        console.log(`[ASTHover] Found local variable declaration in AST`);
+        debugLog(`[ASTHover] Found local variable declaration in AST`);
         return this.handleVariableDecl(varDecl);
       }
 
       // Search for pattern variable
       const patternVar = this.findPatternVariable(ast, name, node);
       if (patternVar) {
-        console.log(`[ASTHover] Found pattern variable in AST`);
+        debugLog(`[ASTHover] Found pattern variable in AST`);
         return this.handlePatternIdentifier(patternVar);
       }
     }
@@ -164,7 +165,7 @@ export class ASTHoverHandler {
       const symbol = symbols[0];
       if (!symbol) return null;
 
-      console.log(`[ASTHover] Found symbol: ${symbol.name} (${symbol.kind})`);
+      debugLog(`[ASTHover] Found symbol: ${symbol.name} (${symbol.kind})`);
 
       if (symbol.kind === "enum") {
         return this.createTypeHover(symbol);
@@ -178,7 +179,7 @@ export class ASTHoverHandler {
     // Try to resolve the type
     const type = this.astResolver.resolveType(node, filePath);
     if (type) {
-      console.log(`[ASTHover] Resolved type: ${type}`);
+      debugLog(`[ASTHover] Resolved type: ${type}`);
 
       // Look up the symbol in the index
       const typeSymbols = this.symbolIndex.findSymbol(type);
@@ -218,7 +219,7 @@ export class ASTHoverHandler {
     filePath: string,
   ): Hover | null {
     const memberName = node.property;
-    console.log(`[ASTHover] Member access: .${memberName}`);
+    debugLog(`[ASTHover] Member access: .${memberName}`);
 
     // Resolve the type of the object (handles nested access)
     const objectType = this.astResolver.resolveType(node.object, filePath);
@@ -226,11 +227,11 @@ export class ASTHoverHandler {
     // If object is itself a member or call expression, we've already resolved it
     // For nested access like obj.method().property, resolveType handles the chain
     if (!objectType) {
-      console.log(`[ASTHover] Could not resolve object type`);
+      debugLog(`[ASTHover] Could not resolve object type`);
       return null;
     }
 
-    console.log(`[ASTHover] Object type: ${objectType}`);
+    debugLog(`[ASTHover] Object type: ${objectType}`);
 
     // Extract base type (remove pointers, arrays, generics)
     const baseType = objectType
@@ -241,7 +242,7 @@ export class ASTHoverHandler {
     // Look up the type in symbol index
     const symbols = this.symbolIndex.findSymbol(baseType);
     if (symbols.length === 0) {
-      console.log(`[ASTHover] Type not found: ${baseType}`);
+      debugLog(`[ASTHover] Type not found: ${baseType}`);
       return null;
     }
 
@@ -250,7 +251,7 @@ export class ASTHoverHandler {
       if (symbol.methods) {
         const method = symbol.methods.find((m) => m.name === memberName);
         if (method) {
-          console.log(`[ASTHover] Found method: ${memberName}`);
+          debugLog(`[ASTHover] Found method: ${memberName}`);
           return HoverProvider.createMethodHover(
             memberName,
             method,
@@ -263,7 +264,7 @@ export class ASTHoverHandler {
       if (symbol.fields) {
         const field = symbol.fields.find((f) => f.name === memberName);
         if (field) {
-          console.log(`[ASTHover] Found field: ${memberName}`);
+          debugLog(`[ASTHover] Found field: ${memberName}`);
           return HoverProvider.createFieldHover(memberName, field, symbol.name);
         }
       }
@@ -272,7 +273,7 @@ export class ASTHoverHandler {
       if (symbol.variants) {
         const variant = symbol.variants.find((v) => v.name === memberName);
         if (variant) {
-          console.log(`[ASTHover] Found enum variant: ${memberName}`);
+          debugLog(`[ASTHover] Found enum variant: ${memberName}`);
           return this.createEnumVariantHover(variant, symbol.name);
         }
       }
@@ -288,7 +289,7 @@ export class ASTHoverHandler {
     node: AST.CallExpr,
     filePath: string,
   ): Hover | null {
-    console.log(`[ASTHover] Call expression`);
+    debugLog(`[ASTHover] Call expression`);
 
     // If the callee is a member access, show info about the method
     if (node.callee.kind === "Member") {
@@ -943,7 +944,7 @@ export class ASTHoverHandler {
     _filePath: string,
   ): Hover | null {
     const typeName = node.name;
-    console.log(`[ASTHover] BasicType: ${typeName}`);
+    debugLog(`[ASTHover] BasicType: ${typeName}`);
 
     // Check if it's a builtin type
     const builtinTypes: { [key: string]: string } = {
@@ -1024,10 +1025,10 @@ export class ASTHoverHandler {
    * Handle hover on parameter
    */
   private handleParameter(node: AST.Parameter): Hover {
-    console.log(`[ASTHover] Parameter node:`, JSON.stringify(node, null, 2));
+    debugLog(`[ASTHover] Parameter node:`, JSON.stringify(node, null, 2));
 
     const paramType = this.typeNodeToString(node.type);
-    console.log(`[ASTHover] Parameter ${node.name} type: ${paramType}`);
+    debugLog(`[ASTHover] Parameter ${node.name} type: ${paramType}`);
 
     const constModifier = node.isConst ? "const " : "";
 
@@ -1072,7 +1073,7 @@ export class ASTHoverHandler {
    * Handle hover on pattern identifiers (variables in match patterns)
    */
   private handlePatternIdentifier(node: AST.PatternIdentifier): Hover | null {
-    console.log(`[ASTHover] Pattern identifier: ${node.name}`);
+    debugLog(`[ASTHover] Pattern identifier: ${node.name}`);
 
     const type = node.type ? this.typeNodeToString(node.type) : "inferred";
 
@@ -1109,7 +1110,7 @@ export class ASTHoverHandler {
     line: number,
     character: number,
   ): Hover | null {
-    console.log(
+    debugLog(
       `[ASTHover] Pattern enum: ${node.enumName}.${node.variantName}`,
     );
 
@@ -1134,13 +1135,13 @@ export class ASTHoverHandler {
     const variantNameStart = dotCol + 1;
     const variantNameEnd = variantNameStart + node.variantName.length;
 
-    console.log(
+    debugLog(
       `[ASTHover] Cursor at col ${cursorCol}, enum: ${patternStartCol}-${enumNameEnd}, variant: ${variantNameStart}-${variantNameEnd}`,
     );
 
     // Check if hovering on enum name
     if (cursorCol >= patternStartCol && cursorCol < dotCol) {
-      console.log(`[ASTHover] Hovering enum name: ${node.enumName}`);
+      debugLog(`[ASTHover] Hovering enum name: ${node.enumName}`);
       const enumSymbols = this.symbolIndex.findSymbol(node.enumName);
       if (
         enumSymbols.length > 0 &&
@@ -1159,7 +1160,7 @@ export class ASTHoverHandler {
 
     // Check if hovering on variant name
     if (cursorCol >= variantNameStart && cursorCol <= variantNameEnd) {
-      console.log(`[ASTHover] Hovering variant name: ${node.variantName}`);
+      debugLog(`[ASTHover] Hovering variant name: ${node.variantName}`);
       const enumSymbols = this.symbolIndex.findSymbol(node.enumName);
       if (
         enumSymbols.length > 0 &&
@@ -1205,7 +1206,7 @@ export class ASTHoverHandler {
       // For single binding, it's between the parens
       // We need to be more generous with the range to catch the binding
       if (cursorCol > openParenCol && cursorCol < closingParenCol) {
-        console.log(`[ASTHover] Hovering binding: ${node.bindings[0]}`);
+        debugLog(`[ASTHover] Hovering binding: ${node.bindings[0]}`);
         let docs = `### 🎭 Pattern Binding \`${node.bindings[0]}\`\n\n`;
         docs += `\`\`\`bpl\n${node.bindings[0]}: inferred\n\`\`\`\n\n`;
         docs += `**Type:** \`inferred\`\n\n`;
@@ -1311,25 +1312,25 @@ export class ASTHoverHandler {
     name: string,
     refNode: AST.IdentifierExpr,
   ): AST.VariableDecl | null {
-    console.log(
+    debugLog(
       `[ASTHover] Searching for variable "${name}" at line ${refNode.location?.startLine}, col ${refNode.location?.startColumn}`,
     );
-    console.log(
+    debugLog(
       `[ASTHover] AST has ${ast.statements.length} top-level statements`,
     );
 
     // Search through all top-level declarations
     for (const topNode of ast.statements) {
       if (topNode.kind === "FunctionDecl") {
-        console.log(`[ASTHover] Checking function: ${topNode.name}`);
+        debugLog(`[ASTHover] Checking function: ${topNode.name}`);
         // Check if the reference is inside this function
         if (this.isNodeContainedIn(refNode, topNode)) {
-          console.log(
+          debugLog(
             `[ASTHover] Reference is inside function ${topNode.name}`,
           );
           const varDecl = this.findVariableInFunction(topNode, name, refNode);
           if (varDecl) {
-            console.log(
+            debugLog(
               `[ASTHover] Found variable in function ${topNode.name}`,
             );
             return varDecl;
@@ -1337,7 +1338,7 @@ export class ASTHoverHandler {
         }
       } else if (topNode.kind === "VariableDecl") {
         if (topNode.name === name) {
-          console.log(`[ASTHover] Found global variable: ${name}`);
+          debugLog(`[ASTHover] Found global variable: ${name}`);
           return topNode;
         }
       } else if (topNode.kind === "StructDecl") {
@@ -1347,7 +1348,7 @@ export class ASTHoverHandler {
             member.kind === "FunctionDecl" &&
             this.isNodeContainedIn(refNode, member)
           ) {
-            console.log(
+            debugLog(
               `[ASTHover] Reference is inside method ${member.name} of struct ${topNode.name}`,
             );
             const varDecl = this.findVariableInFunction(member, name, refNode);
@@ -1357,7 +1358,7 @@ export class ASTHoverHandler {
       }
     }
 
-    console.log(`[ASTHover] Variable "${name}" not found in AST search`);
+    debugLog(`[ASTHover] Variable "${name}" not found in AST search`);
     return null;
   }
 
@@ -1369,7 +1370,7 @@ export class ASTHoverHandler {
     name: string,
     refNode: AST.IdentifierExpr,
   ): AST.PatternIdentifier | null {
-    console.log(`[ASTHover] Searching for pattern variable: ${name}`);
+    debugLog(`[ASTHover] Searching for pattern variable: ${name}`);
 
     // Search through all top-level declarations
     for (const topNode of ast.statements) {
@@ -1438,13 +1439,13 @@ export class ASTHoverHandler {
         const exprStmt = stmt as AST.ExpressionStmt;
         if (exprStmt.expression.kind === "Match") {
           const matchExpr = exprStmt.expression as AST.MatchExpr;
-          console.log(
+          debugLog(
             `[ASTHover] Found match expression with ${matchExpr.arms.length} arms at line ${matchExpr.location?.startLine}`,
           );
 
           // Check if reference is inside one of the match arms
           for (const arm of matchExpr.arms) {
-            console.log(
+            debugLog(
               `[ASTHover] Checking match arm at line ${arm.location?.startLine}`,
             );
 
@@ -1473,13 +1474,13 @@ export class ASTHoverHandler {
             }
 
             if (isInArm) {
-              console.log(
+              debugLog(
                 `[ASTHover] Reference is inside match arm body, searching pattern`,
               );
               // Search the pattern for the variable
               const patternVar = this.searchPattern(arm.pattern, name);
               if (patternVar) {
-                console.log(`[ASTHover] Found pattern variable: ${name}`);
+                debugLog(`[ASTHover] Found pattern variable: ${name}`);
                 return patternVar;
               }
             }
@@ -1543,17 +1544,17 @@ export class ASTHoverHandler {
     pattern: AST.Pattern,
     name: string,
   ): AST.PatternIdentifier | null {
-    console.log(
+    debugLog(
       `[ASTHover] Searching pattern kind=${pattern.kind} for name="${name}"`,
     );
 
     if (pattern.kind === "PatternIdentifier") {
-      console.log(`[ASTHover] PatternIdentifier name="${pattern.name}"`);
+      debugLog(`[ASTHover] PatternIdentifier name="${pattern.name}"`);
       if (pattern.name === name) {
         return pattern;
       }
     } else if (pattern.kind === "PatternEnumTuple") {
-      console.log(
+      debugLog(
         `[ASTHover] PatternEnumTuple bindings count=${pattern.bindings.length}`,
       );
       // Check bindings in tuple patterns like Option.Some(val)
@@ -1561,7 +1562,7 @@ export class ASTHoverHandler {
         (b) => b.kind === "PatternIdentifier" && b.name === name,
       );
       if (binding && binding.kind === "PatternIdentifier") {
-        console.log(`[ASTHover] Found binding ${name}`);
+        debugLog(`[ASTHover] Found binding ${name}`);
         return binding;
       }
     } else if (pattern.kind === "PatternEnumStruct") {
@@ -1616,12 +1617,12 @@ export class ASTHoverHandler {
     name: string,
     refNode: AST.IdentifierExpr,
   ): AST.VariableDecl | null {
-    console.log(`[ASTHover] Searching in function body for: ${name}`);
+    debugLog(`[ASTHover] Searching in function body for: ${name}`);
 
     // Check parameters first
     for (const param of funcNode.params) {
       if (param.name === name) {
-        console.log(`[ASTHover] Variable "${name}" is a parameter`);
+        debugLog(`[ASTHover] Variable "${name}" is a parameter`);
         // Parameters are handled separately
         return null;
       }
@@ -1629,11 +1630,11 @@ export class ASTHoverHandler {
 
     // Search function body
     if (funcNode.body) {
-      console.log(`[ASTHover] Function has body, searching...`);
+      debugLog(`[ASTHover] Function has body, searching...`);
       return this.findVariableInBlock(funcNode.body, name, refNode);
     }
 
-    console.log(`[ASTHover] Function has no body`);
+    debugLog(`[ASTHover] Function has no body`);
     return null;
   }
 
@@ -1645,7 +1646,7 @@ export class ASTHoverHandler {
     name: string,
     refNode: AST.IdentifierExpr,
   ): AST.VariableDecl | null {
-    console.log(
+    debugLog(
       `[ASTHover] Searching block with ${block.statements.length} statements`,
     );
 
@@ -1657,16 +1658,16 @@ export class ASTHoverHandler {
         stmt.location.startLine > refNode.location.startLine
       ) {
         // Don't search statements after the reference
-        console.log(
+        debugLog(
           `[ASTHover] Statement at line ${stmt.location.startLine} is after reference at line ${refNode.location.startLine}, stopping`,
         );
         break;
       }
 
       if (stmt.kind === "VariableDecl") {
-        console.log(`[ASTHover] Found VariableDecl: ${stmt.name}`);
+        debugLog(`[ASTHover] Found VariableDecl: ${stmt.name}`);
         if (stmt.name === name) {
-          console.log(`[ASTHover] MATCH! Found variable: ${name}`);
+          debugLog(`[ASTHover] MATCH! Found variable: ${name}`);
           return stmt;
         }
       } else if (stmt.kind === "Block") {
@@ -1717,7 +1718,7 @@ export class ASTHoverHandler {
       // Add more statement types as needed
     }
 
-    console.log(`[ASTHover] Variable not found in this block`);
+    debugLog(`[ASTHover] Variable not found in this block`);
     return null;
   }
 

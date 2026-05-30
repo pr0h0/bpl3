@@ -7,6 +7,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
+import { debugLog } from "./utils";
 
 /**
  * Provides smart selection ranges based on AST structure.
@@ -33,17 +34,17 @@ export class SelectionRangeProvider {
     const results: SelectionRange[] = [];
 
     for (const position of params.positions) {
-      console.log(
+      debugLog(
         `[SelectionRange] Request for position ${position.line}:${position.character}`,
       );
       const selectionRange = this.getSelectionRange(ast, position);
       if (selectionRange) {
-        console.log(`[SelectionRange] Generated selection hierarchy:`);
+        debugLog(`[SelectionRange] Generated selection hierarchy:`);
         let current: SelectionRange | undefined = selectionRange;
         let depth = 0;
         while (current) {
           const r = current.range;
-          console.log(
+          debugLog(
             `[SelectionRange]   ${depth}: [${r.start.line}:${r.start.character} - ${r.end.line}:${r.end.character}]`,
           );
           current = current.parent;
@@ -51,7 +52,7 @@ export class SelectionRangeProvider {
         }
         results.push(selectionRange);
       } else {
-        console.log(`[SelectionRange] No selection range found`);
+        debugLog(`[SelectionRange] No selection range found`);
       }
     }
 
@@ -68,7 +69,7 @@ export class SelectionRangeProvider {
     const line = position.line + 1; // AST uses 1-based
     const char = position.character + 1;
 
-    console.log(
+    debugLog(
       `[SelectionRange] Looking for nodes at ${line}:${char} (1-based)`,
     );
 
@@ -77,21 +78,21 @@ export class SelectionRangeProvider {
 
     for (const stmt of ast.statements) {
       if (this.nodeContainsPosition(stmt, line, char)) {
-        console.log(
+        debugLog(
           `[SelectionRange] Found containing statement: ${stmt.kind}`,
         );
         const nodes = this.findContainingNodes(stmt, line, char);
-        console.log(
+        debugLog(
           `[SelectionRange] Collected ${nodes.length} containing nodes:`,
         );
         nodes.forEach((n, i) => {
           const loc = n.location;
           if (loc) {
-            console.log(
+            debugLog(
               `[SelectionRange]   ${i}: ${n.kind} [${loc.startLine}:${loc.startColumn} - ${loc.endLine}:${loc.endColumn}]`,
             );
           } else {
-            console.log(`[SelectionRange]   ${i}: ${n.kind} [no location]`);
+            debugLog(`[SelectionRange]   ${i}: ${n.kind} [no location]`);
           }
         });
         allContainingNodes.push(...nodes);
@@ -100,7 +101,7 @@ export class SelectionRangeProvider {
     }
 
     if (allContainingNodes.length === 0) {
-      console.log(`[SelectionRange] No containing nodes found`);
+      debugLog(`[SelectionRange] No containing nodes found`);
       return null;
     }
 
@@ -114,7 +115,7 @@ export class SelectionRangeProvider {
       const docRange = this.nodeToRange(ast as any);
       if (docRange) {
         parent = SelectionRange.create(docRange, undefined);
-        console.log(
+        debugLog(
           `[SelectionRange] Adding range ${rangeCount} for Document: [${docRange.start.line}:${docRange.start.character} - ${docRange.end.line}:${docRange.end.character}]`,
         );
         rangeCount++;
@@ -129,12 +130,12 @@ export class SelectionRangeProvider {
       if (range) {
         // Skip if this range is identical to the previous one
         if (parent && this.rangesEqual(parent.range, range)) {
-          console.log(
+          debugLog(
             `[SelectionRange] Skipping duplicate range for ${node.kind}`,
           );
           continue;
         }
-        console.log(
+        debugLog(
           `[SelectionRange] Adding range ${rangeCount} for ${node.kind}: [${range.start.line}:${range.start.character} - ${range.end.line}:${range.end.character}]`,
         );
         parent = SelectionRange.create(range, parent);
@@ -142,7 +143,7 @@ export class SelectionRangeProvider {
       }
     }
 
-    console.log(`[SelectionRange] Total ranges in hierarchy: ${rangeCount}`);
+    debugLog(`[SelectionRange] Total ranges in hierarchy: ${rangeCount}`);
     return parent || null;
   }
 
@@ -170,16 +171,16 @@ export class SelectionRangeProvider {
       return [];
     }
 
-    console.log(`[SelectionRange]   Checking ${node.kind} for children`);
+    debugLog(`[SelectionRange]   Checking ${node.kind} for children`);
     // Recursively check children first to get innermost nodes
     const children = this.getChildNodes(node);
-    console.log(
+    debugLog(
       `[SelectionRange]     ${node.kind} has ${children.length} children`,
     );
 
     for (const child of children) {
       if (child && this.nodeContainsPosition(child, line, char)) {
-        console.log(
+        debugLog(
           `[SelectionRange]     Child ${child.kind} contains position, recursing`,
         );
         const childResults = this.findContainingNodes(child, line, char);
@@ -189,7 +190,7 @@ export class SelectionRangeProvider {
     }
 
     // No children contain the position, so this is the innermost node
-    console.log(`[SelectionRange]     ${node.kind} is leaf node (innermost)`);
+    debugLog(`[SelectionRange]     ${node.kind} is leaf node (innermost)`);
     return [node];
   }
 

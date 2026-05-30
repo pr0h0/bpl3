@@ -5,6 +5,7 @@
 
 import { Hover, MarkupKind } from "vscode-languageserver/node";
 import type { SymbolInfo, MethodInfo, FieldInfo } from "./SymbolIndex";
+import { debugLog } from "./utils";
 
 export class HoverProvider {
   /**
@@ -334,10 +335,10 @@ export class HoverProvider {
     method: MethodInfo,
     parentTypeName: string,
   ): Hover {
-    console.log(
+    debugLog(
       `[HoverProvider.createMethodHover] Creating hover for ${parentTypeName}.${methodName}`,
     );
-    console.log(
+    debugLog(
       `[HoverProvider.createMethodHover] Method signature:`,
       JSON.stringify(method.signature),
     );
@@ -373,7 +374,7 @@ export class HoverProvider {
       md += `\`${method.signature.returnType}\`\n\n`;
     }
 
-    console.log(
+    debugLog(
       `[HoverProvider.createMethodHover] Generated markdown length: ${md.length}`,
     );
 

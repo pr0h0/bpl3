@@ -16,6 +16,7 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import { debugLog } from "./utils";
 
 export class ASTRenameHandler {
   private static readonly reservedIdentifiers = new Set([
@@ -88,29 +89,29 @@ export class ASTRenameHandler {
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
       if (!node) {
-        console.log("[ASTRename] No node found at position");
+        debugLog("[ASTRename] No node found at position");
         return null;
       }
 
-      console.log(`[ASTRename] prepareRename found node kind: ${node.kind}`);
+      debugLog(`[ASTRename] prepareRename found node kind: ${node.kind}`);
 
       // Check if the node is renameable
       if (this.isRenameableNode(node)) {
-        console.log(`[ASTRename] Node is renameable, getting range...`);
+        debugLog(`[ASTRename] Node is renameable, getting range...`);
         const range = this.getNodeRange(node, document);
         if (range) {
-          console.log(
+          debugLog(
             `[ASTRename] Range: line ${range.start.line}, char ${range.start.character} to ${range.end.character}`,
           );
         } else {
-          console.log(
+          debugLog(
             `[ASTRename] WARNING: getNodeRange returned null for ${node.kind}`,
           );
         }
         return range;
       }
 
-      console.log(`[ASTRename] Node kind ${node.kind} is not renameable`);
+      debugLog(`[ASTRename] Node kind ${node.kind} is not renameable`);
       return null;
     } catch (error) {
       console.error("[ASTRename] Error in prepareRename:", error);
@@ -217,18 +218,18 @@ export class ASTRenameHandler {
     const symbolName = this.getSymbolName(node);
     if (!symbolName) return references;
 
-    console.log(`[ASTRename] Finding references for symbol: ${symbolName}`);
+    debugLog(`[ASTRename] Finding references for symbol: ${symbolName}`);
 
     // Determine the scope and type of the symbol
     const symbolInfo = this.analyzeSymbol(node, filePath);
     if (!symbolInfo) {
-      console.log(
+      debugLog(
         `[ASTRename] Could not analyze symbol for node kind: ${node.kind}`,
       );
       return references;
     }
 
-    console.log(
+    debugLog(
       `[ASTRename] Symbol type: ${symbolInfo.type}, scope: ${symbolInfo.scope}`,
     );
 
@@ -504,38 +505,38 @@ export class ASTRenameHandler {
     let targetDeclNode: AST.VariableDecl | null = null;
     if (targetDecl.kind === "VariableDecl") {
       targetDeclNode = targetDecl as AST.VariableDecl;
-      console.log(
+      debugLog(
         `[ASTRename] Target is VariableDecl at line ${targetDeclNode.location?.startLine}`,
       );
     } else {
       // If the target is an Identifier, find the declaration it refers to
       targetDeclNode = getDeclarationForReference(targetDecl);
-      console.log(
+      debugLog(
         `[ASTRename] Target is ${targetDecl.kind}, resolved to declaration at line ${targetDeclNode?.location?.startLine}`,
       );
     }
 
-    console.log(
+    debugLog(
       `[ASTRename] Found ${allDecls.length} declarations with name "${name}"`,
     );
     for (let i = 0; i < allDecls.length; i++) {
       const d = allDecls[i];
       if (d) {
-        console.log(
+        debugLog(
           `[ASTRename]   Decl ${i}: line ${d.decl.location?.startLine}`,
         );
       }
     }
 
-    console.log(
+    debugLog(
       `[ASTRename] referencesByDecl has ${referencesByDecl.size} entries`,
     );
     referencesByDecl.forEach((refs, decl) => {
-      console.log(
+      debugLog(
         `[ASTRename]   Decl at line ${decl.location?.startLine}: ${refs.length} references`,
       );
       refs.forEach((ref, idx) => {
-        console.log(
+        debugLog(
           `[ASTRename]     Ref ${idx}: line ${ref.range.start.line + 1}, char ${ref.range.start.character} to ${ref.range.end.character}`,
         );
       });
@@ -543,13 +544,13 @@ export class ASTRenameHandler {
 
     if (targetDeclNode) {
       const result = referencesByDecl.get(targetDeclNode) || [];
-      console.log(
+      debugLog(
         `[ASTRename] Returning ${result.length} references for target declaration`,
       );
       return result;
     }
 
-    console.log(`[ASTRename] No target declaration found, returning empty`);
+    debugLog(`[ASTRename] No target declaration found, returning empty`);
     return references;
   }
 
@@ -565,15 +566,15 @@ export class ASTRenameHandler {
 
     // Add the parameter declaration itself
     const param = functionNode.params.find((p) => p.name === name);
-    console.log(
+    debugLog(
       `[ASTRename] findParameterReferences for "${name}", param found: ${!!param}, has location: ${!!param?.location}`,
     );
     if (param && param.location) {
-      console.log(
+      debugLog(
         `[ASTRename] Calling getNodeRange for Parameter "${param.name}"`,
       );
       const range = this.getNodeRange(param, document);
-      console.log(
+      debugLog(
         `[ASTRename] getNodeRange returned: ${range ? `line ${range.start.line}, char ${range.start.character}-${range.end.character}` : "null"}`,
       );
       if (range) {
@@ -1568,11 +1569,11 @@ export class ASTRenameHandler {
         // Special handling for FunctionDecl parameters
         if (node.kind === "FunctionDecl") {
           const funcDecl = node as AST.FunctionDecl;
-          console.log(
+          debugLog(
             `[ASTRename] Checking FunctionDecl params, count: ${funcDecl.params.length}`,
           );
           for (const param of funcDecl.params) {
-            console.log(
+            debugLog(
               `[ASTRename] Param: name="${param.name}", kind="${param.kind}", has location: ${!!param.location}`,
             );
             if (param.location) {
@@ -1585,7 +1586,7 @@ export class ASTRenameHandler {
                   (line === paramLoc.endLine &&
                     character <= paramLoc.endColumn - 1));
 
-              console.log(
+              debugLog(
                 `[ASTRename] Param "${param.name}" range check: line ${line} char ${character} in (${paramLoc.startLine}:${paramLoc.startColumn}-${paramLoc.endLine}:${paramLoc.endColumn})? ${inParamRange}`,
               );
 
@@ -1599,7 +1600,7 @@ export class ASTRenameHandler {
                   !targetNode.location ||
                   paramSize < currentSize
                 ) {
-                  console.log(
+                  debugLog(
                     `[ASTRename] Setting targetNode to Parameter "${param.name}"`,
                   );
                   targetNode = param;
@@ -1628,7 +1629,7 @@ export class ASTRenameHandler {
     node: AST.ASTNode,
     document: TextDocument,
   ): Range | null {
-    console.log(`[ASTRename] getNodeRange called for node kind: ${node.kind}`);
+    debugLog(`[ASTRename] getNodeRange called for node kind: ${node.kind}`);
     if (!node.location) return null;
 
     // For VariableDecl, return just the identifier range, not the whole declaration
@@ -1673,13 +1674,13 @@ export class ASTRenameHandler {
         ("isConst" in (node as any) || "isVariadic" in (node as any)));
 
     if (isParameter) {
-      console.log(`[ASTRename] Detected Parameter node`);
+      debugLog(`[ASTRename] Detected Parameter node`);
       const param = node as AST.Parameter;
-      console.log(`[ASTRename] Parameter name: "${param.name}"`);
+      debugLog(`[ASTRename] Parameter name: "${param.name}"`);
       // For parameters, the location covers "name: type", but we only want "name"
       // We need to find where the name actually starts in the text
       if (node.location) {
-        console.log(
+        debugLog(
           `[ASTRename] Parameter location: line ${node.location.startLine}, col ${node.location.startColumn} to line ${node.location.endLine}, col ${node.location.endColumn}`,
         );
         // Get the full parameter text
@@ -1693,14 +1694,14 @@ export class ASTRenameHandler {
             character: node.location.endColumn - 1,
           },
         });
-        console.log(`[ASTRename] Full parameter text: "${fullParamText}"`);
+        debugLog(`[ASTRename] Full parameter text: "${fullParamText}"`);
 
         // Find where the parameter name appears in the text
         // It could be preceded by "const", "...", or whitespace
         const nameMatch = fullParamText.match(
           new RegExp(`\\b${param.name}\\b`),
         );
-        console.log(
+        debugLog(
           `[ASTRename] Regex match result: ${nameMatch ? `found at index ${nameMatch.index}` : "not found"}`,
         );
         if (nameMatch && nameMatch.index !== undefined) {
@@ -1717,19 +1718,19 @@ export class ASTRenameHandler {
               nameStartOffset +
               param.name.length,
           };
-          console.log(
+          debugLog(
             `[ASTRename] Parameter "${param.name}" at offset ${nameStartOffset}, range: line ${start.line}, char ${start.character}-${end.character}`,
           );
-          console.log(
+          debugLog(
             `[ASTRename] Text at range: "${document.getText(Range.create(start, end))}"`,
           );
           return Range.create(start, end);
         }
-        console.log(
+        debugLog(
           `[ASTRename] WARNING: Failed to find parameter name in text, falling through to default`,
         );
       } else {
-        console.log(`[ASTRename] WARNING: Parameter has no location`);
+        debugLog(`[ASTRename] WARNING: Parameter has no location`);
       }
     }
 

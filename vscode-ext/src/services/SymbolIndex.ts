@@ -8,17 +8,7 @@ import * as fs from "fs";
 import type * as AST from "../../../compiler/common/AST";
 import { Parser } from "../../../compiler/frontend/Parser";
 import { ModuleResolver } from "./ModuleResolver";
-
-function isDebugLoggingEnabled(): boolean {
-  const value = process.env.BPL_LSP_DEBUG?.toLowerCase();
-  return value === "1" || value === "true" || value === "yes" || value === "on";
-}
-
-function debugLog(message: string): void {
-  if (isDebugLoggingEnabled()) {
-    console.log(message);
-  }
-}
+import { debugLog } from "./utils";
 
 export interface SymbolInfo {
   name: string;

@@ -3,6 +3,7 @@ import { Parser } from "../../../compiler/frontend/Parser";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import * as AST from "../../../compiler/common/AST";
 import { SymbolIndex } from "./SymbolIndex";
+import { debugLog } from "./utils";
 
 /**
  * Convert a TypeNode to a string representation
@@ -102,7 +103,7 @@ export class ASTResolver {
       // Cache it
       this.astCache.set(key, { ast, mtime: stat.mtimeMs, source });
 
-      console.log(`[ASTResolver] Parsed and cached AST for ${filePath}`);
+      debugLog(`[ASTResolver] Parsed and cached AST for ${filePath}`);
       return ast;
     } catch (error) {
       console.error(`[ASTResolver] Failed to parse ${filePath}:`, error);
@@ -123,7 +124,7 @@ export class ASTResolver {
       // Cache it (use current time as mtime since it's in-memory)
       this.astCache.set(filePath, { ast, mtime: Date.now(), source: content });
 
-      console.log(`[ASTResolver] Parsed document content for ${filePath}`);
+      debugLog(`[ASTResolver] Parsed document content for ${filePath}`);
       return ast;
     } catch (error) {
       console.error(`[ASTResolver] Failed to parse document content:`, error);
@@ -173,18 +174,18 @@ export class ASTResolver {
     const targetLine = line + 1;
     const targetCol = character + 1;
 
-    console.log(
+    debugLog(
       `[ASTResolver] Finding node at ${filePath}:${targetLine}:${targetCol}`,
     );
 
     const result = this.findNodeRecursive(ast, targetLine, targetCol);
 
     if (result) {
-      console.log(
+      debugLog(
         `[ASTResolver] Found node: kind=${result.kind}, location=${JSON.stringify(result.location)}`,
       );
     } else {
-      console.log(`[ASTResolver] No node found at position`);
+      debugLog(`[ASTResolver] No node found at position`);
     }
 
     return result;
@@ -266,7 +267,7 @@ export class ASTResolver {
    * Resolve the type of an AST node
    */
   resolveType(node: AST.ASTNode, filePath: string): string | null {
-    console.log(`[ASTResolver] Resolving type for node kind: ${node.kind}`);
+    debugLog(`[ASTResolver] Resolving type for node kind: ${node.kind}`);
 
     switch (node.kind) {
       case "Identifier":
@@ -291,7 +292,7 @@ export class ASTResolver {
       }
 
       default:
-        console.log(`[ASTResolver] Unhandled node kind: ${node.kind}`);
+        debugLog(`[ASTResolver] Unhandled node kind: ${node.kind}`);
         return null;
     }
   }
@@ -310,7 +311,7 @@ export class ASTResolver {
     if (!ast) return null;
 
     const name = node.name;
-    console.log(`[ASTResolver] Resolving identifier: ${name}`);
+    debugLog(`[ASTResolver] Resolving identifier: ${name}`);
 
     // Find the declaration of this identifier
     // 1. Look for local variables in the current function
@@ -328,7 +329,7 @@ export class ASTResolver {
     if (containingFunc) {
       const localVar = this.findLocalVariable(containingFunc, name, node);
       if (localVar) {
-        console.log(`[ASTResolver] Found local variable: ${name}`);
+        debugLog(`[ASTResolver] Found local variable: ${name}`);
 
         // First try explicit type annotation
         if (localVar.typeAnnotation) {
@@ -337,12 +338,12 @@ export class ASTResolver {
 
         // If no type annotation, try to infer from initializer
         if (localVar.initializer) {
-          console.log(
+          debugLog(
             `[ASTResolver] Inferring type from initializer for: ${name}`,
           );
           const inferredType = this.resolveType(localVar.initializer, filePath);
           if (inferredType) {
-            console.log(`[ASTResolver] Inferred type: ${inferredType}`);
+            debugLog(`[ASTResolver] Inferred type: ${inferredType}`);
             return inferredType;
           }
         }
@@ -355,7 +356,7 @@ export class ASTResolver {
     if (containingFunc && containingFunc.params) {
       const param = containingFunc.params.find((p) => p.name === name);
       if (param) {
-        console.log(`[ASTResolver] Found parameter: ${name}`);
+        debugLog(`[ASTResolver] Found parameter: ${name}`);
         return typeNodeToString(param.type);
       }
     }
@@ -365,7 +366,7 @@ export class ASTResolver {
       if (stmt.kind === "VariableDecl") {
         const varDecl = stmt as AST.VariableDecl;
         if (varDecl.name === name) {
-          console.log(`[ASTResolver] Found global variable: ${name}`);
+          debugLog(`[ASTResolver] Found global variable: ${name}`);
 
           // First try explicit type annotation
           if (varDecl.typeAnnotation) {
@@ -374,7 +375,7 @@ export class ASTResolver {
 
           // If no type annotation, try to infer from initializer
           if (varDecl.initializer) {
-            console.log(
+            debugLog(
               `[ASTResolver] Inferring type from initializer for: ${name}`,
             );
             const inferredType = this.resolveType(
@@ -382,7 +383,7 @@ export class ASTResolver {
               filePath,
             );
             if (inferredType) {
-              console.log(`[ASTResolver] Inferred type: ${inferredType}`);
+              debugLog(`[ASTResolver] Inferred type: ${inferredType}`);
               return inferredType;
             }
           }
@@ -398,13 +399,13 @@ export class ASTResolver {
       const symbol = symbols[0];
       if (!symbol) return null;
 
-      console.log(
+      debugLog(
         `[ASTResolver] Found in symbol index: ${name}, kind: ${symbol.kind}`,
       );
 
       // For functions, return the return type from signature
       if (symbol.kind === "function" && symbol.signature) {
-        console.log(
+        debugLog(
           `[ASTResolver] Function ${name} returns: ${symbol.signature.returnType}`,
         );
         return symbol.signature.returnType;
@@ -427,11 +428,11 @@ export class ASTResolver {
     // First resolve the type of the object
     const objectType = this.resolveType(node.object, filePath);
     if (!objectType) {
-      console.log(`[ASTResolver] Could not resolve object type`);
+      debugLog(`[ASTResolver] Could not resolve object type`);
       return null;
     }
 
-    console.log(`[ASTResolver] Member access: ${objectType}.${node.property}`);
+    debugLog(`[ASTResolver] Member access: ${objectType}.${node.property}`);
 
     // Extract base type without generics, pointers, arrays
     const baseType = this.extractBaseType(objectType);
@@ -443,7 +444,7 @@ export class ASTResolver {
       if (symbol.fields) {
         const field = symbol.fields.find((f) => f.name === node.property);
         if (field) {
-          console.log(`[ASTResolver] Found field: ${node.property}`);
+          debugLog(`[ASTResolver] Found field: ${node.property}`);
           return this.substituteGenerics(field.type, objectType);
         }
       }
@@ -452,7 +453,7 @@ export class ASTResolver {
       if (symbol.methods) {
         const method = symbol.methods.find((m) => m.name === node.property);
         if (method) {
-          console.log(`[ASTResolver] Found method: ${node.property}`);
+          debugLog(`[ASTResolver] Found method: ${node.property}`);
           return this.substituteGenerics(
             method.signature.returnType,
             objectType,
@@ -484,7 +485,7 @@ export class ASTResolver {
 
         // Special case: constructor methods like "new" typically return the type itself
         if (methodName === "new") {
-          console.log(
+          debugLog(
             `[ASTResolver] Constructor call, returning type: ${baseType}`,
           );
           return baseType;
@@ -496,7 +497,7 @@ export class ASTResolver {
           if (symbol.methods) {
             const method = symbol.methods.find((m) => m.name === methodName);
             if (method && method.signature) {
-              console.log(
+              debugLog(
                 `[ASTResolver] Method ${methodName} returns: ${method.signature.returnType}`,
               );
               return method.signature.returnType;
@@ -514,7 +515,7 @@ export class ASTResolver {
       const symbols = this.symbolIndex.findSymbol(funcName);
       if (symbols.length > 0 && symbols[0] && symbols[0].kind === "function") {
         const returnType = symbols[0].signature?.returnType || "void";
-        console.log(
+        debugLog(
           `[ASTResolver] Function ${funcName} returns: ${returnType}`,
         );
         return returnType;
@@ -738,10 +739,10 @@ export class ASTResolver {
   clearCache(filePath?: string): void {
     if (filePath) {
       this.astCache.delete(filePath);
-      console.log(`[ASTResolver] Cleared cache for ${filePath}`);
+      debugLog(`[ASTResolver] Cleared cache for ${filePath}`);
     } else {
       this.astCache.clear();
-      console.log(`[ASTResolver] Cleared entire AST cache`);
+      debugLog(`[ASTResolver] Cleared entire AST cache`);
     }
   }
 

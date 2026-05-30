@@ -16,6 +16,7 @@ import * as path from "path";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex, type SymbolInfo } from "./SymbolIndex";
+import { debugLog } from "./utils";
 
 export class ASTCompletionHandler {
   constructor(
@@ -35,7 +36,7 @@ export class ASTCompletionHandler {
       const line = params.position.line + 1;
       const character = params.position.character;
 
-      console.log(
+      debugLog(
         `[ASTCompletion] Completion at ${filePath}:${line}:${character + 1}`,
       );
 
@@ -71,7 +72,7 @@ export class ASTCompletionHandler {
         this.symbolIndex.getImportedSymbolsFromContent(filePath, content);
         const objectPath = memberMatch[1];
         const partialMember = memberMatch[2] || "";
-        console.log(
+        debugLog(
           `[ASTCompletion] Member access on: ${objectPath}, partial: "${partialMember}"`,
         );
         return this.handleMemberCompletion(
@@ -84,7 +85,7 @@ export class ASTCompletionHandler {
       }
 
       // Otherwise, provide general completions
-      console.log(`[ASTCompletion] General completion`);
+      debugLog(`[ASTCompletion] General completion`);
       return this.handleGeneralCompletion(filePath, line, character, document);
     } catch (error) {
       console.error(`[ASTCompletion] Error:`, error);
@@ -174,7 +175,7 @@ export class ASTCompletionHandler {
       // This is a generic type like Array<int>, not a variable
       // Return static methods/fields of the type
       const baseType = genericMatch[1];
-      console.log(`[ASTCompletion] Generic type access: ${baseType}<...>`);
+      debugLog(`[ASTCompletion] Generic type access: ${baseType}<...>`);
 
       const allCompletions = this.getCompletionsForType(objectPath);
 
@@ -183,7 +184,7 @@ export class ASTCompletionHandler {
         const filtered = allCompletions.filter((item) =>
           item.label.toLowerCase().startsWith(partialText.toLowerCase()),
         );
-        console.log(
+        debugLog(
           `[ASTCompletion] Filtered ${filtered.length}/${allCompletions.length} completions for "${partialText}"`,
         );
         return filtered;
@@ -270,7 +271,7 @@ export class ASTCompletionHandler {
     if (!syntheticNode) return [];
 
     const type = this.astResolver.resolveType(syntheticNode, filePath);
-    console.log(`[ASTCompletion] Resolved type: ${type}`);
+    debugLog(`[ASTCompletion] Resolved type: ${type}`);
 
     if (!type) return [];
 
@@ -281,7 +282,7 @@ export class ASTCompletionHandler {
       const filtered = allCompletions.filter((item) =>
         item.label.toLowerCase().startsWith(partialText.toLowerCase()),
       );
-      console.log(
+      debugLog(
         `[ASTCompletion] Filtered ${filtered.length}/${allCompletions.length} completions for "${partialText}"`,
       );
       return filtered;
@@ -350,7 +351,7 @@ export class ASTCompletionHandler {
       }
     }
 
-    console.log(`[ASTCompletion] Returning ${items.length} member completions`);
+    debugLog(`[ASTCompletion] Returning ${items.length} member completions`);
     return items;
   }
 
@@ -368,7 +369,7 @@ export class ASTCompletionHandler {
 
     // Add symbols from current file
     const fileSymbols = this.symbolIndex.getFileSymbols(filePath);
-    console.log(`[ASTCompletion] Found ${fileSymbols.length} file symbols`);
+    debugLog(`[ASTCompletion] Found ${fileSymbols.length} file symbols`);
     for (const symbol of fileSymbols) {
       const key = `${symbol.kind}:${symbol.name}`;
       if (!seen.has(key)) {
@@ -383,7 +384,7 @@ export class ASTCompletionHandler {
       filePath,
       content,
     );
-    console.log(
+    debugLog(
       `[ASTCompletion] Found ${importedSymbols.length} imported symbols`,
     );
     for (const symbol of importedSymbols) {
@@ -421,7 +422,7 @@ export class ASTCompletionHandler {
     // Sort alphabetically
     items.sort((a, b) => a.label.localeCompare(b.label));
 
-    console.log(
+    debugLog(
       `[ASTCompletion] Returning ${items.length} unique general completions`,
     );
     return items;

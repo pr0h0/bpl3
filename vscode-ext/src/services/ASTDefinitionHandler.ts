@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import { debugLog } from "./utils";
 
 export class ASTDefinitionHandler {
   constructor(
@@ -29,7 +30,7 @@ export class ASTDefinitionHandler {
   ): Location | null {
     try {
       const filePath = fileURLToPath(params.textDocument.uri);
-      console.log(
+      debugLog(
         `[ASTDefinition] Definition at ${filePath}:${params.position.line + 1}:${params.position.character + 1}`,
       );
 
@@ -43,11 +44,11 @@ export class ASTDefinitionHandler {
       );
 
       if (!node) {
-        console.log(`[ASTDefinition] No AST node found at position`);
+        debugLog(`[ASTDefinition] No AST node found at position`);
         return null;
       }
 
-      console.log(`[ASTDefinition] Found node kind: ${node.kind}`);
+      debugLog(`[ASTDefinition] Found node kind: ${node.kind}`);
 
       // Handle different node types
       switch (node.kind) {
@@ -104,7 +105,7 @@ export class ASTDefinitionHandler {
           );
 
         default:
-          console.log(`[ASTDefinition] Unhandled node kind: ${node.kind}`);
+          debugLog(`[ASTDefinition] Unhandled node kind: ${node.kind}`);
           return null;
       }
     } catch (error) {
@@ -121,12 +122,12 @@ export class ASTDefinitionHandler {
     filePath: string,
   ): Location | null {
     const name = node.name;
-    console.log(`[ASTDefinition] Identifier: ${name}`);
+    debugLog(`[ASTDefinition] Identifier: ${name}`);
 
     // Check if there's a resolved declaration
     if (node.resolvedDeclaration && node.resolvedDeclaration.location) {
       const decl = node.resolvedDeclaration;
-      console.log(`[ASTDefinition] Found via resolvedDeclaration`);
+      debugLog(`[ASTDefinition] Found via resolvedDeclaration`);
       return Location.create(
         pathToFileURL(filePath).toString(),
         Range.create(
@@ -145,10 +146,10 @@ export class ASTDefinitionHandler {
     // Try to find local variable declaration in the same file
     const ast = this.astResolver.getAST(filePath);
     if (ast) {
-      console.log(`[ASTDefinition] Searching AST for local variable: ${name}`);
+      debugLog(`[ASTDefinition] Searching AST for local variable: ${name}`);
       const varDecl = this.findVariableDeclaration(ast, name, node);
       if (varDecl && varDecl.location) {
-        console.log(`[ASTDefinition] Found local variable declaration`);
+        debugLog(`[ASTDefinition] Found local variable declaration`);
         return Location.create(
           pathToFileURL(filePath).toString(),
           Range.create(
@@ -165,12 +166,12 @@ export class ASTDefinitionHandler {
       }
 
       // Try to find pattern variable
-      console.log(
+      debugLog(
         `[ASTDefinition] Searching AST for pattern variable: ${name}`,
       );
       const patternVar = this.findPatternVariable(ast, name, node);
       if (patternVar && patternVar.location) {
-        console.log(`[ASTDefinition] Found pattern variable declaration`);
+        debugLog(`[ASTDefinition] Found pattern variable declaration`);
         return Location.create(
           pathToFileURL(filePath).toString(),
           Range.create(
@@ -193,7 +194,7 @@ export class ASTDefinitionHandler {
       const symbol = symbols[0];
       if (!symbol) return null;
 
-      console.log(`[ASTDefinition] Found in symbol index: ${name}`);
+      debugLog(`[ASTDefinition] Found in symbol index: ${name}`);
       return Location.create(
         pathToFileURL(symbol.filePath).toString(),
         Range.create(
@@ -220,16 +221,16 @@ export class ASTDefinitionHandler {
     filePath: string,
   ): Location | null {
     const memberName = node.property;
-    console.log(`[ASTDefinition] Member: ${memberName}`);
+    debugLog(`[ASTDefinition] Member: ${memberName}`);
 
     // Resolve the type of the object
     const objectType = this.astResolver.resolveType(node.object, filePath);
     if (!objectType) {
-      console.log(`[ASTDefinition] Could not resolve object type`);
+      debugLog(`[ASTDefinition] Could not resolve object type`);
       return null;
     }
 
-    console.log(`[ASTDefinition] Object type: ${objectType}`);
+    debugLog(`[ASTDefinition] Object type: ${objectType}`);
 
     // Extract base type
     const baseType = objectType
@@ -240,7 +241,7 @@ export class ASTDefinitionHandler {
     // Look up the type in symbol index
     const symbols = this.symbolIndex.findSymbol(baseType);
     if (symbols.length === 0) {
-      console.log(`[ASTDefinition] Type not found: ${baseType}`);
+      debugLog(`[ASTDefinition] Type not found: ${baseType}`);
       return null;
     }
 
@@ -249,7 +250,7 @@ export class ASTDefinitionHandler {
       if (symbol.methods) {
         const method = symbol.methods.find((m) => m.name === memberName);
         if (method) {
-          console.log(`[ASTDefinition] Found method: ${memberName}`);
+          debugLog(`[ASTDefinition] Found method: ${memberName}`);
           return Location.create(
             pathToFileURL(symbol.filePath).toString(),
             Range.create(
@@ -270,7 +271,7 @@ export class ASTDefinitionHandler {
       if (symbol.fields) {
         const field = symbol.fields.find((f) => f.name === memberName);
         if (field) {
-          console.log(`[ASTDefinition] Found field: ${memberName}`);
+          debugLog(`[ASTDefinition] Found field: ${memberName}`);
           // Fields don't have location, so go to struct
           return Location.create(
             pathToFileURL(symbol.filePath).toString(),
@@ -292,7 +293,7 @@ export class ASTDefinitionHandler {
       if (symbol.variants) {
         const variant = symbol.variants.find((v) => v.name === memberName);
         if (variant) {
-          console.log(`[ASTDefinition] Found enum variant: ${memberName}`);
+          debugLog(`[ASTDefinition] Found enum variant: ${memberName}`);
           // Variants don't have location, go to enum
           return Location.create(
             pathToFileURL(symbol.filePath).toString(),
@@ -321,7 +322,7 @@ export class ASTDefinitionHandler {
     node: AST.CallExpr,
     filePath: string,
   ): Location | null {
-    console.log(`[ASTDefinition] Call expression`);
+    debugLog(`[ASTDefinition] Call expression`);
 
     // If it's a member call, handle as member
     if (node.callee.kind === "Member") {
@@ -344,7 +345,7 @@ export class ASTDefinitionHandler {
     filePath: string,
   ): Location | null {
     const typeName = node.name;
-    console.log(`[ASTDefinition] BasicType: ${typeName}`);
+    debugLog(`[ASTDefinition] BasicType: ${typeName}`);
 
     // Check if there's a resolved declaration
     if (node.resolvedDeclaration && node.resolvedDeclaration.location) {
@@ -370,7 +371,7 @@ export class ASTDefinitionHandler {
       const symbol = symbols[0];
       if (!symbol) return null;
 
-      console.log(`[ASTDefinition] Found type in symbol index: ${typeName}`);
+      debugLog(`[ASTDefinition] Found type in symbol index: ${typeName}`);
 
       return Location.create(
         pathToFileURL(symbol.filePath).toString(),
@@ -387,7 +388,7 @@ export class ASTDefinitionHandler {
       );
     }
 
-    console.log(`[ASTDefinition] Type not found: ${typeName}`);
+    debugLog(`[ASTDefinition] Type not found: ${typeName}`);
     return null;
   }
 

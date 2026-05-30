@@ -31,7 +31,7 @@ import { Parser } from "../../compiler/frontend/Parser";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
 // Symbol index and module resolution services
-import { SymbolIndex, InlayHintProvider } from "./services";
+import { SymbolIndex, InlayHintProvider, debugLog } from "./services";
 import { ASTResolver } from "./services/ASTResolver";
 import { ASTHoverHandler } from "./services/ASTHoverHandler";
 import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
@@ -128,26 +128,26 @@ const documentLinkProvider = new DocumentLinkProvider(
   symbolIndex.getResolver(),
 );
 
-console.log("[Server] BPL Language Server initializing...");
-console.log("[Server] AST-based handlers initialized:");
-console.log("[Server]   - ASTResolver");
-console.log("[Server]   - ASTHoverHandler");
-console.log("[Server]   - ASTDefinitionHandler");
-console.log("[Server]   - ASTCompletionHandler");
-console.log("[Server]   - ASTRenameHandler");
-console.log("[Server]   - SelectionRangeProvider");
-console.log("[Server]   - DocumentHighlightProvider");
-console.log("[Server]   - FoldingRangeProvider");
-console.log("[Server]   - SignatureHelpProvider");
-console.log("[Server]   - InlayHintProvider");
-console.log("[Server]   - SignatureHelpProvider");
-console.log("[Server]   - DocumentSymbolProvider");
-console.log("[Server]   - SemanticTokenProvider");
-console.log("[Server]   - CallHierarchyProvider");
-console.log("[Server]   - TypeHierarchyProvider");
-console.log("[Server]   - WorkspaceSymbolProvider");
-console.log("[Server]   - CodeLensProvider");
-console.log("[Server]   - DocumentLinkProvider");
+debugLog("[Server] BPL Language Server initializing...");
+debugLog("[Server] AST-based handlers initialized:");
+debugLog("[Server]   - ASTResolver");
+debugLog("[Server]   - ASTHoverHandler");
+debugLog("[Server]   - ASTDefinitionHandler");
+debugLog("[Server]   - ASTCompletionHandler");
+debugLog("[Server]   - ASTRenameHandler");
+debugLog("[Server]   - SelectionRangeProvider");
+debugLog("[Server]   - DocumentHighlightProvider");
+debugLog("[Server]   - FoldingRangeProvider");
+debugLog("[Server]   - SignatureHelpProvider");
+debugLog("[Server]   - InlayHintProvider");
+debugLog("[Server]   - SignatureHelpProvider");
+debugLog("[Server]   - DocumentSymbolProvider");
+debugLog("[Server]   - SemanticTokenProvider");
+debugLog("[Server]   - CallHierarchyProvider");
+debugLog("[Server]   - TypeHierarchyProvider");
+debugLog("[Server]   - WorkspaceSymbolProvider");
+debugLog("[Server]   - CodeLensProvider");
+debugLog("[Server]   - DocumentLinkProvider");
 
 interface AnalysisResult {
   program: AST.Program;
@@ -188,7 +188,7 @@ let hasWorkspaceFolderCapability = false;
 let _hasDiagnosticRelatedInformationCapability = false; // reserved for future use
 
 connection.onInitialize((params: InitializeParams) => {
-  console.log("[Server] onInitialize called");
+  debugLog("[Server] onInitialize called");
   const capabilities = params.capabilities;
 
   // Does the client support the `workspace/configuration` request?
@@ -253,7 +253,7 @@ connection.onInitialize((params: InitializeParams) => {
       },
     };
   }
-  console.log(
+  debugLog(
     "[Server] Server capabilities initialized:",
     JSON.stringify(result.capabilities, null, 2),
   );
@@ -270,7 +270,7 @@ connection.onInitialized(() => {
   }
   if (hasWorkspaceFolderCapability) {
     connection.workspace.onDidChangeWorkspaceFolders((_event) => {
-      connection.console.log("Workspace folder change event received.");
+      debugLog("Workspace folder change event received.");
     });
   }
 });
@@ -660,7 +660,7 @@ connection.onDocumentFormatting(async (params) => {
 
 connection.onDidChangeWatchedFiles((_change) => {
   // Monitored files have change in VSCode
-  connection.console.log("We received an file change event");
+  debugLog("We received an file change event");
 });
 
 // This handler provides the initial list of the completion items.
@@ -669,7 +669,7 @@ connection.onCompletion(
     const document = documents.get(textDocumentPosition.textDocument.uri);
     if (!document) return [];
 
-    console.log("[Server] Completion request - delegating to AST handler");
+    debugLog("[Server] Completion request - delegating to AST handler");
     return astCompletionHandler.handle(textDocumentPosition, document);
   },
 );
@@ -703,7 +703,7 @@ connection.onDefinition(
 // Semantic tokens provider for dynamic syntax highlighting
 connection.languages.semanticTokens.on((params) => {
   const filePath = fileURLToPath(params.textDocument.uri);
-  console.log(`[SemanticTokens] Full tokens requested for ${filePath}`);
+  debugLog(`[SemanticTokens] Full tokens requested for ${filePath}`);
 
   const result = semanticTokenProvider.provideSemanticTokens(filePath);
   return result || { data: [] };
@@ -716,7 +716,7 @@ connection.languages.inlayHint.on((params) => {
     return [];
   }
 
-  console.log(`[InlayHint] Hints requested for ${document.uri}`);
+  debugLog(`[InlayHint] Hints requested for ${document.uri}`);
   return inlayHintProvider.handle(params, document);
 });
 
@@ -726,17 +726,17 @@ connection.languages.callHierarchy.onPrepare((params) => {
   if (!document) {
     return null;
   }
-  console.log(`[CallHierarchy] Prepare requested for ${document.uri}`);
+  debugLog(`[CallHierarchy] Prepare requested for ${document.uri}`);
   return callHierarchyProvider.prepare(params, document);
 });
 
 connection.languages.callHierarchy.onIncomingCalls((params) => {
-  console.log(`[CallHierarchy] Incoming calls requested`);
+  debugLog(`[CallHierarchy] Incoming calls requested`);
   return callHierarchyProvider.getIncomingCalls(params.item);
 });
 
 connection.languages.callHierarchy.onOutgoingCalls((params) => {
-  console.log(`[CallHierarchy] Outgoing calls requested`);
+  debugLog(`[CallHierarchy] Outgoing calls requested`);
   return callHierarchyProvider.getOutgoingCalls(params.item);
 });
 
@@ -746,23 +746,23 @@ connection.languages.typeHierarchy.onPrepare((params) => {
   if (!document) {
     return null;
   }
-  console.log(`[TypeHierarchy] Prepare requested for ${document.uri}`);
+  debugLog(`[TypeHierarchy] Prepare requested for ${document.uri}`);
   return typeHierarchyProvider.prepare(params, document);
 });
 
 connection.languages.typeHierarchy.onSupertypes((params) => {
-  console.log(`[TypeHierarchy] Supertypes requested`);
+  debugLog(`[TypeHierarchy] Supertypes requested`);
   return typeHierarchyProvider.getSupertypes(params.item);
 });
 
 connection.languages.typeHierarchy.onSubtypes((params) => {
-  console.log(`[TypeHierarchy] Subtypes requested`);
+  debugLog(`[TypeHierarchy] Subtypes requested`);
   return typeHierarchyProvider.getSubtypes(params.item);
 });
 
 // Workspace symbol handler for workspace-wide search
 connection.onWorkspaceSymbol((params) => {
-  console.log(`[WorkspaceSymbol] Search requested: "${params.query}"`);
+  debugLog(`[WorkspaceSymbol] Search requested: "${params.query}"`);
   return workspaceSymbolProvider.search(params);
 });
 
@@ -772,7 +772,7 @@ connection.onCodeLens((params) => {
   if (!document) {
     return [];
   }
-  console.log(`[CodeLens] Lenses requested for ${document.uri}`);
+  debugLog(`[CodeLens] Lenses requested for ${document.uri}`);
   return codeLensProvider.provide(params, document);
 });
 
@@ -782,7 +782,7 @@ connection.onDocumentLinks((params) => {
   if (!document) {
     return [];
   }
-  console.log(`[DocumentLink] Links requested for ${document.uri}`);
+  debugLog(`[DocumentLink] Links requested for ${document.uri}`);
   return documentLinkProvider.provide(params, document);
 });
 
@@ -883,10 +883,10 @@ function _findAllReferences(
 }
 
 connection.onPrepareRename((params) => {
-  console.log("[Rename] Prepare rename request");
+  debugLog("[Rename] Prepare rename request");
   const document = documents.get(params.textDocument.uri);
   if (!document) {
-    console.log("[Rename] Document not found");
+    debugLog("[Rename] Document not found");
     return null;
   }
 
@@ -899,12 +899,12 @@ connection.onPrepareRename((params) => {
 });
 
 connection.onRenameRequest((params) => {
-  console.log(
+  debugLog(
     `[Rename] Rename request at ${params.textDocument.uri} line ${params.position.line} to "${params.newName}"`,
   );
   const document = documents.get(params.textDocument.uri);
   if (!document) {
-    console.log("[Rename] Document not found");
+    debugLog("[Rename] Document not found");
     return null;
   }
 
@@ -917,10 +917,10 @@ connection.onRenameRequest((params) => {
 });
 
 connection.onReferences((params) => {
-  console.log("[References] Find all references request");
+  debugLog("[References] Find all references request");
   const document = documents.get(params.textDocument.uri);
   if (!document) {
-    console.log("[References] Document not found");
+    debugLog("[References] Document not found");
     return null;
   }
 
