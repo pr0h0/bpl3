@@ -794,7 +794,8 @@ export class PackageManager {
         );
       }
 
-      // Validate scripts and bin
+      // Validate dependencies, scripts, and bin
+      this.validateManifestDependencyEntries(manifest, location);
       if (
         manifest.scripts &&
         (typeof manifest.scripts !== "object" ||
@@ -827,6 +828,42 @@ export class PackageManager {
         "Check that bpl.json is valid JSON.",
         location,
       );
+    }
+  }
+
+  private validateManifestDependencyEntries(
+    manifest: PackageManifest,
+    location: SourceLocation,
+  ): void {
+    for (const field of ["dependencies", "devDependencies"] as const) {
+      const dependencies = manifest[field];
+      if (!dependencies) continue;
+
+      if (typeof dependencies !== "object" || Array.isArray(dependencies)) {
+        throw new CompilerError(
+          `Invalid '${field}' field`,
+          `'${field}' must be an object mapping package names to version or source strings.`,
+          location,
+        );
+      }
+
+      for (const [packageName, source] of Object.entries(dependencies)) {
+        if (!/^[a-z0-9-]+$/.test(packageName)) {
+          throw new CompilerError(
+            `Invalid '${field}' package name: ${packageName}`,
+            "Use lowercase package names with digits and hyphens only.",
+            location,
+          );
+        }
+
+        if (typeof source !== "string" || source.length === 0) {
+          throw new CompilerError(
+            `Invalid '${field}' source for ${packageName}`,
+            "Use a non-empty version, range, package name, or file source string.",
+            location,
+          );
+        }
+      }
     }
   }
 

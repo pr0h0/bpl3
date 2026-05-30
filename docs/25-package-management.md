@@ -109,6 +109,11 @@ Supported dependency sources are:
   selector and records that exact archive in `bpl.lock`.
 - `package-name` for the newest matching cached archive.
 
+`dependencies` and `devDependencies` must be JSON objects whose keys are
+lowercase package names and whose values are non-empty strings. Invalid
+dependency maps fail while loading `bpl.json`, before install or lockfile
+commands mutate the project.
+
 ```json
 {
   "lockfileVersion": 1,

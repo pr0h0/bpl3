@@ -1897,6 +1897,38 @@ describe("PackageManager", () => {
         /Invalid 'scripts' field/,
       );
     });
+
+    test("should reject malformed dependency maps", () => {
+      const manifests = [
+        {
+          name: "dependency-validation",
+          version: "1.0.0",
+          dependencies: ["math-core"],
+        },
+        {
+          name: "dependency-validation",
+          version: "1.0.0",
+          dependencies: {
+            "Bad_Name": "1.0.0",
+          },
+        },
+        {
+          name: "dependency-validation",
+          version: "1.0.0",
+          devDependencies: {
+            "test-tools": ["file:../test-tools.tgz"],
+          },
+        },
+      ];
+
+      for (const manifest of manifests) {
+        fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+
+        expect(() => packageManager.loadManifest(tempDir)).toThrow(
+          /Invalid '(dependencies|devDependencies)'/,
+        );
+      }
+    });
   });
 
   describe("Package Hash Calculation", () => {
