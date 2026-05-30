@@ -398,8 +398,9 @@ Compile for different target platforms:
 Native binary builds, object-file linking, and cached module compilation use
 `BPL_CC`, then `CC`, then `clang` to select the C/LLVM driver. WebAssembly
 builds use `BPL_WASM_CC`, then `WASM_CC`, then `clang`. Cached object keys
-include the selected driver, target, sysroot, optimization level, and forwarded
-compiler flags so incompatible toolchain invocations do not reuse stale objects.
+include the selected driver, target, sysroot, optimization level, target
+CPU/architecture flags, and forwarded compiler flags so incompatible toolchain
+invocations do not reuse stale objects.
 When inspecting precompiled object-file symbols, BPL uses `BPL_NM`, then `NM`,
 then `nm`.
 LLVM IR verification uses `BPL_OPT`/`OPT`, `BPL_LLVM_AS`/`LLVM_AS`,
