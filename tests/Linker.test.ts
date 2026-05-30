@@ -121,6 +121,8 @@ describe("Linker", () => {
       expect(result.success).toBe(false);
       expect(result.errors?.[0]?.message).toBe("Linking failed");
       expect(errors.join("\n")).toContain(missingCompiler);
+      expect(errors.join("\n")).toContain("command not found");
+      expect(errors.join("\n")).not.toContain("ENOENT");
       expect(existsSync(outputPath)).toBe(false);
     } finally {
       if (previousBplCc === undefined) {

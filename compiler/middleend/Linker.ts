@@ -144,6 +144,38 @@ export class Linker {
     }
   }
 
+  private formatCompilerDriverFailure(
+    command: string,
+    stderr: string | undefined,
+    error: Error | undefined,
+    fallback: string,
+  ): string {
+    const spawnFailure = this.formatSpawnFailure(error);
+    return stderr || (spawnFailure ? `${command}: ${spawnFailure}` : fallback);
+  }
+
+  private formatSpawnFailure(error: Error | undefined): string | undefined {
+    if (!error) {
+      return undefined;
+    }
+
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : undefined;
+    if (code === "ENOENT") {
+      return "command not found";
+    }
+    if (code === "EACCES") {
+      return "permission denied";
+    }
+    if (code === "ENOEXEC") {
+      return "not executable";
+    }
+
+    return error.message;
+  }
+
   private validateReadableDirectoryInput(
     directoryPath: string,
     label: string,
@@ -507,10 +539,12 @@ export class Linker {
       });
 
       if (result.status !== 0) {
-        const detail =
-          result.stderr?.toString() ||
-          result.error?.message ||
-          "Unknown compiler driver error";
+        const detail = this.formatCompilerDriverFailure(
+          compilerCommand,
+          result.stderr?.toString(),
+          result.error,
+          "Unknown compiler driver error",
+        );
         if (!options.verbose) {
           compilerLog.error(detail);
         }
