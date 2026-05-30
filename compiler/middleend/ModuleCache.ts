@@ -255,7 +255,11 @@ export class ModuleCache {
     hash: string,
   ): string | undefined {
     const cached = this.manifest.modules.get(modulePath);
-    if (cached && cached.hash === hash && fs.existsSync(cached.objectFile)) {
+    if (
+      cached &&
+      cached.hash === hash &&
+      this.isUsableCacheFile(cached.objectFile)
+    ) {
       return cached.objectFile;
     }
     return undefined;
@@ -289,7 +293,7 @@ export class ModuleCache {
     }
 
     // Check if object file exists
-    if (!fs.existsSync(cached.objectFile)) {
+    if (!this.isUsableCacheFile(cached.objectFile)) {
       return false;
     }
 
@@ -301,7 +305,7 @@ export class ModuleCache {
    */
   getCachedObjectFile(modulePath: string): string | null {
     const cached = this.manifest.modules.get(modulePath);
-    if (cached && fs.existsSync(cached.objectFile)) {
+    if (cached && this.isUsableCacheFile(cached.objectFile)) {
       return cached.objectFile;
     }
     return null;
@@ -330,6 +334,11 @@ export class ModuleCache {
       this.cacheDir,
       `${hash}.${tempSuffix}.o`,
     );
+    this.assertWritableCacheFilePath(
+      objectFilePath,
+      modulePath,
+      "Module cache object path",
+    );
 
     // Check if already cached
     // We use the modified hash, so isCached needs to know about it or we check manually
@@ -354,6 +363,11 @@ export class ModuleCache {
 
     // Write LLVM IR to temporary file
     const llFilePath = path.join(this.cacheDir, `${hash}.ll`);
+    this.assertWritableCacheFilePath(
+      llFilePath,
+      modulePath,
+      "Module cache IR path",
+    );
     fs.writeFileSync(llFilePath, llvmIR);
 
     // Compile to object file using the selected LLVM-capable compiler driver.
@@ -468,6 +482,11 @@ export class ModuleCache {
       this.cacheDir,
       `${hash}.${tempSuffix}.o`,
     );
+    this.assertWritableCacheFilePath(
+      objectFilePath,
+      input.modulePath,
+      "Module cache object path",
+    );
     const cachedObjectFile = this.getCachedModuleObject(input.modulePath, hash);
 
     if (cachedObjectFile) {
@@ -487,6 +506,11 @@ export class ModuleCache {
     }
 
     const llFilePath = path.join(this.cacheDir, `${hash}.${tempSuffix}.ll`);
+    this.assertWritableCacheFilePath(
+      llFilePath,
+      input.modulePath,
+      "Module cache IR path",
+    );
     fs.writeFileSync(llFilePath, input.llvmIR);
 
     const clangArgs = ["-c", "-Wno-override-module"];
@@ -536,6 +560,66 @@ export class ModuleCache {
       fs.rmSync(filePath, { force: true });
     } catch {
       // Best-effort cleanup only.
+    }
+  }
+
+  private isUsableCacheFile(filePath: string): boolean {
+    try {
+      return fs.lstatSync(filePath).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  private assertWritableCacheFilePath(
+    filePath: string,
+    modulePath: string,
+    label: string,
+  ): void {
+    const existing = this.tryLstat(filePath);
+    if (existing && !existing.isFile()) {
+      throw new CompilerError(
+        `${label} is not a file: ${filePath}`,
+        "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
+    const outputDir = path.dirname(path.resolve(filePath));
+    if (!fs.existsSync(outputDir) || !fs.statSync(outputDir).isDirectory()) {
+      throw new CompilerError(
+        `Module cache directory is not writable: ${outputDir}`,
+        "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+  }
+
+  private tryLstat(filePath: string): fs.Stats | undefined {
+    try {
+      return fs.lstatSync(filePath);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        return undefined;
+      }
+      throw error;
     }
   }
 
@@ -710,7 +794,7 @@ export class ModuleCache {
   getStats(): ModuleCacheStats {
     let totalSize = 0;
     for (const cached of this.manifest.modules.values()) {
-      if (fs.existsSync(cached.objectFile)) {
+      if (this.isUsableCacheFile(cached.objectFile)) {
         const stats = fs.statSync(cached.objectFile);
         totalSize += stats.size;
       }

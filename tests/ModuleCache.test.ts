@@ -1,8 +1,17 @@
+import { createHash } from "crypto";
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
+import { getCompilerDriver } from "../compiler/common/CompilerDriver";
 import { ModuleCache } from "../compiler/middleend/ModuleCache";
 
 const EMPTY_MAIN_IR = `
@@ -198,4 +207,85 @@ describe("ModuleCache", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("rejects malformed object cache paths before invoking the compiler", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-object-dir-"));
+
+    try {
+      const modulePath = join(dir, "main.bpl");
+      const content = "frame main() ret int { return 0; }";
+      const cache = new ModuleCache(dir);
+      const hash = getModuleHashForTest(content, undefined, 0);
+      mkdirSync(join(dir, ".bpl-cache", `${hash}.o`));
+
+      expect(() =>
+        cache.compileModule(
+          modulePath,
+          content,
+          "; intentionally not compiled\n",
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(/Module cache object path is not a file/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores non-file cached object paths in lookups and stats", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-stats-dir-"));
+
+    try {
+      const cacheDir = join(dir, ".bpl-cache");
+      const objectPath = join(cacheDir, "cached-object.o");
+      const modulePath = join(dir, "main.bpl");
+      mkdirSync(objectPath, { recursive: true });
+      writeFileSync(
+        join(cacheDir, "manifest.json"),
+        JSON.stringify(
+          {
+            version: "1.0.0",
+            modules: {
+              [modulePath]: {
+                path: modulePath,
+                hash: "hash",
+                objectFile: objectPath,
+                timestamp: 1,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const cache = new ModuleCache(dir);
+
+      expect(cache.getCachedObjectFile(modulePath)).toBeNull();
+      expect(cache.getStats().cacheSize).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
+
+function getModuleHashForTest(
+  content: string,
+  target?: string,
+  optimizationLevel?: number,
+  options: { sysroot?: string; clangFlags?: string[] } = {},
+): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        content,
+        target: target ?? "",
+        optimizationLevel: optimizationLevel ?? 0,
+        compilerDriver: getCompilerDriver(target),
+        sysroot: options.sysroot ?? "",
+        clangFlags: options.clangFlags ?? [],
+      }),
+    )
+    .digest("hex");
+}
