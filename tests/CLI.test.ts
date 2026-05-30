@@ -98,6 +98,7 @@ describe("CLI Tests", () => {
     fs.mkdirSync(buildDir);
     fs.writeFileSync(path.join(tempDir, "main.ll"), "; test ir");
     fs.writeFileSync(path.join(buildDir, "keep.txt"), "artifact");
+    fs.writeFileSync(path.join(buildDir, "generated.o"), "object");
     fs.writeFileSync(path.join(tempDir, "main.bpl"), "frame main() {}");
 
     try {

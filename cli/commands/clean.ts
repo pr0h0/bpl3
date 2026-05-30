@@ -49,6 +49,14 @@ export function registerCleanCommand(program: Command): void {
           const globalOpts = command.parent?.opts() || {};
           const outputJson = options.json || globalOpts.json;
           const entriesToDelete: CleanEntry[] = [];
+          const cacheDirs = [
+            path.join(cwd, ".bpl-cache"),
+            path.join(cwd, "build"),
+            path.join(cwd, "dist"),
+          ];
+          const topLevelCacheDirs = new Set(
+            cacheDirs.map((dir) => path.resolve(dir)),
+          );
 
           // Find all matching files recursively
           function findFiles(dir: string, depth = 0): void {
@@ -66,7 +74,8 @@ export function registerCleanCommand(program: Command): void {
                   entry.name === "node_modules" ||
                   entry.name === ".git" ||
                   entry.name === "bpl_modules" ||
-                  entry.name.startsWith(".")
+                  entry.name.startsWith(".") ||
+                  topLevelCacheDirs.has(path.resolve(fullPath))
                 ) {
                   continue;
                 }
@@ -109,13 +118,6 @@ export function registerCleanCommand(program: Command): void {
 
           // Start searching from current directory
           findFiles(cwd);
-
-          // Also check for cache directories
-          const cacheDirs = [
-            path.join(cwd, ".bpl-cache"),
-            path.join(cwd, "build"),
-            path.join(cwd, "dist"),
-          ];
 
           for (const dir of cacheDirs) {
             if (fs.existsSync(dir)) {
