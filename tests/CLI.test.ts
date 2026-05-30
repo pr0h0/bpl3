@@ -639,6 +639,48 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject invalid run-script manifests", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+
+    try {
+      fs.mkdirSync(path.join(tempDir, "bpl.json"));
+      const directoryManifest = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "--list"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(directoryManifest.status).toBe(1);
+      expect(directoryManifest.stderr).toContain("bpl.json is not a file");
+
+      fs.rmSync(path.join(tempDir, "bpl.json"), {
+        recursive: true,
+        force: true,
+      });
+      fs.writeFileSync(path.join(tempDir, "bpl.json"), "[]");
+      const nonObjectManifest = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "--list"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(nonObjectManifest.status).toBe(1);
+      expect(nonObjectManifest.stderr).toContain(
+        "bpl.json must contain a JSON object",
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should report lint diagnostics as JSON", () => {
     const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
     const result = runCLI(["lint", "--json", lintFile]);

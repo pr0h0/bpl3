@@ -54,12 +54,24 @@ export function registerRunScriptCommand(program: Command): void {
           log.error("No bpl.json found in current directory.");
           process.exit(1);
         }
+        if (!fs.statSync(manifestPath).isFile()) {
+          log.error("bpl.json is not a file.");
+          process.exit(1);
+        }
 
         let manifest: any;
         try {
           manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
         } catch (_e) {
           log.error("Failed to parse bpl.json");
+          process.exit(1);
+        }
+        if (
+          !manifest ||
+          typeof manifest !== "object" ||
+          Array.isArray(manifest)
+        ) {
+          log.error("bpl.json must contain a JSON object.");
           process.exit(1);
         }
 
