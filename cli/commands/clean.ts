@@ -97,7 +97,7 @@ export function registerCleanCommand(program: Command): void {
 
                 if (entry.isDirectory()) {
                   findFiles(fullPath, depth + 1);
-                } else if (entry.isFile()) {
+                } else if (entry.isFile() || entry.isSymbolicLink()) {
                   // Check if file matches any pattern
                   const ext = path.extname(entry.name);
                   const base = path.basename(entry.name, ext);
@@ -106,7 +106,13 @@ export function registerCleanCommand(program: Command): void {
                     isBuildArtifact(base, ext) &&
                     !trackedPathSet.has(gitRelativePath)
                   ) {
-                    entriesToDelete.push({ path: relativePath, type: "file" });
+                    const entryType = entry.isSymbolicLink()
+                      ? "symlink"
+                      : "file";
+                    entriesToDelete.push({
+                      path: relativePath,
+                      type: entryType,
+                    });
 
                     if (!outputJson && (options.verbose || options.dryRun)) {
                       log.info(
@@ -117,7 +123,7 @@ export function registerCleanCommand(program: Command): void {
                     }
 
                     if (!options.dryRun) {
-                      fs.unlinkSync(fullPath);
+                      fs.rmSync(fullPath, { force: true });
                     }
                   }
                 }

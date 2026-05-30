@@ -997,6 +997,43 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should remove artifact symlinks without touching their targets", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-clean-link-"));
+    const outsideTarget = path.join(tempDir, "outside-target.txt");
+    const artifactLink = path.join(tempDir, "main.ll");
+    fs.writeFileSync(outsideTarget, "; keep target");
+    fs.symlinkSync(outsideTarget, artifactLink, "file");
+
+    try {
+      const dryRun = spawnSync(
+        "bun",
+        [BPL_CLI, "clean", "--dry-run", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(dryRun.status).toBe(0);
+      expect(JSON.parse(dryRun.stdout).entries).toContainEqual({
+        path: "main.ll",
+        type: "symlink",
+      });
+      expect(fs.lstatSync(artifactLink).isSymbolicLink()).toBe(true);
+
+      const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      expect(clean.status).toBe(0);
+      expect(() => fs.lstatSync(artifactLink)).toThrow();
+      expect(fs.readFileSync(outsideTarget, "utf-8")).toBe("; keep target");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should not remove git-tracked files during clean", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-clean-tracked-"),
