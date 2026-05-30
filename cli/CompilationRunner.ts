@@ -167,12 +167,18 @@ function handleCompilationError(e: unknown, options: CompileOptions): never {
 }
 
 function readInputSourceFile(filePath: string): string {
-  if (!fs.existsSync(filePath)) {
+  const inputStats = tryLstat(filePath);
+  if (!inputStats) {
     log.error(`File not found: ${filePath}`);
     process.exit(1);
   }
 
-  if (!fs.statSync(filePath).isFile()) {
+  if (inputStats.isSymbolicLink()) {
+    log.error(`Input path is a symbolic link: ${filePath}`);
+    process.exit(1);
+  }
+
+  if (!inputStats.isFile()) {
     log.error(`Input path is not a file: ${filePath}`);
     process.exit(1);
   }

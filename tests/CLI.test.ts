@@ -354,6 +354,24 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject symbolic links as compile inputs", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-link-input-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const linkedSourceFile = path.join(tempDir, "linked.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+    fs.symlinkSync(sourceFile, linkedSourceFile, "file");
+
+    try {
+      const result = runCLI(["build", linkedSourceFile]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Input path is a symbolic link");
+      expect(result.stderr).toContain(linkedSourceFile);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject compile output paths that are directories before writing artifacts", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-dir-"));
     const sourceFile = path.join(tempDir, "main.bpl");
