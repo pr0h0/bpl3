@@ -43,6 +43,18 @@ export interface PackageInfo {
   hash: string;
 }
 
+export interface PackageArchiveProvenance {
+  schemaVersion: 1;
+  name: string;
+  version: string;
+  archiveFile: string;
+  archiveSha256: string;
+  packageHash: string;
+  sizeBytes: number;
+  createdAt: string;
+  manifest: PackageManifest;
+}
+
 export interface PackageLockFile {
   lockfileVersion: 1;
   packages: Record<
@@ -103,11 +115,44 @@ export interface PackageCacheEntry {
   path: string;
   sizeBytes: number;
   modifiedAt: string;
+  archiveSha256?: string;
+  packageHash?: string;
+  provenancePath: string;
+  provenanceStatus:
+    | "verified"
+    | "missing"
+    | "invalid"
+    | "archive-hash-mismatch"
+    | "manifest-mismatch";
+  provenanceIssue?: string;
 }
 
 export interface PackageCacheCleanResult {
   removed: PackageCacheEntry[];
   dryRun: boolean;
+}
+
+export type PackageCacheVerificationIssueKind =
+  | "missing-provenance"
+  | "invalid-provenance"
+  | "archive-hash-mismatch"
+  | "manifest-mismatch"
+  | "package-hash-mismatch"
+  | "invalid-archive";
+
+export interface PackageCacheVerificationIssue {
+  packageName: string;
+  version: string;
+  kind: PackageCacheVerificationIssueKind;
+  message: string;
+  path: string;
+  provenancePath?: string;
+}
+
+export interface PackageCacheVerificationReport {
+  ok: boolean;
+  entriesChecked: number;
+  issues: PackageCacheVerificationIssue[];
 }
 
 export interface PackageLockRepairResult {
@@ -873,6 +918,12 @@ export class PackageManager {
     return hash.digest("hex");
   }
 
+  private calculateFileHash(filePath: string): string {
+    const hash = crypto.createHash("sha256");
+    hash.update(fs.readFileSync(filePath));
+    return hash.digest("hex");
+  }
+
   private getPackageHashFiles(packageDir: string): string[] {
     const files = new Set<string>();
     const manifestPath = path.join(packageDir, "bpl.json");
@@ -1081,6 +1132,7 @@ export class PackageManager {
       }
 
       compilerLog.info(`✓ Package created: ${tarballName}`);
+      this.writeArchiveProvenance(tarballPath, packageRoot, manifest);
 
       // Calculate and display size
       const stats = fs.statSync(tarballPath);
@@ -1141,6 +1193,8 @@ export class PackageManager {
       compilerLog.info(`Installing from: ${tarballPath}`);
     }
 
+    this.verifyArchiveProvenanceBeforeInstall(tarballPath);
+
     // Extract to temporary directory first
     const tempDir = path.join(os.tmpdir(), `bpl-install-${Date.now()}`);
     fs.mkdirSync(tempDir, { recursive: true });
@@ -1175,6 +1229,10 @@ export class PackageManager {
       const packageDir = path.join(tempDir, "package");
       this.validateExtractedPackageTree(packageDir, tarballPath);
       const manifest = this.loadManifest(packageDir);
+      const cachedArchivePath = path.join(
+        this.globalPackageDir,
+        `${manifest.name}-${manifest.version}.tgz`,
+      );
       const effectiveExpectedName =
         expectedPackageName ?? this.inferExpectedPackageName(packageSource);
 
@@ -1227,7 +1285,13 @@ export class PackageManager {
       // Link binaries
       this.linkBinaries(manifest, installPath, options.global || false);
 
-      if (!options.global) {
+      if (options.global) {
+        fs.mkdirSync(this.globalPackageDir, { recursive: true });
+        if (path.resolve(tarballPath) !== path.resolve(cachedArchivePath)) {
+          fs.copyFileSync(tarballPath, cachedArchivePath);
+        }
+        this.writeArchiveProvenance(cachedArchivePath, packageDir, manifest);
+      } else {
         this.recordLocalInstall(manifest, installPath, lockSource);
       }
 
@@ -1338,6 +1402,179 @@ export class PackageManager {
     }
 
     return path.join(this.globalPackageDir, matching[0]!.file);
+  }
+
+  private getArchiveProvenancePath(archivePath: string): string {
+    return `${archivePath}.bplmeta.json`;
+  }
+
+  private writeArchiveProvenance(
+    archivePath: string,
+    packageDir: string,
+    manifest: PackageManifest,
+  ): PackageArchiveProvenance {
+    const stat = fs.statSync(archivePath);
+    const provenance: PackageArchiveProvenance = {
+      schemaVersion: 1,
+      name: manifest.name,
+      version: manifest.version,
+      archiveFile: path.basename(archivePath),
+      archiveSha256: this.calculateFileHash(archivePath),
+      packageHash: this.calculatePackageHash(packageDir),
+      sizeBytes: stat.size,
+      createdAt: new Date().toISOString(),
+      manifest,
+    };
+
+    fs.writeFileSync(
+      this.getArchiveProvenancePath(archivePath),
+      JSON.stringify(provenance, null, 2),
+    );
+
+    return provenance;
+  }
+
+  private readArchiveProvenance(
+    archivePath: string,
+  ):
+    | { ok: true; provenance: PackageArchiveProvenance }
+    | { ok: false; kind: "missing" | "invalid"; message: string } {
+    const provenancePath = this.getArchiveProvenancePath(archivePath);
+    if (!fs.existsSync(provenancePath)) {
+      return {
+        ok: false,
+        kind: "missing",
+        message: "No package provenance sidecar found",
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(
+        fs.readFileSync(provenancePath, "utf-8"),
+      ) as Partial<PackageArchiveProvenance>;
+
+      if (
+        parsed.schemaVersion !== 1 ||
+        typeof parsed.name !== "string" ||
+        typeof parsed.version !== "string" ||
+        typeof parsed.archiveFile !== "string" ||
+        typeof parsed.archiveSha256 !== "string" ||
+        typeof parsed.packageHash !== "string" ||
+        typeof parsed.sizeBytes !== "number" ||
+        typeof parsed.createdAt !== "string" ||
+        !parsed.manifest ||
+        typeof parsed.manifest !== "object"
+      ) {
+        return {
+          ok: false,
+          kind: "invalid",
+          message: "Package provenance sidecar has an invalid schema",
+        };
+      }
+
+      return {
+        ok: true,
+        provenance: parsed as PackageArchiveProvenance,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        kind: "invalid",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  private describeArchiveProvenance(
+    archivePath: string,
+    packageName: string,
+    version: string,
+  ): Pick<
+    PackageCacheEntry,
+    | "archiveSha256"
+    | "packageHash"
+    | "provenancePath"
+    | "provenanceStatus"
+    | "provenanceIssue"
+  > {
+    const provenancePath = this.getArchiveProvenancePath(archivePath);
+    const provenance = this.readArchiveProvenance(archivePath);
+    if (!provenance.ok) {
+      return {
+        provenancePath,
+        provenanceStatus: provenance.kind,
+        provenanceIssue: provenance.message,
+      };
+    }
+
+    const metadata = provenance.provenance;
+    if (metadata.archiveFile !== path.basename(archivePath)) {
+      return {
+        archiveSha256: metadata.archiveSha256,
+        packageHash: metadata.packageHash,
+        provenancePath,
+        provenanceStatus: "manifest-mismatch",
+        provenanceIssue: `Provenance archive file is ${metadata.archiveFile}`,
+      };
+    }
+
+    if (metadata.name !== packageName || metadata.version !== version) {
+      return {
+        archiveSha256: metadata.archiveSha256,
+        packageHash: metadata.packageHash,
+        provenancePath,
+        provenanceStatus: "manifest-mismatch",
+        provenanceIssue: `Provenance declares ${metadata.name}@${metadata.version}`,
+      };
+    }
+
+    const archiveSha256 = this.calculateFileHash(archivePath);
+    if (metadata.archiveSha256 !== archiveSha256) {
+      return {
+        archiveSha256: metadata.archiveSha256,
+        packageHash: metadata.packageHash,
+        provenancePath,
+        provenanceStatus: "archive-hash-mismatch",
+        provenanceIssue: `Archive sha256 is ${archiveSha256}`,
+      };
+    }
+
+    return {
+      archiveSha256: metadata.archiveSha256,
+      packageHash: metadata.packageHash,
+      provenancePath,
+      provenanceStatus: "verified",
+    };
+  }
+
+  private verifyArchiveProvenanceBeforeInstall(archivePath: string): void {
+    const parsed = parsePackageTarballName(path.basename(archivePath));
+    if (!parsed) return;
+
+    const summary = this.describeArchiveProvenance(
+      archivePath,
+      parsed.name,
+      parsed.version,
+    );
+    if (
+      summary.provenanceStatus === "verified" ||
+      summary.provenanceStatus === "missing"
+    ) {
+      return;
+    }
+
+    throw new CompilerError(
+      `Package archive provenance check failed: ${path.basename(archivePath)}`,
+      summary.provenanceIssue ||
+        "Remove the cached archive or regenerate it with 'bpl pack'.",
+      {
+        file: summary.provenancePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private validatePackageArchiveMembers(tarballPath: string): void {
@@ -1633,6 +1870,11 @@ export class PackageManager {
           path: filePath,
           sizeBytes: stat.size,
           modifiedAt: stat.mtime.toISOString(),
+          ...this.describeArchiveProvenance(
+            filePath,
+            parsed.name,
+            parsed.version,
+          ),
         };
       })
       .filter((entry): entry is PackageCacheEntry => entry !== null)
@@ -1657,6 +1899,9 @@ export class PackageManager {
 
     if (!options.dryRun) {
       for (const entry of removed) {
+        if (fs.existsSync(entry.provenancePath)) {
+          fs.unlinkSync(entry.provenancePath);
+        }
         fs.unlinkSync(entry.path);
       }
     }
@@ -1664,6 +1909,123 @@ export class PackageManager {
     return {
       removed,
       dryRun: Boolean(options.dryRun),
+    };
+  }
+
+  verifyPackageCache(packageName?: string): PackageCacheVerificationReport {
+    const entries = this.listPackageCache(packageName);
+    const issues: PackageCacheVerificationIssue[] = [];
+
+    const addIssue = (
+      entry: PackageCacheEntry,
+      kind: PackageCacheVerificationIssueKind,
+      message: string,
+      provenancePath: string | undefined = entry.provenancePath,
+    ) => {
+      issues.push({
+        packageName: entry.name,
+        version: entry.version,
+        kind,
+        message,
+        path: entry.path,
+        provenancePath,
+      });
+    };
+
+    for (const entry of entries) {
+      switch (entry.provenanceStatus) {
+        case "missing":
+          addIssue(
+            entry,
+            "missing-provenance",
+            `${entry.file}: missing package provenance sidecar`,
+          );
+          continue;
+        case "invalid":
+          addIssue(
+            entry,
+            "invalid-provenance",
+            `${entry.file}: invalid package provenance (${entry.provenanceIssue})`,
+          );
+          continue;
+        case "archive-hash-mismatch":
+          addIssue(
+            entry,
+            "archive-hash-mismatch",
+            `${entry.file}: archive hash does not match package provenance (${entry.provenanceIssue})`,
+          );
+          continue;
+        case "manifest-mismatch":
+          addIssue(
+            entry,
+            "manifest-mismatch",
+            `${entry.file}: package provenance does not match archive name (${entry.provenanceIssue})`,
+          );
+          continue;
+      }
+
+      const metadata = this.readArchiveProvenance(entry.path);
+      if (!metadata.ok) continue;
+
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "bpl-cache-verify-"),
+      );
+
+      try {
+        this.validatePackageArchiveMembers(entry.path);
+        const extractResult = spawnSync(
+          "tar",
+          ["-xzf", entry.path, "-C", tempDir],
+          { stdio: "pipe" },
+        );
+
+        if (extractResult.status !== 0) {
+          const detail =
+            extractResult.stderr?.toString().trim() || "unknown tar error";
+          throw new Error(`failed to extract archive (${detail})`);
+        }
+
+        const packageDir = path.join(tempDir, "package");
+        this.validateExtractedPackageTree(packageDir, entry.path);
+        const manifest = this.loadManifest(packageDir);
+        const provenance = metadata.provenance;
+
+        if (
+          manifest.name !== provenance.name ||
+          manifest.version !== provenance.version
+        ) {
+          addIssue(
+            entry,
+            "manifest-mismatch",
+            `${entry.file}: extracted manifest declares ${manifest.name}@${manifest.version}, provenance declares ${provenance.name}@${provenance.version}`,
+          );
+          continue;
+        }
+
+        const packageHash = this.calculatePackageHash(packageDir);
+        if (packageHash !== provenance.packageHash) {
+          addIssue(
+            entry,
+            "package-hash-mismatch",
+            `${entry.file}: extracted package hash is ${packageHash}, provenance has ${provenance.packageHash}`,
+          );
+        }
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        addIssue(
+          entry,
+          "invalid-archive",
+          `${entry.file}: invalid package archive (${detail})`,
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    }
+
+    return {
+      ok: issues.length === 0,
+      entriesChecked: entries.length,
+      issues,
     };
   }
 

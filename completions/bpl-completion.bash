@@ -36,8 +36,8 @@ _bpl_completion() {
     local doctor_opts="packages --json"
 
     # Package cache subcommands and options
-    local package_cache_commands="list clean"
-    local package_cache_opts="list clean --json --package-version --dry-run"
+    local package_cache_commands="list verify clean"
+    local package_cache_opts="list verify clean --json --package-version --dry-run"
 
     # Pack command options
     local pack_opts="-v --verbose"

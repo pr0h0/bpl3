@@ -13,6 +13,8 @@ import {
   Compiler,
   CompilerError,
   type PackageCacheEntry,
+  type PackageCacheVerificationIssue,
+  type PackageCacheVerificationReport,
   type PackageDependencyTreeNode,
 } from "../../compiler";
 import type {
@@ -249,7 +251,7 @@ export function registerPackageCommands(program: Command): void {
 
   const packageCache = program
     .command("package-cache")
-    .description("List and clean cached package archives");
+    .description("List, verify, and clean cached package archives");
 
   packageCache
     .command("list [package]")
@@ -280,6 +282,38 @@ export function registerPackageCommands(program: Command): void {
           log.info("Cached package archives:\n");
           for (const entry of entries) {
             log.info(`  ${formatPackageCacheEntry(entry)}`);
+          }
+        } catch (e) {
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        }
+      },
+    );
+
+  packageCache
+    .command("verify [package]")
+    .description("Verify cached package archive provenance")
+    .option("--json", "output machine-readable verification report")
+    .action(
+      (
+        packageName: string | undefined,
+        options: { json?: boolean },
+        command: Command,
+      ) => {
+        try {
+          const pm = new PackageManager();
+          const report = pm.verifyPackageCache(packageName);
+          const globalOpts = command.parent?.parent?.opts() || {};
+          const outputJson = options.json || globalOpts.json;
+
+          if (outputJson) {
+            console.log(JSON.stringify(report, null, 2));
+          } else {
+            logPackageCacheVerificationReport(report);
+          }
+
+          if (!report.ok) {
+            process.exit(1);
           }
         } catch (e) {
           log.error(formatPackageCommandError(e));
@@ -367,5 +401,29 @@ function formatDependencyTree(nodes: PackageDependencyTreeNode[]): string[] {
 
 function formatPackageCacheEntry(entry: PackageCacheEntry): string {
   const sizeKiB = (entry.sizeBytes / 1024).toFixed(2);
-  return `${entry.name}@${entry.version} (${sizeKiB} KiB) ${entry.path}`;
+  return `${entry.name}@${entry.version} (${sizeKiB} KiB) ${entry.path} [provenance: ${entry.provenanceStatus}]`;
+}
+
+function logPackageCacheVerificationReport(
+  report: PackageCacheVerificationReport,
+): void {
+  const summary = `${report.entriesChecked} archive(s) checked`;
+  if (report.ok) {
+    log.info(`Package cache OK (${summary})`);
+    return;
+  }
+
+  log.error(`Package cache FAIL (${summary}, ${report.issues.length} issue(s))`);
+  for (const issue of report.issues) {
+    log.error(`  ${formatPackageCacheVerificationIssue(issue)}`);
+  }
+}
+
+function formatPackageCacheVerificationIssue(
+  issue: PackageCacheVerificationIssue,
+): string {
+  const provenance = issue.provenancePath
+    ? ` provenance=${issue.provenancePath}`
+    : "";
+  return `[${issue.kind}] ${issue.message} path=${issue.path}${provenance}`;
 }

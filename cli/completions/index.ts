@@ -45,8 +45,8 @@ _bpl_completion() {
     local doctor_opts="packages --json"
 
     # Package cache subcommands and options
-    local package_cache_commands="list clean"
-    local package_cache_opts="list clean --json --package-version --dry-run"
+    local package_cache_commands="list verify clean"
+    local package_cache_opts="list verify clean --json --package-version --dry-run"
 
     # Pack command options
     local pack_opts="-v --verbose"
@@ -247,7 +247,7 @@ _bpl() {
         'install:Install a BPL package'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
-        'package-cache:List and clean cached package archives'
+        'package-cache:List, verify, and clean cached package archives'
         'docs:Generate documentation'
         'bindgen:Generate BPL extern declarations from C headers'
         'doctor:Check local BPL toolchain and runtime setup'
@@ -337,8 +337,8 @@ _bpl() {
                     ;;
                 package-cache)
                     _arguments \\
-                        '1:subcommand:(list clean)' \\
-                        '--json[Output machine-readable cache entries]' \\
+                        '1:subcommand:(list verify clean)' \\
+                        '--json[Output machine-readable cache entries or verification reports]' \\
                         '--package-version[Only remove a specific package version]:version' \\
                         '--dry-run[Show what would be removed without deleting files]' \\
                         '2:package:'

@@ -1004,8 +1004,12 @@ export { Linter } from "./linter/Linter";
 /** Manage BPL package dependencies */
 export {
   PackageManager,
+  type PackageArchiveProvenance,
   type PackageCacheCleanResult,
   type PackageCacheEntry,
+  type PackageCacheVerificationIssue,
+  type PackageCacheVerificationIssueKind,
+  type PackageCacheVerificationReport,
   type PackageDependencyTreeNode,
   type PackageDoctorIssue,
   type PackageDoctorReport,

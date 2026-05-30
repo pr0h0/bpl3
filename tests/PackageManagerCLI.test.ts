@@ -597,6 +597,28 @@ describe("Package Manager CLI", () => {
         "2.0.0",
         "1.0.0",
       ]);
+      expect(
+        entries.every(
+          (entry: { provenanceStatus: string }) =>
+            entry.provenanceStatus === "missing",
+        ),
+      ).toBe(true);
+
+      const verifyResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "verify", "cache-cli", "--json"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(verifyResult.status).toBe(1);
+      const verification = JSON.parse(verifyResult.stdout);
+      expect(verification.ok).toBe(false);
+      expect(
+        verification.issues.map((issue: { kind: string }) => issue.kind),
+      ).toContain("missing-provenance");
 
       const cleanResult = spawnSync(
         "bun",

@@ -56,6 +56,7 @@ describe("PackageManager", () => {
     const tarballPath = packer.pack(packageDir);
     const cachePath = path.join(globalPackageDir, path.basename(tarballPath));
     fs.copyFileSync(tarballPath, cachePath);
+    fs.copyFileSync(`${tarballPath}.bplmeta.json`, `${cachePath}.bplmeta.json`);
     return cachePath;
   }
 
@@ -138,7 +139,16 @@ describe("PackageManager", () => {
       const tarballPath = packageManager.pack(tempDir);
 
       expect(fs.existsSync(tarballPath)).toBe(true);
+      expect(fs.existsSync(`${tarballPath}.bplmeta.json`)).toBe(true);
       expect(tarballPath).toContain("test-pkg-1.0.0.tgz");
+
+      const provenance = JSON.parse(
+        fs.readFileSync(`${tarballPath}.bplmeta.json`, "utf-8"),
+      );
+      expect(provenance.name).toBe("test-pkg");
+      expect(provenance.version).toBe("1.0.0");
+      expect(provenance.archiveSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(provenance.packageHash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     test("should include all source files in package", () => {
@@ -1381,6 +1391,9 @@ describe("PackageManager", () => {
 
       let entries = localPM.listPackageCache("cache-math");
       expect(entries.map((entry) => entry.version)).toEqual(["2.0.0", "1.0.0"]);
+      expect(entries.every((entry) => entry.provenanceStatus === "verified")).toBe(
+        true,
+      );
 
       const dryRun = localPM.cleanPackageCache({
         packageName: "cache-math",
@@ -1389,6 +1402,7 @@ describe("PackageManager", () => {
       });
       expect(dryRun.removed.length).toBe(1);
       expect(fs.existsSync(dryRun.removed[0]!.path)).toBe(true);
+      expect(fs.existsSync(dryRun.removed[0]!.provenancePath)).toBe(true);
 
       const clean = localPM.cleanPackageCache({
         packageName: "cache-math",
@@ -1396,9 +1410,44 @@ describe("PackageManager", () => {
       });
       expect(clean.removed.length).toBe(1);
       expect(fs.existsSync(clean.removed[0]!.path)).toBe(false);
+      expect(fs.existsSync(clean.removed[0]!.provenancePath)).toBe(false);
 
       entries = localPM.listPackageCache("cache-math");
       expect(entries.map((entry) => entry.version)).toEqual(["2.0.0"]);
+    });
+
+    test("should verify package cache provenance and report tampered archives", () => {
+      const globalPackageDir = path.join(tempDir, "cache-verify-packages");
+      fs.mkdirSync(globalPackageDir);
+
+      const cachePath = createCachedPackage(
+        "cache-provenance",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const entries = localPM.listPackageCache("cache-provenance");
+      expect(entries.length).toBe(1);
+      expect(entries[0]!.provenanceStatus).toBe("verified");
+      expect(entries[0]!.archiveSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(entries[0]!.packageHash).toMatch(/^[a-f0-9]{64}$/);
+
+      const okReport = localPM.verifyPackageCache("cache-provenance");
+      expect(okReport.ok).toBe(true);
+      expect(okReport.entriesChecked).toBe(1);
+      expect(okReport.issues).toEqual([]);
+
+      fs.appendFileSync(cachePath, "tamper");
+
+      const tamperedReport = localPM.verifyPackageCache("cache-provenance");
+      expect(tamperedReport.ok).toBe(false);
+      expect(tamperedReport.issues.map((issue) => issue.kind)).toContain(
+        "archive-hash-mismatch",
+      );
     });
 
     test("should report package doctor issues for missing lockfiles and duplicate installed names", () => {

@@ -268,7 +268,11 @@ describe("CLI Tests", () => {
     expect(bash.stdout).toContain("doctor");
     expect(zsh.stdout).toContain("doctor:Check local BPL toolchain");
     expect(bash.stdout).toContain("package-cache");
-    expect(zsh.stdout).toContain("package-cache:List and clean cached package archives");
+    expect(zsh.stdout).toContain(
+      "package-cache:List, verify, and clean cached package archives",
+    );
+    expect(bash.stdout).toContain("list verify clean");
+    expect(zsh.stdout).toContain("1:subcommand:(list verify clean)");
     expect(bash.stdout).toContain("packages --json");
     expect(zsh.stdout).toContain("1:scope:(packages)");
     expect(bash.stdout).toContain("--repair-lock");

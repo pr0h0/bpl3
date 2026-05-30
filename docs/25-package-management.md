@@ -253,18 +253,39 @@ relative to `packages/math-extra/`, not relative to the app installing
 
 ## Package Cache
 
-The package cache stores `.tgz` archives used by exact-version dependencies and
-restores from `bpl.lock`.
+The package cache stores `.tgz` archives used by exact-version dependencies,
+global installs, and restores from `bpl.lock`. `bpl pack` writes a provenance
+sidecar next to each archive:
+
+```text
+math-core-1.0.0.tgz
+math-core-1.0.0.tgz.bplmeta.json
+```
+
+The sidecar records the archive SHA-256, the extracted package content hash,
+the package name and version, and the manifest used to produce the archive.
+Global installs copy the archive into the cache and regenerate the sidecar from
+the extracted package so cached installs can be audited later.
 
 ```bash
 bpl package-cache list
 bpl package-cache list math-core --json
+bpl package-cache verify
+bpl package-cache verify math-core --json
 bpl package-cache clean math-core --package-version 1.0.0 --dry-run
 bpl package-cache clean math-core --package-version 1.0.0
 ```
 
+`package-cache verify` checks every matching cached archive. It verifies the
+sidecar schema, the archive hash, the archive file name, the manifest identity,
+and the extracted package content hash. Missing sidecars are reported as
+`missing-provenance` so older caches remain visible instead of being silently
+trusted.
+
 `package-cache clean` removes cached archives only. It does not remove installed
-packages from `bpl_modules/`; use `bpl uninstall <package>` for that.
+packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a
+cached archive has a provenance sidecar, `package-cache clean` removes both
+files together.
 
 ## Best Practices
 
