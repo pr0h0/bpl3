@@ -104,6 +104,7 @@ export function compileToBinary(
   options: CompileOptions,
 ): CompileResult {
   const execPath = getExecutableOutputPath(irPath, options);
+  let tempExecPath: string;
   let clangArgs: string[];
   try {
     assertReadableCompileInput(irPath, "LLVM IR input");
@@ -119,7 +120,8 @@ export function compileToBinary(
     }
     const hostDefaults = getHostDefaults();
     const target = options.target ?? hostDefaults.target;
-    clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
+    tempExecPath = createTemporaryOutputPath(execPath);
+    clangArgs = buildClangArgs(irPath, tempExecPath, options, hostDefaults);
   } catch (error) {
     return {
       success: false,
@@ -147,9 +149,29 @@ export function compileToBinary(
     const spawnError = compileResult.error
       ? formatCompileSpawnError(compileResult.error, clangCommand)
       : "";
+    removeBestEffort(tempExecPath);
     return {
       success: false,
       error: `Failed to compile LLVM IR with ${clangCommand}${stderr || spawnError ? `\n${stderr || spawnError}` : ""}`,
+    };
+  }
+
+  const tempExecStats = tryLstat(tempExecPath);
+  if (!tempExecStats?.isFile()) {
+    removeBestEffort(tempExecPath);
+    return {
+      success: false,
+      error: `Compiler driver did not create executable output: ${execPath}`,
+    };
+  }
+
+  try {
+    fs.renameSync(tempExecPath, execPath);
+  } catch (error) {
+    removeBestEffort(tempExecPath);
+    return {
+      success: false,
+      error: `Failed to finalize executable output ${execPath}: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 
@@ -466,6 +488,34 @@ function assertReadableDirectoryInput(filePath: string, label: string): void {
 
   if (!fs.statSync(filePath).isDirectory()) {
     throw new Error(`${label} is not a directory: ${filePath}.`);
+  }
+}
+
+function createTemporaryOutputPath(outputPath: string): string {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const tempPath = path.join(
+      path.dirname(path.resolve(outputPath)),
+      `.${path.basename(outputPath)}.${process.pid}-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}-${attempt}.tmp`,
+    );
+    if (tryLstat(tempPath)) {
+      continue;
+    }
+    assertWritableFileOutputPath(tempPath);
+    return tempPath;
+  }
+
+  throw new Error(
+    `Failed to create temporary executable output for ${outputPath}`,
+  );
+}
+
+function removeBestEffort(filePath: string): void {
+  try {
+    fs.rmSync(filePath, { force: true });
+  } catch {
+    // Best-effort cleanup only.
   }
 }
 

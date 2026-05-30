@@ -4,6 +4,7 @@ import * as os from "os";
 import * as path from "path";
 
 import { compileToBinary, runExecutable } from "../cli/BinaryRunner";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("BinaryRunner", () => {
   const originalBplHome = process.env.BPL_HOME;
@@ -194,6 +195,44 @@ describe("BinaryRunner", () => {
       expect(result.error).toContain(missingCompiler);
       expect(result.error).toContain("command not found");
       expect(result.error).not.toContain("ENOENT");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("preserves existing executables when compiler output fails", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-partial-"),
+    );
+    const irPath = path.join(tempDir, "program.ll");
+    const execPath = path.join(tempDir, "program");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(path.join(tempDir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "partial executable\\n");',
+        'process.stderr.write("simulated linker failure\\n");',
+        "process.exit(1);",
+      ]);
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.writeFileSync(execPath, "existing executable\n");
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, { skipRuntime: true });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("simulated linker failure");
+      expect(fs.readFileSync(execPath, "utf-8")).toBe("existing executable\n");
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (entry) => entry.startsWith(".program.") && entry.endsWith(".tmp"),
+          ),
+      ).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
