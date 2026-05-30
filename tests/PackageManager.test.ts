@@ -928,6 +928,26 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package archive paths that are symbolic links", () => {
+      const manifest = {
+        name: "archive-link-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+      const tarballPath = packageManager.pack(tempDir);
+      const linkedArchivePath = path.join(tempDir, "archive-link.tgz");
+      fs.symlinkSync(tarballPath, linkedArchivePath, "file");
+
+      expect(() => packageManager.install(linkedArchivePath)).toThrow(
+        /Package archive path is a symbolic link/,
+      );
+      expect(
+        fs.existsSync(path.join(tempDir, "bpl_modules", "archive-link-pkg")),
+      ).toBe(false);
+    });
+
     test("should write a lockfile for local installs", () => {
       const manifest = {
         name: "lock-test-pkg",

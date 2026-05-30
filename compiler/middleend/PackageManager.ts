@@ -1866,7 +1866,22 @@ export class PackageManager {
   }
 
   private ensurePackageArchiveFile(archivePath: string): void {
-    if (!fs.statSync(archivePath).isFile()) {
+    const archiveStats = this.tryLstat(archivePath);
+    if (archiveStats?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Package archive path is a symbolic link: ${archivePath}`,
+        "Install a real .tgz package archive, not a symbolic link.",
+        {
+          file: archivePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (!archiveStats?.isFile()) {
       throw new CompilerError(
         `Package archive path is not a file: ${archivePath}`,
         "Install a .tgz package archive or a package name from the cache.",
