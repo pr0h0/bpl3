@@ -40,6 +40,8 @@ interface DoctorCheck {
 }
 
 interface DoctorReport {
+  schemaVersion: 1;
+  check: "toolchain";
   success: boolean;
   version: string;
   platform: {
@@ -187,6 +189,8 @@ function createDoctorReport(version: string): DoctorReport {
   const bunVersion = getCommandVersion("bun", ["--version"]);
 
   return {
+    schemaVersion: 1,
+    check: "toolchain",
     success: checks.every((check) => check.ok || check.required === false),
     version,
     platform: {

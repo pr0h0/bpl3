@@ -2248,6 +2248,8 @@ describe("CLI Tests", () => {
     expect(result.status).toBe(0);
 
     const report = JSON.parse(result.stdout);
+    expect(report.schemaVersion).toBe(1);
+    expect(report.check).toBe("toolchain");
     expect(report.success).toBe(true);
     expect(report.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(report.platform.os).toBeTruthy();
