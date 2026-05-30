@@ -28,8 +28,26 @@ const smokeTimeoutMs = 60 * 1000;
 const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
 
 interface DoctorReport {
+  schemaVersion: 1;
+  check: "toolchain";
   success: boolean;
   checks: Array<{ name: string; ok: boolean; detail: string }>;
+}
+
+interface PackageDoctorReport {
+  schemaVersion: 1;
+  check: "packages";
+  success: boolean;
+  ok: boolean;
+  cacheVerification: {
+    schemaVersion: 1;
+    check: "package-cache-verify";
+    success: boolean;
+    ok: boolean;
+    entriesChecked: number;
+    issues: unknown[];
+  };
+  issues: unknown[];
 }
 
 interface NpmPackEntry {
@@ -46,6 +64,7 @@ interface NpmPackEntry {
 interface RunStepOptions {
   cwd?: string;
   bplHome?: string | null;
+  env?: NodeJS.ProcessEnv;
 }
 
 interface PackageJson {
@@ -208,7 +227,7 @@ function runPackedPackageSmoke(): void {
         : join(installDir, "node_modules", ".bin", "bpl");
 
     const doctor = runStep(
-      "check packed npm CLI doctor",
+      "check packed npm CLI doctor JSON",
       installedBpl,
       ["doctor", "--json"],
       { cwd: installDir, bplHome: null },
@@ -222,6 +241,7 @@ function runPackedPackageSmoke(): void {
       throw new Error(`Packed npm CLI doctor reported failures:\n${failures}`);
     }
 
+    runPackedPackageDoctorSmoke(installedBpl, installDir);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
@@ -340,6 +360,52 @@ function runLibraryTemplateSmoke(
     }
   } finally {
     rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedPackageDoctorSmoke(installedBpl: string, installDir: string): void {
+  const projectDir = join(installDir, "package-doctor-json");
+  const homeDir = join(projectDir, "home");
+  mkdirSync(projectDir, { recursive: true });
+  mkdirSync(homeDir, { recursive: true });
+  writeFileSync(
+    join(projectDir, "bpl.json"),
+    JSON.stringify(
+      {
+        name: "release-smoke-package-doctor",
+        version: "1.0.0",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  const doctor = runStep(
+    "check packed npm CLI package doctor JSON",
+    installedBpl,
+    ["doctor", "packages", "--json"],
+    {
+      cwd: projectDir,
+      bplHome: null,
+      env: { HOME: homeDir },
+    },
+  );
+  const report = parsePackageDoctorReport(doctor.stdout);
+
+  if (!report.success || !report.ok) {
+    throw new Error(
+      `Packed npm CLI package doctor reported issues:\n${JSON.stringify(report.issues, null, 2)}`,
+    );
+  }
+
+  if (
+    !report.cacheVerification.success ||
+    !report.cacheVerification.ok ||
+    report.cacheVerification.entriesChecked !== 0
+  ) {
+    throw new Error(
+      `Packed npm CLI package doctor cache verification was not isolated:\n${JSON.stringify(report.cacheVerification, null, 2)}`,
+    );
   }
 }
 
@@ -708,7 +774,9 @@ function assertOutputContains(output: string, expected: string[]): void {
 
 function parseDoctorReport(stdout: string): DoctorReport {
   try {
-    return JSON.parse(stdout) as DoctorReport;
+    const report = JSON.parse(stdout) as DoctorReport;
+    assertJsonReportContract(report, "toolchain", "doctor");
+    return report;
   } catch (error) {
     throw new Error(
       [
@@ -716,6 +784,51 @@ function parseDoctorReport(stdout: string): DoctorReport {
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
+    );
+  }
+}
+
+function parsePackageDoctorReport(stdout: string): PackageDoctorReport {
+  try {
+    const report = JSON.parse(stdout) as PackageDoctorReport;
+    assertJsonReportContract(report, "packages", "package doctor");
+    assertJsonReportContract(
+      report.cacheVerification,
+      "package-cache-verify",
+      "package doctor cache verification",
+    );
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function assertJsonReportContract(
+  report: { schemaVersion?: unknown; check?: unknown; success?: unknown },
+  expectedCheck: string,
+  label: string,
+): void {
+  if (
+    report.schemaVersion !== 1 ||
+    report.check !== expectedCheck ||
+    typeof report.success !== "boolean"
+  ) {
+    throw new Error(
+      `${label} JSON contract mismatch: ${JSON.stringify(
+        {
+          schemaVersion: report.schemaVersion,
+          check: report.check,
+          success: report.success,
+        },
+        null,
+        2,
+      )}`,
     );
   }
 }
@@ -738,6 +851,7 @@ function runStep(
   } else {
     env.BPL_HOME = options.bplHome ?? repoRoot;
   }
+  Object.assign(env, options.env);
 
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? repoRoot,

@@ -53,6 +53,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Cache Verify JSON Stability** - `bpl package-cache verify --json`
   now includes stable `schemaVersion: 1`, `check: "package-cache-verify"`, and
   `success` fields, with CLI regressions for missing-provenance issue shapes.
+- **Release Smoke Doctor JSON Coverage** - Release smoke now validates packed
+  `bpl doctor --json` and `bpl doctor packages --json` schema contracts,
+  including isolated package-cache verification for the package doctor path.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

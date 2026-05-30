@@ -27,7 +27,10 @@ describe("Release smoke", () => {
       );
       expect(result.stdout).toContain("release smoke: install packed npm CLI");
       expect(result.stdout).toContain(
-        "release smoke: check packed npm CLI doctor",
+        "release smoke: check packed npm CLI doctor JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package doctor JSON",
       );
       expect(result.stdout).toContain(
         "release smoke: check packed npm CLI bash completion",
