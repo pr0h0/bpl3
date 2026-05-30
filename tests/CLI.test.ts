@@ -602,6 +602,23 @@ describe("CLI Tests", () => {
       );
       expect(fs.existsSync(outputFile)).toBe(false);
 
+      const linkedFile = path.join(tempDir, "linked.bpl");
+      fs.symlinkSync(mainFile, linkedFile, "file");
+      const symlinkInput = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", linkedFile, "-o", outputFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(symlinkInput.status).toBe(1);
+      expect(symlinkInput.stderr).toContain(
+        "Documentation input is a symbolic link",
+      );
+      expect(fs.existsSync(outputFile)).toBe(false);
+
       const missingImport = spawnSync(
         "bun",
         [BPL_CLI, "docs", mainFile, "-o", outputFile],

@@ -134,9 +134,14 @@ export class DocumentationGenerator {
     const candidates = [filePath, `${filePath}.bpl`, `${filePath}.x`];
 
     for (const candidate of candidates) {
-      if (!fs.existsSync(candidate)) continue;
+      const stats = tryLstat(candidate);
+      if (!stats) continue;
 
-      if (!fs.statSync(candidate).isFile()) {
+      if (stats.isSymbolicLink()) {
+        throw new Error(`Documentation input is a symbolic link: ${candidate}`);
+      }
+
+      if (!stats.isFile()) {
         throw new Error(`Documentation input is not a file: ${candidate}`);
       }
 
@@ -390,5 +395,22 @@ export class DocumentationGenerator {
       }
     }
     this.output.push("");
+  }
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
   }
 }
