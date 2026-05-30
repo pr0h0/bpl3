@@ -493,7 +493,11 @@ export class ModuleCache {
         );
       }
       this.assertCompilerCreatedObjectFile(tempObjectFilePath, modulePath);
-      fs.renameSync(tempObjectFilePath, objectFilePath);
+      this.finalizeCachedObjectFile(
+        tempObjectFilePath,
+        objectFilePath,
+        modulePath,
+      );
       compiled = true;
     } finally {
       this.removeCacheTempFile(llFilePath);
@@ -628,7 +632,11 @@ export class ModuleCache {
         tempObjectFilePath,
         input.modulePath,
       );
-      fs.renameSync(tempObjectFilePath, objectFilePath);
+      this.finalizeCachedObjectFile(
+        tempObjectFilePath,
+        objectFilePath,
+        input.modulePath,
+      );
       compiled = true;
     } finally {
       this.removeCacheTempFile(llFilePath);
@@ -677,6 +685,41 @@ export class ModuleCache {
         endColumn: 0,
       },
     );
+  }
+
+  private finalizeCachedObjectFile(
+    tempObjectFilePath: string,
+    objectFilePath: string,
+    modulePath: string,
+  ): void {
+    const existingObject = this.tryLstat(objectFilePath);
+    if (existingObject?.isFile()) {
+      this.removeCacheTempFile(tempObjectFilePath);
+      return;
+    }
+
+    this.assertWritableCacheFilePath(
+      objectFilePath,
+      modulePath,
+      "Module cache object path",
+    );
+
+    try {
+      fs.renameSync(tempObjectFilePath, objectFilePath);
+    } catch (error) {
+      this.removeCacheTempFile(tempObjectFilePath);
+      throw new CompilerError(
+        `Failed to finalize cached module object for ${modulePath}: ${error instanceof Error ? error.message : String(error)}`,
+        "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
   }
 
   private isUsableCacheFile(filePath: string): boolean {

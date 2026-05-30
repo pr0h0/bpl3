@@ -357,6 +357,53 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("reuses concurrently created cached module objects during finalize", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-race-object-"));
+    const previousBplCc = process.env.BPL_CC;
+    const content = "frame main() ret int { return 0; }";
+
+    try {
+      const fakeCompilerPath = join(dir, "fake-cc");
+      process.env.BPL_CC = fakeCompilerPath;
+      const hash = getModuleHashForTest(content, undefined, 0);
+      const objectPath = join(dir, ".bpl-cache", `${hash}.o`);
+      const fakeCompiler = writeNodeCommandShim(fakeCompilerPath, [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "new object\\n");',
+        `fs.writeFileSync(${JSON.stringify(objectPath)}, "existing object\\n");`,
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      const cache = new ModuleCache(dir);
+
+      const objectFile = cache.compileModule(
+        "main.bpl",
+        content,
+        EMPTY_MAIN_IR,
+        false,
+        undefined,
+        0,
+      );
+
+      expect(objectFile).toBe(objectPath);
+      expect(readFileSync(objectPath, "utf-8")).toBe("existing object\n");
+      expect(
+        readdirSync(join(dir, ".bpl-cache")).some((file) =>
+          file.includes(".tmp-"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("does not reuse stale deterministic IR scratch paths", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-stale-ll-"));
     const previousBplCc = process.env.BPL_CC;
