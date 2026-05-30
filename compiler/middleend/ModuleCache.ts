@@ -860,14 +860,22 @@ export class ModuleCache {
     }
 
     const outputDir = path.dirname(path.resolve(outputPath));
-    if (!fs.existsSync(outputDir)) {
+    const outputDirStats = this.tryLstat(outputDir);
+    if (!outputDirStats) {
       throw new CompilerError(
         `Output directory not found: ${outputDir}`,
         "Create the output directory or choose an existing parent directory.",
         location,
       );
     }
-    if (!fs.statSync(outputDir).isDirectory()) {
+    if (outputDirStats.isSymbolicLink()) {
+      throw new CompilerError(
+        `Output parent path is a symbolic link: ${outputDir}`,
+        "Choose an output path whose parent is a real directory.",
+        location,
+      );
+    }
+    if (!outputDirStats.isDirectory()) {
       throw new CompilerError(
         `Output parent path is not a directory: ${outputDir}`,
         "Choose an output path whose parent is a directory.",
