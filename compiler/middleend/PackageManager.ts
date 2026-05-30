@@ -899,6 +899,14 @@ export class PackageManager {
     }
 
     try {
+      if (!fs.statSync(manifestPath).isFile()) {
+        throw new CompilerError(
+          "Invalid package manifest path",
+          "bpl.json must be a regular file.",
+          location,
+        );
+      }
+
       const content = fs.readFileSync(manifestPath, "utf-8");
       const manifest = JSON.parse(content) as PackageManifest;
 

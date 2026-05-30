@@ -2246,6 +2246,14 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should reject package manifest paths that are not files", () => {
+      fs.mkdirSync("bpl.json");
+
+      expect(() => packageManager.loadManifest(tempDir)).toThrow(
+        /Invalid package manifest path/,
+      );
+    });
+
     test("should reject invalid package script commands", () => {
       const manifests = [
         {
