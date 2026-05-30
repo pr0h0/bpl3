@@ -194,6 +194,39 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("call i32 @pick_tuple_i32_i1({ i32, i1 }");
   });
 
+  it("mangles function pointer parameter overloads by signatures", () => {
+    const ir = compile(`
+      frame inc(value: int) ret int {
+        return value + 1;
+      }
+
+      frame flag(value: bool) ret int {
+        return value ? 10 : 0;
+      }
+
+      frame apply(callback: Func<int>(int), value: int) ret int {
+        return callback(value);
+      }
+
+      frame apply(callback: Func<int>(bool), value: bool) ret int {
+        return callback(value);
+      }
+
+      frame main() ret int {
+        return apply(inc, 2) + apply(flag, true);
+      }
+    `);
+
+    expect(ir).toContain(
+      "define i32 @apply_fn_i32_ret_i32_i32(i32 (i32)* %callback, i32 %value)",
+    );
+    expect(ir).toContain(
+      "define i32 @apply_fn_i1_ret_i32_i1(i32 (i1)* %callback, i1 %value)",
+    );
+    expect(ir).toContain("call i32 @apply_fn_i32_ret_i32_i32");
+    expect(ir).toContain("call i32 @apply_fn_i1_ret_i32_i1");
+  });
+
   it("rejects unsupported memory intrinsic return types", () => {
     expect(() =>
       compile(`
