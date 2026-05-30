@@ -806,6 +806,7 @@ export class PackageManager {
           location,
         );
       }
+      this.validateManifestScriptEntries(manifest, location);
       if (
         manifest.bin &&
         (typeof manifest.bin !== "object" || Array.isArray(manifest.bin))
@@ -826,6 +827,23 @@ export class PackageManager {
         "Check that bpl.json is valid JSON.",
         location,
       );
+    }
+  }
+
+  private validateManifestScriptEntries(
+    manifest: PackageManifest,
+    location: SourceLocation,
+  ): void {
+    if (!manifest.scripts) return;
+
+    for (const [scriptName, command] of Object.entries(manifest.scripts)) {
+      if (scriptName.length === 0 || typeof command !== "string") {
+        throw new CompilerError(
+          "Invalid 'scripts' field",
+          "'scripts' entries must map non-empty script names to command strings.",
+          location,
+        );
+      }
     }
   }
 

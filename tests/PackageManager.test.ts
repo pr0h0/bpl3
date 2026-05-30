@@ -1876,6 +1876,27 @@ describe("PackageManager", () => {
         );
       });
     });
+
+    test("should reject non-string package scripts", () => {
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          {
+            name: "script-validation",
+            version: "1.0.0",
+            scripts: {
+              bad: ["bpl", "check"],
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      expect(() => packageManager.loadManifest(tempDir)).toThrow(
+        /Invalid 'scripts' field/,
+      );
+    });
   });
 
   describe("Package Hash Calculation", () => {
