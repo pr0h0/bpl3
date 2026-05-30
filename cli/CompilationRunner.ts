@@ -264,7 +264,9 @@ function processCodeInternal(
   injectRuntimeObjects(options);
 
   // Check if file has imports - if so, use module resolution
-  const hasImports = sourceContainsImportDeclaration(content, filePath);
+  const hasImports =
+    shouldResolveImportsForCompilation(options) &&
+    sourceContainsImportDeclaration(content, filePath);
 
   if (hasImports) {
     compileWithModules(content, filePath, options, programArgs);
@@ -284,7 +286,9 @@ async function processCodeInternalAsync(
 ): Promise<void> {
   injectRuntimeObjects(options);
 
-  const hasImports = sourceContainsImportDeclaration(content, filePath);
+  const hasImports =
+    shouldResolveImportsForCompilation(options) &&
+    sourceContainsImportDeclaration(content, filePath);
 
   if (hasImports) {
     await compileWithModulesAsync(content, filePath, options, programArgs);
@@ -330,6 +334,14 @@ function needsNativeRuntimeObjects(options: CompileOptions): boolean {
     return false;
   }
 
+  return (
+    options.emit !== "ast" &&
+    options.emit !== "tokens" &&
+    options.emit !== "formatted"
+  );
+}
+
+function shouldResolveImportsForCompilation(options: CompileOptions): boolean {
   return (
     options.emit !== "ast" &&
     options.emit !== "tokens" &&

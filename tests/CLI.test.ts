@@ -168,6 +168,40 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should emit frontend views without resolving imports", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-import-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import missing from "./missing.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const tokens = runCLI(["build", sourceFile, "--emit", "tokens"]);
+      expect(tokens.status).toBe(0);
+      expect(tokens.stdout).toContain('"type": "Import"');
+      expect(tokens.stderr).not.toContain("Failed to resolve import");
+
+      const ast = runCLI(["build", sourceFile, "--emit", "ast"]);
+      expect(ast.status).toBe(0);
+      expect(ast.stdout).toContain('"kind": "Import"');
+      expect(ast.stderr).not.toContain("Failed to resolve import");
+
+      const formatted = runCLI(["build", sourceFile, "--emit", "formatted"]);
+      expect(formatted.status).toBe(0);
+      expect(formatted.stdout).toContain('import missing from "./missing.bpl";');
+      expect(formatted.stdout).not.toContain("define i32 @main");
+      expect(formatted.stderr).not.toContain("Failed to resolve import");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
