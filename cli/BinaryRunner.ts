@@ -26,6 +26,7 @@ import {
 } from "../compiler/common/ProcessErrors";
 
 const log = new Logger("BinaryRunner");
+const WASM_LINKER_PROBE_TIMEOUT_MS = 5000;
 
 export function isWasmTarget(target?: string): boolean {
   return isCompilerDriverWasmTarget(target);
@@ -74,7 +75,10 @@ function findWasmLinker(): string | undefined {
   ].filter((candidate): candidate is string => Boolean(candidate));
 
   return candidates.find((candidate) => {
-    const result = spawnSync(candidate, ["--version"], { stdio: "ignore" });
+    const result = spawnSync(candidate, ["--version"], {
+      stdio: "ignore",
+      timeout: getWasmLinkerProbeTimeoutMs(),
+    });
     return result.status === 0;
   });
 }
@@ -82,6 +86,21 @@ function findWasmLinker(): string | undefined {
 function isEnvFlagEnabled(value: string | undefined): boolean {
   if (!value) return false;
   return !["0", "false", "no", "off"].includes(value.toLowerCase());
+}
+
+function getWasmLinkerProbeTimeoutMs(): number {
+  const raw = process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
+  if (!raw) return WASM_LINKER_PROBE_TIMEOUT_MS;
+
+  const parsed = Number(raw);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  log.warn(
+    `Ignoring invalid BPL_WASM_LINKER_PROBE_TIMEOUT_MS=${raw}; using ${WASM_LINKER_PROBE_TIMEOUT_MS}ms`,
+  );
+  return WASM_LINKER_PROBE_TIMEOUT_MS;
 }
 
 /**

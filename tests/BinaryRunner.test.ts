@@ -15,6 +15,8 @@ describe("BinaryRunner", () => {
   const originalRequireWasmLd = process.env.BPL_REQUIRE_WASM_LD;
   const originalCompileDriverTimeout =
     process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+  const originalWasmLinkerProbeTimeout =
+    process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
 
   afterEach(() => {
     if (originalBplHome === undefined) {
@@ -51,6 +53,12 @@ describe("BinaryRunner", () => {
       delete process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
     } else {
       process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = originalCompileDriverTimeout;
+    }
+    if (originalWasmLinkerProbeTimeout === undefined) {
+      delete process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
+    } else {
+      process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS =
+        originalWasmLinkerProbeTimeout;
     }
   });
 
@@ -443,6 +451,45 @@ describe("BinaryRunner", () => {
       expect(result.error).toContain(
         "BPL_REQUIRE_WASM_LD=1 requires a wasm linker",
       );
+      expect(fs.existsSync(argsLogPath)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("times out hanging wasm linker probes before invoking the compiler", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-wasm-link-timeout-"),
+    );
+    const emptyPathDir = path.join(tempDir, "empty-path");
+    const irPath = path.join(tempDir, "program.ll");
+    const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
+
+    try {
+      fs.mkdirSync(emptyPathDir);
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.PATH = emptyPathDir;
+      process.env.WASM_LD = writeNodeCommandShim(
+        path.join(tempDir, "hanging-wasm-ld"),
+        ["setInterval(() => {}, 1000);"],
+      );
+      process.env.BPL_REQUIRE_WASM_LD = "1";
+      process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS = "100";
+      process.env.BPL_WASM_CC = writeNodeCommandShim(
+        path.join(tempDir, "fake-wasm-cc"),
+        [
+          'const fs = require("fs");',
+          `fs.writeFileSync(${JSON.stringify(argsLogPath)}, "invoked");`,
+        ],
+      );
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        target: "wasm32-unknown-unknown",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("requires a wasm linker");
       expect(fs.existsSync(argsLogPath)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
