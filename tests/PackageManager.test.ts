@@ -365,6 +365,47 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should clean package archive temp directories from successful tar tools", () => {
+      const manifest = {
+        name: "dir-tar-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const originalBplTar = process.env.BPL_TAR;
+      const fakeTar = writeNodeCommandShim(path.join(tempDir, "dir-tar"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.indexOf("-czf") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        "fs.mkdirSync(args[outputIndex]);",
+      ]);
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      process.env.BPL_TAR = fakeTar;
+      try {
+        expect(() => packageManager.pack(tempDir)).toThrow(
+          /Package archive tool did not create a regular file/,
+        );
+        expect(
+          fs
+            .readdirSync(tempDir)
+            .some(
+              (file) =>
+                file.startsWith(".dir-tar-pkg-1.0.0.tgz.") &&
+                file.endsWith(".tmp"),
+            ),
+        ).toBe(false);
+      } finally {
+        if (originalBplTar === undefined) {
+          delete process.env.BPL_TAR;
+        } else {
+          process.env.BPL_TAR = originalBplTar;
+        }
+      }
+    });
+
     test("should include all source files in package", () => {
       const manifest = {
         name: "multi-file-pkg",

@@ -1932,7 +1932,7 @@ export class PackageManager {
         fs.renameSync(tempTarballPath, tarballPath);
         return;
       } finally {
-        this.removeBestEffort(tempTarballPath);
+        this.removePackageArchiveTempPath(tempTarballPath);
       }
     }
 
@@ -2030,6 +2030,14 @@ export class PackageManager {
 
       const nextParent = path.dirname(parentPath);
       if (nextParent === parentPath) return;
+    }
+  }
+
+  private removePackageArchiveTempPath(filePath: string): void {
+    try {
+      fs.rmSync(filePath, { force: true, recursive: true });
+    } catch {
+      // Best-effort cleanup only.
     }
   }
 
