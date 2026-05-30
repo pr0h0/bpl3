@@ -1421,6 +1421,75 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report run-script manifest errors as JSON", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+
+    function runJsonList() {
+      return spawnSync("bun", [BPL_CLI, "run-script", "--list", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+    }
+
+    function expectJsonError(
+      result: ReturnType<typeof runJsonList>,
+      error: string,
+    ) {
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toEqual({
+        success: false,
+        error,
+      });
+    }
+
+    try {
+      expectJsonError(
+        runJsonList(),
+        "No bpl.json found in current directory.",
+      );
+
+      fs.mkdirSync(path.join(tempDir, "bpl.json"));
+      expectJsonError(runJsonList(), "bpl.json is not a file.");
+
+      fs.rmSync(path.join(tempDir, "bpl.json"), {
+        recursive: true,
+        force: true,
+      });
+      fs.writeFileSync(path.join(tempDir, "bpl.json"), "{not-json");
+      expectJsonError(runJsonList(), "Failed to parse bpl.json");
+
+      fs.writeFileSync(path.join(tempDir, "bpl.json"), "[]");
+      expectJsonError(
+        runJsonList(),
+        "bpl.json must contain a JSON object.",
+      );
+
+      fs.unlinkSync(path.join(tempDir, "bpl.json"));
+      const targetManifest = path.join(tempDir, "linked-manifest.json");
+      fs.writeFileSync(targetManifest, JSON.stringify({ scripts: {} }));
+      fs.symlinkSync(targetManifest, path.join(tempDir, "bpl.json"), "file");
+      expectJsonError(runJsonList(), "bpl.json is a symbolic link.");
+
+      fs.unlinkSync(path.join(tempDir, "bpl.json"));
+      fs.writeFileSync(
+        path.join(tempDir, "bpl.json"),
+        JSON.stringify({
+          scripts: {
+            bad: ["echo", "bad"],
+          },
+        }),
+      );
+      expectJsonError(
+        runJsonList(),
+        "Script 'bad' in bpl.json must be a non-empty string",
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should report lint diagnostics as JSON", () => {
     const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
     const result = runCLI(["lint", "--json", lintFile]);

@@ -361,7 +361,10 @@ List them with `bpl run-script --list` or as JSON with
 `bpl run-script --list --json`. Run one with `bpl run-script <name>` or
 `bpl rs <name>`. Script commands must be non-empty strings. Extra arguments are
 forwarded to the script as quoted shell arguments, so values containing spaces
-or shell metacharacters remain single arguments.
+or shell metacharacters remain single arguments. When `--json` is used,
+manifest and script validation failures are emitted as machine-readable
+`{ "success": false, "error": "..." }` JSON so CI and editor integrations do
+not need to parse logger text.
 
 ```bash
 bpl run-script --list

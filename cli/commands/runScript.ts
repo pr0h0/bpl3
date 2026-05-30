@@ -49,38 +49,33 @@ export function registerRunScriptCommand(program: Command): void {
           list: Boolean(rawOptions.list),
         };
         const manifestPath = path.join(process.cwd(), "bpl.json");
+        const fail = (message: string): never =>
+          failRunScript(message, Boolean(options.json));
 
         const manifestStat = tryLstat(manifestPath);
         if (!manifestStat) {
-          log.error("No bpl.json found in current directory.");
-          process.exit(1);
-        }
-        if (manifestStat.isSymbolicLink()) {
-          log.error("bpl.json is a symbolic link.");
-          process.exit(1);
-        }
-        if (!manifestStat.isFile()) {
-          log.error("bpl.json is not a file.");
-          process.exit(1);
+          fail("No bpl.json found in current directory.");
+        } else if (manifestStat.isSymbolicLink()) {
+          fail("bpl.json is a symbolic link.");
+        } else if (!manifestStat.isFile()) {
+          fail("bpl.json is not a file.");
         }
 
         let manifest: any;
         try {
           manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
         } catch (_e) {
-          log.error("Failed to parse bpl.json");
-          process.exit(1);
+          fail("Failed to parse bpl.json");
         }
         if (
           !manifest ||
           typeof manifest !== "object" ||
           Array.isArray(manifest)
         ) {
-          log.error("bpl.json must contain a JSON object.");
-          process.exit(1);
+          fail("bpl.json must contain a JSON object.");
         }
 
-        const scripts = getPackageScripts(manifest);
+        const scripts = getPackageScripts(manifest, fail);
 
         if (options.list || !scriptName) {
           printScriptList(scripts, Boolean(options.json));
@@ -90,7 +85,12 @@ export function registerRunScriptCommand(program: Command): void {
         const script = scripts.find((entry) => entry.name === scriptName);
 
         if (!script) {
-          log.error(`Script '${scriptName}' not found in bpl.json`);
+          const message = `Script '${scriptName}' not found in bpl.json`;
+          if (options.json) {
+            fail(message);
+          }
+
+          log.error(message);
           if (scripts.length > 0) {
             printScriptList(scripts, false);
           }
@@ -133,6 +133,25 @@ export function registerRunScriptCommand(program: Command): void {
     );
 }
 
+function failRunScript(message: string, outputJson: boolean): never {
+  if (outputJson) {
+    console.log(
+      JSON.stringify(
+        {
+          success: false,
+          error: message,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    log.error(message);
+  }
+
+  process.exit(1);
+}
+
 function quoteShellArg(arg: string): string {
   if (arg.length === 0) {
     return process.platform === "win32" ? '""' : "''";
@@ -145,25 +164,25 @@ function quoteShellArg(arg: string): string {
   return `'${arg.replace(/'/g, "'\\''")}'`;
 }
 
-function getPackageScripts(manifest: any): PackageScript[] {
+function getPackageScripts(
+  manifest: any,
+  fail: (message: string) => never,
+): PackageScript[] {
   if (!manifest.scripts) {
     return [];
   }
 
   if (typeof manifest.scripts !== "object" || Array.isArray(manifest.scripts)) {
-    log.error("'scripts' in bpl.json must be an object");
-    process.exit(1);
+    fail("'scripts' in bpl.json must be an object");
   }
 
   return Object.entries(manifest.scripts).map(([name, command]) => {
     if (name.length === 0) {
-      log.error("'scripts' entries must use non-empty script names");
-      process.exit(1);
+      fail("'scripts' entries must use non-empty script names");
     }
 
     if (typeof command !== "string" || command.trim().length === 0) {
-      log.error(`Script '${name}' in bpl.json must be a non-empty string`);
-      process.exit(1);
+      fail(`Script '${name}' in bpl.json must be a non-empty string`);
     }
 
     return { name, command };
