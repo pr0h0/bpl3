@@ -7,10 +7,12 @@ import {
   getObjectSymbolTool,
   ObjectFileParser,
 } from "../compiler/middleend/ObjectFileParser";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("ObjectFileParser", () => {
   const originalBplNm = process.env.BPL_NM;
   const originalNm = process.env.NM;
+  const originalSymbolTimeout = process.env.BPL_OBJECT_SYMBOL_TIMEOUT_MS;
 
   afterEach(() => {
     if (originalBplNm === undefined) {
@@ -23,6 +25,12 @@ describe("ObjectFileParser", () => {
       delete process.env.NM;
     } else {
       process.env.NM = originalNm;
+    }
+
+    if (originalSymbolTimeout === undefined) {
+      delete process.env.BPL_OBJECT_SYMBOL_TIMEOUT_MS;
+    } else {
+      process.env.BPL_OBJECT_SYMBOL_TIMEOUT_MS = originalSymbolTimeout;
     }
   });
 
@@ -132,6 +140,38 @@ describe("ObjectFileParser", () => {
       expect(output).toContain(missingTool);
       expect(output).toContain("command not found");
       expect(output).not.toContain("ENOENT");
+    } finally {
+      console.warn = originalWarn;
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("times out hanging object symbol tools without raw system errors", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-object-symbol-timeout-"),
+    );
+    const objectFile = path.join(tempDir, "main.o");
+    const hangingTool = writeNodeCommandShim(path.join(tempDir, "hanging-nm"), [
+      "setInterval(() => {}, 1000);",
+    ]);
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+
+    try {
+      fs.writeFileSync(objectFile, "not a real object\n");
+      process.env.BPL_NM = hangingTool;
+      process.env.BPL_OBJECT_SYMBOL_TIMEOUT_MS = "100";
+      console.warn = (...args: unknown[]) => {
+        warnings.push(args.map(String).join(" "));
+      };
+
+      const symbols = ObjectFileParser.parseELFObject(objectFile);
+
+      expect(symbols).toEqual([]);
+      const output = warnings.join("\n");
+      expect(output).toContain(hangingTool);
+      expect(output).toContain("timed out");
+      expect(output).not.toContain("ETIMEDOUT");
     } finally {
       console.warn = originalWarn;
       fs.rmSync(tempDir, { recursive: true, force: true });

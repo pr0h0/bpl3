@@ -22,6 +22,8 @@ export function getObjectSymbolTool(): string {
   return process.env.BPL_NM || process.env.NM || "nm";
 }
 
+const OBJECT_SYMBOL_TIMEOUT_MS = 30000;
+
 export class ObjectFileParser {
   /**
    * Parse LLVM IR file and extract symbols
@@ -87,6 +89,7 @@ export class ObjectFileParser {
       const result = spawnSync(symbolTool, [filePath], {
         encoding: "utf-8",
         maxBuffer: 10 * 1024 * 1024,
+        timeout: this.getObjectSymbolTimeoutMs(),
       });
 
       if (result.error) {
@@ -116,6 +119,21 @@ export class ObjectFileParser {
 
   private static formatSpawnFailure(error: Error): string {
     return formatSpawnFailureReason(error) ?? error.message;
+  }
+
+  private static getObjectSymbolTimeoutMs(): number {
+    const raw = process.env.BPL_OBJECT_SYMBOL_TIMEOUT_MS;
+    if (!raw) return OBJECT_SYMBOL_TIMEOUT_MS;
+
+    const parsed = Number(raw);
+    if (Number.isSafeInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+
+    compilerLog.warn(
+      `Ignoring invalid BPL_OBJECT_SYMBOL_TIMEOUT_MS=${raw}; using ${OBJECT_SYMBOL_TIMEOUT_MS}ms`,
+    );
+    return OBJECT_SYMBOL_TIMEOUT_MS;
   }
 
   static parseNmOutput(output: string): ObjectFileSymbol[] {

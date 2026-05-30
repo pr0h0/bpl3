@@ -402,7 +402,8 @@ include the selected driver, target, sysroot, optimization level, target
 CPU/architecture flags, and forwarded compiler flags so incompatible toolchain
 invocations do not reuse stale objects.
 When inspecting precompiled object-file symbols, BPL uses `BPL_NM`, then `NM`,
-then `nm`.
+then `nm`. Object symbol parsing is bounded by
+`BPL_OBJECT_SYMBOL_TIMEOUT_MS`, defaulting to 30000 milliseconds.
 LLVM IR verification uses `BPL_OPT`/`OPT`, `BPL_LLVM_AS`/`LLVM_AS`,
 `BPL_LLC`/`LLC`, then the selected native compiler driver.
 Package IR verification during `bpl pack` uses the selected native compiler
