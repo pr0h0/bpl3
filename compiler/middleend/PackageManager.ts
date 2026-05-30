@@ -1537,9 +1537,8 @@ export class PackageManager {
 
     this.verifyArchiveProvenanceBeforeInstall(tarballPath);
 
-    // Extract to temporary directory first
-    const tempDir = path.join(os.tmpdir(), `bpl-install-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    // Extract to a unique temporary directory first.
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-install-"));
 
     try {
       this.validatePackageArchiveMembers(tarballPath);

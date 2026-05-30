@@ -337,6 +337,52 @@ describe("PackageManager", () => {
       expect(fs.existsSync(path.join(installedPath, "index.bpl"))).toBe(true);
     });
 
+    test("should isolate package extraction from stale temp directories", () => {
+      const manifest = {
+        name: "stale-temp-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const fixedTimestamp = 1234567890;
+      const staleTempDir = path.join(
+        os.tmpdir(),
+        `bpl-install-${fixedTimestamp}`,
+      );
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      const tarballPath = packageManager.pack(tempDir);
+      const installDir = path.join(tempDir, "stale-temp-install");
+      fs.mkdirSync(path.join(staleTempDir, "package"), { recursive: true });
+      fs.writeFileSync(
+        path.join(staleTempDir, "package", "stale.bpl"),
+        "frame stale() ret int { return 99; }",
+      );
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const originalDateNow = Date.now;
+      Date.now = () => fixedTimestamp;
+      try {
+        new PackageManager().install(tarballPath, {
+          global: false,
+          verbose: false,
+        });
+      } finally {
+        Date.now = originalDateNow;
+        fs.rmSync(staleTempDir, { recursive: true, force: true });
+      }
+
+      const installedPath = path.join(
+        installDir,
+        "bpl_modules",
+        "stale-temp-pkg",
+      );
+      expect(fs.existsSync(path.join(installedPath, "index.bpl"))).toBe(true);
+      expect(fs.existsSync(path.join(installedPath, "stale.bpl"))).toBe(false);
+    });
+
     test("should reject bin command names that escape the bin directory", () => {
       const manifest = {
         name: "unsafe-bin-name",
