@@ -48,6 +48,9 @@ jobs:
           bun install --frozen-lockfile
           npm ci --prefix vscode-ext
 
+      - name: Build runtime support
+        run: bun run build:runtime
+
       - name: Type check
         run: bun run check
 

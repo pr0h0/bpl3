@@ -20,6 +20,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("npm ci --prefix vscode-ext");
+    expect(workflow).toContain("bun run build:runtime");
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run lint");
     expect(workflow).toContain("bun run fuzz:long");
@@ -47,6 +48,8 @@ describe("GitHub Actions workflows", () => {
       "bun test tests/FuzzFailureArtifactCorpus.test.ts",
     );
 
+    const buildRuntimeIndex = workflow.indexOf("Build runtime support");
+    const typeCheckIndex = workflow.indexOf("Type check");
     const runFuzzIndex = workflow.indexOf("Run deterministic compiler fuzz");
     const differentialIndex = workflow.indexOf(
       "Run deterministic differential compiler fuzz",
@@ -54,6 +57,8 @@ describe("GitHub Actions workflows", () => {
     const minimizeIndex = workflow.indexOf("Minimize fuzz crash artifacts");
     const uploadIndex = workflow.indexOf("Upload fuzz crash artifacts");
 
+    expect(typeCheckIndex).toBeGreaterThan(buildRuntimeIndex);
+    expect(runFuzzIndex).toBeGreaterThan(buildRuntimeIndex);
     expect(differentialIndex).toBeGreaterThan(runFuzzIndex);
     expect(minimizeIndex).toBeGreaterThan(differentialIndex);
     expect(minimizeIndex).toBeGreaterThan(runFuzzIndex);
