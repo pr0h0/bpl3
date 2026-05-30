@@ -26,7 +26,7 @@ export function registerCompileCommand(program: Command): void {
       });
 
       process.stdin.on("end", () => {
-        processCode(stdinData, "stdin-42069", options);
+        processCode(stdinData, "<stdin>", options);
       });
 
       return;

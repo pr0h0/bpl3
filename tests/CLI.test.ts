@@ -101,6 +101,18 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("llvm, ast, tokens, formatted");
   });
 
+  it("should label stdin diagnostics as stdin", () => {
+    const result = spawnSync("bun", [BPL_CLI, "--stdin"], {
+      input: ['frame main() {', '    local x: int = "bad";', "}"].join("\n"),
+      encoding: "utf-8",
+      env: { ...process.env, NO_COLOR: "1" },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("error[E001][<stdin>:2:5]");
+    expect(result.stderr).not.toContain("stdin-42069");
+  });
+
   it("should reject invalid wasm runtime modes before writing output", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-invalid-wasm-runtime-"),
