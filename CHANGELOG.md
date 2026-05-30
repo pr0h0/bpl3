@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Hosted Wasm Printf Formatting** - Hosted WebAssembly `printf`, `fprintf`,
   and `dprintf` now format the documented `%s`, `%d`, `%c`, and `%%` subset, with
   a native-compatible `examples/wasm_hosted_printf` regression.
+- **Agent Board Workflow Docs** - Documented the BPL Agent Board as the
+  credential-free source of truth for active task tracking, criteria, review
+  state, and verification evidence.
 - **CI Triage Helper** - Added `bun run ci:triage -- <actions-run-url>` to summarize failed GitHub Actions jobs and print local reproduction commands without requiring GitHub admin access.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS

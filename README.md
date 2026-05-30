@@ -796,6 +796,19 @@ bpl run main.bpl
 
 ## 🧑‍💻 Development
 
+### Work Tracking
+
+Active BPL implementation work is tracked on the project-scoped BPL Agent Board.
+Use the board as the source of truth for task ownership, acceptance criteria,
+progress notes, review status, and time tracking. Keep repository artifacts in
+sync with the board: user-visible behavior changes should update
+`CHANGELOG.md`, docs should change with documented behavior, and completed work
+should include the relevant test or verification output in the board summary.
+
+Do not commit Agent Board credentials, API keys, local environment files, or
+private endpoint details. Board updates should describe the work and evidence,
+not secrets.
+
 ### Running Tests
 
 ```bash

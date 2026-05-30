@@ -116,6 +116,16 @@ Every documentation page includes practical examples. For a complete collection 
 
 Found an error or want to improve the documentation? Open a pull request with the docs change and the relevant verification output.
 
+Active project work is tracked on the BPL Agent Board alongside repository
+changes. The board should reflect task ownership, acceptance criteria, progress,
+review state, and verification evidence. Repository changes should still update
+the appropriate docs, examples, tests, and `CHANGELOG.md`; the board records the
+coordination trail, while git records the implementation.
+
+Never commit Agent Board credentials, API keys, local environment files, or
+private endpoint details. Agent Board comments and summaries should contain
+human-readable progress and verification notes only.
+
 ## License
 
 This documentation is licensed under Apache-2.0, same as the BPL compiler.
