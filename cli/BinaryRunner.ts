@@ -103,6 +103,9 @@ export function compileToBinary(
   try {
     assertReadableCompileInput(irPath, "LLVM IR input");
     assertWritableFileOutputPath(execPath);
+    for (const objectPath of normalizeArrayOption(options.object)) {
+      assertReadableCompileInput(objectPath, "Link object input");
+    }
     const hostDefaults = getHostDefaults();
     const target = options.target ?? hostDefaults.target;
     clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);

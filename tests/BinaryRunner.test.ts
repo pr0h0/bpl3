@@ -77,4 +77,51 @@ describe("BinaryRunner", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("reports missing link object inputs before invoking clang", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-object-"));
+    const irPath = path.join(tempDir, "main.ll");
+    const missingObjectPath = path.join(tempDir, "missing.o");
+
+    try {
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = path.join(tempDir, "missing-cc");
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        object: missingObjectPath,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Link object input not found");
+      expect(result.error).toContain(missingObjectPath);
+      expect(result.error).not.toContain("missing-cc");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports directory link object inputs before invoking clang", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-object-dir-"),
+    );
+    const irPath = path.join(tempDir, "main.ll");
+    const objectPath = path.join(tempDir, "object.o");
+
+    try {
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.mkdirSync(objectPath);
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        object: objectPath,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Link object input is not a file");
+      expect(result.error).toContain(objectPath);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
