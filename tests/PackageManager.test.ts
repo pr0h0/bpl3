@@ -1728,6 +1728,64 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should use the configured archive tool while verifying package cache entries", () => {
+      const globalPackageDir = path.join(tempDir, "cache-tar-tool-packages");
+      const toolDir = path.join(tempDir, "cache-tar-tool-bin");
+      const logPath = path.join(tempDir, "cache-tar-tool.log");
+      const fakeTar = path.join(toolDir, "tar-proxy.js");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(toolDir);
+
+      createCachedPackage(
+        "cache-tar-tool",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+
+      fs.writeFileSync(
+        fakeTar,
+        [
+          "#!/usr/bin/env node",
+          'const { spawnSync } = require("child_process");',
+          'const fs = require("fs");',
+          "const args = process.argv.slice(2);",
+          `fs.appendFileSync(${JSON.stringify(logPath)}, args.join(" ") + "\\n");`,
+          `const result = spawnSync(${JSON.stringify(process.env.TAR || "tar")}, args, { encoding: "buffer" });`,
+          "if (result.stdout) process.stdout.write(result.stdout);",
+          "if (result.stderr) process.stderr.write(result.stderr);",
+          "if (result.error) {",
+          "  console.error(result.error.message);",
+          "  process.exit(127);",
+          "}",
+          "process.exit(result.status ?? 1);",
+          "",
+        ].join("\n"),
+      );
+      fs.chmodSync(fakeTar, 0o755);
+
+      const originalBplTar = process.env.BPL_TAR;
+      process.env.BPL_TAR = fakeTar;
+
+      try {
+        const localPM = new PackageManager(tempDir);
+        localPM["globalPackageDir"] = globalPackageDir;
+
+        const report = localPM.verifyPackageCache("cache-tar-tool");
+
+        expect(report.ok).toBe(true);
+        const invocations = fs.readFileSync(logPath, "utf-8").trim().split("\n");
+        expect(invocations.some((line) => line.startsWith("-tzf "))).toBe(true);
+        expect(invocations.some((line) => line.startsWith("-xzf "))).toBe(true);
+      } finally {
+        if (originalBplTar === undefined) {
+          delete process.env.BPL_TAR;
+        } else {
+          process.env.BPL_TAR = originalBplTar;
+        }
+      }
+    });
+
     test("should repair missing package cache provenance for valid archives", () => {
       const globalPackageDir = path.join(tempDir, "cache-repair-packages");
       fs.mkdirSync(globalPackageDir);

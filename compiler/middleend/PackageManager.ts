@@ -2457,15 +2457,18 @@ export class PackageManager {
 
       try {
         this.validatePackageArchiveMembers(entry.path);
+        const archiveTool = getPackageArchiveTool();
         const extractResult = spawnSync(
-          "tar",
+          archiveTool,
           ["-xzf", entry.path, "-C", tempDir],
           { stdio: "pipe" },
         );
 
         if (extractResult.status !== 0) {
-          const detail =
-            extractResult.stderr?.toString().trim() || "unknown tar error";
+          const detail = this.formatSpawnFailure(
+            extractResult,
+            "unknown tar error",
+          );
           throw new Error(`failed to extract archive (${detail})`);
         }
 
@@ -2566,15 +2569,18 @@ export class PackageManager {
 
       try {
         this.validatePackageArchiveMembers(entry.path);
+        const archiveTool = getPackageArchiveTool();
         const extractResult = spawnSync(
-          "tar",
+          archiveTool,
           ["-xzf", entry.path, "-C", tempDir],
           { stdio: "pipe" },
         );
 
         if (extractResult.status !== 0) {
-          const detail =
-            extractResult.stderr?.toString().trim() || "unknown tar error";
+          const detail = this.formatSpawnFailure(
+            extractResult,
+            "unknown tar error",
+          );
           throw new Error(`failed to extract archive (${detail})`);
         }
 
