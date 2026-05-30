@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "child_process";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
@@ -88,6 +89,58 @@ describe("CLI Tests", () => {
       expect(fs.readFileSync(tempFile, "utf-8")).toBe(unformatted);
     } finally {
       if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+    }
+  });
+
+  it("should report clean results as JSON without deleting on dry run", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-clean-json-"));
+    const buildDir = path.join(tempDir, "build");
+    fs.mkdirSync(buildDir);
+    fs.writeFileSync(path.join(tempDir, "main.ll"), "; test ir");
+    fs.writeFileSync(path.join(buildDir, "keep.txt"), "artifact");
+    fs.writeFileSync(path.join(tempDir, "main.bpl"), "frame main() {}");
+
+    try {
+      const dryRun = spawnSync(
+        "bun",
+        [BPL_CLI, "clean", "--dry-run", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(dryRun.status).toBe(0);
+      const dryRunReport = JSON.parse(dryRun.stdout);
+      expect(dryRunReport).toMatchObject({
+        dryRun: true,
+        count: 2,
+      });
+      expect(dryRunReport.entries).toContainEqual({
+        path: "main.ll",
+        type: "file",
+      });
+      expect(dryRunReport.entries).toContainEqual({
+        path: "build/",
+        type: "directory",
+      });
+      expect(fs.existsSync(path.join(tempDir, "main.ll"))).toBe(true);
+      expect(fs.existsSync(buildDir)).toBe(true);
+
+      const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      expect(clean.status).toBe(0);
+      const cleanReport = JSON.parse(clean.stdout);
+      expect(cleanReport.dryRun).toBe(false);
+      expect(cleanReport.count).toBe(2);
+      expect(fs.existsSync(path.join(tempDir, "main.ll"))).toBe(false);
+      expect(fs.existsSync(buildDir)).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "main.bpl"))).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
@@ -281,6 +334,12 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain("--cache-stats");
     expect(bash.stdout).toContain("--template");
     expect(zsh.stdout).toContain("--template");
+    expect(bash.stdout).toContain(
+      'clean_opts="-v --verbose --dry-run --json"',
+    );
+    expect(zsh.stdout).toContain(
+      "--json[Output machine-readable cleanup report]",
+    );
   });
 
   it("should report host toolchain diagnostics from doctor as JSON", () => {

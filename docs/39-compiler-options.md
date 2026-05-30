@@ -158,12 +158,14 @@ Remove build artifacts.
 
 - `--dry-run`: Show what would be deleted
 - `-v, --verbose`: Verbose output
+- `--json`: Output a machine-readable cleanup report
 
 **Examples:**
 
 ```bash
 bpl clean
 bpl clean --dry-run
+bpl clean --dry-run --json
 ```
 
 ### `bpl format [files...]`

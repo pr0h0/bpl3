@@ -48,6 +48,9 @@ _bpl_completion() {
     # List command options
     local list_opts="-v --verbose"
 
+    # Clean command options
+    local clean_opts="-v --verbose --dry-run --json"
+
     # Uninstall command options
     local uninstall_opts="-v --verbose"
 
@@ -168,6 +171,10 @@ _bpl_completion() {
             ;;
             list)
                 COMPREPLY=( $(compgen -W "${list_opts}" -- "${cur}") )
+                return 0
+            ;;
+            clean)
+                COMPREPLY=( $(compgen -W "${clean_opts}" -- "${cur}") )
                 return 0
             ;;
             uninstall)

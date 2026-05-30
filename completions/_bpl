@@ -140,6 +140,13 @@ _bpl() {
                         '-v[Enable verbose output]' \
                         '--verbose[Enable verbose output]'
                     ;;
+                clean)
+                    _arguments \
+                        '-v[Enable verbose output]' \
+                        '--verbose[Enable verbose output]' \
+                        '--dry-run[Show what would be deleted]' \
+                        '--json[Output machine-readable cleanup report]'
+                    ;;
                 uninstall)
                     _arguments \
                         '-v[Enable verbose output]' \
