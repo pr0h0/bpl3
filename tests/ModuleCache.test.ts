@@ -41,6 +41,35 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("honors BPL_CC when compiling module objects", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-driver-"));
+    const previousBplCc = process.env.BPL_CC;
+    const missingCompiler = join(dir, "definitely-missing-cc");
+
+    try {
+      process.env.BPL_CC = missingCompiler;
+      const cache = new ModuleCache(dir);
+
+      expect(() =>
+        cache.compileModule(
+          "main.bpl",
+          "frame main() ret int { return 0; }",
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(missingCompiler);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("compiles multiple module objects with a bounded parallel job count", async () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parallel-"));
 

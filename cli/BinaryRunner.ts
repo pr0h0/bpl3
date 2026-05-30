@@ -12,13 +12,17 @@ import {
   getNativeLinkerFlags,
   normalizeArrayOption,
 } from "./utils";
+import {
+  getCompilerDriver,
+  isWasmTarget as isCompilerDriverWasmTarget,
+} from "../compiler/common/CompilerDriver";
 import { Logger } from "../compiler/common/Logger";
 import { getBplHome } from "../compiler/common/PathResolver";
 
 const log = new Logger("BinaryRunner");
 
 export function isWasmTarget(target?: string): boolean {
-  return target?.toLowerCase().includes("wasm") ?? false;
+  return isCompilerDriverWasmTarget(target);
 }
 
 export function getWasmRuntimeMode(
@@ -69,13 +73,6 @@ function findWasmLinker(): string | undefined {
   });
 }
 
-function getClangCommand(target?: string): string {
-  if (isWasmTarget(target)) {
-    return process.env.BPL_WASM_CC || process.env.WASM_CC || "clang";
-  }
-  return process.env.BPL_CC || process.env.CC || "clang";
-}
-
 /**
  * Result of binary compilation
  */
@@ -94,7 +91,7 @@ export interface RunResult {
 }
 
 /**
- * Compile LLVM IR to a native executable using clang
+ * Compile LLVM IR to a native executable using an LLVM-capable compiler driver.
  */
 export function compileToBinary(
   irPath: string,
@@ -111,12 +108,12 @@ export function compileToBinary(
     ? execPathBase
     : path.resolve(execPathBase);
 
-  const clangCommand = getClangCommand(target);
+  const clangCommand = getCompilerDriver(target);
   const clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
 
   if (options.verbose) {
     log.info("---------------------------------------------");
-    log.info("Compiling LLVM IR to executable with clang...");
+    log.info("Compiling LLVM IR to executable with compiler driver...");
     log.info("---------------------------------------------");
     log.debug(`${clangCommand} ${clangArgs.join(" ")}`);
   }

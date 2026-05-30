@@ -13,7 +13,7 @@ describe("Linker", () => {
     expect(getNativeLinkerFlags("win32")).toEqual([]);
   });
 
-  it("forwards optimization level to clang", () => {
+  it("forwards optimization level to the compiler driver", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-"));
     const irPath = join(dir, "main.ll");
     const outputPath = join(dir, "main");
@@ -46,6 +46,50 @@ describe("Linker", () => {
       expect(ok).toBe(true);
       expect(logs.join("\n")).toContain("-O3");
     } finally {
+      console.log = originalLog;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("honors BPL_CC when linking object files", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-driver-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const missingCompiler = join(dir, "definitely-missing-cc");
+    const originalLog = console.log;
+    const previousBplCc = process.env.BPL_CC;
+    const logs: string[] = [];
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+
+    try {
+      process.env.BPL_CC = missingCompiler;
+      console.log = (...args: unknown[]) => {
+        logs.push(args.map(String).join(" "));
+      };
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        verbose: true,
+      });
+
+      expect(ok).toBe(false);
+      expect(logs.join("\n")).toContain(`Running: ${missingCompiler}`);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
       console.log = originalLog;
       rmSync(dir, { recursive: true, force: true });
     }

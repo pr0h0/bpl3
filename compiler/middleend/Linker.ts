@@ -11,6 +11,7 @@
 import { spawnSync } from "child_process";
 import * as fs from "fs";
 
+import { getCompilerDriver } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
@@ -39,10 +40,10 @@ export interface LinkOptions {
   /** Sysroot for cross-compilation */
   sysroot?: string;
 
-  /** Additional clang flags */
+  /** Additional flags passed to the selected compiler driver */
   clangFlags?: string[];
 
-  /** Optimization level (0-3) forwarded to clang */
+  /** Optimization level (0-3) forwarded to the compiler driver */
   optimizationLevel?: number;
 
   /** Enable verbose output */
@@ -107,9 +108,9 @@ export class Linker {
         return false;
       }
 
-      // Compile with clang
+      // Compile with the selected LLVM-capable compiler driver
       if (options.verbose) {
-        compilerLog.info("Compiling to executable with clang...");
+        compilerLog.info("Compiling to executable with compiler driver...");
       }
 
       return this.compileWithClang(mergedIR, options);
@@ -179,7 +180,7 @@ export class Linker {
   }
 
   /**
-   * Compile merged IR to executable with clang
+   * Compile merged IR to executable with the selected compiler driver.
    */
   private compileWithClang(mergedIR: string, options: LinkOptions): boolean {
     // Write merged IR to temporary file
@@ -246,18 +247,23 @@ export class Linker {
         clangArgs.push(...options.clangFlags);
       }
 
+      const compilerCommand = getCompilerDriver(options.target);
+
       if (options.verbose) {
-        compilerLog.info("Running: clang " + clangArgs.join(" "));
+        compilerLog.info(`Running: ${compilerCommand} ${clangArgs.join(" ")}`);
       }
 
-      // Run clang
-      const result = spawnSync("clang", clangArgs, {
+      const result = spawnSync(compilerCommand, clangArgs, {
         stdio: options.verbose ? "inherit" : "pipe",
       });
 
       if (result.status !== 0) {
-        if (!options.verbose && result.stderr) {
-          compilerLog.error(result.stderr.toString());
+        const detail =
+          result.stderr?.toString() ||
+          result.error?.message ||
+          "Unknown compiler driver error";
+        if (!options.verbose) {
+          compilerLog.error(detail);
         }
         return false;
       }

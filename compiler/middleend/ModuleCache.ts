@@ -11,6 +11,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 
+import { getCompilerDriver } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 
@@ -250,7 +251,7 @@ export class ModuleCache {
     const llFilePath = path.join(this.cacheDir, `${hash}.ll`);
     fs.writeFileSync(llFilePath, llvmIR);
 
-    // Compile to object file using clang
+    // Compile to object file using the selected LLVM-capable compiler driver.
     const clangArgs = ["-c", "-Wno-override-module"];
     if (target) {
       clangArgs.push("-target", target);
@@ -260,15 +261,19 @@ export class ModuleCache {
     }
     clangArgs.push(llFilePath, "-o", objectFilePath);
 
-    const result = spawnSync("clang", clangArgs, {
+    const compilerCommand = getCompilerDriver(target);
+    const result = spawnSync(compilerCommand, clangArgs, {
       stdio: verbose ? "inherit" : "pipe",
     });
 
     if (result.status !== 0) {
-      const error = result.stderr?.toString() || "Unknown compilation error";
+      const error =
+        result.stderr?.toString() ||
+        result.error?.message ||
+        "Unknown compilation error";
       throw new CompilerError(
-        `Failed to compile ${modulePath}: ${error}`,
-        "Check clang output for details.",
+        `Failed to compile ${modulePath} with ${compilerCommand}: ${error}`,
+        "Check compiler driver output for details.",
         {
           file: modulePath,
           startLine: 0,
@@ -375,7 +380,12 @@ export class ModuleCache {
     }
     clangArgs.push(llFilePath, "-o", tempObjectFilePath);
 
-    await this.runClang(clangArgs, input.modulePath, options.verbose);
+    await this.runCompilerDriver(
+      clangArgs,
+      input.modulePath,
+      target,
+      options.verbose,
+    );
 
     fs.renameSync(tempObjectFilePath, objectFilePath);
 
@@ -396,13 +406,15 @@ export class ModuleCache {
     return objectFilePath;
   }
 
-  private runClang(
+  private runCompilerDriver(
     args: string[],
     modulePath: string,
+    target?: string,
     verbose: boolean = false,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = spawn("clang", args, {
+      const compilerCommand = getCompilerDriver(target);
+      const child = spawn(compilerCommand, args, {
         stdio: verbose ? "inherit" : "pipe",
       });
 
@@ -414,8 +426,8 @@ export class ModuleCache {
       child.on("error", (error) => {
         reject(
           new CompilerError(
-            `Failed to compile ${modulePath}: ${error.message}`,
-            "Check clang output for details.",
+            `Failed to compile ${modulePath} with ${compilerCommand}: ${error.message}`,
+            "Check compiler driver output for details.",
             {
               file: modulePath,
               startLine: 0,
@@ -435,8 +447,8 @@ export class ModuleCache {
 
         reject(
           new CompilerError(
-            `Failed to compile ${modulePath}: ${stderr || "Unknown compilation error"}`,
-            "Check clang output for details.",
+            `Failed to compile ${modulePath} with ${compilerCommand}: ${stderr || "Unknown compilation error"}`,
+            "Check compiler driver output for details.",
             {
               file: modulePath,
               startLine: 0,
@@ -483,15 +495,19 @@ export class ModuleCache {
       clangArgs.unshift(`--sysroot=${options.sysroot}`);
     }
 
-    const result = spawnSync("clang", clangArgs, {
+    const compilerCommand = getCompilerDriver(target);
+    const result = spawnSync(compilerCommand, clangArgs, {
       stdio: verbose ? "inherit" : "pipe",
     });
 
     if (result.status !== 0) {
-      const error = result.stderr?.toString() || "Unknown linking error";
+      const error =
+        result.stderr?.toString() ||
+        result.error?.message ||
+        "Unknown linking error";
       throw new CompilerError(
-        `Failed to link modules: ${error}`,
-        "Check linker output for details.",
+        `Failed to link modules with ${compilerCommand}: ${error}`,
+        "Check compiler driver output for details.",
         {
           file: outputPath,
           startLine: 0,
