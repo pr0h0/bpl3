@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -14,6 +15,7 @@ import { join } from "path";
 import { Compiler } from "../compiler";
 import { getNativeLinkerFlags } from "../cli/utils";
 import { Linker } from "../compiler/middleend/Linker";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("Linker", () => {
   it("uses platform-specific native linker flags", () => {
@@ -175,6 +177,65 @@ describe("Linker", () => {
         process.env.BPL_CC = previousBplCc;
       }
       console.log = originalLog;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves existing linked outputs when the compiler driver fails", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-partial-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const previousBplCc = process.env.BPL_CC;
+    const originalError = console.error;
+    const errors: string[] = [];
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    writeFileSync(outputPath, "existing executable\n");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "partial executable\\n");',
+        'process.stderr.write("simulated link failure\\n");',
+        "process.exit(1);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      console.error = (...args: unknown[]) => {
+        errors.push(args.map(String).join(" "));
+      };
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+
+      expect(ok).toBe(false);
+      expect(errors.join("\n")).toContain("simulated link failure");
+      expect(readFileSync(outputPath, "utf-8")).toBe("existing executable\n");
+      expect(
+        readdirSync(dir).some(
+          (entry) => entry.startsWith(".main.") && entry.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      console.error = originalError;
       rmSync(dir, { recursive: true, force: true });
     }
   });

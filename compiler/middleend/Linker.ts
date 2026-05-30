@@ -451,6 +451,7 @@ export class Linker {
   private compileWithClang(mergedIR: string, options: LinkOptions): boolean {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-link-"));
     const tmpIRFile = path.join(tempDir, "merged.ll");
+    let tempOutputPath: string | undefined;
 
     try {
       fs.writeFileSync(tmpIRFile, mergedIR);
@@ -503,8 +504,9 @@ export class Linker {
       clangArgs.push(...getNativeLinkerFlags());
 
       // Add output
+      tempOutputPath = this.createTemporaryOutputPath(options.outputPath);
       clangArgs.push("-o");
-      clangArgs.push(options.outputPath);
+      clangArgs.push(tempOutputPath);
 
       // Add custom clang flags
       if (options.clangFlags && options.clangFlags.length > 0) {
@@ -531,6 +533,27 @@ export class Linker {
         if (!options.verbose) {
           compilerLog.error(detail);
         }
+        this.removeBestEffort(tempOutputPath);
+        return false;
+      }
+
+      const tempOutputStats = this.tryLstat(tempOutputPath);
+      if (!tempOutputStats?.isFile()) {
+        compilerLog.error(
+          `Compiler driver did not create linked output: ${options.outputPath}`,
+        );
+        this.removeBestEffort(tempOutputPath);
+        return false;
+      }
+
+      try {
+        this.validateOutputPath(options.outputPath);
+        fs.renameSync(tempOutputPath, options.outputPath);
+      } catch (error) {
+        compilerLog.error(
+          `Failed to finalize linked output ${options.outputPath}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        this.removeBestEffort(tempOutputPath);
         return false;
       }
 
@@ -547,6 +570,43 @@ export class Linker {
           compilerLog.warn(`Could not clean up temporary directory: ${tempDir}`);
         }
       }
+    }
+  }
+
+  private createTemporaryOutputPath(outputPath: string): string {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempPath = path.join(
+        path.dirname(path.resolve(outputPath)),
+        `.${path.basename(outputPath)}.${process.pid}-${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2)}-${attempt}.tmp`,
+      );
+      if (this.tryLstat(tempPath)) {
+        continue;
+      }
+      this.validateOutputPath(tempPath);
+      return tempPath;
+    }
+
+    throw new CompilerError(
+      `Failed to create temporary linked output for ${outputPath}`,
+      "Remove stale temporary linker outputs from the output directory and retry.",
+      {
+        file: outputPath,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+    );
+  }
+
+  private removeBestEffort(filePath: string | undefined): void {
+    if (!filePath) return;
+    try {
+      fs.rmSync(filePath, { force: true });
+    } catch {
+      // Best-effort cleanup only.
     }
   }
 
