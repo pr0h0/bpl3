@@ -1226,6 +1226,7 @@ export class PackageManager {
     const manifest = this.loadManifest(packageDir);
     const outputPath = outputDir || packageDir;
     const manifestPath = path.join(packageDir, "bpl.json");
+    fs.mkdirSync(outputPath, { recursive: true });
 
     // Create tarball filename
     const tarballName = `${manifest.name}-${manifest.version}.tgz`;
@@ -1315,8 +1316,7 @@ export class PackageManager {
     compilerLog.info(`Including ${files.length} source files`);
 
     // Create a temporary directory for packing
-    const tempDir = path.join(os.tmpdir(), `bpl-pack-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-"));
 
     try {
       // Copy files to temp directory maintaining structure

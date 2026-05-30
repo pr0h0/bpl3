@@ -168,6 +168,23 @@ describe("PackageManager", () => {
       expect(fs.existsSync(tarballPath)).toBe(true);
     });
 
+    test("should create missing package output directories", () => {
+      const outputDir = path.join(tempDir, "dist", "packages");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ name: "output-dir-pkg", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+
+      const tarballPath = packageManager.pack(tempDir, outputDir);
+
+      expect(tarballPath).toBe(
+        path.join(outputDir, "output-dir-pkg-1.0.0.tgz"),
+      );
+      expect(fs.existsSync(tarballPath)).toBe(true);
+      expect(fs.existsSync(`${tarballPath}.bplmeta.json`)).toBe(true);
+    });
+
     test("should exclude node_modules and bpl_modules from package", () => {
       const manifest = {
         name: "exclude-test",

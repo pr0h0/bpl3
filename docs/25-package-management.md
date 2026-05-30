@@ -66,9 +66,12 @@ To create a package manually:
 
 ```bash
 bpl pack
+bpl pack --output dist/packages
 ```
 
-This will create `my-package-0.1.0.tgz` in the current directory.
+The first command creates `my-package-0.1.0.tgz` in the current directory.
+When `--output` points to a missing directory, BPL creates that directory before
+writing the archive and provenance sidecar.
 
 ## Installing Packages
 
