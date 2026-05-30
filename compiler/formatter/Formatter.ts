@@ -160,7 +160,9 @@ export class Formatter {
       case "ExpressionStmt":
         return `${indent}${this.formatExpression((stmt as AST.ExpressionStmt).expression)};`;
       default:
-        return `${indent}// Unknown statement kind: ${(stmt as any).kind}`;
+        throw new Error(
+          `Unsupported statement kind in formatter: ${String((stmt as any).kind)}`,
+        );
     }
   }
 
@@ -951,7 +953,9 @@ export class Formatter {
       case "Group":
         return `(${this.formatExpression(expr.expression)})`;
       default:
-        return `/* Unknown expr: ${(expr as AST.Expression).kind} */`;
+        throw new Error(
+          `Unsupported expression kind in formatter: ${String((expr as AST.Expression).kind)}`,
+        );
     }
   }
 
