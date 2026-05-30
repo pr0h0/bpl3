@@ -240,6 +240,52 @@ describe("Linker", () => {
     }
   });
 
+  it("keeps managed linker output after custom compiler flags", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-output-flag-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const overriddenPath = join(dir, "overridden");
+    const previousBplCc = process.env.BPL_CC;
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "linked executable\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-o", overriddenPath, "-Wno-override-module"],
+      });
+
+      expect(ok).toBe(true);
+      expect(readFileSync(outputPath, "utf-8")).toBe("linked executable\n");
+      expect(existsSync(overriddenPath)).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects missing and directory IR inputs before linking", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-ir-input-"));
     const outputPath = join(dir, "main");

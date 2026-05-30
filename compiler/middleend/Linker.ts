@@ -503,15 +503,16 @@ export class Linker {
 
       clangArgs.push(...getNativeLinkerFlags());
 
+      // Add custom clang flags before the managed output flag so -o cannot
+      // redirect the linker away from the requested output path.
+      if (options.clangFlags && options.clangFlags.length > 0) {
+        clangArgs.push(...options.clangFlags);
+      }
+
       // Add output
       tempOutputPath = this.createTemporaryOutputPath(options.outputPath);
       clangArgs.push("-o");
       clangArgs.push(tempOutputPath);
-
-      // Add custom clang flags
-      if (options.clangFlags && options.clangFlags.length > 0) {
-        clangArgs.push(...options.clangFlags);
-      }
 
       const compilerCommand = getCompilerDriver(options.target);
 
