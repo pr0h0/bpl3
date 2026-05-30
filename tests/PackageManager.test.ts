@@ -1694,6 +1694,33 @@ describe("PackageManager", () => {
       expect(entries.map((entry) => entry.version)).toEqual(["2.0.0"]);
     });
 
+    test("should clean malformed package cache provenance directories", () => {
+      const globalPackageDir = path.join(tempDir, "cache-clean-provenance-dir");
+      fs.mkdirSync(globalPackageDir);
+
+      const cachePath = createCachedPackage(
+        "cache-provenance-dir",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      const provenancePath = `${cachePath}.bplmeta.json`;
+      fs.rmSync(provenancePath, { force: true });
+      fs.mkdirSync(provenancePath);
+      fs.writeFileSync(path.join(provenancePath, "stale"), "stale metadata");
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const clean = localPM.cleanPackageCache({
+        packageName: "cache-provenance-dir",
+      });
+
+      expect(clean.removed.length).toBe(1);
+      expect(fs.existsSync(cachePath)).toBe(false);
+      expect(fs.existsSync(provenancePath)).toBe(false);
+    });
+
     test("should verify package cache provenance and report tampered archives", () => {
       const globalPackageDir = path.join(tempDir, "cache-verify-packages");
       fs.mkdirSync(globalPackageDir);
