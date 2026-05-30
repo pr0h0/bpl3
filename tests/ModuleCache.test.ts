@@ -356,6 +356,55 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects symlinked temporary object cache paths before invoking the compiler", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-temp-link-"));
+    const originalDateNow = Date.now;
+    const originalRandom = Math.random;
+    const previousBplCc = process.env.BPL_CC;
+    const fixedTimestamp = 1700000000000;
+    const fixedRandomSuffix = "8";
+
+    try {
+      const modulePath = join(dir, "main.bpl");
+      const content = "frame main() ret int { return 0; }";
+      const cache = new ModuleCache(dir);
+      process.env.BPL_CC = join(dir, "compiler-should-not-run");
+      const hash = getModuleHashForTest(content, undefined, 0);
+      const targetObject = join(dir, "outside-temp.o");
+      const poisonedTempObject = join(
+        dir,
+        ".bpl-cache",
+        `${hash}.${process.pid}-${fixedTimestamp}-${fixedRandomSuffix}.o`,
+      );
+
+      Date.now = () => fixedTimestamp;
+      Math.random = () => 0.5;
+      writeFileSync(targetObject, "outside\n");
+      symlinkSync(targetObject, poisonedTempObject, "file");
+
+      expect(() =>
+        cache.compileModule(
+          modulePath,
+          content,
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(/Module cache temporary object path is a symbolic link/);
+      expect(readFileSync(targetObject, "utf8")).toBe("outside\n");
+    } finally {
+      Date.now = originalDateNow;
+      Math.random = originalRandom;
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("ignores non-file cached object paths in lookups and stats", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-stats-dir-"));
 

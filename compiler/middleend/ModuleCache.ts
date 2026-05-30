@@ -387,6 +387,11 @@ export class ModuleCache {
       modulePath,
       "Module cache object path",
     );
+    this.assertWritableCacheFilePath(
+      tempObjectFilePath,
+      modulePath,
+      "Module cache temporary object path",
+    );
 
     // Check if already cached
     // We use the modified hash, so isCached needs to know about it or we check manually
@@ -534,6 +539,11 @@ export class ModuleCache {
       objectFilePath,
       input.modulePath,
       "Module cache object path",
+    );
+    this.assertWritableCacheFilePath(
+      tempObjectFilePath,
+      input.modulePath,
+      "Module cache temporary object path",
     );
     const cachedObjectFile = this.getCachedModuleObject(input.modulePath, hash);
 
