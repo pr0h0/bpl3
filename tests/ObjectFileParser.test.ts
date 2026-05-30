@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 import {
   getObjectSymbolTool,
@@ -74,5 +77,29 @@ describe("ObjectFileParser", () => {
         isGlobal: true,
       },
     ]);
+  });
+
+  test("rejects missing and directory object parser inputs", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-object-parser-"));
+    const missingObject = path.join(tempDir, "missing.ll");
+    const objectDir = path.join(tempDir, "objects");
+    fs.mkdirSync(objectDir);
+
+    try {
+      expect(() => ObjectFileParser.parseObjectFile(missingObject)).toThrow(
+        /Object file not found/,
+      );
+      expect(() => ObjectFileParser.parseObjectFile(objectDir)).toThrow(
+        /Object path is not a file/,
+      );
+      expect(() => ObjectFileParser.parseLLVMIR(objectDir)).toThrow(
+        /Object path is not a file/,
+      );
+      expect(() => ObjectFileParser.parseELFObject(objectDir)).toThrow(
+        /Object path is not a file/,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

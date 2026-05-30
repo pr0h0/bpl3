@@ -26,19 +26,10 @@ export class ObjectFileParser {
    * Parse LLVM IR file and extract symbols
    */
   static parseLLVMIR(filePath: string): ObjectFileSymbol[] {
-    if (!fs.existsSync(filePath)) {
-      throw new CompilerError(
-        `Object file not found: ${filePath}`,
-        "Check that the file exists and the path is correct.",
-        {
-          file: filePath,
-          startLine: 1,
-          startColumn: 1,
-          endLine: 1,
-          endColumn: 1,
-        },
-      );
-    }
+    this.validateObjectInputFile(
+      filePath,
+      "Check that the file exists and the path is correct.",
+    );
 
     const content = fs.readFileSync(filePath, "utf-8");
     const symbols: ObjectFileSymbol[] = [];
@@ -84,19 +75,10 @@ export class ObjectFileParser {
    * More sophisticated parsing would require readelf or nm tools
    */
   static parseELFObject(filePath: string): ObjectFileSymbol[] {
-    if (!fs.existsSync(filePath)) {
-      throw new CompilerError(
-        `Object file not found: ${filePath}`,
-        "Check that the file exists and the path is correct.",
-        {
-          file: filePath,
-          startLine: 1,
-          startColumn: 1,
-          endLine: 1,
-          endColumn: 1,
-        },
-      );
-    }
+    this.validateObjectInputFile(
+      filePath,
+      "Check that the file exists and the path is correct.",
+    );
 
     const symbolTool = getObjectSymbolTool();
 
@@ -172,19 +154,7 @@ export class ObjectFileParser {
    * Detect file type and parse accordingly
    */
   static parseObjectFile(filePath: string): ObjectFileSymbol[] {
-    if (!fs.existsSync(filePath)) {
-      throw new CompilerError(
-        `Object file not found: ${filePath}`,
-        "Check if the file exists.",
-        {
-          file: filePath,
-          startLine: 0,
-          startColumn: 0,
-          endLine: 0,
-          endColumn: 0,
-        },
-      );
-    }
+    this.validateObjectInputFile(filePath, "Check if the file exists.");
 
     const ext = path.extname(filePath).toLowerCase();
 
@@ -198,12 +168,34 @@ export class ObjectFileParser {
       "Use a supported file format.",
       {
         file: filePath,
-        startLine: 0,
-        startColumn: 0,
-        endLine: 0,
-        endColumn: 0,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
       },
     );
+  }
+
+  private static validateObjectInputFile(filePath: string, hint: string): void {
+    if (!fs.existsSync(filePath)) {
+      throw new CompilerError(`Object file not found: ${filePath}`, hint, {
+        file: filePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      });
+    }
+
+    if (!fs.statSync(filePath).isFile()) {
+      throw new CompilerError(`Object path is not a file: ${filePath}`, hint, {
+        file: filePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      });
+    }
   }
 
   /**
