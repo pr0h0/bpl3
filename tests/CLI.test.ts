@@ -358,6 +358,46 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should skip package IR verification when clang is unavailable", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-no-cc-"));
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "missing-cc-pack",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(tempDir, "index.bpl"),
+      ["frame main() ret int {", "    return 0;", "}"].join("\n"),
+    );
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "pack"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          CC: path.join(tempDir, "definitely-missing-clang"),
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("Skipping IR verification");
+      expect(
+        fs.existsSync(path.join(tempDir, "missing-cc-pack-1.0.0.tgz")),
+      ).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should generate BPL extern declarations from simple C headers", () => {
     const tempHeader = path.join(process.cwd(), "tests/temp_bindgen.h");
     fs.writeFileSync(

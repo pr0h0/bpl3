@@ -95,7 +95,9 @@ export function registerPackageCommands(program: Command): void {
                 { encoding: "utf-8" },
               );
 
-              if (check.status !== 0) {
+              if (check.error) {
+                log.warn(`Skipping IR verification: ${check.error.message}`);
+              } else if (check.status !== 0) {
                 log.error(
                   "Package verification failed - generated invalid code:",
                 );
