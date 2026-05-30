@@ -8,6 +8,10 @@ const RUNTIME_WASM_HOST = resolve(
   import.meta.dir,
   "../lib/runtime_wasm_host.ll",
 );
+const COMPILER_OPTIONS_DOC = resolve(
+  import.meta.dir,
+  "../docs/39-compiler-options.md",
+);
 
 describe("Hosted wasm printf runtime IR", () => {
   test("contains the hosted formatting helpers for the supported subset", () => {
@@ -50,5 +54,13 @@ describe("Hosted wasm printf runtime IR", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("documents hosted formatting edge-case behavior", () => {
+    const docs = readFileSync(COMPILER_OPTIONS_DOC, "utf8");
+
+    expect(docs).toContain("null `%s` arguments print `(null)`");
+    expect(docs).toContain("a dangling `%` prints as `%`");
+    expect(docs).toContain("unsupported specifiers do not consume varargs");
   });
 });

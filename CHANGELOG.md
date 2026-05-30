@@ -17,7 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   replay, minimization, seed rerun, and regression promotion commands.
 - **Hosted Wasm Printf Formatting** - Hosted WebAssembly `printf`, `fprintf`,
   and `dprintf` now format the documented `%s`, `%d`, `%c`, and `%%` subset, with
-  a native-compatible `examples/wasm_hosted_printf` regression.
+  a native-compatible `examples/wasm_hosted_printf` regression and explicit
+  coverage for null strings, integer extremes, dangling `%`, and unsupported
+  specifiers.
 - **Agent Board Workflow Docs** - Documented the BPL Agent Board as the
   credential-free source of truth for active task tracking, criteria, review
   state, and verification evidence.

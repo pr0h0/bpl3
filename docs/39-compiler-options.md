@@ -566,9 +566,11 @@ checked BPL runtime errors through those imports. Hosted `printf`, `fprintf`,
 and `dprintf` implement a small browser-safe formatting subset: `%s` for
 null-terminated strings, `%d` for signed 32-bit integers, `%c` for one byte, and
 `%%` for a literal percent sign. Unsupported format specifiers are emitted
-literally with their leading `%` so output remains predictable; use native
-targets or a richer host/runtime adapter for full libc formatting such as
-widths, floating point, or long integer modifiers. `wasm32-wasi` and
+literally with their leading `%` so output remains predictable. Edge cases are
+also stable: null `%s` arguments print `(null)`; a dangling `%` prints as `%`;
+unsupported specifiers do not consume varargs. Use native targets or a
+richer host/runtime adapter for full libc formatting such as widths, floating
+point, or long integer modifiers. `wasm32-wasi` and
 Emscripten-flavored target triples select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
 provided.

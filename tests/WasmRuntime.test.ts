@@ -542,6 +542,46 @@ frame main() ret int {
     expect(host.stderr()).toBe("err:-7:ok?\n");
   });
 
+  wasmIt("keeps hosted wasm printf edge cases predictable", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+frame main() ret int {
+    local missing: string = cast<string>(nullptr);
+    local minValue: int = -2147483647 - 1;
+    local nullLen: int = printf("null=%s\\n", missing);
+    local intLen: int = printf("zero=%d min=%d\\n", 0, minValue);
+    local danglingLen: int = printf("dangling:%");
+    local unsupportedLen: int = printf(" unsupported=%q next=%d\\n", 123, 7);
+
+    if (nullLen != 12) {
+        return nullLen;
+    }
+    if (intLen != 23) {
+        return intLen;
+    }
+    if (danglingLen != 10) {
+        return danglingLen;
+    }
+    if (unsupportedLen != 25) {
+        return unsupportedLen;
+    }
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe(
+      "null=(null)\nzero=0 min=-2147483648\ndangling:% unsupported=%q next=123\n",
+    );
+    expect(host.stderr()).toBe("");
+  });
+
   wasmIt("routes hosted wasm args through host imports", async () => {
     const host = createHostImports(["program", "left", "right"]);
     const exports = await compileWasmSource(
