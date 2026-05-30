@@ -118,14 +118,17 @@ export class ObjectFileParser {
     const lines = output.split("\n");
 
     // Parse nm output: <address> <type> <name>
-    // Types: T (text/function), D (data), B (BSS), U (undefined), etc.
-    const nmRegex = /^[0-9a-fA-F]*\s+([TDBUW])\s+(.+)$/;
+    // Types: T/t (text), D/d (data), B/b (BSS), R/r (rodata),
+    // U (undefined), W/w (weak), V/v (weak object), C/c (common), etc.
+    const nmRegex = /^[0-9a-fA-F]*\s+([A-Za-z])\s+(.+)$/;
+    const variableTypes = new Set(["B", "C", "D", "G", "R", "S", "V"]);
 
     for (const line of lines) {
       const match = nmRegex.exec(line);
       if (!match) continue;
 
       const type = match[1]!;
+      const normalizedType = type.toUpperCase();
       const name = match[2]!.trim();
 
       // Skip empty names and internal symbols.
@@ -133,17 +136,21 @@ export class ObjectFileParser {
         continue;
       }
 
-      let symbolType: "function" | "variable" | "undefined" = "variable";
-      if (type === "T" || type === "W") {
+      let symbolType: "function" | "variable" | "undefined";
+      if (normalizedType === "T" || normalizedType === "W") {
         symbolType = "function";
-      } else if (type === "U") {
+      } else if (normalizedType === "U") {
         symbolType = "undefined";
+      } else if (variableTypes.has(normalizedType)) {
+        symbolType = "variable";
+      } else {
+        continue;
       }
 
       symbols.push({
         name,
         type: symbolType,
-        isGlobal: type !== "U",
+        isGlobal: type === normalizedType && normalizedType !== "U",
       });
     }
 

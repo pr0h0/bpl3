@@ -47,6 +47,11 @@ describe("ObjectFileParser", () => {
         "                 U external_dependency",
         "0000000000000020 W weak_function",
         "0000000000000030 T .local_label",
+        "0000000000000040 t local_function",
+        "0000000000000050 R readonly_data",
+        "0000000000000060 r local_readonly_data",
+        "0000000000000070 V weak_object",
+        "0000000000000080 C common_object",
       ].join("\n"),
     );
 
@@ -74,6 +79,31 @@ describe("ObjectFileParser", () => {
       {
         name: "weak_function",
         type: "function",
+        isGlobal: true,
+      },
+      {
+        name: "local_function",
+        type: "function",
+        isGlobal: false,
+      },
+      {
+        name: "readonly_data",
+        type: "variable",
+        isGlobal: true,
+      },
+      {
+        name: "local_readonly_data",
+        type: "variable",
+        isGlobal: false,
+      },
+      {
+        name: "weak_object",
+        type: "variable",
+        isGlobal: true,
+      },
+      {
+        name: "common_object",
+        type: "variable",
         isGlobal: true,
       },
     ]);
