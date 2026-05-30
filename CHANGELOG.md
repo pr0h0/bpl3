@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **CI Triage Helper** - Added `bun run ci:triage -- <actions-run-url>` to summarize failed GitHub Actions jobs and print local reproduction commands without requiring GitHub admin access.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

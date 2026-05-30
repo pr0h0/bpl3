@@ -34,6 +34,7 @@
     "release:check": "bun run check && bun test tests/ReleaseMetadata.test.ts tests/GitHubActions.test.ts && bun run release:smoke && npm test --prefix vscode-ext",
     "release:manifest": "bun tools/release_manifest.ts --out dist/release-manifest.json --pack-npm",
     "release:smoke": "bun tools/release_smoke.ts",
+    "ci:triage": "bun tools/ci_triage.ts",
     "test:baseline": "bun test 2>&1 | tee test-baseline.txt",
     "fuzz": "bun fuzz/run_fuzz.ts",
     "fuzz:long": "FUZZ_ITERATIONS=${FUZZ_ITERATIONS:-100000} FUZZ_SEEDS=${FUZZ_SEEDS:-0x5eed1234,0xc0ffee,0xbad5eed} bun fuzz/run_fuzz.ts",

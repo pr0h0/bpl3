@@ -806,6 +806,9 @@ bun run test
 # VS Code extension tests, but leaves fuzz/correctness corpora to dedicated scripts.
 bun run test:ci
 
+# Summarize a GitHub Actions run and print local repro commands for failed steps.
+bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
+
 # Run only the VS Code extension tests
 bun run test:vscode-ext
 
