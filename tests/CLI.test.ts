@@ -1203,6 +1203,8 @@ describe("CLI Tests", () => {
         "#define CAST_LIMIT ((unsigned long)4096)",
         "#define NEGATIVE_LIMIT (-7L)",
         "#define SCIENTIFIC_SCALE (1e-3f)",
+        "#define CONTINUED_COUNT \\",
+        "  64u",
         '#define WRAPPED_GREETING ("hello")',
         '#define DOC_URL "https://example.test/docs"',
         '#define COMMENT_PATTERN "/*not a comment*/"',
@@ -1212,6 +1214,8 @@ describe("CLI Tests", () => {
         '#define CONCAT_GREETING "hello" "world"',
         "typedef unsigned int bpl_size;",
         "typedef long unsigned int odd_size;",
+        "typedef unsigned \\",
+        "  long continued_word;",
         "typedef unsigned long bpl_word, *bpl_word_ptr;",
         "typedef struct Point { int x; double y; } Point;",
         "typedef const char *bpl_cstr;",
@@ -1224,6 +1228,8 @@ describe("CLI Tests", () => {
         "typedef struct OuterNamed { int tag; struct InnerHidden { int hidden; } inner; int tail; } OuterNamed;",
         "typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;",
         "Point make_point(int x, double y);",
+        "int continued_sum(int left, \\",
+        "  int right);",
         "bpl_size measure(Point *point);",
         "bpl_cstr label(PointRef point, bpl_handle user);",
         "void qsort(void *base, size_t count, size_t size, int (*compare)(const void *left, const void *right));",
@@ -1255,6 +1261,9 @@ describe("CLI Tests", () => {
         "global const SCIENTIFIC_SCALE: float = 1e-3;",
       );
       expect(result.stdout).toContain(
+        "global const CONTINUED_COUNT: uint = 64;",
+      );
+      expect(result.stdout).toContain(
         'global const WRAPPED_GREETING: string = "hello";',
       );
       expect(result.stdout).toContain(
@@ -1269,6 +1278,7 @@ describe("CLI Tests", () => {
       expect(result.stdout).not.toContain("CONCAT_GREETING");
       expect(result.stdout).toContain("type bpl_size = uint;");
       expect(result.stdout).toContain("type odd_size = ulong;");
+      expect(result.stdout).toContain("type continued_word = ulong;");
       expect(result.stdout).toContain("type bpl_word = ulong;");
       expect(result.stdout).toContain("type bpl_word_ptr = *ulong;");
       expect(result.stdout).toContain("type bpl_cstr = string;");
@@ -1302,6 +1312,9 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain("COLOR_BLUE,");
       expect(result.stdout).toContain(
         "extern make_point(x: int, y: double) ret Point;",
+      );
+      expect(result.stdout).toContain(
+        "extern continued_sum(left: int, right: int) ret int;",
       );
       expect(result.stdout).toContain(
         "extern measure(point: *Point) ret bpl_size;",

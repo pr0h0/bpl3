@@ -61,7 +61,9 @@ export function generateBplBindings(options: BindgenOptions): string {
     throw new Error(`Header path is not a file: ${options.headerPath}`);
   }
 
-  const source = fs.readFileSync(options.headerPath, "utf8");
+  const source = joinLineContinuations(
+    fs.readFileSync(options.headerPath, "utf8"),
+  );
   const constants = extractConstants(source);
   const structs = extractStructs(source);
   const enums = extractEnums(source);
@@ -87,6 +89,10 @@ export function generateBplBindings(options: BindgenOptions): string {
   ];
 
   return lines.join("\n");
+}
+
+function joinLineContinuations(source: string): string {
+  return source.replace(/\\\r?\n/g, " ");
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
