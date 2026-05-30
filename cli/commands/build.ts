@@ -29,10 +29,10 @@ export function registerBuildCommand(program: Command): void {
     .argument("<file>", "BPL file to compile")
     .description("Compile a BPL program")
     .option("-o, --output <file>", "output file path")
-    .option("--emit <type>", "emit type: llvm, ast, tokens, formatted", "llvm")
+    .option("--emit <type>", "emit type: llvm, ast, tokens, formatted")
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
-    .option("-O <level>", "optimization level: 0, 1, 2, or 3", "0")
+    .option("-O <level>", "optimization level: 0, 1, 2, or 3")
     .option("--debug", "generate debug information (DWARF)")
     .option("--time", "show compilation time statistics")
     .option(
@@ -63,14 +63,19 @@ export function registerBuildCommand(program: Command): void {
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
     .option("--json", "output in JSON format")
-    .action(async (file: string, options: CompileOptions, command: Command) => {
+    .action(async (file: string, _options: CompileOptions, command: Command) => {
       try {
         // Merge parent options if any
         const globalOpts = command.parent?.opts() || {};
+        const localOpts = command.opts<CompileOptions>();
         const compileOptions: CompileOptions = {
           ...globalOpts,
-          ...options,
-          dwarf: options.debug || options.dwarf,
+          ...localOpts,
+          dwarf:
+            localOpts.debug ||
+            localOpts.dwarf ||
+            globalOpts.debug ||
+            globalOpts.dwarf,
         };
 
         await processFileAsync(file, compileOptions);

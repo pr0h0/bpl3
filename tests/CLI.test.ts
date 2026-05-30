@@ -151,6 +151,23 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should honor build subcommand emit modes", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-build-emit-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const llvmFile = path.join(tempDir, "main.ll");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const result = runCLI(["build", sourceFile, "--emit", "ast"]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('"kind": "Program"');
+      expect(fs.existsSync(llvmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should validate entry points before linking module builds", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-module-entry-"),
@@ -298,6 +315,65 @@ describe("CLI Tests", () => {
       expect(result.stderr).toContain(outputLl);
       expect(result.stderr).not.toContain("ENOENT");
       expect(fs.existsSync(targetLl)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report missing native runtime support before linking", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-runtime-missing-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const libDir = path.join(bplHome, "lib");
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.mkdirSync(libDir, { recursive: true });
+    fs.symlinkSync(
+      path.join(process.cwd(), "grammar"),
+      path.join(bplHome, "grammar"),
+      "dir",
+    );
+
+    for (const entry of fs.readdirSync(path.join(process.cwd(), "lib"))) {
+      if (entry === "runtime_support.o") continue;
+      const realPath = path.join(process.cwd(), "lib", entry);
+      const linkPath = path.join(libDir, entry);
+      fs.symlinkSync(
+        realPath,
+        linkPath,
+        fs.statSync(realPath).isDirectory() ? "dir" : "file",
+      );
+    }
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const astOnly = spawnSync(
+        "bun",
+        [BPL_CLI, "build", sourceFile, "--emit", "ast"],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            BPL_HOME: bplHome,
+            NO_COLOR: "1",
+          },
+        },
+      );
+      expect(astOnly.status).toBe(0);
+      expect(astOnly.stdout).toContain('"kind": "Program"');
+
+      const result = spawnSync("bun", [BPL_CLI, "build", sourceFile], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_HOME: bplHome,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Runtime support object not found");
+      expect(result.stderr).not.toContain("undefined reference");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
