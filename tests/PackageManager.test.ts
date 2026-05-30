@@ -121,6 +121,18 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package roots whose bpl_modules path is a symlink", () => {
+      const projectDir = path.join(tempDir, "symlink-local-package-dir");
+      const targetDir = path.join(tempDir, "outside-package-root");
+      fs.mkdirSync(projectDir, { recursive: true });
+      fs.mkdirSync(targetDir);
+      fs.symlinkSync(targetDir, path.join(projectDir, "bpl_modules"));
+
+      expect(() => new PackageManager(projectDir)).toThrow(
+        /Local package directory path is a symbolic link/,
+      );
+    });
+
     test("should create a valid bpl.json manifest", () => {
       const manifestPath = path.join(tempDir, "bpl.json");
 
@@ -607,6 +619,45 @@ describe("PackageManager", () => {
           verbose: false,
         }),
       ).toThrow(/Local binary directory path is not a directory/);
+    });
+
+    test("should reject local binary directories that are symlinks", () => {
+      const packageDir = path.join(tempDir, "bin-symlink-package");
+      const installDir = path.join(tempDir, "bin-symlink-install");
+      const outsideBinDir = path.join(tempDir, "outside-bin");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "bin-symlink-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      fs.mkdirSync(path.join(installDir, "bpl_modules"), { recursive: true });
+      fs.mkdirSync(outsideBinDir);
+      fs.symlinkSync(outsideBinDir, path.join(installDir, "bpl_modules", ".bin"));
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Local binary directory path is a symbolic link/);
     });
 
     test("should reject package binary link targets that are directories", () => {

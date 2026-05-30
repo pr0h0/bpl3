@@ -246,8 +246,23 @@ export class PackageManager {
   }
 
   private ensurePackageManagerDirectory(dirPath: string, label: string): void {
-    if (fs.existsSync(dirPath)) {
-      if (!fs.statSync(dirPath).isDirectory()) {
+    const existingPath = this.tryLstat(dirPath);
+    if (existingPath) {
+      if (existingPath.isSymbolicLink()) {
+        throw new CompilerError(
+          `${label} path is a symbolic link: ${dirPath}`,
+          "Move the symlink out of the way or choose a real package root directory.",
+          {
+            file: dirPath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      if (!existingPath.isDirectory()) {
         throw new CompilerError(
           `${label} path is not a directory: ${dirPath}`,
           "Move the file out of the way or choose a different package root.",
