@@ -1158,9 +1158,14 @@ describe("CLI Tests", () => {
         "typedef unsigned int bpl_size;",
         "typedef long unsigned int odd_size;",
         "typedef struct Point { int x; double y; } Point;",
+        "typedef const char *bpl_cstr;",
+        "typedef void *bpl_handle;",
+        "typedef struct Point *PointRef;",
+        "typedef int (*compare_fn)(const void *left, const void *right);",
         "typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;",
         "Point make_point(int x, double y);",
         "bpl_size measure(Point *point);",
+        "bpl_cstr label(PointRef point, bpl_handle user);",
       ].join("\n"),
     );
 
@@ -1191,6 +1196,10 @@ describe("CLI Tests", () => {
       expect(result.stdout).not.toContain("CONCAT_GREETING");
       expect(result.stdout).toContain("type bpl_size = uint;");
       expect(result.stdout).toContain("type odd_size = ulong;");
+      expect(result.stdout).toContain("type bpl_cstr = string;");
+      expect(result.stdout).toContain("type bpl_handle = *void;");
+      expect(result.stdout).toContain("type PointRef = *Point;");
+      expect(result.stdout).not.toContain("compare_fn");
       expect(result.stdout).toContain("struct Point {");
       expect(result.stdout).toContain("x: int,");
       expect(result.stdout).toContain("y: double,");
@@ -1202,6 +1211,9 @@ describe("CLI Tests", () => {
       );
       expect(result.stdout).toContain(
         "extern measure(point: *Point) ret bpl_size;",
+      );
+      expect(result.stdout).toContain(
+        "extern label(point: PointRef, user: bpl_handle) ret bpl_cstr;",
       );
     } finally {
       if (fs.existsSync(tempHeader)) fs.unlinkSync(tempHeader);

@@ -347,14 +347,16 @@ function extractTypedefs(
     ...enums.map((enumDecl) => enumDecl.name),
   ]);
   const typedefs: CTypedef[] = [];
-  const pattern = /typedef\s+([^;{}]+?)\s+([A-Za-z_]\w*)\s*;/g;
+  const pattern = /typedef\s+([^;{}]+?)\s*;/g;
 
   for (const match of cleaned.matchAll(pattern)) {
-    const name = match[2]!;
+    const declaration = parseNamedDeclaration(match[1]!.trim(), 0);
+    const name = declaration.name;
+    if (!name || name === "arg0") continue;
     if (aggregateNames.has(name)) continue;
     typedefs.push({
       name,
-      mappedType: mapCType(match[1]!.trim(), {}),
+      mappedType: mapCType(declaration.type, {}),
     });
   }
 
