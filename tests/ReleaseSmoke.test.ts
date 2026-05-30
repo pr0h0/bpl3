@@ -53,6 +53,9 @@ describe("Release smoke", () => {
       expect(result.stdout).toContain(
         "release smoke: build packed npm CLI cached module app",
       );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI fuzz artifact repro helper",
+      );
       expect(result.stdout).toContain("release smoke passed");
     },
     RELEASE_SMOKE_TIMEOUT_MS + 10 * 1000,

@@ -819,6 +819,11 @@ bun run test
 # VS Code extension tests, but leaves fuzz/correctness corpora to dedicated scripts.
 bun run test:ci
 
+# Build, pack, install, and smoke-test the release package. This also verifies
+# package helper scripts that point at tools/*.ts have their helper files in the
+# packed npm tarball.
+bun run release:smoke
+
 # Summarize a GitHub Actions run and print local repro commands for failed steps.
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 

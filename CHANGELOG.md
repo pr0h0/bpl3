@@ -23,6 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Hosted Wasm Import Contract** - Added regression coverage that keeps the
   hosted wasm runtime declarations, browser playground adapter, and wasm runtime
   test host aligned on the required `env.__bpl_host_*` imports.
+- **Release Helper Script Coverage** - Release smoke now packs the helper tools
+  referenced by package scripts and exercises the packed `fuzz:repro` helper so
+  script entrypoints do not drift from shipped files.
 - **Agent Board Workflow Docs** - Documented the BPL Agent Board as the
   credential-free source of truth for active task tracking, criteria, review
   state, and verification evidence.

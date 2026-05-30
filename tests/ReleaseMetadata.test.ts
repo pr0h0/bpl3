@@ -63,6 +63,25 @@ describe("Release metadata", () => {
     );
   });
 
+  test("package helper scripts reference helpers shipped with the npm package", () => {
+    const repoRoot = join(import.meta.dir, "..");
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    );
+    const helperScripts = new Map([
+      ["release:smoke", "tools/release_smoke.ts"],
+      ["release:manifest", "tools/release_manifest.ts"],
+      ["ci:triage", "tools/ci_triage.ts"],
+      ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
+    ]);
+
+    expect(packageJson.files).toContain("tools");
+    for (const [scriptName, helperPath] of helperScripts) {
+      expect(packageJson.scripts[scriptName]).toContain(helperPath);
+      expect(existsSync(join(repoRoot, helperPath))).toBe(true);
+    }
+  });
+
   test("release manifest records checksums for shipped artifacts", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 

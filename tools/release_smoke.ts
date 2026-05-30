@@ -21,6 +21,12 @@ const bplBinary = join(
 );
 const smokeTimeoutMs = 60 * 1000;
 const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
+const PACKAGE_HELPER_FILES = [
+  "tools/ci_triage.ts",
+  "tools/fuzz_artifact_repro.ts",
+  "tools/release_manifest.ts",
+  "tools/release_smoke.ts",
+] as const;
 
 interface DoctorReport {
   success: boolean;
@@ -159,6 +165,7 @@ function runPackedPackageSmoke(): void {
       "lib/runtime_wasm.ll",
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
+      ...PACKAGE_HELPER_FILES,
     ]);
     assertSourceOnlyFiles(packEntry, [
       "playground/examples/70-browser-wasm-showcase.json",
@@ -219,6 +226,7 @@ function runPackedPackageSmoke(): void {
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
     runPackedWasmSmoke(installedBpl);
     runPackedCacheStatsSmoke(installedBpl);
+    runPackedHelperScriptSmoke(installDir);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -408,6 +416,21 @@ function runPackedCacheStatsSmoke(installedBpl: string): void {
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+function runPackedHelperScriptSmoke(installDir: string): void {
+  const packageDir = join(installDir, "node_modules", "bpl-v3");
+  const result = runStep(
+    "check packed npm CLI fuzz artifact repro helper",
+    "npm",
+    ["run", "fuzz:repro", "--", "--help"],
+    { cwd: packageDir, bplHome: null },
+  );
+
+  assertOutputContains(result.stdout, [
+    "Usage: bun tools/fuzz_artifact_repro.ts",
+    "fuzz/crashes",
+  ]);
 }
 
 function assertBuiltBinary(): void {
@@ -604,6 +627,7 @@ function assertPackedFileAllowlist(packEntry: NpmPackEntry): void {
     "package.json",
     "README.md",
     "LICENSE",
+    ...PACKAGE_HELPER_FILES,
   ];
   const allowedPrefixes = [
     "completions/",
@@ -621,7 +645,6 @@ function assertPackedFileAllowlist(packEntry: NpmPackEntry): void {
     "node_modules/",
     "playground/",
     "tests/",
-    "tools/",
     "vscode-ext/",
   ];
 
