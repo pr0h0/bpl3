@@ -44,6 +44,11 @@ export function registerFormatCommand(program: Command): void {
             hasError = true;
             continue;
           }
+          if (!fs.statSync(filePath).isFile()) {
+            log.error(`Input path is not a file: ${filePath}`);
+            hasError = true;
+            continue;
+          }
 
           const content = fs.readFileSync(filePath, "utf-8");
           const tokens = lexWithGrammar(content, filePath);

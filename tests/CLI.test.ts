@@ -202,6 +202,39 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject directories in source analysis commands", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-analysis-dir-"),
+    );
+    const sourceDir = path.join(tempDir, "src");
+    fs.mkdirSync(sourceDir);
+
+    try {
+      const check = runCLI(["check", "--json", sourceDir]);
+      expect(check.status).toBe(1);
+      expect(JSON.parse(check.stdout).files[0]).toEqual({
+        file: sourceDir,
+        success: false,
+        error: "Input path is not a file",
+      });
+
+      const lint = runCLI(["lint", "--json", sourceDir]);
+      expect(lint.status).toBe(1);
+      expect(JSON.parse(lint.stdout).files[0]).toEqual({
+        file: sourceDir,
+        success: false,
+        error: "Input path is not a file",
+      });
+
+      const format = runCLI(["format", sourceDir]);
+      expect(format.status).toBe(1);
+      expect(format.stderr).toContain("Input path is not a file");
+      expect(format.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");

@@ -62,6 +62,19 @@ export function registerLintCommand(program: Command): void {
             hasErrors = true;
             continue;
           }
+          if (!fs.statSync(file).isFile()) {
+            if (options.json) {
+              results.push({
+                file,
+                success: false,
+                error: "Input path is not a file",
+              });
+            } else {
+              log.error(`Input path is not a file: ${file}`);
+            }
+            hasErrors = true;
+            continue;
+          }
 
           const content = fs.readFileSync(file, "utf-8");
           const tokens = lexWithGrammar(content, file);

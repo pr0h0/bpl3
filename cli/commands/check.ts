@@ -81,6 +81,19 @@ export function registerCheckCommand(program: Command): void {
             errorCount++;
             continue;
           }
+          if (!fs.statSync(filePath).isFile()) {
+            if (options.json) {
+              results.push({
+                file: filePath,
+                success: false,
+                error: "Input path is not a file",
+              });
+            } else {
+              log.error(`Input path is not a file: ${filePath}`);
+            }
+            errorCount++;
+            continue;
+          }
 
           const fileStartTime = Date.now();
 
