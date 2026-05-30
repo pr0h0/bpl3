@@ -185,6 +185,7 @@ export interface PackageDoctorReport {
   };
   installedPackages: PackageInfo[];
   cacheEntries: PackageCacheEntry[];
+  cacheVerification: PackageCacheVerificationReport;
   dependencyTree: PackageDependencyTreeNode[];
   issues: PackageDoctorIssue[];
 }
@@ -2161,6 +2162,17 @@ export class PackageManager {
     }
 
     const cacheEntries = this.listPackageCache();
+    const cacheVerification = this.verifyPackageCache();
+    for (const issue of cacheVerification.issues) {
+      issues.push({
+        severity: "warning",
+        kind: `package-cache-${issue.kind}`,
+        message: issue.message,
+        path: issue.path,
+        hint: `Run 'bpl package-cache verify ${issue.packageName}' for details, or remove stale archives with 'bpl package-cache clean ${issue.packageName} --package-version ${issue.version}'.`,
+      });
+    }
+
     const errorCount = issues.filter((issue) => issue.severity === "error")
       .length;
 
@@ -2178,6 +2190,7 @@ export class PackageManager {
       },
       installedPackages,
       cacheEntries,
+      cacheVerification,
       dependencyTree,
       issues,
     };

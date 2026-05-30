@@ -555,6 +555,10 @@ describe("Package Manager CLI", () => {
         [bplPath, "doctor", "packages", "--json"],
         {
           cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-cli-home"),
+          },
           encoding: "utf-8",
         },
       );
@@ -563,6 +567,8 @@ describe("Package Manager CLI", () => {
       const report = JSON.parse(result.stdout);
       expect(report.ok).toBe(false);
       expect(report.lockfile.exists).toBe(false);
+      expect(report.cacheVerification.ok).toBe(true);
+      expect(report.cacheVerification.entriesChecked).toBe(0);
       expect(
         report.issues.map((issue: { kind: string }) => issue.kind),
       ).toContain("missing-lockfile");

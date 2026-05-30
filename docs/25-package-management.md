@@ -280,7 +280,9 @@ bpl package-cache clean math-core --package-version 1.0.0
 sidecar schema, the archive hash, the archive file name, the manifest identity,
 and the extracted package content hash. Missing sidecars are reported as
 `missing-provenance` so older caches remain visible instead of being silently
-trusted.
+trusted. `bpl doctor packages` includes the same cache verification result in
+its JSON report and prints provenance warnings for stale or damaged cache
+entries.
 
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a

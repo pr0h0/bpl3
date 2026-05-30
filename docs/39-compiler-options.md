@@ -146,7 +146,8 @@ explicitly requires wasm builds.
 
 `bpl doctor packages` checks the current package project: manifest validity,
 lockfile verification, missing transitive dependencies, unreachable lockfile
-sources, duplicate installed package names, and the dependency tree.
+sources, duplicate installed package names, package cache provenance warnings,
+and the dependency tree.
 
 ### `bpl clean`
 

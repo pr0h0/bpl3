@@ -1495,6 +1495,35 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should surface package cache provenance issues as doctor warnings", () => {
+      const appDir = path.join(tempDir, "doctor-cache-app");
+      const globalPackageDir = path.join(tempDir, "doctor-cache-packages");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-cache-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(globalPackageDir, "doctor-cache-1.0.0.tgz"),
+        "legacy-cache-entry",
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      const report = localPM.doctorPackages();
+
+      expect(report.ok).toBe(true);
+      expect(report.cacheVerification.ok).toBe(false);
+      expect(report.cacheVerification.entriesChecked).toBe(1);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "warning",
+          kind: "package-cache-missing-provenance",
+        }),
+      );
+    });
+
     test("should report invalid package lockfiles without throwing", () => {
       const appDir = path.join(tempDir, "doctor-invalid-lock-app");
       fs.mkdirSync(appDir);

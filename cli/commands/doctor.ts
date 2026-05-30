@@ -266,6 +266,9 @@ function printPackageDoctorReport(report: PackageDoctorReport): void {
   );
   console.log(`Installed packages: ${report.installedPackages.length}`);
   console.log(`Cached archives: ${report.cacheEntries.length}`);
+  console.log(
+    `Cache provenance: ${report.cacheVerification.ok ? "OK" : "WARN"} (${report.cacheVerification.entriesChecked} archive(s) checked)`,
+  );
 
   if (report.dependencyTree.length > 0) {
     console.log("");
