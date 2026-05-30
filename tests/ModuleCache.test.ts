@@ -493,6 +493,51 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects successful cached link drivers that create output directories", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-link-dir-"));
+    const previousBplCc = process.env.BPL_CC;
+    const outputPath = join(dir, "app");
+    const objectPath = join(dir, "module.o");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        "fs.mkdirSync(args[outputIndex]);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      writeFileSync(objectPath, "object\n");
+
+      const cache = new ModuleCache(dir);
+      let thrown: unknown;
+      try {
+        cache.linkModules([objectPath], outputPath);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toContain(
+        "Compiler driver did not create linked output",
+      );
+      expect(existsSync(outputPath)).toBe(false);
+      expect(
+        readdirSync(dir).some(
+          (entry) => entry.startsWith(".app.") && entry.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("compiles multiple module objects with a bounded parallel job count", async () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parallel-"));
 
