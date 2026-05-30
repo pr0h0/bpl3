@@ -193,6 +193,77 @@ describe("Package Manager CLI", () => {
       expect(lockedFail.status).toBe(1);
       expect(lockedFail.stderr).toContain("hash mismatch");
     });
+
+    test("should check installed package imports from nested sources outside project cwd", () => {
+      const packageDir = path.join(tempDir, "import-package");
+      fs.mkdirSync(packageDir);
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-import-math",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        [
+          "export add;",
+          "frame add() ret int {",
+          "    return 42;",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const packResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(packResult.status).toBe(0);
+
+      const appDir = path.join(tempDir, "import-app");
+      const sourceDir = path.join(appDir, "src");
+      const unrelatedDir = path.join(tempDir, "outside-cwd");
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(unrelatedDir, { recursive: true });
+
+      const tarballPath = path.join(packageDir, "cli-import-math-1.0.0.tgz");
+      const installResult = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+        },
+      );
+      expect(installResult.status).toBe(0);
+
+      const mainPath = path.join(sourceDir, "main.bpl");
+      fs.writeFileSync(
+        mainPath,
+        [
+          'import add from "cli-import-math";',
+          "frame main() ret int {",
+          "    return add();",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const checkResult = spawnSync("bun", [bplPath, "check", mainPath], {
+        cwd: unrelatedDir,
+        encoding: "utf-8",
+      });
+
+      expect(checkResult.status).toBe(0);
+      expect(checkResult.stderr).not.toContain("Module not found");
+    });
   });
 
   describe("list command", () => {

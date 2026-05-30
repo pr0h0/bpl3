@@ -125,7 +125,11 @@ frame main() {
 }
 ```
 
-The compiler resolves "my-package" to `bpl_modules/my-package/index.bpl` (or the file specified in `main`).
+The compiler resolves "my-package" to `bpl_modules/my-package/index.bpl` (or
+the file specified in `main`). Resolution starts from the importing file's
+directory and walks upward, so `src/main.bpl` can import packages installed at
+the project root even when `bpl check /path/to/project/src/main.bpl` is run from
+another working directory.
 
 ## Dependency Resolution
 
@@ -135,8 +139,8 @@ When you run `bpl install`, the package manager:
 2.  Otherwise reads `dependencies` and `devDependencies` from `bpl.json`.
 3.  Extracts packages to `bpl_modules/<package-name>`.
 4.  Records the exact local install in `bpl.lock`.
-5.  Resolves imports through `bpl_modules/`, workspace `packages/`, and the
-    global package directory.
+5.  Resolves imports through the nearest `bpl_modules/`, workspace `packages/`,
+    and then the global package directory.
 
 ## Best Practices
 
@@ -174,10 +178,10 @@ bun run release:manifest
 ```
 
 This writes `dist/release-manifest.json` and records SHA-256 hashes for the
-standalone compiler binary, `lib/runtime.ll`, `lib/runtime_support.o`, and the
-packed npm tarball. The npm artifact entry also includes the package integrity
-and shasum values emitted by `npm pack --json`, so downstream release jobs can
-compare the compiler package against the published archive.
+standalone compiler binary, native and wasm runtime shims, `lib/runtime_support.o`,
+and the packed npm tarball. The npm artifact entry also includes the package
+integrity and shasum values emitted by `npm pack --json`, so downstream release
+jobs can compare the compiler package against the published archive.
 
 For source packages, keep these checks together:
 

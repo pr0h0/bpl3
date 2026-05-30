@@ -222,4 +222,77 @@ describe("ModuleResolver", () => {
       resolver.resolveModules(mainPath);
     }).toThrow();
   });
+
+  it("should resolve installed package imports from nested source files independent of cwd", () => {
+    const appDir = path.join(tempDir, "package-app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "package-math");
+    const unrelatedDir = path.join(tempDir, "unrelated-project");
+    const shadowPackageDir = path.join(
+      unrelatedDir,
+      "bpl_modules",
+      "package-math",
+    );
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(shadowPackageDir, { recursive: true });
+
+    for (const packagePath of [packageDir, shadowPackageDir]) {
+      fs.writeFileSync(
+        path.join(packagePath, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "package-math",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+    }
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      ["export add;", "frame add() ret int {", "    return 42;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      path.join(shadowPackageDir, "index.bpl"),
+      ["export wrong;", "frame wrong() ret int {", "    return 0;", "}"].join(
+        "\n",
+      ),
+    );
+
+    const mainPath = path.join(sourceDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import add from "package-math";',
+        "frame main() ret int {",
+        "    return add();",
+        "}",
+      ].join("\n"),
+    );
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(unrelatedDir);
+      const resolver = new ModuleResolver({ stdLibPath: tempDir });
+      const modules = resolver.resolveModules(mainPath);
+
+      expect(
+        modules.some(
+          (module) => module.path === path.join(packageDir, "index.bpl"),
+        ),
+      ).toBe(true);
+      expect(
+        modules.some(
+          (module) => module.path === path.join(shadowPackageDir, "index.bpl"),
+        ),
+      ).toBe(false);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
 });

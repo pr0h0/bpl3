@@ -821,6 +821,112 @@ describe("PackageManager", () => {
 
       expect(resolved).toBe(path.join(packageDir, "index.bpl"));
     });
+
+    test("should resolve packages by walking up from nested source directories", () => {
+      const appDir = path.join(tempDir, "nested-app");
+      const sourceDir = path.join(appDir, "src", "features");
+      const packageDir = path.join(appDir, "bpl_modules", "nested-math");
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(packageDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "nested-math",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+      const resolved = packageManager.resolvePackage(
+        "nested-math",
+        sourceDir,
+      );
+
+      expect(resolved).toBe(path.join(packageDir, "index.bpl"));
+    });
+
+    test("should prefer the nearest project package over an unrelated cwd package", () => {
+      const appDir = path.join(tempDir, "shadow-app");
+      const sourceDir = path.join(appDir, "src");
+      const cwdDir = path.join(tempDir, "unrelated-cwd");
+      const appPackageDir = path.join(appDir, "bpl_modules", "shared-math");
+      const cwdPackageDir = path.join(cwdDir, "bpl_modules", "shared-math");
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(appPackageDir, { recursive: true });
+      fs.mkdirSync(cwdPackageDir, { recursive: true });
+
+      const packages: Array<[string, string]> = [
+        [appPackageDir, "appAdd"],
+        [cwdPackageDir, "wrongAdd"],
+      ];
+      for (const [packageDir, marker] of packages) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "shared-math",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          `export ${marker};`,
+        );
+      }
+
+      process.chdir(cwdDir);
+      const resolved = packageManager.resolvePackage("shared-math", sourceDir);
+
+      expect(resolved).toBe(path.join(appPackageDir, "index.bpl"));
+      expect(fs.readFileSync(resolved!, "utf8")).toContain("appAdd");
+    });
+
+    test("should resolve package subpath directories through index files", () => {
+      const appDir = path.join(tempDir, "subpath-app");
+      const featureDir = path.join(
+        appDir,
+        "bpl_modules",
+        "subpath-pkg",
+        "features",
+        "math",
+      );
+      fs.mkdirSync(featureDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl_modules", "subpath-pkg", "bpl.json"),
+        JSON.stringify(
+          {
+            name: "subpath-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl_modules", "subpath-pkg", "index.bpl"),
+        "export root;",
+      );
+      fs.writeFileSync(path.join(featureDir, "index.bpl"), "export add;");
+
+      const resolved = packageManager.resolvePackage(
+        "subpath-pkg/features/math",
+        appDir,
+      );
+
+      expect(resolved).toBe(path.join(featureDir, "index.bpl"));
+    });
   });
 
   describe("Package Manifest Validation", () => {

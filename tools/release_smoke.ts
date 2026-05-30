@@ -150,13 +150,28 @@ function runPackedPackageSmoke(): void {
       "completions/bpl-completion.bash",
       "docs/39-compiler-options.md",
       "docs/60-compiler-correctness.md",
+      "examples/wasm_control_flow/main.bpl",
       "examples/wasm_control_flow/test_config.json",
+      "examples/wasm_hosted_io/main.bpl",
       "examples/wasm_hosted_io/test_config.json",
+      "examples/wasm_lambdas_generics/main.bpl",
+      "examples/wasm_lambdas_generics/test_config.json",
+      "examples/wasm_memory_intrinsics/main.bpl",
+      "examples/wasm_memory_intrinsics/test_config.json",
+      "examples/wasm_memory_strings/main.bpl",
+      "examples/wasm_memory_strings/test_config.json",
+      "examples/wasm_stdlib_array/main.bpl",
+      "examples/wasm_stdlib_array/test_config.json",
+      "examples/wasm_stdlib_bitset/main.bpl",
+      "examples/wasm_stdlib_bitset/test_config.json",
       "grammar/grammar.bpl",
       "lib/runtime.ll",
       "lib/runtime_wasm.ll",
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
+    ]);
+    assertSourceOnlyFiles(packEntry, [
+      "playground/examples/70-browser-wasm-showcase.json",
     ]);
     assertPackedFileAllowlist(packEntry);
 
@@ -488,6 +503,39 @@ function assertPackedFiles(
       [
         "npm tarball is missing required release files:",
         ...missing.map((file) => `- ${file}`),
+      ].join("\n"),
+    );
+  }
+}
+
+function assertSourceOnlyFiles(
+  packEntry: NpmPackEntry,
+  sourceOnlyFiles: string[],
+): void {
+  console.log("release smoke: validate source-only release files");
+
+  const packedPaths = new Set(packEntry.files?.map((file) => file.path));
+  const missingFromSource = sourceOnlyFiles.filter(
+    (filePath) => !existsSync(join(repoRoot, filePath)),
+  );
+  if (missingFromSource.length > 0) {
+    throw new Error(
+      [
+        "Source tree is missing required source-only files:",
+        ...missingFromSource.map((filePath) => `- ${filePath}`),
+      ].join("\n"),
+    );
+  }
+
+  const unexpectedlyPacked = sourceOnlyFiles.filter(
+    (filePath) =>
+      packedPaths.has(filePath) || packedPaths.has(`package/${filePath}`),
+  );
+  if (unexpectedlyPacked.length > 0) {
+    throw new Error(
+      [
+        "npm tarball includes source-only files:",
+        ...unexpectedlyPacked.map((filePath) => `- ${filePath}`),
       ].join("\n"),
     );
   }

@@ -1163,56 +1163,109 @@ export class PackageManager {
    * Resolve a package import path
    */
   resolvePackage(packageName: string, projectRoot?: string): string | null {
-    const root = projectRoot || process.cwd();
+    const root = path.resolve(projectRoot || process.cwd());
+    const roots = this.getPackageSearchRoots(root);
 
-    // Helper to check path
-    const checkPath = (baseDir: string): string | null => {
-      // Handle "package/subpath"
-      // Iterate to find where the package name ends
-      const parts = packageName.split("/");
+    // Prefer package installs nearest to the importing file/project. This lets
+    // src/main.bpl resolve ../bpl_modules while avoiding unrelated CWD shadowing.
+    for (const searchRoot of roots) {
+      const result = this.resolvePackageFromBaseDir(
+        path.join(searchRoot, "bpl_modules"),
+        packageName,
+      );
+      if (result) return result;
+    }
 
-      // Try mostly likely case: first part is package name
-      // (Unless scoped packages are supported later)
-      if (parts.length > 0) {
-        const pkgName = parts[0]!;
-        const pkgPath = path.join(baseDir, pkgName);
+    // Check monorepo/workspace packages, useful for examples and local package development.
+    for (const searchRoot of roots) {
+      const result = this.resolvePackageFromBaseDir(
+        path.join(searchRoot, "packages"),
+        packageName,
+      );
+      if (result) return result;
+    }
 
-        if (
-          fs.existsSync(pkgPath) &&
-          fs.existsSync(path.join(pkgPath, "bpl.json"))
-        ) {
-          // Found package root
-          if (parts.length === 1) {
-            // Import "pkg" -> main
-            return this.getPackageEntryPoint(pkgPath);
-          }
-          // Import "pkg/path/file"
-          const subPath = parts.slice(1).join("/");
-          const fullPath = path.join(pkgPath, subPath);
+    // Check global
+    const result = this.resolvePackageFromBaseDir(
+      this.globalPackageDir,
+      packageName,
+    );
+    if (result) return result;
 
-          // Helper to check extensions
-          for (const ext of ["", ".bpl", ".x"]) {
-            const tryPath = fullPath + ext;
-            if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
-              return tryPath;
-            }
+    return null;
+  }
+
+  private getPackageSearchRoots(startDir: string): string[] {
+    const roots: string[] = [];
+    let current = path.resolve(startDir);
+
+    while (true) {
+      roots.push(current);
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+
+    return roots;
+  }
+
+  private resolvePackageFromBaseDir(
+    baseDir: string,
+    packageName: string,
+  ): string | null {
+    if (!fs.existsSync(baseDir)) return null;
+
+    const parts = packageName.split(/[\\/]+/);
+    if (
+      parts.length === 0 ||
+      parts.some((part) => part.length === 0 || part === "." || part === "..")
+    ) {
+      return null;
+    }
+
+    const pkgName = parts[0]!;
+    const pkgPath = path.join(baseDir, pkgName);
+    if (
+      !fs.existsSync(pkgPath) ||
+      !fs.existsSync(path.join(pkgPath, "bpl.json"))
+    ) {
+      return null;
+    }
+
+    if (parts.length === 1) {
+      return this.getPackageEntryPoint(pkgPath);
+    }
+
+    return this.resolvePackageSourcePath(
+      path.join(pkgPath, ...parts.slice(1)),
+    );
+  }
+
+  private resolvePackageSourcePath(filePath: string): string | null {
+    if (fs.existsSync(filePath)) {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile()) {
+        return filePath;
+      }
+      if (stat.isDirectory()) {
+        for (const indexName of ["index.bpl", "index.x"]) {
+          const indexPath = path.join(filePath, indexName);
+          if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
+            return indexPath;
           }
         }
       }
-      return null;
-    };
+    }
 
-    // Check local
-    let result = checkPath(path.join(root, "bpl_modules"));
-    if (result) return result;
-
-    // Check monorepo/workspace packages, useful for examples and local package development.
-    result = checkPath(path.join(root, "packages"));
-    if (result) return result;
-
-    // Check global
-    result = checkPath(this.globalPackageDir);
-    if (result) return result;
+    for (const ext of [".bpl", ".x", ""]) {
+      const fullPath =
+        filePath.endsWith(".bpl") || filePath.endsWith(".x")
+          ? filePath
+          : filePath + ext;
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+        return fullPath;
+      }
+    }
 
     return null;
   }

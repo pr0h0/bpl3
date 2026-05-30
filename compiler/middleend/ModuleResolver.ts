@@ -196,21 +196,20 @@ export class ModuleResolver {
     // Try to resolve as a package import
     const packageManager = new PackageManager();
     try {
-      // First try from current working directory
+      // Prefer the importing file's package tree so absolute builds from an
+      // unrelated cwd do not shadow project-local dependencies.
       let packagePath = packageManager.resolvePackage(
         importSource,
-        process.cwd(),
+        path.dirname(fromFile),
       );
       if (packagePath) {
         const result = this.tryResolveWithExtensions(packagePath);
         if (result) return result;
       }
 
-      // Then try from the file's directory
-      packagePath = packageManager.resolvePackage(
-        importSource,
-        path.dirname(fromFile),
-      );
+      // Then try from current working directory for REPL/scripts that import
+      // packages without an on-disk project root near the source file.
+      packagePath = packageManager.resolvePackage(importSource, process.cwd());
       if (packagePath) {
         const result = this.tryResolveWithExtensions(packagePath);
         if (result) return result;
