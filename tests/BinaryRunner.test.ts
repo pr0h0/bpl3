@@ -279,6 +279,43 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("rejects successful compiler drivers that create executable directories", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-success-dir-"),
+    );
+    const irPath = path.join(tempDir, "program.ll");
+    const execPath = path.join(tempDir, "program");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(path.join(tempDir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        "fs.mkdirSync(args[outputIndex]);",
+      ]);
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, { skipRuntime: true });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain(
+        "Compiler driver did not create executable output",
+      );
+      expect(fs.existsSync(execPath)).toBe(false);
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (entry) => entry.startsWith(".program.") && entry.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("honors BPL_WASM_CC when compiling wasm targets", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-wasm-"));
     const irPath = path.join(tempDir, "program.ll");
