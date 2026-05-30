@@ -382,9 +382,10 @@ function mapCType(
     .replace(/\b(struct|enum)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  const normalizedBase = normalizeCBaseType(base);
   const mappedBase = aliases[base]
     ? base
-    : TYPE_MAP[base] ?? sanitizeUnknownType(base);
+    : TYPE_MAP[normalizedBase] ?? sanitizeUnknownType(base);
 
   if (pointerDepth === 0) {
     return mappedBase;
@@ -401,4 +402,38 @@ function mapCType(
 
 function sanitizeUnknownType(typeName: string): string {
   return typeName.replace(/\s+/g, "_") || "void";
+}
+
+function normalizeCBaseType(base: string): string {
+  const tokens = base.split(" ").filter(Boolean);
+  if (tokens.length === 0) return base;
+  if (tokens.includes("double") || tokens.includes("float")) return base;
+
+  const isUnsigned = tokens.includes("unsigned");
+  const isSigned = tokens.includes("signed");
+  const longCount = tokens.filter((token) => token === "long").length;
+
+  if (tokens.includes("char")) {
+    if (isUnsigned) return "unsigned char";
+    if (isSigned) return "signed char";
+    return "char";
+  }
+
+  if (tokens.includes("short")) {
+    return isUnsigned ? "unsigned short int" : "short int";
+  }
+
+  if (longCount >= 2) {
+    return isUnsigned ? "unsigned long long int" : "long long int";
+  }
+
+  if (longCount === 1) {
+    return isUnsigned ? "unsigned long int" : "long int";
+  }
+
+  if (tokens.includes("int")) {
+    return isUnsigned ? "unsigned int" : "int";
+  }
+
+  return base;
 }

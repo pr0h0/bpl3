@@ -995,6 +995,7 @@ describe("CLI Tests", () => {
         "#define BIG_COUNT 42UL",
         "#define SCALE 1.5f",
         "typedef unsigned int bpl_size;",
+        "typedef long unsigned int odd_size;",
         "typedef struct Point { int x; double y; } Point;",
         "typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;",
         "Point make_point(int x, double y);",
@@ -1011,6 +1012,7 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain("global const BIG_COUNT: ulong = 42;");
       expect(result.stdout).toContain("global const SCALE: float = 1.5;");
       expect(result.stdout).toContain("type bpl_size = uint;");
+      expect(result.stdout).toContain("type odd_size = ulong;");
       expect(result.stdout).toContain("struct Point {");
       expect(result.stdout).toContain("x: int,");
       expect(result.stdout).toContain("y: double,");
