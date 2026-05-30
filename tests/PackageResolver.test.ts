@@ -94,4 +94,22 @@ describe("PackageResolver", () => {
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("entrypoint-not-found");
   });
+
+  test("does not resolve package entrypoints outside the package root", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const outsideEntrypoint = path.join(appDir, "bpl_modules", "outside.bpl");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "../outside.bpl" }),
+    );
+    fs.writeFileSync(outsideEntrypoint, "export add;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain("unsafe entrypoint");
+  });
 });

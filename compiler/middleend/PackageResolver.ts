@@ -220,7 +220,9 @@ function resolvePackageFromBaseDir(
       };
     }
 
-    if (parts.length === 1) {
+    if (trace.failureReason) {
+      return null;
+    } else if (parts.length === 1) {
       trace.failureReason = "entrypoint-not-found";
       trace.failureMessage = `Package '${packageName}' exists at ${packageRoot}, but its entrypoint was not found.`;
     } else {
@@ -320,7 +322,16 @@ function resolvePackageEntryPoint(
         ? entry
         : "index.bpl";
 
-  return resolvePackageSourcePath(path.join(packageRoot, mainEntry), trace);
+  if (!isSafeManifestRelativePath(mainEntry)) {
+    trace.failureReason = "manifest-invalid";
+    trace.failureMessage = `Package '${trace.packageName}' has an unsafe entrypoint '${mainEntry}' in bpl.json.`;
+    return null;
+  }
+
+  return resolvePackageSourcePath(
+    path.join(packageRoot, ...mainEntry.split(/[\\/]+/)),
+    trace,
+  );
 }
 
 function resolvePackageSourcePath(
@@ -366,6 +377,19 @@ function findNearestPackageRoot(startDir: string): string | undefined {
   }
 
   return undefined;
+}
+
+function isSafeManifestRelativePath(relativePath: string): boolean {
+  if (relativePath.length === 0) return false;
+  if (path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  const parts = relativePath.split(/[\\/]+/);
+  return (
+    parts.some((part) => part !== ".") &&
+    parts.every((part) => part.length > 0 && part !== "..")
+  );
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
