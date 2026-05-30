@@ -86,45 +86,7 @@ export function registerPackageCommands(program: Command): void {
           // Verify LLVM IR validity with the selected compiler driver.
           // This catches CodeGen errors like invalid instructions that TypeChecker missed
           if (result.output) {
-            const tempDir = fs.mkdtempSync(
-              path.join(os.tmpdir(), "bpl-pack-verify-"),
-            );
-            const tempLL = path.join(tempDir, "input.ll");
-            fs.writeFileSync(tempLL, result.output);
-
-            try {
-              const cc = getCompilerDriver();
-              const check = spawnSync(
-                cc,
-                [
-                  "-S",
-                  "-o",
-                  os.devNull,
-                  "-x",
-                  "ir",
-                  tempLL,
-                  "-Wno-override-module",
-                ],
-                { encoding: "utf-8" },
-              );
-
-              if (check.error) {
-                log.warn(`Skipping IR verification: ${check.error.message}`);
-              } else if (check.status !== 0) {
-                log.error(
-                  "Package verification failed - generated invalid code:",
-                );
-                console.error(check.stderr || `Unknown ${cc} error`);
-                process.exit(1);
-              }
-            } catch (e) {
-              // If the compiler driver is missing, warn but allow packing.
-              log.warn(
-                `Skipping IR verification: ${e instanceof Error ? e.message : String(e)}`,
-              );
-            } finally {
-              fs.rmSync(tempDir, { recursive: true, force: true });
-            }
+            verifyPackageLLVMIR(result.output);
           }
         } else {
           log.warn(`Warning: Package entry point '${mainFile}' not found.`);
@@ -462,6 +424,51 @@ function formatPackageCommandError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+function verifyPackageLLVMIR(llvmIR: string): void {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-verify-"));
+  try {
+    const tempLL = path.join(tempDir, "input.ll");
+    fs.writeFileSync(tempLL, llvmIR);
+
+    const cc = getPackageVerifierDriver();
+    if (!cc) return;
+
+    const check = spawnSync(
+      cc,
+      ["-S", "-o", os.devNull, "-x", "ir", tempLL, "-Wno-override-module"],
+      { encoding: "utf-8" },
+    );
+
+    if (check.error) {
+      log.warn(`Skipping IR verification: ${check.error.message}`);
+      return;
+    }
+
+    if (check.status !== 0) {
+      throw new Error(
+        [
+          "Package verification failed - generated invalid code:",
+          check.stderr || `Unknown ${cc} error`,
+        ].join("\n"),
+      );
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function getPackageVerifierDriver(): string | null {
+  try {
+    return getCompilerDriver();
+  } catch (e) {
+    // If the compiler driver is missing, warn but allow packing.
+    log.warn(
+      `Skipping IR verification: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return null;
+  }
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

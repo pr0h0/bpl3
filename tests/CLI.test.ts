@@ -1312,6 +1312,8 @@ describe("CLI Tests", () => {
 
   it("should honor BPL_CC when skipping unavailable package IR verification", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-no-cc-"));
+    const verifyTmpDir = path.join(tempDir, "tmp");
+    fs.mkdirSync(verifyTmpDir);
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
       JSON.stringify(
@@ -1338,6 +1340,9 @@ describe("CLI Tests", () => {
           ...process.env,
           BPL_CC: missingCompiler,
           CC: "clang",
+          TMPDIR: verifyTmpDir,
+          TMP: verifyTmpDir,
+          TEMP: verifyTmpDir,
           NO_COLOR: "1",
         },
       });
@@ -1348,6 +1353,11 @@ describe("CLI Tests", () => {
       expect(
         fs.existsSync(path.join(tempDir, "missing-cc-pack-1.0.0.tgz")),
       ).toBe(true);
+      expect(
+        fs
+          .readdirSync(verifyTmpDir)
+          .filter((entry) => entry.startsWith("bpl-pack-verify-")),
+      ).toEqual([]);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
