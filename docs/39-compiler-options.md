@@ -562,7 +562,13 @@ WASI-style adapter, or test harness. Hosted wasm imports `env.__bpl_host_write`,
 `env.__bpl_host_exit`, `env.__bpl_host_argc`, `env.__bpl_host_argv_len`,
 `env.__bpl_host_argv_copy`, and `env.__bpl_host_error`. The host adapter routes
 basic `printf`/`dprintf`/`write`/`puts`/`putchar`, argv access, `exit`, and
-checked BPL runtime errors through those imports. `wasm32-wasi` and
+checked BPL runtime errors through those imports. Hosted `printf`, `fprintf`,
+and `dprintf` implement a small browser-safe formatting subset: `%s` for
+null-terminated strings, `%d` for signed 32-bit integers, `%c` for one byte, and
+`%%` for a literal percent sign. Unsupported format specifiers are emitted
+literally with their leading `%` so output remains predictable; use native
+targets or a richer host/runtime adapter for full libc formatting such as
+widths, floating point, or long integer modifiers. `wasm32-wasi` and
 Emscripten-flavored target triples select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
 provided.
@@ -576,10 +582,11 @@ The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`,
 `examples/wasm_stdlib_array`, and `examples/wasm_stdlib_bitset` examples are
 intentionally portable: they run as native x86_64 programs and as standalone
 `wasm32-unknown-unknown` modules. `examples/wasm_hosted_io` covers basic hosted
-mode I/O. `examples/wasm_hosted_transform` is the richer hosted regression:
-it remains native-compatible while wasm tests execute it with host-provided
-argv, stdout, stderr, stdlib `String`, enum matching, generics, and lambda
-capture.
+mode I/O. `examples/wasm_hosted_printf` covers dynamic `%s`/`%d`/`%c` hosted
+formatting while remaining native-compatible. `examples/wasm_hosted_transform`
+is the richer hosted regression: it remains native-compatible while wasm tests
+execute it with host-provided argv, stdout, stderr, stdlib `String`, enum
+matching, generics, and lambda capture.
 
 The compatibility matrix in `tests/helpers/wasmCompatibilityMatrix.ts` is the
 source of truth for CI. Each tracked example is marked as `wasm-freestanding`,

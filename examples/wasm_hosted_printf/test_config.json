@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["wasm=42!", "literal % A", "err:-7:ok?"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -30,6 +30,14 @@ import {
   type SpecMethodCallHost,
 } from "./calls/SpecMethodCallEmitter";
 
+function shouldZeroExtendForVariadicPromotion(typeNode: AST.TypeNode): boolean {
+  if (typeNode.kind !== "BasicType") {
+    return false;
+  }
+
+  return ["bool", "char", "u8", "u16"].includes(typeNode.name);
+}
+
 export abstract class CallExpressionGenerator extends BinaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
   protected abstract generateExpression(expr: AST.Expression): string;
@@ -1978,10 +1986,24 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         return `i8* ${strData}`;
       }
 
-      // For variadic arguments, promote i1 to i32 (C convention)
-      if (srcType === "i1" && funcType.isVariadic) {
+      const isExternVariadic =
+        funcType.isVariadic &&
+        expr.resolvedDeclaration &&
+        expr.resolvedDeclaration.kind === "Extern";
+
+      // For extern variadic calls, apply C default integer promotions.
+      if (srcType === "i1" && isExternVariadic) {
         const promoted = this.newRegister();
         this.emit(`  ${promoted} = zext i1 ${val} to i32`);
+        return `i32 ${promoted}`;
+      }
+
+      if ((srcType === "i8" || srcType === "i16") && isExternVariadic) {
+        const promoted = this.newRegister();
+        const op = shouldZeroExtendForVariadicPromotion(arg.resolvedType!)
+          ? "zext"
+          : "sext";
+        this.emit(`  ${promoted} = ${op} ${srcType} ${val} to i32`);
         return `i32 ${promoted}`;
       }
 

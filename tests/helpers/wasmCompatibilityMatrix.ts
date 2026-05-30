@@ -151,6 +151,15 @@ export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
     reason: "host imports provide argv, stdout, stderr, and stdlib String support",
   },
   {
+    file: "examples/wasm_hosted_printf/main.bpl",
+    mode: "wasm-hosted",
+    expectedReturn: 0,
+    argv: ["program"],
+    expectedStdout: "wasm=42!\nliteral % A\n",
+    expectedStderr: "err:-7:ok?\n",
+    reason: "hosted wasm formats dynamic %s, %d, %c, and %% output",
+  },
+  {
     file: "examples/wasm_hosted_transform/main.bpl",
     mode: "wasm-hosted",
     expectedReturn: 0,

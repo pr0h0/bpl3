@@ -507,6 +507,41 @@ frame main() ret int {
     expect(host.stderr()).toBe("stderr line\n");
   });
 
+  wasmIt("formats hosted wasm printf and dprintf dynamic arguments", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+extern dprintf(fd: int, fmt: string, ...) ret int;
+
+frame main() ret int {
+    local name: string = "wasm";
+    local marker: char = 'A';
+    local outLen: int = printf("%s=%d%c\\n", name, 42, 33);
+    local errLen: int = dprintf(2, "err:%d:%s%c\\n", -7, "ok", 63);
+    local percentLen: int = printf("literal %% %c\\n", marker);
+
+    if (outLen != 9) {
+        return outLen;
+    }
+    if (errLen != 11) {
+        return errLen;
+    }
+    if (percentLen != 12) {
+        return percentLen;
+    }
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("wasm=42!\nliteral % A\n");
+    expect(host.stderr()).toBe("err:-7:ok?\n");
+  });
+
   wasmIt("routes hosted wasm args through host imports", async () => {
     const host = createHostImports(["program", "left", "right"]);
     const exports = await compileWasmSource(

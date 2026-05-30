@@ -5,13 +5,16 @@ import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
-function generate(source: string): string {
+function generate(
+  source: string,
+  options: ConstructorParameters<typeof CodeGenerator>[0] = {},
+): string {
   const tokens = lexWithGrammar(source, "test.bpl");
   const parser = new Parser(source, "test.bpl", tokens);
   const program = parser.parse();
   const typeChecker = new TypeChecker();
   typeChecker.checkProgram(program);
-  const generator = new CodeGenerator();
+  const generator = new CodeGenerator(options);
   return generator.generate(program);
 }
 
@@ -601,6 +604,22 @@ describe("CodeGenerator - Extended Tests", () => {
       const ir = generate(source);
       expect(ir).toContain("declare");
       expect(ir).toContain("printf");
+    });
+
+    it("should promote narrow integer arguments for extern variadic calls", () => {
+      const source = `
+        extern printf(fmt: string, ...) ret int;
+        frame main() ret int {
+          local marker: char = 'A';
+          return printf("%c\\n", marker);
+        }
+      `;
+      const ir = generate(source, { target: "wasm32-unknown-unknown" });
+
+      expect(ir).toMatch(/(zext|sext) i8 .* to i32/);
+      expect(ir).toContain("call i32 (i8*, ...) @printf");
+      expect(ir).toContain(", i32 ");
+      expect(ir).not.toContain(", i8 ");
     });
   });
 
