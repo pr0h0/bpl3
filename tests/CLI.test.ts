@@ -1056,7 +1056,10 @@ describe("CLI Tests", () => {
       path.join(os.tmpdir(), "bpl-clean-git-failure-"),
     );
     const fakeBin = path.join(tempDir, "bin");
-    const gitShim = path.join(fakeBin, "git");
+    const gitShim = path.join(
+      fakeBin,
+      process.platform === "win32" ? "git.cmd" : "git",
+    );
     const artifact = path.join(tempDir, "main.ll");
 
     fs.mkdirSync(path.join(tempDir, ".git"));
@@ -1064,9 +1067,13 @@ describe("CLI Tests", () => {
     fs.writeFileSync(artifact, "; tracked-looking ir");
     fs.writeFileSync(
       gitShim,
-      "#!/bin/sh\necho 'fatal: simulated git failure' >&2\nexit 1\n",
+      process.platform === "win32"
+        ? "@echo off\r\necho fatal: simulated git failure 1>&2\r\nexit /b 1\r\n"
+        : "#!/bin/sh\necho 'fatal: simulated git failure' >&2\nexit 1\n",
     );
-    fs.chmodSync(gitShim, 0o755);
+    if (process.platform !== "win32") {
+      fs.chmodSync(gitShim, 0o755);
+    }
 
     try {
       const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
@@ -2142,9 +2149,19 @@ describe("CLI Tests", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-doctor-timeout-"),
     );
-    const hangingCompiler = path.join(tempDir, "hanging-cc");
-    fs.writeFileSync(hangingCompiler, "#!/bin/sh\nsleep 60\n");
-    fs.chmodSync(hangingCompiler, 0o755);
+    const hangingCompiler = path.join(
+      tempDir,
+      process.platform === "win32" ? "hanging-cc.cmd" : "hanging-cc",
+    );
+    fs.writeFileSync(
+      hangingCompiler,
+      process.platform === "win32"
+        ? "@echo off\r\nping -n 60 127.0.0.1 >nul\r\n"
+        : "#!/bin/sh\nsleep 60\n",
+    );
+    if (process.platform !== "win32") {
+      fs.chmodSync(hangingCompiler, 0o755);
+    }
 
     try {
       const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
