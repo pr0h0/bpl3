@@ -247,6 +247,13 @@ export class ModuleCache {
     const hash = this.getModuleHash(content, target, optimizationLevel, options);
     const objectFileName = `${hash}.o`;
     const objectFilePath = path.join(this.cacheDir, objectFileName);
+    const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    const tempObjectFilePath = path.join(
+      this.cacheDir,
+      `${hash}.${tempSuffix}.o`,
+    );
 
     // Check if already cached
     // We use the modified hash, so isCached needs to know about it or we check manually
@@ -285,36 +292,40 @@ export class ModuleCache {
       clangArgs.push(`-O${optimizationLevel}`);
     }
     clangArgs.push(...(options.clangFlags ?? []));
-    clangArgs.push(llFilePath, "-o", objectFilePath);
+    clangArgs.push(llFilePath, "-o", tempObjectFilePath);
 
     const compilerCommand = getCompilerDriver(target);
-    const result = spawnSync(compilerCommand, clangArgs, {
-      stdio: verbose ? "inherit" : "pipe",
-    });
+    let compiled = false;
 
-    if (result.status !== 0) {
-      const error =
-        result.stderr?.toString() ||
-        result.error?.message ||
-        "Unknown compilation error";
-      throw new CompilerError(
-        `Failed to compile ${modulePath} with ${compilerCommand}: ${error}`,
-        "Check compiler driver output for details.",
-        {
-          file: modulePath,
-          startLine: 0,
-          startColumn: 0,
-          endLine: 0,
-          endColumn: 0,
-        },
-      );
-    }
-
-    // Clean up temporary LLVM IR file
     try {
-      fs.unlinkSync(llFilePath);
-    } catch {
-      // Ignore cleanup errors - file may have been deleted or moved
+      const result = spawnSync(compilerCommand, clangArgs, {
+        stdio: verbose ? "inherit" : "pipe",
+      });
+
+      if (result.status !== 0) {
+        const error =
+          result.stderr?.toString() ||
+          result.error?.message ||
+          "Unknown compilation error";
+        throw new CompilerError(
+          `Failed to compile ${modulePath} with ${compilerCommand}: ${error}`,
+          "Check compiler driver output for details.",
+          {
+            file: modulePath,
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        );
+      }
+      fs.renameSync(tempObjectFilePath, objectFilePath);
+      compiled = true;
+    } finally {
+      this.removeCacheTempFile(llFilePath);
+      if (!compiled) {
+        this.removeCacheTempFile(tempObjectFilePath);
+      }
     }
 
     // Update manifest
@@ -415,19 +426,22 @@ export class ModuleCache {
     clangArgs.push(...(clangFlags ?? []));
     clangArgs.push(llFilePath, "-o", tempObjectFilePath);
 
-    await this.runCompilerDriver(
-      clangArgs,
-      input.modulePath,
-      target,
-      options.verbose,
-    );
-
-    fs.renameSync(tempObjectFilePath, objectFilePath);
-
+    let compiled = false;
     try {
-      fs.unlinkSync(llFilePath);
-    } catch {
-      // Ignore cleanup errors - file may have been deleted or moved
+      await this.runCompilerDriver(
+        clangArgs,
+        input.modulePath,
+        target,
+        options.verbose,
+      );
+
+      fs.renameSync(tempObjectFilePath, objectFilePath);
+      compiled = true;
+    } finally {
+      this.removeCacheTempFile(llFilePath);
+      if (!compiled) {
+        this.removeCacheTempFile(tempObjectFilePath);
+      }
     }
 
     this.manifest.modules.set(input.modulePath, {
@@ -439,6 +453,14 @@ export class ModuleCache {
     this.saveManifest();
 
     return objectFilePath;
+  }
+
+  private removeCacheTempFile(filePath: string): void {
+    try {
+      fs.rmSync(filePath, { force: true });
+    } catch {
+      // Best-effort cleanup only.
+    }
   }
 
   private runCompilerDriver(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -91,6 +91,46 @@ describe("ModuleCache", () => {
           0,
         ),
       ).toThrow(missingCompiler);
+      expect(
+        readdirSync(join(dir, ".bpl-cache")).some((file) =>
+          file.endsWith(".ll"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("cleans async cache temp files after compiler driver failures", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-async-fail-"));
+    const previousBplCc = process.env.BPL_CC;
+    const missingCompiler = join(dir, "definitely-missing-cc");
+
+    try {
+      process.env.BPL_CC = missingCompiler;
+      const cache = new ModuleCache(dir);
+
+      await expect(
+        cache.compileModules(
+          [
+            {
+              modulePath: "main.bpl",
+              content: "frame main() ret int { return 0; }",
+              llvmIR: EMPTY_MAIN_IR,
+            },
+          ],
+          { jobs: 1, optimizationLevel: 0 },
+        ),
+      ).rejects.toThrow(missingCompiler);
+
+      const cacheFiles = readdirSync(join(dir, ".bpl-cache"));
+      expect(cacheFiles.some((file) => file.endsWith(".ll"))).toBe(false);
+      expect(cacheFiles.some((file) => file.endsWith(".o"))).toBe(false);
     } finally {
       if (previousBplCc === undefined) {
         delete process.env.BPL_CC;
