@@ -41,6 +41,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Run-Script Argument Forwarding Coverage** - Added regression coverage for
   option-looking, empty, quoted, substituted, piped, redirected, ampersand, and
   multiline arguments forwarded through `bpl run-script`.
+- **Package Doctor JSON Stability** - `bpl doctor packages --json` now includes
+  stable `schemaVersion`, `check`, and `success` top-level fields, with
+  regression coverage for lockfile, dependency tree, issue, and package-cache
+  provenance warning shapes.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

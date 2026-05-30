@@ -199,6 +199,10 @@ bpl doctor packages --json
 Use the JSON forms for CI and tooling. `bpl list --json` reports installed
 package names, versions, paths, and content hashes; `bpl list --tree --json`
 reports the same dependency tree data used by the human tree output.
+`bpl doctor packages --json` uses a stable top-level contract with
+`schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
+lockfile details, cache verification, dependency tree data, and structured
+issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
 
 Example output:
 
@@ -329,7 +333,10 @@ and the extracted package content hash. Missing sidecars are reported as
 `missing-provenance` so older caches remain visible instead of being silently
 trusted. `bpl doctor packages` includes the same cache verification result in
 its JSON report and prints provenance warnings for stale or damaged cache
-entries.
+entries. In JSON output, package-cache doctor issues use
+`package-cache-<verification-kind>` issue kinds such as
+`package-cache-missing-provenance`, preserving the original cache entry path and
+repair hint for CI annotations.
 
 `package-cache repair` regenerates missing or malformed provenance sidecars for
 valid cached archives. It refuses to repair archive hash mismatches or manifest

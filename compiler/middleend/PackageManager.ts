@@ -201,6 +201,9 @@ export interface PackageDoctorIssue {
 }
 
 export interface PackageDoctorReport {
+  schemaVersion: 1;
+  check: "packages";
+  success: boolean;
   ok: boolean;
   projectRoot: string;
   localPackageDir: string;
@@ -3581,7 +3584,7 @@ export class PackageManager {
         }).length
       : 0;
 
-    let lockVerified = !lockExists;
+    let lockVerified = !lockExists && dependencyCount === 0;
     if (lockExists && !lockLoadError) {
       const verification = this.verifyLockFile();
       lockVerified = verification.ok;
@@ -3639,8 +3642,13 @@ export class PackageManager {
     const errorCount = issues.filter((issue) => issue.severity === "error")
       .length;
 
+    const ok = errorCount === 0;
+
     return {
-      ok: errorCount === 0,
+      schemaVersion: 1,
+      check: "packages",
+      success: ok,
+      ok,
       projectRoot: this.projectRoot,
       localPackageDir: this.localPackageDir,
       globalPackageDir: this.globalPackageDir,

@@ -735,13 +735,95 @@ describe("Package Manager CLI", () => {
 
       expect(result.status).toBe(1);
       const report = JSON.parse(result.stdout);
+      expect(report.schemaVersion).toBe(1);
+      expect(report.check).toBe("packages");
+      expect(report.success).toBe(false);
       expect(report.ok).toBe(false);
+      expect(typeof report.projectRoot).toBe("string");
+      expect(report.localPackageDir).toContain("bpl_modules");
+      expect(report.globalPackageDir).toContain("doctor-cli-home");
       expect(report.lockfile.exists).toBe(false);
+      expect(report.lockfile.path).toContain("bpl.lock");
+      expect(report.lockfile.packages).toBe(0);
+      expect(report.lockfile.verified).toBe(false);
       expect(report.cacheVerification.ok).toBe(true);
       expect(report.cacheVerification.entriesChecked).toBe(0);
-      expect(
-        report.issues.map((issue: { kind: string }) => issue.kind),
-      ).toContain("missing-lockfile");
+      expect(report.cacheVerification.issues).toEqual([]);
+      expect(report.installedPackages).toEqual([]);
+      expect(report.cacheEntries).toEqual([]);
+      expect(report.dependencyTree).toHaveLength(1);
+      expect(report.dependencyTree[0]).toMatchObject({
+        name: "missing-package",
+        source: "1.0.0",
+        installed: false,
+        locked: false,
+        problems: ["missing from bpl_modules"],
+        dependencies: [],
+      });
+      const missingLockfileIssue = report.issues.find(
+        (issue: { kind: string }) => issue.kind === "missing-lockfile",
+      );
+      expect(missingLockfileIssue).toMatchObject({
+        severity: "error",
+        kind: "missing-lockfile",
+        message: expect.stringContaining("Project has dependencies"),
+        path: expect.stringContaining("bpl.lock"),
+        hint: expect.stringContaining("bpl install"),
+      });
+    });
+
+    test("should report package cache provenance warnings as stable JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-cache-cli-app");
+      const homeDir = path.join(tempDir, "doctor-cache-cli-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      const cachePath = path.join(cacheDir, "doctor-cache-cli-1.0.0.tgz");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-cache-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(cachePath, "legacy-cache-entry");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.schemaVersion).toBe(1);
+      expect(report.check).toBe("packages");
+      expect(report.success).toBe(true);
+      expect(report.ok).toBe(true);
+      expect(report.cacheVerification.ok).toBe(false);
+      expect(report.cacheVerification.entriesChecked).toBe(1);
+      expect(report.cacheVerification.issues).toHaveLength(1);
+      expect(report.cacheVerification.issues[0]).toMatchObject({
+        packageName: "doctor-cache-cli",
+        version: "1.0.0",
+        kind: "missing-provenance",
+        message: expect.stringContaining("missing package provenance sidecar"),
+        path: cachePath,
+        provenancePath: `${cachePath}.bplmeta.json`,
+      });
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "warning",
+          kind: "package-cache-missing-provenance",
+          message: expect.stringContaining("missing package provenance sidecar"),
+          path: cachePath,
+          hint: expect.stringContaining("bpl package-cache verify doctor-cache-cli"),
+        }),
+      );
     });
   });
 
