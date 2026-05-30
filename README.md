@@ -427,7 +427,8 @@ This creates:
 #### `bpl clean`
 
 Remove build artifacts. In git repositories, tracked files are preserved even
-when they live in `build/`, `dist/`, or `.bpl-cache/`.
+when they live in `build/`, `dist/`, or `.bpl-cache/`. `--json` reports each
+planned deletion as a `file`, `directory`, or `symlink`.
 
 ```bash
 # Remove all build artifacts

@@ -494,8 +494,10 @@ describe("CLI Tests", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-clean-kind-"));
     const cacheFile = path.join(tempDir, ".bpl-cache");
     const buildFile = path.join(tempDir, "build");
+    const distLink = path.join(tempDir, "dist");
     fs.writeFileSync(cacheFile, "not a directory");
     fs.writeFileSync(buildFile, "not a directory");
+    fs.symlinkSync(path.join(tempDir, "missing-dist"), distLink, "dir");
 
     try {
       const dryRun = spawnSync(
@@ -518,12 +520,17 @@ describe("CLI Tests", () => {
         path: "build",
         type: "file",
       });
+      expect(dryRunReport.entries).toContainEqual({
+        path: "dist",
+        type: "symlink",
+      });
       expect(dryRunReport.entries).not.toContainEqual({
         path: ".bpl-cache/",
         type: "directory",
       });
       expect(fs.existsSync(cacheFile)).toBe(true);
       expect(fs.existsSync(buildFile)).toBe(true);
+      expect(fs.lstatSync(distLink).isSymbolicLink()).toBe(true);
 
       const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
         cwd: tempDir,
@@ -534,6 +541,7 @@ describe("CLI Tests", () => {
       expect(clean.status).toBe(0);
       expect(fs.existsSync(cacheFile)).toBe(false);
       expect(fs.existsSync(buildFile)).toBe(false);
+      expect(() => fs.lstatSync(distLink)).toThrow();
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

@@ -13,7 +13,7 @@ const log = new Logger("Clean");
 
 interface CleanEntry {
   path: string;
-  type: "file" | "directory";
+  type: "file" | "directory" | "symlink";
 }
 
 interface CleanReport {
@@ -125,21 +125,27 @@ export function registerCleanCommand(program: Command): void {
           findFiles(cwd);
 
           for (const dir of cacheDirs) {
-            if (fs.existsSync(dir)) {
+            const stats = tryLstat(dir);
+            if (stats) {
               const relativePath = path.relative(cwd, dir);
               const gitRelativePath = normalizeGitRelativePath(relativePath);
               if (hasTrackedPathUnder(trackedPaths, gitRelativePath)) {
                 continue;
               }
-              const stats = fs.lstatSync(dir);
               const isDirectory = stats.isDirectory();
+              const isSymlink = stats.isSymbolicLink();
               const reportPath = isDirectory
                 ? `${relativePath}/`
                 : relativePath;
+              const entryType: CleanEntry["type"] = isSymlink
+                ? "symlink"
+                : isDirectory
+                  ? "directory"
+                  : "file";
 
               entriesToDelete.push({
                 path: reportPath,
-                type: isDirectory ? "directory" : "file",
+                type: entryType,
               });
 
               if (!outputJson && (options.verbose || options.dryRun)) {
@@ -191,6 +197,23 @@ export function registerCleanCommand(program: Command): void {
         }
       },
     );
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function isBuildArtifact(base: string, ext: string): boolean {

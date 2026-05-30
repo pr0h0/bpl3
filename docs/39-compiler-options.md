@@ -169,7 +169,8 @@ untracked build artifacts inside it.
 
 - `--dry-run`: Show what would be deleted
 - `-v, --verbose`: Verbose output
-- `--json`: Output a machine-readable cleanup report
+- `--json`: Output a machine-readable cleanup report. Entries report their
+  path and kind as `file`, `directory`, or `symlink`.
 
 **Examples:**
 
