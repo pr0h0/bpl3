@@ -28,6 +28,37 @@ describe("PackageManager", () => {
     }
   });
 
+  function createCachedPackage(
+    packageName: string,
+    version: string,
+    source: string,
+    globalPackageDir: string,
+    dependencies: Record<string, string> = {},
+  ): string {
+    const packageDir = path.join(tempDir, `${packageName}-${version}`);
+    fs.mkdirSync(packageDir);
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: packageName,
+          version,
+          main: "index.bpl",
+          dependencies,
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), source);
+
+    const packer = new PackageManager(packageDir);
+    const tarballPath = packer.pack(packageDir);
+    const cachePath = path.join(globalPackageDir, path.basename(tarballPath));
+    fs.copyFileSync(tarballPath, cachePath);
+    return cachePath;
+  }
+
   describe("Package Initialization", () => {
     test("should create a valid bpl.json manifest", () => {
       const manifestPath = path.join(tempDir, "bpl.json");
@@ -853,6 +884,167 @@ describe("PackageManager", () => {
       expect(
         modules.some((module) => module.path === path.join(globalShadowDir, "index.bpl")),
       ).toBe(false);
+    });
+
+    test("should report missing transitive dependencies during locked verification", () => {
+      const globalPackageDir = path.join(tempDir, "locked-graph-cache");
+      const appDir = path.join(tempDir, "locked-graph-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "locked-graph-b",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "locked-graph-a",
+        "1.0.0",
+        'import value from "locked-graph-b";\nexport value;',
+        globalPackageDir,
+        { "locked-graph-b": "1.0.0" },
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-graph-app",
+            version: "1.0.0",
+            dependencies: {
+              "locked-graph-a": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      fs.rmSync(path.join(appDir, "bpl_modules", "locked-graph-b"), {
+        recursive: true,
+        force: true,
+      });
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(
+        verification.issues.some(
+          (issue) => issue.kind === "missing-transitive-dependency",
+        ),
+      ).toBe(true);
+      expect(verification.errors.join("\n")).toContain(
+        "locked-graph-a: dependency 'locked-graph-b' is missing",
+      );
+    });
+
+    test("should build dependency trees with transitive packages and missing nodes", () => {
+      const globalPackageDir = path.join(tempDir, "tree-graph-cache");
+      const appDir = path.join(tempDir, "tree-graph-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "tree-graph-b",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "tree-graph-a",
+        "1.0.0",
+        'import value from "tree-graph-b";\nexport value;',
+        globalPackageDir,
+        { "tree-graph-b": "1.0.0" },
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "tree-graph-app",
+            version: "1.0.0",
+            dependencies: {
+              "tree-graph-a": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      let tree = localPM.getDependencyTree({ global: false });
+      expect(tree.map((node) => node.name)).toEqual(["tree-graph-a"]);
+      expect(tree[0]?.dependencies[0]?.name).toBe("tree-graph-b");
+      expect(tree[0]?.dependencies[0]?.installed).toBe(true);
+
+      fs.rmSync(path.join(appDir, "bpl_modules", "tree-graph-b"), {
+        recursive: true,
+        force: true,
+      });
+
+      tree = localPM.getDependencyTree({ global: false });
+      expect(tree[0]?.dependencies[0]).toMatchObject({
+        name: "tree-graph-b",
+        installed: false,
+        locked: true,
+        version: "1.0.0",
+      });
+      expect(tree[0]?.dependencies[0]?.problems.join("\n")).toContain(
+        "missing from bpl_modules",
+      );
+    });
+
+    test("should reject cyclic package dependencies with the full chain", () => {
+      const globalPackageDir = path.join(tempDir, "cycle-cache");
+      const appDir = path.join(tempDir, "cycle-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "cycle-a",
+        "1.0.0",
+        "export a;",
+        globalPackageDir,
+        { "cycle-b": "1.0.0" },
+      );
+      createCachedPackage(
+        "cycle-b",
+        "1.0.0",
+        "export b;",
+        globalPackageDir,
+        { "cycle-a": "1.0.0" },
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cycle-app",
+            version: "1.0.0",
+            dependencies: {
+              "cycle-a": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false }),
+      ).toThrow(/cycle-a -> cycle-b -> cycle-a/);
     });
 
     test("should list installed packages", () => {

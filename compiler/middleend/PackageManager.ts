@@ -55,10 +55,44 @@ export interface PackageLockFile {
   >;
 }
 
+export type PackageLockVerificationIssueKind =
+  | "missing-lockfile"
+  | "missing-package"
+  | "invalid-manifest"
+  | "version-mismatch"
+  | "hash-mismatch"
+  | "missing-transitive-dependency";
+
+export interface PackageLockVerificationIssue {
+  packageName: string;
+  kind: PackageLockVerificationIssueKind;
+  message: string;
+  packagePath?: string;
+  source?: string;
+  expectedVersion?: string;
+  actualVersion?: string;
+  expectedHash?: string;
+  actualHash?: string;
+  dependencyOf?: string;
+  requestedSource?: string;
+}
+
 export interface PackageLockVerification {
   ok: boolean;
   errors: string[];
+  issues: PackageLockVerificationIssue[];
   packagesChecked: number;
+}
+
+export interface PackageDependencyTreeNode {
+  name: string;
+  version?: string;
+  source?: string;
+  path?: string;
+  installed: boolean;
+  locked: boolean;
+  dependencies: PackageDependencyTreeNode[];
+  problems: string[];
 }
 
 export class PackageManager {
@@ -194,15 +228,27 @@ export class PackageManager {
   verifyLockFile(): PackageLockVerification {
     const lockPath = this.getLockFilePath();
     if (!fs.existsSync(lockPath)) {
+      const issues: PackageLockVerificationIssue[] = [
+        {
+          packageName: path.basename(this.projectRoot) || this.projectRoot,
+          kind: "missing-lockfile",
+          message: `No bpl.lock found in ${this.projectRoot}`,
+          packagePath: lockPath,
+        },
+      ];
       return {
         ok: false,
-        errors: [`No bpl.lock found in ${this.projectRoot}`],
+        errors: issues.map((issue) => issue.message),
+        issues,
         packagesChecked: 0,
       };
     }
 
     const lock = this.loadLockFile();
-    const errors: string[] = [];
+    const issues: PackageLockVerificationIssue[] = [];
+    const addIssue = (issue: PackageLockVerificationIssue) => {
+      issues.push(issue);
+    };
     let packagesChecked = 0;
 
     for (const [packageName, entry] of Object.entries(lock.packages)) {
@@ -210,7 +256,15 @@ export class PackageManager {
       const installPath = path.join(this.localPackageDir, packageName);
 
       if (!fs.existsSync(installPath)) {
-        errors.push(`${packageName}: package is missing from bpl_modules`);
+        addIssue({
+          packageName,
+          kind: "missing-package",
+          message: `${packageName}: missing from bpl_modules (expected ${entry.version} from ${entry.source})`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+        });
         continue;
       }
 
@@ -218,29 +272,69 @@ export class PackageManager {
       try {
         manifest = this.loadManifest(installPath);
       } catch (error) {
-        errors.push(
-          `${packageName}: invalid installed package (${error instanceof Error ? error.message : String(error)})`,
-        );
+        const detail = error instanceof Error ? error.message : String(error);
+        addIssue({
+          packageName,
+          kind: "invalid-manifest",
+          message: `${packageName}: invalid installed package (${detail})`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+        });
         continue;
       }
 
       if (manifest.version !== entry.version) {
-        errors.push(
-          `${packageName}: version mismatch, lock has ${entry.version} but installed package has ${manifest.version}`,
-        );
+        addIssue({
+          packageName,
+          kind: "version-mismatch",
+          message: `${packageName}: version mismatch, lock has ${entry.version} but installed package has ${manifest.version}`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          actualVersion: manifest.version,
+        });
       }
 
       const actualHash = this.calculatePackageHash(installPath);
       if (actualHash !== entry.hash) {
-        errors.push(
-          `${packageName}: hash mismatch, lock has ${entry.hash} but installed package has ${actualHash}`,
-        );
+        addIssue({
+          packageName,
+          kind: "hash-mismatch",
+          message: `${packageName}: hash mismatch, lock has ${entry.hash} but installed package has ${actualHash}`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+          actualHash,
+        });
+      }
+
+      for (const [dependencyName, requestedSource] of Object.entries(
+        manifest.dependencies || {},
+      )) {
+        const dependencyPath = path.join(this.localPackageDir, dependencyName);
+        if (fs.existsSync(dependencyPath)) continue;
+
+        addIssue({
+          packageName: dependencyName,
+          kind: "missing-transitive-dependency",
+          message: `${packageName}: dependency '${dependencyName}' is missing from bpl_modules (requested ${requestedSource})`,
+          packagePath: dependencyPath,
+          source: lock.packages[dependencyName]?.source,
+          expectedVersion: lock.packages[dependencyName]?.version,
+          expectedHash: lock.packages[dependencyName]?.hash,
+          dependencyOf: packageName,
+          requestedSource,
+        });
       }
     }
 
+    const errors = issues.map((issue) => issue.message);
     return {
-      ok: errors.length === 0,
+      ok: issues.length === 0,
       errors,
+      issues,
       packagesChecked,
     };
   }
@@ -267,7 +361,7 @@ export class PackageManager {
       if (!verification.ok) {
         throw new CompilerError(
           `Lockfile verification failed:\n${verification.errors.join("\n")}`,
-          "Run 'bpl install' to restore packages from bpl.lock.",
+          this.formatLockVerificationHelp(verification),
           {
             file: this.getLockFilePath(),
             startLine: 1,
@@ -327,6 +421,33 @@ export class PackageManager {
         global: false,
       });
     }
+  }
+
+  private formatLockVerificationHelp(
+    verification: PackageLockVerification,
+  ): string {
+    const issueKinds = new Set(verification.issues.map((issue) => issue.kind));
+
+    if (issueKinds.has("missing-lockfile")) {
+      return "Run 'bpl install' to create bpl.lock from bpl.json dependencies.";
+    }
+
+    const restoreHelp = "Run 'bpl install' to restore packages from bpl.lock.";
+    if (
+      issueKinds.has("missing-package") ||
+      issueKinds.has("missing-transitive-dependency")
+    ) {
+      return `${restoreHelp} Run 'bpl list --tree' to inspect dependency state.`;
+    }
+
+    if (
+      issueKinds.has("hash-mismatch") ||
+      issueKinds.has("version-mismatch")
+    ) {
+      return `${restoreHelp} If the changed package is intentional, reinstall the intended source to update bpl.lock.`;
+    }
+
+    return restoreHelp;
   }
 
   private resolveDependencySource(packageName: string, source: string): string {
@@ -777,7 +898,7 @@ export class PackageManager {
   install(
     packageSource: string,
     options: PackageOptionsVerbose = { verbose: false, global: false },
-    installing: Set<string> = new Set(),
+    installStack: string[] = [],
   ): void {
     const targetDir = options.global
       ? this.globalPackageDir
@@ -850,45 +971,55 @@ export class PackageManager {
       this.validateExtractedPackageTree(packageDir, tarballPath);
       const manifest = this.loadManifest(packageDir);
 
-      if (installing.has(manifest.name)) {
-        compilerLog.warn(
-          `Skipping cyclic dependency install for ${manifest.name}@${manifest.version}`,
+      const cycleStart = installStack.indexOf(manifest.name);
+      if (cycleStart !== -1) {
+        const cycle = [...installStack.slice(cycleStart), manifest.name].join(
+          " -> ",
         );
-        return;
+        throw new CompilerError(
+          `Cyclic package dependency detected: ${cycle}`,
+          "Break the cycle by removing one dependency edge or moving shared code into a third package.",
+          {
+            file: path.join(packageDir, "bpl.json"),
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
       }
-      installing.add(manifest.name);
-      try {
-        compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
 
-        // Create target directory
-        const installPath = path.join(targetDir, manifest.name);
+      compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
 
-        // Remove existing installation
-        if (fs.existsSync(installPath)) {
-          fs.rmSync(installPath, { recursive: true, force: true });
-        }
+      // Create target directory
+      const installPath = path.join(targetDir, manifest.name);
 
-        // Copy package to target (use copy instead of rename to avoid cross-device issues)
-        fs.mkdirSync(path.dirname(installPath), { recursive: true });
-        this.copyDir(packageDir, installPath);
-
-        // Link binaries
-        this.linkBinaries(manifest, installPath, options.global || false);
-
-        if (!options.global) {
-          this.recordLocalInstall(manifest, installPath, lockSource);
-        }
-
-        compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
-
-        if (options.global) {
-          compilerLog.info(`Location: ${installPath}`);
-        }
-
-        this.installPackageDependencies(manifest, options, installing);
-      } finally {
-        installing.delete(manifest.name);
+      // Remove existing installation
+      if (fs.existsSync(installPath)) {
+        fs.rmSync(installPath, { recursive: true, force: true });
       }
+
+      // Copy package to target (use copy instead of rename to avoid cross-device issues)
+      fs.mkdirSync(path.dirname(installPath), { recursive: true });
+      this.copyDir(packageDir, installPath);
+
+      // Link binaries
+      this.linkBinaries(manifest, installPath, options.global || false);
+
+      if (!options.global) {
+        this.recordLocalInstall(manifest, installPath, lockSource);
+      }
+
+      compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
+
+      if (options.global) {
+        compilerLog.info(`Location: ${installPath}`);
+      }
+
+      this.installPackageDependencies(manifest, options, [
+        ...installStack,
+        manifest.name,
+      ]);
     } finally {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -898,7 +1029,7 @@ export class PackageManager {
   private installPackageDependencies(
     manifest: PackageManifest,
     options: PackageOptionsVerbose,
-    installing: Set<string>,
+    installStack: string[],
   ): void {
     const deps = manifest.dependencies || {};
     const entries = Object.entries(deps);
@@ -909,17 +1040,13 @@ export class PackageManager {
     );
 
     for (const [name, source] of entries) {
-      if (installing.has(name)) {
-        compilerLog.warn(`Skipping cyclic dependency install for ${name}`);
-        continue;
-      }
       this.install(
         this.resolveDependencySource(name, source),
         {
           ...options,
           locked: false,
         },
-        installing,
+        installStack,
       );
     }
   }
@@ -1204,6 +1331,134 @@ export class PackageManager {
     }
 
     return packages;
+  }
+
+  getDependencyTree(
+    options: PackageOptionsGlobal = { global: false },
+  ): PackageDependencyTreeNode[] {
+    const lock =
+      !options.global && fs.existsSync(this.getLockFilePath())
+        ? this.loadLockFile()
+        : null;
+    const rootDependencySpecs = options.global
+      ? {}
+      : this.loadProjectDependencySpecs();
+    const rootNames = new Set<string>();
+
+    for (const packageName of Object.keys(rootDependencySpecs)) {
+      rootNames.add(packageName);
+    }
+
+    if (rootNames.size === 0 && lock) {
+      for (const packageName of Object.keys(lock.packages)) {
+        rootNames.add(packageName);
+      }
+    }
+
+    if (rootNames.size === 0) {
+      for (const pkg of this.list(options)) {
+        rootNames.add(pkg.manifest.name);
+      }
+    }
+
+    return [...rootNames]
+      .sort((left, right) => left.localeCompare(right))
+      .map((packageName) =>
+        this.buildDependencyTreeNode(
+          packageName,
+          options,
+          [],
+          rootDependencySpecs[packageName],
+          lock,
+        ),
+      );
+  }
+
+  private loadProjectDependencySpecs(): Record<string, string> {
+    const manifestPath = path.join(this.projectRoot, "bpl.json");
+    if (!fs.existsSync(manifestPath)) {
+      return {};
+    }
+
+    try {
+      const manifest = this.loadManifest(this.projectRoot);
+      return {
+        ...manifest.dependencies,
+        ...manifest.devDependencies,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  private buildDependencyTreeNode(
+    packageName: string,
+    options: PackageOptionsGlobal,
+    ancestors: string[],
+    requestedSource?: string,
+    lock?: PackageLockFile | null,
+  ): PackageDependencyTreeNode {
+    const cycleStart = ancestors.indexOf(packageName);
+    const targetDir = options.global
+      ? this.globalPackageDir
+      : this.localPackageDir;
+    const packagePath = path.join(targetDir, packageName);
+    const lockEntry = lock?.packages[packageName];
+
+    if (cycleStart !== -1) {
+      const cycle = [...ancestors.slice(cycleStart), packageName].join(" -> ");
+      return {
+        name: packageName,
+        version: lockEntry?.version,
+        source: requestedSource ?? lockEntry?.source,
+        path: fs.existsSync(packagePath) ? packagePath : undefined,
+        installed: fs.existsSync(packagePath),
+        locked: Boolean(lockEntry),
+        dependencies: [],
+        problems: [`cycle detected: ${cycle}`],
+      };
+    }
+
+    const installed = fs.existsSync(packagePath);
+    const problems: string[] = [];
+    let manifest: PackageManifest | undefined;
+
+    if (!installed) {
+      problems.push(
+        `missing from ${options.global ? "global package directory" : "bpl_modules"}`,
+      );
+    } else {
+      try {
+        manifest = this.loadManifest(packagePath);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        problems.push(`invalid manifest: ${detail}`);
+      }
+    }
+
+    const nextAncestors = [...ancestors, packageName];
+    const dependencies = Object.entries(manifest?.dependencies || {})
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([dependencyName, dependencySource]) =>
+        this.buildDependencyTreeNode(
+          dependencyName,
+          options,
+          nextAncestors,
+          dependencySource,
+          lock,
+        ),
+      );
+
+    return {
+      name: packageName,
+      version: manifest?.version ?? lockEntry?.version,
+      source: requestedSource ?? lockEntry?.source,
+      path: installed ? packagePath : undefined,
+      installed,
+      locked: Boolean(lockEntry),
+      dependencies,
+      problems,
+    };
   }
 
   /**

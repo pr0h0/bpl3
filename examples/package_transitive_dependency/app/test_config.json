@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "sum=9 doubled=19 tripled=28 direct=10"
+  ],
+  "exitCode": 0,
+  "args": [],
+  "env": {},
+  "input": "",
+  "description": "Workspace package example with a transitive dependency and package subpath import"
+}

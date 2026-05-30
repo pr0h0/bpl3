@@ -8,7 +8,12 @@ import * as path from "path";
 import * as os from "os";
 import { spawnSync } from "child_process";
 import { Command } from "commander";
-import { PackageManager, Compiler } from "../../compiler";
+import {
+  PackageManager,
+  Compiler,
+  CompilerError,
+  type PackageDependencyTreeNode,
+} from "../../compiler";
 import type {
   PackageOptionsGlobal,
   PackageOptionsOutput,
@@ -111,7 +116,7 @@ export function registerPackageCommands(program: Command): void {
         const tarball = pm.pack(packageDir, options.output);
         log.info(`Package ready: ${tarball}`);
       } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        log.error(formatPackageCommandError(e));
         process.exit(1);
       }
     });
@@ -133,7 +138,7 @@ export function registerPackageCommands(program: Command): void {
           pm.install(pkg, options);
         }
       } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        log.error(formatPackageCommandError(e));
         process.exit(1);
       }
     });
@@ -143,9 +148,28 @@ export function registerPackageCommands(program: Command): void {
     .command("list")
     .description("List installed packages")
     .option("-g, --global", "list global packages")
+    .option("--tree", "show dependency tree")
     .action((options: PackageOptionsGlobal) => {
       try {
         const pm = new PackageManager();
+
+        if (options.tree) {
+          const tree = pm.getDependencyTree(options);
+
+          if (tree.length === 0) {
+            log.info("No packages installed");
+            return;
+          }
+
+          log.info(
+            `Dependency tree (${options.global ? "global" : "local"}):\n`,
+          );
+          for (const line of formatDependencyTree(tree)) {
+            log.info(line);
+          }
+          return;
+        }
+
         const packages = pm.list(options);
 
         if (packages.length === 0) {
@@ -166,7 +190,7 @@ export function registerPackageCommands(program: Command): void {
           }
         }
       } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        log.error(formatPackageCommandError(e));
         process.exit(1);
       }
     });
@@ -181,7 +205,7 @@ export function registerPackageCommands(program: Command): void {
         pm.init(process.cwd(), name);
         log.info("Initialized new BPL project");
       } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        log.error(formatPackageCommandError(e));
         process.exit(1);
       }
     });
@@ -198,8 +222,43 @@ export function registerPackageCommands(program: Command): void {
         pm.uninstall(pkg, options);
         log.info(`Uninstalled ${pkg}`);
       } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        log.error(formatPackageCommandError(e));
         process.exit(1);
       }
     });
+}
+
+function formatPackageCommandError(error: unknown): string {
+  if (error instanceof CompilerError) {
+    return error.toString();
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
+
+function formatDependencyTree(nodes: PackageDependencyTreeNode[]): string[] {
+  const lines: string[] = [];
+
+  const visit = (node: PackageDependencyTreeNode, depth: number) => {
+    const indent = "  ".repeat(depth);
+    const version = node.version ? `@${node.version}` : "";
+    const missing = node.installed ? "" : " (missing)";
+    const locked = node.locked ? " [locked]" : "";
+    const source = node.source ? ` <- ${node.source}` : "";
+    lines.push(`${indent}${node.name}${version}${missing}${locked}${source}`);
+
+    for (const problem of node.problems) {
+      lines.push(`${indent}  ! ${problem}`);
+    }
+
+    for (const dependency of node.dependencies) {
+      visit(dependency, depth + 1);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node, 1);
+  }
+
+  return lines;
 }

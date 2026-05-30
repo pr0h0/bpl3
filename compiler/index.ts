@@ -1002,7 +1002,11 @@ export { DiagnosticFormatter } from "./common/DiagnosticFormatter";
 /** Lint BPL code for style issues */
 export { Linter } from "./linter/Linter";
 /** Manage BPL package dependencies */
-export { PackageManager } from "./middleend/PackageManager";
+export {
+  PackageManager,
+  type PackageDependencyTreeNode,
+  type PackageLockVerificationIssue,
+} from "./middleend/PackageManager";
 export {
   resolvePackageImport,
   formatPackageResolutionHint,

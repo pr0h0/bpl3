@@ -1,0 +1,8 @@
+{
+  "name": "package-transitive-app",
+  "version": "1.0.0",
+  "main": "main.bpl",
+  "dependencies": {
+    "math-extra": "file:../packages/math-extra/math-extra-1.0.0.tgz"
+  }
+}

@@ -25,7 +25,7 @@ The configuration file defines the package metadata.
   "description": "A useful library",
   "main": "index.bpl",
   "dependencies": {
-    "other-package": "^1.0.0"
+    "other-package": "1.0.0"
   }
 }
 ```
@@ -70,7 +70,7 @@ This will create `my-package-0.1.0.tgz` in the current directory.
 
 ## Installing Packages
 
-To use a package in another project, you must install it. Currently, you can install from a local `.tgz` file.
+To use a package in another project, install it from a package archive:
 
 ```bash
 bpl install ../path/to/my-package-0.1.0.tgz
@@ -79,6 +79,33 @@ bpl install ../path/to/my-package-0.1.0.tgz
 This extracts the package into the `bpl_modules/` directory of your project.
 For local installs, BPL also writes `bpl.lock` with the exact installed package
 version, source archive, and content hash.
+
+Project manifests can also declare dependencies directly:
+
+```json
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "math-core": "file:../packages/math-core/math-core-1.0.0.tgz",
+    "math-extra": "1.0.0"
+  },
+  "devDependencies": {
+    "test-tools": "file:../tools/test-tools-1.0.0.tgz"
+  }
+}
+```
+
+Supported dependency sources are:
+
+- `file:../path/to/pkg-1.0.0.tgz` or `../path/to/pkg-1.0.0.tgz` for local
+  archives.
+- `1.2.3` for an exact version, resolved as `package-name-1.2.3.tgz` from the
+  package cache.
+- `package-name` for the newest matching cached archive.
+
+Version ranges such as `^1.0.0` are not dependency syntax yet; use exact
+versions when you need reproducible installs.
 
 ```json
 {
@@ -111,7 +138,32 @@ bpl install --locked
 ```
 
 `--locked` fails if a package is missing, has a different version, or its source
-hash no longer matches the lockfile.
+hash no longer matches the lockfile. It also checks installed package manifests
+for missing transitive dependencies, so deleting `bpl_modules/math-core` will be
+reported even when only `math-extra` imports it.
+
+To inspect why packages are installed and which dependencies are missing, use:
+
+```bash
+bpl list --tree
+```
+
+Example output:
+
+```text
+Dependency tree (local):
+
+  math-extra@1.0.0 [locked] <- 1.0.0
+    math-core@1.0.0 [locked] <- 1.0.0
+```
+
+Missing packages are shown inline:
+
+```text
+  math-extra@1.0.0 [locked] <- 1.0.0
+    math-core@1.0.0 (missing) [locked] <- 1.0.0
+      ! missing from bpl_modules
+```
 
 ## Using Packages
 
@@ -131,6 +183,23 @@ directory and walks upward, so `src/main.bpl` can import packages installed at
 the project root even when `bpl check /path/to/project/src/main.bpl` is run from
 another working directory.
 
+Packages can expose source files below their root through subpath imports:
+
+```bpl
+import increment from "math-extra/features/increment";
+```
+
+For package subpaths, BPL searches for a file or directory entry under the
+package root. The example above resolves to either
+`bpl_modules/math-extra/features/increment.bpl` or
+`bpl_modules/math-extra/features/increment/index.bpl`.
+
+Workspace packages are supported without installing an archive. If an ancestor
+directory contains `packages/<package-name>/bpl.json`, imports can resolve
+through that workspace before falling back to global packages. The runnable
+example in `examples/package_transitive_dependency/app/main.bpl` demonstrates a
+workspace package, a transitive dependency, and a subpath import.
+
 ## Dependency Resolution
 
 When you run `bpl install`, the package manager:
@@ -138,9 +207,16 @@ When you run `bpl install`, the package manager:
 1.  Restores packages from `bpl.lock` when lock entries exist.
 2.  Otherwise reads `dependencies` and `devDependencies` from `bpl.json`.
 3.  Extracts packages to `bpl_modules/<package-name>`.
-4.  Records the exact local install in `bpl.lock`.
-5.  Resolves imports through the nearest `bpl_modules/`, workspace `packages/`,
+4.  Installs package dependencies recursively.
+5.  Records each exact local install in `bpl.lock`.
+6.  Resolves imports through the nearest `bpl_modules/`, workspace `packages/`,
     and then the global package directory.
+
+Dependency cycles are rejected with the full package chain:
+
+```text
+Cyclic package dependency detected: app-a -> app-b -> app-a
+```
 
 ## Best Practices
 

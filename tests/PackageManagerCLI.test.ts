@@ -396,6 +396,33 @@ describe("Package Manager CLI", () => {
       expect(
         fs.existsSync(path.join(appDir, "bpl_modules", "cli-graph-b")),
       ).toBe(true);
+
+      const listTree = spawnSync("bun", [bplPath, "list", "--tree"], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+      expect(listTree.status).toBe(0);
+      expect(listTree.stdout).toContain("Dependency tree (local)");
+      expect(listTree.stdout).toContain("cli-graph-a@1.0.0");
+      expect(listTree.stdout).toContain("cli-graph-b@1.0.0");
+
+      fs.rmSync(path.join(appDir, "bpl_modules", "cli-graph-b"), {
+        recursive: true,
+        force: true,
+      });
+      const lockedMissing = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+        },
+      );
+      expect(lockedMissing.status).toBe(1);
+      expect(lockedMissing.stderr).toContain(
+        "cli-graph-a: dependency 'cli-graph-b' is missing",
+      );
+      expect(lockedMissing.stderr).toContain("bpl list --tree");
     });
   });
 
