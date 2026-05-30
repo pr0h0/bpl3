@@ -10,6 +10,9 @@ describe("BinaryRunner", () => {
   const originalBplHome = process.env.BPL_HOME;
   const originalBplCc = process.env.BPL_CC;
   const originalBplWasmCc = process.env.BPL_WASM_CC;
+  const originalPath = process.env.PATH;
+  const originalWasmLd = process.env.WASM_LD;
+  const originalRequireWasmLd = process.env.BPL_REQUIRE_WASM_LD;
 
   afterEach(() => {
     if (originalBplHome === undefined) {
@@ -26,6 +29,21 @@ describe("BinaryRunner", () => {
       delete process.env.BPL_WASM_CC;
     } else {
       process.env.BPL_WASM_CC = originalBplWasmCc;
+    }
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
+    if (originalWasmLd === undefined) {
+      delete process.env.WASM_LD;
+    } else {
+      process.env.WASM_LD = originalWasmLd;
+    }
+    if (originalRequireWasmLd === undefined) {
+      delete process.env.BPL_REQUIRE_WASM_LD;
+    } else {
+      process.env.BPL_REQUIRE_WASM_LD = originalRequireWasmLd;
     }
   });
 
@@ -349,6 +367,44 @@ describe("BinaryRunner", () => {
       const args = fs.readFileSync(argsLogPath, "utf-8").split("\n");
       expect(args).toContain("-target");
       expect(args).toContain("wasm32-unknown-unknown");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports missing required wasm linker before invoking the compiler", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-require-wasm-"),
+    );
+    const emptyPathDir = path.join(tempDir, "empty-path");
+    const irPath = path.join(tempDir, "program.ll");
+    const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
+
+    try {
+      fs.mkdirSync(emptyPathDir);
+      const fakeWasmCompiler = writeNodeCommandShim(
+        path.join(tempDir, "fake-wasm-cc"),
+        [
+          'const fs = require("fs");',
+          `fs.writeFileSync(${JSON.stringify(argsLogPath)}, "invoked\\n");`,
+        ],
+      );
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_WASM_CC = fakeWasmCompiler;
+      process.env.BPL_REQUIRE_WASM_LD = "1";
+      process.env.WASM_LD = path.join(tempDir, "missing-wasm-ld");
+      process.env.PATH = emptyPathDir;
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        target: "wasm32-unknown-unknown",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain(
+        "BPL_REQUIRE_WASM_LD=1 requires a wasm linker",
+      );
+      expect(fs.existsSync(argsLogPath)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

@@ -518,6 +518,9 @@ is available, BPL links a standalone no-entry module and includes the
 freestanding `runtime_wasm.ll` shim. If the linker is unavailable, BPL still
 emits a relocatable wasm object so CI and cross-toolchains can consume the
 artifact without requiring a host-native wasm linker.
+Set `BPL_REQUIRE_WASM_LD=1` to make a missing wasm linker a hard error; CI uses
+this mode so wasm runtime execution cannot silently downgrade to object-only
+coverage.
 
 Set `BPL_WASM_CC` or `WASM_CC` when the default `clang` on PATH cannot compile
 WebAssembly targets. This is useful on macOS when native builds should continue

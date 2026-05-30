@@ -78,6 +78,11 @@ function findWasmLinker(): string | undefined {
   });
 }
 
+function isEnvFlagEnabled(value: string | undefined): boolean {
+  if (!value) return false;
+  return !["0", "false", "no", "off"].includes(value.toLowerCase());
+}
+
 /**
  * Result of binary compilation
  */
@@ -290,6 +295,16 @@ function buildClangArgs(
   const wasmRuntimeMode = getWasmRuntimeMode(options, target);
   const wasmLinker = wasmTarget ? findWasmLinker() : undefined;
   const linkWasm = Boolean(wasmLinker);
+
+  if (
+    wasmTarget &&
+    !wasmLinker &&
+    isEnvFlagEnabled(process.env.BPL_REQUIRE_WASM_LD)
+  ) {
+    throw new Error(
+      "BPL_REQUIRE_WASM_LD=1 requires a wasm linker. Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
+    );
+  }
 
   // Debug info
   if (options.dwarf) {
