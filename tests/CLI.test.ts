@@ -780,6 +780,21 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject directories as bindgen inputs", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-dir-"));
+
+    try {
+      const result = runCLI(["bindgen", tempDir]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Header path is not a file");
+      expect(result.stderr).toContain(tempDir);
+      expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should advertise the wasm32 target in shell completions", () => {
     const bash = runCLI(["completion", "bash"]);
     const zsh = runCLI(["completion", "zsh"]);

@@ -31,6 +31,14 @@ const TYPE_MAP: Record<string, string> = {
 };
 
 export function generateBplBindings(options: BindgenOptions): string {
+  if (!fs.existsSync(options.headerPath)) {
+    throw new Error(`Header file not found: ${options.headerPath}`);
+  }
+
+  if (!fs.statSync(options.headerPath).isFile()) {
+    throw new Error(`Header path is not a file: ${options.headerPath}`);
+  }
+
   const source = fs.readFileSync(options.headerPath, "utf8");
   const constants = extractConstants(source);
   const structs = extractStructs(source);
