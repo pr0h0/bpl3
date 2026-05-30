@@ -91,10 +91,14 @@ export function assertWritableFileOutputPath(outputPath: string): void {
   }
 
   const outputDir = path.dirname(path.resolve(outputPath));
-  if (!fs.existsSync(outputDir)) {
+  const outputDirStats = tryLstat(outputDir);
+  if (!outputDirStats) {
     throw new Error(`Output directory not found: ${outputDir}`);
   }
-  if (!fs.statSync(outputDir).isDirectory()) {
+  if (outputDirStats.isSymbolicLink()) {
+    throw new Error(`Output parent path is a symbolic link: ${outputDir}`);
+  }
+  if (!outputDirStats.isDirectory()) {
     throw new Error(`Output parent path is not a directory: ${outputDir}`);
   }
 }

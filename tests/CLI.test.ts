@@ -390,6 +390,38 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject compile output paths whose parent path is a symbolic link", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-output-parent-link-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const realParentDir = path.join(tempDir, "real-parent");
+    const linkedParentDir = path.join(tempDir, "linked-parent");
+    const outputFile = path.join(linkedParentDir, "app");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+    fs.mkdirSync(realParentDir);
+    fs.symlinkSync(realParentDir, linkedParentDir, "dir");
+
+    try {
+      const result = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output parent path is a symbolic link");
+      expect(result.stderr).toContain(linkedParentDir);
+      expect(result.stderr).not.toContain("ENOENT");
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject compile output paths that are symbolic links before writing artifacts", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
