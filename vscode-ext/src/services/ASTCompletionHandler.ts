@@ -120,11 +120,12 @@ export class ASTCompletionHandler {
 
     if (partial === "" || partial.startsWith(".")) {
       const currentDir = path.dirname(filePath);
-      const prefixDir = partial.endsWith("/")
-        ? partial
-        : partial.includes("/")
-          ? partial.slice(0, partial.lastIndexOf("/") + 1)
-          : "./";
+      let prefixDir = "./";
+      if (partial.endsWith("/")) {
+        prefixDir = partial;
+      } else if (partial.includes("/")) {
+        prefixDir = partial.slice(0, partial.lastIndexOf("/") + 1);
+      }
       const scanDir = path.resolve(currentDir, prefixDir);
       if (fs.existsSync(scanDir) && fs.statSync(scanDir).isDirectory()) {
         for (const entry of fs.readdirSync(scanDir, { withFileTypes: true })) {

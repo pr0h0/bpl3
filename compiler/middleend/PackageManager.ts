@@ -3508,12 +3508,14 @@ function satisfiesVersionSelector(version: string, selector: string): boolean {
 
   if (selector.startsWith("^")) {
     const minimum = parseSemverTuple(selector.slice(1));
-    const maximum: [number, number, number] =
-      minimum[0] > 0
-        ? [minimum[0] + 1, 0, 0]
-        : minimum[1] > 0
-          ? [0, minimum[1] + 1, 0]
-          : [0, 0, minimum[2] + 1];
+    let maximum: [number, number, number];
+    if (minimum[0] > 0) {
+      maximum = [minimum[0] + 1, 0, 0];
+    } else if (minimum[1] > 0) {
+      maximum = [0, minimum[1] + 1, 0];
+    } else {
+      maximum = [0, 0, minimum[2] + 1];
+    }
     return (
       compareSemverTuple(versionTuple, minimum) >= 0 &&
       compareSemverTuple(versionTuple, maximum) < 0

@@ -419,14 +419,14 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     rightType: string,
     isEqual: boolean,
   ): string {
-    const comparisonType =
-      leftType === rightType
-        ? leftType
-        : leftRaw === "null"
-          ? rightType
-          : rightRaw === "null"
-            ? leftType
-            : "i8*";
+    let comparisonType = "i8*";
+    if (leftType === rightType) {
+      comparisonType = leftType;
+    } else if (leftRaw === "null") {
+      comparisonType = rightType;
+    } else if (rightRaw === "null") {
+      comparisonType = leftType;
+    }
     const left = this.castPointerForComparison(
       leftRaw,
       leftType,

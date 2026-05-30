@@ -1672,7 +1672,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         const tupleType = type as AST.TupleTypeNode;
         // Represent tuples as LLVM structs: { type0, type1, ... }
         const elementTypes = tupleType.types.map((t) => this.resolveType(t));
-        let llvmType = `{ ${elementTypes.join(", ")} }`;
+        const llvmType = `{ ${elementTypes.join(", ")} }`;
         return this.applyArrayDimensions(llvmType, tupleType.arrayDimensions);
       } else if (type.kind === "FunctionType") {
         const funcType = type as AST.FunctionTypeNode;
@@ -1682,7 +1682,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           .join(", ");
 
         // Raw function pointer: return_type (params)*
-        let llvmType = `${ret} (${params})*`;
+        const llvmType = `${ret} (${params})*`;
 
         return this.applyArrayDimensions(llvmType, funcType.arrayDimensions);
       } else if (type.kind === "LambdaType") {
@@ -1695,7 +1695,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         // Function signature: ret (i8*, params...)
         // We use i8* for the context pointer (type erased)
         const paramsStr = params ? `, ${params}` : "";
-        let llvmType = `{ ${ret} (i8*${paramsStr})*, i8* }`;
+        const llvmType = `{ ${ret} (i8*${paramsStr})*, i8* }`;
         return this.applyArrayDimensions(llvmType, lambdaType.arrayDimensions);
       }
       return "void";

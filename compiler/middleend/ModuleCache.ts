@@ -389,6 +389,7 @@ export class ModuleCache {
   /**
    * Compile module to object file
    */
+  // eslint-disable-next-line max-params -- Keep the existing cache API stable for callers.
   compileModule(
     modulePath: string,
     content: string,

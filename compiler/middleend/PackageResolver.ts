@@ -315,12 +315,12 @@ function resolvePackageEntryPoint(
 ): string | null {
   const main = manifest.main;
   const entry = manifest.entry;
-  const mainEntry =
-    typeof main === "string"
-      ? main
-      : typeof entry === "string"
-        ? entry
-        : "index.bpl";
+  let mainEntry = "index.bpl";
+  if (typeof main === "string") {
+    mainEntry = main;
+  } else if (typeof entry === "string") {
+    mainEntry = entry;
+  }
 
   if (!isSafeManifestRelativePath(mainEntry)) {
     trace.failureReason = "manifest-invalid";

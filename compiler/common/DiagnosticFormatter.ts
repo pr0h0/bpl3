@@ -428,11 +428,14 @@ export class DiagnosticFormatter {
     const singleSeverity = errors.every(
       (error) => error.toDiagnostic().severity === firstSeverity,
     );
-    const summary = singleSeverity
-      ? getSeveritySummary(firstSeverity, count, this.config.colorize)
-      : this.config.colorize
-        ? `${COLORS.bold}${COLORS.cyan}${count} diagnostics${COLORS.reset}`
-        : `${count} diagnostics`;
+    let summary: string;
+    if (singleSeverity) {
+      summary = getSeveritySummary(firstSeverity, count, this.config.colorize);
+    } else if (this.config.colorize) {
+      summary = `${COLORS.bold}${COLORS.cyan}${count} diagnostics${COLORS.reset}`;
+    } else {
+      summary = `${count} diagnostics`;
+    }
     parts.push(summary);
 
     return parts.join("\n");
