@@ -451,7 +451,7 @@ function tryLstat(filePath: string) {
       error &&
       typeof error === "object" &&
       "code" in error &&
-      error.code === "ENOENT"
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
     ) {
       return null;
     }

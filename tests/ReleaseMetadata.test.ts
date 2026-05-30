@@ -164,6 +164,31 @@ describe("Release metadata", () => {
     }
   });
 
+  test("release smoke reports malformed standalone compiler paths cleanly", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-binary-parent-file-test-"),
+    );
+
+    try {
+      const parentFile = join(tempRoot, "not-a-dir");
+      const binaryPath = join(parentFile, "bpl");
+      writeFileSync(parentFile, "not a directory\n");
+
+      let errorMessage = "";
+      try {
+        assertStandaloneCompilerArtifact(binaryPath);
+      } catch (error: unknown) {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(errorMessage).toContain("Standalone compiler was not built");
+      expect(errorMessage).toContain(binaryPath);
+      expect(errorMessage).not.toContain("ENOTDIR");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("release manifest refuses symlinked output paths", () => {
     const tempRoot = mkdtempSync(
       join(tmpdir(), "bpl-release-output-link-test-"),
