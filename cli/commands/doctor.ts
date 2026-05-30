@@ -295,11 +295,7 @@ function checkCommand(
   required = true,
 ): DoctorCheck {
   const result = spawnSync(command, args, { encoding: "utf-8" });
-  const commandDetail =
-    result.stdout?.split("\n")[0]?.trim() ||
-    result.stderr?.split("\n")[0]?.trim() ||
-    result.error?.message ||
-    `${command} exited with status ${result.status ?? "unknown"}`;
+  const commandDetail = formatCommandResult(command, result);
   const detail = `${command}: ${commandDetail}`;
 
   return result.status === 0
@@ -341,7 +337,7 @@ function checkAnyCommand(
         required,
       };
     }
-    failures.push(`${command}: ${result.status ?? result.error?.message ?? "unavailable"}`);
+    failures.push(`${command}: ${formatCommandResult(command, result)}`);
   }
 
   return {
@@ -360,6 +356,44 @@ function getCommandVersion(name: string, args: string[]): string | undefined {
   }
 
   return result.stdout.trim().split("\n")[0];
+}
+
+function formatCommandResult(
+  command: string,
+  result: ReturnType<typeof spawnSync>,
+): string {
+  return (
+    getFirstOutputLine(result.stdout) ||
+    getFirstOutputLine(result.stderr) ||
+    formatSpawnError(result.error) ||
+    `${command} exited with status ${result.status ?? "unknown"}`
+  );
+}
+
+function getFirstOutputLine(output: string | Buffer | null | undefined): string {
+  return output?.toString().split("\n")[0]?.trim() || "";
+}
+
+function formatSpawnError(error: Error | undefined): string | undefined {
+  if (!error) {
+    return undefined;
+  }
+
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : undefined;
+  if (code === "ENOENT") {
+    return "command not found";
+  }
+  if (code === "EACCES") {
+    return "permission denied";
+  }
+  if (code === "ENOEXEC") {
+    return "not executable";
+  }
+
+  return error.message;
 }
 
 function printDoctorReport(report: DoctorReport): void {

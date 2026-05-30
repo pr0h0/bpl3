@@ -2019,6 +2019,8 @@ describe("CLI Tests", () => {
     );
     expect(compilerCheck.ok).toBe(false);
     expect(compilerCheck.detail).toContain(missingCompiler);
+    expect(compilerCheck.detail).toContain("command not found");
+    expect(compilerCheck.detail).not.toContain("ENOENT");
   });
 
   it("should honor BPL_NM in doctor diagnostics", () => {
@@ -2040,6 +2042,8 @@ describe("CLI Tests", () => {
     expect(symbolToolCheck.ok).toBe(false);
     expect(symbolToolCheck.required).toBe(false);
     expect(symbolToolCheck.detail).toContain(missingTool);
+    expect(symbolToolCheck.detail).toContain("command not found");
+    expect(symbolToolCheck.detail).not.toContain("ENOENT");
   });
 
   it("should honor BPL_TAR in doctor diagnostics", () => {
@@ -2061,6 +2065,8 @@ describe("CLI Tests", () => {
     expect(archiveToolCheck.ok).toBe(false);
     expect(archiveToolCheck.required).toBe(false);
     expect(archiveToolCheck.detail).toContain(missingTool);
+    expect(archiveToolCheck.detail).toContain("command not found");
+    expect(archiveToolCheck.detail).not.toContain("ENOENT");
   });
 
   it("should honor BPL_WASM_CC in doctor diagnostics", () => {
@@ -2085,6 +2091,8 @@ describe("CLI Tests", () => {
     expect(compilerCheck.ok).toBe(false);
     expect(compilerCheck.required).toBe(false);
     expect(compilerCheck.detail).toContain(missingCompiler);
+    expect(compilerCheck.detail).toContain("command not found");
+    expect(compilerCheck.detail).not.toContain("ENOENT");
   });
 
   it("should build a direct wasm artifact for wasm32 targets", () => {
