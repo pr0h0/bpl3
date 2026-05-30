@@ -1154,6 +1154,8 @@ describe("CLI Tests", () => {
       [
         "#define ANSWER 42",
         "#define FLAGS 0xFFu",
+        "#define FEATURE_BITS 0b1010u",
+        "#define FILE_MODE 0755",
         "#define BIG_COUNT 42UL",
         "#define SCALE 1.5f",
         "#define WRAPPED_ANSWER (42u)",
@@ -1191,6 +1193,10 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("global const ANSWER: int = 42;");
       expect(result.stdout).toContain("global const FLAGS: uint = 0xFF;");
+      expect(result.stdout).toContain(
+        "global const FEATURE_BITS: uint = 0b1010;",
+      );
+      expect(result.stdout).toContain("global const FILE_MODE: int = 0o755;");
       expect(result.stdout).toContain("global const BIG_COUNT: ulong = 42;");
       expect(result.stdout).toContain("global const SCALE: float = 1.5;");
       expect(result.stdout).toContain(

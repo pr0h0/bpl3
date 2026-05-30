@@ -30,7 +30,7 @@ const TYPE_MAP: Record<string, string> = {
   double: "double",
 };
 const NUMERIC_CONSTANT_PATTERN =
-  /^([+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([uUlLfF]*)$/;
+  /^([+-]?(?:(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|0[0-7]+)|(?:(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)))([uUlLfF]*)$/;
 const STRING_CONSTANT_PATTERN = /^"(?:[^"\\]|\\.)*"$/;
 const CHAR_CONSTANT_PATTERN = /^'(?:[^'\\]|\\.)'$/;
 const SCALAR_CONSTANT_TYPES = new Set([
@@ -341,7 +341,15 @@ function inferConstantType(value: string): string {
 function normalizeConstantValue(value: string): string {
   if (value.startsWith('"')) return value;
   const match = NUMERIC_CONSTANT_PATTERN.exec(value);
-  return match?.[1] ?? value;
+  const literal = match?.[1] ?? value;
+  const sign =
+    literal.startsWith("-") || literal.startsWith("+") ? literal[0]! : "";
+  const magnitude = sign ? literal.slice(1) : literal;
+  if (/^0[0-7]+$/.test(magnitude) && magnitude !== "0") {
+    return `${sign}0o${magnitude.slice(1)}`;
+  }
+
+  return literal;
 }
 
 function getNumericConstantSuffix(value: string): string {
