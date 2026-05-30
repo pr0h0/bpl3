@@ -1973,8 +1973,18 @@ export class PackageManager {
     },
     fallback: string,
   ): string {
+    if (result.error) {
+      const error = result.error as Error & { code?: string };
+      if (error.code === "ENOENT") {
+        return "command not found";
+      }
+      if (error.code === "EACCES") {
+        return "permission denied while starting command";
+      }
+      return error.message;
+    }
+
     return (
-      result.error?.message ||
       result.stderr?.toString().trim() ||
       result.stdout?.toString().trim() ||
       (result.status === null || result.status === undefined

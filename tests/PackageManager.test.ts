@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { CompilerError } from "../compiler/common/CompilerError";
 import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
 import { PackageManager } from "../compiler/middleend/PackageManager";
 
@@ -184,7 +185,18 @@ describe("PackageManager", () => {
 
       process.env.BPL_TAR = missingTar;
       try {
-        expect(() => packageManager.pack(tempDir)).toThrow(/ENOENT/);
+        let error: unknown;
+        try {
+          packageManager.pack(tempDir);
+        } catch (caught) {
+          error = caught;
+        }
+
+        expect(error).toBeInstanceOf(CompilerError);
+        expect((error as Error).message).toContain(
+          "Failed to create tarball: command not found",
+        );
+        expect((error as Error).message).not.toContain("ENOENT");
       } finally {
         if (originalBplTar === undefined) {
           delete process.env.BPL_TAR;
