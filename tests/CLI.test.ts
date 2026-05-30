@@ -562,6 +562,7 @@ describe("CLI Tests", () => {
         "WebAssembly runtime IR",
         "Hosted WebAssembly runtime IR",
         "wasm linker",
+        "wasm compiler",
         "native compiler",
       ]),
     );
@@ -593,6 +594,30 @@ describe("CLI Tests", () => {
       (check: { name: string }) => check.name === "native compiler",
     );
     expect(compilerCheck.ok).toBe(false);
+    expect(compilerCheck.detail).toContain(missingCompiler);
+  });
+
+  it("should honor BPL_WASM_CC in doctor diagnostics", () => {
+    const missingCompiler = path.join(
+      os.tmpdir(),
+      "definitely-missing-bpl-wasm-cc",
+    );
+    const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_WASM_CC: missingCompiler,
+        NO_COLOR: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    const report = JSON.parse(result.stdout);
+    const compilerCheck = report.checks.find(
+      (check: { name: string }) => check.name === "wasm compiler",
+    );
+    expect(compilerCheck.ok).toBe(false);
+    expect(compilerCheck.required).toBe(false);
     expect(compilerCheck.detail).toContain(missingCompiler);
   });
 

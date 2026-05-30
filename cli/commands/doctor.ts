@@ -10,6 +10,7 @@ import { spawnSync } from "child_process";
 import { Command } from "commander";
 import { getBplHome } from "../../compiler/common/PathResolver";
 import { Logger } from "../../compiler/common/Logger";
+import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import {
   PackageManager,
   type PackageDependencyTreeNode,
@@ -113,9 +114,16 @@ function createDoctorReport(version: string): DoctorReport {
     ),
     checkCommand(
       "native compiler",
-      getNativeCompilerCommand(),
+      getCompilerDriver(),
       ["--version"],
       "Install clang/LLVM and add it to PATH, or set BPL_CC/CC to a working compiler driver.",
+    ),
+    checkCommand(
+      "wasm compiler",
+      getCompilerDriver("wasm32-unknown-unknown"),
+      ["--version"],
+      "Install an LLVM compiler with wasm support, or set BPL_WASM_CC/WASM_CC to a working compiler driver.",
+      false,
     ),
     checkAnyCommand(
       "wasm linker",
@@ -194,10 +202,6 @@ function checkCommand(
         hint,
         required,
       };
-}
-
-function getNativeCompilerCommand(): string {
-  return process.env.BPL_CC || process.env.CC || "clang";
 }
 
 function checkAnyCommand(

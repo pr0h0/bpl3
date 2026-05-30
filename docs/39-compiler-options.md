@@ -140,9 +140,10 @@ bpl doctor packages --json
 
 The JSON form is intended for bug reports and CI diagnostics. It reports
 `BPL_HOME`, platform details, runtime file presence, whether the configured
-native compiler (`BPL_CC`, `CC`, or `clang`) is available, and wasm readiness.
-Missing core runtime files are failures; a missing `wasm-ld`/LLVM lld is
-reported as a warning unless the current workflow explicitly requires wasm
+native compiler (`BPL_CC`, `CC`, or `clang`) is available, the configured wasm
+compiler (`BPL_WASM_CC`, `WASM_CC`, or `clang`), and wasm linker readiness.
+Missing core runtime files are failures; missing wasm compiler/linker tools are
+reported as warnings unless the current workflow explicitly requires wasm
 builds.
 
 `bpl doctor packages` checks the current package project: manifest validity,
