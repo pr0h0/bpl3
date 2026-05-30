@@ -14,6 +14,7 @@ import {
   createReleaseManifest,
   writeReleaseManifest,
 } from "../tools/release_manifest";
+import { assertStandaloneCompilerArtifact } from "../tools/release_smoke";
 
 describe("Release metadata", () => {
   test("package metadata exposes a release check and stable CLI entrypoint", () => {
@@ -133,6 +134,25 @@ describe("Release metadata", () => {
           generatedAt: "2026-05-29T00:00:00.000Z",
         }),
       ).toThrow(/Release artifact is a symbolic link/);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("release smoke rejects symlinked standalone compiler artifacts", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-binary-link-test-"),
+    );
+
+    try {
+      const outsideBinary = join(tempRoot, "outside-bpl");
+      const linkPath = join(tempRoot, "bpl");
+      writeFileSync(outsideBinary, "standalone compiler\n");
+      symlinkSync(outsideBinary, linkPath, "file");
+
+      expect(() => assertStandaloneCompilerArtifact(linkPath)).toThrow(
+        /Standalone compiler is a symbolic link/,
+      );
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

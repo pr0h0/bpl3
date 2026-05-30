@@ -1,6 +1,7 @@
 import { spawnSync } from "child_process";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -421,14 +422,23 @@ function runPackedCacheStatsSmoke(installedBpl: string): void {
 }
 
 function assertBuiltBinary(): void {
-  if (!existsSync(bplBinary)) {
-    throw new Error(`Standalone compiler was not built at ${bplBinary}`);
+  assertStandaloneCompilerArtifact(bplBinary);
+}
+
+export function assertStandaloneCompilerArtifact(binaryPath: string): void {
+  if (!existsSync(binaryPath)) {
+    throw new Error(`Standalone compiler was not built at ${binaryPath}`);
   }
 
-  const stats = statSync(bplBinary);
+  const linkStats = lstatSync(binaryPath);
+  if (linkStats.isSymbolicLink()) {
+    throw new Error(`Standalone compiler is a symbolic link: ${binaryPath}`);
+  }
+
+  const stats = statSync(binaryPath);
   if (!stats.isFile() || stats.size === 0) {
     throw new Error(
-      `Standalone compiler is not a non-empty file: ${bplBinary}`,
+      `Standalone compiler is not a non-empty file: ${binaryPath}`,
     );
   }
 }
