@@ -317,6 +317,23 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package output paths that are symbolic links", () => {
+      const outputPath = path.join(tempDir, "package-output-link");
+      const targetDir = path.join(tempDir, "outside-output");
+      fs.mkdirSync(targetDir);
+      fs.symlinkSync(targetDir, outputPath, "dir");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ name: "bad-output-link-pkg", version: "1.0.0" }),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+
+      expect(() => packageManager.pack(tempDir, outputPath)).toThrow(
+        /Package output path is a symbolic link/,
+      );
+      expect(fs.readdirSync(targetDir)).toEqual([]);
+    });
+
     test("should reject package archive output paths that are directories", () => {
       fs.writeFileSync(
         "bpl.json",

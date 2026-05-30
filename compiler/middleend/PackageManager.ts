@@ -1641,7 +1641,22 @@ export class PackageManager {
     outputPath: string,
     manifestPath: string,
   ): void {
-    if (fs.existsSync(outputPath) && !fs.statSync(outputPath).isDirectory()) {
+    const existing = this.tryLstat(outputPath);
+    if (existing?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Package output path is a symbolic link: ${outputPath}`,
+        "Choose a real directory path for package output.",
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (existing && !existing.isDirectory()) {
       throw new CompilerError(
         `Package output path is not a directory: ${outputPath}`,
         "Choose a directory path for package output.",
