@@ -24,6 +24,12 @@ import {
 const log = new Logger("Doctor");
 const DOCTOR_COMMAND_TIMEOUT_MS = 2000;
 const DOCTOR_COMMAND_MAX_BUFFER = 1024 * 1024;
+const RUNTIME_IR_HINT =
+  "Run `bpl doctor` to inspect runtime assets, then reinstall BPL or restore the missing runtime IR from the release package.";
+const NATIVE_RUNTIME_SUPPORT_HINT =
+  "Run `bun run build:runtime`, then `bpl doctor`; reinstall BPL if runtime_support.o is still missing.";
+const WASM_RUNTIME_HINT =
+  "Run `bpl doctor` to inspect runtime assets, then reinstall BPL or restore the missing wasm runtime IR from the release package.";
 
 interface DoctorCheck {
   name: string;
@@ -110,22 +116,22 @@ function createDoctorReport(version: string): DoctorReport {
     checkFile(
       "Runtime IR",
       path.join(bplHome, "lib", "runtime.ll"),
-      "Run `bun run build:runtime` or reinstall BPL.",
+      RUNTIME_IR_HINT,
     ),
     checkFile(
       "Runtime support object",
       path.join(bplHome, "lib", "runtime_support.o"),
-      "Run `bun run build:runtime` or reinstall BPL.",
+      NATIVE_RUNTIME_SUPPORT_HINT,
     ),
     checkFile(
       "WebAssembly runtime IR",
       path.join(bplHome, "lib", "runtime_wasm.ll"),
-      "Reinstall BPL or restore lib/runtime_wasm.ll from the release package.",
+      WASM_RUNTIME_HINT,
     ),
     checkFile(
       "Hosted WebAssembly runtime IR",
       path.join(bplHome, "lib", "runtime_wasm_host.ll"),
-      "Reinstall BPL or restore lib/runtime_wasm_host.ll from the release package.",
+      WASM_RUNTIME_HINT,
     ),
     checkCommand(
       "native compiler",

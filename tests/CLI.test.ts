@@ -2264,6 +2264,41 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should tell users how to repair missing hosted wasm runtime assets", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-wasm-host-runtime-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    linkBplHomeFixture(bplHome, {
+      excludeLibEntries: new Set(["runtime_wasm_host.ll"]),
+    });
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_HOME: bplHome,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      const hostedRuntimeCheck = report.checks.find(
+        (check: { name: string }) =>
+          check.name === "Hosted WebAssembly runtime IR",
+      );
+      expect(hostedRuntimeCheck.ok).toBe(false);
+      expect(hostedRuntimeCheck.detail).toContain("runtime_wasm_host.ll");
+      expect(hostedRuntimeCheck.detail).toContain("not found");
+      expect(hostedRuntimeCheck.hint).toContain("bpl doctor");
+      expect(hostedRuntimeCheck.hint).toContain("reinstall BPL");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should honor BPL_CC in doctor diagnostics", () => {
     const missingCompiler = path.join(
       os.tmpdir(),

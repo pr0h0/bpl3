@@ -83,6 +83,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Runtime Asset Diagnostics** - `bpl doctor` now points missing runtime
+  support objects at `bun run build:runtime` plus `bpl doctor`, and missing
+  runtime IR files at `bpl doctor` plus reinstall/restore guidance.
 - Updated `lib/process.bpl` to use variadic arguments for all execution functions, improving UX and safety.
 - Expanded `std` exports to include `std/process.bpl`.
 
