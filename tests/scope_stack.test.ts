@@ -47,6 +47,9 @@ describe("ScopeStack", () => {
 
     if (result.stderr) console.error(result.stderr);
     expect(result.exitCode).toBe(0);
+    expect(result.stderr).not.toContain(
+      "Struct definition not found for equality check",
+    );
     expect(result.stdout).toContain("x: 10");
     expect(result.stdout).toContain("inner x: 10");
     expect(result.stdout).toContain("inner y: 20");
@@ -88,6 +91,9 @@ describe("ScopeStack", () => {
 
     if (result.stderr) console.error(result.stderr);
     expect(result.exitCode).toBe(0);
+    expect(result.stderr).not.toContain(
+      "Struct definition not found for equality check",
+    );
     expect(result.stdout).toContain("inner a: 2");
     expect(result.stdout).toContain("outer a: 1");
   });

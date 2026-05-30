@@ -317,6 +317,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return b.pointerDepth === 0 && this.structMap.has(b.name);
     };
 
+    if (leftType.endsWith("*") && rightType.endsWith("*")) {
+      return this.generatePointerEqualityComparison(
+        leftRaw,
+        rightRaw,
+        leftType,
+        rightType,
+        expr.operator.type === TokenType.EqualEqual,
+      );
+    }
+
     // Struct vs null comparison
     if (isStructValue(expr.left.resolvedType) && isNullLiteral(expr.right)) {
       const res = "0";
@@ -401,6 +411,48 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     }
 
     return null;
+  }
+
+  private generatePointerEqualityComparison(
+    leftRaw: string,
+    rightRaw: string,
+    leftType: string,
+    rightType: string,
+    isEqual: boolean,
+  ): string {
+    const comparisonType =
+      leftType === rightType
+        ? leftType
+        : leftRaw === "null"
+          ? rightType
+          : rightRaw === "null"
+            ? leftType
+            : "i8*";
+    const left = this.castPointerForComparison(
+      leftRaw,
+      leftType,
+      comparisonType,
+    );
+    const right = this.castPointerForComparison(
+      rightRaw,
+      rightType,
+      comparisonType,
+    );
+    const result = this.newRegister();
+    const op = isEqual ? "icmp eq" : "icmp ne";
+    this.emit(`  ${result} = ${op} ${comparisonType} ${left}, ${right}`);
+    return result;
+  }
+
+  private castPointerForComparison(
+    value: string,
+    fromType: string,
+    toType: string,
+  ): string {
+    if (value === "null" || fromType === toType) return value;
+    const casted = this.newRegister();
+    this.emit(`  ${casted} = bitcast ${fromType} ${value} to ${toType}`);
+    return casted;
   }
 
   /**
