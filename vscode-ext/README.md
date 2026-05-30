@@ -100,6 +100,11 @@ To contribute or debug the extension:
 3. Press `F5` to launch a new **Extension Development Host** window with the extension loaded.
 4. Open a `.bpl` file in the new window to test features.
 
+Set `BPL_LSP_DEBUG=1` before launching the extension or test process to enable
+verbose internal language-server traces such as symbol-index import resolution.
+These traces are disabled by default so normal editor sessions and CI logs only
+show warnings and errors.
+
 ### Running Tests
 
 The extension has a comprehensive test suite:

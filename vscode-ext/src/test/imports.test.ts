@@ -221,6 +221,55 @@ describe("BPL import tooling", () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("keeps SymbolIndex trace logs opt-in", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-lsp-logs-"));
+    const mainPath = path.join(tmpDir, "main.bpl");
+    const mathPath = path.join(tmpDir, "math.bpl");
+    const originalDebug = process.env.BPL_LSP_DEBUG;
+    const originalLog = console.log;
+
+    fs.writeFileSync(mathPath, "frame add() ret i32 { return 1; }\n");
+    fs.writeFileSync(
+      mainPath,
+      ['import add from "./math.bpl";', "frame main() { add(); }", ""].join(
+        "\n",
+      ),
+    );
+
+    try {
+      const logs: string[] = [];
+      delete process.env.BPL_LSP_DEBUG;
+      console.log = (...args: unknown[]) => {
+        logs.push(args.map(String).join(" "));
+      };
+
+      const quietIndex = new SymbolIndex(repoRoot);
+      quietIndex.indexFile(mainPath);
+      quietIndex.findSymbol("missingSymbol");
+      expect(logs).toHaveLength(0);
+
+      const debugLogs: string[] = [];
+      process.env.BPL_LSP_DEBUG = "1";
+      console.log = (...args: unknown[]) => {
+        debugLogs.push(args.map(String).join(" "));
+      };
+
+      const noisyIndex = new SymbolIndex(repoRoot);
+      noisyIndex.indexFile(mainPath);
+      expect(debugLogs.some((line) => line.includes("[SymbolIndex]"))).toBe(
+        true,
+      );
+    } finally {
+      if (originalDebug === undefined) {
+        delete process.env.BPL_LSP_DEBUG;
+      } else {
+        process.env.BPL_LSP_DEBUG = originalDebug;
+      }
+      console.log = originalLog;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function writePackage(

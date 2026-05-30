@@ -9,6 +9,17 @@ import type * as AST from "../../../compiler/common/AST";
 import { Parser } from "../../../compiler/frontend/Parser";
 import { ModuleResolver } from "./ModuleResolver";
 
+function isDebugLoggingEnabled(): boolean {
+  const value = process.env.BPL_LSP_DEBUG?.toLowerCase();
+  return value === "1" || value === "true" || value === "yes" || value === "on";
+}
+
+function debugLog(message: string): void {
+  if (isDebugLoggingEnabled()) {
+    console.log(message);
+  }
+}
+
 export interface SymbolInfo {
   name: string;
   kind:
@@ -135,7 +146,7 @@ export class SymbolIndex {
             const importStmt = stmt as AST.ImportStmt;
             const resolved = this.resolver.resolve(importStmt.source, filePath);
             if (resolved) {
-              console.log(
+              debugLog(
                 `[SymbolIndex] Import "${importStmt.source}" -> ${resolved.filePath} (${resolved.source})`,
               );
 
@@ -144,7 +155,7 @@ export class SymbolIndex {
                 (item) => !item.isType && !item.isWrapped,
               );
               if (bareFunctions.length > 0) {
-                console.log(
+                debugLog(
                   `[SymbolIndex] Found ${bareFunctions.length} bare function imports: ${bareFunctions.map((f) => f.name).join(", ")}`,
                 );
                 this.indexBareFunctions(
@@ -205,7 +216,7 @@ export class SymbolIndex {
           if (functionNames.includes(name)) {
             const symbol = this.extractSymbol(stmt, sourceFilePath, moduleInfo);
             if (symbol) {
-              console.log(
+              debugLog(
                 `[SymbolIndex] Indexed bare function "${name}" from ${sourceFilePath}`,
               );
               this.addSymbol(symbol);
@@ -243,7 +254,7 @@ export class SymbolIndex {
    */
   private indexProgram(program: AST.Program, filePath: string): void {
     const moduleInfo = this.getModuleInfo(filePath);
-    console.log(
+    debugLog(
       `[SymbolIndex] Indexing program: ${filePath}, source: ${moduleInfo.source}, package: ${moduleInfo.packageName || "N/A"}`,
     );
 
@@ -252,7 +263,7 @@ export class SymbolIndex {
       if (symbol) {
         const methodCount = symbol.methods?.length || 0;
         const fieldCount = symbol.fields?.length || 0;
-        console.log(
+        debugLog(
           `[SymbolIndex] Added ${symbol.kind} "${symbol.name}" from ${symbol.source} (${methodCount} methods, ${fieldCount} fields)`,
         );
         this.addSymbol(symbol);
@@ -683,7 +694,7 @@ export class SymbolIndex {
   findSymbol(name: string): SymbolInfo[] {
     const results = this.symbols.get(name) || [];
     if (results.length === 0) {
-      console.log(
+      debugLog(
         `[SymbolIndex.findSymbol] Symbol "${name}" not found. Total symbols in index: ${this.symbols.size}`,
       );
     }
@@ -770,26 +781,26 @@ export class SymbolIndex {
     }
 
     try {
-      console.log(
+      debugLog(
         `[SymbolIndex] Getting imported symbols from content for ${filePath}`,
       );
 
       for (const importStmt of importStatements) {
-        console.log(
+        debugLog(
           `[SymbolIndex] Found import: ${importStmt.source}, items: ${importStmt.items?.length || 0}`,
         );
 
         const resolved = this.resolver.resolve(importStmt.source, filePath);
 
         if (resolved) {
-          console.log(`[SymbolIndex] Resolved to: ${resolved.filePath}`);
+          debugLog(`[SymbolIndex] Resolved to: ${resolved.filePath}`);
 
           // Index the imported file if not already indexed
           this.indexFile(resolved.filePath, true);
 
           // Get symbols from the imported file
           const importedFileSymbols = this.getFileSymbols(resolved.filePath);
-          console.log(
+          debugLog(
             `[SymbolIndex] Found ${importedFileSymbols.length} symbols in imported file`,
           );
 
@@ -799,7 +810,7 @@ export class SymbolIndex {
             const importedNames = new Set(
               importStmt.items.map((item) => item.name),
             );
-            console.log(
+            debugLog(
               `[SymbolIndex] Importing specific items: ${Array.from(importedNames).join(", ")}`,
             );
 
@@ -807,7 +818,7 @@ export class SymbolIndex {
             const filtered = importedFileSymbols.filter((sym) =>
               importedNames.has(sym.name),
             );
-            console.log(
+            debugLog(
               `[SymbolIndex] Matched ${filtered.length} symbols from file`,
             );
 
@@ -817,14 +828,14 @@ export class SymbolIndex {
             );
 
             if (notFound.length > 0) {
-              console.log(
+              debugLog(
                 `[SymbolIndex] Searching globally for: ${notFound.join(", ")}`,
               );
               for (const name of notFound) {
                 const globalSymbols = this.symbols.get(name) || [];
                 // Add all symbols with this name (could be from different files)
                 filtered.push(...globalSymbols);
-                console.log(
+                debugLog(
                   `[SymbolIndex] Found ${globalSymbols.length} global symbols for "${name}"`,
                 );
               }
@@ -833,7 +844,7 @@ export class SymbolIndex {
             importedSymbols.push(...filtered);
           } else {
             // Import all: import * from "module"
-            console.log(`[SymbolIndex] Import all (*)`);
+            debugLog(`[SymbolIndex] Import all (*)`);
             importedSymbols.push(...importedFileSymbols);
           }
         } else {
@@ -843,7 +854,7 @@ export class SymbolIndex {
         }
       }
 
-      console.log(
+      debugLog(
         `[SymbolIndex] Total imported symbols: ${importedSymbols.length}`,
       );
     } catch (error) {
