@@ -126,6 +126,7 @@ export function getInputFilePathError(inputPath: string): string | null {
 }
 
 export function writeFileAtomically(filePath: string, content: string): void {
+  assertWritableFileOutputPath(filePath);
   const existingFile = tryLstat(filePath);
   const mode =
     existingFile && existingFile.isFile() ? existingFile.mode & 0o777 : undefined;

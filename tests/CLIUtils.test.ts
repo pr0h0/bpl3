@@ -51,4 +51,44 @@ describe("CLI utils", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("rejects destination symlinks before writing atomic output", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-cli-utils-link-"));
+    const outputPath = path.join(dir, "output.txt");
+    const targetPath = path.join(dir, "target.txt");
+
+    try {
+      fs.writeFileSync(targetPath, "target\n");
+      fs.symlinkSync(targetPath, outputPath, "file");
+
+      expect(() => writeFileAtomically(outputPath, "new\n")).toThrow(
+        "Output path is a symbolic link",
+      );
+      expect(fs.lstatSync(outputPath).isSymbolicLink()).toBe(true);
+      expect(fs.readFileSync(targetPath, "utf8")).toBe("target\n");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects symlinked parent directories before writing atomic output", () => {
+    const dir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cli-utils-parent-link-"),
+    );
+    const realParent = path.join(dir, "real");
+    const linkedParent = path.join(dir, "linked");
+    const outputPath = path.join(linkedParent, "output.txt");
+
+    try {
+      fs.mkdirSync(realParent);
+      fs.symlinkSync(realParent, linkedParent, "dir");
+
+      expect(() => writeFileAtomically(outputPath, "new\n")).toThrow(
+        "Output parent path is a symbolic link",
+      );
+      expect(fs.existsSync(path.join(realParent, "output.txt"))).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
