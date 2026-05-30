@@ -1172,6 +1172,7 @@ describe("CLI Tests", () => {
         "typedef void *bpl_handle;",
         "typedef struct Point *PointRef;",
         "typedef int (*compare_fn)(const void *left, const void *right);",
+        "typedef struct Options { unsigned flags: 3; int (*callback)(int value); int value; } Options;",
         "typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;",
         "Point make_point(int x, double y);",
         "bpl_size measure(Point *point);",
@@ -1220,6 +1221,10 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain("struct Point {");
       expect(result.stdout).toContain("x: int,");
       expect(result.stdout).toContain("y: double,");
+      expect(result.stdout).toContain("struct Options {");
+      expect(result.stdout).toContain("value: int,");
+      expect(result.stdout).not.toContain("flags:");
+      expect(result.stdout).not.toContain("callback:");
       expect(result.stdout).toContain("enum Color {");
       expect(result.stdout).toContain("COLOR_RED,");
       expect(result.stdout).toContain("COLOR_BLUE,");

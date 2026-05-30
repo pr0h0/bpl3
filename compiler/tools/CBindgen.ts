@@ -437,7 +437,12 @@ function parseStructFields(body: string): CParameter[] {
     .split(";")
     .map((field) => field.trim())
     .filter(Boolean)
+    .filter((field) => !isUnsupportedStructField(field))
     .map((field, index) => parseNamedDeclaration(field, index));
+}
+
+function isUnsupportedStructField(field: string): boolean {
+  return field.includes(":") || /\(\s*\*/.test(field);
 }
 
 function parseEnumVariants(body: string): string[] {

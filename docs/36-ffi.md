@@ -81,5 +81,6 @@ arrays.
 
 Review generated pointer, enum-value, and platform-sized integer mappings before
 publishing bindings for a library. Complex macros, inline functions, function
-pointer callback parameters, packed layouts, bitfields, and ABI-sensitive
-structs still need manual wrappers or a future libclang-backed binding pass.
+pointer callback parameters or fields, packed layouts, bitfields, and
+ABI-sensitive structs still need manual wrappers or a future libclang-backed
+binding pass.
