@@ -174,7 +174,16 @@ export class Linker {
       );
     }
 
-    if (irFiles.length === 1 && fs.existsSync(irFiles[0]!)) {
+    for (const irFile of irFiles) {
+      this.validateLinkInputFile(
+        irFile,
+        "IR file not found",
+        "IR path is not a file",
+        "Check that every compiler-generated LLVM IR file exists before linking.",
+      );
+    }
+
+    if (irFiles.length === 1) {
       // Single file, just return its content
       return fs.readFileSync(irFiles[0]!, "utf-8");
     }
@@ -183,11 +192,6 @@ export class Linker {
     const modules: string[] = [];
 
     for (const irFile of irFiles) {
-      if (!fs.existsSync(irFile)) {
-        compilerLog.warn(`IR file not found: ${irFile}`);
-        continue;
-      }
-
       const content = fs.readFileSync(irFile, "utf-8");
       modules.push(content);
     }
@@ -213,6 +217,33 @@ export class Linker {
     // Simple merge: combine all declarations and definitions
     // In production, would use llvm-link tool for proper merging
     return modules.join("\n\n");
+  }
+
+  private validateLinkInputFile(
+    filePath: string,
+    missingMessage: string,
+    notFileMessage: string,
+    hint: string,
+  ): void {
+    if (!fs.existsSync(filePath)) {
+      throw new CompilerError(`${missingMessage}: ${filePath}`, hint, {
+        file: filePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      });
+    }
+
+    if (!fs.statSync(filePath).isFile()) {
+      throw new CompilerError(`${notFileMessage}: ${filePath}`, hint, {
+        file: filePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      });
+    }
   }
 
   /**

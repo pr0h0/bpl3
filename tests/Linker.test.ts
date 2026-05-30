@@ -176,6 +176,38 @@ describe("Linker", () => {
     }
   });
 
+  it("rejects missing and directory IR inputs before linking", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-ir-input-"));
+    const outputPath = join(dir, "main");
+    const missingIr = join(dir, "missing.ll");
+    const irDir = join(dir, "ir");
+    const originalError = console.error;
+    mkdirSync(irDir);
+
+    try {
+      console.error = () => {};
+
+      const missingOk = new Linker().link({
+        irFiles: [missingIr],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(missingOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+
+      const directoryOk = new Linker().link({
+        irFiles: [irDir],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(directoryOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+    } finally {
+      console.error = originalError;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects missing and directory object files before linking", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-object-input-"));
     const irPath = join(dir, "main.ll");
