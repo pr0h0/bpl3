@@ -104,16 +104,25 @@ export function assertWritableFileOutputPath(outputPath: string): void {
 }
 
 export function assertWritableInputFilePath(inputPath: string): void {
+  const error = getInputFilePathError(inputPath);
+  if (error) {
+    throw new Error(`${error}: ${inputPath}`);
+  }
+}
+
+export function getInputFilePathError(inputPath: string): string | null {
   const existingInput = tryLstat(inputPath);
   if (!existingInput) {
-    throw new Error(`File not found: ${inputPath}`);
+    return "File not found";
   }
   if (existingInput.isSymbolicLink()) {
-    throw new Error(`Input path is a symbolic link: ${inputPath}`);
+    return "Input path is a symbolic link";
   }
   if (!existingInput.isFile()) {
-    throw new Error(`Input path is not a file: ${inputPath}`);
+    return "Input path is not a file";
   }
+
+  return null;
 }
 
 export function writeFileAtomically(filePath: string, content: string): void {

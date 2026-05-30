@@ -597,6 +597,36 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject symlinked files in source analysis commands", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-analysis-link-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const linkedFile = path.join(tempDir, "linked.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+    fs.symlinkSync(sourceFile, linkedFile, "file");
+
+    try {
+      const check = runCLI(["check", "--json", linkedFile]);
+      expect(check.status).toBe(1);
+      expect(JSON.parse(check.stdout).files[0]).toEqual({
+        file: linkedFile,
+        success: false,
+        error: "Input path is a symbolic link",
+      });
+
+      const lint = runCLI(["lint", "--json", linkedFile]);
+      expect(lint.status).toBe(1);
+      expect(JSON.parse(lint.stdout).files[0]).toEqual({
+        file: linkedFile,
+        success: false,
+        error: "Input path is a symbolic link",
+      });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject invalid documentation inputs without writing output", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-docs-input-"));
     const outputFile = path.join(tempDir, "docs.md");

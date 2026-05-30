@@ -12,6 +12,7 @@ import {
   lexWithGrammar,
 } from "../../compiler";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
+import { getInputFilePathError } from "../utils";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 
 const log = new Logger("Check");
@@ -68,28 +69,16 @@ export function registerCheckCommand(program: Command): void {
       for (const filePath of files) {
         totalFiles++;
         try {
-          if (!fs.existsSync(filePath)) {
+          const inputError = getInputFilePathError(filePath);
+          if (inputError) {
             if (options.json) {
               results.push({
                 file: filePath,
                 success: false,
-                error: "File not found",
+                error: inputError,
               });
             } else {
-              log.error(`File not found: ${filePath}`);
-            }
-            errorCount++;
-            continue;
-          }
-          if (!fs.statSync(filePath).isFile()) {
-            if (options.json) {
-              results.push({
-                file: filePath,
-                success: false,
-                error: "Input path is not a file",
-              });
-            } else {
-              log.error(`Input path is not a file: ${filePath}`);
+              log.error(`${inputError}: ${filePath}`);
             }
             errorCount++;
             continue;

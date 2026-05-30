@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { Parser, Linter, CompilerError, lexWithGrammar } from "../../compiler";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { LintOptions } from "../types";
+import { getInputFilePathError } from "../utils";
 import { Logger } from "../../compiler/common/Logger";
 
 const log = new Logger("Lint");
@@ -49,28 +50,16 @@ export function registerLintCommand(program: Command): void {
 
       for (const file of files) {
         try {
-          if (!fs.existsSync(file)) {
+          const inputError = getInputFilePathError(file);
+          if (inputError) {
             if (options.json) {
               results.push({
                 file,
                 success: false,
-                error: "File not found",
+                error: inputError,
               });
             } else {
-              log.error(`File not found: ${file}`);
-            }
-            hasErrors = true;
-            continue;
-          }
-          if (!fs.statSync(file).isFile()) {
-            if (options.json) {
-              results.push({
-                file,
-                success: false,
-                error: "Input path is not a file",
-              });
-            } else {
-              log.error(`Input path is not a file: ${file}`);
+              log.error(`${inputError}: ${file}`);
             }
             hasErrors = true;
             continue;
