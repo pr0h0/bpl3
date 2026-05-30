@@ -263,4 +263,52 @@ describe("Linker", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("rejects invalid output paths before linking", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-output-"));
+    const irPath = join(dir, "main.ll");
+    const outputDir = join(dir, "out-dir");
+    const missingParentOutput = join(dir, "missing", "app");
+    const originalError = console.error;
+    const errors: string[] = [];
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    mkdirSync(outputDir);
+
+    try {
+      console.error = (...args: unknown[]) => {
+        errors.push(args.map(String).join(" "));
+      };
+
+      const directoryOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath: outputDir,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(directoryOk).toBe(false);
+
+      const missingParentOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath: missingParentOutput,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(missingParentOk).toBe(false);
+      expect(existsSync(missingParentOutput)).toBe(false);
+      expect(errors.join("\n")).toContain("Output path is a directory");
+      expect(errors.join("\n")).toContain("Output directory not found");
+      expect(errors.join("\n")).not.toContain("EISDIR");
+      expect(errors.join("\n")).not.toContain("ENOENT");
+    } finally {
+      console.error = originalError;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
