@@ -602,22 +602,44 @@ export class PackageManager {
   }
 
   private writeFileAtomically(filePath: string, content: string): void {
-    const tempPath = path.join(
-      path.dirname(filePath),
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempPath = this.getAtomicWriteTempPath(filePath, attempt);
+      let createdTemp = false;
+
+      try {
+        fs.writeFileSync(tempPath, content, { flag: "wx" });
+        createdTemp = true;
+        fs.renameSync(tempPath, filePath);
+        return;
+      } catch (error) {
+        if (this.isNodeErrorCode(error, "EEXIST")) {
+          continue;
+        }
+        throw error;
+      } finally {
+        if (createdTemp) {
+          this.removeBestEffort(tempPath);
+        }
+      }
+    }
+
+    throw new Error(`Failed to create temporary output file for ${filePath}`);
+  }
+
+  private getAtomicWriteTempPath(filePath: string, attempt: number): string {
+    return path.join(
+      path.dirname(path.resolve(filePath)),
       `.${path.basename(filePath)}.${process.pid}-${Date.now()}-${Math.random()
         .toString(16)
-        .slice(2)}.tmp`,
+        .slice(2)}-${attempt}.tmp`,
     );
+  }
 
+  private removeBestEffort(filePath: string): void {
     try {
-      fs.writeFileSync(tempPath, content);
-      fs.renameSync(tempPath, filePath);
-    } finally {
-      try {
-        fs.rmSync(tempPath, { force: true });
-      } catch {
-        // Best-effort cleanup only.
-      }
+      fs.rmSync(filePath, { force: true });
+    } catch {
+      // Best-effort cleanup only.
     }
   }
 
@@ -1432,10 +1454,8 @@ export class PackageManager {
       return fs.lstatSync(filePath);
     } catch (error) {
       if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error.code === "ENOENT" || error.code === "ENOTDIR")
+        this.isNodeErrorCode(error, "ENOENT") ||
+        this.isNodeErrorCode(error, "ENOTDIR")
       ) {
         return undefined;
       }
@@ -1448,15 +1468,22 @@ export class PackageManager {
       return fs.statSync(filePath);
     } catch (error) {
       if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error.code === "ENOENT" || error.code === "ENOTDIR")
+        this.isNodeErrorCode(error, "ENOENT") ||
+        this.isNodeErrorCode(error, "ENOTDIR")
       ) {
         return undefined;
       }
       throw error;
     }
+  }
+
+  private isNodeErrorCode(error: unknown, code: string): boolean {
+    return (
+      error !== null &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === code
+    );
   }
 
   /**

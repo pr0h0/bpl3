@@ -122,6 +122,38 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should not follow atomic temp symlinks while initializing", () => {
+      const projectDir = path.join(tempDir, "init-temp-symlink-manifest");
+      const outsideManifest = path.join(tempDir, "outside-manifest.json");
+      const originalDateNow = Date.now;
+      const originalRandom = Math.random;
+      const fixedTimestamp = 1700000000000;
+      const poisonedTempPath = path.join(
+        projectDir,
+        `.bpl.json.${process.pid}-${fixedTimestamp}-8-0.tmp`,
+      );
+
+      try {
+        fs.mkdirSync(projectDir);
+        fs.writeFileSync(outsideManifest, "outside\n");
+        fs.symlinkSync(outsideManifest, poisonedTempPath, "file");
+        Date.now = () => fixedTimestamp;
+        Math.random = () => 0.5;
+
+        packageManager.init(projectDir, "temp-symlink-safe");
+
+        const manifest = JSON.parse(
+          fs.readFileSync(path.join(projectDir, "bpl.json"), "utf-8"),
+        );
+        expect(manifest.name).toBe("temp-symlink-safe");
+        expect(fs.readFileSync(outsideManifest, "utf-8")).toBe("outside\n");
+        expect(fs.lstatSync(poisonedTempPath).isSymbolicLink()).toBe(true);
+      } finally {
+        Date.now = originalDateNow;
+        Math.random = originalRandom;
+      }
+    });
+
     test("should reject package roots whose bpl_modules path is a file", () => {
       const projectDir = path.join(tempDir, "bad-local-package-dir");
       fs.mkdirSync(projectDir, { recursive: true });
