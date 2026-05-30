@@ -1,7 +1,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { basename, join } from "path";
 
 import {
   getLlvmVerifierCandidates,
@@ -121,5 +130,54 @@ describe("LLVM verifier tooling", () => {
         expect(result.stderr + result.stdout).toMatch(/i32|result type|LLVM/i);
       },
     );
+  });
+
+  test("uses a private verifier output path instead of predictable IR-directory names", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-llvm-verifier-output-"));
+    const toolDir = join(dir, "tools");
+    const fakeLlvmAs = join(toolDir, "fake-llvm-as.js");
+    const irPath = join(dir, "module.ll");
+    const symlinkTarget = join(dir, "outside-output");
+    const oldPredictableOutput = join(
+      dir,
+      `module.ll.${basename(fakeLlvmAs)}.verify.out`,
+    );
+
+    writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+    mkdirSync(toolDir);
+    writeFileSync(symlinkTarget, "original");
+    symlinkSync(symlinkTarget, oldPredictableOutput, "file");
+    writeFileSync(
+      fakeLlvmAs,
+      [
+        "#!/usr/bin/env node",
+        'const fs = require("fs");',
+        'if (process.argv.includes("--version")) process.exit(0);',
+        'const outIndex = process.argv.indexOf("-o");',
+        'if (outIndex >= 0) fs.writeFileSync(process.argv[outIndex + 1], "verified");',
+        "process.exit(0);",
+      ].join("\n"),
+    );
+    chmodSync(fakeLlvmAs, 0o755);
+
+    process.env.BPL_OPT = join(dir, "missing-opt");
+    process.env.BPL_LLVM_AS = fakeLlvmAs;
+    process.env.BPL_LLC = join(dir, "missing-llc");
+    process.env.BPL_CC = join(dir, "missing-clang");
+    delete process.env.OPT;
+    delete process.env.LLVM_AS;
+    delete process.env.LLC;
+    delete process.env.CC;
+
+    try {
+      const result = verifyLlvmFile(irPath);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.tool).toBe(fakeLlvmAs);
+      expect(readFileSync(symlinkTarget, "utf-8")).toBe("original");
+      expect(existsSync(oldPredictableOutput)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

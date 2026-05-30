@@ -1,5 +1,6 @@
 import { spawnSync } from "child_process";
-import { rmSync } from "fs";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
 import { basename, dirname, join } from "path";
 import { getCompilerDriver } from "./CompilerDriver";
 
@@ -67,27 +68,30 @@ export function verifyLlvmFile(
       continue;
     }
 
-    const outputPath = join(
-      cwd,
-      `${basename(irPath)}.${formatVerifierToolName(candidate.tool)}.verify.out`,
-    );
-    const args = candidate.args(irPath, outputPath);
-    const result = spawnSync(candidate.tool, args, {
-      cwd,
-      encoding: "utf8",
-      timeout,
-      maxBuffer: 1024 * 1024 * 16,
-    });
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-llvm-verify-"));
+    try {
+      const outputPath = join(
+        tempDir,
+        `${basename(irPath)}.${formatVerifierToolName(candidate.tool)}.verify.out`,
+      );
+      const args = candidate.args(irPath, outputPath);
+      const result = spawnSync(candidate.tool, args, {
+        cwd,
+        encoding: "utf8",
+        timeout,
+        maxBuffer: 1024 * 1024 * 16,
+      });
 
-    rmSync(outputPath, { force: true });
-
-    return {
-      tool: candidate.tool,
-      args,
-      stdout: String(result.stdout ?? ""),
-      stderr: String(result.stderr ?? result.error?.message ?? ""),
-      exitCode: result.status ?? -1,
-    };
+      return {
+        tool: candidate.tool,
+        args,
+        stdout: String(result.stdout ?? ""),
+        stderr: String(result.stderr ?? result.error?.message ?? ""),
+        exitCode: result.status ?? -1,
+      };
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   }
 
   return {
