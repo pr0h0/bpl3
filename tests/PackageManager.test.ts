@@ -264,6 +264,24 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package provenance paths that are not files", () => {
+      const outputDir = path.join(tempDir, "provenance-output");
+      const provenancePath = path.join(
+        outputDir,
+        "provenance-pkg-1.0.0.tgz.bplmeta.json",
+      );
+      fs.mkdirSync(provenancePath, { recursive: true });
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ name: "provenance-pkg", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+
+      expect(() => packageManager.pack(tempDir, outputDir)).toThrow(
+        /Package provenance path is not a file/,
+      );
+    });
+
     test("should exclude node_modules and bpl_modules from package", () => {
       const manifest = {
         name: "exclude-test",

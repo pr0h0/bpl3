@@ -1863,8 +1863,23 @@ export class PackageManager {
       manifest,
     };
 
+    const provenancePath = this.getArchiveProvenancePath(archivePath);
+    if (fs.existsSync(provenancePath) && !fs.statSync(provenancePath).isFile()) {
+      throw new CompilerError(
+        `Package provenance path is not a file: ${provenancePath}`,
+        "Remove the existing path or choose a different package output directory.",
+        {
+          file: archivePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
     fs.writeFileSync(
-      this.getArchiveProvenancePath(archivePath),
+      provenancePath,
       JSON.stringify(provenance, null, 2),
     );
 
