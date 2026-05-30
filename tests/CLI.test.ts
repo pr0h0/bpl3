@@ -168,6 +168,44 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const llvmFile = path.join(tempDir, "main-O3.ll");
+    const executableFile = path.join(tempDir, "main-O3");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "extern printf(fmt: string, ...);",
+        "frame main() ret int {",
+        '    printf("runtime-linked\\n");',
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI([
+        "build",
+        sourceFile,
+        "-O",
+        "3",
+        "--emit",
+        "llvm",
+        "-o",
+        llvmFile,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(llvmFile)).toBe(true);
+      expect(fs.existsSync(executableFile)).toBe(true);
+      expect(result.stderr).not.toContain("__bpl_enter_stack_frame");
+      expect(result.stderr).not.toContain("undefined reference");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should validate entry points before linking module builds", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-module-entry-"),

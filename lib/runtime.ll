@@ -61,29 +61,29 @@ declare i64 @strlen(i8*)
 @.str.NullAccessError = private unnamed_addr constant [16 x i8] c"NullAccessError\00", align 1
 @.str.StackOverflowError = private unnamed_addr constant [19 x i8] c"StackOverflowError\00", align 1
 
-define linkonce_odr i8* @NullAccessError_getTypeName(i8* %ctx, %struct.NullAccessError* %this) {
+define i8* @NullAccessError_getTypeName(i8* %ctx, %struct.NullAccessError* %this) {
   ret i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.NullAccessError, i64 0, i64 0)
 }
 
-define linkonce_odr i8* @NullAccessError_toString(i8* %ctx, %struct.NullAccessError* %this) {
+define i8* @NullAccessError_toString(i8* %ctx, %struct.NullAccessError* %this) {
   ret i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.NullAccessError, i64 0, i64 0)
 }
 
-define linkonce_odr void @NullAccessError_destroy(i8* %ctx, %struct.NullAccessError* %this) {
+define void @NullAccessError_destroy(i8* %ctx, %struct.NullAccessError* %this) {
   %ptr = bitcast %struct.NullAccessError* %this to i8*
   call void @free(i8* %ptr)
   ret void
 }
 
-define linkonce_odr i8* @StackOverflowError_getTypeName(i8* %ctx, %struct.StackOverflowError* %this) {
+define i8* @StackOverflowError_getTypeName(i8* %ctx, %struct.StackOverflowError* %this) {
   ret i8* getelementptr inbounds ([19 x i8], [19 x i8]* @.str.StackOverflowError, i64 0, i64 0)
 }
 
-define linkonce_odr i8* @StackOverflowError_toString(i8* %ctx, %struct.StackOverflowError* %this) {
+define i8* @StackOverflowError_toString(i8* %ctx, %struct.StackOverflowError* %this) {
   ret i8* getelementptr inbounds ([19 x i8], [19 x i8]* @.str.StackOverflowError, i64 0, i64 0)
 }
 
-define linkonce_odr void @StackOverflowError_destroy(i8* %ctx, %struct.StackOverflowError* %this) {
+define void @StackOverflowError_destroy(i8* %ctx, %struct.StackOverflowError* %this) {
   %ptr = bitcast %struct.StackOverflowError* %this to i8*
   call void @free(i8* %ptr)
   ret void
@@ -110,19 +110,19 @@ declare void @__bpl_print_bpl_stack_trace()
 
 ; --- Helper Functions ---
 
-define linkonce_odr i32 @__bpl_argc() {
+define i32 @__bpl_argc() {
   %1 = load i32, i32* @__bpl_argc_value
   ret i32 %1
 }
 
-define linkonce_odr i8* @__bpl_argv_get(i32 %index) {
+define i8* @__bpl_argv_get(i32 %index) {
   %1 = load i8**, i8*** @__bpl_argv_value
   %2 = getelementptr i8*, i8** %1, i32 %index
   %3 = load i8*, i8** %2
   ret i8* %3
 }
 
-define linkonce_odr i1 @__bpl_mem_is_zero(i8* %ptr, i64 %n) {
+define i1 @__bpl_mem_is_zero(i8* %ptr, i64 %n) {
 entry:
   %end = getelementptr i8, i8* %ptr, i64 %n
   br label %loop
@@ -146,7 +146,7 @@ ret_false:
 ; Note: Code bloat in Type methods is due to stack/exception boilerplate.
 ; Ideally this would be refactored to use a helper function for prologue/epilogue.
 
-define linkonce_odr i8* @Type_getTypeName_Type_ptr(%struct.Type* %this) #0 {
+define i8* @Type_getTypeName_Type_ptr(%struct.Type* %this) #0 {
 entry:
   ; Minimal stack check for runtime functions
   %0 = load i32, i32* @__bpl_stack_depth
@@ -159,7 +159,7 @@ entry:
   ret i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str.Type, i64 0, i64 0)
 }
 
-define linkonce_odr i8* @Type_toString_Type_ptr(%struct.Type* %this) #0 {
+define i8* @Type_toString_Type_ptr(%struct.Type* %this) #0 {
   ; Virtual dispatch to getTypeName (index 0)
   %vtable_ptr_ptr = getelementptr %struct.Type, %struct.Type* %this, i32 0, i32 0
   %vtable_ptr = load i8*, i8** %vtable_ptr_ptr
@@ -173,12 +173,12 @@ define linkonce_odr i8* @Type_toString_Type_ptr(%struct.Type* %this) #0 {
   ret i8* %name
 }
 
-define linkonce_odr void @Type_destroy_Type_ptr(%struct.Type* %this) #0 {
+define void @Type_destroy_Type_ptr(%struct.Type* %this) #0 {
   ret void
 }
 
 ; --- Defer Unwinding Helper ---
-define linkonce_odr void @__bpl_unwind_to_defer_node(%struct.DeferNode* %target) #0 {
+define void @__bpl_unwind_to_defer_node(%struct.DeferNode* %target) #0 {
 entry:
   br label %check
 
@@ -214,7 +214,7 @@ end:
 ; --- Runtime Checks (Stack, Null) ---
 
 ; Stack Depth Management
-define linkonce_odr void @__bpl_enter_stack_frame() #0 {
+define void @__bpl_enter_stack_frame() #0 {
 entry:
   %0 = load i32, i32* @__bpl_stack_depth
   %1 = add i32 %0, 1
@@ -228,7 +228,7 @@ err:
   unreachable
 }
 
-define linkonce_odr void @__bpl_exit_stack_frame() #0 {
+define void @__bpl_exit_stack_frame() #0 {
 entry:
   %0 = load i32, i32* @__bpl_stack_depth
   %1 = sub i32 %0, 1
@@ -237,7 +237,7 @@ entry:
 }
 
 ; Null Pointer Check
-define linkonce_odr void @__bpl_check_null(i8* %ptr_val, i8* %func_name, i8* %expr_str, i32 %line_val, i32 %col_val) #0 {
+define void @__bpl_check_null(i8* %ptr_val, i8* %func_name, i8* %expr_str, i32 %line_val, i32 %col_val) #0 {
 entry:
   %isnull = icmp eq i8* %ptr_val, null
   br i1 %isnull, label %err, label %exit
@@ -264,7 +264,7 @@ err:
 
 @.str.override = private unnamed_addr constant [9 x i8] c"OVERRIDE\00", align 1
 
-define linkonce_odr void @__bpl_throw_null_access(i8* %func_arg, i8* %expr_arg, i32 %line, i32 %col) #0 {
+define void @__bpl_throw_null_access(i8* %func_arg, i8* %expr_arg, i32 %line, i32 %col) #0 {
   %handler = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top
   %has_handler = icmp ne %struct.ExceptionFrame* %handler, null
   br i1 %has_handler, label %throw, label %abort
@@ -363,7 +363,7 @@ throw:
   unreachable
 }
 
-define linkonce_odr void @__bpl_throw_stack_overflow() #0 {
+define void @__bpl_throw_stack_overflow() #0 {
   %handler = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top
   %has_handler = icmp ne %struct.ExceptionFrame* %handler, null
   br i1 %has_handler, label %throw, label %abort
@@ -430,7 +430,7 @@ throw:
 
 declare i32 @printf(i8*, ...)
 
-define linkonce_odr void @__bpl_throw_division_by_zero(i8* %func, i32 %line, i32 %col) #0 {
+define void @__bpl_throw_division_by_zero(i8* %func, i32 %line, i32 %col) #0 {
   %handler = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top
   %has_handler = icmp ne %struct.ExceptionFrame* %handler, null
   br i1 %has_handler, label %throw, label %abort
@@ -489,7 +489,7 @@ throw:
   unreachable
 }
 
-define linkonce_odr void @__bpl_throw_integer_overflow(i8* %func, i32 %line, i32 %col) #0 {
+define void @__bpl_throw_integer_overflow(i8* %func, i32 %line, i32 %col) #0 {
   call void @__bpl_print_error_box(i8* getelementptr inbounds ([25 x i8], [25 x i8]* @.str.box_int_overflow, i64 0, i64 0))
   call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str.panic_int_overflow, i64 0, i64 0))
 
@@ -508,7 +508,7 @@ print_location_io:
   unreachable
 }
 
-define linkonce_odr void @__bpl_throw_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col) #0 {
+define void @__bpl_throw_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col) #0 {
   %handler = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top
   %has_handler = icmp ne %struct.ExceptionFrame* %handler, null
   br i1 %has_handler, label %throw, label %abort
