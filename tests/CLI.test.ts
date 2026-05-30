@@ -1517,6 +1517,52 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject cached module output paths that are symbolic links before linking", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cache-output-link-"),
+    );
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "app");
+    const targetFile = path.join(tempDir, "target-app");
+    fs.writeFileSync(
+      moduleFile,
+      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./math.bpl";',
+        "frame main() ret int {",
+        "    return answer();",
+        "}",
+      ].join("\n"),
+    );
+    fs.symlinkSync(targetFile, outputFile, "file");
+
+    try {
+      const result = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a symbolic link");
+      expect(result.stderr).toContain(outputFile);
+      expect(result.stderr).not.toContain("ENOENT");
+      expect(fs.existsSync(targetFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject cached builds when .bpl-cache is not a directory", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-cache-file-"));
     const moduleFile = path.join(tempDir, "math.bpl");

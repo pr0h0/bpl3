@@ -748,10 +748,27 @@ export class ModuleCache {
       endColumn: 0,
     };
 
-    if (fs.existsSync(outputPath) && fs.statSync(outputPath).isDirectory()) {
+    const existingOutput = this.tryLstat(outputPath);
+    if (existingOutput?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Output path is a symbolic link: ${outputPath}`,
+        "Choose a regular file path for the linked executable.",
+        location,
+      );
+    }
+
+    if (existingOutput?.isDirectory()) {
       throw new CompilerError(
         `Output path is a directory: ${outputPath}`,
         "Choose a file path for the linked executable.",
+        location,
+      );
+    }
+
+    if (existingOutput && !existingOutput.isFile()) {
+      throw new CompilerError(
+        `Output path is not a regular file: ${outputPath}`,
+        "Choose a regular file path for the linked executable.",
         location,
       );
     }
