@@ -5,16 +5,12 @@ const FNV1A_32_OFFSET_BASIS = 0x811c9dc5;
 const FNV1A_32_PRIME = 0x01000193;
 
 /**
- * Compute a hash string from the input using FNV-1a algorithm.
- * Uses Bun's native hash if available for performance.
+ * Compute a stable hash string from the input using FNV-1a.
+ *
+ * This intentionally avoids runtime-native hash functions so generated symbol
+ * suffixes stay identical under Bun, Node, the CLI, and the VS Code extension.
  */
 export function hashString(str: string): string {
-  // Use Bun's fast hash if available
-  if (typeof (globalThis as any).Bun !== "undefined") {
-    return (globalThis as any).Bun.hash(str).toString(16);
-  }
-
-  // Fallback implementation (FNV-1a 32-bit) for Node.js / VS Code environment
   let h = FNV1A_32_OFFSET_BASIS;
   for (let i = 0; i < str.length; i++) {
     h ^= str.charCodeAt(i);
