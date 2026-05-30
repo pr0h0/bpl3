@@ -221,6 +221,56 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("times out hanging module compiler drivers", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-timeout-"));
+    const previousBplCc = process.env.BPL_CC;
+    const previousTimeout = process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "hanging-cc"), [
+        "setInterval(() => {}, 1000);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = "100";
+      const cache = new ModuleCache(dir);
+
+      let thrown: unknown;
+      try {
+        cache.compileModule(
+          "main.bpl",
+          "frame main() ret int { return 0; }",
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      const message = (thrown as Error).message;
+      expect(message).toContain(fakeCompiler);
+      expect(message).toContain("timed out");
+      expect(message).not.toContain("ETIMEDOUT");
+      const cacheFiles = readdirSync(join(dir, ".bpl-cache"));
+      expect(cacheFiles.some((file) => file.endsWith(".ll"))).toBe(false);
+      expect(cacheFiles.some((file) => file.endsWith(".o"))).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      if (previousTimeout === undefined) {
+        delete process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+      } else {
+        process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = previousTimeout;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("cleans async cache temp files after compiler driver failures", async () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-async-fail-"));
     const previousBplCc = process.env.BPL_CC;
@@ -260,6 +310,58 @@ describe("ModuleCache", () => {
         delete process.env.BPL_CC;
       } else {
         process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("times out hanging async module compiler drivers", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-async-timeout-"));
+    const previousBplCc = process.env.BPL_CC;
+    const previousTimeout = process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "hanging-cc"), [
+        "setInterval(() => {}, 1000);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = "100";
+      const cache = new ModuleCache(dir);
+
+      let thrown: unknown;
+      try {
+        await cache.compileModules(
+          [
+            {
+              modulePath: "main.bpl",
+              content: "frame main() ret int { return 0; }",
+              llvmIR: EMPTY_MAIN_IR,
+            },
+          ],
+          { jobs: 1, optimizationLevel: 0 },
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      const message = (thrown as Error).message;
+      expect(message).toContain(fakeCompiler);
+      expect(message).toContain("timed out");
+      expect(message).not.toContain("ETIMEDOUT");
+      const cacheFiles = readdirSync(join(dir, ".bpl-cache"));
+      expect(cacheFiles.some((file) => file.endsWith(".ll"))).toBe(false);
+      expect(cacheFiles.some((file) => file.endsWith(".o"))).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      if (previousTimeout === undefined) {
+        delete process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+      } else {
+        process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = previousTimeout;
       }
       rmSync(dir, { recursive: true, force: true });
     }

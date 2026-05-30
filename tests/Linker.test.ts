@@ -137,6 +137,68 @@ describe("Linker", () => {
     }
   });
 
+  it("times out hanging compiler drivers while linking", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-timeout-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const previousBplCc = process.env.BPL_CC;
+    const previousTimeout = process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+    const originalError = console.error;
+    const errors: string[] = [];
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "hanging-cc"), [
+        "setInterval(() => {}, 1000);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = "100";
+      console.error = (...args: unknown[]) => {
+        errors.push(args.map(String).join(" "));
+      };
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+
+      expect(ok).toBe(false);
+      const output = errors.join("\n");
+      expect(output).toContain(fakeCompiler);
+      expect(output).toContain("timed out");
+      expect(output).not.toContain("ETIMEDOUT");
+      expect(existsSync(outputPath)).toBe(false);
+      expect(
+        readdirSync(dir).some(
+          (entry) => entry.startsWith(".main.") && entry.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    } finally {
+      console.error = originalError;
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      if (previousTimeout === undefined) {
+        delete process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+      } else {
+        process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = previousTimeout;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("honors BPL_CC when linking object files", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-driver-"));
     const irPath = join(dir, "main.ll");

@@ -13,7 +13,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { getCompilerDriver } from "../common/CompilerDriver";
+import {
+  getCompilerDriver,
+  getCompilerDriverTimeoutMs,
+} from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
@@ -522,6 +525,7 @@ export class Linker {
 
       const result = spawnSync(compilerCommand, clangArgs, {
         stdio: options.verbose ? "inherit" : "pipe",
+        timeout: getCompilerDriverTimeoutMs(),
       });
 
       if (result.status !== 0) {

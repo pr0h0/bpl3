@@ -11,7 +11,11 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 
-import { getCompilerDriver, isWasmTarget } from "../common/CompilerDriver";
+import {
+  getCompilerDriver,
+  getCompilerDriverTimeoutMs,
+  isWasmTarget,
+} from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
@@ -472,6 +476,7 @@ export class ModuleCache {
       const compilerCommand = getCompilerDriver(target);
       const result = spawnSync(compilerCommand, clangArgs, {
         stdio: verbose ? "inherit" : "pipe",
+        timeout: getCompilerDriverTimeoutMs(),
       });
 
       if (result.status !== 0) {
@@ -873,16 +878,14 @@ export class ModuleCache {
       const child = spawn(compilerCommand, args, {
         stdio: verbose ? "inherit" : "pipe",
       });
-
-      let stderr = "";
-      child.stderr?.on("data", (chunk) => {
-        stderr += chunk.toString();
-      });
-
-      child.on("error", (error) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.kill("SIGTERM");
         reject(
           new CompilerError(
-            `Failed to compile ${modulePath} with ${compilerCommand}: ${this.formatSpawnFailure(error)}`,
+            `Failed to compile ${modulePath} with ${compilerCommand}: timed out`,
             "Check compiler driver output for details.",
             {
               file: modulePath,
@@ -893,25 +896,57 @@ export class ModuleCache {
             },
           ),
         );
+      }, getCompilerDriverTimeoutMs());
+
+      const finish = (action: () => void): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        action();
+      };
+
+      let stderr = "";
+      child.stderr?.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      child.on("error", (error) => {
+        finish(() =>
+          reject(
+            new CompilerError(
+              `Failed to compile ${modulePath} with ${compilerCommand}: ${this.formatSpawnFailure(error)}`,
+              "Check compiler driver output for details.",
+              {
+                file: modulePath,
+                startLine: 0,
+                startColumn: 0,
+                endLine: 0,
+                endColumn: 0,
+              },
+            ),
+          ),
+        );
       });
 
       child.on("close", (code) => {
         if (code === 0) {
-          resolve();
+          finish(() => resolve());
           return;
         }
 
-        reject(
-          new CompilerError(
-            `Failed to compile ${modulePath} with ${compilerCommand}: ${stderr || "Unknown compilation error"}`,
-            "Check compiler driver output for details.",
-            {
-              file: modulePath,
-              startLine: 0,
-              startColumn: 0,
-              endLine: 0,
-              endColumn: 0,
-            },
+        finish(() =>
+          reject(
+            new CompilerError(
+              `Failed to compile ${modulePath} with ${compilerCommand}: ${stderr || "Unknown compilation error"}`,
+              "Check compiler driver output for details.",
+              {
+                file: modulePath,
+                startLine: 0,
+                startColumn: 0,
+                endLine: 0,
+                endColumn: 0,
+              },
+            ),
           ),
         );
       });
@@ -958,6 +993,7 @@ export class ModuleCache {
     const compilerCommand = getCompilerDriver(target);
     const result = spawnSync(compilerCommand, clangArgs, {
       stdio: verbose ? "inherit" : "pipe",
+      timeout: getCompilerDriverTimeoutMs(),
     });
 
     if (result.status !== 0) {
