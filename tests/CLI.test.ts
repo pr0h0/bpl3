@@ -64,6 +64,19 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("positive integer greater than zero");
   });
 
+  it("should reject invalid emit modes for eval input", () => {
+    const result = runCLI([
+      "--eval",
+      "frame main() ret int { return 0; }",
+      "--emit",
+      "garbage",
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid emit type "garbage"');
+    expect(result.stderr).toContain("llvm, ast, tokens, formatted");
+  });
+
   it("should compile with --dwarf flag and generate debug metadata", () => {
     const dwarfFile = path.join(process.cwd(), "examples/dwarf_test/main.bpl");
     // We use --emit llvm to avoid running the binary, just check compilation

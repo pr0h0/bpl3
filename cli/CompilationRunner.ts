@@ -27,6 +27,7 @@ import { updateConfig } from "../compiler/common/Config";
 const log = new Logger("CompilationRunner");
 
 type CliOptimizationLevel = "0" | "1" | "2" | "3";
+type CliEmitType = NonNullable<CompileOptions["emit"]>;
 
 /**
  * Apply CLI options to global configuration
@@ -168,6 +169,10 @@ function handleCompilationError(e: unknown, options: CompileOptions): never {
 function normalizeCompileOptions(options: CompileOptions): void {
   options.O = parseOptimizationLevel(options.O);
 
+  if (options.emit !== undefined) {
+    options.emit = parseEmitType(String(options.emit));
+  }
+
   if (options.jobs !== undefined) {
     options.jobs = parseJobs(options.jobs);
   }
@@ -184,6 +189,20 @@ function parseOptimizationLevel(
   throw new Error(
     `Invalid optimization level "${raw}". Use one of: 0, 1, 2, 3.`,
   );
+}
+
+function parseEmitType(value: string): CliEmitType {
+  switch (value) {
+    case "llvm":
+    case "ast":
+    case "tokens":
+    case "formatted":
+      return value;
+    default:
+      throw new Error(
+        `Invalid emit type "${value}". Use one of: llvm, ast, tokens, formatted.`,
+      );
+  }
 }
 
 function parseJobs(value: string | number): number {
