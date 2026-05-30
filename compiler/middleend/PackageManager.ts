@@ -18,6 +18,10 @@ import {
 } from "./PackageResolver";
 import type { PackageOptionsGlobal, PackageOptionsVerbose } from "../../cli";
 
+export function getPackageArchiveTool(): string {
+  return process.env.BPL_TAR || process.env.TAR || "tar";
+}
+
 export interface PackageManifest {
   name: string;
   version: string;
@@ -1450,8 +1454,9 @@ export class PackageManager {
       }
 
       // Create tarball
+      const archiveTool = getPackageArchiveTool();
       const result = spawnSync(
-        "tar",
+        archiveTool,
         ["-czf", tarballPath, "-C", tempDir, "package"],
         {
           stdio: "pipe",
@@ -1459,10 +1464,10 @@ export class PackageManager {
       );
 
       if (result.status !== 0) {
-        const error = result.stderr?.toString() || "Unknown error";
+        const error = this.formatSpawnFailure(result, "Unknown error");
         throw new CompilerError(
           `Failed to create tarball: ${error}`,
-          "Check if 'tar' command is available and you have write permissions.",
+          `Check if '${archiveTool}' is available and you have write permissions.`,
           {
             file: manifestPath,
             startLine: 1,
@@ -1544,8 +1549,9 @@ export class PackageManager {
       this.validatePackageArchiveMembers(tarballPath);
 
       // Extract tarball
+      const archiveTool = getPackageArchiveTool();
       const extractResult = spawnSync(
-        "tar",
+        archiveTool,
         ["-xzf", tarballPath, "-C", tempDir],
         {
           stdio: options.verbose ? "inherit" : "pipe",
@@ -1553,10 +1559,10 @@ export class PackageManager {
       );
 
       if (extractResult.status !== 0) {
-        const error = extractResult.stderr?.toString() || "Unknown error";
+        const error = this.formatSpawnFailure(extractResult, "Unknown error");
         throw new CompilerError(
           `Failed to extract package: ${error}`,
-          "Check if 'tar' command is available.",
+          `Check if '${archiveTool}' is available.`,
           {
             file: tarballPath,
             startLine: 1,
@@ -1919,15 +1925,16 @@ export class PackageManager {
   }
 
   private validatePackageArchiveMembers(tarballPath: string): void {
-    const listResult = spawnSync("tar", ["-tzf", tarballPath], {
+    const archiveTool = getPackageArchiveTool();
+    const listResult = spawnSync(archiveTool, ["-tzf", tarballPath], {
       stdio: "pipe",
     });
 
     if (listResult.status !== 0) {
-      const error = listResult.stderr?.toString() || "Unknown error";
+      const error = this.formatSpawnFailure(listResult, "Unknown error");
       throw new CompilerError(
         `Failed to inspect package archive: ${error}`,
-        "Check if the package archive is a valid tarball.",
+        `Check if the package archive is valid and '${archiveTool}' is available.`,
         {
           file: tarballPath,
           startLine: 1,
@@ -1958,6 +1965,25 @@ export class PackageManager {
         );
       }
     }
+  }
+
+  private formatSpawnFailure(
+    result: {
+      error?: Error;
+      stderr?: Buffer | string | null;
+      stdout?: Buffer | string | null;
+      status?: number | null;
+    },
+    fallback: string,
+  ): string {
+    return (
+      result.error?.message ||
+      result.stderr?.toString().trim() ||
+      result.stdout?.toString().trim() ||
+      (result.status === null || result.status === undefined
+        ? fallback
+        : `exited with status ${result.status}`)
+    );
   }
 
   private isSafePackageArchiveMember(member: string): boolean {

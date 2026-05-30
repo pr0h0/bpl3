@@ -290,6 +290,10 @@ the package name and version, and the manifest used to produce the archive.
 Global installs copy the archive into the cache and regenerate the sidecar from
 the extracted package so cached installs can be audited later.
 
+Archive creation, inspection, and extraction use `BPL_TAR`, then `TAR`, then
+`tar`. Set one of these variables when the system tar is not on `PATH` or when
+CI should use a specific archive tool.
+
 ```bash
 bpl package-cache list
 bpl package-cache list math-core --json

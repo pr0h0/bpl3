@@ -151,6 +151,30 @@ describe("PackageManager", () => {
       expect(provenance.packageHash).toMatch(/^[a-f0-9]{64}$/);
     });
 
+    test("should report tar spawn failures while creating package archives", () => {
+      const manifest = {
+        name: "missing-tar-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const missingTar = path.join(tempDir, "definitely-missing-tar");
+      const originalBplTar = process.env.BPL_TAR;
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      process.env.BPL_TAR = missingTar;
+      try {
+        expect(() => packageManager.pack(tempDir)).toThrow(/ENOENT/);
+      } finally {
+        if (originalBplTar === undefined) {
+          delete process.env.BPL_TAR;
+        } else {
+          process.env.BPL_TAR = originalBplTar;
+        }
+      }
+    });
+
     test("should include all source files in package", () => {
       const manifest = {
         name: "multi-file-pkg",
