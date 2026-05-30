@@ -19,6 +19,10 @@ import {
 } from "../compiler/common/CompilerDriver";
 import { Logger } from "../compiler/common/Logger";
 import { getBplHome } from "../compiler/common/PathResolver";
+import {
+  formatCommandSpawnFailure,
+  getProcessErrorCode,
+} from "../compiler/common/ProcessErrors";
 
 const log = new Logger("BinaryRunner");
 
@@ -466,7 +470,7 @@ function assertReadableDirectoryInput(filePath: string, label: string): void {
 }
 
 function formatRunSpawnError(error: Error, execPath: string): string {
-  const code = "code" in error ? error.code : undefined;
+  const code = getProcessErrorCode(error);
   if (code === "ENOENT") {
     return `Executable not found: ${execPath}`;
   }
@@ -481,18 +485,7 @@ function formatRunSpawnError(error: Error, execPath: string): string {
 }
 
 function formatCompileSpawnError(error: Error, command: string): string {
-  const code = "code" in error ? error.code : undefined;
-  if (code === "ENOENT") {
-    return `${command}: command not found`;
-  }
-  if (code === "EACCES") {
-    return `${command}: permission denied`;
-  }
-  if (code === "ENOEXEC") {
-    return `${command}: not executable`;
-  }
-
-  return `${command}: ${error.message}`;
+  return formatCommandSpawnFailure(command, error) ?? `${command}: ${error.message}`;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

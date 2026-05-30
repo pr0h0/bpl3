@@ -15,6 +15,7 @@ import { spawnSync } from "child_process";
 
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import { formatSpawnFailureReason } from "../common/ProcessErrors";
 import { LinkerSymbolTable, type ObjectFileSymbol } from "./LinkerSymbolTable";
 
 export function getObjectSymbolTool(): string {
@@ -114,21 +115,7 @@ export class ObjectFileParser {
   }
 
   private static formatSpawnFailure(error: Error): string {
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String(error.code)
-        : undefined;
-    if (code === "ENOENT") {
-      return "command not found";
-    }
-    if (code === "EACCES") {
-      return "permission denied";
-    }
-    if (code === "ENOEXEC") {
-      return "not executable";
-    }
-
-    return error.message;
+    return formatSpawnFailureReason(error) ?? error.message;
   }
 
   static parseNmOutput(output: string): ObjectFileSymbol[] {

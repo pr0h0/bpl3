@@ -12,6 +12,7 @@ import * as path from "path";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import { formatSpawnFailureReason } from "../common/ProcessErrors";
 import {
   resolvePackageImport,
   type PackageResolutionDetails,
@@ -2428,14 +2429,11 @@ export class PackageManager {
     fallback: string,
   ): string {
     if (result.error) {
-      const error = result.error as Error & { code?: string };
-      if (error.code === "ENOENT") {
-        return "command not found";
-      }
-      if (error.code === "EACCES") {
-        return "permission denied while starting command";
-      }
-      return error.message;
+      return (
+        formatSpawnFailureReason(result.error, {
+          permissionDenied: "permission denied while starting command",
+        }) ?? result.error.message
+      );
     }
 
     return (

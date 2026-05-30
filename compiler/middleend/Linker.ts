@@ -17,6 +17,7 @@ import { getCompilerDriver } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
+import { formatSpawnFailureReason } from "../common/ProcessErrors";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import { ObjectFileParser } from "./ObjectFileParser";
 
@@ -155,25 +156,7 @@ export class Linker {
   }
 
   private formatSpawnFailure(error: Error | undefined): string | undefined {
-    if (!error) {
-      return undefined;
-    }
-
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String(error.code)
-        : undefined;
-    if (code === "ENOENT") {
-      return "command not found";
-    }
-    if (code === "EACCES") {
-      return "permission denied";
-    }
-    if (code === "ENOEXEC") {
-      return "not executable";
-    }
-
-    return error.message;
+    return formatSpawnFailureReason(error);
   }
 
   private validateReadableDirectoryInput(

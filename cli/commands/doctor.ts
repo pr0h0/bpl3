@@ -12,6 +12,7 @@ import { getLlvmVerifierCandidates } from "../../compiler/common/LlvmVerifier";
 import { getBplHome } from "../../compiler/common/PathResolver";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
+import { formatSpawnFailureReason } from "../../compiler/common/ProcessErrors";
 import { getObjectSymbolTool } from "../../compiler/middleend/ObjectFileParser";
 import {
   getPackageArchiveTool,
@@ -375,25 +376,7 @@ function getFirstOutputLine(output: string | Buffer | null | undefined): string 
 }
 
 function formatSpawnError(error: Error | undefined): string | undefined {
-  if (!error) {
-    return undefined;
-  }
-
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? String(error.code)
-      : undefined;
-  if (code === "ENOENT") {
-    return "command not found";
-  }
-  if (code === "EACCES") {
-    return "permission denied";
-  }
-  if (code === "ENOEXEC") {
-    return "not executable";
-  }
-
-  return error.message;
+  return formatSpawnFailureReason(error);
 }
 
 function printDoctorReport(report: DoctorReport): void {

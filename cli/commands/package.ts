@@ -25,6 +25,7 @@ import type {
 } from "../types";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import { Logger } from "../../compiler/common/Logger";
+import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 
 const log = new Logger("Package");
@@ -462,21 +463,7 @@ function verifyPackageLLVMIR(llvmIR: string): void {
 }
 
 function formatSpawnFailure(error: Error, command: string): string {
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? String(error.code)
-      : undefined;
-  if (code === "ENOENT") {
-    return `${command}: command not found`;
-  }
-  if (code === "EACCES") {
-    return `${command}: permission denied`;
-  }
-  if (code === "ENOEXEC") {
-    return `${command}: not executable`;
-  }
-
-  return `${command}: ${error.message}`;
+  return formatCommandSpawnFailure(command, error) ?? `${command}: ${error.message}`;
 }
 
 function getPackageVerifierDriver(): string | null {

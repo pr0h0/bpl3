@@ -15,6 +15,7 @@ import { getCompilerDriver, isWasmTarget } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
+import { formatSpawnFailureReason } from "../common/ProcessErrors";
 
 export const MODULE_CACHE_VERSION = "2.0.0";
 
@@ -975,25 +976,7 @@ export class ModuleCache {
   }
 
   private formatSpawnFailure(error: Error | undefined): string | undefined {
-    if (!error) {
-      return undefined;
-    }
-
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String(error.code)
-        : undefined;
-    if (code === "ENOENT") {
-      return "command not found";
-    }
-    if (code === "EACCES") {
-      return "permission denied";
-    }
-    if (code === "ENOEXEC") {
-      return "not executable";
-    }
-
-    return error.message;
+    return formatSpawnFailureReason(error);
   }
 
   /**
