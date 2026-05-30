@@ -1980,7 +1980,21 @@ export class PackageManager {
     };
 
     const provenancePath = this.getArchiveProvenancePath(archivePath);
-    if (fs.existsSync(provenancePath) && !fs.statSync(provenancePath).isFile()) {
+    const provenanceStat = this.tryLstat(provenancePath);
+    if (provenanceStat?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Package provenance path is a symbolic link: ${provenancePath}`,
+        "Remove the existing path or choose a different package output directory.",
+        {
+          file: archivePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+    if (provenanceStat && !provenanceStat.isFile()) {
       throw new CompilerError(
         `Package provenance path is not a file: ${provenancePath}`,
         "Remove the existing path or choose a different package output directory.",
@@ -2008,11 +2022,26 @@ export class PackageManager {
     | { ok: true; provenance: PackageArchiveProvenance }
     | { ok: false; kind: "missing" | "invalid"; message: string } {
     const provenancePath = this.getArchiveProvenancePath(archivePath);
-    if (!fs.existsSync(provenancePath)) {
+    const provenanceStat = this.tryLstat(provenancePath);
+    if (!provenanceStat) {
       return {
         ok: false,
         kind: "missing",
         message: "No package provenance sidecar found",
+      };
+    }
+    if (provenanceStat.isSymbolicLink()) {
+      return {
+        ok: false,
+        kind: "invalid",
+        message: "Package provenance sidecar is a symbolic link",
+      };
+    }
+    if (!provenanceStat.isFile()) {
+      return {
+        ok: false,
+        kind: "invalid",
+        message: "Package provenance sidecar is not a file",
       };
     }
 
@@ -2741,6 +2770,18 @@ export class PackageManager {
         }
 
         if (!options.dryRun) {
+          const provenanceIssue = this.getUnsafeProvenancePathIssue(
+            entry.provenancePath,
+          );
+          if (provenanceIssue) {
+            addIssue(
+              entry,
+              "invalid-provenance",
+              `${entry.file}: refusing to repair unsafe package provenance (${provenanceIssue})`,
+            );
+            continue;
+          }
+
           this.writeArchiveProvenance(entry.path, packageDir, manifest);
         }
         repaired.push(entry);
@@ -2762,6 +2803,18 @@ export class PackageManager {
       unchanged,
       issues,
     };
+  }
+
+  private getUnsafeProvenancePathIssue(provenancePath: string): string | null {
+    const provenanceStat = this.tryLstat(provenancePath);
+    if (!provenanceStat) return null;
+    if (provenanceStat.isSymbolicLink()) {
+      return "package provenance path is a symbolic link";
+    }
+    if (!provenanceStat.isFile()) {
+      return "package provenance path is not a file";
+    }
+    return null;
   }
 
   repairLockFile(): PackageLockRepairResult {

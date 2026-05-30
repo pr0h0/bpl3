@@ -352,6 +352,31 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package provenance paths that are symbolic links", () => {
+      const outputDir = path.join(tempDir, "provenance-link-output");
+      const provenancePath = path.join(
+        outputDir,
+        "provenance-link-pkg-1.0.0.tgz.bplmeta.json",
+      );
+      const targetPath = path.join(tempDir, "outside-provenance.json");
+      fs.mkdirSync(outputDir);
+      fs.symlinkSync(targetPath, provenancePath, "file");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          { name: "provenance-link-pkg", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+
+      expect(() => packageManager.pack(tempDir, outputDir)).toThrow(
+        /Package provenance path is a symbolic link/,
+      );
+      expect(fs.existsSync(targetPath)).toBe(false);
+    });
+
     test("should exclude node_modules and bpl_modules from package", () => {
       const manifest = {
         name: "exclude-test",
@@ -1974,6 +1999,59 @@ describe("PackageManager", () => {
       expect(clean.removed.length).toBe(1);
       expect(fs.existsSync(cachePath)).toBe(false);
       expect(fs.existsSync(provenancePath)).toBe(false);
+    });
+
+    test("should report and clean symlinked package cache provenance without following it", () => {
+      const globalPackageDir = path.join(tempDir, "cache-provenance-link-dir");
+      fs.mkdirSync(globalPackageDir);
+
+      const cachePath = createCachedPackage(
+        "cache-provenance-link",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      const provenancePath = `${cachePath}.bplmeta.json`;
+      const outsideProvenancePath = path.join(
+        tempDir,
+        "outside-cache-provenance.json",
+      );
+      fs.writeFileSync(outsideProvenancePath, '{"outside":true}');
+      fs.unlinkSync(provenancePath);
+      fs.symlinkSync(outsideProvenancePath, provenancePath, "file");
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const entries = localPM.listPackageCache("cache-provenance-link");
+      expect(entries.length).toBe(1);
+      expect(entries[0]!.provenanceStatus).toBe("invalid");
+      expect(entries[0]!.provenanceIssue).toContain("symbolic link");
+
+      const report = localPM.verifyPackageCache("cache-provenance-link");
+      expect(report.ok).toBe(false);
+      expect(report.issues[0]).toMatchObject({
+        kind: "invalid-provenance",
+        provenancePath,
+      });
+
+      const repair = localPM.repairPackageCache("cache-provenance-link");
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues[0]).toMatchObject({
+        kind: "invalid-provenance",
+        provenancePath,
+      });
+      expect(fs.readFileSync(outsideProvenancePath, "utf-8")).toBe(
+        '{"outside":true}',
+      );
+
+      const clean = localPM.cleanPackageCache({
+        packageName: "cache-provenance-link",
+      });
+      expect(clean.removed.length).toBe(1);
+      expect(fs.existsSync(cachePath)).toBe(false);
+      expect(fs.existsSync(provenancePath)).toBe(false);
+      expect(fs.existsSync(outsideProvenancePath)).toBe(true);
     });
 
     test("should verify package cache provenance and report tampered archives", () => {
