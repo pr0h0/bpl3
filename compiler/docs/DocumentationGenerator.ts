@@ -16,22 +16,13 @@ export class DocumentationGenerator {
   }
 
   private processFile(filePath: string) {
-    if (this.visitedFiles.has(filePath)) return;
-    this.visitedFiles.add(filePath);
+    const resolvedFilePath = this.resolveDocumentationFilePath(filePath);
+    if (this.visitedFiles.has(resolvedFilePath)) return;
+    this.visitedFiles.add(resolvedFilePath);
 
-    if (!fs.existsSync(filePath)) {
-      // Try with extensions
-      if (fs.existsSync(filePath + ".bpl")) filePath += ".bpl";
-      else if (fs.existsSync(filePath + ".x")) filePath += ".x";
-      else {
-        // console.warn(`Warning: File not found: ${filePath}`);
-        return;
-      }
-    }
-
-    const source = fs.readFileSync(filePath, "utf-8");
-    const tokens = lexWithGrammar(source, filePath);
-    const parser = new Parser(source, filePath, tokens);
+    const source = fs.readFileSync(resolvedFilePath, "utf-8");
+    const tokens = lexWithGrammar(source, resolvedFilePath);
+    const parser = new Parser(source, resolvedFilePath, tokens);
 
     // Parse without implicit imports to avoid cluttering docs with stdlib unless explicitly imported
     const ast = parser.parse(false);
@@ -40,7 +31,7 @@ export class DocumentationGenerator {
     for (const stmt of ast.statements) {
       if (stmt.kind === "Import") {
         const importStmt = stmt as AST.ImportStmt;
-        const dir = path.dirname(filePath);
+        const dir = path.dirname(resolvedFilePath);
         const importPath = importStmt.source;
 
         // Simple resolution for relative paths
@@ -52,9 +43,9 @@ export class DocumentationGenerator {
     }
 
     // Pass 2: Generate documentation for this module
-    const fileName = path.basename(filePath);
+    const fileName = path.basename(resolvedFilePath);
     this.output.push(`# Module: ${fileName}`);
-    this.output.push(`*File: ${filePath}*\n`);
+    this.output.push(`*File: ${resolvedFilePath}*\n`);
 
     // Group declarations
     const globals: AST.VariableDecl[] = [];
@@ -135,6 +126,22 @@ export class DocumentationGenerator {
     }
 
     this.output.push("---\n");
+  }
+
+  private resolveDocumentationFilePath(filePath: string): string {
+    const candidates = [filePath, `${filePath}.bpl`, `${filePath}.x`];
+
+    for (const candidate of candidates) {
+      if (!fs.existsSync(candidate)) continue;
+
+      if (!fs.statSync(candidate).isFile()) {
+        throw new Error(`Documentation input is not a file: ${candidate}`);
+      }
+
+      return candidate;
+    }
+
+    throw new Error(`Documentation input not found: ${filePath}`);
   }
 
   private documentGlobal(global: AST.VariableDecl) {

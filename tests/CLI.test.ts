@@ -235,6 +235,59 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject invalid documentation inputs without writing output", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-docs-input-"));
+    const outputFile = path.join(tempDir, "docs.md");
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(mainFile, 'import missing from "./missing.bpl";\n');
+
+    try {
+      const missingInput = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", path.join(tempDir, "missing.bpl"), "-o", outputFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(missingInput.status).toBe(1);
+      expect(missingInput.stderr).toContain("Documentation input not found");
+      expect(fs.existsSync(outputFile)).toBe(false);
+
+      const directoryInput = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", tempDir, "-o", outputFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(directoryInput.status).toBe(1);
+      expect(directoryInput.stderr).toContain(
+        "Documentation input is not a file",
+      );
+      expect(fs.existsSync(outputFile)).toBe(false);
+
+      const missingImport = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", mainFile, "-o", outputFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(missingImport.status).toBe(1);
+      expect(missingImport.stderr).toContain("Documentation input not found");
+      expect(missingImport.stderr).toContain("missing.bpl");
+      expect(fs.existsSync(outputFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");
