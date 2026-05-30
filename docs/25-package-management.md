@@ -298,7 +298,8 @@ the extracted package so cached installs can be audited later.
 
 Archive creation, inspection, and extraction use `BPL_TAR`, then `TAR`, then
 `tar`. Set one of these variables when the system tar is not on `PATH` or when
-CI should use a specific archive tool.
+CI should use a specific archive tool. Archive tool invocations are bounded by
+`BPL_PACKAGE_TOOL_TIMEOUT_MS`, defaulting to 300000 milliseconds.
 
 `bpl pack` also verifies generated package LLVM IR with `BPL_CC`, `CC`, or
 `clang` when available. That verifier is bounded by

@@ -317,6 +317,42 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should time out hanging tar tools while creating package archives", () => {
+      const manifest = {
+        name: "timeout-tar-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const originalBplTar = process.env.BPL_TAR;
+      const originalPackageToolTimeout = process.env.BPL_PACKAGE_TOOL_TIMEOUT_MS;
+      const fakeTar = writeNodeCommandShim(path.join(tempDir, "hanging-tar"), [
+        "setInterval(() => {}, 1000);",
+      ]);
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      process.env.BPL_TAR = fakeTar;
+      process.env.BPL_PACKAGE_TOOL_TIMEOUT_MS = "100";
+      try {
+        expect(() => packageManager.pack(tempDir)).toThrow(
+          /Failed to create tarball: timed out/,
+        );
+      } finally {
+        if (originalBplTar === undefined) {
+          delete process.env.BPL_TAR;
+        } else {
+          process.env.BPL_TAR = originalBplTar;
+        }
+
+        if (originalPackageToolTimeout === undefined) {
+          delete process.env.BPL_PACKAGE_TOOL_TIMEOUT_MS;
+        } else {
+          process.env.BPL_PACKAGE_TOOL_TIMEOUT_MS = originalPackageToolTimeout;
+        }
+      }
+    });
+
     test("should preserve existing package archives when tar fails after writing output", () => {
       const manifest = {
         name: "partial-tar-pkg",

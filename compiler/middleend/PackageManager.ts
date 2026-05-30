@@ -23,6 +23,23 @@ export function getPackageArchiveTool(): string {
   return process.env.BPL_TAR || process.env.TAR || "tar";
 }
 
+const PACKAGE_ARCHIVE_TOOL_TIMEOUT_MS = 300000;
+
+export function getPackageArchiveToolTimeoutMs(): number {
+  const raw = process.env.BPL_PACKAGE_TOOL_TIMEOUT_MS;
+  if (!raw) return PACKAGE_ARCHIVE_TOOL_TIMEOUT_MS;
+
+  const parsed = Number(raw);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  compilerLog.warn(
+    `Ignoring invalid BPL_PACKAGE_TOOL_TIMEOUT_MS=${raw}; using ${PACKAGE_ARCHIVE_TOOL_TIMEOUT_MS}ms`,
+  );
+  return PACKAGE_ARCHIVE_TOOL_TIMEOUT_MS;
+}
+
 export interface PackageManifest {
   name: string;
   version: string;
@@ -1895,6 +1912,7 @@ export class PackageManager {
           ["-czf", tempTarballPath, "-C", tempDir, "package"],
           {
             stdio: "pipe",
+            timeout: getPackageArchiveToolTimeoutMs(),
           },
         );
 
@@ -2137,6 +2155,7 @@ export class PackageManager {
         ["-xzf", tarballPath, "-C", tempDir],
         {
           stdio: options.verbose ? "inherit" : "pipe",
+          timeout: getPackageArchiveToolTimeoutMs(),
         },
       );
 
@@ -2730,6 +2749,7 @@ export class PackageManager {
 
     const listResult = spawnSync(archiveTool, ["-tzf", tarballPath], {
       stdio: "pipe",
+      timeout: getPackageArchiveToolTimeoutMs(),
     });
 
     if (listResult.status !== 0) {
@@ -2775,6 +2795,7 @@ export class PackageManager {
   ): void {
     const listResult = spawnSync(archiveTool, ["-tvzf", tarballPath], {
       stdio: "pipe",
+      timeout: getPackageArchiveToolTimeoutMs(),
     });
 
     if (listResult.status !== 0) {
@@ -3288,7 +3309,7 @@ export class PackageManager {
         const extractResult = spawnSync(
           archiveTool,
           ["-xzf", entry.path, "-C", tempDir],
-          { stdio: "pipe" },
+          { stdio: "pipe", timeout: getPackageArchiveToolTimeoutMs() },
         );
 
         if (extractResult.status !== 0) {
@@ -3400,7 +3421,7 @@ export class PackageManager {
         const extractResult = spawnSync(
           archiveTool,
           ["-xzf", entry.path, "-C", tempDir],
-          { stdio: "pipe" },
+          { stdio: "pipe", timeout: getPackageArchiveToolTimeoutMs() },
         );
 
         if (extractResult.status !== 0) {
