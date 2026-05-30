@@ -21,12 +21,6 @@ const bplBinary = join(
 );
 const smokeTimeoutMs = 60 * 1000;
 const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
-const PACKAGE_HELPER_FILES = [
-  "tools/ci_triage.ts",
-  "tools/fuzz_artifact_repro.ts",
-  "tools/release_manifest.ts",
-  "tools/release_smoke.ts",
-] as const;
 
 interface DoctorReport {
   success: boolean;
@@ -54,6 +48,7 @@ interface PackageJson {
   version: string;
   license: string;
   bin: Record<string, string>;
+  scripts?: Record<string, string>;
 }
 
 export function runReleaseSmoke(): void {
@@ -149,6 +144,7 @@ function runPackedPackageSmoke(): void {
       tempDir,
     ]);
     const packEntry = parseNpmPackEntry(pack.stdout);
+    const packageHelperFiles = discoverPackageScriptHelperFiles(repoRoot);
     assertPackedMetadata(packEntry);
     assertPackedFiles(packEntry, [
       "bpl",
@@ -165,12 +161,12 @@ function runPackedPackageSmoke(): void {
       "lib/runtime_wasm.ll",
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
-      ...PACKAGE_HELPER_FILES,
+      ...packageHelperFiles,
     ]);
     assertSourceOnlyFiles(packEntry, [
       "playground/examples/70-browser-wasm-showcase.json",
     ]);
-    assertPackedFileAllowlist(packEntry);
+    assertPackedFileAllowlist(packEntry, packageHelperFiles);
 
     const tarballPath = join(tempDir, packEntry.filename);
     if (!existsSync(tarballPath)) {
@@ -493,6 +489,54 @@ export function discoverDedicatedWasmExampleFiles(sourceRoot: string): string[] 
   return files;
 }
 
+export function discoverPackageScriptHelperFiles(sourceRoot: string): string[] {
+  const packageJsonPath = join(sourceRoot, "package.json");
+  const packageJson = JSON.parse(
+    readFileSync(packageJsonPath, "utf-8"),
+  ) as PackageJson;
+  const helperFiles = new Set<string>();
+
+  for (const script of Object.values(packageJson.scripts ?? {})) {
+    for (const helperPath of findBunToolScriptPaths(script)) {
+      const stats = tryLstat(join(sourceRoot, helperPath));
+      if (!stats?.isFile()) {
+        throw new Error(
+          `Package script helper file is missing or not a file: ${helperPath}`,
+        );
+      }
+      helperFiles.add(helperPath);
+    }
+  }
+
+  return [...helperFiles].sort();
+}
+
+function findBunToolScriptPaths(script: string): string[] {
+  const tokens = script.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+  const helperFiles: string[] = [];
+
+  for (let index = 0; index < tokens.length - 1; index++) {
+    const token = unquoteShellToken(tokens[index] ?? "");
+    const nextToken = unquoteShellToken(tokens[index + 1] ?? "");
+    if (token === "bun" && /^tools\/[A-Za-z0-9_./-]+\.ts$/.test(nextToken)) {
+      helperFiles.push(nextToken);
+    }
+  }
+
+  return helperFiles;
+}
+
+function unquoteShellToken(token: string): string {
+  if (
+    (token.startsWith('"') && token.endsWith('"')) ||
+    (token.startsWith("'") && token.endsWith("'"))
+  ) {
+    return token.slice(1, -1);
+  }
+
+  return token;
+}
+
 function tryLstat(filePath: string) {
   try {
     return lstatSync(filePath);
@@ -618,7 +662,10 @@ function assertSourceOnlyFiles(
   }
 }
 
-function assertPackedFileAllowlist(packEntry: NpmPackEntry): void {
+function assertPackedFileAllowlist(
+  packEntry: NpmPackEntry,
+  packageHelperFiles: string[],
+): void {
   console.log("release smoke: validate packed npm file allowlist");
 
   const allowedPaths = [
@@ -627,7 +674,7 @@ function assertPackedFileAllowlist(packEntry: NpmPackEntry): void {
     "package.json",
     "README.md",
     "LICENSE",
-    ...PACKAGE_HELPER_FILES,
+    ...packageHelperFiles,
   ];
   const allowedPrefixes = [
     "completions/",

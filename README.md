@@ -819,8 +819,8 @@ bun run test
 # VS Code extension tests, but leaves fuzz/correctness corpora to dedicated scripts.
 bun run test:ci
 
-# Build, pack, install, and smoke-test the release package. This also verifies
-# package helper scripts that point at tools/*.ts have their helper files in the
+# Build, pack, install, and smoke-test the release package. This also discovers
+# package scripts that call tools/*.ts and verifies those helper files are in the
 # packed npm tarball.
 bun run release:smoke
 

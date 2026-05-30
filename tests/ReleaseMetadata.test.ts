@@ -82,6 +82,81 @@ describe("Release metadata", () => {
     }
   });
 
+  test("release smoke discovers package script helper files dynamically", async () => {
+    const releaseSmoke = (await import("../tools/release_smoke")) as {
+      discoverPackageScriptHelperFiles?: (repoRoot: string) => string[];
+    };
+    const discoverPackageScriptHelperFiles =
+      releaseSmoke.discoverPackageScriptHelperFiles;
+
+    if (typeof discoverPackageScriptHelperFiles !== "function") {
+      expect(typeof discoverPackageScriptHelperFiles).toBe("function");
+      return;
+    }
+
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-helper-script-test-"));
+
+    try {
+      mkdirSync(join(tempRoot, "tools"), { recursive: true });
+      writeFileSync(
+        join(tempRoot, "package.json"),
+        JSON.stringify(
+          {
+            scripts: {
+              "ci:triage": "bun tools/ci_triage.ts",
+              "custom:helper": "NO_COLOR=1 bun tools/custom_helper.ts --flag",
+              "not-a-helper": "echo tools/not_a_script.ts",
+              "not-tools": "bun index.ts",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      writeFileSync(join(tempRoot, "tools", "ci_triage.ts"), "");
+      writeFileSync(join(tempRoot, "tools", "custom_helper.ts"), "");
+
+      expect(discoverPackageScriptHelperFiles(tempRoot)).toEqual([
+        "tools/ci_triage.ts",
+        "tools/custom_helper.ts",
+      ]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("release smoke rejects package helper scripts with missing helper files", async () => {
+    const releaseSmoke = (await import("../tools/release_smoke")) as {
+      discoverPackageScriptHelperFiles: (repoRoot: string) => string[];
+    };
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-missing-helper-test-"));
+
+    try {
+      mkdirSync(join(tempRoot, "tools"), { recursive: true });
+      writeFileSync(
+        join(tempRoot, "package.json"),
+        JSON.stringify(
+          {
+            scripts: {
+              "missing:helper": "bun tools/missing_helper.ts --flag",
+              "not-a-helper": "echo tools/also_missing.ts",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      expect(() =>
+        releaseSmoke.discoverPackageScriptHelperFiles(tempRoot),
+      ).toThrow(
+        "Package script helper file is missing or not a file: tools/missing_helper.ts",
+      );
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("release manifest records checksums for shipped artifacts", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 
