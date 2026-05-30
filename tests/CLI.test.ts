@@ -1109,6 +1109,36 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should decay C array parameters to pointers in generated bindings", () => {
+    const tempHeader = path.join(process.cwd(), "tests/temp_bindgen_arrays.h");
+    fs.writeFileSync(
+      tempHeader,
+      [
+        "void fill(int values[], unsigned long count);",
+        "int sum(const int values[4]);",
+        "int run(int argc, char *argv[]);",
+        "typedef struct Buffer { unsigned char bytes[16]; } Buffer;",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["bindgen", tempHeader]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(
+        "extern fill(values: *int, count: ulong) ret void;",
+      );
+      expect(result.stdout).toContain("extern sum(values: *int) ret int;");
+      expect(result.stdout).toContain(
+        "extern run(argc: int, argv: **char) ret int;",
+      );
+      expect(result.stdout).toContain("struct Buffer {");
+      expect(result.stdout).toContain("bytes: u8[16],");
+    } finally {
+      if (fs.existsSync(tempHeader)) fs.unlinkSync(tempHeader);
+    }
+  });
+
   it("should generate typedefs, structs, enums, and constants from C headers", () => {
     const tempHeader = path.join(process.cwd(), "tests/temp_bindgen_rich.h");
     fs.writeFileSync(

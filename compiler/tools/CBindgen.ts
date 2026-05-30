@@ -116,6 +116,10 @@ interface CParameter {
   variadic?: boolean;
 }
 
+interface ParseDeclarationOptions {
+  arrayAsPointer?: boolean;
+}
+
 function extractFunctionPrototypes(source: string): CPrototype[] {
   const cleaned = stripCommentsAndDirectives(source);
   const prototypes: CPrototype[] = [];
@@ -385,16 +389,30 @@ function parseParameters(rawParams: string): CParameter[] {
       return { type: "", variadic: true };
     }
 
-    return parseNamedDeclaration(param, index);
+    return parseNamedDeclaration(param, index, { arrayAsPointer: true });
   });
 }
 
-function parseNamedDeclaration(param: string, index: number): CParameter {
-  const arrayMatch = /^(.*?)([A-Za-z_]\w*)\s*\[(\d+)\]$/.exec(param);
-  if (arrayMatch) {
+function parseNamedDeclaration(
+  param: string,
+  index: number,
+  options: ParseDeclarationOptions = {},
+): CParameter {
+  const arrayDeclarator = parseArrayDeclarator(param);
+  if (arrayDeclarator) {
+    if (
+      options.arrayAsPointer &&
+      arrayDeclarator.dimensions.length === 1
+    ) {
+      return {
+        name: arrayDeclarator.name,
+        type: `${arrayDeclarator.baseType} *`,
+      };
+    }
+
     return {
-      name: arrayMatch[2]!,
-      type: `${arrayMatch[1]!.trim()}[${arrayMatch[3]!}]`,
+      name: arrayDeclarator.name,
+      type: formatArrayType(arrayDeclarator.baseType, arrayDeclarator.dimensions),
     };
   }
 
@@ -413,6 +431,39 @@ function parseNamedDeclaration(param: string, index: number): CParameter {
   }
 
   return { name, type: beforeName };
+}
+
+function parseArrayDeclarator(
+  declaration: string,
+): { baseType: string; name: string; dimensions: Array<string | null> } | null {
+  const match =
+    /^(.*?)([A-Za-z_]\w*)((?:\s*\[[^\]]*\])+)\s*$/.exec(declaration);
+  if (!match) return null;
+
+  const dimensions = [...match[3]!.matchAll(/\[\s*([^\]]*)\s*\]/g)].map(
+    (dimension) => {
+      const value = dimension[1]!.trim();
+      return /^\d+$/.test(value) ? value : null;
+    },
+  );
+  if (dimensions.length === 0) return null;
+
+  return {
+    baseType: match[1]!.trim(),
+    name: match[2]!,
+    dimensions,
+  };
+}
+
+function formatArrayType(
+  baseType: string,
+  dimensions: Array<string | null>,
+): string {
+  if (dimensions.some((dimension) => dimension === null)) {
+    return `${baseType} *`;
+  }
+
+  return `${baseType}${dimensions.map((dimension) => `[${dimension}]`).join("")}`;
 }
 
 function sectionBreak(enabled: boolean): string[] {
@@ -463,9 +514,11 @@ function mapCType(
   rawType: string,
   aliases: Record<string, string> = {},
 ): string {
-  const arrayMatch = /^(.*?)\[(\d+)\]$/.exec(rawType.trim());
-  if (arrayMatch) {
-    return `${mapCType(arrayMatch[1]!, aliases)}[${arrayMatch[2]!}]`;
+  const arrayType = parseArrayType(rawType.trim());
+  if (arrayType) {
+    return `${mapCType(arrayType.baseType, aliases)}${arrayType.dimensions
+      .map((dimension) => `[${dimension}]`)
+      .join("")}`;
   }
 
   const pointerDepth = (rawType.match(/\*/g) ?? []).length;
@@ -491,6 +544,23 @@ function mapCType(
   }
 
   return `${"*".repeat(pointerDepth)}${mappedBase}`;
+}
+
+function parseArrayType(
+  rawType: string,
+): { baseType: string; dimensions: string[] } | null {
+  const match = /^(.*?)(\s*(?:\[\d+\]\s*)+)$/.exec(rawType);
+  if (!match) return null;
+
+  const dimensions = [...match[2]!.matchAll(/\[(\d+)\]/g)].map(
+    (dimension) => dimension[1]!,
+  );
+  if (dimensions.length === 0) return null;
+
+  return {
+    baseType: match[1]!.trim(),
+    dimensions,
+  };
 }
 
 function sanitizeUnknownType(typeName: string): string {
