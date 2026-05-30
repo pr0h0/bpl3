@@ -10,7 +10,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
+import { resolvePackageImport } from "../../../compiler/middleend/PackageResolver";
 
 export interface ResolvedModule {
   /** Absolute file path to the module */
@@ -84,16 +84,19 @@ export class ModuleResolver {
       return this.resolveAbsolute(importPath);
     }
 
-    // 4. Package imports (no prefix)
-    // Try local packages first, then workspace packages, then global packages
-    const localPkg = this.resolveLocalPackage(importPath, currentDir);
-    if (localPkg) return localPkg;
-
-    const workspacePkg = this.resolveWorkspacePackage(importPath, currentDir);
-    if (workspacePkg) return workspacePkg;
-
-    const globalPkg = this.resolveGlobalPackage(importPath);
-    if (globalPkg) return globalPkg;
+    // 4. Package imports (no prefix). Use the compiler's package resolver so
+    // editor links, completions, and CLI builds agree on lookup order.
+    const packageResolution = resolvePackageImport(importPath, currentDir);
+    if (packageResolution.result) {
+      return {
+        filePath: packageResolution.result.filePath,
+        source:
+          packageResolution.result.source === "global"
+            ? "global-package"
+            : "local-package",
+        packageName: packageResolution.result.packageName,
+      };
+    }
 
     return null;
   }
@@ -193,185 +196,6 @@ export class ModuleResolver {
           filePath: candidate,
           source: "local",
         };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Resolve import from local package (bpl_modules/)
-   */
-  private resolveLocalPackage(
-    importPath: string,
-    currentDir: string,
-  ): ResolvedModule | null {
-    // Walk up directory tree to find bpl_modules/
-    let dir = currentDir;
-    const maxDepth = 10;
-
-    for (let i = 0; i < maxDepth; i++) {
-      const bplModulesDir = path.join(dir, "bpl_modules");
-      if (fs.existsSync(bplModulesDir)) {
-        // Parse import path: "package" or "package/subpath"
-        const parts = importPath.split(/[\/\\]/);
-        const packageName = parts[0];
-        if (!packageName) continue;
-
-        const subPath = parts.slice(1).join(path.sep);
-        const packageDir = path.join(bplModulesDir, packageName);
-
-        if (fs.existsSync(packageDir)) {
-          // Try to resolve within package
-          const resolved = this.resolveWithinPackage(
-            packageDir,
-            subPath,
-            packageName,
-          );
-          if (resolved) {
-            return { ...resolved, source: "local-package" };
-          }
-        }
-      }
-
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-
-    return null;
-  }
-
-  /**
-   * Resolve import from a workspace package (packages/)
-   */
-  private resolveWorkspacePackage(
-    importPath: string,
-    currentDir: string,
-  ): ResolvedModule | null {
-    const parts = importPath.split(/[\/\\]/);
-    const packageName = parts[0];
-    if (!packageName) return null;
-
-    const subPath = parts.slice(1).join(path.sep);
-
-    let dir = currentDir;
-    const maxDepth = 10;
-
-    for (let i = 0; i < maxDepth; i++) {
-      const packageDir = path.join(dir, "packages", packageName);
-      if (fs.existsSync(packageDir) && fs.statSync(packageDir).isDirectory()) {
-        const resolved = this.resolveWithinPackage(
-          packageDir,
-          subPath,
-          packageName,
-        );
-        if (resolved) {
-          return { ...resolved, source: "local-package" };
-        }
-      }
-
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-
-    return null;
-  }
-
-  /**
-   * Resolve import from global package (~/.bpl/packages/)
-   */
-  private resolveGlobalPackage(importPath: string): ResolvedModule | null {
-    const globalPackagesDir = path.join(os.homedir(), ".bpl", "packages");
-    if (!fs.existsSync(globalPackagesDir)) return null;
-
-    // Parse import path
-    const parts = importPath.split(/[\/\\]/);
-    const packageName = parts[0];
-    if (!packageName) return null;
-
-    const subPath = parts.slice(1).join(path.sep);
-
-    // Try exact package name first
-    const exactPath = path.join(globalPackagesDir, packageName);
-    if (fs.existsSync(exactPath)) {
-      const resolved = this.resolveWithinPackage(
-        exactPath,
-        subPath,
-        packageName,
-      );
-      if (resolved) {
-        return { ...resolved, source: "global-package" };
-      }
-    }
-
-    // Find package directory with version suffix (e.g., "pkg-1.0.0")
-    const packageDirs = fs
-      .readdirSync(globalPackagesDir)
-      .filter((name) => name.startsWith(`${packageName}-`))
-      .sort()
-      .reverse(); // Latest version first
-
-    for (const packageDir of packageDirs) {
-      const fullPath = path.join(globalPackagesDir, packageDir);
-      const resolved = this.resolveWithinPackage(
-        fullPath,
-        subPath,
-        packageName,
-      );
-      if (resolved) {
-        return { ...resolved, source: "global-package" };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Resolve a subpath within a package
-   */
-  private resolveWithinPackage(
-    packageDir: string,
-    subPath: string,
-    packageName: string,
-  ): { filePath: string; packageName: string } | null {
-    // Read package manifest to find main entry
-    const manifestPath = path.join(packageDir, "bpl.json");
-    let mainEntry = "index.bpl"; // Default to index.bpl
-
-    if (fs.existsSync(manifestPath)) {
-      try {
-        const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-        if (manifest.main || manifest.entry) {
-          mainEntry = manifest.main || manifest.entry;
-        }
-      } catch {
-        // Ignore manifest parse errors
-      }
-    }
-
-    // If no subpath, use main entry or try common entry points
-    if (!subPath) {
-      const entryPoints = [mainEntry, "index.bpl", "main.bpl"];
-      for (const entry of entryPoints) {
-        const entryPath = path.join(packageDir, entry);
-        if (fs.existsSync(entryPath) && fs.statSync(entryPath).isFile()) {
-          return { filePath: entryPath, packageName };
-        }
-      }
-    }
-
-    // Try to resolve subpath
-    const candidates = [
-      path.join(packageDir, subPath),
-      path.join(packageDir, `${subPath}.bpl`),
-      path.join(packageDir, subPath, "index.bpl"),
-    ];
-
-    for (const candidate of candidates) {
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-        return { filePath: candidate, packageName };
       }
     }
 

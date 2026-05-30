@@ -264,6 +264,139 @@ describe("Package Manager CLI", () => {
       expect(checkResult.status).toBe(0);
       expect(checkResult.stderr).not.toContain("Module not found");
     });
+
+    test("should install transitive package dependencies and restore them from lock", () => {
+      const depBDir = path.join(tempDir, "cli-graph-b");
+      const depADir = path.join(tempDir, "cli-graph-a");
+      const appDir = path.join(tempDir, "cli-graph-app");
+      fs.mkdirSync(depBDir);
+      fs.mkdirSync(depADir);
+      fs.mkdirSync(appDir);
+
+      fs.writeFileSync(
+        path.join(depBDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cli-graph-b", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(depBDir, "index.bpl"),
+        [
+          "export value;",
+          "frame value() ret int {",
+          "    return 7;",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const packB = spawnSync("bun", [bplPath, "pack"], {
+        cwd: depBDir,
+        encoding: "utf-8",
+      });
+      expect(packB.status).toBe(0);
+
+      const depBSource = "../cli-graph-b/cli-graph-b-1.0.0.tgz";
+      fs.writeFileSync(
+        path.join(depADir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-graph-a",
+            version: "1.0.0",
+            main: "index.bpl",
+            dependencies: {
+              "cli-graph-b": `file:${depBSource}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(depADir, "index.bpl"),
+        [
+          'import value from "cli-graph-b";',
+          "export callValue;",
+          "frame callValue() ret int {",
+          "    return value();",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const installBForPack = spawnSync("bun", [bplPath, "install", depBSource], {
+        cwd: depADir,
+        encoding: "utf-8",
+      });
+      expect(installBForPack.status).toBe(0);
+
+      const packA = spawnSync("bun", [bplPath, "pack"], {
+        cwd: depADir,
+        encoding: "utf-8",
+      });
+      expect(packA.status).toBe(0);
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-graph-app",
+            version: "1.0.0",
+            dependencies: {
+              "cli-graph-a": "file:../cli-graph-a/cli-graph-a-1.0.0.tgz",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const installGraph = spawnSync("bun", [bplPath, "install"], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+      expect(installGraph.status).toBe(0);
+
+      const mainPath = path.join(appDir, "src", "main.bpl");
+      fs.mkdirSync(path.dirname(mainPath), { recursive: true });
+      fs.writeFileSync(
+        mainPath,
+        [
+          'import callValue from "cli-graph-a";',
+          "frame main() ret int {",
+          "    return callValue();",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const initialCheck = spawnSync("bun", [bplPath, "check", mainPath], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+      expect(initialCheck.status).toBe(0);
+
+      fs.rmSync(path.join(appDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+      const restoreGraph = spawnSync("bun", [bplPath, "install"], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+      expect(restoreGraph.status).toBe(0);
+
+      const restoredCheck = spawnSync("bun", [bplPath, "check", mainPath], {
+        cwd: path.join(tempDir),
+        encoding: "utf-8",
+      });
+      expect(restoredCheck.status).toBe(0);
+      expect(
+        fs.existsSync(path.join(appDir, "bpl_modules", "cli-graph-b")),
+      ).toBe(true);
+    });
   });
 
   describe("list command", () => {

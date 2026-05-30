@@ -12,6 +12,10 @@ import * as path from "path";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import {
+  resolvePackageImport,
+  type PackageResolutionDetails,
+} from "./PackageResolver";
 import type { PackageOptionsGlobal, PackageOptionsVerbose } from "../../cli";
 
 export interface PackageManifest {
@@ -773,6 +777,7 @@ export class PackageManager {
   install(
     packageSource: string,
     options: PackageOptionsVerbose = { verbose: false, global: false },
+    installing: Set<string> = new Set(),
   ): void {
     const targetDir = options.global
       ? this.globalPackageDir
@@ -845,35 +850,77 @@ export class PackageManager {
       this.validateExtractedPackageTree(packageDir, tarballPath);
       const manifest = this.loadManifest(packageDir);
 
-      compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
-
-      // Create target directory
-      const installPath = path.join(targetDir, manifest.name);
-
-      // Remove existing installation
-      if (fs.existsSync(installPath)) {
-        fs.rmSync(installPath, { recursive: true, force: true });
+      if (installing.has(manifest.name)) {
+        compilerLog.warn(
+          `Skipping cyclic dependency install for ${manifest.name}@${manifest.version}`,
+        );
+        return;
       }
+      installing.add(manifest.name);
+      try {
+        compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
 
-      // Copy package to target (use copy instead of rename to avoid cross-device issues)
-      fs.mkdirSync(path.dirname(installPath), { recursive: true });
-      this.copyDir(packageDir, installPath);
+        // Create target directory
+        const installPath = path.join(targetDir, manifest.name);
 
-      // Link binaries
-      this.linkBinaries(manifest, installPath, options.global || false);
+        // Remove existing installation
+        if (fs.existsSync(installPath)) {
+          fs.rmSync(installPath, { recursive: true, force: true });
+        }
 
-      if (!options.global) {
-        this.recordLocalInstall(manifest, installPath, lockSource);
-      }
+        // Copy package to target (use copy instead of rename to avoid cross-device issues)
+        fs.mkdirSync(path.dirname(installPath), { recursive: true });
+        this.copyDir(packageDir, installPath);
 
-      compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
+        // Link binaries
+        this.linkBinaries(manifest, installPath, options.global || false);
 
-      if (options.global) {
-        compilerLog.info(`Location: ${installPath}`);
+        if (!options.global) {
+          this.recordLocalInstall(manifest, installPath, lockSource);
+        }
+
+        compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
+
+        if (options.global) {
+          compilerLog.info(`Location: ${installPath}`);
+        }
+
+        this.installPackageDependencies(manifest, options, installing);
+      } finally {
+        installing.delete(manifest.name);
       }
     } finally {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  private installPackageDependencies(
+    manifest: PackageManifest,
+    options: PackageOptionsVerbose,
+    installing: Set<string>,
+  ): void {
+    const deps = manifest.dependencies || {};
+    const entries = Object.entries(deps);
+    if (entries.length === 0) return;
+
+    compilerLog.info(
+      `Installing ${entries.length} package dependenc${entries.length === 1 ? "y" : "ies"} for ${manifest.name}@${manifest.version}...`,
+    );
+
+    for (const [name, source] of entries) {
+      if (installing.has(name)) {
+        compilerLog.warn(`Skipping cyclic dependency install for ${name}`);
+        continue;
+      }
+      this.install(
+        this.resolveDependencySource(name, source),
+        {
+          ...options,
+          locked: false,
+        },
+        installing,
+      );
     }
   }
 
@@ -1163,140 +1210,17 @@ export class PackageManager {
    * Resolve a package import path
    */
   resolvePackage(packageName: string, projectRoot?: string): string | null {
-    const root = path.resolve(projectRoot || process.cwd());
-    const roots = this.getPackageSearchRoots(root);
-
-    // Prefer package installs nearest to the importing file/project. This lets
-    // src/main.bpl resolve ../bpl_modules while avoiding unrelated CWD shadowing.
-    for (const searchRoot of roots) {
-      const result = this.resolvePackageFromBaseDir(
-        path.join(searchRoot, "bpl_modules"),
-        packageName,
-      );
-      if (result) return result;
-    }
-
-    // Check monorepo/workspace packages, useful for examples and local package development.
-    for (const searchRoot of roots) {
-      const result = this.resolvePackageFromBaseDir(
-        path.join(searchRoot, "packages"),
-        packageName,
-      );
-      if (result) return result;
-    }
-
-    // Check global
-    const result = this.resolvePackageFromBaseDir(
-      this.globalPackageDir,
-      packageName,
-    );
-    if (result) return result;
-
-    return null;
+    return this.resolvePackageWithDiagnostics(packageName, projectRoot).result
+      ?.filePath ?? null;
   }
 
-  private getPackageSearchRoots(startDir: string): string[] {
-    const roots: string[] = [];
-    let current = path.resolve(startDir);
-
-    while (true) {
-      roots.push(current);
-      const parent = path.dirname(current);
-      if (parent === current) break;
-      current = parent;
-    }
-
-    return roots;
-  }
-
-  private resolvePackageFromBaseDir(
-    baseDir: string,
+  resolvePackageWithDiagnostics(
     packageName: string,
-  ): string | null {
-    if (!fs.existsSync(baseDir)) return null;
-
-    const parts = packageName.split(/[\\/]+/);
-    if (
-      parts.length === 0 ||
-      parts.some((part) => part.length === 0 || part === "." || part === "..")
-    ) {
-      return null;
-    }
-
-    const pkgName = parts[0]!;
-    const pkgPath = path.join(baseDir, pkgName);
-    if (
-      !fs.existsSync(pkgPath) ||
-      !fs.existsSync(path.join(pkgPath, "bpl.json"))
-    ) {
-      return null;
-    }
-
-    if (parts.length === 1) {
-      return this.getPackageEntryPoint(pkgPath);
-    }
-
-    return this.resolvePackageSourcePath(
-      path.join(pkgPath, ...parts.slice(1)),
-    );
-  }
-
-  private resolvePackageSourcePath(filePath: string): string | null {
-    if (fs.existsSync(filePath)) {
-      const stat = fs.statSync(filePath);
-      if (stat.isFile()) {
-        return filePath;
-      }
-      if (stat.isDirectory()) {
-        for (const indexName of ["index.bpl", "index.x"]) {
-          const indexPath = path.join(filePath, indexName);
-          if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
-            return indexPath;
-          }
-        }
-      }
-    }
-
-    for (const ext of [".bpl", ".x", ""]) {
-      const fullPath =
-        filePath.endsWith(".bpl") || filePath.endsWith(".x")
-          ? filePath
-          : filePath + ext;
-      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
-        return fullPath;
-      }
-    }
-
-    return null;
-  }
-
-  private getPackageEntryPoint(packagePath: string): string | null {
-    const manifestPath = path.join(packagePath, "bpl.json");
-    if (!fs.existsSync(manifestPath)) {
-      return null;
-    }
-
-    try {
-      const manifest = this.loadManifest(packagePath);
-      const entryPoint = manifest.main || "index.bpl";
-      const entryPath = path.join(packagePath, entryPoint);
-
-      // Try with different extensions
-      for (const ext of [".bpl", ".x", ""]) {
-        const fullPath =
-          entryPath.endsWith(".bpl") || entryPath.endsWith(".x")
-            ? entryPath
-            : entryPath + ext;
-        if (fs.existsSync(fullPath)) {
-          return fullPath;
-        }
-      }
-
-      return null;
-    } catch {
-      // Failed to load manifest or find entry point - package may be malformed
-      return null;
-    }
+    projectRoot?: string,
+  ): PackageResolutionDetails {
+    return resolvePackageImport(packageName, projectRoot || process.cwd(), {
+      globalPackageDir: this.globalPackageDir,
+    });
   }
 
   /**

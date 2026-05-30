@@ -1,0 +1,329 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+export type PackageResolutionSource = "local" | "workspace" | "global";
+
+export type PackageResolutionFailureReason =
+  | "invalid-import"
+  | "package-not-found"
+  | "manifest-invalid"
+  | "entrypoint-not-found"
+  | "subpath-not-found";
+
+export interface PackageResolutionResult {
+  filePath: string;
+  packageName: string;
+  packageRoot: string;
+  source: PackageResolutionSource;
+}
+
+export interface PackageResolutionTrace {
+  importPath: string;
+  startDir: string;
+  searchRoots: string[];
+  searchedPaths: string[];
+  entryCandidates: string[];
+  packageName?: string;
+  subPath?: string;
+  nearestPackageRoot?: string;
+  foundPackageRoot?: string;
+  failureReason?: PackageResolutionFailureReason;
+  failureMessage?: string;
+}
+
+export interface PackageResolutionDetails {
+  result: PackageResolutionResult | null;
+  trace: PackageResolutionTrace;
+}
+
+export interface PackageResolutionOptions {
+  globalPackageDir?: string;
+}
+
+export function resolvePackageImport(
+  importPath: string,
+  startDir: string,
+  options: PackageResolutionOptions = {},
+): PackageResolutionDetails {
+  const normalizedStartDir = path.resolve(startDir || process.cwd());
+  const searchRoots = getPackageSearchRoots(normalizedStartDir);
+  const trace: PackageResolutionTrace = {
+    importPath,
+    startDir: normalizedStartDir,
+    searchRoots,
+    searchedPaths: [],
+    entryCandidates: [],
+    nearestPackageRoot: findNearestPackageRoot(normalizedStartDir),
+  };
+
+  const parts = importPath.split(/[\\/]+/);
+  if (
+    parts.length === 0 ||
+    parts.some((part) => part.length === 0 || part === "." || part === "..")
+  ) {
+    trace.failureReason = "invalid-import";
+    trace.failureMessage =
+      "Package imports cannot contain empty, '.' or '..' path segments.";
+    return { result: null, trace };
+  }
+
+  trace.packageName = parts[0]!;
+  trace.subPath = parts.slice(1).join("/");
+
+  for (const searchRoot of searchRoots) {
+    const result = resolvePackageFromBaseDir(
+      path.join(searchRoot, "bpl_modules"),
+      parts,
+      "local",
+      trace,
+    );
+    if (result) return { result, trace };
+    if (hasTerminalPackageFailure(trace)) return { result: null, trace };
+  }
+
+  for (const searchRoot of searchRoots) {
+    const result = resolvePackageFromBaseDir(
+      path.join(searchRoot, "packages"),
+      parts,
+      "workspace",
+      trace,
+    );
+    if (result) return { result, trace };
+    if (hasTerminalPackageFailure(trace)) return { result: null, trace };
+  }
+
+  const globalPackageDir =
+    options.globalPackageDir || path.join(os.homedir(), ".bpl", "packages");
+  const result = resolvePackageFromBaseDir(
+    globalPackageDir,
+    parts,
+    "global",
+    trace,
+    true,
+  );
+  if (result) return { result, trace };
+  if (hasTerminalPackageFailure(trace)) return { result: null, trace };
+
+  if (!trace.failureReason) {
+    trace.failureReason = "package-not-found";
+    trace.failureMessage = `Package '${trace.packageName}' was not found.`;
+  }
+
+  return { result: null, trace };
+}
+
+function hasTerminalPackageFailure(trace: PackageResolutionTrace): boolean {
+  return Boolean(
+    trace.failureReason && trace.failureReason !== "package-not-found",
+  );
+}
+
+export function formatPackageResolutionHint(
+  traces: PackageResolutionTrace[],
+  extraSearchPaths: string[] = [],
+): string {
+  const primary = traces.find((trace) => trace.failureMessage) || traces[0];
+  const lines: string[] = [];
+
+  if (primary?.failureMessage) {
+    lines.push(primary.failureMessage);
+  } else {
+    lines.push("Check if the module is installed or the import path is correct.");
+  }
+
+  const nearestPackageRoot = traces.find(
+    (trace) => trace.nearestPackageRoot,
+  )?.nearestPackageRoot;
+  if (nearestPackageRoot) {
+    lines.push(`Nearest package root: ${nearestPackageRoot}`);
+  }
+
+  const searchedPaths = uniquePaths([
+    ...traces.flatMap((trace) => trace.entryCandidates),
+    ...traces.flatMap((trace) => trace.searchedPaths),
+    ...extraSearchPaths,
+  ]);
+
+  if (searchedPaths.length > 0) {
+    lines.push("Searched paths:");
+    for (const searchedPath of searchedPaths.slice(0, 20)) {
+      lines.push(`  - ${searchedPath}`);
+    }
+    if (searchedPaths.length > 20) {
+      lines.push(`  - ... ${searchedPaths.length - 20} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export function getPackageSearchRoots(startDir: string): string[] {
+  const roots: string[] = [];
+  let current = path.resolve(startDir || process.cwd());
+
+  while (true) {
+    roots.push(current);
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return roots;
+}
+
+function resolvePackageFromBaseDir(
+  baseDir: string,
+  parts: string[],
+  source: PackageResolutionSource,
+  trace: PackageResolutionTrace,
+  includeVersionedGlobalDirs = false,
+): PackageResolutionResult | null {
+  const packageName = parts[0]!;
+  trace.searchedPaths.push(baseDir);
+
+  for (const packageRoot of getPackageRootCandidates(
+    baseDir,
+    packageName,
+    includeVersionedGlobalDirs,
+  )) {
+    trace.searchedPaths.push(packageRoot);
+
+    if (!fs.existsSync(packageRoot)) continue;
+    const manifestPath = path.join(packageRoot, "bpl.json");
+    if (!fs.existsSync(manifestPath)) continue;
+
+    trace.foundPackageRoot = packageRoot;
+
+    const manifest = readPackageManifest(manifestPath);
+    if (manifest === null) {
+      trace.failureReason = "manifest-invalid";
+      trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}.`;
+      return null;
+    }
+
+    const filePath =
+      parts.length === 1
+        ? resolvePackageEntryPoint(packageRoot, manifest, trace)
+        : resolvePackageSourcePath(
+            path.join(packageRoot, ...parts.slice(1)),
+            trace,
+          );
+
+    if (filePath) {
+      return {
+        filePath,
+        packageName,
+        packageRoot,
+        source,
+      };
+    }
+
+    if (parts.length === 1) {
+      trace.failureReason = "entrypoint-not-found";
+      trace.failureMessage = `Package '${packageName}' exists at ${packageRoot}, but its entrypoint was not found.`;
+    } else {
+      trace.failureReason = "subpath-not-found";
+      trace.failureMessage = `Package '${packageName}' exists at ${packageRoot}, but subpath '${parts.slice(1).join("/")}' was not found.`;
+    }
+  }
+
+  return null;
+}
+
+function getPackageRootCandidates(
+  baseDir: string,
+  packageName: string,
+  includeVersionedGlobalDirs: boolean,
+): string[] {
+  const candidates = [path.join(baseDir, packageName)];
+  if (!includeVersionedGlobalDirs || !fs.existsSync(baseDir)) return candidates;
+
+  const versioned = fs
+    .readdirSync(baseDir, { withFileTypes: true })
+    .filter(
+      (entry) => entry.isDirectory() && entry.name.startsWith(`${packageName}-`),
+    )
+    .map((entry) => path.join(baseDir, entry.name))
+    .sort()
+    .reverse();
+
+  return [...candidates, ...versioned];
+}
+
+function readPackageManifest(manifestPath: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolvePackageEntryPoint(
+  packageRoot: string,
+  manifest: Record<string, unknown>,
+  trace: PackageResolutionTrace,
+): string | null {
+  const main = manifest.main;
+  const entry = manifest.entry;
+  const mainEntry =
+    typeof main === "string"
+      ? main
+      : typeof entry === "string"
+        ? entry
+        : "index.bpl";
+
+  return resolvePackageSourcePath(path.join(packageRoot, mainEntry), trace);
+}
+
+function resolvePackageSourcePath(
+  filePath: string,
+  trace: PackageResolutionTrace,
+): string | null {
+  if (fs.existsSync(filePath)) {
+    const stat = fs.statSync(filePath);
+    if (stat.isFile()) {
+      trace.entryCandidates.push(filePath);
+      return filePath;
+    }
+    if (stat.isDirectory()) {
+      for (const indexName of ["index.bpl", "index.x"]) {
+        const indexPath = path.join(filePath, indexName);
+        trace.entryCandidates.push(indexPath);
+        if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
+          return indexPath;
+        }
+      }
+    }
+  }
+
+  for (const ext of [".bpl", ".x", ""]) {
+    const fullPath =
+      filePath.endsWith(".bpl") || filePath.endsWith(".x")
+        ? filePath
+        : filePath + ext;
+    trace.entryCandidates.push(fullPath);
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+      return fullPath;
+    }
+  }
+
+  return null;
+}
+
+function findNearestPackageRoot(startDir: string): string | undefined {
+  for (const root of getPackageSearchRoots(startDir)) {
+    if (fs.existsSync(path.join(root, "bpl.json"))) {
+      return root;
+    }
+  }
+
+  return undefined;
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return [...new Set(paths.filter((searchedPath) => searchedPath.length > 0))];
+}

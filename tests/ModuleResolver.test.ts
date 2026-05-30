@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { CompilerError } from "../compiler/common/CompilerError";
 import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
 
 describe("ModuleResolver", () => {
@@ -295,4 +296,117 @@ describe("ModuleResolver", () => {
       process.chdir(originalCwd);
     }
   });
+
+  it("should report searched package paths for unresolved package imports", () => {
+    const appDir = path.join(tempDir, "diagnostic-app");
+    const sourceDir = path.join(appDir, "src");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify({ name: "diagnostic-app", version: "1.0.0" }, null, 2),
+    );
+
+    const mainPath = path.join(sourceDir, "missing-package.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "missing-package";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("Module not found: missing-package");
+    expect(error.hint).toContain("Nearest package root:");
+    expect(error.hint).toContain(appDir);
+    expect(error.hint).toContain("Searched paths:");
+    expect(error.hint).toContain(path.join(appDir, "bpl_modules"));
+  });
+
+  it("should explain invalid package import subpaths", () => {
+    const appDir = path.join(tempDir, "invalid-subpath-app");
+    fs.mkdirSync(appDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify({ name: "invalid-subpath-app", version: "1.0.0" }, null, 2),
+    );
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "package-math/../secret";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("Package imports cannot contain");
+    expect(error.hint).toContain("Package imports cannot contain");
+  });
+
+  it("should explain packages with missing entrypoints", () => {
+    const appDir = path.join(tempDir, "missing-entrypoint-app");
+    const packageDir = path.join(appDir, "bpl_modules", "broken-package");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify(
+        { name: "missing-entrypoint-app", version: "1.0.0" },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "broken-package",
+          version: "1.0.0",
+          main: "missing-entry.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "broken-package";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("entrypoint was not found");
+    expect(error.hint).toContain(path.join(packageDir, "missing-entry.bpl"));
+  });
 });
+
+function captureCompilerError(action: () => void): CompilerError {
+  try {
+    action();
+  } catch (error) {
+    expect(error).toBeInstanceOf(CompilerError);
+    return error as CompilerError;
+  }
+
+  throw new Error("Expected action to throw a CompilerError");
+}

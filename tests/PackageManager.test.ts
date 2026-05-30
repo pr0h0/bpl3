@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
 import { PackageManager } from "../compiler/middleend/PackageManager";
 
 describe("PackageManager", () => {
@@ -678,6 +679,180 @@ describe("PackageManager", () => {
       expect(installedManifest.version).toBe("1.0.0");
       expect(installedSource).toContain("export v100;");
       expect(lock.packages["locked-math"].version).toBe("1.0.0");
+    });
+
+    test("should install transitive package dependencies and keep lock restores local", () => {
+      const globalPackageDir = path.join(tempDir, "graph-cache");
+      const appDir = path.join(tempDir, "graph-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      const createCachedPackage = (
+        packageName: string,
+        version: string,
+        source: string,
+        dependencies: Record<string, string> = {},
+      ) => {
+        const packageDir = path.join(tempDir, `${packageName}-${version}`);
+        fs.mkdirSync(packageDir);
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: packageName,
+              version,
+              main: "index.bpl",
+              dependencies,
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), source);
+
+        const packer = new PackageManager(packageDir);
+        const tarballPath = packer.pack(packageDir);
+        fs.copyFileSync(
+          tarballPath,
+          path.join(globalPackageDir, path.basename(tarballPath)),
+        );
+      };
+
+      createCachedPackage(
+        "graph-b",
+        "1.0.0",
+        [
+          "export value;",
+          "frame value() ret int {",
+          "    return 10;",
+          "}",
+          "",
+        ].join("\n"),
+      );
+      createCachedPackage(
+        "graph-a",
+        "1.0.0",
+        [
+          'import value from "graph-b";',
+          "export callValue;",
+          "frame callValue() ret int {",
+          "    return value();",
+          "}",
+          "",
+        ].join("\n"),
+        { "graph-b": "1.0.0" },
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "graph-app",
+            version: "1.0.0",
+            dependencies: {
+              "graph-a": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      process.chdir(appDir);
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const mainPath = path.join(appDir, "src", "main.bpl");
+      fs.mkdirSync(path.dirname(mainPath), { recursive: true });
+      fs.writeFileSync(
+        mainPath,
+        [
+          'import callValue from "graph-a";',
+          "frame main() ret int {",
+          "    return callValue();",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const stdLibPath = path.join(__dirname, "..", "lib");
+      let resolver = new ModuleResolver({ stdLibPath });
+      let modules = resolver.resolveModules(mainPath);
+      expect(
+        modules.some(
+          (module) =>
+            module.path ===
+            path.join(appDir, "bpl_modules", "graph-a", "index.bpl"),
+        ),
+      ).toBe(true);
+      expect(
+        modules.some(
+          (module) =>
+            module.path ===
+            path.join(appDir, "bpl_modules", "graph-b", "index.bpl"),
+        ),
+      ).toBe(true);
+
+      createCachedPackage(
+        "graph-b",
+        "2.0.0",
+        [
+          "export wrongValue;",
+          "frame wrongValue() ret int {",
+          "    return 999;",
+          "}",
+          "",
+        ].join("\n"),
+      );
+      const globalShadowDir = path.join(globalPackageDir, "graph-b");
+      fs.mkdirSync(globalShadowDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(globalShadowDir, "bpl.json"),
+        JSON.stringify(
+          { name: "graph-b", version: "2.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(globalShadowDir, "index.bpl"),
+        "export wrongValue;",
+      );
+
+      fs.rmSync(path.join(appDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+      localPM.installProject({ global: false, verbose: false });
+
+      const installedB = fs.readFileSync(
+        path.join(appDir, "bpl_modules", "graph-b", "index.bpl"),
+        "utf8",
+      );
+      const graphBResolution = localPM.resolvePackageWithDiagnostics(
+        "graph-b",
+        path.dirname(mainPath),
+      );
+
+      expect(installedB).toContain("return 10;");
+      expect(graphBResolution.result?.source).toBe("local");
+      expect(graphBResolution.result?.filePath).toBe(
+        path.join(appDir, "bpl_modules", "graph-b", "index.bpl"),
+      );
+
+      resolver = new ModuleResolver({ stdLibPath });
+      modules = resolver.resolveModules(mainPath);
+      expect(
+        modules.some(
+          (module) =>
+            module.path ===
+            path.join(appDir, "bpl_modules", "graph-b", "index.bpl"),
+        ),
+      ).toBe(true);
+      expect(
+        modules.some((module) => module.path === path.join(globalShadowDir, "index.bpl")),
+      ).toBe(false);
     });
 
     test("should list installed packages", () => {

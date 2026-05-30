@@ -1003,6 +1003,13 @@ export { DiagnosticFormatter } from "./common/DiagnosticFormatter";
 export { Linter } from "./linter/Linter";
 /** Manage BPL package dependencies */
 export { PackageManager } from "./middleend/PackageManager";
+export {
+  resolvePackageImport,
+  formatPackageResolutionHint,
+  type PackageResolutionDetails,
+  type PackageResolutionResult,
+  type PackageResolutionTrace,
+} from "./middleend/PackageResolver";
 /** Manage source file content and locations */
 export { SourceManager } from "./common/SourceManager";
 /** Resolve BPL import paths */

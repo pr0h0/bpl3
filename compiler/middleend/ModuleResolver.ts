@@ -21,6 +21,10 @@ import { compilerLog } from "../common/Logger";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { PackageManager } from "./PackageManager";
+import {
+  formatPackageResolutionHint,
+  type PackageResolutionTrace,
+} from "./PackageResolver";
 import { SymbolTable } from "./SymbolTable";
 
 import type * as AST from "../common/AST";
@@ -195,23 +199,29 @@ export class ModuleResolver {
 
     // Try to resolve as a package import
     const packageManager = new PackageManager();
+    const packageTraces: PackageResolutionTrace[] = [];
     try {
       // Prefer the importing file's package tree so absolute builds from an
       // unrelated cwd do not shadow project-local dependencies.
-      let packagePath = packageManager.resolvePackage(
+      const fromFilePackage = packageManager.resolvePackageWithDiagnostics(
         importSource,
         path.dirname(fromFile),
       );
-      if (packagePath) {
-        const result = this.tryResolveWithExtensions(packagePath);
+      packageTraces.push(fromFilePackage.trace);
+      if (fromFilePackage.result) {
+        const result = this.tryResolveWithExtensions(fromFilePackage.result.filePath);
         if (result) return result;
       }
 
       // Then try from current working directory for REPL/scripts that import
       // packages without an on-disk project root near the source file.
-      packagePath = packageManager.resolvePackage(importSource, process.cwd());
-      if (packagePath) {
-        const result = this.tryResolveWithExtensions(packagePath);
+      const cwdPackage = packageManager.resolvePackageWithDiagnostics(
+        importSource,
+        process.cwd(),
+      );
+      packageTraces.push(cwdPackage.trace);
+      if (cwdPackage.result) {
+        const result = this.tryResolveWithExtensions(cwdPackage.result.filePath);
         if (result) return result;
       }
     } catch (_e) {
@@ -219,17 +229,26 @@ export class ModuleResolver {
     }
 
     // Search in additional paths
+    const extraSearchCandidates: string[] = [];
     for (const searchPath of this.searchPaths) {
       const resolved = path.join(searchPath, importSource);
+      extraSearchCandidates.push(resolved);
       const result = this.tryResolveWithExtensions(resolved);
       if (result) {
         return result;
       }
     }
 
+    const specificPackageFailure = packageTraces.find(
+      (trace) =>
+        trace.failureMessage && trace.failureReason !== "package-not-found",
+    );
+
     throw new CompilerError(
-      `Module not found: ${importSource}`,
-      "Check if the module is installed or the path is correct.",
+      specificPackageFailure?.failureMessage
+        ? `Module not found: ${importSource} (${specificPackageFailure.failureMessage})`
+        : `Module not found: ${importSource}`,
+      formatPackageResolutionHint(packageTraces, extraSearchCandidates),
       {
         file: fromFile,
         startLine: 0,
@@ -301,8 +320,11 @@ export class ModuleResolver {
             `Failed to resolve import '${importStmt.source}': ${
               error instanceof Error ? error.message : String(error)
             }`,
-            "Check that the module path is correct and the file exists.",
+            error instanceof CompilerError
+              ? error.hint
+              : "Check that the module path is correct and the file exists.",
             importStmt.location,
+            error instanceof CompilerError ? error.code : undefined,
           );
         }
       }
