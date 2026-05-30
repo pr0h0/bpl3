@@ -139,6 +139,28 @@ describe("Compiler correctness corpus", () => {
           }
         `,
         },
+        {
+          name: "tuple overload mangling",
+          expectedStdout: "tuple-overloads=7\n",
+          validateLlvm: true,
+          source: `
+          extern printf(fmt: string, ...);
+
+          frame pick(pair: (int, int)) ret int {
+            return pair.0 + pair.1;
+          }
+
+          frame pick(pair: (int, bool)) ret int {
+            return pair.0 + (pair.1 ? 1 : 0);
+          }
+
+          frame main() ret int {
+            local total: int = pick((1, 2)) + pick((3, true));
+            printf("tuple-overloads=%d\\n", total);
+            return 0;
+          }
+        `,
+        },
       ]);
 
       expect(results.map((result) => result.name)).toEqual([
@@ -148,6 +170,7 @@ describe("Compiler correctness corpus", () => {
         "short-circuit and ternary",
         "explicit generic function",
         "pointer-to-array row arithmetic",
+        "tuple overload mangling",
       ]);
     },
     60000,
