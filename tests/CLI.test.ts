@@ -563,6 +563,7 @@ describe("CLI Tests", () => {
         "Hosted WebAssembly runtime IR",
         "wasm linker",
         "wasm compiler",
+        "object symbol tool",
         "native compiler",
       ]),
     );
@@ -595,6 +596,27 @@ describe("CLI Tests", () => {
     );
     expect(compilerCheck.ok).toBe(false);
     expect(compilerCheck.detail).toContain(missingCompiler);
+  });
+
+  it("should honor BPL_NM in doctor diagnostics", () => {
+    const missingTool = path.join(os.tmpdir(), "definitely-missing-bpl-nm");
+    const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_NM: missingTool,
+        NO_COLOR: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    const report = JSON.parse(result.stdout);
+    const symbolToolCheck = report.checks.find(
+      (check: { name: string }) => check.name === "object symbol tool",
+    );
+    expect(symbolToolCheck.ok).toBe(false);
+    expect(symbolToolCheck.required).toBe(false);
+    expect(symbolToolCheck.detail).toContain(missingTool);
   });
 
   it("should honor BPL_WASM_CC in doctor diagnostics", () => {

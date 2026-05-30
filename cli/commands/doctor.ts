@@ -11,6 +11,7 @@ import { Command } from "commander";
 import { getBplHome } from "../../compiler/common/PathResolver";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
+import { getObjectSymbolTool } from "../../compiler/middleend/ObjectFileParser";
 import {
   PackageManager,
   type PackageDependencyTreeNode,
@@ -123,6 +124,13 @@ function createDoctorReport(version: string): DoctorReport {
       getCompilerDriver("wasm32-unknown-unknown"),
       ["--version"],
       "Install an LLVM compiler with wasm support, or set BPL_WASM_CC/WASM_CC to a working compiler driver.",
+      false,
+    ),
+    checkCommand(
+      "object symbol tool",
+      getObjectSymbolTool(),
+      ["--version"],
+      "Install nm/llvm-nm, or set BPL_NM/NM to a working object symbol tool.",
       false,
     ),
     checkAnyCommand(
