@@ -48,11 +48,16 @@ const SCALAR_CONSTANT_TYPES = new Set([
 ]);
 
 export function generateBplBindings(options: BindgenOptions): string {
-  if (!fs.existsSync(options.headerPath)) {
+  const headerStats = tryLstat(options.headerPath);
+  if (!headerStats) {
     throw new Error(`Header file not found: ${options.headerPath}`);
   }
 
-  if (!fs.statSync(options.headerPath).isFile()) {
+  if (headerStats.isSymbolicLink()) {
+    throw new Error(`Header path is a symbolic link: ${options.headerPath}`);
+  }
+
+  if (!headerStats.isFile()) {
     throw new Error(`Header path is not a file: ${options.headerPath}`);
   }
 
@@ -82,6 +87,23 @@ export function generateBplBindings(options: BindgenOptions): string {
   ];
 
   return lines.join("\n");
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 interface CConstant {

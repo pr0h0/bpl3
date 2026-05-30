@@ -1350,6 +1350,35 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject symbolic links as bindgen inputs", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-bindgen-input-link-"),
+    );
+    const tempHeader = path.join(tempDir, "input.h");
+    const linkHeader = path.join(tempDir, "linked.h");
+    fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
+    fs.symlinkSync(tempHeader, linkHeader, "file");
+
+    try {
+      const linkedResult = runCLI(["bindgen", linkHeader]);
+
+      expect(linkedResult.status).toBe(1);
+      expect(linkedResult.stderr).toContain("Header path is a symbolic link");
+      expect(linkedResult.stderr).toContain(linkHeader);
+
+      fs.rmSync(linkHeader);
+      fs.symlinkSync(path.join(tempDir, "missing.h"), linkHeader, "file");
+      const brokenResult = runCLI(["bindgen", linkHeader]);
+
+      expect(brokenResult.status).toBe(1);
+      expect(brokenResult.stderr).toContain("Header path is a symbolic link");
+      expect(brokenResult.stderr).toContain(linkHeader);
+      expect(brokenResult.stderr).not.toContain("ENOENT");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject bindgen output paths that are directories", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-output-"));
     const tempHeader = path.join(tempDir, "input.h");
