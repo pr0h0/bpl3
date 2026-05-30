@@ -25,8 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   test host aligned on the required `env.__bpl_host_*` imports.
 - **Release Helper Script Coverage** - Release smoke now discovers package
   scripts that call `tools/*.ts`, packs the referenced helper tools, and
-  exercises the packed `fuzz:repro` helper so script entrypoints do not drift
-  from shipped files.
+  records release-manifest checksums for those helper tools. It also exercises
+  the packed `fuzz:repro` helper so script entrypoints do not drift from shipped
+  files.
 - **Agent Board Workflow Docs** - Documented the BPL Agent Board as the
   credential-free source of truth for active task tracking, criteria, review
   state, and verification evidence.

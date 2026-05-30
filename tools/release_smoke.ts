@@ -12,7 +12,12 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
-import { writeReleaseManifest } from "./release_manifest";
+import {
+  discoverPackageScriptHelperFiles,
+  writeReleaseManifest,
+} from "./release_manifest";
+
+export { discoverPackageScriptHelperFiles } from "./release_manifest";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const bplBinary = join(
@@ -500,54 +505,6 @@ export function discoverDedicatedWasmExampleFiles(sourceRoot: string): string[] 
   }
 
   return files;
-}
-
-export function discoverPackageScriptHelperFiles(sourceRoot: string): string[] {
-  const packageJsonPath = join(sourceRoot, "package.json");
-  const packageJson = JSON.parse(
-    readFileSync(packageJsonPath, "utf-8"),
-  ) as PackageJson;
-  const helperFiles = new Set<string>();
-
-  for (const script of Object.values(packageJson.scripts ?? {})) {
-    for (const helperPath of findBunToolScriptPaths(script)) {
-      const stats = tryLstat(join(sourceRoot, helperPath));
-      if (!stats?.isFile()) {
-        throw new Error(
-          `Package script helper file is missing or not a file: ${helperPath}`,
-        );
-      }
-      helperFiles.add(helperPath);
-    }
-  }
-
-  return [...helperFiles].sort();
-}
-
-function findBunToolScriptPaths(script: string): string[] {
-  const tokens = script.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
-  const helperFiles: string[] = [];
-
-  for (let index = 0; index < tokens.length - 1; index++) {
-    const token = unquoteShellToken(tokens[index] ?? "");
-    const nextToken = unquoteShellToken(tokens[index + 1] ?? "");
-    if (token === "bun" && /^tools\/[A-Za-z0-9_./-]+\.ts$/.test(nextToken)) {
-      helperFiles.push(nextToken);
-    }
-  }
-
-  return helperFiles;
-}
-
-function unquoteShellToken(token: string): string {
-  if (
-    (token.startsWith('"') && token.endsWith('"')) ||
-    (token.startsWith("'") && token.endsWith("'"))
-  ) {
-    return token.slice(1, -1);
-  }
-
-  return token;
 }
 
 function tryLstat(filePath: string) {

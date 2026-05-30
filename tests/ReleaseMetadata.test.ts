@@ -205,6 +205,16 @@ describe("Release metadata", () => {
       expect(byPath.get("lib/runtime_support.o")?.sha256).toBe(
         createHash("sha256").update("runtime support\n").digest("hex"),
       );
+      expect(byPath.get("tools/ci_triage.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256").update("ci triage helper\n").digest("hex"),
+      });
+      expect(byPath.get("tools/fuzz_artifact_repro.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update("fuzz artifact repro helper\n")
+          .digest("hex"),
+      });
       expect(byPath.get("bpl-v3-9.9.9.tgz")).toMatchObject({
         kind: "npm-package",
         npmIntegrity: "sha512-test",
@@ -233,6 +243,33 @@ describe("Release metadata", () => {
           generatedAt: "2026-05-29T00:00:00.000Z",
         }),
       ).toThrow(/Release artifact is a symbolic link/);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("release manifest rejects symlinked helper tool artifacts", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-helper-artifact-link-test-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const outsideHelper = join(tempRoot, "outside-helper.ts");
+      writeFileSync(outsideHelper, "outside helper\n");
+      rmSync(join(tempRoot, "tools", "ci_triage.ts"));
+      symlinkSync(
+        outsideHelper,
+        join(tempRoot, "tools", "ci_triage.ts"),
+        "file",
+      );
+
+      expect(() =>
+        createReleaseManifest({
+          repoRoot: tempRoot,
+          generatedAt: "2026-05-29T00:00:00.000Z",
+        }),
+      ).toThrow(/Package script helper file is missing or not a file/);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -400,12 +437,22 @@ function writeReleaseFixture(tempRoot: string): void {
         version: "9.9.9",
         license: "Apache-2.0",
         bin: { bpl: "./bpl" },
+        scripts: {
+          "ci:triage": "bun tools/ci_triage.ts",
+          "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
+        },
       },
       null,
       2,
     ),
   );
+  mkdirSync(join(tempRoot, "tools"), { recursive: true });
   writeFileSync(join(tempRoot, "bpl"), "standalone compiler\n");
+  writeFileSync(join(tempRoot, "tools", "ci_triage.ts"), "ci triage helper\n");
+  writeFileSync(
+    join(tempRoot, "tools", "fuzz_artifact_repro.ts"),
+    "fuzz artifact repro helper\n",
+  );
   writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
   writeFileSync(join(tempRoot, "lib", "runtime_wasm.ll"), "wasm runtime ir\n");
   writeFileSync(

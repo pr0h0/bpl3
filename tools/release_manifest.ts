@@ -10,7 +10,7 @@ import { basename, dirname, join, relative, resolve } from "path";
 import { spawnSync } from "child_process";
 
 export interface ReleaseManifestArtifact {
-  kind: "binary" | "runtime" | "npm-package";
+  kind: "binary" | "runtime" | "helper" | "npm-package";
   path: string;
   bytes: number;
   sha256: string;
@@ -48,6 +48,7 @@ interface PackageJson {
   name: string;
   version: string;
   license: string;
+  scripts?: Record<string, string>;
 }
 
 export function sha256File(filePath: string): string {
@@ -82,6 +83,9 @@ export function createReleaseManifest(
       "runtime",
     ),
   ];
+  for (const helperFile of discoverPackageScriptHelperFiles(repoRoot)) {
+    artifacts.push(artifactFor(repoRoot, join(repoRoot, helperFile), "helper"));
+  }
 
   if (options.npmPackage) {
     const npmArtifact = artifactFor(
@@ -109,6 +113,27 @@ export function createReleaseManifest(
     },
     artifacts,
   };
+}
+
+export function discoverPackageScriptHelperFiles(repoRoot: string): string[] {
+  const packageJson = JSON.parse(
+    readFileSync(join(repoRoot, "package.json"), "utf-8"),
+  ) as PackageJson;
+  const helperFiles = new Set<string>();
+
+  for (const script of Object.values(packageJson.scripts ?? {})) {
+    for (const helperPath of findBunToolScriptPaths(script)) {
+      const stats = tryLstat(join(repoRoot, helperPath));
+      if (!stats?.isFile()) {
+        throw new Error(
+          `Package script helper file is missing or not a file: ${helperPath}`,
+        );
+      }
+      helperFiles.add(helperPath);
+    }
+  }
+
+  return [...helperFiles].sort();
 }
 
 export function writeReleaseManifest(
@@ -146,6 +171,32 @@ function artifactFor(
     bytes: stats.size,
     sha256: sha256File(filePath),
   };
+}
+
+function findBunToolScriptPaths(script: string): string[] {
+  const tokens = script.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+  const helperFiles: string[] = [];
+
+  for (let index = 0; index < tokens.length - 1; index++) {
+    const token = unquoteShellToken(tokens[index] ?? "");
+    const nextToken = unquoteShellToken(tokens[index + 1] ?? "");
+    if (token === "bun" && /^tools\/[A-Za-z0-9_./-]+\.ts$/.test(nextToken)) {
+      helperFiles.push(nextToken);
+    }
+  }
+
+  return helperFiles;
+}
+
+function unquoteShellToken(token: string): string {
+  if (
+    (token.startsWith('"') && token.endsWith('"')) ||
+    (token.startsWith("'") && token.endsWith("'"))
+  ) {
+    return token.slice(1, -1);
+  }
+
+  return token;
 }
 
 function assertWritableManifestPath(outPath: string): void {
