@@ -536,8 +536,9 @@ artifact without requiring a host-native wasm linker.
 Set `BPL_REQUIRE_WASM_LD=1` to make a missing wasm linker a hard error; CI uses
 this mode so wasm runtime execution cannot silently downgrade to object-only
 coverage.
-Wasm linker discovery probes are bounded by
-`BPL_WASM_LINKER_PROBE_TIMEOUT_MS`, defaulting to 5000 milliseconds.
+Set `WASM_LD` to force an explicit wasm linker path; when it is set, BPL does
+not fall back to other linker names on `PATH`. Wasm linker discovery probes are
+bounded by `BPL_WASM_LINKER_PROBE_TIMEOUT_MS`, defaulting to 5000 milliseconds.
 
 Set `BPL_WASM_CC` or `WASM_CC` when the default `clang` on PATH cannot compile
 WebAssembly targets. This is useful on macOS when native builds should continue

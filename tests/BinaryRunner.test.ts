@@ -429,12 +429,10 @@ describe("BinaryRunner", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-binary-require-wasm-"),
     );
-    const emptyPathDir = path.join(tempDir, "empty-path");
     const irPath = path.join(tempDir, "program.ll");
     const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
 
     try {
-      fs.mkdirSync(emptyPathDir);
       const fakeWasmCompiler = writeNodeCommandShim(
         path.join(tempDir, "fake-wasm-cc"),
         [
@@ -446,7 +444,6 @@ describe("BinaryRunner", () => {
       process.env.BPL_WASM_CC = fakeWasmCompiler;
       process.env.BPL_REQUIRE_WASM_LD = "1";
       process.env.WASM_LD = path.join(tempDir, "missing-wasm-ld");
-      process.env.PATH = emptyPathDir;
 
       const result = compileToBinary(irPath, {
         skipRuntime: true,
@@ -467,14 +464,11 @@ describe("BinaryRunner", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-binary-wasm-link-timeout-"),
     );
-    const emptyPathDir = path.join(tempDir, "empty-path");
     const irPath = path.join(tempDir, "program.ll");
     const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
 
     try {
-      fs.mkdirSync(emptyPathDir);
       fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
-      process.env.PATH = emptyPathDir;
       process.env.WASM_LD = writeNodeCommandShim(
         path.join(tempDir, "hanging-wasm-ld"),
         ["setInterval(() => {}, 1000);"],

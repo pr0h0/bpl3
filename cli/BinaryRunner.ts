@@ -65,22 +65,29 @@ export function getWasmRuntimeMode(
 }
 
 function findWasmLinker(): string | undefined {
+  if (process.env.WASM_LD) {
+    return isUsableWasmLinker(process.env.WASM_LD)
+      ? process.env.WASM_LD
+      : undefined;
+  }
+
   const candidates = [
-    process.env.WASM_LD,
     "wasm-ld",
     "wasm-ld-18",
     "wasm-ld-17",
     "wasm-ld-16",
     "ld.lld",
-  ].filter((candidate): candidate is string => Boolean(candidate));
+  ];
 
-  return candidates.find((candidate) => {
-    const result = spawnSync(candidate, ["--version"], {
-      stdio: "ignore",
-      timeout: getWasmLinkerProbeTimeoutMs(),
-    });
-    return result.status === 0;
+  return candidates.find(isUsableWasmLinker);
+}
+
+function isUsableWasmLinker(candidate: string): boolean {
+  const result = spawnSync(candidate, ["--version"], {
+    stdio: "ignore",
+    timeout: getWasmLinkerProbeTimeoutMs(),
   });
+  return result.status === 0;
 }
 
 function isEnvFlagEnabled(value: string | undefined): boolean {
