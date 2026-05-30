@@ -2136,15 +2136,11 @@ export class PackageManager {
         packageDir,
         options.global || false,
       );
-
-      // Remove existing installation
-      if (fs.existsSync(installPath)) {
-        fs.rmSync(installPath, { recursive: true, force: true });
-      }
-
-      // Copy package to target (use copy instead of rename to avoid cross-device issues)
-      fs.mkdirSync(path.dirname(installPath), { recursive: true });
-      this.copyDir(packageDir, installPath);
+      this.installPackageDirectory(
+        packageDir,
+        installPath,
+        path.join(packageDir, "bpl.json"),
+      );
 
       // Link binaries
       this.linkBinaries(manifest, installPath, options.global || false);
@@ -2178,6 +2174,123 @@ export class PackageManager {
     } finally {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  private installPackageDirectory(
+    packageDir: string,
+    installPath: string,
+    manifestPath: string,
+  ): void {
+    fs.mkdirSync(path.dirname(installPath), { recursive: true });
+    const stagingPath = this.createTemporaryInstallPath(
+      installPath,
+      manifestPath,
+      "stage",
+    );
+    let backupPath: string | undefined;
+    let movedExisting = false;
+
+    try {
+      this.copyDir(packageDir, stagingPath);
+
+      if (this.tryLstat(installPath)) {
+        backupPath = this.createTemporaryInstallPath(
+          installPath,
+          manifestPath,
+          "backup",
+        );
+        fs.renameSync(installPath, backupPath);
+        movedExisting = true;
+      }
+
+      try {
+        fs.renameSync(stagingPath, installPath);
+      } catch (error) {
+        if (movedExisting && backupPath) {
+          this.restorePackageInstallBackup(backupPath, installPath);
+          movedExisting = false;
+        }
+        throw error;
+      }
+
+      if (backupPath) {
+        this.removeDirectoryBestEffort(backupPath);
+        movedExisting = false;
+      }
+    } catch (error) {
+      this.removeDirectoryBestEffort(stagingPath);
+      if (movedExisting && backupPath && !this.tryLstat(installPath)) {
+        this.restorePackageInstallBackup(backupPath, installPath);
+      }
+
+      if (error instanceof CompilerError) {
+        throw error;
+      }
+
+      throw new CompilerError(
+        `Failed to install package to ${installPath}: ${error instanceof Error ? error.message : String(error)}`,
+        "Check package directory permissions and retry.",
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    } finally {
+      this.removeDirectoryBestEffort(stagingPath);
+    }
+  }
+
+  private createTemporaryInstallPath(
+    installPath: string,
+    manifestPath: string,
+    label: string,
+  ): string {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempPath = path.join(
+        path.dirname(path.resolve(installPath)),
+        `.${path.basename(installPath)}.${process.pid}-${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2)}-${label}-${attempt}.tmp`,
+      );
+      if (!this.tryLstat(tempPath)) {
+        return tempPath;
+      }
+    }
+
+    throw new CompilerError(
+      `Failed to create temporary package install path for ${installPath}`,
+      "Remove stale temporary package install directories and retry.",
+      {
+        file: manifestPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
+  }
+
+  private restorePackageInstallBackup(
+    backupPath: string,
+    installPath: string,
+  ): void {
+    try {
+      fs.renameSync(backupPath, installPath);
+    } catch {
+      // Preserve the original error; the backup remains on disk for recovery.
+    }
+  }
+
+  private removeDirectoryBestEffort(dirPath: string | undefined): void {
+    if (!dirPath) return;
+    try {
+      fs.rmSync(dirPath, { recursive: true, force: true });
+    } catch {
+      // Best-effort cleanup only.
     }
   }
 

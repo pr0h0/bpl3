@@ -713,6 +713,71 @@ describe("PackageManager", () => {
       expect(fs.existsSync(path.join(installedPath, "index.bpl"))).toBe(true);
     });
 
+    test("should preserve existing installs when staged package copy fails", () => {
+      const createPackageArchive = (rootName: string, source: string) => {
+        const packageDir = path.join(tempDir, rootName);
+        fs.mkdirSync(packageDir);
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "copy-failure-pkg",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), source);
+
+        return new PackageManager(packageDir).pack(packageDir);
+      };
+
+      const originalTarball = createPackageArchive(
+        "copy-failure-original",
+        "export original;",
+      );
+      const updatedTarball = createPackageArchive(
+        "copy-failure-updated",
+        "export updated;",
+      );
+      const installDir = path.join(tempDir, "copy-failure-install");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(originalTarball, { global: false, verbose: false });
+
+      const installedPath = path.join(
+        installDir,
+        "bpl_modules",
+        "copy-failure-pkg",
+      );
+      expect(
+        fs.readFileSync(path.join(installedPath, "index.bpl"), "utf-8"),
+      ).toBe("export original;");
+
+      const patchedPM = localPM as unknown as {
+        copyDir: (src: string, dest: string) => void;
+      };
+      patchedPM.copyDir = () => {
+        throw new Error("simulated staged copy failure");
+      };
+
+      expect(() =>
+        localPM.install(updatedTarball, { global: false, verbose: false }),
+      ).toThrow(/simulated staged copy failure/);
+      expect(
+        fs.readFileSync(path.join(installedPath, "index.bpl"), "utf-8"),
+      ).toBe("export original;");
+      expect(
+        fs
+          .readdirSync(path.join(installDir, "bpl_modules"))
+          .some((entry) => entry.includes(".tmp")),
+      ).toBe(false);
+    });
+
     test("should isolate package extraction from stale temp directories", () => {
       const manifest = {
         name: "stale-temp-pkg",
