@@ -153,9 +153,75 @@ function stripCommentsAndDirectives(source: string): string {
 }
 
 function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\/\/.*$/gm, "");
+  let result = "";
+  let inString = false;
+  let inChar = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let escaped = false;
+
+  for (let index = 0; index < source.length; index++) {
+    const char = source[index]!;
+    const next = source[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+        result += char;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "\n") {
+        result += char;
+      }
+      if (char === "*" && next === "/") {
+        inBlockComment = false;
+        index++;
+      }
+      continue;
+    }
+
+    if (inString || inChar) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (inString && char === '"') {
+        inString = false;
+      } else if (inChar && char === "'") {
+        inChar = false;
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      inLineComment = true;
+      index++;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      inBlockComment = true;
+      index++;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === "'") {
+      inChar = true;
+    }
+
+    result += char;
+  }
+
+  return result;
 }
 
 function extractConstants(source: string): CConstant[] {

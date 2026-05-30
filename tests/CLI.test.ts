@@ -1161,6 +1161,8 @@ describe("CLI Tests", () => {
         "#define NEGATIVE_LIMIT (-7L)",
         "#define SCIENTIFIC_SCALE (1e-3f)",
         '#define WRAPPED_GREETING ("hello")',
+        '#define DOC_URL "https://example.test/docs"',
+        '#define COMMENT_PATTERN "/*not a comment*/"',
         "#define SHIFT_EXPRESSION (1 << 2)",
         '#define CONCAT_GREETING "hello" "world"',
         "typedef unsigned int bpl_size;",
@@ -1200,6 +1202,12 @@ describe("CLI Tests", () => {
       );
       expect(result.stdout).toContain(
         'global const WRAPPED_GREETING: string = "hello";',
+      );
+      expect(result.stdout).toContain(
+        'global const DOC_URL: string = "https://example.test/docs";',
+      );
+      expect(result.stdout).toContain(
+        'global const COMMENT_PATTERN: string = "/*not a comment*/";',
       );
       expect(result.stdout).not.toContain("SHIFT_EXPRESSION");
       expect(result.stdout).not.toContain("CONCAT_GREETING");
