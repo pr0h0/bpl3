@@ -367,6 +367,10 @@ function extractStructs(source: string): CStruct[] {
   const structs: CStruct[] = [];
   const typedefPattern = /typedef\s+struct(?:\s+[A-Za-z_]\w*)?\s*\{/g;
   const plainPattern = /(?:^|;)\s*struct\s+([A-Za-z_]\w*)\s*\{/g;
+  const plainStructSource = removeTypedefAggregateDeclarations(
+    cleaned,
+    "struct",
+  );
 
   for (const match of cleaned.matchAll(typedefPattern)) {
     const openBrace = cleaned.indexOf("{", match.index);
@@ -384,17 +388,19 @@ function extractStructs(source: string): CStruct[] {
     });
   }
 
-  for (const match of cleaned.matchAll(plainPattern)) {
+  for (const match of plainStructSource.matchAll(plainPattern)) {
     const name = match[1]!;
     if (structs.some((struct) => struct.name === name)) continue;
-    const openBrace = cleaned.indexOf("{", match.index);
-    const closeBrace = findMatchingBrace(cleaned, openBrace);
+    const openBrace = plainStructSource.indexOf("{", match.index);
+    const closeBrace = findMatchingBrace(plainStructSource, openBrace);
     if (openBrace < 0 || closeBrace < 0) continue;
-    if (!/^\s*;/.test(cleaned.slice(closeBrace + 1))) continue;
+    if (!/^\s*;/.test(plainStructSource.slice(closeBrace + 1))) continue;
 
     structs.push({
       name,
-      fields: parseStructFields(cleaned.slice(openBrace + 1, closeBrace)),
+      fields: parseStructFields(
+        plainStructSource.slice(openBrace + 1, closeBrace),
+      ),
     });
   }
 
