@@ -2010,6 +2010,7 @@ describe("CLI Tests", () => {
     expect(report.checks.map((check: { name: string }) => check.name)).toEqual(
       expect.arrayContaining([
         "BPL home",
+        "Temporary directory",
         "Runtime IR",
         "Runtime support object",
         "WebAssembly runtime IR",
@@ -2028,6 +2029,33 @@ describe("CLI Tests", () => {
           check.ok === true || check.required === false,
       ),
     ).toBe(true);
+  });
+
+  it("should report invalid temporary directories in doctor diagnostics", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-doctor-tmp-"));
+    const tempFile = path.join(tempDir, "not-a-directory");
+
+    try {
+      fs.writeFileSync(tempFile, "not a directory");
+      const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          TMPDIR: tempFile,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      const tempCheck = report.checks.find(
+        (check: { name: string }) => check.name === "Temporary directory",
+      );
+      expect(tempCheck.ok).toBe(false);
+      expect(tempCheck.detail).toContain("is not a directory");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("should report wrong path kinds in doctor diagnostics", () => {

@@ -102,6 +102,11 @@ function createDoctorReport(version: string): DoctorReport {
       bplHome,
       "Set BPL_HOME to the BPL install root.",
     ),
+    checkWritableDirectory(
+      "Temporary directory",
+      os.tmpdir(),
+      "Set TMPDIR, TEMP, or TMP to a writable directory with enough free space.",
+    ),
     checkFile(
       "Runtime IR",
       path.join(bplHome, "lib", "runtime.ll"),
@@ -271,6 +276,46 @@ function checkFile(name: string, filePath: string, hint: string): DoctorCheck {
     detail: filePath,
     required: true,
   };
+}
+
+function checkWritableDirectory(
+  name: string,
+  directoryPath: string,
+  hint: string,
+): DoctorCheck {
+  const directoryCheck = checkDirectory(name, directoryPath, hint);
+  if (!directoryCheck.ok) {
+    return directoryCheck;
+  }
+
+  let probeDir: string | undefined;
+  try {
+    probeDir = fs.mkdtempSync(path.join(directoryPath, "bpl-doctor-"));
+    fs.writeFileSync(path.join(probeDir, "write-test"), "ok");
+
+    return {
+      name,
+      ok: true,
+      detail: `${directoryPath} is writable`,
+      required: true,
+    };
+  } catch (error) {
+    return {
+      name,
+      ok: false,
+      detail: `${directoryPath} is not writable: ${formatFileSystemError(error)}`,
+      hint,
+      required: true,
+    };
+  } finally {
+    if (probeDir) {
+      fs.rmSync(probeDir, { recursive: true, force: true });
+    }
+  }
+}
+
+function formatFileSystemError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
