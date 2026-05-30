@@ -429,13 +429,15 @@ function parseNamedDeclaration(
 ): CParameter {
   const arrayDeclarator = parseArrayDeclarator(param);
   if (arrayDeclarator) {
-    if (
-      options.arrayAsPointer &&
-      arrayDeclarator.dimensions.length === 1
-    ) {
+    if (options.arrayAsPointer) {
+      const remainingDimensions = arrayDeclarator.dimensions.slice(1);
+      const decayedType =
+        remainingDimensions.length === 0
+          ? arrayDeclarator.baseType
+          : formatArrayType(arrayDeclarator.baseType, remainingDimensions);
       return {
         name: arrayDeclarator.name,
-        type: `${arrayDeclarator.baseType} *`,
+        type: `${decayedType} *`,
       };
     }
 

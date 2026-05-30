@@ -1116,6 +1116,8 @@ describe("CLI Tests", () => {
       [
         "void fill(int values[], unsigned long count);",
         "int sum(const int values[4]);",
+        "void fill_matrix(int matrix[2][3]);",
+        "void copy_names(const char names[4][8]);",
         "int run(int argc, char *argv[]);",
         "typedef struct Buffer { unsigned char bytes[16]; } Buffer;",
       ].join("\n"),
@@ -1129,6 +1131,12 @@ describe("CLI Tests", () => {
         "extern fill(values: *int, count: ulong) ret void;",
       );
       expect(result.stdout).toContain("extern sum(values: *int) ret int;");
+      expect(result.stdout).toContain(
+        "extern fill_matrix(matrix: *int[3]) ret void;",
+      );
+      expect(result.stdout).toContain(
+        "extern copy_names(names: *char[8]) ret void;",
+      );
       expect(result.stdout).toContain(
         "extern run(argc: int, argv: **char) ret int;",
       );

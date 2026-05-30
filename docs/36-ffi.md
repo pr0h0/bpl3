@@ -36,6 +36,7 @@ typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;
 int puts(const char *s);
 double pow(double base, double exp);
 void fill(int values[], unsigned long count);
+void fill_matrix(int matrix[2][3]);
 int printf(const char *fmt, ...);
 ```
 
@@ -68,12 +69,15 @@ enum Color {
 extern puts(s: string) ret int;
 extern pow(base: double, exp: double) ret double;
 extern fill(values: *int, count: ulong) ret void;
+extern fill_matrix(matrix: *int[3]) ret void;
 extern printf(fmt: string, ...) ret int;
 ```
 
 For function parameters, C array declarations such as `int values[]` or
 `const int values[4]` are emitted as pointers because the C ABI receives them as
-pointers. Fixed arrays inside structs stay fixed arrays.
+pointers. Multidimensional parameter arrays decay at the outer dimension, so
+`int matrix[2][3]` becomes `*int[3]`. Fixed arrays inside structs stay fixed
+arrays.
 
 Review generated pointer, enum-value, and platform-sized integer mappings before
 publishing bindings for a library. Complex macros, inline functions, function
