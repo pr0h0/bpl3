@@ -189,9 +189,10 @@ function resolvePackageFromBaseDir(
   )) {
     trace.searchedPaths.push(packageRoot);
 
-    if (!fs.existsSync(packageRoot)) continue;
+    const packageRootStats = tryLstat(packageRoot);
+    if (!packageRootStats?.isDirectory()) continue;
     const manifestPath = path.join(packageRoot, "bpl.json");
-    if (!fs.existsSync(manifestPath)) continue;
+    if (!tryLstat(manifestPath)) continue;
 
     trace.foundPackageRoot = packageRoot;
 
@@ -237,8 +238,10 @@ function getPackageRootCandidates(
   includeVersionedGlobalDirs: boolean,
 ): string[] {
   const candidates = [path.join(baseDir, packageName)];
-  if (!includeVersionedGlobalDirs || !fs.existsSync(baseDir)) return candidates;
-  if (!fs.statSync(baseDir).isDirectory()) return candidates;
+  const baseStats = tryLstat(baseDir);
+  if (!includeVersionedGlobalDirs || !baseStats?.isDirectory()) {
+    return candidates;
+  }
 
   const versioned = fs
     .readdirSync(baseDir, { withFileTypes: true })
@@ -287,8 +290,13 @@ function compareSemverDesc(
   return 0;
 }
 
-function readPackageManifest(manifestPath: string): Record<string, unknown> | null {
+function readPackageManifest(
+  manifestPath: string,
+): Record<string, unknown> | null {
   try {
+    const manifestStats = tryLstat(manifestPath);
+    if (!manifestStats?.isFile()) return null;
+
     const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
@@ -319,17 +327,17 @@ function resolvePackageSourcePath(
   filePath: string,
   trace: PackageResolutionTrace,
 ): string | null {
-  if (fs.existsSync(filePath)) {
-    const stat = fs.statSync(filePath);
-    if (stat.isFile()) {
+  const directStats = tryLstat(filePath);
+  if (directStats) {
+    if (directStats.isFile()) {
       trace.entryCandidates.push(filePath);
       return filePath;
     }
-    if (stat.isDirectory()) {
+    if (directStats.isDirectory()) {
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
         trace.entryCandidates.push(indexPath);
-        if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
+        if (tryLstat(indexPath)?.isFile()) {
           return indexPath;
         }
       }
@@ -342,7 +350,7 @@ function resolvePackageSourcePath(
         ? filePath
         : filePath + ext;
     trace.entryCandidates.push(fullPath);
-    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+    if (tryLstat(fullPath)?.isFile()) {
       return fullPath;
     }
   }
@@ -352,12 +360,29 @@ function resolvePackageSourcePath(
 
 function findNearestPackageRoot(startDir: string): string | undefined {
   for (const root of getPackageSearchRoots(startDir)) {
-    if (fs.existsSync(path.join(root, "bpl.json"))) {
+    if (tryLstat(path.join(root, "bpl.json"))?.isFile()) {
       return root;
     }
   }
 
   return undefined;
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function uniquePaths(paths: string[]): string[] {

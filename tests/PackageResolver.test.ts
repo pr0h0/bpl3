@@ -57,4 +57,41 @@ describe("PackageResolver", () => {
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("package-not-found");
   });
+
+  test("does not follow symlinked package roots", () => {
+    const appDir = path.join(tempDir, "app");
+    const modulesDir = path.join(appDir, "bpl_modules");
+    const outsidePackageDir = path.join(tempDir, "outside-math");
+    fs.mkdirSync(modulesDir, { recursive: true });
+    fs.mkdirSync(outsidePackageDir);
+    fs.writeFileSync(
+      path.join(outsidePackageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export add;");
+    fs.symlinkSync(outsidePackageDir, path.join(modulesDir, "math"));
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("package-not-found");
+  });
+
+  test("does not resolve symlinked package entry files", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const outsideEntrypoint = path.join(tempDir, "outside-index.bpl");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(outsideEntrypoint, "export add;");
+    fs.symlinkSync(outsideEntrypoint, path.join(packageDir, "index.bpl"));
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("entrypoint-not-found");
+  });
 });
