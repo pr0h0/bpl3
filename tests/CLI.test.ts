@@ -414,6 +414,29 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject symlinked files when formatting in write mode", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-format-link-"));
+    const targetFile = path.join(tempDir, "target.bpl");
+    const linkedFile = path.join(tempDir, "linked.bpl");
+    const unformatted = "frame  main ( )  ret  int { return 0 ; }";
+    fs.writeFileSync(targetFile, unformatted);
+    fs.symlinkSync(targetFile, linkedFile, "file");
+
+    try {
+      const preview = runCLI(["format", linkedFile]);
+      expect(preview.status).toBe(0);
+      expect(preview.stdout).toContain("frame main() ret int {");
+
+      const write = runCLI(["format", "--write", linkedFile]);
+      expect(write.status).toBe(1);
+      expect(write.stderr).toContain("Input path is a symbolic link");
+      expect(write.stderr).toContain(linkedFile);
+      expect(fs.readFileSync(targetFile, "utf-8")).toBe(unformatted);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should report clean results as JSON without deleting on dry run", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-clean-json-"));
     const buildDir = path.join(tempDir, "build");

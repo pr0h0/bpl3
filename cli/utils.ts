@@ -99,6 +99,19 @@ export function assertWritableFileOutputPath(outputPath: string): void {
   }
 }
 
+export function assertWritableInputFilePath(inputPath: string): void {
+  const existingInput = tryLstat(inputPath);
+  if (!existingInput) {
+    throw new Error(`File not found: ${inputPath}`);
+  }
+  if (existingInput.isSymbolicLink()) {
+    throw new Error(`Input path is a symbolic link: ${inputPath}`);
+  }
+  if (!existingInput.isFile()) {
+    throw new Error(`Input path is not a file: ${inputPath}`);
+  }
+}
+
 function tryLstat(filePath: string): fs.Stats | null {
   try {
     return fs.lstatSync(filePath);

@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { Parser, Formatter, lexWithGrammar } from "../../compiler";
 import type { FormatOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
+import { assertWritableInputFilePath } from "../utils";
 
 const log = new Logger("Format");
 
@@ -39,12 +40,13 @@ export function registerFormatCommand(program: Command): void {
       for (const filePath of files) {
         totalFiles++;
         try {
-          if (!fs.existsSync(filePath)) {
+          if (options.write) {
+            assertWritableInputFilePath(filePath);
+          } else if (!fs.existsSync(filePath)) {
             log.error(`File not found: ${filePath}`);
             hasError = true;
             continue;
-          }
-          if (!fs.statSync(filePath).isFile()) {
+          } else if (!fs.statSync(filePath).isFile()) {
             log.error(`Input path is not a file: ${filePath}`);
             hasError = true;
             continue;

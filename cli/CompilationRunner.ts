@@ -24,7 +24,11 @@ import {
   getExecutableOutputPath,
   isWasmTarget,
 } from "./BinaryRunner";
-import { assertWritableFileOutputPath, getHostDefaults } from "./utils";
+import {
+  assertWritableFileOutputPath,
+  assertWritableInputFilePath,
+  getHostDefaults,
+} from "./utils";
 import type { CompileOptions } from "./types";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
@@ -382,6 +386,7 @@ function compileWithModules(
 
   if (options.emit === "formatted" && result.output) {
     if (options.write) {
+      assertWritableInputFilePath(filePath);
       fs.writeFileSync(filePath, result.output);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
@@ -470,6 +475,7 @@ async function compileWithModulesAsync(
 
   if (options.emit === "formatted" && result.output) {
     if (options.write) {
+      assertWritableInputFilePath(filePath);
       fs.writeFileSync(filePath, result.output);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
@@ -547,6 +553,7 @@ function compileSingleFile(
     const formatter = new Formatter();
     const formatted = formatter.format(ast);
     if (options.write) {
+      assertWritableInputFilePath(filePath);
       fs.writeFileSync(filePath, formatted);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
