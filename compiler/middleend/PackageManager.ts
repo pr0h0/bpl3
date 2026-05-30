@@ -274,9 +274,10 @@ export class PackageManager {
     if (!manifest.bin) return;
 
     const binDir = isGlobal ? this.globalBinDir : this.localBinDir;
-    if (!fs.existsSync(binDir)) {
-      fs.mkdirSync(binDir, { recursive: true });
-    }
+    this.ensurePackageManagerDirectory(
+      binDir,
+      isGlobal ? "Global binary directory" : "Local binary directory",
+    );
 
     for (const [name, relativePath] of Object.entries(manifest.bin)) {
       if (

@@ -480,6 +480,46 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject local binary directories that are files", () => {
+      const packageDir = path.join(tempDir, "bin-dir-package");
+      const installDir = path.join(tempDir, "bin-dir-install");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "bin-dir-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      fs.mkdirSync(path.join(installDir, "bpl_modules"), { recursive: true });
+      fs.writeFileSync(
+        path.join(installDir, "bpl_modules", ".bin"),
+        "not a directory",
+      );
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Local binary directory path is not a directory/);
+    });
+
     test("should reject package archives with unsafe member paths", () => {
       const sourceDir = path.join(tempDir, "unsafe-archive-source");
       const installDir = path.join(tempDir, "unsafe-archive-install");
