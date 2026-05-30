@@ -1206,6 +1206,46 @@ describe("CLI Tests", () => {
     );
   });
 
+  it("should reject cached module output paths that are directories before linking", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-cache-output-"));
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(
+      moduleFile,
+      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./math.bpl";',
+        "frame main() ret int {",
+        "    return answer();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        tempDir,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a directory");
+      expect(result.stderr).not.toContain("Is a directory");
+      expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should cache and link imported modules as separate parallel objects", () => {
     const tempDir = fs.mkdtempSync(
       path.join(process.cwd(), "tests/temp_parallel_cache-"),

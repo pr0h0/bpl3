@@ -530,6 +530,8 @@ export class ModuleCache {
     target?: string,
     options: ModuleLinkOptions = {},
   ): void {
+    this.assertWritableLinkOutputPath(outputPath);
+
     if (verbose) {
       compilerLog.info(`Linking ${objectFiles.length} modules...`);
     }
@@ -574,6 +576,40 @@ export class ModuleCache {
           endLine: 0,
           endColumn: 0,
         },
+      );
+    }
+  }
+
+  private assertWritableLinkOutputPath(outputPath: string): void {
+    const location = {
+      file: outputPath,
+      startLine: 0,
+      startColumn: 0,
+      endLine: 0,
+      endColumn: 0,
+    };
+
+    if (fs.existsSync(outputPath) && fs.statSync(outputPath).isDirectory()) {
+      throw new CompilerError(
+        `Output path is a directory: ${outputPath}`,
+        "Choose a file path for the linked executable.",
+        location,
+      );
+    }
+
+    const outputDir = path.dirname(path.resolve(outputPath));
+    if (!fs.existsSync(outputDir)) {
+      throw new CompilerError(
+        `Output directory not found: ${outputDir}`,
+        "Create the output directory or choose an existing parent directory.",
+        location,
+      );
+    }
+    if (!fs.statSync(outputDir).isDirectory()) {
+      throw new CompilerError(
+        `Output parent path is not a directory: ${outputDir}`,
+        "Choose an output path whose parent is a directory.",
+        location,
       );
     }
   }
