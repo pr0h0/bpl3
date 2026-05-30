@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
@@ -268,6 +269,8 @@ describe("Linker", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-output-"));
     const irPath = join(dir, "main.ll");
     const outputDir = join(dir, "out-dir");
+    const outputLink = join(dir, "out-link");
+    const outputLinkTarget = join(dir, "out-link-target");
     const missingParentOutput = join(dir, "missing", "app");
     const originalError = console.error;
     const errors: string[] = [];
@@ -282,6 +285,7 @@ describe("Linker", () => {
       `,
     );
     mkdirSync(outputDir);
+    symlinkSync(outputLinkTarget, outputLink, "file");
 
     try {
       console.error = (...args: unknown[]) => {
@@ -295,6 +299,14 @@ describe("Linker", () => {
       });
       expect(directoryOk).toBe(false);
 
+      const symlinkOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath: outputLink,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(symlinkOk).toBe(false);
+      expect(existsSync(outputLinkTarget)).toBe(false);
+
       const missingParentOk = new Linker().link({
         irFiles: [irPath],
         outputPath: missingParentOutput,
@@ -303,6 +315,7 @@ describe("Linker", () => {
       expect(missingParentOk).toBe(false);
       expect(existsSync(missingParentOutput)).toBe(false);
       expect(errors.join("\n")).toContain("Output path is a directory");
+      expect(errors.join("\n")).toContain("Output path is a symbolic link");
       expect(errors.join("\n")).toContain("Output directory not found");
       expect(errors.join("\n")).not.toContain("EISDIR");
       expect(errors.join("\n")).not.toContain("ENOENT");
