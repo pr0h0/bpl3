@@ -1724,7 +1724,7 @@ export class PackageManager {
     let lockSource = sourceContext.lockSource ?? packageSource;
 
     // Check if source is a file path or package name
-    if (fs.existsSync(packageSource)) {
+    if (this.tryLstat(packageSource)) {
       tarballPath = packageSource;
     } else {
       // Look for package in global registry

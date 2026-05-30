@@ -967,6 +967,15 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should reject broken package archive symlinks before package resolution", () => {
+      const linkedArchivePath = path.join(tempDir, "broken-archive-link.tgz");
+      fs.symlinkSync(path.join(tempDir, "missing-archive.tgz"), linkedArchivePath);
+
+      expect(() => packageManager.install(linkedArchivePath)).toThrow(
+        /Package archive path is a symbolic link/,
+      );
+    });
+
     test("should write a lockfile for local installs", () => {
       const manifest = {
         name: "lock-test-pkg",
