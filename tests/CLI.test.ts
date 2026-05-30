@@ -1179,6 +1179,7 @@ describe("CLI Tests", () => {
         "typedef int (*compare_fn)(const void *left, const void *right);",
         "typedef struct Options { unsigned flags: 3; int (*callback)(int value); int value; } Options;",
         "typedef struct PackedFields { int x, y; char *label, marker; unsigned char bytes[4], tag; } PackedFields;",
+        "typedef struct NestedSkip { int tag; union { int i; float f; } value; int tail; } NestedSkip;",
         "typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;",
         "Point make_point(int x, double y);",
         "bpl_size measure(Point *point);",
@@ -1246,6 +1247,12 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain("marker: char,");
       expect(result.stdout).toContain("bytes: u8[4],");
       expect(result.stdout).toContain("tag: u8,");
+      expect(result.stdout).toContain("struct NestedSkip {");
+      expect(result.stdout).toContain("tag: int,");
+      expect(result.stdout).toContain("tail: int,");
+      expect(result.stdout).not.toContain("i: int,");
+      expect(result.stdout).not.toContain("f: float,");
+      expect(result.stdout).not.toContain("struct value {");
       expect(result.stdout).toContain("enum Color {");
       expect(result.stdout).toContain("COLOR_RED,");
       expect(result.stdout).toContain("COLOR_BLUE,");

@@ -359,28 +359,54 @@ function getNumericConstantSuffix(value: string): string {
 function extractStructs(source: string): CStruct[] {
   const cleaned = stripCommentsAndDirectives(source);
   const structs: CStruct[] = [];
-  const typedefPattern =
-    /typedef\s+struct(?:\s+[A-Za-z_]\w*)?\s*\{([\s\S]*?)\}\s*([A-Za-z_]\w*)\s*;/g;
-  const plainPattern =
-    /(?:^|;)\s*struct\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}\s*;/g;
+  const typedefPattern = /typedef\s+struct(?:\s+[A-Za-z_]\w*)?\s*\{/g;
+  const plainPattern = /(?:^|;)\s*struct\s+([A-Za-z_]\w*)\s*\{/g;
 
   for (const match of cleaned.matchAll(typedefPattern)) {
+    const openBrace = cleaned.indexOf("{", match.index);
+    const closeBrace = findMatchingBrace(cleaned, openBrace);
+    if (openBrace < 0 || closeBrace < 0) continue;
+
+    const tail = /^\s*([A-Za-z_]\w*)\s*;/.exec(
+      cleaned.slice(closeBrace + 1),
+    );
+    if (!tail) continue;
+
     structs.push({
-      name: match[2]!,
-      fields: parseStructFields(match[1] ?? ""),
+      name: tail[1]!,
+      fields: parseStructFields(cleaned.slice(openBrace + 1, closeBrace)),
     });
   }
 
   for (const match of cleaned.matchAll(plainPattern)) {
     const name = match[1]!;
     if (structs.some((struct) => struct.name === name)) continue;
+    const openBrace = cleaned.indexOf("{", match.index);
+    const closeBrace = findMatchingBrace(cleaned, openBrace);
+    if (openBrace < 0 || closeBrace < 0) continue;
+    if (!/^\s*;/.test(cleaned.slice(closeBrace + 1))) continue;
+
     structs.push({
       name,
-      fields: parseStructFields(match[2] ?? ""),
+      fields: parseStructFields(cleaned.slice(openBrace + 1, closeBrace)),
     });
   }
 
   return structs;
+}
+
+function findMatchingBrace(source: string, openBrace: number): number {
+  if (openBrace < 0 || source[openBrace] !== "{") return -1;
+
+  let depth = 0;
+  for (let index = openBrace; index < source.length; index++) {
+    const char = source[index];
+    if (char === "{") depth++;
+    if (char === "}") depth--;
+    if (depth === 0) return index;
+  }
+
+  return -1;
 }
 
 function extractEnums(source: string): CEnum[] {
@@ -415,15 +441,13 @@ function extractTypedefs(
   structs: CStruct[],
   enums: CEnum[],
 ): CTypedef[] {
-  const cleaned = stripCommentsAndDirectives(source)
-    .replace(
-      /typedef\s+struct(?:\s+[A-Za-z_]\w*)?\s*\{[\s\S]*?\}\s*[A-Za-z_]\w*\s*;/g,
-      "",
-    )
-    .replace(
-      /typedef\s+enum(?:\s+[A-Za-z_]\w*)?\s*\{[\s\S]*?\}\s*[A-Za-z_]\w*\s*;/g,
-      "",
-    );
+  const cleaned = removeTypedefAggregateDeclarations(
+    removeTypedefAggregateDeclarations(
+      stripCommentsAndDirectives(source),
+      "struct",
+    ),
+    "enum",
+  );
   const aggregateNames = new Set([
     ...structs.map((struct) => struct.name),
     ...enums.map((enumDecl) => enumDecl.name),
@@ -447,10 +471,36 @@ function extractTypedefs(
   return typedefs;
 }
 
+function removeTypedefAggregateDeclarations(
+  source: string,
+  keyword: "struct" | "enum",
+): string {
+  const pattern = new RegExp(
+    `typedef\\s+${keyword}(?:\\s+[A-Za-z_]\\w*)?\\s*\\{`,
+    "g",
+  );
+  let result = "";
+  let cursor = 0;
+
+  for (const match of source.matchAll(pattern)) {
+    const openBrace = source.indexOf("{", match.index);
+    const closeBrace = findMatchingBrace(source, openBrace);
+    if (openBrace < 0 || closeBrace < 0) continue;
+
+    const tail = /^\s*[A-Za-z_]\w*\s*;/.exec(source.slice(closeBrace + 1));
+    if (!tail) continue;
+
+    result += source.slice(cursor, match.index);
+    cursor = closeBrace + 1 + tail[0].length;
+  }
+
+  result += source.slice(cursor);
+  return result;
+}
+
 function parseStructFields(body: string): CParameter[] {
   const fields: CParameter[] = [];
-  for (const declaration of body
-    .split(";")
+  for (const declaration of splitTopLevelStructDeclarations(body)
     .map((field) => field.trim())
     .filter(Boolean)) {
     if (isUnsupportedStructField(declaration)) continue;
@@ -464,7 +514,43 @@ function parseStructFields(body: string): CParameter[] {
 }
 
 function isUnsupportedStructField(field: string): boolean {
-  return field.includes(":") || /\(\s*\*/.test(field);
+  return (
+    field.includes(":") ||
+    field.includes("{") ||
+    field.includes("}") ||
+    /\(\s*\*/.test(field)
+  );
+}
+
+function splitTopLevelStructDeclarations(body: string): string[] {
+  const declarations: string[] = [];
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  let parenDepth = 0;
+  let start = 0;
+
+  for (let index = 0; index < body.length; index++) {
+    const char = body[index];
+    if (char === "{") braceDepth++;
+    if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    if (char === "[") bracketDepth++;
+    if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    if (char === "(") parenDepth++;
+    if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+
+    if (
+      char === ";" &&
+      braceDepth === 0 &&
+      bracketDepth === 0 &&
+      parenDepth === 0
+    ) {
+      declarations.push(body.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  declarations.push(body.slice(start));
+  return declarations;
 }
 
 function expandCDeclaration(declaration: string): string[] {
