@@ -191,6 +191,52 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should list package scripts as JSON without executing them", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    const outputFile = path.join(tempDir, "should-not-exist.txt");
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "run-script-list-test",
+          version: "1.0.0",
+          scripts: {
+            build: "bpl build src/main.bpl -o app",
+            touch: `node -e "require('fs').writeFileSync('${outputFile}', 'bad')"`,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "--list", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        scripts: [
+          { name: "build", command: "bpl build src/main.bpl -o app" },
+          {
+            name: "touch",
+            command: `node -e "require('fs').writeFileSync('${outputFile}', 'bad')"`,
+          },
+        ],
+      });
+      expect(fs.existsSync(outputFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject non-string run-script entries", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     fs.writeFileSync(
@@ -396,6 +442,10 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain("doctor:Check local BPL toolchain");
     expect(bash.stdout).toContain("run-script");
     expect(zsh.stdout).toContain("run-script:Run a script defined in bpl.json");
+    expect(bash.stdout).toContain('run_script_opts="--list --json"');
+    expect(zsh.stdout).toContain(
+      "--json[Output machine-readable script list]",
+    );
     expect(bash.stdout).toContain("package-cache");
     expect(zsh.stdout).toContain(
       "package-cache:List, verify, repair, and clean cached package archives",

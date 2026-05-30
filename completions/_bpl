@@ -155,6 +155,13 @@ _bpl() {
                         '--verbose[Enable verbose output]' \
                         '1:package:'
                     ;;
+                run-script|rs)
+                    _arguments \
+                        '--list[List scripts without executing one]' \
+                        '--json[Output machine-readable script list]' \
+                        '1:script:' \
+                        '*:argument:'
+                    ;;
                 completion)
                     _arguments \
                         '1:shell:(bash zsh)'

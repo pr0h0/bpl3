@@ -54,6 +54,9 @@ _bpl_completion() {
     # Uninstall command options
     local uninstall_opts="-v --verbose"
 
+    # Run-script command options
+    local run_script_opts="--list --json"
+
     # Completion command options
     local completion_opts="bash zsh"
 
@@ -182,6 +185,12 @@ _bpl_completion() {
                     COMPREPLY=( $(compgen -W "${uninstall_opts}" -- "${cur}") )
                 fi
                 # Could list installed packages here if we had a way to query them
+                return 0
+            ;;
+            run-script|rs)
+                if [[ "$cur" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "${run_script_opts}" -- "${cur}") )
+                fi
                 return 0
             ;;
             completion)

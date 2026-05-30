@@ -309,11 +309,15 @@ Packages can define shell scripts in `bpl.json`:
 }
 ```
 
-Run them with `bpl run-script <name>` or `bpl rs <name>`. Extra arguments are
-forwarded to the script as quoted shell arguments, so values containing spaces
-or shell metacharacters remain single arguments.
+List them with `bpl run-script --list` or as JSON with
+`bpl run-script --list --json`. Run one with `bpl run-script <name>` or
+`bpl rs <name>`. Extra arguments are forwarded to the script as quoted shell
+arguments, so values containing spaces or shell metacharacters remain single
+arguments.
 
 ```bash
+bpl run-script --list
+bpl run-script --list --json
 bpl run-script check
 bpl rs build -- --release
 ```
