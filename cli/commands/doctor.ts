@@ -10,6 +10,11 @@ import { spawnSync } from "child_process";
 import { Command } from "commander";
 import { getBplHome } from "../../compiler/common/PathResolver";
 import { Logger } from "../../compiler/common/Logger";
+import {
+  PackageManager,
+  type PackageDependencyTreeNode,
+  type PackageDoctorReport,
+} from "../../compiler";
 
 const log = new Logger("Doctor");
 
@@ -36,13 +41,34 @@ interface DoctorReport {
 
 export function registerDoctorCommand(program: Command, version: string): void {
   program
-    .command("doctor")
+    .command("doctor [scope]")
     .description("Check local BPL toolchain and runtime setup")
     .option("--json", "output machine-readable diagnostics")
-    .action((options: { json?: boolean }, command: Command) => {
+    .action((scope: string | undefined, options: { json?: boolean }, command: Command) => {
       try {
         const globalOpts = command.parent?.opts() || {};
         const outputJson = options.json || globalOpts.json;
+
+        if (scope === "packages") {
+          const report = new PackageManager().doctorPackages();
+          if (outputJson) {
+            console.log(JSON.stringify(report, null, 2));
+          } else {
+            printPackageDoctorReport(report);
+          }
+
+          if (!report.ok) {
+            process.exit(1);
+          }
+          return;
+        }
+
+        if (scope) {
+          throw new Error(
+            `Unknown doctor scope '${scope}'. Supported scopes: packages.`,
+          );
+        }
+
         const report = createDoctorReport(version);
 
         if (outputJson) {
@@ -228,4 +254,65 @@ function printDoctorReport(report: DoctorReport): void {
       console.log(`  hint: ${check.hint}`);
     }
   }
+}
+
+function printPackageDoctorReport(report: PackageDoctorReport): void {
+  console.log(`Package doctor: ${report.ok ? "OK" : "FAIL"}`);
+  console.log(`Project: ${report.projectRoot}`);
+  console.log(`Local packages: ${report.localPackageDir}`);
+  console.log(`Package cache: ${report.globalPackageDir}`);
+  console.log(
+    `Lockfile: ${report.lockfile.exists ? `${report.lockfile.packages} package(s)` : "missing"}`,
+  );
+  console.log(`Installed packages: ${report.installedPackages.length}`);
+  console.log(`Cached archives: ${report.cacheEntries.length}`);
+
+  if (report.dependencyTree.length > 0) {
+    console.log("");
+    console.log("Dependency tree:");
+    for (const line of formatDependencyTree(report.dependencyTree)) {
+      console.log(line);
+    }
+  }
+
+  if (report.issues.length > 0) {
+    console.log("");
+    console.log("Issues:");
+    for (const issue of report.issues) {
+      console.log(`${issue.severity.toUpperCase()} ${issue.message}`);
+      if (issue.path) {
+        console.log(`  path: ${issue.path}`);
+      }
+      if (issue.hint) {
+        console.log(`  hint: ${issue.hint}`);
+      }
+    }
+  }
+}
+
+function formatDependencyTree(nodes: PackageDependencyTreeNode[]): string[] {
+  const lines: string[] = [];
+
+  const visit = (node: PackageDependencyTreeNode, depth: number) => {
+    const indent = "  ".repeat(depth);
+    const version = node.version ? `@${node.version}` : "";
+    const missing = node.installed ? "" : " (missing)";
+    const locked = node.locked ? " [locked]" : "";
+    const source = node.source ? ` <- ${node.source}` : "";
+    lines.push(`${indent}${node.name}${version}${missing}${locked}${source}`);
+
+    for (const problem of node.problems) {
+      lines.push(`${indent}  ! ${problem}`);
+    }
+
+    for (const dependency of node.dependencies) {
+      visit(dependency, depth + 1);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node, 1);
+  }
+
+  return lines;
 }

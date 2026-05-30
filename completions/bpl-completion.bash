@@ -12,7 +12,7 @@ _bpl_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format run dev build check lint init pack install list uninstall completion clean new help docs bindgen doctor"
+    local commands="format run dev build check lint init pack install list uninstall package-cache completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
@@ -33,7 +33,11 @@ _bpl_completion() {
     local new_templates="app library"
 
     # Doctor command options
-    local doctor_opts="--json"
+    local doctor_opts="packages --json"
+
+    # Package cache subcommands and options
+    local package_cache_commands="list clean"
+    local package_cache_opts="list clean --json --package-version --dry-run"
 
     # Pack command options
     local pack_opts="-v --verbose"
@@ -143,6 +147,10 @@ _bpl_completion() {
             ;;
             doctor)
                 COMPREPLY=( $(compgen -W "${doctor_opts}" -- "${cur}") )
+                return 0
+            ;;
+            package-cache)
+                COMPREPLY=( $(compgen -W "${package_cache_opts}" -- "${cur}") )
                 return 0
             ;;
             pack)

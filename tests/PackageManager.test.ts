@@ -534,6 +534,35 @@ describe("PackageManager", () => {
       expect(verification.errors.join("\n")).toContain("hash mismatch");
     });
 
+    test("should verify lockfile sources remain reachable", () => {
+      const manifest = {
+        name: "source-lock-test",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export stable;");
+
+      const tarballPath = packageManager.pack(tempDir);
+      const installDir = path.join(tempDir, "source-lock-app");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager(installDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+      fs.unlinkSync(tarballPath);
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues.map((issue) => issue.kind)).toContain(
+        "unreachable-source",
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "source-lock-test: lock source is not reachable",
+      );
+    });
+
     test("should install the highest exact semver match from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "global-packages");
       const appDir = path.join(tempDir, "semver-app");
@@ -1045,6 +1074,152 @@ describe("PackageManager", () => {
       expect(() =>
         localPM.installProject({ global: false, verbose: false }),
       ).toThrow(/cycle-a -> cycle-b -> cycle-a/);
+    });
+
+    test("should reject dependency sources whose manifest name does not match", () => {
+      const appDir = path.join(tempDir, "mismatch-app");
+      const packageDir = path.join(tempDir, "actual-package");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(packageDir);
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "actual-package", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "mismatch-app",
+            version: "1.0.0",
+            dependencies: {
+              "expected-package": `file:${tarballPath}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false }),
+      ).toThrow(
+        /Package name mismatch: requested 'expected-package' but archive contains 'actual-package'/,
+      );
+    });
+
+    test("should list and clean package cache archives", () => {
+      const globalPackageDir = path.join(tempDir, "cache-clean-packages");
+      fs.mkdirSync(globalPackageDir);
+
+      createCachedPackage(
+        "cache-math",
+        "1.0.0",
+        "export oldVersion;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "cache-math",
+        "2.0.0",
+        "export newVersion;",
+        globalPackageDir,
+      );
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      let entries = localPM.listPackageCache("cache-math");
+      expect(entries.map((entry) => entry.version)).toEqual(["2.0.0", "1.0.0"]);
+
+      const dryRun = localPM.cleanPackageCache({
+        packageName: "cache-math",
+        version: "1.0.0",
+        dryRun: true,
+      });
+      expect(dryRun.removed.length).toBe(1);
+      expect(fs.existsSync(dryRun.removed[0]!.path)).toBe(true);
+
+      const clean = localPM.cleanPackageCache({
+        packageName: "cache-math",
+        version: "1.0.0",
+      });
+      expect(clean.removed.length).toBe(1);
+      expect(fs.existsSync(clean.removed[0]!.path)).toBe(false);
+
+      entries = localPM.listPackageCache("cache-math");
+      expect(entries.map((entry) => entry.version)).toEqual(["2.0.0"]);
+    });
+
+    test("should report package doctor issues for missing lockfiles and duplicate installed names", () => {
+      const appDir = path.join(tempDir, "doctor-app");
+      const firstDir = path.join(appDir, "bpl_modules", "doctor-one");
+      const secondDir = path.join(appDir, "bpl_modules", "doctor-two");
+      fs.mkdirSync(firstDir, { recursive: true });
+      fs.mkdirSync(secondDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-app",
+            version: "1.0.0",
+            dependencies: {
+              "doctor-dep": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      for (const packageDir of [firstDir, secondDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            { name: "doctor-shared", version: "1.0.0", main: "index.bpl" },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const report = new PackageManager(appDir).doctorPackages();
+      expect(report.ok).toBe(false);
+      expect(report.issues.map((issue) => issue.kind)).toEqual(
+        expect.arrayContaining([
+          "missing-lockfile",
+          "package-name-mismatch",
+          "duplicate-installed-package",
+        ]),
+      );
+    });
+
+    test("should report invalid package lockfiles without throwing", () => {
+      const appDir = path.join(tempDir, "doctor-invalid-lock-app");
+      fs.mkdirSync(appDir);
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-invalid-lock-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(path.join(appDir, "bpl.lock"), "{ invalid json");
+
+      const report = new PackageManager(appDir).doctorPackages();
+      expect(report.ok).toBe(false);
+      expect(report.lockfile.exists).toBe(true);
+      expect(report.lockfile.verified).toBe(false);
+      expect(report.issues.map((issue) => issue.kind)).toContain(
+        "invalid-lockfile",
+      );
     });
 
     test("should list installed packages", () => {

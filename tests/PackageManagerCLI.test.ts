@@ -476,6 +476,100 @@ describe("Package Manager CLI", () => {
     });
   });
 
+  describe("doctor packages command", () => {
+    test("should report package diagnostics as JSON", () => {
+      const appDir = path.join(tempDir, "doctor-cli-app");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-cli-app",
+            version: "1.0.0",
+            dependencies: {
+              "missing-package": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(report.ok).toBe(false);
+      expect(report.lockfile.exists).toBe(false);
+      expect(
+        report.issues.map((issue: { kind: string }) => issue.kind),
+      ).toContain("missing-lockfile");
+    });
+  });
+
+  describe("package-cache command", () => {
+    test("should list and clean cached package archives", () => {
+      const homeDir = path.join(tempDir, "cache-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(path.join(cacheDir, "cache-cli-1.0.0.tgz"), "one");
+      fs.writeFileSync(path.join(cacheDir, "cache-cli-2.0.0.tgz"), "two");
+
+      const env = {
+        ...process.env,
+        HOME: homeDir,
+      };
+
+      const listResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "list", "cache-cli", "--json"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(listResult.status).toBe(0);
+      const entries = JSON.parse(listResult.stdout);
+      expect(entries.map((entry: { version: string }) => entry.version)).toEqual([
+        "2.0.0",
+        "1.0.0",
+      ]);
+
+      const cleanResult = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "clean",
+          "cache-cli",
+          "--package-version",
+          "1.0.0",
+        ],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(cleanResult.status).toBe(0);
+      expect(cleanResult.stdout).toContain("Removed 1 cached archive");
+      expect(fs.existsSync(path.join(cacheDir, "cache-cli-1.0.0.tgz"))).toBe(
+        false,
+      );
+      expect(fs.existsSync(path.join(cacheDir, "cache-cli-2.0.0.tgz"))).toBe(
+        true,
+      );
+    });
+  });
+
   describe("uninstall command", () => {
     test("should uninstall installed package", () => {
       // Create and install a package

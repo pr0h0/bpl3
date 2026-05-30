@@ -117,6 +117,8 @@ Check the local BPL installation, runtime artifacts, and host toolchain.
 ```bash
 bpl doctor
 bpl doctor --json
+bpl doctor packages
+bpl doctor packages --json
 ```
 
 The JSON form is intended for bug reports and CI diagnostics. It reports
@@ -124,6 +126,10 @@ The JSON form is intended for bug reports and CI diagnostics. It reports
 available, and wasm readiness. Missing core runtime files are failures; a
 missing `wasm-ld`/LLVM lld is reported as a warning unless the current workflow
 explicitly requires wasm builds.
+
+`bpl doctor packages` checks the current package project: manifest validity,
+lockfile verification, missing transitive dependencies, unreachable lockfile
+sources, duplicate installed package names, and the dependency tree.
 
 ### `bpl clean`
 

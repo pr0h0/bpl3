@@ -61,7 +61,8 @@ export type PackageLockVerificationIssueKind =
   | "invalid-manifest"
   | "version-mismatch"
   | "hash-mismatch"
-  | "missing-transitive-dependency";
+  | "missing-transitive-dependency"
+  | "unreachable-source";
 
 export interface PackageLockVerificationIssue {
   packageName: string;
@@ -93,6 +94,48 @@ export interface PackageDependencyTreeNode {
   locked: boolean;
   dependencies: PackageDependencyTreeNode[];
   problems: string[];
+}
+
+export interface PackageCacheEntry {
+  name: string;
+  version: string;
+  file: string;
+  path: string;
+  sizeBytes: number;
+  modifiedAt: string;
+}
+
+export interface PackageCacheCleanResult {
+  removed: PackageCacheEntry[];
+  dryRun: boolean;
+}
+
+export type PackageDoctorIssueSeverity = "error" | "warning";
+
+export interface PackageDoctorIssue {
+  severity: PackageDoctorIssueSeverity;
+  kind: string;
+  message: string;
+  path?: string;
+  hint?: string;
+}
+
+export interface PackageDoctorReport {
+  ok: boolean;
+  projectRoot: string;
+  localPackageDir: string;
+  globalPackageDir: string;
+  manifest?: PackageManifest;
+  lockfile: {
+    path: string;
+    exists: boolean;
+    packages: number;
+    verified: boolean;
+  };
+  installedPackages: PackageInfo[];
+  cacheEntries: PackageCacheEntry[];
+  dependencyTree: PackageDependencyTreeNode[];
+  issues: PackageDoctorIssue[];
 }
 
 export class PackageManager {
@@ -310,6 +353,18 @@ export class PackageManager {
         });
       }
 
+      if (!this.lockSourceExists(packageName, entry.source)) {
+        addIssue({
+          packageName,
+          kind: "unreachable-source",
+          message: `${packageName}: lock source is not reachable (${entry.source})`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+        });
+      }
+
       for (const [dependencyName, requestedSource] of Object.entries(
         manifest.dependencies || {},
       )) {
@@ -397,6 +452,8 @@ export class PackageManager {
               global: false,
               locked: false,
             },
+            [],
+            packageName,
           );
         }
         return;
@@ -416,10 +473,15 @@ export class PackageManager {
 
     compilerLog.info(`Installing ${Object.keys(deps).length} dependencies...`);
     for (const [name, source] of Object.entries(deps)) {
-      this.install(this.resolveDependencySource(name, source), {
-        ...options,
-        global: false,
-      });
+      this.install(
+        this.resolveDependencySource(name, source),
+        {
+          ...options,
+          global: false,
+        },
+        [],
+        name,
+      );
     }
   }
 
@@ -442,7 +504,8 @@ export class PackageManager {
 
     if (
       issueKinds.has("hash-mismatch") ||
-      issueKinds.has("version-mismatch")
+      issueKinds.has("version-mismatch") ||
+      issueKinds.has("unreachable-source")
     ) {
       return `${restoreHelp} If the changed package is intentional, reinstall the intended source to update bpl.lock.`;
     }
@@ -469,6 +532,36 @@ export class PackageManager {
     }
 
     return packageName;
+  }
+
+  private lockSourceExists(packageName: string, source: string): boolean {
+    return this.getLockSourceCandidates(packageName, source).some((candidate) =>
+      fs.existsSync(candidate),
+    );
+  }
+
+  private getLockSourceCandidates(packageName: string, source: string): string[] {
+    const fileSource = source.startsWith("file:") ? source.slice(5) : source;
+    const candidates = new Set<string>();
+
+    if (path.isAbsolute(fileSource)) {
+      candidates.add(fileSource);
+    } else {
+      candidates.add(path.resolve(this.projectRoot, fileSource));
+      candidates.add(path.join(this.globalPackageDir, fileSource));
+    }
+
+    if (/^\d+\.\d+\.\d+$/.test(fileSource)) {
+      candidates.add(
+        path.join(this.globalPackageDir, `${packageName}-${fileSource}.tgz`),
+      );
+    }
+
+    if (fileSource.endsWith(".tgz")) {
+      candidates.add(path.join(this.globalPackageDir, path.basename(fileSource)));
+    }
+
+    return [...candidates];
   }
 
   private removeLocalLockEntry(packageName: string): void {
@@ -899,6 +992,7 @@ export class PackageManager {
     packageSource: string,
     options: PackageOptionsVerbose = { verbose: false, global: false },
     installStack: string[] = [],
+    expectedPackageName?: string,
   ): void {
     const targetDir = options.global
       ? this.globalPackageDir
@@ -970,6 +1064,22 @@ export class PackageManager {
       const packageDir = path.join(tempDir, "package");
       this.validateExtractedPackageTree(packageDir, tarballPath);
       const manifest = this.loadManifest(packageDir);
+      const effectiveExpectedName =
+        expectedPackageName ?? this.inferExpectedPackageName(packageSource);
+
+      if (effectiveExpectedName && manifest.name !== effectiveExpectedName) {
+        throw new CompilerError(
+          `Package name mismatch: requested '${effectiveExpectedName}' but archive contains '${manifest.name}'`,
+          "Install the archive under its manifest name, or fix the package manifest/source mapping.",
+          {
+            file: path.join(packageDir, "bpl.json"),
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
 
       const cycleStart = installStack.indexOf(manifest.name);
       if (cycleStart !== -1) {
@@ -1047,8 +1157,18 @@ export class PackageManager {
           locked: false,
         },
         installStack,
+        name,
       );
     }
+  }
+
+  private inferExpectedPackageName(packageSource: string): string | undefined {
+    if (fs.existsSync(packageSource)) return undefined;
+    const fileName = path.basename(packageSource);
+    const parsed = parsePackageTarballName(fileName);
+    if (parsed) return parsed.name;
+    if (/^[a-z0-9-]+$/.test(packageSource)) return packageSource;
+    return undefined;
   }
 
   private resolveGlobalPackageSource(packageSource: string): string | null {
@@ -1333,6 +1453,222 @@ export class PackageManager {
     return packages;
   }
 
+  listPackageCache(packageName?: string): PackageCacheEntry[] {
+    if (!fs.existsSync(this.globalPackageDir)) {
+      return [];
+    }
+
+    return fs
+      .readdirSync(this.globalPackageDir)
+      .map((file) => {
+        const parsed = parsePackageTarballName(file);
+        if (!parsed) return null;
+        if (packageName && parsed.name !== packageName) return null;
+
+        const filePath = path.join(this.globalPackageDir, file);
+        if (!fs.statSync(filePath).isFile()) return null;
+        const stat = fs.statSync(filePath);
+
+        return {
+          ...parsed,
+          file,
+          path: filePath,
+          sizeBytes: stat.size,
+          modifiedAt: stat.mtime.toISOString(),
+        };
+      })
+      .filter((entry): entry is PackageCacheEntry => entry !== null)
+      .sort((left, right) => {
+        const nameDelta = left.name.localeCompare(right.name);
+        if (nameDelta !== 0) return nameDelta;
+        return compareSemverDesc(
+          parseSemverTuple(left.version),
+          parseSemverTuple(right.version),
+        );
+      });
+  }
+
+  cleanPackageCache(options: {
+    packageName?: string;
+    version?: string;
+    dryRun?: boolean;
+  } = {}): PackageCacheCleanResult {
+    const removed = this.listPackageCache(options.packageName).filter((entry) =>
+      options.version ? entry.version === options.version : true,
+    );
+
+    if (!options.dryRun) {
+      for (const entry of removed) {
+        fs.unlinkSync(entry.path);
+      }
+    }
+
+    return {
+      removed,
+      dryRun: Boolean(options.dryRun),
+    };
+  }
+
+  doctorPackages(): PackageDoctorReport {
+    const issues: PackageDoctorIssue[] = [];
+    let manifest: PackageManifest | undefined;
+
+    try {
+      manifest = this.loadManifest(this.projectRoot);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      issues.push({
+        severity: "warning",
+        kind: "manifest",
+        message: `No valid project package manifest: ${detail}`,
+        path: path.join(this.projectRoot, "bpl.json"),
+        hint: "Run 'bpl init' when this directory should be a package project.",
+      });
+    }
+
+    const lockPath = this.getLockFilePath();
+    const lockExists = fs.existsSync(lockPath);
+    let lock: PackageLockFile | null = null;
+    let lockLoadError: string | null = null;
+
+    if (lockExists) {
+      try {
+        lock = this.loadLockFile();
+      } catch (error) {
+        lockLoadError = error instanceof Error ? error.message : String(error);
+        issues.push({
+          severity: "error",
+          kind: "invalid-lockfile",
+          message: `Invalid bpl.lock: ${lockLoadError}`,
+          path: lockPath,
+          hint: "Fix bpl.lock JSON syntax or regenerate it with 'bpl install'.",
+        });
+      }
+    }
+    const dependencyCount = manifest
+      ? Object.keys({
+          ...manifest.dependencies,
+          ...manifest.devDependencies,
+        }).length
+      : 0;
+
+    let lockVerified = !lockExists;
+    if (lockExists && !lockLoadError) {
+      const verification = this.verifyLockFile();
+      lockVerified = verification.ok;
+      for (const issue of verification.issues) {
+        issues.push({
+          severity: "error",
+          kind: issue.kind,
+          message: issue.message,
+          path: issue.packagePath,
+          hint: this.formatLockVerificationHelp(verification),
+        });
+      }
+    } else if (!lockExists && dependencyCount > 0) {
+      issues.push({
+        severity: "error",
+        kind: "missing-lockfile",
+        message: "Project has dependencies but no bpl.lock.",
+        path: lockPath,
+        hint: "Run 'bpl install' and commit bpl.lock for reproducible installs.",
+      });
+    }
+
+    const installedPackages = this.list({ global: false });
+    issues.push(...this.findInstalledPackageNameIssues());
+
+    let dependencyTree: PackageDependencyTreeNode[] = [];
+    try {
+      dependencyTree = this.getDependencyTree({ global: false });
+      for (const nodeIssue of collectDependencyTreeIssues(dependencyTree)) {
+        issues.push(nodeIssue);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      issues.push({
+        severity: "error",
+        kind: "dependency-tree",
+        message: `Unable to build dependency tree: ${detail}`,
+        path: this.projectRoot,
+        hint: "Fix bpl.json and bpl.lock, then rerun 'bpl doctor packages'.",
+      });
+    }
+
+    const cacheEntries = this.listPackageCache();
+    const errorCount = issues.filter((issue) => issue.severity === "error")
+      .length;
+
+    return {
+      ok: errorCount === 0,
+      projectRoot: this.projectRoot,
+      localPackageDir: this.localPackageDir,
+      globalPackageDir: this.globalPackageDir,
+      ...(manifest ? { manifest } : {}),
+      lockfile: {
+        path: lockPath,
+        exists: lockExists,
+        packages: lock ? Object.keys(lock.packages).length : 0,
+        verified: lockVerified,
+      },
+      installedPackages,
+      cacheEntries,
+      dependencyTree,
+      issues,
+    };
+  }
+
+  private findInstalledPackageNameIssues(): PackageDoctorIssue[] {
+    if (!fs.existsSync(this.localPackageDir)) return [];
+
+    const issues: PackageDoctorIssue[] = [];
+    const seen = new Map<string, string[]>();
+
+    for (const item of fs.readdirSync(this.localPackageDir)) {
+      const packagePath = path.join(this.localPackageDir, item);
+      if (!fs.statSync(packagePath).isDirectory()) continue;
+
+      try {
+        const manifest = this.loadManifest(packagePath);
+        if (manifest.name !== item) {
+          issues.push({
+            severity: "error",
+            kind: "package-name-mismatch",
+            message: `Installed directory '${item}' contains package '${manifest.name}'.`,
+            path: path.join(packagePath, "bpl.json"),
+            hint: "Reinstall the package so bpl_modules directory names match manifest names.",
+          });
+        }
+
+        const entries = seen.get(manifest.name) || [];
+        entries.push(packagePath);
+        seen.set(manifest.name, entries);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          severity: "error",
+          kind: "invalid-installed-package",
+          message: `${item}: invalid installed package (${detail})`,
+          path: packagePath,
+          hint: "Remove or reinstall the invalid package directory.",
+        });
+      }
+    }
+
+    for (const [packageName, paths] of seen.entries()) {
+      if (paths.length <= 1) continue;
+      issues.push({
+        severity: "error",
+        kind: "duplicate-installed-package",
+        message: `Multiple installed directories declare package '${packageName}'.`,
+        path: paths.join(", "),
+        hint: "Keep only one installed directory for each package name.",
+      });
+    }
+
+    return issues;
+  }
+
   getDependencyTree(
     options: PackageOptionsGlobal = { global: false },
   ): PackageDependencyTreeNode[] {
@@ -1514,6 +1850,23 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function parsePackageTarballName(
+  file: string,
+): { name: string; version: string } | null {
+  const match = /^(.+)-(\d+\.\d+\.\d+)\.tgz$/.exec(file);
+  if (!match) return null;
+  return {
+    name: match[1]!,
+    version: match[2]!,
+  };
+}
+
+function parseSemverTuple(version: string): [number, number, number] {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) return [0, 0, 0];
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
 function compareSemverDesc(
   left: [number, number, number],
   right: [number, number, number],
@@ -1524,4 +1877,32 @@ function compareSemverDesc(
   }
 
   return 0;
+}
+
+function collectDependencyTreeIssues(
+  nodes: PackageDependencyTreeNode[],
+): PackageDoctorIssue[] {
+  const issues: PackageDoctorIssue[] = [];
+
+  const visit = (node: PackageDependencyTreeNode) => {
+    for (const problem of node.problems) {
+      issues.push({
+        severity: "error",
+        kind: "dependency-tree",
+        message: `${node.name}: ${problem}`,
+        path: node.path,
+        hint: "Run 'bpl install' to restore dependencies or fix bpl.json.",
+      });
+    }
+
+    for (const dependency of node.dependencies) {
+      visit(dependency);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return issues;
 }

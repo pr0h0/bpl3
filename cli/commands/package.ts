@@ -12,6 +12,7 @@ import {
   PackageManager,
   Compiler,
   CompilerError,
+  type PackageCacheEntry,
   type PackageDependencyTreeNode,
 } from "../../compiler";
 import type {
@@ -226,6 +227,88 @@ export function registerPackageCommands(program: Command): void {
         process.exit(1);
       }
     });
+
+  const packageCache = program
+    .command("package-cache")
+    .description("List and clean cached package archives");
+
+  packageCache
+    .command("list [package]")
+    .description("List cached package archives")
+    .option("--json", "output machine-readable cache entries")
+    .action(
+      (
+        packageName: string | undefined,
+        options: { json?: boolean },
+        command: Command,
+      ) => {
+        try {
+          const pm = new PackageManager();
+          const entries = pm.listPackageCache(packageName);
+          const globalOpts = command.parent?.parent?.opts() || {};
+          const outputJson = options.json || globalOpts.json;
+
+          if (outputJson) {
+            console.log(JSON.stringify(entries, null, 2));
+            return;
+          }
+
+          if (entries.length === 0) {
+            log.info("No cached package archives found");
+            return;
+          }
+
+          log.info("Cached package archives:\n");
+          for (const entry of entries) {
+            log.info(`  ${formatPackageCacheEntry(entry)}`);
+          }
+        } catch (e) {
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        }
+      },
+    );
+
+  packageCache
+    .command("clean [package]")
+    .description("Remove cached package archives")
+    .option(
+      "--package-version <version>",
+      "only remove a specific package version",
+    )
+    .option("--dry-run", "show what would be removed without deleting files")
+    .action(
+      (
+        packageName: string | undefined,
+        options: { packageVersion?: string; dryRun?: boolean },
+      ) => {
+        try {
+          const pm = new PackageManager();
+          const result = pm.cleanPackageCache({
+            packageName,
+            version: options.packageVersion,
+            dryRun: options.dryRun,
+          });
+
+          if (result.removed.length === 0) {
+            log.info("No cached package archives matched");
+            return;
+          }
+
+          for (const entry of result.removed) {
+            log.info(
+              `${result.dryRun ? "Would remove" : "Removed"} ${formatPackageCacheEntry(entry)}`,
+            );
+          }
+          log.info(
+            `${result.dryRun ? "Would remove" : "Removed"} ${result.removed.length} cached archive(s)`,
+          );
+        } catch (e) {
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        }
+      },
+    );
 }
 
 function formatPackageCommandError(error: unknown): string {
@@ -261,4 +344,9 @@ function formatDependencyTree(nodes: PackageDependencyTreeNode[]): string[] {
   }
 
   return lines;
+}
+
+function formatPackageCacheEntry(entry: PackageCacheEntry): string {
+  const sizeKiB = (entry.sizeBytes / 1024).toFixed(2);
+  return `${entry.name}@${entry.version} (${sizeKiB} KiB) ${entry.path}`;
 }

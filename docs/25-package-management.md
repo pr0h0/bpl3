@@ -146,6 +146,8 @@ To inspect why packages are installed and which dependencies are missing, use:
 
 ```bash
 bpl list --tree
+bpl doctor packages
+bpl doctor packages --json
 ```
 
 Example output:
@@ -217,6 +219,25 @@ Dependency cycles are rejected with the full package chain:
 ```text
 Cyclic package dependency detected: app-a -> app-b -> app-a
 ```
+
+Dependency names are also checked during project installs. If `bpl.json` asks
+for `math-core` but the archive contains a manifest named `other-core`, install
+fails instead of writing a lockfile that can never satisfy imports.
+
+## Package Cache
+
+The package cache stores `.tgz` archives used by exact-version dependencies and
+restores from `bpl.lock`.
+
+```bash
+bpl package-cache list
+bpl package-cache list math-core --json
+bpl package-cache clean math-core --package-version 1.0.0 --dry-run
+bpl package-cache clean math-core --package-version 1.0.0
+```
+
+`package-cache clean` removes cached archives only. It does not remove installed
+packages from `bpl_modules/`; use `bpl uninstall <package>` for that.
 
 ## Best Practices
 

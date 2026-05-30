@@ -47,6 +47,10 @@ describe("Integration Tests", () => {
   const examples = getExampleDirectories();
   const testOnly: string[] = [""].filter(Boolean); // Specify example names to test only
 
+  it("includes package dependency example coverage in CI-safe integration tests", () => {
+    expect(examples).toContain("package_transitive_dependency/app");
+  });
+
   for (const example of examples) {
     const exampleDir = path.join(EXAMPLES_DIR, example);
     const relativeMainFile = path.relative(
