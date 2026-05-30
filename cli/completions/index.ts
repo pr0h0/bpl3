@@ -52,7 +52,7 @@ _bpl_completion() {
     local pack_opts="-v --verbose"
 
     # Install command options
-    local install_opts="-v --verbose"
+    local install_opts="-v --verbose --locked --update --repair-lock"
 
     # List command options
     local list_opts="-v --verbose"
@@ -352,6 +352,9 @@ _bpl() {
                     _arguments \\
                         '-v[Enable verbose output]' \\
                         '--verbose[Enable verbose output]' \\
+                        '--locked[Verify bpl.lock without changing installed packages]' \\
+                        '--update[Re-resolve bpl.json dependencies and rewrite bpl.lock]' \\
+                        '--repair-lock[Rewrite bpl.lock from currently installed packages]' \\
                         '1:package:_files'
                     ;;
                 list)

@@ -110,6 +110,12 @@ export interface PackageCacheCleanResult {
   dryRun: boolean;
 }
 
+export interface PackageLockRepairResult {
+  packages: number;
+  updated: string[];
+  removed: string[];
+}
+
 export type PackageDoctorIssueSeverity = "error" | "warning";
 
 export interface PackageDoctorIssue {
@@ -136,6 +142,15 @@ export interface PackageDoctorReport {
   cacheEntries: PackageCacheEntry[];
   dependencyTree: PackageDependencyTreeNode[];
   issues: PackageDoctorIssue[];
+}
+
+interface ResolvedDependencySource {
+  packageSource: string;
+  lockSource: string;
+}
+
+interface PackageInstallSourceContext {
+  lockSource?: string;
 }
 
 export class PackageManager {
@@ -411,6 +426,48 @@ export class PackageManager {
       );
     }
 
+    if (options.locked && options.update) {
+      throw new CompilerError(
+        "Cannot use --locked with --update",
+        "--locked verifies the existing lockfile; --update rewrites it.",
+        {
+          file: this.getLockFilePath(),
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (options.locked && options.repairLock) {
+      throw new CompilerError(
+        "Cannot use --locked with --repair-lock",
+        "--locked verifies the existing lockfile; --repair-lock rewrites it.",
+        {
+          file: this.getLockFilePath(),
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (options.update && options.repairLock) {
+      throw new CompilerError(
+        "Cannot use --update with --repair-lock",
+        "--update resolves bpl.json dependencies; --repair-lock records currently installed packages.",
+        {
+          file: this.getLockFilePath(),
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
     if (options.locked) {
       const verification = this.verifyLockFile();
       if (!verification.ok) {
@@ -433,8 +490,22 @@ export class PackageManager {
       return;
     }
 
+    if (options.repairLock) {
+      const result = this.repairLockFile();
+      compilerLog.info(
+        `✓ Repaired bpl.lock (${result.packages} package${result.packages === 1 ? "" : "s"})`,
+      );
+      if (result.updated.length > 0 && options.verbose) {
+        compilerLog.info(`Updated: ${result.updated.join(", ")}`);
+      }
+      if (result.removed.length > 0 && options.verbose) {
+        compilerLog.info(`Removed stale entries: ${result.removed.join(", ")}`);
+      }
+      return;
+    }
+
     const lockPath = this.getLockFilePath();
-    if (fs.existsSync(lockPath)) {
+    if (fs.existsSync(lockPath) && !options.update) {
       const lock = this.loadLockFile();
       const entries = Object.entries(lock.packages);
       if (entries.length > 0) {
@@ -445,8 +516,13 @@ export class PackageManager {
               `Restoring ${packageName}@${entry.version} from ${entry.source}`,
             );
           }
+          const resolved = this.resolveDependencySource(
+            packageName,
+            entry.source,
+            this.projectRoot,
+          );
           this.install(
-            this.resolveDependencySource(packageName, entry.source),
+            resolved.packageSource,
             {
               ...options,
               global: false,
@@ -454,6 +530,7 @@ export class PackageManager {
             },
             [],
             packageName,
+            { lockSource: resolved.lockSource },
           );
         }
         return;
@@ -466,6 +543,10 @@ export class PackageManager {
       ...manifest.devDependencies,
     };
 
+    if (options.update) {
+      this.saveLockFile({ lockfileVersion: 1, packages: {} });
+    }
+
     if (Object.keys(deps).length === 0) {
       compilerLog.info("No dependencies to install");
       return;
@@ -473,14 +554,20 @@ export class PackageManager {
 
     compilerLog.info(`Installing ${Object.keys(deps).length} dependencies...`);
     for (const [name, source] of Object.entries(deps)) {
+      const resolved = this.resolveDependencySource(
+        name,
+        source,
+        this.projectRoot,
+      );
       this.install(
-        this.resolveDependencySource(name, source),
+        resolved.packageSource,
         {
           ...options,
           global: false,
         },
         [],
         name,
+        { lockSource: resolved.lockSource },
       );
     }
   }
@@ -513,25 +600,47 @@ export class PackageManager {
     return restoreHelp;
   }
 
-  private resolveDependencySource(packageName: string, source: string): string {
+  private resolveDependencySource(
+    packageName: string,
+    source: string,
+    baseDir: string = this.projectRoot,
+  ): ResolvedDependencySource {
     const fileSource = source.startsWith("file:") ? source.slice(5) : source;
-    const projectRelativePath = path.resolve(this.projectRoot, fileSource);
+    const baseRelativePath = path.resolve(baseDir, fileSource);
 
     if (
       fileSource.endsWith(".tgz") ||
       fileSource.startsWith(".") ||
+      path.isAbsolute(fileSource) ||
       fileSource.includes(path.sep)
     ) {
-      return fs.existsSync(projectRelativePath)
-        ? projectRelativePath
+      const packageSource = fs.existsSync(baseRelativePath)
+        ? baseRelativePath
         : fileSource;
+      const lockSource = fs.existsSync(baseRelativePath)
+        ? this.formatFileLockSource(baseRelativePath)
+        : source;
+
+      return { packageSource, lockSource };
     }
 
-    if (/^\d+\.\d+\.\d+$/.test(fileSource)) {
-      return `${packageName}-${fileSource}.tgz`;
+    if (isVersionSelectorSpec(fileSource)) {
+      const packageSource = this.resolveGlobalPackageVersionSource(
+        packageName,
+        fileSource,
+      );
+      return {
+        packageSource,
+        lockSource: path.basename(packageSource),
+      };
     }
 
-    return packageName;
+    return { packageSource: packageName, lockSource: packageName };
+  }
+
+  private formatFileLockSource(filePath: string): string {
+    const relativePath = path.relative(this.projectRoot, filePath);
+    return `file:${relativePath || path.basename(filePath)}`;
   }
 
   private lockSourceExists(packageName: string, source: string): boolean {
@@ -993,13 +1102,14 @@ export class PackageManager {
     options: PackageOptionsVerbose = { verbose: false, global: false },
     installStack: string[] = [],
     expectedPackageName?: string,
+    sourceContext: PackageInstallSourceContext = {},
   ): void {
     const targetDir = options.global
       ? this.globalPackageDir
       : this.localPackageDir;
 
     let tarballPath: string;
-    let lockSource = packageSource;
+    let lockSource = sourceContext.lockSource ?? packageSource;
 
     // Check if source is a file path or package name
     if (fs.existsSync(packageSource)) {
@@ -1025,6 +1135,7 @@ export class PackageManager {
       tarballPath = globalTarballPath;
       lockSource = path.basename(globalTarballPath);
     }
+    const dependencyBaseDir = path.dirname(tarballPath);
 
     if (options.verbose) {
       compilerLog.info(`Installing from: ${tarballPath}`);
@@ -1126,10 +1237,12 @@ export class PackageManager {
         compilerLog.info(`Location: ${installPath}`);
       }
 
-      this.installPackageDependencies(manifest, options, [
-        ...installStack,
-        manifest.name,
-      ]);
+      this.installPackageDependencies(
+        manifest,
+        options,
+        [...installStack, manifest.name],
+        dependencyBaseDir,
+      );
     } finally {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -1140,6 +1253,7 @@ export class PackageManager {
     manifest: PackageManifest,
     options: PackageOptionsVerbose,
     installStack: string[],
+    dependencyBaseDir: string,
   ): void {
     const deps = manifest.dependencies || {};
     const entries = Object.entries(deps);
@@ -1150,20 +1264,28 @@ export class PackageManager {
     );
 
     for (const [name, source] of entries) {
+      const resolved = this.resolveDependencySource(
+        name,
+        source,
+        dependencyBaseDir,
+      );
       this.install(
-        this.resolveDependencySource(name, source),
+        resolved.packageSource,
         {
           ...options,
           locked: false,
         },
         installStack,
         name,
+        { lockSource: resolved.lockSource },
       );
     }
   }
 
   private inferExpectedPackageName(packageSource: string): string | undefined {
     if (fs.existsSync(packageSource)) return undefined;
+    const installSpec = parsePackageInstallSpec(packageSource);
+    if (installSpec) return installSpec.name;
     const fileName = path.basename(packageSource);
     const parsed = parsePackageTarballName(fileName);
     if (parsed) return parsed.name;
@@ -1177,9 +1299,42 @@ export class PackageManager {
       return exactTarballPath;
     }
 
+    const installSpec = parsePackageInstallSpec(packageSource);
+    if (installSpec) {
+      return this.resolveGlobalPackageVersionSource(
+        installSpec.name,
+        installSpec.versionSpec,
+      );
+    }
+
     const matching = this.findGlobalPackageTarballs(packageSource);
     if (matching.length === 0) {
       return null;
+    }
+
+    return path.join(this.globalPackageDir, matching[0]!.file);
+  }
+
+  private resolveGlobalPackageVersionSource(
+    packageName: string,
+    versionSpec: string,
+  ): string {
+    const matching = this.findGlobalPackageTarballs(packageName).filter((entry) =>
+      satisfiesVersionSelector(entry.versionText, versionSpec),
+    );
+
+    if (matching.length === 0) {
+      throw new CompilerError(
+        `Package not found: ${packageName}@${versionSpec}`,
+        `Add a cached archive matching ${packageName}@${versionSpec} with 'bpl install <archive> --global' or use 'bpl package-cache list ${packageName}' to inspect available versions.`,
+        {
+          file: this.globalPackageDir,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
     }
 
     return path.join(this.globalPackageDir, matching[0]!.file);
@@ -1317,6 +1472,7 @@ export class PackageManager {
   private findGlobalPackageTarballs(packageName: string): Array<{
     file: string;
     version: [number, number, number];
+    versionText: string;
   }> {
     const packagePattern = new RegExp(
       `^${escapeRegExp(packageName)}-(\\d+)\\.(\\d+)\\.(\\d+)\\.tgz$`,
@@ -1335,6 +1491,7 @@ export class PackageManager {
             number,
             number,
           ],
+          versionText: `${match[1]}.${match[2]}.${match[3]}`,
         };
       })
       .filter(
@@ -1343,6 +1500,7 @@ export class PackageManager {
         ): entry is {
           file: string;
           version: [number, number, number];
+          versionText: string;
         } => entry !== null,
       )
       .sort((left, right) => compareSemverDesc(left.version, right.version));
@@ -1506,6 +1664,51 @@ export class PackageManager {
     return {
       removed,
       dryRun: Boolean(options.dryRun),
+    };
+  }
+
+  repairLockFile(): PackageLockRepairResult {
+    const existingLock = this.loadLockFile();
+    const nextLock: PackageLockFile = { lockfileVersion: 1, packages: {} };
+    const updated: string[] = [];
+    const installedPackages = this.list({ global: false }).sort((left, right) =>
+      left.manifest.name.localeCompare(right.manifest.name),
+    );
+
+    for (const pkg of installedPackages) {
+      const existing = existingLock.packages[pkg.manifest.name];
+      const nextEntry = {
+        version: pkg.manifest.version,
+        source:
+          existing?.source ?? `${pkg.manifest.name}-${pkg.manifest.version}.tgz`,
+        hash: pkg.hash,
+      };
+
+      nextLock.packages[pkg.manifest.name] = nextEntry;
+
+      if (
+        !existing ||
+        existing.version !== nextEntry.version ||
+        existing.source !== nextEntry.source ||
+        existing.hash !== nextEntry.hash
+      ) {
+        updated.push(pkg.manifest.name);
+      }
+    }
+
+    const installedNames = new Set(
+      installedPackages.map((pkg) => pkg.manifest.name),
+    );
+    const removed = Object.keys(existingLock.packages)
+      .filter((packageName) => !installedNames.has(packageName))
+      .sort((left, right) => left.localeCompare(right));
+
+    this.saveLockFile(nextLock);
+
+    return {
+      packages: installedPackages.length,
+      updated,
+      removed,
     };
   }
 
@@ -1861,10 +2064,111 @@ function parsePackageTarballName(
   };
 }
 
+function parsePackageInstallSpec(
+  value: string,
+): { name: string; versionSpec: string } | null {
+  const match = /^([a-z0-9-]+)@(.+)$/.exec(value);
+  if (!match) return null;
+  return {
+    name: match[1]!,
+    versionSpec: match[2]!,
+  };
+}
+
 function parseSemverTuple(version: string): [number, number, number] {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   if (!match) return [0, 0, 0];
   return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function isVersionSelectorSpec(value: string): boolean {
+  if (value === "*" || value === "latest") return true;
+  if (/^\d+\.\d+\.\d+$/.test(value)) return true;
+  if (/^[~^]\d+\.\d+\.\d+$/.test(value)) return true;
+  if (/^(>=|>|<=|<|=)\d+\.\d+\.\d+$/.test(value)) return true;
+  return /^(>=|>|<=|<|=)?\d+\.\d+\.\d+(\s+(>=|>|<=|<|=)?\d+\.\d+\.\d+)+$/.test(
+    value,
+  );
+}
+
+function satisfiesVersionSelector(version: string, selector: string): boolean {
+  if (selector === "*" || selector === "latest") return true;
+  if (/^\d+\.\d+\.\d+$/.test(selector)) return version === selector;
+
+  const versionTuple = parseSemverTuple(version);
+
+  if (selector.startsWith("^")) {
+    const minimum = parseSemverTuple(selector.slice(1));
+    const maximum: [number, number, number] =
+      minimum[0] > 0
+        ? [minimum[0] + 1, 0, 0]
+        : minimum[1] > 0
+          ? [0, minimum[1] + 1, 0]
+          : [0, 0, minimum[2] + 1];
+    return (
+      compareSemverTuple(versionTuple, minimum) >= 0 &&
+      compareSemverTuple(versionTuple, maximum) < 0
+    );
+  }
+
+  if (selector.startsWith("~")) {
+    const minimum = parseSemverTuple(selector.slice(1));
+    const maximum: [number, number, number] = [
+      minimum[0],
+      minimum[1] + 1,
+      0,
+    ];
+    return (
+      compareSemverTuple(versionTuple, minimum) >= 0 &&
+      compareSemverTuple(versionTuple, maximum) < 0
+    );
+  }
+
+  return selector
+    .trim()
+    .split(/\s+/)
+    .every((comparator) =>
+      satisfiesVersionComparator(versionTuple, comparator),
+    );
+}
+
+function satisfiesVersionComparator(
+  version: [number, number, number],
+  comparator: string,
+): boolean {
+  const match = /^(>=|>|<=|<|=)?(\d+\.\d+\.\d+)$/.exec(comparator);
+  if (!match) return false;
+
+  const operator = match[1] || "=";
+  const target = parseSemverTuple(match[2]!);
+  const comparison = compareSemverTuple(version, target);
+
+  switch (operator) {
+    case ">":
+      return comparison > 0;
+    case ">=":
+      return comparison >= 0;
+    case "<":
+      return comparison < 0;
+    case "<=":
+      return comparison <= 0;
+    case "=":
+      return comparison === 0;
+    default:
+      return false;
+  }
+}
+
+function compareSemverTuple(
+  left: [number, number, number],
+  right: [number, number, number],
+): number {
+  for (let i = 0; i < 3; i++) {
+    const delta = left[i]! - right[i]!;
+    if (delta !== 0) return delta;
+  }
+
+  return 0;
 }
 
 function compareSemverDesc(

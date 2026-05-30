@@ -130,6 +130,9 @@ _bpl() {
                     _arguments \
                         '-v[Enable verbose output]' \
                         '--verbose[Enable verbose output]' \
+                        '--locked[Verify bpl.lock without changing installed packages]' \
+                        '--update[Re-resolve bpl.json dependencies and rewrite bpl.lock]' \
+                        '--repair-lock[Rewrite bpl.lock from currently installed packages]' \
                         '1:package:_files'
                     ;;
                 list)

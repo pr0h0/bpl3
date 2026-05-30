@@ -110,6 +110,23 @@ Templates:
 
 Use `--no-git` to skip git initialization.
 
+### `bpl install`
+
+Install project dependencies from `bpl.json` or restore the exact packages
+recorded in `bpl.lock`.
+
+```bash
+bpl install
+bpl install --locked
+bpl install --update
+bpl install --repair-lock
+```
+
+`--locked` verifies the lockfile without mutating `bpl_modules/`. `--update`
+re-resolves manifest dependency selectors such as `^1.2.0` against the package
+cache and rewrites `bpl.lock`. `--repair-lock` rewrites lockfile versions and
+hashes from currently installed packages and removes stale entries.
+
 ### `bpl doctor`
 
 Check the local BPL installation, runtime artifacts, and host toolchain.

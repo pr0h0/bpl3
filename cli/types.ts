@@ -66,6 +66,8 @@ export type PackageOptionsGlobal = { global: boolean; tree?: boolean };
 export type PackageOptionsVerbose = PackageOptionsGlobal & {
   verbose: boolean;
   locked?: boolean;
+  update?: boolean;
+  repairLock?: boolean;
 };
 export type PackageOptions =
   | PackageOptionsOutput

@@ -129,9 +129,28 @@ export function registerPackageCommands(program: Command): void {
     .option("-g, --global", "install package globally")
     .option("-v, --verbose", "verbose output")
     .option("--locked", "verify bpl.lock without changing installed packages")
+    .option("--update", "re-resolve bpl.json dependencies and rewrite bpl.lock")
+    .option(
+      "--repair-lock",
+      "rewrite bpl.lock from currently installed packages",
+    )
     .action((pkg: string | undefined, options: PackageOptionsVerbose) => {
       try {
         const pm = new PackageManager();
+
+        if (pkg && (options.update || options.repairLock)) {
+          throw new CompilerError(
+            "--update and --repair-lock are project install options",
+            "Run 'bpl install --update' or 'bpl install --repair-lock' without a package argument.",
+            {
+              file: process.cwd(),
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
 
         if (!pkg) {
           pm.installProject(options);

@@ -88,7 +88,7 @@ Project manifests can also declare dependencies directly:
   "version": "1.0.0",
   "dependencies": {
     "math-core": "file:../packages/math-core/math-core-1.0.0.tgz",
-    "math-extra": "1.0.0"
+    "math-extra": "^1.2.0"
   },
   "devDependencies": {
     "test-tools": "file:../tools/test-tools-1.0.0.tgz"
@@ -99,13 +99,15 @@ Project manifests can also declare dependencies directly:
 Supported dependency sources are:
 
 - `file:../path/to/pkg-1.0.0.tgz` or `../path/to/pkg-1.0.0.tgz` for local
-  archives.
+  archives. Root project paths are resolved from the project directory;
+  transitive package paths are resolved from the archive directory of the
+  package that declares them.
 - `1.2.3` for an exact version, resolved as `package-name-1.2.3.tgz` from the
   package cache.
+- `^1.2.3`, `~1.2.3`, `>=1.2.0 <2.0.0`, or `latest` for cache-backed range
+  resolution. BPL selects the highest cached package version satisfying the
+  selector and records that exact archive in `bpl.lock`.
 - `package-name` for the newest matching cached archive.
-
-Version ranges such as `^1.0.0` are not dependency syntax yet; use exact
-versions when you need reproducible installs.
 
 ```json
 {
@@ -141,6 +143,25 @@ bpl install --locked
 hash no longer matches the lockfile. It also checks installed package manifests
 for missing transitive dependencies, so deleting `bpl_modules/math-core` will be
 reported even when only `math-extra` imports it.
+
+To re-resolve `bpl.json` dependency selectors and rewrite `bpl.lock`, run:
+
+```bash
+bpl install --update
+```
+
+Use this when a cache-backed selector such as `^1.2.0` should pick up a newer
+matching cached archive. Without `--update`, `bpl install` restores the exact
+archives already recorded in `bpl.lock`.
+
+To repair the lockfile from packages already installed in `bpl_modules/`, run:
+
+```bash
+bpl install --repair-lock
+```
+
+This updates recorded versions and hashes for installed packages and removes
+lock entries for packages that are no longer installed.
 
 To inspect why packages are installed and which dependencies are missing, use:
 
@@ -223,6 +244,12 @@ Cyclic package dependency detected: app-a -> app-b -> app-a
 Dependency names are also checked during project installs. If `bpl.json` asks
 for `math-core` but the archive contains a manifest named `other-core`, install
 fails instead of writing a lockfile that can never satisfy imports.
+
+For transitive `file:` dependencies, the path belongs to the package that
+declares it. If `packages/math-extra/math-extra-1.0.0.tgz` declares
+`"math-core": "file:../math-core/math-core-1.0.0.tgz"`, BPL resolves that path
+relative to `packages/math-extra/`, not relative to the app installing
+`math-extra`.
 
 ## Package Cache
 

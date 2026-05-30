@@ -622,6 +622,64 @@ describe("PackageManager", () => {
       expect(lock.packages.math.source).toBe("math-1.10.0.tgz");
     });
 
+    test("should resolve package dependency semver ranges from the global package cache", () => {
+      const globalPackageDir = path.join(tempDir, "range-cache");
+      const appDir = path.join(tempDir, "range-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "range-math",
+        "1.2.0",
+        "export oldVersion;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "range-math",
+        "1.5.0",
+        "export selectedVersion;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "range-math",
+        "2.0.0",
+        "export wrongMajor;",
+        globalPackageDir,
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "range-app",
+            version: "1.0.0",
+            dependencies: {
+              "range-math": "^1.2.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "range-math", "bpl.json"),
+          "utf8",
+        ),
+      );
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+
+      expect(installedManifest.version).toBe("1.5.0");
+      expect(lock.packages["range-math"].source).toBe("range-math-1.5.0.tgz");
+    });
+
     test("should install versioned dependency tarballs from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "dependency-cache");
       const appDir = path.join(tempDir, "dependency-app");
@@ -739,6 +797,117 @@ describe("PackageManager", () => {
       expect(installedManifest.version).toBe("1.0.0");
       expect(installedSource).toContain("export v100;");
       expect(lock.packages["locked-math"].version).toBe("1.0.0");
+    });
+
+    test("should update package locks by re-resolving manifest dependency ranges", () => {
+      const globalPackageDir = path.join(tempDir, "update-cache");
+      const appDir = path.join(tempDir, "update-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "update-math",
+        "1.0.0",
+        "export firstVersion;",
+        globalPackageDir,
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "update-app",
+            version: "1.0.0",
+            dependencies: {
+              "update-math": "^1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      createCachedPackage(
+        "update-math",
+        "1.5.0",
+        "export secondVersion;",
+        globalPackageDir,
+      );
+      localPM.installProject({ global: false, verbose: false });
+      let installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "update-math", "bpl.json"),
+          "utf8",
+        ),
+      );
+      expect(installedManifest.version).toBe("1.0.0");
+
+      localPM.installProject({ global: false, verbose: false, update: true });
+      installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "update-math", "bpl.json"),
+          "utf8",
+        ),
+      );
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+
+      expect(installedManifest.version).toBe("1.5.0");
+      expect(lock.packages["update-math"].version).toBe("1.5.0");
+    });
+
+    test("should repair lockfiles from currently installed packages", () => {
+      const globalPackageDir = path.join(tempDir, "repair-cache");
+      const appDir = path.join(tempDir, "repair-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "repair-math",
+        "1.0.0",
+        "export original;",
+        globalPackageDir,
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "repair-app",
+            version: "1.0.0",
+            dependencies: {
+              "repair-math": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl_modules", "repair-math", "index.bpl"),
+        "export repaired;",
+      );
+      const lockPath = path.join(appDir, "bpl.lock");
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+      lock.packages.stale = {
+        version: "9.9.9",
+        source: "stale-9.9.9.tgz",
+        hash: "stale",
+      };
+      fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+
+      const result = localPM.repairLockFile();
+      expect(result.updated).toContain("repair-math");
+      expect(result.removed).toContain("stale");
+      expect(localPM.verifyLockFile().ok).toBe(true);
     });
 
     test("should install transitive package dependencies and keep lock restores local", () => {
@@ -913,6 +1082,80 @@ describe("PackageManager", () => {
       expect(
         modules.some((module) => module.path === path.join(globalShadowDir, "index.bpl")),
       ).toBe(false);
+    });
+
+    test("should resolve transitive file dependencies relative to the declaring package archive", () => {
+      const appDir = path.join(tempDir, "relative-app");
+      const packagesDir = path.join(tempDir, "relative-packages");
+      const depADir = path.join(packagesDir, "relative-a");
+      const depBDir = path.join(packagesDir, "relative-b");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(depADir, { recursive: true });
+      fs.mkdirSync(depBDir);
+
+      fs.writeFileSync(
+        path.join(depBDir, "bpl.json"),
+        JSON.stringify(
+          { name: "relative-b", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(depBDir, "index.bpl"), "export value;");
+      const depBTarball = new PackageManager(depBDir).pack(depBDir);
+
+      fs.writeFileSync(
+        path.join(depADir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "relative-a",
+            version: "1.0.0",
+            main: "index.bpl",
+            dependencies: {
+              "relative-b": `file:../relative-b/${path.basename(depBTarball)}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(depADir, "index.bpl"),
+        'import value from "relative-b";\nexport value;',
+      );
+      const depATarball = new PackageManager(depADir).pack(depADir);
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "relative-app",
+            version: "1.0.0",
+            dependencies: {
+              "relative-a": `file:../relative-packages/relative-a/${path.basename(depATarball)}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM.installProject({ global: false, verbose: false });
+
+      expect(
+        fs.existsSync(path.join(appDir, "bpl_modules", "relative-a", "bpl.json")),
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(appDir, "bpl_modules", "relative-b", "bpl.json")),
+      ).toBe(true);
+
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+      expect(lock.packages["relative-b"].source).toBe(
+        "file:../relative-packages/relative-b/relative-b-1.0.0.tgz",
+      );
     });
 
     test("should report missing transitive dependencies during locked verification", () => {

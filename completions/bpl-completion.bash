@@ -43,7 +43,7 @@ _bpl_completion() {
     local pack_opts="-v --verbose"
 
     # Install command options
-    local install_opts="-v --verbose"
+    local install_opts="-v --verbose --locked --update --repair-lock"
 
     # List command options
     local list_opts="-v --verbose"

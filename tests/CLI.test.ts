@@ -271,6 +271,8 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain("package-cache:List and clean cached package archives");
     expect(bash.stdout).toContain("packages --json");
     expect(zsh.stdout).toContain("1:scope:(packages)");
+    expect(bash.stdout).toContain("--repair-lock");
+    expect(zsh.stdout).toContain("--update[Re-resolve bpl.json dependencies");
     expect(bash.stdout).toContain("--cache-stats");
     expect(zsh.stdout).toContain("--cache-stats");
     expect(bash.stdout).toContain("--template");

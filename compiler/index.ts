@@ -1009,6 +1009,7 @@ export {
   type PackageDependencyTreeNode,
   type PackageDoctorIssue,
   type PackageDoctorReport,
+  type PackageLockRepairResult,
   type PackageLockVerificationIssue,
 } from "./middleend/PackageManager";
 export {

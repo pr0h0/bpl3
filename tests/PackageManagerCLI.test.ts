@@ -424,6 +424,61 @@ describe("Package Manager CLI", () => {
       );
       expect(lockedMissing.stderr).toContain("bpl list --tree");
     });
+
+    test("should repair lockfiles from installed packages", () => {
+      const appDir = path.join(tempDir, "cli-repair-app");
+      const packageDir = path.join(appDir, "bpl_modules", "cli-repair");
+      fs.mkdirSync(packageDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "cli-repair-app", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cli-repair", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export repaired;");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "cli-repair": {
+                version: "1.0.0",
+                source: "cli-repair-1.0.0.tgz",
+                hash: "wrong",
+              },
+              "cli-stale": {
+                version: "9.9.9",
+                source: "cli-stale-9.9.9.tgz",
+                hash: "stale",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync("bun", [bplPath, "install", "--repair-lock"], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Repaired bpl.lock");
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+      expect(lock.packages["cli-repair"].hash).not.toBe("wrong");
+      expect(lock.packages["cli-stale"]).toBeUndefined();
+    });
   });
 
   describe("list command", () => {
