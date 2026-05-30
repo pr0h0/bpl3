@@ -61,6 +61,25 @@ describe("PackageManager", () => {
   }
 
   describe("Package Initialization", () => {
+    test("should create package-safe default names when initializing", () => {
+      const projectDir = path.join(tempDir, "My Package_01!");
+      fs.mkdirSync(projectDir);
+
+      packageManager.init(projectDir);
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(projectDir, "bpl.json"), "utf-8"),
+      );
+      expect(manifest.name).toBe("my-package-01");
+    });
+
+    test("should reject invalid explicit init names", () => {
+      expect(() => packageManager.init(tempDir, "Bad_Name")).toThrow(
+        /Invalid package name: Bad_Name/,
+      );
+      expect(fs.existsSync(path.join(tempDir, "bpl.json"))).toBe(false);
+    });
+
     test("should create a valid bpl.json manifest", () => {
       const manifestPath = path.join(tempDir, "bpl.json");
 
@@ -2041,6 +2060,23 @@ describe("PackageManager", () => {
         fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
 
         expect(() => packageManager.loadManifest(tempDir)).not.toThrow();
+      });
+    });
+
+    test("should reject invalid package names", () => {
+      const invalidNames = ["Bad_Name", "../escape", "with/slash", "space name"];
+
+      invalidNames.forEach((name) => {
+        const manifest = {
+          name,
+          version: "1.0.0",
+        };
+
+        fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+
+        expect(() => packageManager.loadManifest(tempDir)).toThrow(
+          /Invalid package name/,
+        );
       });
     });
 

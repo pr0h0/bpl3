@@ -925,14 +925,7 @@ export class PackageManager {
         );
       }
 
-      // Validate name format
-      if (!/^[a-z0-9-]+$/.test(manifest.name)) {
-        throw new CompilerError(
-          `Invalid package name: ${manifest.name} (use lowercase and hyphens only)`,
-          "Use kebab-case for package names.",
-          location,
-        );
-      }
+      validatePackageName(manifest.name, location);
 
       // Validate dependencies, scripts, and bin
       this.validateManifestMetadataFields(manifest, location);
@@ -2863,22 +2856,28 @@ export class PackageManager {
    */
   init(dir: string, name?: string): void {
     const manifestPath = path.join(dir, "bpl.json");
+    const location: SourceLocation = {
+      file: manifestPath,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    };
+
     if (fs.existsSync(manifestPath)) {
       throw new CompilerError(
         `bpl.json already exists in ${dir}`,
         "Delete the existing bpl.json if you want to re-initialize.",
-        {
-          file: manifestPath,
-          startLine: 1,
-          startColumn: 1,
-          endLine: 1,
-          endColumn: 1,
-        },
+        location,
       );
     }
 
+    const packageName =
+      name !== undefined ? name : defaultPackageNameFromDirectory(dir);
+    validatePackageName(packageName, location);
+
     const manifest: PackageManifest = {
-      name: name || path.basename(dir),
+      name: packageName,
       version: "1.0.0",
       description: "A BPL project",
       main: "index.bpl",
@@ -2888,6 +2887,27 @@ export class PackageManager {
 
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
   }
+}
+
+function validatePackageName(name: string, location: SourceLocation): void {
+  if (!/^[a-z0-9-]+$/.test(name)) {
+    throw new CompilerError(
+      `Invalid package name: ${name} (use lowercase letters, numbers, and hyphens only)`,
+      "Use a package-safe name such as 'my-package'.",
+      location,
+    );
+  }
+}
+
+function defaultPackageNameFromDirectory(dir: string): string {
+  const normalized = path
+    .basename(dir)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return normalized || "bpl-project";
 }
 
 function escapeRegExp(value: string): string {

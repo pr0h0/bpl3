@@ -48,6 +48,35 @@ describe("Package Manager CLI", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("already exists");
     });
+
+    test("should reject invalid explicit package names", () => {
+      const result = spawnSync("bun", [bplPath, "init", "Bad_Name"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Invalid package name: Bad_Name");
+      expect(fs.existsSync(path.join(tempDir, "bpl.json"))).toBe(false);
+    });
+
+    test("should normalize the default package name from the directory", () => {
+      const projectDir = path.join(tempDir, "My Package_01!");
+      fs.mkdirSync(projectDir);
+
+      const result = spawnSync("bun", [bplPath, "init"], {
+        cwd: projectDir,
+        encoding: "utf-8",
+      });
+
+      expect(result.status).toBe(0);
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(projectDir, "bpl.json"), "utf-8"),
+      );
+      expect(manifest.name).toBe("my-package-01");
+    });
   });
 
   describe("pack command", () => {

@@ -47,6 +47,9 @@ bpl check src/index.bpl
 
 The template uses the project name as the package manifest name, so `bpl new`
 accepts package-safe names only: lowercase letters, numbers, and hyphens.
+`bpl init [name]` follows the same rule for explicit names. Without a name, it
+derives a package-safe default from the current directory by lowercasing it and
+replacing unsupported characters with hyphens.
 
 This creates:
 
