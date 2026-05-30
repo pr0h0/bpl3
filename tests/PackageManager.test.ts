@@ -351,6 +351,25 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package archive output paths that are symbolic links", () => {
+      const archivePath = path.join(
+        tempDir,
+        "archive-output-link-pkg-1.0.0.tgz",
+      );
+      const targetPath = path.join(tempDir, "outside-archive.tgz");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ name: "archive-output-link-pkg", version: "1.0.0" }),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.symlinkSync(targetPath, archivePath, "file");
+
+      expect(() => packageManager.pack(tempDir)).toThrow(
+        /Package archive path is a symbolic link/,
+      );
+      expect(fs.existsSync(targetPath)).toBe(false);
+    });
+
     test("should reject package provenance paths that are not files", () => {
       const outputDir = path.join(tempDir, "provenance-output");
       const provenancePath = path.join(

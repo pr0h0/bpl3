@@ -1678,6 +1678,19 @@ export class PackageManager {
     manifestPath: string,
   ): void {
     const existing = this.tryLstat(archivePath);
+    if (existing?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Package archive path is a symbolic link: ${archivePath}`,
+        "Remove the existing path or choose a different package version/output directory.",
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
     if (existing && !existing.isFile()) {
       throw new CompilerError(
         `Package archive path is not a file: ${archivePath}`,
