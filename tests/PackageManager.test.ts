@@ -1575,6 +1575,49 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject malformed package lockfile schema", () => {
+      const appDir = path.join(tempDir, "invalid-lock-schema-app");
+      fs.mkdirSync(appDir);
+      const lockPath = path.join(appDir, "bpl.lock");
+      const invalidLocks = [
+        {
+          lockfileVersion: 2,
+          packages: {},
+        },
+        {
+          lockfileVersion: 1,
+          packages: [],
+        },
+        {
+          lockfileVersion: 1,
+          packages: {
+            "Bad_Name": {
+              version: "1.0.0",
+              source: "bad-name-1.0.0.tgz",
+              hash: "abc",
+            },
+          },
+        },
+        {
+          lockfileVersion: 1,
+          packages: {
+            "missing-hash": {
+              version: "1.0.0",
+              source: "missing-hash-1.0.0.tgz",
+            },
+          },
+        },
+      ];
+
+      for (const lock of invalidLocks) {
+        fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+
+        expect(() => new PackageManager(appDir).loadLockFile()).toThrow(
+          /Invalid bpl\.lock/,
+        );
+      }
+    });
+
     test("should list installed packages", () => {
       // Create and install a package
       const manifest = {

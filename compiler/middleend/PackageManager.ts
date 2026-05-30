@@ -311,11 +311,125 @@ export class PackageManager {
       return { lockfileVersion: 1, packages: {} };
     }
 
-    const parsed = JSON.parse(fs.readFileSync(lockPath, "utf-8"));
+    const location: SourceLocation = {
+      file: lockPath,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    };
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(fs.readFileSync(lockPath, "utf-8"));
+    } catch (error) {
+      throw new CompilerError(
+        `Failed to load package lockfile: ${error instanceof Error ? error.message : String(error)}`,
+        "Check that bpl.lock is valid JSON or regenerate it with 'bpl install'.",
+        location,
+      );
+    }
+
+    this.validateLockFileShape(parsed, location);
+
     return {
       lockfileVersion: 1,
       packages: parsed.packages || {},
     };
+  }
+
+  private validateLockFileShape(
+    lock: unknown,
+    location: SourceLocation,
+  ): asserts lock is PackageLockFile {
+    if (!lock || typeof lock !== "object" || Array.isArray(lock)) {
+      throw new CompilerError(
+        "Invalid bpl.lock",
+        "bpl.lock must be a JSON object.",
+        location,
+      );
+    }
+
+    const rawLock = lock as {
+      lockfileVersion?: unknown;
+      packages?: unknown;
+    };
+
+    if (
+      rawLock.lockfileVersion !== undefined &&
+      rawLock.lockfileVersion !== 1
+    ) {
+      throw new CompilerError(
+        "Invalid bpl.lock",
+        "Only lockfileVersion 1 is supported.",
+        location,
+      );
+    }
+
+    if (
+      rawLock.packages !== undefined &&
+      (typeof rawLock.packages !== "object" ||
+        rawLock.packages === null ||
+        Array.isArray(rawLock.packages))
+    ) {
+      throw new CompilerError(
+        "Invalid bpl.lock",
+        "'packages' must be an object mapping package names to lock entries.",
+        location,
+      );
+    }
+
+    const packages = (rawLock.packages || {}) as Record<string, unknown>;
+    for (const [packageName, entry] of Object.entries(packages)) {
+      if (!/^[a-z0-9-]+$/.test(packageName)) {
+        throw new CompilerError(
+          `Invalid bpl.lock entry: ${packageName}`,
+          "Package lock entry names must use lowercase letters, digits, and hyphens only.",
+          location,
+        );
+      }
+
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        throw new CompilerError(
+          `Invalid bpl.lock entry for ${packageName}`,
+          "Each package lock entry must be an object.",
+          location,
+        );
+      }
+
+      const rawEntry = entry as {
+        version?: unknown;
+        source?: unknown;
+        hash?: unknown;
+      };
+
+      if (
+        typeof rawEntry.version !== "string" ||
+        !/^\d+\.\d+\.\d+$/.test(rawEntry.version)
+      ) {
+        throw new CompilerError(
+          `Invalid bpl.lock version for ${packageName}`,
+          "Lock entry versions must use X.Y.Z semantic version format.",
+          location,
+        );
+      }
+
+      if (typeof rawEntry.source !== "string" || rawEntry.source.length === 0) {
+        throw new CompilerError(
+          `Invalid bpl.lock source for ${packageName}`,
+          "Lock entry sources must be non-empty strings.",
+          location,
+        );
+      }
+
+      if (typeof rawEntry.hash !== "string" || rawEntry.hash.length === 0) {
+        throw new CompilerError(
+          `Invalid bpl.lock hash for ${packageName}`,
+          "Lock entry hashes must be non-empty strings.",
+          location,
+        );
+      }
+    }
   }
 
   private saveLockFile(lock: PackageLockFile): void {
