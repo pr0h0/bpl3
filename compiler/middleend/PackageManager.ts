@@ -1714,28 +1714,12 @@ export class PackageManager {
 
       // Create tarball
       const archiveTool = getPackageArchiveTool();
-      const result = spawnSync(
+      this.createPackageArchiveAtomically(
         archiveTool,
-        ["-czf", tarballPath, "-C", tempDir, "package"],
-        {
-          stdio: "pipe",
-        },
+        tarballPath,
+        tempDir,
+        manifestPath,
       );
-
-      if (result.status !== 0) {
-        const error = this.formatSpawnFailure(result, "Unknown error");
-        throw new CompilerError(
-          `Failed to create tarball: ${error}`,
-          `Check if '${archiveTool}' is available and you have write permissions.`,
-          {
-            file: manifestPath,
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
-        );
-      }
 
       compilerLog.info(`✓ Package created: ${tarballName}`);
       this.writeArchiveProvenance(tarballPath, packageRoot, manifest);
@@ -1750,6 +1734,78 @@ export class PackageManager {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  }
+
+  private createPackageArchiveAtomically(
+    archiveTool: string,
+    tarballPath: string,
+    tempDir: string,
+    manifestPath: string,
+  ): void {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempTarballPath = this.getAtomicWriteTempPath(tarballPath, attempt);
+      if (this.tryLstat(tempTarballPath)) {
+        continue;
+      }
+
+      try {
+        const result = spawnSync(
+          archiveTool,
+          ["-czf", tempTarballPath, "-C", tempDir, "package"],
+          {
+            stdio: "pipe",
+          },
+        );
+
+        if (result.status !== 0) {
+          const error = this.formatSpawnFailure(result, "Unknown error");
+          throw new CompilerError(
+            `Failed to create tarball: ${error}`,
+            `Check if '${archiveTool}' is available and you have write permissions.`,
+            {
+              file: manifestPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+
+        const tempArchiveStat = this.tryLstat(tempTarballPath);
+        if (!tempArchiveStat?.isFile()) {
+          throw new CompilerError(
+            `Package archive tool did not create a regular file: ${tempTarballPath}`,
+            `Check if '${archiveTool}' is a compatible tar implementation.`,
+            {
+              file: manifestPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+
+        this.ensurePackageArchiveOutputFile(tarballPath, manifestPath);
+        fs.renameSync(tempTarballPath, tarballPath);
+        return;
+      } finally {
+        this.removeBestEffort(tempTarballPath);
+      }
+    }
+
+    throw new CompilerError(
+      `Failed to create package archive temporary file: ${tarballPath}`,
+      "Remove stale temporary package archives from the output directory and retry.",
+      {
+        file: manifestPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private ensurePackageOutputDirectory(

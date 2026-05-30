@@ -317,6 +317,54 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should preserve existing package archives when tar fails after writing output", () => {
+      const manifest = {
+        name: "partial-tar-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const tarballPath = path.join(tempDir, "partial-tar-pkg-1.0.0.tgz");
+      const originalBplTar = process.env.BPL_TAR;
+      const fakeTar = writeNodeCommandShim(path.join(tempDir, "partial-tar"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.indexOf("-czf") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "partial archive\\n");',
+        'process.stderr.write("simulated archive failure\\n");',
+        "process.exit(1);",
+      ]);
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync(tarballPath, "existing archive\n");
+
+      process.env.BPL_TAR = fakeTar;
+      try {
+        expect(() => packageManager.pack(tempDir)).toThrow(
+          /Failed to create tarball: simulated archive failure/,
+        );
+        expect(fs.readFileSync(tarballPath, "utf-8")).toBe(
+          "existing archive\n",
+        );
+        expect(
+          fs
+            .readdirSync(tempDir)
+            .some(
+              (file) =>
+                file.startsWith(".partial-tar-pkg-1.0.0.tgz.") &&
+                file.endsWith(".tmp"),
+            ),
+        ).toBe(false);
+      } finally {
+        if (originalBplTar === undefined) {
+          delete process.env.BPL_TAR;
+        } else {
+          process.env.BPL_TAR = originalBplTar;
+        }
+      }
+    });
+
     test("should include all source files in package", () => {
       const manifest = {
         name: "multi-file-pkg",
