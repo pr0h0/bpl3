@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Command } from "commander";
 import { Logger } from "../../compiler/common/Logger";
+import { writeFileAtomically } from "../utils";
 
 const log = new Logger("New");
 
@@ -45,52 +46,51 @@ export function registerNewCommand(program: Command): void {
           }
 
           const projectPath = path.resolve(process.cwd(), name);
-
           assertProjectPathAvailable(projectPath);
 
-          // Create project directory
-          fs.mkdirSync(projectPath, { recursive: true });
-          if (options.verbose) {
-            log.info(`Created directory: ${projectPath}`);
-          }
+          let stagingPath: string | null = createProjectStagingDir(projectPath);
+          try {
+            if (options.verbose) {
+              log.info(`Created staging directory: ${stagingPath}`);
+            }
 
-          // Create bpl.json manifest
-          const manifest =
-            template === "library"
-              ? {
-                  name,
-                  version: "0.1.0",
-                  type: "library",
-                  description: `A BPL library named ${name}`,
-                  main: "src/index.bpl",
-                  dependencies: {},
-                  devDependencies: {},
-                }
-              : {
-                  name,
-                  version: "0.1.0",
-                  type: "app",
-                  description: `A BPL project named ${name}`,
-                  main: "main.bpl",
-                  dependencies: {},
-                  devDependencies: {},
-                };
+            // Create bpl.json manifest
+            const manifest =
+              template === "library"
+                ? {
+                    name,
+                    version: "0.1.0",
+                    type: "library",
+                    description: `A BPL library named ${name}`,
+                    main: "src/index.bpl",
+                    dependencies: {},
+                    devDependencies: {},
+                  }
+                : {
+                    name,
+                    version: "0.1.0",
+                    type: "app",
+                    description: `A BPL project named ${name}`,
+                    main: "main.bpl",
+                    dependencies: {},
+                    devDependencies: {},
+                  };
 
-          fs.writeFileSync(
-            path.join(projectPath, "bpl.json"),
-            JSON.stringify(manifest, null, 2) + "\n",
-          );
-          if (options.verbose) {
-            log.info("Created bpl.json");
-          }
+            writeFileAtomically(
+              path.join(stagingPath, "bpl.json"),
+              JSON.stringify(manifest, null, 2) + "\n",
+            );
+            if (options.verbose) {
+              log.info("Created bpl.json");
+            }
 
-          if (template === "library") {
-            fs.mkdirSync(path.join(projectPath, "src"), { recursive: true });
-            fs.mkdirSync(path.join(projectPath, "examples"), {
-              recursive: true,
-            });
+            if (template === "library") {
+              fs.mkdirSync(path.join(stagingPath, "src"), { recursive: true });
+              fs.mkdirSync(path.join(stagingPath, "examples"), {
+                recursive: true,
+              });
 
-            const libraryContent = `# ${name}
+              const libraryContent = `# ${name}
 # Public package entry point
 
 export add;
@@ -100,15 +100,15 @@ frame add(left: int, right: int) ret int {
 }
 `;
 
-            fs.writeFileSync(
-              path.join(projectPath, "src", "index.bpl"),
-              libraryContent,
-            );
-            if (options.verbose) {
-              log.info("Created src/index.bpl");
-            }
+              writeFileAtomically(
+                path.join(stagingPath, "src", "index.bpl"),
+                libraryContent,
+              );
+              if (options.verbose) {
+                log.info("Created src/index.bpl");
+              }
 
-            const usageContent = `# ${name} usage example
+              const usageContent = `# ${name} usage example
 
 import add from "../src/index.bpl";
 
@@ -121,16 +121,16 @@ frame main() ret int {
 }
 `;
 
-            fs.writeFileSync(
-              path.join(projectPath, "examples", "usage.bpl"),
-              usageContent,
-            );
-            if (options.verbose) {
-              log.info("Created examples/usage.bpl");
-            }
-          } else {
-            // Create main.bpl
-            const mainContent = `# ${name}
+              writeFileAtomically(
+                path.join(stagingPath, "examples", "usage.bpl"),
+                usageContent,
+              );
+              if (options.verbose) {
+                log.info("Created examples/usage.bpl");
+              }
+            } else {
+              // Create main.bpl
+              const mainContent = `# ${name}
 # Main entry point
 
 extern printf(fmt: string, ...);
@@ -141,22 +141,25 @@ frame main() ret int {
 }
 `;
 
-            fs.writeFileSync(path.join(projectPath, "main.bpl"), mainContent);
-            if (options.verbose) {
-              log.info("Created main.bpl");
+              writeFileAtomically(
+                path.join(stagingPath, "main.bpl"),
+                mainContent,
+              );
+              if (options.verbose) {
+                log.info("Created main.bpl");
+              }
+
+              // Create lib directory
+              fs.mkdirSync(path.join(stagingPath, "lib"), { recursive: true });
+              if (options.verbose) {
+                log.info("Created lib/");
+              }
             }
 
-            // Create lib directory
-            fs.mkdirSync(path.join(projectPath, "lib"), { recursive: true });
-            if (options.verbose) {
-              log.info("Created lib/");
-            }
-          }
-
-          // Create README.md
-          const readmeContent =
-            template === "library"
-              ? `# ${name}
+            // Create README.md
+            const readmeContent =
+              template === "library"
+                ? `# ${name}
 
 ${manifest.description}
 
@@ -183,7 +186,7 @@ bpl pack
 
 See the [BPL Language Documentation](https://github.com/pr0h0/bpl) for more information.
 `
-              : `# ${name}
+                : `# ${name}
 
 ${manifest.description}
 
@@ -214,13 +217,16 @@ bpl check main.bpl
 See the [BPL Language Documentation](https://github.com/pr0h0/bpl) for more information.
 `;
 
-          fs.writeFileSync(path.join(projectPath, "README.md"), readmeContent);
-          if (options.verbose) {
-            log.info("Created README.md");
-          }
+            writeFileAtomically(
+              path.join(stagingPath, "README.md"),
+              readmeContent,
+            );
+            if (options.verbose) {
+              log.info("Created README.md");
+            }
 
-          // Create .gitignore
-          const gitignoreContent = `# BPL build artifacts
+            // Create .gitignore
+            const gitignoreContent = `# BPL build artifacts
 *.ll
 *.o
 *.exe
@@ -242,12 +248,23 @@ bpl_modules/
 Thumbs.db
 `;
 
-          fs.writeFileSync(
-            path.join(projectPath, ".gitignore"),
-            gitignoreContent,
-          );
-          if (options.verbose) {
-            log.info("Created .gitignore");
+            writeFileAtomically(
+              path.join(stagingPath, ".gitignore"),
+              gitignoreContent,
+            );
+            if (options.verbose) {
+              log.info("Created .gitignore");
+            }
+
+            fs.renameSync(stagingPath, projectPath);
+            stagingPath = null;
+            if (options.verbose) {
+              log.info(`Created directory: ${projectPath}`);
+            }
+          } finally {
+            if (stagingPath) {
+              fs.rmSync(stagingPath, { recursive: true, force: true });
+            }
           }
 
           // Initialize git repository if not disabled
@@ -321,6 +338,12 @@ function assertProjectPathAvailable(projectPath: string): void {
   throw new Error(
     `Project path already exists and is not a directory: ${projectPath}`,
   );
+}
+
+function createProjectStagingDir(projectPath: string): string {
+  const projectParent = path.dirname(projectPath);
+  const projectName = path.basename(projectPath);
+  return fs.mkdtempSync(path.join(projectParent, `.${projectName}.staging-`));
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

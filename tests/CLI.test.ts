@@ -1217,6 +1217,11 @@ describe("CLI Tests", () => {
       );
       expect(readme).toContain("bpl pack");
       expect(readme).toContain("bpl check src/index.bpl");
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some((entry) => entry.startsWith(`.${projectName}.staging-`)),
+      ).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
