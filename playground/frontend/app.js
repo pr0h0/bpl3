@@ -546,6 +546,27 @@ function decodeBase64Bytes(base64) {
   return bytes;
 }
 
+const HOSTED_WASM_ENV_IMPORTS = Object.freeze([
+  "__bpl_host_write",
+  "__bpl_host_exit",
+  "__bpl_host_argc",
+  "__bpl_host_argv_len",
+  "__bpl_host_argv_copy",
+  "__bpl_host_error",
+]);
+
+function assertHostedWasmEnvImports(env) {
+  const missing = HOSTED_WASM_ENV_IMPORTS.filter(
+    (importName) => typeof env[importName] !== "function",
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Hosted wasm env import contract mismatch: missing ${missing.join(", ")}`,
+    );
+  }
+}
+
 async function runHostedWasmInBrowser(wasmBase64, argv) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -618,6 +639,7 @@ async function runHostedWasmInBrowser(wasmBase64, argv) {
       },
     },
   };
+  assertHostedWasmEnvImports(imports.env);
 
   const instantiated = await WebAssembly.instantiate(
     decodeBase64Bytes(wasmBase64),

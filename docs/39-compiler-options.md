@@ -562,15 +562,18 @@ WASI-style adapter, or test harness. Hosted wasm imports `env.__bpl_host_write`,
 `env.__bpl_host_exit`, `env.__bpl_host_argc`, `env.__bpl_host_argv_len`,
 `env.__bpl_host_argv_copy`, and `env.__bpl_host_error`. The host adapter routes
 basic `printf`/`dprintf`/`write`/`puts`/`putchar`, argv access, `exit`, and
-checked BPL runtime errors through those imports. Hosted `printf`, `fprintf`,
-and `dprintf` implement a small browser-safe formatting subset: `%s` for
-null-terminated strings, `%d` for signed 32-bit integers, `%c` for one byte, and
-`%%` for a literal percent sign. Unsupported format specifiers are emitted
-literally with their leading `%` so output remains predictable. Edge cases are
-also stable: null `%s` arguments print `(null)`; a dangling `%` prints as `%`;
-unsupported specifiers do not consume varargs. Use native targets or a
-richer host/runtime adapter for full libc formatting such as widths, floating
-point, or long integer modifiers. `wasm32-wasi` and
+checked BPL runtime errors through those imports. That import list is a tested
+contract across `lib/runtime_wasm_host.ll`, the browser playground adapter, and
+the wasm runtime test harness, so adding or removing hosted wasm imports should
+update all three surfaces together. Hosted `printf`, `fprintf`, and `dprintf`
+implement a small browser-safe formatting subset: `%s` for null-terminated
+strings, `%d` for signed 32-bit integers, `%c` for one byte, and `%%` for a
+literal percent sign. Unsupported format specifiers are emitted literally with
+their leading `%` so output remains predictable. Edge cases are also stable:
+null `%s` arguments print `(null)`; a dangling `%` prints as `%`;
+unsupported specifiers do not consume varargs. Use native targets or a richer
+host/runtime adapter for full libc formatting such as widths, floating point,
+or long integer modifiers. `wasm32-wasi` and
 Emscripten-flavored target triples select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
 provided.

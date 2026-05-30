@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   a native-compatible `examples/wasm_hosted_printf` regression and explicit
   coverage for null strings, integer extremes, dangling `%`, and unsupported
   specifiers.
+- **Hosted Wasm Import Contract** - Added regression coverage that keeps the
+  hosted wasm runtime declarations, browser playground adapter, and wasm runtime
+  test host aligned on the required `env.__bpl_host_*` imports.
 - **Agent Board Workflow Docs** - Documented the BPL Agent Board as the
   credential-free source of truth for active task tracking, criteria, review
   state, and verification evidence.
