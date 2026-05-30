@@ -371,23 +371,19 @@ export class PackageManager {
       );
       const targetPath = path.join(binDir, name);
 
-      // Remove existing link/file
       const existingTarget = this.tryLstat(targetPath);
-      if (existingTarget) {
-        if (existingTarget.isDirectory()) {
-          throw new CompilerError(
-            `Cannot link package binary '${name}'`,
-            `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
-            {
-              file: manifestPath,
-              startLine: 1,
-              startColumn: 1,
-              endLine: 1,
-              endColumn: 1,
-            },
-          );
-        }
-        fs.unlinkSync(targetPath);
+      if (existingTarget?.isDirectory()) {
+        throw new CompilerError(
+          `Cannot link package binary '${name}'`,
+          `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
+          {
+            file: manifestPath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
       }
 
       // Ensure source is executable
@@ -402,13 +398,78 @@ export class PackageManager {
 
       // Create symlink
       try {
-        fs.symlinkSync(sourcePath, targetPath);
+        this.linkPackageBinaryAtomically(
+          sourcePath,
+          targetPath,
+          name,
+          manifestPath,
+        );
       } catch (e) {
         compilerLog.warn(
           `Failed to link binary ${name}: ${(e as Error).message}`,
         );
       }
     }
+  }
+
+  private linkPackageBinaryAtomically(
+    sourcePath: string,
+    targetPath: string,
+    commandName: string,
+    manifestPath: string,
+  ): void {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempPath = this.getAtomicWriteTempPath(targetPath, attempt);
+      if (this.tryLstat(tempPath)) {
+        continue;
+      }
+
+      let createdTemp = false;
+      try {
+        fs.symlinkSync(sourcePath, tempPath);
+        createdTemp = true;
+
+        const existingTarget = this.tryLstat(targetPath);
+        if (existingTarget?.isDirectory()) {
+          throw new CompilerError(
+            `Cannot link package binary '${commandName}'`,
+            `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
+            {
+              file: manifestPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+
+        fs.renameSync(tempPath, targetPath);
+        return;
+      } catch (error) {
+        if (this.isNodeErrorCode(error, "EEXIST")) {
+          continue;
+        }
+        this.removeBestEffort(tempPath);
+        throw error;
+      } finally {
+        if (createdTemp) {
+          this.removeBestEffort(tempPath);
+        }
+      }
+    }
+
+    throw new CompilerError(
+      `Failed to create temporary binary link for '${commandName}'`,
+      "Remove stale temporary package binary links and retry.",
+      {
+        file: manifestPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private assertPackageBinaryTargetsWritable(

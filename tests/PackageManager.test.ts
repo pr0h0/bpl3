@@ -1014,6 +1014,86 @@ describe("PackageManager", () => {
       ).toBe("export old;");
     });
 
+    test("should preserve existing binary links when staged link creation fails", () => {
+      const installDir = path.join(tempDir, "bin-link-preserve-install");
+
+      const createPackage = (version: string, source: string): string => {
+        const packageDir = path.join(tempDir, `bin-link-preserve-${version}`);
+        fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "bin-link-preserve",
+              version,
+              main: "index.bpl",
+              bin: {
+                tool: "bin/tool.sh",
+              },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), source);
+        fs.writeFileSync(
+          path.join(packageDir, "bin", "tool.sh"),
+          "#!/usr/bin/env sh\necho tool\n",
+        );
+        return new PackageManager(packageDir).pack(packageDir);
+      };
+
+      const firstTarball = createPackage("1.0.0", "export old;");
+      const secondTarball = createPackage("2.0.0", "export new;");
+      const manager = new PackageManager(installDir);
+      manager.install(firstTarball, { global: false, verbose: false });
+
+      const binTarget = path.join(installDir, "bpl_modules", ".bin", "tool");
+      const originalLinkTarget = fs.readlinkSync(binTarget);
+      const fixedTimestamp = 246813579;
+      const fixedRandom = 0.5;
+      const randomText = fixedRandom.toString(16).slice(2);
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        fs.writeFileSync(
+          path.join(
+            path.dirname(binTarget),
+            `.${path.basename(binTarget)}.${process.pid}-${fixedTimestamp}-${randomText}-${attempt}.tmp`,
+          ),
+          "stale temp link placeholder",
+        );
+      }
+
+      const originalDateNow = Date.now;
+      const originalRandom = Math.random;
+      const originalWarn = console.warn;
+      const warnings: string[] = [];
+      Date.now = () => fixedTimestamp;
+      Math.random = () => fixedRandom;
+      console.warn = (...args: unknown[]) => {
+        warnings.push(args.join(" "));
+      };
+
+      try {
+        manager.install(secondTarball, { global: false, verbose: false });
+      } finally {
+        Date.now = originalDateNow;
+        Math.random = originalRandom;
+        console.warn = originalWarn;
+      }
+
+      expect(warnings.some((entry) => entry.includes("Failed to link binary tool"))).toBe(
+        true,
+      );
+      expect(fs.readlinkSync(binTarget)).toBe(originalLinkTarget);
+      expect(
+        fs.readFileSync(
+          path.join(installDir, "bpl_modules", "bin-link-preserve", "index.bpl"),
+          "utf-8",
+        ),
+      ).toBe("export new;");
+    });
+
     test("should reject package archives with missing bin entries", () => {
       const sourceDir = path.join(tempDir, "missing-bin-archive-source");
       const packageRoot = path.join(sourceDir, "package");
