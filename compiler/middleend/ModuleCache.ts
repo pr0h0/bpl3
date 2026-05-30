@@ -100,10 +100,21 @@ export class ModuleCache {
    * Ensure cache directory exists
    */
   private ensureCacheDir(): void {
-    if (
-      fs.existsSync(this.cacheDir) &&
-      !fs.statSync(this.cacheDir).isDirectory()
-    ) {
+    const cacheStat = this.tryLstat(this.cacheDir);
+    if (cacheStat?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Module cache path is a symbolic link: ${this.cacheDir}`,
+        "Remove the symlink or configure a project directory where .bpl-cache can be a real directory.",
+        {
+          file: this.cacheDir,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+    if (cacheStat && !cacheStat.isDirectory()) {
       throw new CompilerError(
         `Module cache path is not a directory: ${this.cacheDir}`,
         "Remove the file or configure a project directory where .bpl-cache can be a directory.",
@@ -117,7 +128,7 @@ export class ModuleCache {
       );
     }
 
-    if (!fs.existsSync(this.cacheDir)) {
+    if (!cacheStat) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
     }
   }
@@ -126,8 +137,22 @@ export class ModuleCache {
    * Load cache manifest
    */
   private loadManifest(): CacheManifest {
-    if (fs.existsSync(this.manifestPath)) {
-      if (!fs.statSync(this.manifestPath).isFile()) {
+    const manifestStat = this.tryLstat(this.manifestPath);
+    if (manifestStat) {
+      if (manifestStat.isSymbolicLink()) {
+        throw new CompilerError(
+          `Module cache manifest path is a symbolic link: ${this.manifestPath}`,
+          "Remove the symlink so the compiler can recreate the cache manifest.",
+          {
+            file: this.manifestPath,
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        );
+      }
+      if (!manifestStat.isFile()) {
         throw new CompilerError(
           `Module cache manifest path is not a file: ${this.manifestPath}`,
           "Remove the path so the compiler can recreate the cache manifest.",

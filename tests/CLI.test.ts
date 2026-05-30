@@ -1689,6 +1689,43 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject cached builds when .bpl-cache is a symbolic link", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-cache-link-"));
+    const outsideCacheDir = path.join(tempDir, "outside-cache");
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.mkdirSync(outsideCacheDir);
+    fs.symlinkSync(outsideCacheDir, path.join(tempDir, ".bpl-cache"), "dir");
+    fs.writeFileSync(
+      moduleFile,
+      ["export value;", "frame value() ret int {", "    return 7;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import value from "./math.bpl";',
+        "frame main() ret int {",
+        "    return value();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["build", mainFile, "--cache"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Module cache path is a symbolic link");
+      expect(result.stderr).toContain(path.join(tempDir, ".bpl-cache"));
+      expect(fs.existsSync(path.join(outsideCacheDir, "manifest.json"))).toBe(
+        false,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject cached builds when the cache manifest path is not a file", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-cache-manifest-dir-"),
@@ -1722,6 +1759,48 @@ describe("CLI Tests", () => {
         "Module cache manifest path is not a file",
       );
       expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject cached builds when the cache manifest path is a symbolic link", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cache-manifest-link-"),
+    );
+    const cacheDir = path.join(tempDir, ".bpl-cache");
+    const manifestFile = path.join(cacheDir, "manifest.json");
+    const targetManifest = path.join(tempDir, "outside-manifest.json");
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.mkdirSync(cacheDir);
+    fs.writeFileSync(targetManifest, '{"outside":true}');
+    fs.symlinkSync(targetManifest, manifestFile, "file");
+    fs.writeFileSync(
+      moduleFile,
+      ["export value;", "frame value() ret int {", "    return 7;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import value from "./math.bpl";',
+        "frame main() ret int {",
+        "    return value();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["build", mainFile, "--cache"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Module cache manifest path is a symbolic link",
+      );
+      expect(result.stderr).toContain(manifestFile);
+      expect(fs.readFileSync(targetManifest, "utf-8")).toBe('{"outside":true}');
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
