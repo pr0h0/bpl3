@@ -947,7 +947,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           // Add pointers and arrays from the current usage
           let suffix = "";
           for (let i = 0; i < type.pointerDepth; i++) suffix += "_ptr";
-          for (const d of type.arrayDimensions) suffix += `_arr_${d}_`;
+          suffix += this.mangleArraySuffix(type.arrayDimensions);
 
           return `${aliasedMangled}${suffix}`;
         }
@@ -1004,13 +1004,41 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       // Basic type pointers/arrays
       let suffix = "";
       for (let i = 0; i < type.pointerDepth; i++) suffix += "_ptr";
-      for (const d of type.arrayDimensions) suffix += `_arr_${d}_`;
+      suffix += this.mangleArraySuffix(type.arrayDimensions);
 
       return `${name}${suffix}`;
     } else if (type.kind === "FunctionType") {
-      return "fn"; // simplified mangling for fn types
+      return this.mangleCallableType("fn", type);
+    } else if (type.kind === "LambdaType") {
+      return this.mangleCallableType("lambda", type);
+    } else if (type.kind === "TupleType") {
+      const members = type.types.map((t) => this.mangleType(t)).join("_");
+      return `tuple_${members}${this.mangleArraySuffix(type.arrayDimensions)}`;
+    } else if (type.kind === "MetaType") {
+      return `meta_${this.mangleType(type.type)}`;
     }
-    return "unknown";
+
+    throw new CompilerError(
+      `Unsupported type kind during name mangling: ${(type as AST.TypeNode).kind}`,
+      "This is an internal compiler error.",
+      (type as AST.TypeNode).location,
+    );
+  }
+
+  private mangleCallableType(
+    prefix: string,
+    type: AST.FunctionTypeNode | AST.LambdaTypeNode,
+  ): string {
+    const params =
+      type.paramTypes.length === 0
+        ? "void"
+        : type.paramTypes.map((t) => this.mangleType(t)).join("_");
+    const variadic = type.isVariadic ? "_variadic" : "";
+    return `${prefix}_${params}_ret_${this.mangleType(type.returnType)}${variadic}${this.mangleArraySuffix(type.arrayDimensions)}`;
+  }
+
+  private mangleArraySuffix(dimensions: (number | null)[] = []): string {
+    return dimensions.map((d) => `_arr_${d}_`).join("");
   }
 
   protected checkInheritance(childName: string, parentName: string): boolean {

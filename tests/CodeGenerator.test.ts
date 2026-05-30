@@ -172,6 +172,28 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("mangles tuple parameter overloads by element types", () => {
+    const ir = compile(`
+      frame pick(p: (int, int)) ret int {
+        return p.0;
+      }
+
+      frame pick(p: (int, bool)) ret int {
+        return p.0;
+      }
+
+      frame main() ret int {
+        return pick((1, 2)) + pick((3, true));
+      }
+    `);
+
+    expect(ir).not.toContain("@pick_unknown");
+    expect(ir).toContain("define i32 @pick_tuple_i32_i32({ i32, i32 } %p)");
+    expect(ir).toContain("define i32 @pick_tuple_i32_i1({ i32, i1 } %p)");
+    expect(ir).toContain("call i32 @pick_tuple_i32_i32({ i32, i32 }");
+    expect(ir).toContain("call i32 @pick_tuple_i32_i1({ i32, i1 }");
+  });
+
   it("rejects unsupported memory intrinsic return types", () => {
     expect(() =>
       compile(`
