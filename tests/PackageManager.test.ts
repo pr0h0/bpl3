@@ -621,6 +621,15 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should reject package archive paths that are not files", () => {
+      const archivePath = path.join(tempDir, "archive-dir.tgz");
+      fs.mkdirSync(archivePath);
+
+      expect(() => packageManager.install(archivePath)).toThrow(
+        /Package archive path is not a file/,
+      );
+    });
+
     test("should write a lockfile for local installs", () => {
       const manifest = {
         name: "lock-test-pkg",

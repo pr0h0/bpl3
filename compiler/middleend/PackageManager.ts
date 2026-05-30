@@ -1613,6 +1613,7 @@ export class PackageManager {
       compilerLog.info(`Installing from: ${tarballPath}`);
     }
 
+    this.ensurePackageArchiveFile(tarballPath);
     this.verifyArchiveProvenanceBeforeInstall(tarballPath);
 
     // Extract to a unique temporary directory first.
@@ -1730,6 +1731,22 @@ export class PackageManager {
     } finally {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  private ensurePackageArchiveFile(archivePath: string): void {
+    if (!fs.statSync(archivePath).isFile()) {
+      throw new CompilerError(
+        `Package archive path is not a file: ${archivePath}`,
+        "Install a .tgz package archive or a package name from the cache.",
+        {
+          file: archivePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
     }
   }
 
