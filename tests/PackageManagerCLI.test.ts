@@ -656,6 +656,34 @@ describe("Package Manager CLI", () => {
         verification.issues.map((issue: { kind: string }) => issue.kind),
       ).toContain("missing-provenance");
 
+      const dryRunCleanJson = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "clean",
+          "cache-cli",
+          "--package-version",
+          "1.0.0",
+          "--dry-run",
+          "--json",
+        ],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(dryRunCleanJson.status).toBe(0);
+      const cleanReport = JSON.parse(dryRunCleanJson.stdout);
+      expect(cleanReport.dryRun).toBe(true);
+      expect(
+        cleanReport.removed.map((entry: { version: string }) => entry.version),
+      ).toEqual(["1.0.0"]);
+      expect(fs.existsSync(path.join(cacheDir, "cache-cli-1.0.0.tgz"))).toBe(
+        true,
+      );
+
       const cleanResult = spawnSync(
         "bun",
         [

@@ -356,7 +356,7 @@ _bpl() {
                 package-cache)
                     _arguments \\
                         '1:subcommand:(list verify repair clean)' \\
-                        '--json[Output machine-readable cache entries or verification reports]' \\
+                        '--json[Output machine-readable package cache reports]' \\
                         '--package-version[Only remove a specific package version]:version' \\
                         '--dry-run[Show what would be removed without deleting files]' \\
                         '2:package:'

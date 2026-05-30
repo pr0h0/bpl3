@@ -302,7 +302,7 @@ bpl package-cache verify math-core --json
 bpl package-cache repair math-core --dry-run
 bpl package-cache repair math-core --package-version 1.0.0
 bpl package-cache clean math-core --package-version 1.0.0 --dry-run
-bpl package-cache clean math-core --package-version 1.0.0
+bpl package-cache clean math-core --package-version 1.0.0 --json
 ```
 
 `package-cache verify` checks every matching cached archive. It verifies the
@@ -321,7 +321,8 @@ and repack those entries instead.
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a
 cached archive has a provenance sidecar, `package-cache clean` removes both
-files together.
+files together. Use `--json` to return the same removed archive list and dry-run
+state in machine-readable form.
 
 ## Package Scripts
 

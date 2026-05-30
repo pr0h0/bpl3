@@ -357,10 +357,12 @@ export function registerPackageCommands(program: Command): void {
       "only remove a specific package version",
     )
     .option("--dry-run", "show what would be removed without deleting files")
+    .option("--json", "output machine-readable clean result")
     .action(
       (
         packageName: string | undefined,
-        options: { packageVersion?: string; dryRun?: boolean },
+        options: { packageVersion?: string; dryRun?: boolean; json?: boolean },
+        command: Command,
       ) => {
         try {
           const pm = new PackageManager();
@@ -369,6 +371,13 @@ export function registerPackageCommands(program: Command): void {
             version: options.packageVersion,
             dryRun: options.dryRun,
           });
+          const globalOpts = command.parent?.parent?.opts() || {};
+          const outputJson = options.json || globalOpts.json;
+
+          if (outputJson) {
+            console.log(JSON.stringify(result, null, 2));
+            return;
+          }
 
           if (result.removed.length === 0) {
             log.info("No cached package archives matched");
