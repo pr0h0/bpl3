@@ -131,22 +131,27 @@ export function registerCleanCommand(program: Command): void {
               if (hasTrackedPathUnder(trackedPaths, gitRelativePath)) {
                 continue;
               }
+              const stats = fs.lstatSync(dir);
+              const isDirectory = stats.isDirectory();
+              const reportPath = isDirectory
+                ? `${relativePath}/`
+                : relativePath;
 
               entriesToDelete.push({
-                path: `${relativePath}/`,
-                type: "directory",
+                path: reportPath,
+                type: isDirectory ? "directory" : "file",
               });
 
               if (!outputJson && (options.verbose || options.dryRun)) {
                 log.info(
                   options.dryRun
-                    ? `Would delete: ${relativePath}/`
-                    : `Deleting: ${relativePath}/`,
+                    ? `Would delete: ${reportPath}`
+                    : `Deleting: ${reportPath}`,
                 );
               }
 
               if (!options.dryRun) {
-                fs.rmSync(dir, { recursive: true, force: true });
+                fs.rmSync(dir, { recursive: isDirectory, force: true });
               }
             }
           }

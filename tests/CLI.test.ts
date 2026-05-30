@@ -438,6 +438,55 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report reserved clean cache paths using their actual file kind", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-clean-kind-"));
+    const cacheFile = path.join(tempDir, ".bpl-cache");
+    const buildFile = path.join(tempDir, "build");
+    fs.writeFileSync(cacheFile, "not a directory");
+    fs.writeFileSync(buildFile, "not a directory");
+
+    try {
+      const dryRun = spawnSync(
+        "bun",
+        [BPL_CLI, "clean", "--dry-run", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(dryRun.status).toBe(0);
+      const dryRunReport = JSON.parse(dryRun.stdout);
+      expect(dryRunReport.entries).toContainEqual({
+        path: ".bpl-cache",
+        type: "file",
+      });
+      expect(dryRunReport.entries).toContainEqual({
+        path: "build",
+        type: "file",
+      });
+      expect(dryRunReport.entries).not.toContainEqual({
+        path: ".bpl-cache/",
+        type: "directory",
+      });
+      expect(fs.existsSync(cacheFile)).toBe(true);
+      expect(fs.existsSync(buildFile)).toBe(true);
+
+      const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(clean.status).toBe(0);
+      expect(fs.existsSync(cacheFile)).toBe(false);
+      expect(fs.existsSync(buildFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should not remove git-tracked files during clean", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-clean-tracked-"),
