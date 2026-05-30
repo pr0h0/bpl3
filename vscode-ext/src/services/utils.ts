@@ -19,9 +19,15 @@ export function isDebugLoggingEnabled(): boolean {
   return value === "1" || value === "true" || value === "yes" || value === "on";
 }
 
-export function debugLog(...messages: unknown[]): void {
+type DebugLogMessage = unknown | (() => unknown);
+
+export function debugLog(...messages: DebugLogMessage[]): void {
   if (isDebugLoggingEnabled()) {
-    console.error(...messages);
+    console.error(
+      ...messages.map((message) =>
+        typeof message === "function" ? message() : message,
+      ),
+    );
   }
 }
 

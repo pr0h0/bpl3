@@ -182,7 +182,8 @@ export class ASTResolver {
 
     if (result) {
       debugLog(
-        `[ASTResolver] Found node: kind=${result.kind}, location=${JSON.stringify(result.location)}`,
+        () =>
+          `[ASTResolver] Found node: kind=${result.kind}, location=${JSON.stringify(result.location)}`,
       );
     } else {
       debugLog(`[ASTResolver] No node found at position`);

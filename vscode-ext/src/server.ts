@@ -255,7 +255,7 @@ connection.onInitialize((params: InitializeParams) => {
   }
   debugLog(
     "[Server] Server capabilities initialized:",
-    JSON.stringify(result.capabilities, null, 2),
+    () => JSON.stringify(result.capabilities, null, 2),
   );
   return result;
 });

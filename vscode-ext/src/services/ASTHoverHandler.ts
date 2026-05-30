@@ -1025,7 +1025,7 @@ export class ASTHoverHandler {
    * Handle hover on parameter
    */
   private handleParameter(node: AST.Parameter): Hover {
-    debugLog(`[ASTHover] Parameter node:`, JSON.stringify(node, null, 2));
+    debugLog(`[ASTHover] Parameter node:`, () => JSON.stringify(node, null, 2));
 
     const paramType = this.typeNodeToString(node.type);
     debugLog(`[ASTHover] Parameter ${node.name} type: ${paramType}`);
