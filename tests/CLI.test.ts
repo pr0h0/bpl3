@@ -77,6 +77,36 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("llvm, ast, tokens, formatted");
   });
 
+  it("should reject invalid wasm runtime modes before writing output", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-invalid-wasm-runtime-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "main");
+    const llvmFile = `${outputFile}.ll`;
+
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
+
+    try {
+      const result = runCLI([
+        sourceFile,
+        "--target",
+        "wasm32-unknown-unknown",
+        "--wasm-runtime",
+        "banana",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Invalid wasm runtime mode "banana"');
+      expect(result.stderr).toContain("freestanding, host");
+      expect(fs.existsSync(llvmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should compile with --dwarf flag and generate debug metadata", () => {
     const dwarfFile = path.join(process.cwd(), "examples/dwarf_test/main.bpl");
     // We use --emit llvm to avoid running the binary, just check compilation

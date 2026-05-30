@@ -173,6 +173,10 @@ function normalizeCompileOptions(options: CompileOptions): void {
     options.emit = parseEmitType(String(options.emit));
   }
 
+  if (options.wasmRuntime !== undefined) {
+    options.wasmRuntime = parseWasmRuntime(String(options.wasmRuntime));
+  }
+
   if (options.jobs !== undefined) {
     options.jobs = parseJobs(options.jobs);
   }
@@ -201,6 +205,20 @@ function parseEmitType(value: string): CliEmitType {
     default:
       throw new Error(
         `Invalid emit type "${value}". Use one of: llvm, ast, tokens, formatted.`,
+      );
+  }
+}
+
+function parseWasmRuntime(
+  value: string,
+): NonNullable<CompileOptions["wasmRuntime"]> {
+  switch (value) {
+    case "freestanding":
+    case "host":
+      return value;
+    default:
+      throw new Error(
+        `Invalid wasm runtime mode "${value}". Use one of: freestanding, host.`,
       );
   }
 }
