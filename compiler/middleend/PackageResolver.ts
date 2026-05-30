@@ -241,14 +241,49 @@ function getPackageRootCandidates(
 
   const versioned = fs
     .readdirSync(baseDir, { withFileTypes: true })
+    .map((entry) => {
+      if (!entry.isDirectory()) return null;
+      const version = parseVersionedPackageDirectory(packageName, entry.name);
+      if (!version) return null;
+      return {
+        path: path.join(baseDir, entry.name),
+        version,
+      };
+    })
     .filter(
-      (entry) => entry.isDirectory() && entry.name.startsWith(`${packageName}-`),
+      (entry): entry is { path: string; version: [number, number, number] } =>
+        entry !== null,
     )
-    .map((entry) => path.join(baseDir, entry.name))
-    .sort()
-    .reverse();
+    .sort((left, right) => compareSemverDesc(left.version, right.version))
+    .map((entry) => entry.path);
 
   return [...candidates, ...versioned];
+}
+
+function parseVersionedPackageDirectory(
+  packageName: string,
+  directoryName: string,
+): [number, number, number] | null {
+  const prefix = `${packageName}-`;
+  if (!directoryName.startsWith(prefix)) return null;
+
+  const version = directoryName.slice(prefix.length);
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) return null;
+
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function compareSemverDesc(
+  left: [number, number, number],
+  right: [number, number, number],
+): number {
+  for (let index = 0; index < 3; index++) {
+    const delta = right[index]! - left[index]!;
+    if (delta !== 0) return delta;
+  }
+
+  return 0;
 }
 
 function readPackageManifest(manifestPath: string): Record<string, unknown> | null {
