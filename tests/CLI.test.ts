@@ -1166,6 +1166,7 @@ describe("CLI Tests", () => {
         "Point make_point(int x, double y);",
         "bpl_size measure(Point *point);",
         "bpl_cstr label(PointRef point, bpl_handle user);",
+        "void qsort(void *base, size_t count, size_t size, int (*compare)(const void *left, const void *right));",
       ].join("\n"),
     );
 
@@ -1215,6 +1216,7 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain(
         "extern label(point: PointRef, user: bpl_handle) ret bpl_cstr;",
       );
+      expect(result.stdout).not.toContain("qsort");
     } finally {
       if (fs.existsSync(tempHeader)) fs.unlinkSync(tempHeader);
     }

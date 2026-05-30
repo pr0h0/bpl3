@@ -135,10 +135,13 @@ function extractFunctionPrototypes(source: string): CPrototype[] {
       continue;
     }
 
+    const parameters = parseParameters(rawParams);
+    if (!parameters) continue;
+
     prototypes.push({
       name,
       returnType,
-      parameters: parseParameters(rawParams),
+      parameters,
     });
   }
 
@@ -380,12 +383,17 @@ function parseEnumVariants(body: string): string[] {
     .filter(Boolean);
 }
 
-function parseParameters(rawParams: string): CParameter[] {
+function parseParameters(rawParams: string): CParameter[] | null {
   if (rawParams === "" || rawParams === "void") {
     return [];
   }
 
-  return rawParams.split(",").map((rawParam, index) => {
+  const rawParameters = splitTopLevelParameters(rawParams);
+  if (rawParameters.some((rawParam) => /\(\s*\*/.test(rawParam))) {
+    return null;
+  }
+
+  return rawParameters.map((rawParam, index) => {
     const param = rawParam.trim();
     if (param === "...") {
       return { type: "", variadic: true };
@@ -393,6 +401,25 @@ function parseParameters(rawParams: string): CParameter[] {
 
     return parseNamedDeclaration(param, index, { arrayAsPointer: true });
   });
+}
+
+function splitTopLevelParameters(rawParams: string): string[] {
+  const params: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < rawParams.length; index++) {
+    const char = rawParams[index];
+    if (char === "(") depth++;
+    if (char === ")") depth = Math.max(0, depth - 1);
+    if (char === "," && depth === 0) {
+      params.push(rawParams.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  params.push(rawParams.slice(start));
+  return params;
 }
 
 function parseNamedDeclaration(
