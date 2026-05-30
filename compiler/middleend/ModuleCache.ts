@@ -235,7 +235,22 @@ export class ModuleCache {
       version: this.manifest.version,
       modules: Object.fromEntries(this.manifest.modules),
     };
-    fs.writeFileSync(this.manifestPath, JSON.stringify(data, null, 2));
+    this.assertWritableCacheManifestPath();
+
+    const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    const tempManifestPath = path.join(
+      this.cacheDir,
+      `manifest.${tempSuffix}.json.tmp`,
+    );
+
+    try {
+      fs.writeFileSync(tempManifestPath, JSON.stringify(data, null, 2));
+      fs.renameSync(tempManifestPath, this.manifestPath);
+    } finally {
+      this.removeCacheTempFile(tempManifestPath);
+    }
   }
 
   private getModuleHash(
@@ -623,6 +638,52 @@ export class ModuleCache {
         "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
         {
           file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+  }
+
+  private assertWritableCacheManifestPath(): void {
+    const existing = this.tryLstat(this.manifestPath);
+    if (existing?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Module cache manifest path is a symbolic link: ${this.manifestPath}`,
+        "Remove the symlink so the compiler can recreate the cache manifest.",
+        {
+          file: this.manifestPath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+    if (existing && !existing.isFile()) {
+      throw new CompilerError(
+        `Module cache manifest path is not a file: ${this.manifestPath}`,
+        "Remove the path so the compiler can recreate the cache manifest.",
+        {
+          file: this.manifestPath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
+    const outputDir = path.dirname(path.resolve(this.manifestPath));
+    const outputDirStat = this.tryLstat(outputDir);
+    if (!outputDirStat?.isDirectory()) {
+      throw new CompilerError(
+        `Module cache directory is not writable: ${outputDir}`,
+        "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
+        {
+          file: outputDir,
           startLine: 0,
           startColumn: 0,
           endLine: 0,

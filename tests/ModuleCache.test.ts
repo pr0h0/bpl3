@@ -4,8 +4,10 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
@@ -264,6 +266,34 @@ describe("ModuleCache", () => {
 
       expect(cache.getCachedObjectFile(modulePath)).toBeNull();
       expect(cache.getStats().cacheSize).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects symlinked cache manifests before saving", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-manifest-link-"));
+
+    try {
+      const cache = new ModuleCache(dir);
+      const cacheDir = join(dir, ".bpl-cache");
+      const manifestPath = join(cacheDir, "manifest.json");
+      const targetPath = join(dir, "outside-manifest.json");
+      writeFileSync(targetPath, "outside\n");
+      rmSync(manifestPath, { force: true });
+      symlinkSync(targetPath, manifestPath, "file");
+
+      expect(() =>
+        cache.compileModule(
+          "main.bpl",
+          "frame main() ret int { return 0; }",
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(/Module cache manifest path is a symbolic link/);
+      expect(readFileSync(targetPath, "utf8")).toBe("outside\n");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
