@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { compileToBinary } from "../cli/BinaryRunner";
+import { compileToBinary, runExecutable } from "../cli/BinaryRunner";
 
 describe("BinaryRunner", () => {
   const originalBplHome = process.env.BPL_HOME;
@@ -173,6 +173,22 @@ describe("BinaryRunner", () => {
       );
       expect(result.error).toContain(libPath);
       expect(result.error).not.toContain("missing-cc");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports executable spawn failures", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-missing-"));
+    const missingExecutable = path.join(tempDir, "missing-program");
+
+    try {
+      const result = runExecutable(missingExecutable);
+
+      expect(result.success).toBe(false);
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toContain("Executable not found");
+      expect(result.error).toContain(missingExecutable);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

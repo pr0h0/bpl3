@@ -89,6 +89,7 @@ export interface CompileResult {
 export interface RunResult {
   success: boolean;
   exitCode: number;
+  error?: string;
 }
 
 /**
@@ -191,6 +192,15 @@ export function runExecutable(
     stdio: "inherit",
   });
 
+  if (runResult.error) {
+    const error = formatRunSpawnError(runResult.error, execPath);
+    return {
+      success: false,
+      exitCode: 1,
+      error,
+    };
+  }
+
   const exitCode = runResult.status ?? 1;
 
   if (verbose) {
@@ -229,6 +239,9 @@ export function compileBinaryAndRun(
     );
 
     if (!runResult.success) {
+      if (runResult.error) {
+        log.error(runResult.error);
+      }
       process.exit(runResult.exitCode);
     }
   }
@@ -448,6 +461,21 @@ function assertReadableDirectoryInput(filePath: string, label: string): void {
   if (!fs.statSync(filePath).isDirectory()) {
     throw new Error(`${label} is not a directory: ${filePath}.`);
   }
+}
+
+function formatRunSpawnError(error: Error, execPath: string): string {
+  const code = "code" in error ? error.code : undefined;
+  if (code === "ENOENT") {
+    return `Executable not found: ${execPath}`;
+  }
+  if (code === "EACCES") {
+    return `Executable is not runnable: ${execPath} (permission denied)`;
+  }
+  if (code === "ENOEXEC") {
+    return `Executable format is not runnable on this host: ${execPath}`;
+  }
+
+  return `Failed to run executable ${execPath}: ${error.message}`;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
