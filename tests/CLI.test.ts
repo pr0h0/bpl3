@@ -125,6 +125,30 @@ describe("CLI Tests", () => {
     expect(noColor.stderr).not.toContain("\x1b[");
   });
 
+  it("should print phase timing output when requested", () => {
+    const result = spawnSync(
+      "bun",
+      [
+        BPL_CLI,
+        "--eval",
+        "frame main() ret int { return 0; }",
+        "--emit",
+        "ast",
+        "--time",
+        "--no-color",
+      ],
+      {
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Lexing:");
+    expect(result.stdout).toContain("Parsing:");
+    expect(result.stdout).toContain('"kind": "Program"');
+  });
+
   it("should label stdin diagnostics as stdin", () => {
     const result = spawnSync("bun", [BPL_CLI, "--stdin"], {
       input: ['frame main() {', '    local x: int = "bad";', "}"].join("\n"),

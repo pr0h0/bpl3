@@ -438,7 +438,9 @@ function compileWithModules(
     requireEntryPoint: true,
   });
 
+  const endCompilation = startPhaseTimer("Compilation", options);
   const result = compiler.compile(content);
+  endCompilation();
 
   if (!result.success) {
     if (result.errors) {
@@ -514,7 +516,9 @@ async function compileWithModulesAsync(
     requireEntryPoint: true,
   });
 
+  const endCompilation = startPhaseTimer("Compilation", options);
   const result = await compiler.compileAsync(content);
+  endCompilation();
 
   if (!result.success) {
     if (result.errors) {
@@ -572,7 +576,7 @@ function compileSingleFile(
   programArgs?: string[],
 ): void {
   // 1. Lexing
-  const endLexing = options.verbose ? log.time("Lexing") : () => {};
+  const endLexing = startPhaseTimer("Lexing", options);
   let tokens: any[] = [];
   try {
     tokens = lexWithGrammar(content, filePath);
@@ -587,7 +591,7 @@ function compileSingleFile(
   }
 
   // 2. Parsing
-  const endParsing = options.verbose ? log.time("Parsing") : () => {};
+  const endParsing = startPhaseTimer("Parsing", options);
   const parser = new Parser(content, filePath, tokens);
   const ast = parser.parse(true);
   endParsing();
@@ -611,7 +615,7 @@ function compileSingleFile(
   }
 
   // 3. Type Checking
-  const endTypeChecking = options.verbose ? log.time("TypeChecking") : () => {};
+  const endTypeChecking = startPhaseTimer("TypeChecking", options);
   const typeChecker = new TypeChecker({
     skipImportResolution: options.prelude === false,
   });
@@ -633,9 +637,7 @@ function compileSingleFile(
   }
 
   // 4. Code Generation
-  const endCodeGeneration = options.verbose
-    ? log.time("CodeGeneration")
-    : () => {};
+  const endCodeGeneration = startPhaseTimer("CodeGeneration", options);
   const hostDefaults = getHostDefaults();
   const generator = new CodeGenerator({
     target: options.target || hostDefaults.target,
@@ -665,6 +667,23 @@ function getCompilerDriverFlags(options: CompileOptions): string[] | undefined {
     flags.push(`-march=${options.march}`);
   }
   return flags.length > 0 ? flags : undefined;
+}
+
+function startPhaseTimer(
+  label: string,
+  options: CompileOptions,
+): () => void {
+  if (options.verbose) {
+    return log.time(label);
+  }
+  if (!options.time) {
+    return () => {};
+  }
+
+  const start = performance.now();
+  return () => {
+    log.info(`${label}: ${(performance.now() - start).toFixed(2)}ms`);
+  };
 }
 
 function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
