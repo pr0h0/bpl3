@@ -38,6 +38,15 @@ echo "Platform: $PLATFORM"
 echo "Compiler: $CC"
 echo "Runtime build: $BPL_RUNTIME_BUILD"
 
+TMP_BUILD_DIR="$(mktemp -d "${SCRIPT_DIR}/.runtime-build.XXXXXX")"
+TMP_OBJECT="$TMP_BUILD_DIR/runtime_support.o"
+TMP_STATIC="$TMP_BUILD_DIR/libbpl_runtime_support.a"
+
+cleanup() {
+    rm -rf "$TMP_BUILD_DIR"
+}
+trap cleanup EXIT
+
 # Check for clang-compatible C compiler
 if ! command -v "$CC" &> /dev/null; then
     echo "Error: compiler '$CC' not found. Please install LLVM/Clang or set CC."
@@ -62,12 +71,17 @@ echo "Compiling runtime_support.c -> runtime_support.o"
 "$CC" -c -fPIC "${OPT_FLAGS[@]}" \
 -Wall -Wextra \
 -Wno-unused-parameter \
-runtime_support.c -o runtime_support.o
+runtime_support.c -o "$TMP_OBJECT"
 
 # Create a static library
 if command -v ar &> /dev/null; then
     echo "Creating static library libbpl_runtime_support.a"
-    ar rcs libbpl_runtime_support.a runtime_support.o
+    ar rcs "$TMP_STATIC" "$TMP_OBJECT"
+fi
+
+mv -f "$TMP_OBJECT" runtime_support.o
+if [ -f "$TMP_STATIC" ]; then
+    mv -f "$TMP_STATIC" libbpl_runtime_support.a
 fi
 
 echo ""

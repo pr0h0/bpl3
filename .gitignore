@@ -68,6 +68,7 @@ benchmark/results.json
 benchmark/latest-results.json
 
 # Runtime build artifacts
+lib/.runtime-build.*/
 lib/*.o
 lib/*.a
 lib/*.so

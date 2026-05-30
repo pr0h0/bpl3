@@ -19,5 +19,10 @@ describe("Runtime build script", () => {
     expect(script).toContain("release)");
     expect(script).toContain("-O2");
     expect(script).toContain('"$CC" -c');
+    expect(script).toContain('mktemp -d "${SCRIPT_DIR}/.runtime-build.XXXXXX"');
+    expect(script).toContain("trap cleanup EXIT");
+    expect(script).toContain('-o "$TMP_OBJECT"');
+    expect(script).toContain('ar rcs "$TMP_STATIC" "$TMP_OBJECT"');
+    expect(script).toContain('mv -f "$TMP_OBJECT" runtime_support.o');
   });
 });
