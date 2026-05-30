@@ -185,6 +185,23 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject directories as compile inputs", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-dir-input-"));
+    const sourceDir = path.join(tempDir, "src");
+    fs.mkdirSync(sourceDir);
+
+    try {
+      const result = runCLI(["build", sourceDir]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Input path is not a file");
+      expect(result.stderr).toContain(sourceDir);
+      expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");

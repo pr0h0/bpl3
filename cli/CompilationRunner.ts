@@ -74,12 +74,7 @@ export function processFile(
   try {
     applyOptions(options);
 
-    if (!fs.existsSync(filePath)) {
-      log.error(`File not found: ${filePath}`);
-      process.exit(1);
-    }
-
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = readInputSourceFile(filePath);
     processCodeInternal(content, filePath, options, programArgs);
   } catch (e) {
     // If in watch mode, don't exit on error - just log it
@@ -109,12 +104,7 @@ export async function processFileAsync(
   try {
     applyOptions(options);
 
-    if (!fs.existsSync(filePath)) {
-      log.error(`File not found: ${filePath}`);
-      process.exit(1);
-    }
-
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = readInputSourceFile(filePath);
     await processCodeInternalAsync(content, filePath, options, programArgs);
   } catch (e) {
     if (options.watch) {
@@ -165,6 +155,20 @@ function handleCompilationError(e: unknown, options: CompileOptions): never {
     }
   }
   process.exit(1);
+}
+
+function readInputSourceFile(filePath: string): string {
+  if (!fs.existsSync(filePath)) {
+    log.error(`File not found: ${filePath}`);
+    process.exit(1);
+  }
+
+  if (!fs.statSync(filePath).isFile()) {
+    log.error(`Input path is not a file: ${filePath}`);
+    process.exit(1);
+  }
+
+  return fs.readFileSync(filePath, "utf-8");
 }
 
 function normalizeCompileOptions(options: CompileOptions): void {
