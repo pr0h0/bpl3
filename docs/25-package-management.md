@@ -331,9 +331,12 @@ bpl package-cache clean math-core --package-version 1.0.0 --json
 sidecar schema, the archive hash, the archive file name, the manifest identity,
 and the extracted package content hash. Missing sidecars are reported as
 `missing-provenance` so older caches remain visible instead of being silently
-trusted. `bpl doctor packages` includes the same cache verification result in
-its JSON report and prints provenance warnings for stale or damaged cache
-entries. In JSON output, package-cache doctor issues use
+trusted. The `--json` report uses `schemaVersion: 1`,
+`check: "package-cache-verify"`, `success`, the legacy `ok` boolean,
+`entriesChecked`, and structured provenance `issues`.
+`bpl doctor packages` includes the same cache verification result in its JSON
+report and prints provenance warnings for stale or damaged cache entries. In
+JSON output, package-cache doctor issues use
 `package-cache-<verification-kind>` issue kinds such as
 `package-cache-missing-provenance`, preserving the original cache entry path and
 repair hint for CI annotations.

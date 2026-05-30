@@ -873,10 +873,26 @@ describe("Package Manager CLI", () => {
       );
       expect(verifyResult.status).toBe(1);
       const verification = JSON.parse(verifyResult.stdout);
+      expect(verification.schemaVersion).toBe(1);
+      expect(verification.check).toBe("package-cache-verify");
+      expect(verification.success).toBe(false);
       expect(verification.ok).toBe(false);
-      expect(
-        verification.issues.map((issue: { kind: string }) => issue.kind),
-      ).toContain("missing-provenance");
+      expect(verification.entriesChecked).toBe(2);
+      const missingProvenanceIssue = verification.issues.find(
+        (issue: { packageName: string; version: string }) =>
+          issue.packageName === "cache-cli" && issue.version === "1.0.0",
+      );
+      expect(missingProvenanceIssue).toMatchObject({
+        packageName: "cache-cli",
+        version: "1.0.0",
+        kind: "missing-provenance",
+        message: expect.stringContaining("missing package provenance sidecar"),
+        path: path.join(cacheDir, "cache-cli-1.0.0.tgz"),
+        provenancePath: path.join(
+          cacheDir,
+          "cache-cli-1.0.0.tgz.bplmeta.json",
+        ),
+      });
 
       const dryRunCleanJson = spawnSync(
         "bun",
@@ -987,7 +1003,12 @@ describe("Package Manager CLI", () => {
       );
       expect(verifyResult.status).toBe(0);
       const verification = JSON.parse(verifyResult.stdout);
+      expect(verification.schemaVersion).toBe(1);
+      expect(verification.check).toBe("package-cache-verify");
+      expect(verification.success).toBe(true);
       expect(verification.ok).toBe(true);
+      expect(verification.entriesChecked).toBe(1);
+      expect(verification.issues).toEqual([]);
     });
 
     test("should reject invalid package-cache version filters", () => {

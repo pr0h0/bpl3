@@ -172,6 +172,9 @@ export interface PackageCacheVerificationIssue {
 }
 
 export interface PackageCacheVerificationReport {
+  schemaVersion: 1;
+  check: "package-cache-verify";
+  success: boolean;
   ok: boolean;
   entriesChecked: number;
   issues: PackageCacheVerificationIssue[];
@@ -3360,8 +3363,13 @@ export class PackageManager {
       }
     }
 
+    const ok = issues.length === 0;
+
     return {
-      ok: issues.length === 0,
+      schemaVersion: 1,
+      check: "package-cache-verify",
+      success: ok,
+      ok,
       entriesChecked: entries.length,
       issues,
     };
