@@ -38,9 +38,11 @@ export function registerPackageCommands(program: Command): void {
     .command("pack [dir]")
     .description("Create a distributable package from a BPL project")
     .option("-o, --output <dir>", "output directory for the package")
-    .action((dir: string | undefined, options: PackageOptionsOutput) => {
+    .action((dir: string | undefined, options: PackageOptionsOutput, command: Command) => {
       try {
+        const globalOpts = command.parent?.opts() || {};
         const packageDir = dir ? path.resolve(dir) : process.cwd();
+        const outputDir = options.output || globalOpts.output;
         const pm = new PackageManager();
 
         // Check if code compiles before packing
@@ -118,7 +120,7 @@ export function registerPackageCommands(program: Command): void {
           log.warn(`Warning: Package entry point '${mainFile}' not found.`);
         }
 
-        const tarball = pm.pack(packageDir, options.output);
+        const tarball = pm.pack(packageDir, outputDir);
         log.info(`Package ready: ${tarball}`);
       } catch (e) {
         log.error(formatPackageCommandError(e));

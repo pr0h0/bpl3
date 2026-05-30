@@ -111,6 +111,32 @@ describe("Package Manager CLI", () => {
       expect(fs.existsSync("cli-test-pkg-1.0.0.tgz")).toBe(true);
     });
 
+    test("should honor pack output directories", () => {
+      const manifest = {
+        name: "cli-output-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const outputDir = path.join(tempDir, "dist");
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      const result = spawnSync("bun", [bplPath, "pack", "-o", outputDir], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(0);
+      expect(
+        fs.existsSync(path.join(outputDir, "cli-output-pkg-1.0.0.tgz")),
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(tempDir, "cli-output-pkg-1.0.0.tgz")),
+      ).toBe(false);
+    });
+
     test("should fail without bpl.json", () => {
       const result = spawnSync("bun", [bplPath, "pack"], {
         cwd: tempDir,
