@@ -51,6 +51,12 @@ export function registerCleanCommand(program: Command): void {
           const outputJson = options.json || globalOpts.json;
           const entriesToDelete: CleanEntry[] = [];
           const trackedPaths = getGitTrackedPaths(cwd);
+          if (!trackedPaths) {
+            throw new Error(
+              "Could not determine git-tracked files; refusing to clean in a git repository.",
+            );
+          }
+          const trackedPathSet = trackedPaths;
           const cacheDirs = [
             path.join(cwd, ".bpl-cache"),
             path.join(cwd, "build"),
@@ -84,7 +90,7 @@ export function registerCleanCommand(program: Command): void {
                   entry.name === "bpl_modules" ||
                   isHiddenNonCacheEntry ||
                   (isTopLevelCacheDir &&
-                    !hasTrackedPathUnder(trackedPaths, gitRelativePath))
+                    !hasTrackedPathUnder(trackedPathSet, gitRelativePath))
                 ) {
                   continue;
                 }
@@ -98,7 +104,7 @@ export function registerCleanCommand(program: Command): void {
 
                   if (
                     isBuildArtifact(base, ext) &&
-                    !trackedPaths.has(gitRelativePath)
+                    !trackedPathSet.has(gitRelativePath)
                   ) {
                     entriesToDelete.push({ path: relativePath, type: "file" });
 
@@ -129,7 +135,7 @@ export function registerCleanCommand(program: Command): void {
             if (stats) {
               const relativePath = path.relative(cwd, dir);
               const gitRelativePath = normalizeGitRelativePath(relativePath);
-              if (hasTrackedPathUnder(trackedPaths, gitRelativePath)) {
+              if (hasTrackedPathUnder(trackedPathSet, gitRelativePath)) {
                 continue;
               }
               const isDirectory = stats.isDirectory();
@@ -227,13 +233,13 @@ function isBuildArtifact(base: string, ext: string): boolean {
   );
 }
 
-function getGitTrackedPaths(cwd: string): Set<string> {
+function getGitTrackedPaths(cwd: string): Set<string> | null {
   const result = spawnSync("git", ["-C", cwd, "ls-files", "-z", "--", "."], {
     encoding: "utf-8",
   });
 
   if (result.status !== 0 || result.error) {
-    return new Set();
+    return findGitRepositoryMarker(cwd) ? null : new Set();
   }
 
   return new Set(
@@ -242,6 +248,23 @@ function getGitTrackedPaths(cwd: string): Set<string> {
       .filter(Boolean)
       .map((trackedPath) => normalizeGitRelativePath(trackedPath)),
   );
+}
+
+function findGitRepositoryMarker(startDir: string): string | null {
+  let current = path.resolve(startDir);
+
+  while (true) {
+    const marker = path.join(current, ".git");
+    if (fs.existsSync(marker)) {
+      return marker;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
 }
 
 function normalizeGitRelativePath(relativePath: string): string {

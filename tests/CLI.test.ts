@@ -1022,6 +1022,42 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should refuse to clean git repositories when tracked files cannot be listed", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-clean-git-failure-"),
+    );
+    const fakeBin = path.join(tempDir, "bin");
+    const gitShim = path.join(fakeBin, "git");
+    const artifact = path.join(tempDir, "main.ll");
+
+    fs.mkdirSync(path.join(tempDir, ".git"));
+    fs.mkdirSync(fakeBin);
+    fs.writeFileSync(artifact, "; tracked-looking ir");
+    fs.writeFileSync(
+      gitShim,
+      "#!/bin/sh\necho 'fatal: simulated git failure' >&2\nexit 1\n",
+    );
+    fs.chmodSync(gitShim, 0o755);
+
+    try {
+      const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          NO_COLOR: "1",
+          PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}`,
+        },
+      });
+
+      expect(clean.status).toBe(1);
+      expect(clean.stderr).toContain("Could not determine git-tracked files");
+      expect(fs.existsSync(artifact)).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should quote forwarded run-script arguments", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     const outputFile = path.join(tempDir, "script-args.txt");
