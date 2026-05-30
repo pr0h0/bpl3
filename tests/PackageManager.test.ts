@@ -1869,6 +1869,16 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should reject package lockfile paths that are not files", () => {
+      const appDir = path.join(tempDir, "invalid-lock-path-app");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(path.join(appDir, "bpl.lock"));
+
+      expect(() => new PackageManager(appDir).loadLockFile()).toThrow(
+        /Invalid bpl\.lock path/,
+      );
+    });
+
     test("should list installed packages", () => {
       // Create and install a package
       const manifest = {

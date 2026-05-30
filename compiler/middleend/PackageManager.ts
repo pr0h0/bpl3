@@ -347,6 +347,14 @@ export class PackageManager {
       endColumn: 1,
     };
 
+    if (!fs.statSync(lockPath).isFile()) {
+      throw new CompilerError(
+        "Invalid bpl.lock path",
+        "bpl.lock must be a regular file.",
+        location,
+      );
+    }
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(fs.readFileSync(lockPath, "utf-8"));
@@ -461,7 +469,22 @@ export class PackageManager {
   }
 
   private saveLockFile(lock: PackageLockFile): void {
-    fs.writeFileSync(this.getLockFilePath(), JSON.stringify(lock, null, 2));
+    const lockPath = this.getLockFilePath();
+    if (fs.existsSync(lockPath) && !fs.statSync(lockPath).isFile()) {
+      throw new CompilerError(
+        "Invalid bpl.lock path",
+        "bpl.lock must be a regular file.",
+        {
+          file: lockPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
   }
 
   private recordLocalInstall(
