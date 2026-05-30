@@ -1,34 +1,23 @@
 import { describe, it, expect } from "bun:test";
 import { spawnSync } from "child_process";
-import fs from "fs";
 import path from "path";
+import { withTempBplSource } from "./helpers/tempBplSource";
 
 const BPL_CLI = path.resolve(__dirname, "../index.ts");
 
 function runBPL(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-  fs.writeFileSync(tempFile, sourceCode);
-
-  try {
+  return withTempBplSource(sourceCode, (tempFile) => {
     const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
       encoding: "utf-8",
       cwd: __dirname,
     });
+
     return {
       stdout: result.stdout,
       stderr: result.stderr,
       exitCode: result.status ?? 1,
     };
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    const binFile = tempFile.replace(".bpl", "");
-    if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
+  });
 }
 
 describe("Function Pointers", () => {

@@ -7,15 +7,10 @@
 
 import { spawnSync } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 const BPL_CLI = path.resolve(__dirname, "../../index.ts");
-const TEMP_DIR = path.join(__dirname, "../tmp");
-
-// Ensure temp directory exists
-if (!fs.existsSync(TEMP_DIR)) {
-  fs.mkdirSync(TEMP_DIR, { recursive: true });
-}
 
 /**
  * Options for compileAndRun
@@ -52,46 +47,18 @@ export interface CompileAndRunResult {
 /**
  * Generate a unique temp file path
  */
-function getTempFilePath(prefix = "test"): string {
+function createTempSourcePath(prefix = "test"): {
+  tempDir: string;
+  tempFile: string;
+} {
   const id = Math.random().toString(36).substring(2, 10);
   const timestamp = Date.now();
-  return path.join(TEMP_DIR, `${prefix}_${timestamp}_${id}.bpl`);
-}
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-test-run-"));
 
-/**
- * Clean up temp files
- */
-function cleanupTempFiles(basePath: string): void {
-  const extensions = ["", ".ll", ".o", ".s"];
-  for (const ext of extensions) {
-    const filePath = basePath.replace(".bpl", ext);
-    if (ext === "") {
-      // Binary file (no extension after removing .bpl)
-      const binPath = basePath.replace(".bpl", "");
-      if (fs.existsSync(binPath)) {
-        try {
-          fs.unlinkSync(binPath);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-  // Also try to remove .bpl file
-  if (fs.existsSync(basePath)) {
-    try {
-      fs.unlinkSync(basePath);
-    } catch {
-      /* ignore */
-    }
-  }
+  return {
+    tempDir,
+    tempFile: path.join(tempDir, `${prefix}_${timestamp}_${id}.bpl`),
+  };
 }
 
 /**
@@ -156,10 +123,11 @@ export function compileAndRunFull(
     keepFiles = false,
   } = options;
 
-  const tempFile = getTempFilePath();
-  fs.writeFileSync(tempFile, sourceCode);
+  const { tempDir, tempFile } = createTempSourcePath();
 
   try {
+    fs.writeFileSync(tempFile, sourceCode);
+
     const spawnOptions: Parameters<typeof spawnSync>[2] = {
       encoding: "utf-8" as const,
       cwd,
@@ -182,7 +150,7 @@ export function compileAndRunFull(
     };
   } finally {
     if (!keepFiles) {
-      cleanupTempFiles(tempFile);
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   }
 }
@@ -200,8 +168,14 @@ export function compileOnly(
 ): CompileAndRunResult & { binaryPath?: string } {
   const { args = [], env, cwd = __dirname, timeout = 30000 } = options;
 
-  const tempFile = getTempFilePath();
-  fs.writeFileSync(tempFile, sourceCode);
+  const { tempDir, tempFile } = createTempSourcePath();
+
+  try {
+    fs.writeFileSync(tempFile, sourceCode);
+  } catch (error) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    throw error;
+  }
 
   const spawnOptions: Parameters<typeof spawnSync>[2] = {
     encoding: "utf-8" as const,
