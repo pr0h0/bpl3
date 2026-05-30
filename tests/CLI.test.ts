@@ -151,6 +151,40 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should validate entry points before linking module builds", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-module-entry-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const libFile = path.join(tempDir, "lib.bpl");
+
+    fs.writeFileSync(
+      libFile,
+      ["export helper;", "frame helper() ret int { return 0; }"].join("\n"),
+    );
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import helper from "./lib.bpl";',
+        "frame notMain() ret int { return helper(); }",
+      ].join("\n"),
+    );
+
+    try {
+      const uncached = runCLI(["build", sourceFile, "--emit", "llvm"]);
+      expect(uncached.status).toBe(1);
+      expect(uncached.stderr).toContain("Missing entry point function 'main'");
+      expect(uncached.stderr).not.toContain("undefined reference to `main'");
+
+      const cached = runCLI(["build", sourceFile, "--cache"]);
+      expect(cached.status).toBe(1);
+      expect(cached.stderr).toContain("Missing entry point function 'main'");
+      expect(cached.stderr).not.toContain("undefined reference to `main'");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");

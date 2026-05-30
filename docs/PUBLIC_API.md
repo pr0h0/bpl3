@@ -38,6 +38,7 @@ interface CompilerOptions {
   clangFlags?: string[];
   dwarf?: boolean;
   collectAllErrors?: boolean;
+  requireEntryPoint?: boolean;
 }
 
 interface CompilationResult {

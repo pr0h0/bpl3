@@ -351,6 +351,7 @@ function compileWithModules(
     dwarf: options.dwarf,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
+    requireEntryPoint: true,
   });
 
   const result = compiler.compile(content);
@@ -447,6 +448,7 @@ async function compileWithModulesAsync(
     dwarf: options.dwarf,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
+    requireEntryPoint: true,
   });
 
   const result = await compiler.compileAsync(content);

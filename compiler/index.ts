@@ -78,6 +78,8 @@ export interface CompilerOptions {
   optimizationLevel?: number;
   /** Parallel module compilation jobs for cached builds */
   jobs?: number;
+  /** Require the compiled program to provide an executable main entry point */
+  requireEntryPoint?: boolean;
 }
 
 /**
@@ -335,12 +337,18 @@ export class Compiler {
         typeChecker.registerModule(module.path, module.ast);
       }
 
+      const entryModulePath = modules[modules.length - 1]?.path;
+
       for (const module of modules) {
         if (this.options.verbose) {
           compilerLog.debug(`Checking: ${path.basename(module.path)}`);
         }
         typeChecker.setCurrentModulePath(module.path);
-        typeChecker.checkProgram(module.ast, module.path);
+        typeChecker.checkProgram(module.ast, module.path, {
+          isEntryPoint:
+            Boolean(this.options.requireEntryPoint) &&
+            module.path === entryModulePath,
+        });
         module.checked = true;
 
         // Inject primitives into global scope if we just checked primitives.bpl
@@ -725,7 +733,11 @@ export class Compiler {
         compilerLog.debug(`Checking: ${path.basename(module.path)}`);
       }
       typeChecker.setCurrentModulePath(module.path);
-      typeChecker.checkProgram(module.ast, module.path);
+      typeChecker.checkProgram(module.ast, module.path, {
+        isEntryPoint:
+          Boolean(this.options.requireEntryPoint) &&
+          module.path === modules[modules.length - 1]?.path,
+      });
       module.checked = true;
 
       if (module.path.endsWith("primitives.bpl")) {
