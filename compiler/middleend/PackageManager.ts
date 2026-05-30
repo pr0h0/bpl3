@@ -598,7 +598,27 @@ export class PackageManager {
       );
     }
 
-    fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+    this.writeFileAtomically(lockPath, JSON.stringify(lock, null, 2));
+  }
+
+  private writeFileAtomically(filePath: string, content: string): void {
+    const tempPath = path.join(
+      path.dirname(filePath),
+      `.${path.basename(filePath)}.${process.pid}-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}.tmp`,
+    );
+
+    try {
+      fs.writeFileSync(tempPath, content);
+      fs.renameSync(tempPath, filePath);
+    } finally {
+      try {
+        fs.rmSync(tempPath, { force: true });
+      } catch {
+        // Best-effort cleanup only.
+      }
+    }
   }
 
   private recordLocalInstall(
@@ -2165,10 +2185,7 @@ export class PackageManager {
       );
     }
 
-    fs.writeFileSync(
-      provenancePath,
-      JSON.stringify(provenance, null, 2),
-    );
+    this.writeFileAtomically(provenancePath, JSON.stringify(provenance, null, 2));
 
     return provenance;
   }
@@ -3371,7 +3388,7 @@ export class PackageManager {
       devDependencies: {},
     };
 
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    this.writeFileAtomically(manifestPath, JSON.stringify(manifest, null, 2));
   }
 }
 

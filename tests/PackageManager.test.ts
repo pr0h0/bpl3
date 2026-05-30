@@ -1051,6 +1051,13 @@ describe("PackageManager", () => {
         source: tarballPath,
       });
       expect(lock.packages["lock-test-pkg"].hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(
+        fs
+          .readdirSync(installDir)
+          .some(
+            (file) => file.startsWith(".bpl.lock.") && file.endsWith(".tmp"),
+          ),
+      ).toBe(false);
     });
 
     test("should restore local packages from bpl.lock", () => {
@@ -2526,6 +2533,15 @@ describe("PackageManager", () => {
 
       expect(() => new PackageManager(symlinkAppDir).loadLockFile()).toThrow(
         /symbolic link/,
+      );
+      expect(() =>
+        new PackageManager(symlinkAppDir)["saveLockFile"]({
+          lockfileVersion: 1,
+          packages: {},
+        }),
+      ).toThrow(/symbolic link/);
+      expect(fs.readFileSync(targetLock, "utf8")).toContain(
+        '"lockfileVersion":1',
       );
     });
 
