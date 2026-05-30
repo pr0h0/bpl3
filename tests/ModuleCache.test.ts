@@ -235,6 +235,34 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects symlinked object cache paths before invoking the compiler", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-object-link-"));
+
+    try {
+      const modulePath = join(dir, "main.bpl");
+      const content = "frame main() ret int { return 0; }";
+      const cache = new ModuleCache(dir);
+      const hash = getModuleHashForTest(content, undefined, 0);
+      const targetObject = join(dir, "outside.o");
+      writeFileSync(targetObject, "outside\n");
+      symlinkSync(targetObject, join(dir, ".bpl-cache", `${hash}.o`), "file");
+
+      expect(() =>
+        cache.compileModule(
+          modulePath,
+          content,
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(/Module cache object path is a symbolic link/);
+      expect(readFileSync(targetObject, "utf8")).toBe("outside\n");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("ignores non-file cached object paths in lookups and stats", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-stats-dir-"));
 

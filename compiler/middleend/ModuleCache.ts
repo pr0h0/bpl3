@@ -617,6 +617,20 @@ export class ModuleCache {
     label: string,
   ): void {
     const existing = this.tryLstat(filePath);
+    if (existing?.isSymbolicLink()) {
+      throw new CompilerError(
+        `${label} is a symbolic link: ${filePath}`,
+        "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
     if (existing && !existing.isFile()) {
       throw new CompilerError(
         `${label} is not a file: ${filePath}`,
