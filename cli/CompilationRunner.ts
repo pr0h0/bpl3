@@ -431,9 +431,7 @@ function compileWithModules(
     libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
     target: options.target,
     sysroot: options.sysroot,
-    clangFlags: options.clangFlag
-      ? normalizeArray(options.clangFlag)
-      : undefined,
+    clangFlags: getCompilerDriverFlags(options),
     dwarf: options.dwarf,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
@@ -509,9 +507,7 @@ async function compileWithModulesAsync(
     libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
     target: options.target,
     sysroot: options.sysroot,
-    clangFlags: options.clangFlag
-      ? normalizeArray(options.clangFlag)
-      : undefined,
+    clangFlags: getCompilerDriverFlags(options),
     dwarf: options.dwarf,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
@@ -658,6 +654,17 @@ function compileSingleFile(
 function normalizeArray(value: string | string[] | undefined): string[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function getCompilerDriverFlags(options: CompileOptions): string[] | undefined {
+  const flags = normalizeArray(options.clangFlag);
+  if (options.cpu) {
+    flags.push(`-mcpu=${options.cpu}`);
+  }
+  if (options.march) {
+    flags.push(`-march=${options.march}`);
+  }
+  return flags.length > 0 ? flags : undefined;
 }
 
 function getLlvmOutputPath(filePath: string, options: CompileOptions): string {

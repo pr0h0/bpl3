@@ -2780,6 +2780,86 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should forward target CPU and architecture flags to cached builds", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cache-driver-flags-"),
+    );
+    const helperFile = path.join(tempDir, "helper.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "driver_flags_app");
+    const fakeCompiler = path.join(tempDir, "fake-cc.js");
+    const argsLog = path.join(tempDir, "cc-args.log");
+
+    fs.writeFileSync(
+      helperFile,
+      ["export value;", "frame value() ret int {", "    return 42;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import value from "./helper.bpl";',
+        "frame main() ret int {",
+        "    return value();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      fakeCompiler,
+      [
+        "#!/usr/bin/env node",
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.appendFileSync(${JSON.stringify(argsLog)}, args.join("\\n") + "\\n--\\n");`,
+        'const outputIndex = args.lastIndexOf("-o");',
+        "if (outputIndex >= 0 && args[outputIndex + 1]) {",
+        '  fs.writeFileSync(args[outputIndex + 1], "fake output\\n");',
+        "}",
+        "",
+      ].join("\n"),
+    );
+    fs.chmodSync(fakeCompiler, 0o755);
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "build",
+          mainFile,
+          "--cache",
+          "--cpu",
+          "znver4",
+          "--march",
+          "x86-64-v3",
+          "--clang-flag",
+          "-fno-vectorize",
+          "-o",
+          outputFile,
+        ],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            BPL_CC: fakeCompiler,
+            NO_COLOR: "1",
+          },
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(outputFile)).toBe(true);
+      const args = fs.readFileSync(argsLog, "utf-8");
+      expect(args).toContain("-mcpu=znver4");
+      expect(args).toContain("-march=x86-64-v3");
+      expect(args).toContain("-fno-vectorize");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should print cache stats for cached parallel builds on request", () => {
     const tempDir = fs.mkdtempSync(
       path.join(process.cwd(), "tests/temp_parallel_cache_stats-"),
