@@ -430,7 +430,7 @@ export class ModuleResolver {
    */
   resolveModules(entryFile: string): ModuleInfo[] {
     // Normalize entry file path
-    const entryPath = path.resolve(entryFile);
+    const entryPath = this.normalizePath(path.resolve(entryFile));
 
     // Load entry module recursively
     this.loadModule(entryPath);
@@ -508,7 +508,7 @@ export class ModuleResolver {
    * Get a module by path
    */
   getModule(modulePath: string): ModuleInfo | undefined {
-    return this.modules.get(path.resolve(modulePath));
+    return this.modules.get(this.normalizePath(path.resolve(modulePath)));
   }
 
   /**

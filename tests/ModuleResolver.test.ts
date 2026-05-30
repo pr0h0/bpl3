@@ -241,6 +241,22 @@ describe("ModuleResolver", () => {
     expect(directoryError.message).toContain("Module path is not a file");
   });
 
+  it("should normalize symlinked entry module identities", () => {
+    const sourceDir = path.join(tempDir, "symlink-entry");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    const realEntry = path.join(sourceDir, "main.bpl");
+    const linkedEntry = path.join(sourceDir, "linked-main.bpl");
+    fs.writeFileSync(realEntry, "frame main() ret int { return 0; }");
+    fs.symlinkSync(realEntry, linkedEntry, "file");
+
+    const resolver = new ModuleResolver({ stdLibPath: tempDir });
+    const modules = resolver.resolveModules(linkedEntry);
+    const entryModule = modules[modules.length - 1]!;
+
+    expect(entryModule.path).toBe(fs.realpathSync(realEntry));
+    expect(resolver.getModule(linkedEntry)).toBe(entryModule);
+  });
+
   it("should prefer .bpl over legacy .x when resolving extensionless imports", () => {
     const sourceDir = path.join(tempDir, "extension-preference");
     fs.mkdirSync(sourceDir, { recursive: true });
