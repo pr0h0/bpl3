@@ -15,6 +15,7 @@ import {
   CompilerError,
   lexWithGrammar,
   SourceManager,
+  TokenType,
 } from "../compiler";
 import { getBplHome } from "../compiler/common/PathResolver";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
@@ -251,7 +252,7 @@ function processCodeInternal(
   injectRuntimeObjects(options);
 
   // Check if file has imports - if so, use module resolution
-  const hasImports = content.includes("import ");
+  const hasImports = sourceContainsImportDeclaration(content, filePath);
 
   if (hasImports) {
     compileWithModules(content, filePath, options, programArgs);
@@ -271,7 +272,7 @@ async function processCodeInternalAsync(
 ): Promise<void> {
   injectRuntimeObjects(options);
 
-  const hasImports = content.includes("import ");
+  const hasImports = sourceContainsImportDeclaration(content, filePath);
 
   if (hasImports) {
     await compileWithModulesAsync(content, filePath, options, programArgs);
@@ -306,6 +307,21 @@ function injectRuntimeObjects(options: CompileOptions): void {
   addObject(path.join(bplHome, "lib", "runtime_support.o"));
 
   options.object = objects;
+}
+
+function sourceContainsImportDeclaration(
+  content: string,
+  filePath: string,
+): boolean {
+  try {
+    return lexWithGrammar(content, filePath).some(
+      (token) => token.type === TokenType.Import,
+    );
+  } catch {
+    // Preserve the old conservative route for lexically invalid code so parser
+    // diagnostics still decide the final error.
+    return content.includes("import ");
+  }
 }
 
 /**

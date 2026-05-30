@@ -127,6 +127,30 @@ describe("CLI Tests", () => {
     expect(irContent).toContain('filename: "main.bpl"');
   });
 
+  it("should not enter module mode for import words in comments", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-import-word-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const llvmFile = path.join(tempDir, "main.ll");
+
+    fs.writeFileSync(
+      sourceFile,
+      ["# import fake from nowhere", "frame helper() ret int { return 0; }"].join(
+        "\n",
+      ),
+    );
+
+    try {
+      const result = runCLI(["build", sourceFile, "--emit", "llvm"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Missing entry point function 'main'");
+      expect(result.stderr).not.toContain("undefined reference to `main'");
+      expect(fs.existsSync(llvmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");
