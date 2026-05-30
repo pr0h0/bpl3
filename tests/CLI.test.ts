@@ -564,6 +564,7 @@ describe("CLI Tests", () => {
         "wasm linker",
         "wasm compiler",
         "object symbol tool",
+        "package archive tool",
         "native compiler",
       ]),
     );
@@ -617,6 +618,27 @@ describe("CLI Tests", () => {
     expect(symbolToolCheck.ok).toBe(false);
     expect(symbolToolCheck.required).toBe(false);
     expect(symbolToolCheck.detail).toContain(missingTool);
+  });
+
+  it("should honor BPL_TAR in doctor diagnostics", () => {
+    const missingTool = path.join(os.tmpdir(), "definitely-missing-bpl-tar");
+    const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_TAR: missingTool,
+        NO_COLOR: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    const report = JSON.parse(result.stdout);
+    const archiveToolCheck = report.checks.find(
+      (check: { name: string }) => check.name === "package archive tool",
+    );
+    expect(archiveToolCheck.ok).toBe(false);
+    expect(archiveToolCheck.required).toBe(false);
+    expect(archiveToolCheck.detail).toContain(missingTool);
   });
 
   it("should honor BPL_WASM_CC in doctor diagnostics", () => {

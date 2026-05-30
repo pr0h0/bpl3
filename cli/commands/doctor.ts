@@ -13,6 +13,7 @@ import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import { getObjectSymbolTool } from "../../compiler/middleend/ObjectFileParser";
 import {
+  getPackageArchiveTool,
   PackageManager,
   type PackageDependencyTreeNode,
   type PackageDoctorReport,
@@ -131,6 +132,13 @@ function createDoctorReport(version: string): DoctorReport {
       getObjectSymbolTool(),
       ["--version"],
       "Install nm/llvm-nm, or set BPL_NM/NM to a working object symbol tool.",
+      false,
+    ),
+    checkCommand(
+      "package archive tool",
+      getPackageArchiveTool(),
+      ["--version"],
+      "Install tar, or set BPL_TAR/TAR to a working package archive tool.",
       false,
     ),
     checkAnyCommand(

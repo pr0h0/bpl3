@@ -142,9 +142,10 @@ The JSON form is intended for bug reports and CI diagnostics. It reports
 `BPL_HOME`, platform details, runtime file presence, whether the configured
 native compiler (`BPL_CC`, `CC`, or `clang`) is available, the configured wasm
 compiler (`BPL_WASM_CC`, `WASM_CC`, or `clang`), the object symbol tool
-(`BPL_NM`, `NM`, or `nm`), and wasm linker readiness. Missing core runtime
-files are failures; missing optional wasm/linker/object-symbol tools are
-reported as warnings unless the current workflow explicitly requires them.
+(`BPL_NM`, `NM`, or `nm`), the package archive tool (`BPL_TAR`, `TAR`, or
+`tar`), and wasm linker readiness. Missing core runtime files are failures;
+missing optional wasm/linker/object-symbol/archive tools are reported as
+warnings unless the current workflow explicitly requires them.
 
 `bpl doctor packages` checks the current package project: manifest validity,
 lockfile verification, missing transitive dependencies, unreachable lockfile

@@ -1017,6 +1017,7 @@ export { DiagnosticFormatter } from "./common/DiagnosticFormatter";
 export { Linter } from "./linter/Linter";
 /** Manage BPL package dependencies */
 export {
+  getPackageArchiveTool,
   PackageManager,
   type PackageArchiveProvenance,
   type PackageCacheCleanResult,
