@@ -386,7 +386,9 @@ Compile for different target platforms:
 
 Native binary builds, object-file linking, and cached module compilation use
 `BPL_CC`, then `CC`, then `clang` to select the C/LLVM driver. WebAssembly
-builds use `BPL_WASM_CC`, then `WASM_CC`, then `clang`.
+builds use `BPL_WASM_CC`, then `WASM_CC`, then `clang`. Cached object keys
+include the selected driver, target, sysroot, optimization level, and forwarded
+compiler flags so incompatible toolchain invocations do not reuse stale objects.
 
 **Supported Targets:**
 

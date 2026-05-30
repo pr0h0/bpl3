@@ -41,6 +41,37 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("keeps separate object cache entries for compiler driver flags", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-flags-"));
+
+    try {
+      const cache = new ModuleCache(dir);
+      const plain = cache.compileModule(
+        "main.bpl",
+        "frame main() ret int { return 0; }",
+        EMPTY_MAIN_IR,
+        false,
+        undefined,
+        0,
+      );
+      const withDebugFlag = cache.compileModule(
+        "main.bpl",
+        "frame main() ret int { return 0; }",
+        EMPTY_MAIN_IR,
+        false,
+        undefined,
+        0,
+        { clangFlags: ["-g"] },
+      );
+
+      expect(withDebugFlag).not.toBe(plain);
+      expect(existsSync(plain)).toBe(true);
+      expect(existsSync(withDebugFlag)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("honors BPL_CC when compiling module objects", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-driver-"));
     const previousBplCc = process.env.BPL_CC;

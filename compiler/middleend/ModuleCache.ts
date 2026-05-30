@@ -32,6 +32,8 @@ export interface ModuleCompileInput {
   content: string;
   llvmIR: string;
   target?: string;
+  sysroot?: string;
+  clangFlags?: string[];
   optimizationLevel?: number;
 }
 
@@ -39,6 +41,8 @@ export interface ModuleCompileBatchOptions {
   jobs?: number;
   verbose?: boolean;
   target?: string;
+  sysroot?: string;
+  clangFlags?: string[];
   optimizationLevel?: number;
 }
 
@@ -137,11 +141,17 @@ export class ModuleCache {
     content: string,
     target?: string,
     optimizationLevel?: number,
+    options: { sysroot?: string; clangFlags?: string[] } = {},
   ): string {
     return this.calculateHash(
-      [content, `target=${target ?? ""}`, `opt=${optimizationLevel ?? 0}`].join(
-        "|",
-      ),
+      JSON.stringify({
+        content,
+        target: target ?? "",
+        optimizationLevel: optimizationLevel ?? 0,
+        compilerDriver: getCompilerDriver(target),
+        sysroot: options.sysroot ?? "",
+        clangFlags: options.clangFlags ?? [],
+      }),
     );
   }
 
@@ -178,8 +188,19 @@ export class ModuleCache {
   /**
    * Check if a module is cached and up-to-date
    */
-  isCached(modulePath: string, content: string): boolean {
-    const hash = this.calculateHash(content);
+  isCached(
+    modulePath: string,
+    content: string,
+    target?: string,
+    optimizationLevel?: number,
+    options: { sysroot?: string; clangFlags?: string[] } = {},
+  ): boolean {
+    const hash = this.getModuleHash(
+      content,
+      target,
+      optimizationLevel,
+      options,
+    );
     const cached = this.manifest.modules.get(modulePath);
 
     if (!cached) {
@@ -220,9 +241,10 @@ export class ModuleCache {
     verbose: boolean = false,
     target?: string,
     optimizationLevel?: number,
+    options: { sysroot?: string; clangFlags?: string[] } = {},
   ): string {
     // Include codegen-affecting options so incompatible object files do not collide.
-    const hash = this.getModuleHash(content, target, optimizationLevel);
+    const hash = this.getModuleHash(content, target, optimizationLevel, options);
     const objectFileName = `${hash}.o`;
     const objectFilePath = path.join(this.cacheDir, objectFileName);
 
@@ -256,9 +278,13 @@ export class ModuleCache {
     if (target) {
       clangArgs.push("-target", target);
     }
+    if (options.sysroot) {
+      clangArgs.push("--sysroot", options.sysroot);
+    }
     if (optimizationLevel !== undefined) {
       clangArgs.push(`-O${optimizationLevel}`);
     }
+    clangArgs.push(...(options.clangFlags ?? []));
     clangArgs.push(llFilePath, "-o", objectFilePath);
 
     const compilerCommand = getCompilerDriver(target);
@@ -339,9 +365,14 @@ export class ModuleCache {
     options: ModuleCompileBatchOptions,
   ): Promise<string> {
     const target = input.target ?? options.target;
+    const sysroot = input.sysroot ?? options.sysroot;
+    const clangFlags = input.clangFlags ?? options.clangFlags;
     const optimizationLevel =
       input.optimizationLevel ?? options.optimizationLevel;
-    const hash = this.getModuleHash(input.content, target, optimizationLevel);
+    const hash = this.getModuleHash(input.content, target, optimizationLevel, {
+      sysroot,
+      clangFlags,
+    });
     const objectFilePath = path.join(this.cacheDir, `${hash}.o`);
     const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
       .toString(16)
@@ -375,9 +406,13 @@ export class ModuleCache {
     if (target) {
       clangArgs.push("-target", target);
     }
+    if (sysroot) {
+      clangArgs.push("--sysroot", sysroot);
+    }
     if (optimizationLevel !== undefined) {
       clangArgs.push(`-O${optimizationLevel}`);
     }
+    clangArgs.push(...(clangFlags ?? []));
     clangArgs.push(llFilePath, "-o", tempObjectFilePath);
 
     await this.runCompilerDriver(

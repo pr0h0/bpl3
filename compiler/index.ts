@@ -537,6 +537,10 @@ export class Compiler {
         this.options.verbose,
         this.options.target,
         this.options.optimizationLevel,
+        {
+          sysroot: this.options.sysroot,
+          clangFlags: this.options.clangFlags,
+        },
       );
 
       const objectFiles = [objectFile];
@@ -646,6 +650,8 @@ export class Compiler {
         jobs: this.normalizeJobs(this.options.jobs),
         verbose: this.options.verbose,
         target: this.options.target,
+        sysroot: this.options.sysroot,
+        clangFlags: this.options.clangFlags,
         optimizationLevel: this.options.optimizationLevel,
       });
 
