@@ -2602,6 +2602,48 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should preserve overloads when building cached modules serially", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_serial_cache_overload-"),
+    );
+    const overloadsFile = path.join(tempDir, "overloads.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "serial_cache_overload_app");
+
+    fs.writeFileSync(
+      overloadsFile,
+      [
+        "export choose;",
+        "frame choose(value: int) ret int {",
+        "    return value + 1;",
+        "}",
+        "frame choose(value: bool) ret int {",
+        "    return value ? 40 : 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import choose from "./overloads.bpl";',
+        "frame main() ret int {",
+        "    return choose(true) + choose(1);",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["build", mainFile, "--cache", "-o", outputFile]);
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toContain("undefined reference");
+      const runResult = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(runResult.status).toBe(42);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should cache and link imported modules as separate parallel objects", () => {
     const tempDir = fs.mkdtempSync(
       path.join(process.cwd(), "tests/temp_parallel_cache-"),

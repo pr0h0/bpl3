@@ -500,15 +500,13 @@ export class Compiler {
 
       for (const module of modules) {
         for (const stmt of module.ast.statements) {
-          if (stmt.kind === "Import") {
+          if (stmt.kind === "Import" || stmt.kind === "Export") {
             continue;
           }
 
           let key: string | null = null;
           if (stmt.kind === "StructDecl") {
             key = `struct:${(stmt as AST.StructDecl).name}`;
-          } else if (stmt.kind === "FunctionDecl") {
-            key = `function:${(stmt as AST.FunctionDecl).name}`;
           } else if (stmt.kind === "Extern") {
             key = `extern:${(stmt as AST.ExternDecl).name}`;
           } else if (stmt.kind === "TypeAlias") {
@@ -516,6 +514,7 @@ export class Compiler {
           } else if (stmt.kind === "VariableDecl") {
             key = `global:${(stmt as AST.VariableDecl).name}`;
           }
+          // FunctionDecl is not deduplicated here to allow overloads.
 
           if (!key || !seenDeclarations.has(key)) {
             if (key) seenDeclarations.add(key);
