@@ -5,7 +5,6 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { spawnSync } from "child_process";
 import {
   Compiler,
   Parser,
@@ -23,6 +22,7 @@ import {
   compileBinaryAndRun,
   getExecutableOutputPath,
   isWasmTarget,
+  runExecutable,
 } from "./BinaryRunner";
 import {
   assertWritableFileOutputPath,
@@ -476,18 +476,7 @@ function compileWithModules(
     printCacheStatsIfRequested(result, options);
 
     if (options.run) {
-      const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
-      const execPath = path.isAbsolute(execPathBase)
-        ? execPathBase
-        : path.resolve(execPathBase);
-
-      const runResult = spawnSync(execPath, programArgs || [], {
-        stdio: "inherit",
-      });
-
-      if (runResult.status !== 0) {
-        process.exit(runResult.status ?? 1);
-      }
+      runCachedExecutable(filePath, options, programArgs);
     }
     return;
   }
@@ -565,18 +554,7 @@ async function compileWithModulesAsync(
     printCacheStatsIfRequested(result, options);
 
     if (options.run) {
-      const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
-      const execPath = path.isAbsolute(execPathBase)
-        ? execPathBase
-        : path.resolve(execPathBase);
-
-      const runResult = spawnSync(execPath, programArgs || [], {
-        stdio: "inherit",
-      });
-
-      if (runResult.status !== 0) {
-        process.exit(runResult.status ?? 1);
-      }
+      runCachedExecutable(filePath, options, programArgs);
     }
     return;
   }
@@ -712,6 +690,26 @@ function writeLlvmOutputAndMaybeBuild(
 
   if (shouldCompileExecutable(options)) {
     compileBinaryAndRun(outputPath, options, programArgs);
+  }
+}
+
+function runCachedExecutable(
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): void {
+  const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
+  const execPath = path.isAbsolute(execPathBase)
+    ? execPathBase
+    : path.resolve(execPathBase);
+
+  const runResult = runExecutable(execPath, programArgs || [], options.verbose);
+
+  if (!runResult.success) {
+    if (runResult.error) {
+      log.error(runResult.error);
+    }
+    process.exit(runResult.exitCode);
   }
 }
 
