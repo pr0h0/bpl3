@@ -1870,6 +1870,23 @@ describe("PackageManager", () => {
       expect(entries.map((entry) => entry.version)).toEqual(["2.0.0"]);
     });
 
+    test("should ignore symlinked package cache archives", () => {
+      const globalPackageDir = path.join(tempDir, "cache-symlink-packages");
+      const outsideArchive = path.join(tempDir, "outside-cache.tgz");
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(outsideArchive, "not a real archive");
+      fs.symlinkSync(
+        outsideArchive,
+        path.join(globalPackageDir, "cache-link-1.0.0.tgz"),
+      );
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(localPM.listPackageCache("cache-link")).toEqual([]);
+      expect(localPM.verifyPackageCache("cache-link").entriesChecked).toBe(0);
+    });
+
     test("should clean malformed package cache provenance directories", () => {
       const globalPackageDir = path.join(tempDir, "cache-clean-provenance-dir");
       fs.mkdirSync(globalPackageDir);
@@ -2084,6 +2101,38 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should ignore symlinked installed package entries during doctor checks", () => {
+      const appDir = path.join(tempDir, "doctor-symlink-app");
+      const outsidePackageDir = path.join(tempDir, "doctor-outside-package");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsidePackageDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-symlink-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "outside-doctor-package", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+
+      const localPM = new PackageManager(appDir);
+      fs.symlinkSync(
+        outsidePackageDir,
+        path.join(appDir, "bpl_modules", "linked-package"),
+      );
+
+      const report = localPM.doctorPackages();
+      expect(report.issues).not.toContainEqual(
+        expect.objectContaining({ kind: "package-name-mismatch" }),
+      );
+      expect(report.installedPackages).toEqual([]);
+    });
+
     test("should surface package cache provenance issues as doctor warnings", () => {
       const appDir = path.join(tempDir, "doctor-cache-app");
       const globalPackageDir = path.join(tempDir, "doctor-cache-packages");
@@ -2214,6 +2263,30 @@ describe("PackageManager", () => {
     test("should return empty list when no packages installed", () => {
       const packages = packageManager.list({ global: false });
       expect(packages.length).toBe(0);
+    });
+
+    test("should ignore symlinked entries when listing installed packages", () => {
+      const appDir = path.join(tempDir, "list-symlink-app");
+      const outsidePackageDir = path.join(tempDir, "outside-list-package");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsidePackageDir);
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "outside-list-package", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+
+      const localPM = new PackageManager(appDir);
+      fs.symlinkSync(
+        outsidePackageDir,
+        path.join(appDir, "bpl_modules", "linked-package"),
+      );
+
+      expect(localPM.list({ global: false })).toEqual([]);
     });
   });
 

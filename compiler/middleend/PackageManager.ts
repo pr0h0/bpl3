@@ -2391,9 +2391,9 @@ export class PackageManager {
 
     for (const item of items) {
       const packagePath = path.join(searchDir, item);
-      const stat = fs.statSync(packagePath);
+      const stat = this.tryLstat(packagePath);
 
-      if (stat.isDirectory()) {
+      if (stat?.isDirectory()) {
         try {
           const manifest = this.loadManifest(packagePath);
           const hash = this.calculatePackageHash(packagePath);
@@ -2425,8 +2425,8 @@ export class PackageManager {
         if (packageName && parsed.name !== packageName) return null;
 
         const filePath = path.join(this.globalPackageDir, file);
-        if (!fs.statSync(filePath).isFile()) return null;
-        const stat = fs.statSync(filePath);
+        const stat = this.tryLstat(filePath);
+        if (!stat?.isFile()) return null;
 
         return {
           ...parsed,
@@ -2881,7 +2881,8 @@ export class PackageManager {
 
     for (const item of fs.readdirSync(this.localPackageDir)) {
       const packagePath = path.join(this.localPackageDir, item);
-      if (!fs.statSync(packagePath).isDirectory()) continue;
+      const stat = this.tryLstat(packagePath);
+      if (!stat?.isDirectory()) continue;
 
       try {
         const manifest = this.loadManifest(packagePath);
