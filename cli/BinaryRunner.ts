@@ -25,6 +25,7 @@ import {
 } from "../compiler/common/ProcessErrors";
 
 const log = new Logger("BinaryRunner");
+const COMPILE_DRIVER_TIMEOUT_MS = 600000;
 
 export function isWasmTarget(target?: string): boolean {
   return isCompilerDriverWasmTarget(target);
@@ -81,6 +82,21 @@ function findWasmLinker(): string | undefined {
 function isEnvFlagEnabled(value: string | undefined): boolean {
   if (!value) return false;
   return !["0", "false", "no", "off"].includes(value.toLowerCase());
+}
+
+function getCompileDriverTimeoutMs(): number {
+  const raw = process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+  if (!raw) return COMPILE_DRIVER_TIMEOUT_MS;
+
+  const parsed = Number(raw);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  log.warn(
+    `Ignoring invalid BPL_COMPILE_DRIVER_TIMEOUT_MS=${raw}; using ${COMPILE_DRIVER_TIMEOUT_MS}ms`,
+  );
+  return COMPILE_DRIVER_TIMEOUT_MS;
 }
 
 /**
@@ -147,6 +163,7 @@ export function compileToBinary(
 
   const compileResult = spawnSync(clangCommand, clangArgs, {
     stdio: options.verbose ? "inherit" : "pipe",
+    timeout: getCompileDriverTimeoutMs(),
   });
 
   if (compileResult.status !== 0) {

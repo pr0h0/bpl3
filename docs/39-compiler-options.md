@@ -404,6 +404,8 @@ builds use `BPL_WASM_CC`, then `WASM_CC`, then `clang`. Cached object keys
 include the selected driver, target, sysroot, optimization level, target
 CPU/architecture flags, and forwarded compiler flags so incompatible toolchain
 invocations do not reuse stale objects.
+Direct binary compiler-driver invocations are bounded by
+`BPL_COMPILE_DRIVER_TIMEOUT_MS`, defaulting to 600000 milliseconds.
 Package archive operations use `BPL_TAR`, then `TAR`, then `tar`, and are
 bounded by `BPL_PACKAGE_TOOL_TIMEOUT_MS`, defaulting to 300000 milliseconds.
 When inspecting precompiled object-file symbols, BPL uses `BPL_NM`, then `NM`,

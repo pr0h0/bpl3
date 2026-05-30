@@ -13,6 +13,8 @@ describe("BinaryRunner", () => {
   const originalPath = process.env.PATH;
   const originalWasmLd = process.env.WASM_LD;
   const originalRequireWasmLd = process.env.BPL_REQUIRE_WASM_LD;
+  const originalCompileDriverTimeout =
+    process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
 
   afterEach(() => {
     if (originalBplHome === undefined) {
@@ -44,6 +46,11 @@ describe("BinaryRunner", () => {
       delete process.env.BPL_REQUIRE_WASM_LD;
     } else {
       process.env.BPL_REQUIRE_WASM_LD = originalRequireWasmLd;
+    }
+    if (originalCompileDriverTimeout === undefined) {
+      delete process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
+    } else {
+      process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = originalCompileDriverTimeout;
     }
   });
 
@@ -219,6 +226,38 @@ describe("BinaryRunner", () => {
       expect(result.error).toContain(missingCompiler);
       expect(result.error).toContain("command not found");
       expect(result.error).not.toContain("ENOENT");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("times out hanging compiler drivers", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-timeout-"),
+    );
+    const irPath = path.join(tempDir, "main.ll");
+
+    try {
+      const hangingCompiler = writeNodeCommandShim(
+        path.join(tempDir, "hanging-cc"),
+        ["setInterval(() => {}, 1000);"],
+      );
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = hangingCompiler;
+      process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS = "100";
+
+      const result = compileToBinary(irPath, { skipRuntime: true });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Failed to compile LLVM IR");
+      expect(result.error).toContain(hangingCompiler);
+      expect(result.error).toContain("timed out");
+      expect(result.error).not.toContain("ETIMEDOUT");
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some((entry) => entry.startsWith(".main.") && entry.endsWith(".tmp")),
+      ).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
