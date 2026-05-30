@@ -1246,6 +1246,39 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject cached builds when .bpl-cache is not a directory", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-cache-file-"));
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(path.join(tempDir, ".bpl-cache"), "not a directory");
+    fs.writeFileSync(
+      moduleFile,
+      ["export value;", "frame value() ret int {", "    return 7;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import value from "./math.bpl";',
+        "frame main() ret int {",
+        "    return value();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["build", mainFile, "--cache"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Module cache path is not a directory");
+      expect(result.stderr).not.toContain("ENOTDIR");
+      expect(result.stderr).not.toContain("EEXIST");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should cache and link imported modules as separate parallel objects", () => {
     const tempDir = fs.mkdtempSync(
       path.join(process.cwd(), "tests/temp_parallel_cache-"),

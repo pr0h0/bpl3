@@ -100,6 +100,23 @@ export class ModuleCache {
    * Ensure cache directory exists
    */
   private ensureCacheDir(): void {
+    if (
+      fs.existsSync(this.cacheDir) &&
+      !fs.statSync(this.cacheDir).isDirectory()
+    ) {
+      throw new CompilerError(
+        `Module cache path is not a directory: ${this.cacheDir}`,
+        "Remove the file or configure a project directory where .bpl-cache can be a directory.",
+        {
+          file: this.cacheDir,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
     if (!fs.existsSync(this.cacheDir)) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
     }
