@@ -444,7 +444,7 @@ export class ModuleCache {
       compilerLog.info(`Compiling: ${path.basename(modulePath)}`);
     }
 
-    const llFilePath = path.join(this.cacheDir, `${hash}.ll`);
+    const llFilePath = path.join(this.cacheDir, `${hash}.${tempSuffix}.ll`);
     this.assertWritableCacheFilePath(
       llFilePath,
       modulePath,

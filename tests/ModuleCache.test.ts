@@ -265,6 +265,47 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("does not reuse stale deterministic IR scratch paths", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-stale-ll-"));
+    const previousBplCc = process.env.BPL_CC;
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "object\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+
+      const content = "frame main() ret int { return 0; }";
+      const cache = new ModuleCache(dir);
+      const hash = getModuleHashForTest(content, undefined, 0);
+      const staleIrPath = join(dir, ".bpl-cache", `${hash}.ll`);
+      mkdirSync(staleIrPath);
+
+      const objectFile = cache.compileModule(
+        "main.bpl",
+        content,
+        EMPTY_MAIN_IR,
+        false,
+        undefined,
+        0,
+      );
+
+      expect(existsSync(objectFile)).toBe(true);
+      expect(lstatSync(staleIrPath).isDirectory()).toBe(true);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("compiles multiple module objects with a bounded parallel job count", async () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parallel-"));
 
