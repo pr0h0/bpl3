@@ -151,6 +151,16 @@ export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
     reason: "host imports provide argv, stdout, stderr, and stdlib String support",
   },
   {
+    file: "examples/wasm_hosted_transform/main.bpl",
+    mode: "wasm-hosted",
+    expectedReturn: 0,
+    argv: ["program", "delta", "epsilon"],
+    expectedStdout: "delta:7\nscore:24\n",
+    expectedStderr: "checked hosted transform\n",
+    reason:
+      "hosted wasm exercises argv, stdout, stderr, String, enums, generics, and lambda capture",
+  },
+  {
     file: "examples/stdlib_fs/main.bpl",
     mode: "blocked-by-host-api",
     reason: "requires filesystem imports that the wasm host adapter does not provide",

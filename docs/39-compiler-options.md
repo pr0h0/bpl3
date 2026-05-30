@@ -575,9 +575,11 @@ The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`,
 `examples/wasm_memory_strings`, `examples/wasm_memory_intrinsics`,
 `examples/wasm_stdlib_array`, and `examples/wasm_stdlib_bitset` examples are
 intentionally portable: they run as native x86_64 programs and as standalone
-`wasm32-unknown-unknown` modules. `examples/wasm_hosted_io` covers the hosted
-mode and remains native-compatible; wasm tests execute it with host-provided
-argv, stdout, stderr, and stdlib `String` support.
+`wasm32-unknown-unknown` modules. `examples/wasm_hosted_io` covers basic hosted
+mode I/O. `examples/wasm_hosted_transform` is the richer hosted regression:
+it remains native-compatible while wasm tests execute it with host-provided
+argv, stdout, stderr, stdlib `String`, enum matching, generics, and lambda
+capture.
 
 The compatibility matrix in `tests/helpers/wasmCompatibilityMatrix.ts` is the
 source of truth for CI. Each tracked example is marked as `wasm-freestanding`,

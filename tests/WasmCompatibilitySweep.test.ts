@@ -220,6 +220,9 @@ describe("WebAssembly compatibility sweep", () => {
     const examples = findExampleEntrypoints();
     const matrixFiles = new Set<string>();
     const modes = new Set<WasmCompatibilityMode>();
+    const hostedTransform = WASM_COMPATIBILITY_MATRIX.find(
+      (entry) => entry.file === "examples/wasm_hosted_transform/main.bpl",
+    );
 
     expect(examples.length).toBeGreaterThan(100);
     for (const entry of WASM_COMPATIBILITY_MATRIX) {
@@ -233,6 +236,14 @@ describe("WebAssembly compatibility sweep", () => {
     for (const mode of EXPECTED_MODES) {
       expect(modes.has(mode)).toBe(true);
     }
+
+    expect(hostedTransform).toMatchObject({
+      mode: "wasm-hosted",
+      expectedReturn: 0,
+      argv: ["program", "delta", "epsilon"],
+      expectedStdout: "delta:7\nscore:24\n",
+      expectedStderr: "checked hosted transform\n",
+    });
 
     for (const file of examples.filter((example) =>
       example.split("/").some((part) => part.startsWith("wasm_")),

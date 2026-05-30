@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "delta:7",
+    "score:24",
+    "checked hosted transform"
+  ],
+  "args": ["delta", "epsilon"],
+  "env": {},
+  "input": ""
+}
