@@ -70,14 +70,21 @@ export function registerCleanCommand(program: Command): void {
               for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
                 const relativePath = path.relative(cwd, fullPath);
+                const resolvedPath = path.resolve(fullPath);
+                const gitRelativePath = normalizeGitRelativePath(relativePath);
+                const isTopLevelCacheDir =
+                  entry.isDirectory() && topLevelCacheDirs.has(resolvedPath);
+                const isHiddenNonCacheEntry =
+                  entry.name.startsWith(".") && !isTopLevelCacheDir;
 
                 // Skip node_modules, .git, bpl_modules
                 if (
                   entry.name === "node_modules" ||
                   entry.name === ".git" ||
                   entry.name === "bpl_modules" ||
-                  entry.name.startsWith(".") ||
-                  topLevelCacheDirs.has(path.resolve(fullPath))
+                  isHiddenNonCacheEntry ||
+                  (isTopLevelCacheDir &&
+                    !hasTrackedPathUnder(trackedPaths, gitRelativePath))
                 ) {
                   continue;
                 }
@@ -88,7 +95,6 @@ export function registerCleanCommand(program: Command): void {
                   // Check if file matches any pattern
                   const ext = path.extname(entry.name);
                   const base = path.basename(entry.name, ext);
-                  const gitRelativePath = normalizeGitRelativePath(relativePath);
 
                   if (
                     isBuildArtifact(base, ext) &&

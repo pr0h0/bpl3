@@ -332,10 +332,12 @@ describe("CLI Tests", () => {
     const trackedLl = path.join(tempDir, "runtime.ll");
     const trackedBuildFile = path.join(buildDir, "keep.txt");
     const untrackedObject = path.join(tempDir, "generated.o");
+    const untrackedBuildObject = path.join(buildDir, "generated.o");
 
     fs.writeFileSync(trackedLl, "; tracked runtime ir");
     fs.writeFileSync(trackedBuildFile, "tracked artifact");
     fs.writeFileSync(untrackedObject, "object");
+    fs.writeFileSync(untrackedBuildObject, "object");
 
     try {
       const init = spawnSync("git", ["init"], {
@@ -358,12 +360,22 @@ describe("CLI Tests", () => {
 
       expect(clean.status).toBe(0);
       const cleanReport = JSON.parse(clean.stdout);
-      expect(cleanReport.entries).toEqual([
-        { path: "generated.o", type: "file" },
-      ]);
+      expect(cleanReport.entries).toContainEqual({
+        path: "build/generated.o",
+        type: "file",
+      });
+      expect(cleanReport.entries).toContainEqual({
+        path: "generated.o",
+        type: "file",
+      });
+      expect(cleanReport.entries).not.toContainEqual({
+        path: "build/",
+        type: "directory",
+      });
       expect(fs.existsSync(trackedLl)).toBe(true);
       expect(fs.existsSync(trackedBuildFile)).toBe(true);
       expect(fs.existsSync(untrackedObject)).toBe(false);
+      expect(fs.existsSync(untrackedBuildObject)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

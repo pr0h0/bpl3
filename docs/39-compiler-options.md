@@ -161,7 +161,9 @@ or malformed provenance sidecars for otherwise valid cached archives.
 
 Remove build artifacts. In git repositories, tracked files are skipped so
 checked-in runtime IR, examples, or release artifacts are not removed by
-accident.
+accident. If `build/`, `dist/`, or `.bpl-cache/` contains tracked files,
+`bpl clean` preserves the directory and tracked contents while still removing
+untracked build artifacts inside it.
 
 **Options:**
 
