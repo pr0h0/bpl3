@@ -21,7 +21,7 @@ _bpl_completion() {
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format run dev build check lint init pack install list uninstall package-cache completion clean new help docs bindgen doctor"
+    local commands="format run dev build check lint init pack install list uninstall run-script rs package-cache completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
@@ -254,6 +254,8 @@ _bpl() {
         'install:Install a BPL package'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
+        'run-script:Run a script defined in bpl.json'
+        'rs:Run a script defined in bpl.json'
         'package-cache:List, verify, repair, and clean cached package archives'
         'docs:Generate documentation'
         'bindgen:Generate BPL extern declarations from C headers'

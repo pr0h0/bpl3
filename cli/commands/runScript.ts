@@ -45,11 +45,18 @@ export function registerRunScriptCommand(program: Command): void {
       }
 
       const command = manifest.scripts[scriptName];
-      // Append extra args if any
-      const FullCommand =
-        args.length > 0 ? `${command} ${args.join(" ")}` : command;
+      if (typeof command !== "string") {
+        log.error(`Script '${scriptName}' in bpl.json must be a string`);
+        process.exit(1);
+      }
 
-      log.info(`> ${FullCommand}`);
+      // Append extra args if any
+      const fullCommand =
+        args.length > 0
+          ? `${command} ${args.map(quoteShellArg).join(" ")}`
+          : command;
+
+      log.info(`> ${fullCommand}`);
 
       // Setup Environment with PATH
       const localBin = path.join(process.cwd(), "bpl_modules", ".bin");
@@ -60,7 +67,7 @@ export function registerRunScriptCommand(program: Command): void {
 
       const env = { ...process.env, PATH };
 
-      const result = spawnSync(FullCommand, {
+      const result = spawnSync(fullCommand, {
         shell: true,
         stdio: "inherit",
         env,
@@ -70,4 +77,16 @@ export function registerRunScriptCommand(program: Command): void {
         process.exit(result.status || 1);
       }
     });
+}
+
+function quoteShellArg(arg: string): string {
+  if (arg.length === 0) {
+    return process.platform === "win32" ? '""' : "''";
+  }
+
+  if (process.platform === "win32") {
+    return `"${arg.replace(/(["^&|<>%])/g, "^$1")}"`;
+  }
+
+  return `'${arg.replace(/'/g, "'\\''")}'`;
 }

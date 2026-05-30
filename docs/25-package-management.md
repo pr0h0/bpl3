@@ -296,6 +296,28 @@ packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a
 cached archive has a provenance sidecar, `package-cache clean` removes both
 files together.
 
+## Package Scripts
+
+Packages can define shell scripts in `bpl.json`:
+
+```json
+{
+  "scripts": {
+    "check": "bpl check src/main.bpl",
+    "build": "bpl build src/main.bpl -o app"
+  }
+}
+```
+
+Run them with `bpl run-script <name>` or `bpl rs <name>`. Extra arguments are
+forwarded to the script as quoted shell arguments, so values containing spaces
+or shell metacharacters remain single arguments.
+
+```bash
+bpl run-script check
+bpl rs build -- --release
+```
+
 ## Best Practices
 
 - **Entry Point**: Use `index.bpl` to re-export the public API of your package.

@@ -25,6 +25,8 @@ _bpl() {
         'install:Install a BPL package'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
+        'run-script:Run a script defined in bpl.json'
+        'rs:Run a script defined in bpl.json'
         'package-cache:List, verify, repair, and clean cached package archives'
         'docs:Generate documentation'
         'bindgen:Generate BPL extern declarations from C headers'

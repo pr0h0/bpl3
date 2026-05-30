@@ -145,6 +145,79 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should quote forwarded run-script arguments", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    const outputFile = path.join(tempDir, "script-args.txt");
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "run-script-test",
+          version: "1.0.0",
+          scripts: {
+            capture: `node -e "require('fs').writeFileSync(process.argv[1], process.argv.slice(2).join('|'))" ${JSON.stringify(outputFile)}`,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "run-script",
+          "capture",
+          "hello world",
+          "semi;colon",
+          "quote'value",
+          "",
+        ],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(fs.readFileSync(outputFile, "utf-8")).toBe(
+        "hello world|semi;colon|quote'value|",
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject non-string run-script entries", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({
+        name: "run-script-test",
+        version: "1.0.0",
+        scripts: {
+          bad: ["echo", "bad"],
+        },
+      }),
+    );
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "run-script", "bad"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("must be a string");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should report lint diagnostics as JSON", () => {
     const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
     const result = runCLI(["lint", "--json", lintFile]);
@@ -321,6 +394,8 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain("--wasm-runtime");
     expect(bash.stdout).toContain("doctor");
     expect(zsh.stdout).toContain("doctor:Check local BPL toolchain");
+    expect(bash.stdout).toContain("run-script");
+    expect(zsh.stdout).toContain("run-script:Run a script defined in bpl.json");
     expect(bash.stdout).toContain("package-cache");
     expect(zsh.stdout).toContain(
       "package-cache:List, verify, repair, and clean cached package archives",
