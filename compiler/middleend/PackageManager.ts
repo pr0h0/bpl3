@@ -2726,6 +2726,8 @@ export class PackageManager {
 
   private validatePackageArchiveMembers(tarballPath: string): void {
     const archiveTool = getPackageArchiveTool();
+    this.validatePackageArchiveEntryTypes(archiveTool, tarballPath);
+
     const listResult = spawnSync(archiveTool, ["-tzf", tarballPath], {
       stdio: "pipe",
     });
@@ -2765,6 +2767,69 @@ export class PackageManager {
         );
       }
     }
+  }
+
+  private validatePackageArchiveEntryTypes(
+    archiveTool: string,
+    tarballPath: string,
+  ): void {
+    const listResult = spawnSync(archiveTool, ["-tvzf", tarballPath], {
+      stdio: "pipe",
+    });
+
+    if (listResult.status !== 0) {
+      const error = this.formatSpawnFailure(listResult, "Unknown error");
+      throw new CompilerError(
+        `Failed to inspect package archive: ${error}`,
+        `Check if the package archive is valid and '${archiveTool}' is available.`,
+        {
+          file: tarballPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    for (const line of listResult.stdout.toString().split(/\r?\n/)) {
+      if (line.length === 0) continue;
+
+      const entryType = line[0];
+      if (entryType === "l") {
+        this.throwUnsupportedPackageArchiveEntry(
+          tarballPath,
+          this.extractVerboseTarMember(line),
+          "Package archives may not contain symbolic links.",
+        );
+      }
+      if (entryType === "h") {
+        this.throwUnsupportedPackageArchiveEntry(
+          tarballPath,
+          this.extractVerboseTarMember(line),
+          "Package archives may not contain hard links.",
+        );
+      }
+    }
+  }
+
+  private extractVerboseTarMember(line: string): string {
+    const linkTargetMarker = line.includes(" -> ") ? " -> " : " link to ";
+    const memberEnd = line.includes(linkTargetMarker)
+      ? line.indexOf(linkTargetMarker)
+      : line.length;
+    const lineWithoutTarget = line.slice(0, memberEnd);
+    const packagePathStart = lineWithoutTarget.indexOf(" package/");
+
+    if (packagePathStart !== -1) {
+      return lineWithoutTarget.slice(packagePathStart + 1);
+    }
+
+    if (lineWithoutTarget.endsWith(" package")) {
+      return "package";
+    }
+
+    return "package archive member";
   }
 
   private formatSpawnFailure(
@@ -2849,6 +2914,12 @@ export class PackageManager {
 
         if (stat.isDirectory()) {
           visit(itemPath);
+        } else if (stat.isFile() && stat.nlink > 1) {
+          this.throwUnsupportedPackageArchiveEntry(
+            tarballPath,
+            archivePath,
+            "Package archives may not contain hard links.",
+          );
         } else if (!stat.isFile()) {
           this.throwUnsupportedPackageArchiveEntry(
             tarballPath,

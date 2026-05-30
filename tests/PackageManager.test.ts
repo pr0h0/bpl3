@@ -1416,6 +1416,48 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should reject package archives containing hard links", () => {
+      const sourceDir = path.join(tempDir, "hardlink-archive-source");
+      const packageDir = path.join(sourceDir, "package");
+      const installDir = path.join(tempDir, "hardlink-archive-install");
+      const tarballPath = path.join(tempDir, "hardlink-archive.tgz");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "hardlink-archive",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.linkSync(
+        path.join(packageDir, "index.bpl"),
+        path.join(packageDir, "alias.bpl"),
+      );
+
+      spawnSync("tar", ["-czf", tarballPath, "-C", sourceDir, "package"], {
+        stdio: "pipe",
+      });
+
+      expect(fs.existsSync(tarballPath)).toBe(true);
+
+      process.chdir(installDir);
+      const localPM = new PackageManager(installDir);
+
+      expect(() =>
+        localPM.install(tarballPath, { global: false, verbose: false }),
+      ).toThrow(/Unsupported package archive entry: package\/alias\.bpl/);
+      expect(
+        fs.existsSync(path.join(installDir, "bpl_modules", "hardlink-archive")),
+      ).toBe(false);
+    });
+
     test("should reject package archive paths that are not files", () => {
       const archivePath = path.join(tempDir, "archive-dir.tgz");
       fs.mkdirSync(archivePath);
