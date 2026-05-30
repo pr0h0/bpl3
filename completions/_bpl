@@ -140,7 +140,9 @@ _bpl() {
                 list)
                     _arguments \
                         '-v[Enable verbose output]' \
-                        '--verbose[Enable verbose output]'
+                        '--verbose[Enable verbose output]' \
+                        '--tree[Show dependency tree]' \
+                        '--json[Output machine-readable installed package data]'
                     ;;
                 clean)
                     _arguments \

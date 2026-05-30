@@ -174,21 +174,28 @@ export function registerPackageCommands(program: Command): void {
     .description("List installed packages")
     .option("-g, --global", "list global packages")
     .option("--tree", "show dependency tree")
-    .action((options: PackageOptionsGlobal) => {
+    .option("--json", "output machine-readable installed package data")
+    .action((options: PackageOptionsGlobal, command: Command) => {
       try {
         const pm = new PackageManager();
+        const globalOpts = command.parent?.opts() || {};
+        const outputJson = options.json || globalOpts.json;
+        const scope = options.global ? "global" : "local";
 
         if (options.tree) {
           const tree = pm.getDependencyTree(options);
+
+          if (outputJson) {
+            console.log(JSON.stringify({ scope, tree }, null, 2));
+            return;
+          }
 
           if (tree.length === 0) {
             log.info("No packages installed");
             return;
           }
 
-          log.info(
-            `Dependency tree (${options.global ? "global" : "local"}):\n`,
-          );
+          log.info(`Dependency tree (${scope}):\n`);
           for (const line of formatDependencyTree(tree)) {
             log.info(line);
           }
@@ -197,14 +204,32 @@ export function registerPackageCommands(program: Command): void {
 
         const packages = pm.list(options);
 
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              {
+                scope,
+                packages: packages.map((pkg) => ({
+                  name: pkg.manifest.name,
+                  version: pkg.manifest.version,
+                  description: pkg.manifest.description,
+                  path: pkg.path,
+                  hash: pkg.hash,
+                })),
+              },
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+
         if (packages.length === 0) {
           log.info("No packages installed");
           return;
         }
 
-        log.info(
-          `Installed packages (${options.global ? "global" : "local"}):\n`,
-        );
+        log.info(`Installed packages (${scope}):\n`);
         for (const pkg of packages) {
           log.info(`  ${pkg.manifest.name}@${pkg.manifest.version}`);
           if (pkg.manifest.description) {

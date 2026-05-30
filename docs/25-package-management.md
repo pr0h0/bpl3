@@ -173,10 +173,16 @@ lock entries for packages that are no longer installed.
 To inspect why packages are installed and which dependencies are missing, use:
 
 ```bash
+bpl list --json
 bpl list --tree
+bpl list --tree --json
 bpl doctor packages
 bpl doctor packages --json
 ```
+
+Use the JSON forms for CI and tooling. `bpl list --json` reports installed
+package names, versions, paths, and content hashes; `bpl list --tree --json`
+reports the same dependency tree data used by the human tree output.
 
 Example output:
 

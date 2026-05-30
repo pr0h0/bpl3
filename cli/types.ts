@@ -62,7 +62,11 @@ export interface LintOptions {
  * Options for package manager commands
  */
 export type PackageOptionsOutput = { output: string };
-export type PackageOptionsGlobal = { global: boolean; tree?: boolean };
+export type PackageOptionsGlobal = {
+  global: boolean;
+  tree?: boolean;
+  json?: boolean;
+};
 export type PackageOptionsVerbose = PackageOptionsGlobal & {
   verbose: boolean;
   locked?: boolean;

@@ -406,6 +406,20 @@ describe("Package Manager CLI", () => {
       expect(listTree.stdout).toContain("cli-graph-a@1.0.0");
       expect(listTree.stdout).toContain("cli-graph-b@1.0.0");
 
+      const listTreeJson = spawnSync(
+        "bun",
+        [bplPath, "list", "--tree", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+        },
+      );
+      expect(listTreeJson.status).toBe(0);
+      const treeReport = JSON.parse(listTreeJson.stdout);
+      expect(treeReport.scope).toBe("local");
+      expect(treeReport.tree[0].name).toBe("cli-graph-a");
+      expect(JSON.stringify(treeReport.tree)).toContain("cli-graph-b");
+
       fs.rmSync(path.join(appDir, "bpl_modules", "cli-graph-b"), {
         recursive: true,
         force: true,
@@ -518,6 +532,22 @@ describe("Package Manager CLI", () => {
       expect(listResult.status).toBe(0);
       expect(listResult.stdout).toContain("list-cli-test@1.5.0");
       expect(listResult.stdout).toContain("Test package for listing");
+
+      const listJson = spawnSync("bun", [bplPath, "list", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+      });
+      expect(listJson.status).toBe(0);
+      const report = JSON.parse(listJson.stdout);
+      expect(report.scope).toBe("local");
+      expect(report.packages).toHaveLength(1);
+      expect(report.packages[0]).toMatchObject({
+        name: "list-cli-test",
+        version: "1.5.0",
+        description: "Test package for listing",
+      });
+      expect(report.packages[0].path).toContain("bpl_modules");
+      expect(typeof report.packages[0].hash).toBe("string");
     });
 
     test("should show message when no packages installed", () => {

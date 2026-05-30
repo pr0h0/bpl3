@@ -46,7 +46,7 @@ _bpl_completion() {
     local install_opts="-v --verbose --locked --update --repair-lock"
 
     # List command options
-    local list_opts="-v --verbose"
+    local list_opts="-v --verbose --tree --json"
 
     # Clean command options
     local clean_opts="-v --verbose --dry-run --json"
