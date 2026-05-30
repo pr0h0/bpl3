@@ -7,6 +7,7 @@ import * as fs from "fs";
 import { Command } from "commander";
 import { generateBplBindings } from "../../compiler/tools/CBindgen";
 import { Logger } from "../../compiler/common/Logger";
+import { assertWritableFileOutputPath } from "../utils";
 
 const log = new Logger("Bindgen");
 
@@ -16,12 +17,15 @@ export function registerBindgenCommand(program: Command): void {
     .argument("<header>", "C header file to scan")
     .description("Generate BPL extern declarations from a C header")
     .option("-o, --output <file>", "write generated bindings to a file")
-    .action((header: string, options: { output?: string }) => {
+    .action((header: string, options: { output?: string }, command: Command) => {
       try {
         const output = generateBplBindings({ headerPath: header });
-        if (options.output) {
-          fs.writeFileSync(options.output, output);
-          log.info(`Bindings written to ${options.output}`);
+        const globalOpts = command.parent?.opts() || {};
+        const outputPath = options.output || globalOpts.output;
+        if (outputPath) {
+          assertWritableFileOutputPath(outputPath);
+          fs.writeFileSync(outputPath, output);
+          log.info(`Bindings written to ${outputPath}`);
           return;
         }
 
@@ -32,4 +36,3 @@ export function registerBindgenCommand(program: Command): void {
       }
     });
 }
-

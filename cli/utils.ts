@@ -4,6 +4,8 @@
  */
 
 import * as os from "os";
+import * as fs from "fs";
+import * as path from "path";
 import type { HostDefaults } from "./types";
 export { getNativeLinkerFlags } from "../compiler/common/NativeLinkerFlags";
 
@@ -74,4 +76,18 @@ export function normalizeArrayOption(
 ): string[] {
   if (!option) return [];
   return Array.isArray(option) ? option : [option];
+}
+
+export function assertWritableFileOutputPath(outputPath: string): void {
+  if (fs.existsSync(outputPath) && fs.statSync(outputPath).isDirectory()) {
+    throw new Error(`Output path is a directory: ${outputPath}`);
+  }
+
+  const outputDir = path.dirname(path.resolve(outputPath));
+  if (!fs.existsSync(outputDir)) {
+    throw new Error(`Output directory not found: ${outputDir}`);
+  }
+  if (!fs.statSync(outputDir).isDirectory()) {
+    throw new Error(`Output parent path is not a directory: ${outputDir}`);
+  }
 }

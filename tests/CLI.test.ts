@@ -288,6 +288,26 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject documentation output paths that are directories", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-docs-output-"));
+    const mainFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(mainFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "docs", mainFile, "-o", tempDir], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a directory");
+      expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");
@@ -868,6 +888,26 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should write bindgen output files through the shared output option", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-file-"));
+    const tempHeader = path.join(tempDir, "input.h");
+    const outputFile = path.join(tempDir, "bindings.bpl");
+    fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
+
+    try {
+      const result = runCLI(["bindgen", tempHeader, "-o", outputFile]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Bindings written to");
+      expect(result.stdout).not.toContain("extern puts");
+      expect(fs.readFileSync(outputFile, "utf8")).toContain(
+        "extern puts(s: string) ret int;",
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject directories as bindgen inputs", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-dir-"));
 
@@ -877,6 +917,22 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("Header path is not a file");
       expect(result.stderr).toContain(tempDir);
+      expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject bindgen output paths that are directories", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-output-"));
+    const tempHeader = path.join(tempDir, "input.h");
+    fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
+
+    try {
+      const result = runCLI(["bindgen", tempHeader, "-o", tempDir]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a directory");
       expect(result.stderr).not.toContain("EISDIR");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

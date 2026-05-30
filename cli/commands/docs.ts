@@ -7,6 +7,7 @@ import * as fs from "fs";
 import { Command } from "commander";
 import { DocumentationGenerator } from "../../compiler/docs/DocumentationGenerator";
 import { Logger } from "../../compiler/common/Logger";
+import { assertWritableFileOutputPath } from "../utils";
 
 const log = new Logger("Docs");
 
@@ -29,6 +30,7 @@ export function registerDocsCommand(program: Command): void {
         const globalOpts = command.parent?.opts() || {};
         const outputPath = options.output || globalOpts.output || "docs.md";
 
+        assertWritableFileOutputPath(outputPath);
         fs.writeFileSync(outputPath, markdown);
         log.info(`Documentation generated at ${outputPath}`);
       } catch (error: unknown) {
