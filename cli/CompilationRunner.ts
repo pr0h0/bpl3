@@ -28,6 +28,7 @@ import {
   assertWritableFileOutputPath,
   assertWritableInputFilePath,
   getHostDefaults,
+  writeFileAtomically,
 } from "./utils";
 import type { CompileOptions } from "./types";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
@@ -453,7 +454,7 @@ function compileWithModules(
   if (options.emit === "formatted" && result.output) {
     if (options.write) {
       assertWritableInputFilePath(filePath);
-      fs.writeFileSync(filePath, result.output);
+      writeFileAtomically(filePath, result.output);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
       console.log(result.output);
@@ -542,7 +543,7 @@ async function compileWithModulesAsync(
   if (options.emit === "formatted" && result.output) {
     if (options.write) {
       assertWritableInputFilePath(filePath);
-      fs.writeFileSync(filePath, result.output);
+      writeFileAtomically(filePath, result.output);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
       console.log(result.output);
@@ -620,7 +621,7 @@ function compileSingleFile(
     const formatted = formatter.format(ast);
     if (options.write) {
       assertWritableInputFilePath(filePath);
-      fs.writeFileSync(filePath, formatted);
+      writeFileAtomically(filePath, formatted);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
       console.log(formatted);
@@ -697,7 +698,7 @@ function writeLlvmOutputAndMaybeBuild(
     assertWritableFileOutputPath(getExecutableOutputPath(outputPath, options));
   }
 
-  fs.writeFileSync(outputPath, ir);
+  writeFileAtomically(outputPath, ir);
 
   if (options.verbose || (!options.run && options.emit === "llvm")) {
     log.info(`LLVM IR written to ${outputPath}`);

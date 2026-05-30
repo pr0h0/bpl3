@@ -116,6 +116,36 @@ export function assertWritableInputFilePath(inputPath: string): void {
   }
 }
 
+export function writeFileAtomically(filePath: string, content: string): void {
+  const existingFile = tryLstat(filePath);
+  const mode =
+    existingFile && existingFile.isFile() ? existingFile.mode & 0o777 : undefined;
+  const tempPath = path.join(
+    path.dirname(path.resolve(filePath)),
+    `.${path.basename(filePath)}.${process.pid}-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}.tmp`,
+  );
+
+  try {
+    fs.writeFileSync(
+      tempPath,
+      content,
+      mode === undefined ? undefined : { mode },
+    );
+    if (mode !== undefined) {
+      fs.chmodSync(tempPath, mode);
+    }
+    fs.renameSync(tempPath, filePath);
+  } finally {
+    try {
+      fs.rmSync(tempPath, { force: true });
+    } catch {
+      // Best-effort cleanup only.
+    }
+  }
+}
+
 function tryLstat(filePath: string): fs.Stats | null {
   try {
     return fs.lstatSync(filePath);

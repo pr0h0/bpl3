@@ -8,7 +8,7 @@ import { Command } from "commander";
 import { Parser, Formatter, lexWithGrammar } from "../../compiler";
 import type { FormatOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
-import { assertWritableInputFilePath } from "../utils";
+import { assertWritableInputFilePath, writeFileAtomically } from "../utils";
 
 const log = new Logger("Format");
 
@@ -69,7 +69,7 @@ export function registerFormatCommand(program: Command): void {
             }
           } else if (options.write) {
             if (content !== formatted) {
-              fs.writeFileSync(filePath, formatted);
+              writeFileAtomically(filePath, formatted);
               updatedFiles++;
               log.info(`${filePath} (changed)`);
             } else {

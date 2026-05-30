@@ -658,6 +658,37 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should format files in write mode atomically", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-format-write-"));
+    const tempFile = path.join(tempDir, "main.bpl");
+    const unformatted = "frame  main ( )  ret  int { return 0 ; }";
+    fs.writeFileSync(tempFile, unformatted);
+    if (process.platform !== "win32") {
+      fs.chmodSync(tempFile, 0o640);
+    }
+
+    try {
+      const result = runCLI(["format", "--write", tempFile]);
+
+      expect(result.status).toBe(0);
+      expect(fs.readFileSync(tempFile, "utf-8")).toContain(
+        "frame main() ret int {",
+      );
+      if (process.platform !== "win32") {
+        expect(fs.statSync(tempFile).mode & 0o777).toBe(0o640);
+      }
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (file) => file.startsWith(".main.bpl.") && file.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should check formatting without rewriting files", () => {
     const tempFile = path.join(process.cwd(), "tests/temp_format_check.bpl");
     const unformatted = "frame  main ( )  ret  int { return 0 ; }";

@@ -3,11 +3,10 @@
  * Generates conservative BPL extern declarations from simple C headers.
  */
 
-import * as fs from "fs";
 import { Command } from "commander";
 import { generateBplBindings } from "../../compiler/tools/CBindgen";
 import { Logger } from "../../compiler/common/Logger";
-import { assertWritableFileOutputPath } from "../utils";
+import { assertWritableFileOutputPath, writeFileAtomically } from "../utils";
 
 const log = new Logger("Bindgen");
 
@@ -24,7 +23,7 @@ export function registerBindgenCommand(program: Command): void {
         const outputPath = options.output || globalOpts.output;
         if (outputPath) {
           assertWritableFileOutputPath(outputPath);
-          fs.writeFileSync(outputPath, output);
+          writeFileAtomically(outputPath, output);
           log.info(`Bindings written to ${outputPath}`);
           return;
         }

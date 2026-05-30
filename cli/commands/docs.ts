@@ -3,11 +3,10 @@
  * Generates Markdown documentation for BPL files
  */
 
-import * as fs from "fs";
 import { Command } from "commander";
 import { DocumentationGenerator } from "../../compiler/docs/DocumentationGenerator";
 import { Logger } from "../../compiler/common/Logger";
-import { assertWritableFileOutputPath } from "../utils";
+import { assertWritableFileOutputPath, writeFileAtomically } from "../utils";
 
 const log = new Logger("Docs");
 
@@ -31,7 +30,7 @@ export function registerDocsCommand(program: Command): void {
         const outputPath = options.output || globalOpts.output || "docs.md";
 
         assertWritableFileOutputPath(outputPath);
-        fs.writeFileSync(outputPath, markdown);
+        writeFileAtomically(outputPath, markdown);
         log.info(`Documentation generated at ${outputPath}`);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
