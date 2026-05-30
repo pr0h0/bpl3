@@ -492,6 +492,7 @@ export class ModuleCache {
           },
         );
       }
+      this.assertCompilerCreatedObjectFile(tempObjectFilePath, modulePath);
       fs.renameSync(tempObjectFilePath, objectFilePath);
       compiled = true;
     } finally {
@@ -623,6 +624,10 @@ export class ModuleCache {
         options.verbose,
       );
 
+      this.assertCompilerCreatedObjectFile(
+        tempObjectFilePath,
+        input.modulePath,
+      );
       fs.renameSync(tempObjectFilePath, objectFilePath);
       compiled = true;
     } finally {
@@ -645,10 +650,33 @@ export class ModuleCache {
 
   private removeCacheTempFile(filePath: string): void {
     try {
-      fs.rmSync(filePath, { force: true });
+      fs.rmSync(filePath, { force: true, recursive: true });
     } catch {
       // Best-effort cleanup only.
     }
+  }
+
+  private assertCompilerCreatedObjectFile(
+    tempObjectFilePath: string,
+    modulePath: string,
+  ): void {
+    const tempObjectStats = this.tryLstat(tempObjectFilePath);
+    if (tempObjectStats?.isFile()) {
+      return;
+    }
+
+    this.removeCacheTempFile(tempObjectFilePath);
+    throw new CompilerError(
+      `Compiler driver did not create module object for ${modulePath}: ${tempObjectFilePath}`,
+      "Check compiler driver output for details.",
+      {
+        file: modulePath,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+    );
   }
 
   private isUsableCacheFile(filePath: string): boolean {

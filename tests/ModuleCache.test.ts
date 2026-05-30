@@ -265,6 +265,98 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("reports successful compiler drivers that do not create module objects", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-missing-object-"));
+    const previousBplCc = process.env.BPL_CC;
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        "process.exit(0);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      const cache = new ModuleCache(dir);
+
+      let thrown: unknown;
+      try {
+        cache.compileModule(
+          "main.bpl",
+          "frame main() ret int { return 0; }",
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      const message = (thrown as Error).message;
+      expect(message).toContain("did not create module object");
+      expect(message).toContain("main.bpl");
+      expect(message).not.toContain("ENOENT");
+
+      const cacheFiles = readdirSync(join(dir, ".bpl-cache"));
+      expect(cacheFiles.some((file) => file.endsWith(".ll"))).toBe(false);
+      expect(cacheFiles.some((file) => file.endsWith(".o"))).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports async compiler drivers that do not create module objects", async () => {
+    const dir = mkdtempSync(
+      join(tmpdir(), "bpl-module-cache-async-missing-object-"),
+    );
+    const previousBplCc = process.env.BPL_CC;
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        "process.exit(0);",
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      const cache = new ModuleCache(dir);
+
+      let thrown: unknown;
+      try {
+        await cache.compileModules(
+          [
+            {
+              modulePath: "main.bpl",
+              content: "frame main() ret int { return 0; }",
+              llvmIR: EMPTY_MAIN_IR,
+            },
+          ],
+          { jobs: 1, optimizationLevel: 0 },
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      const message = (thrown as Error).message;
+      expect(message).toContain("did not create module object");
+      expect(message).toContain("main.bpl");
+      expect(message).not.toContain("ENOENT");
+
+      const cacheFiles = readdirSync(join(dir, ".bpl-cache"));
+      expect(cacheFiles.some((file) => file.endsWith(".ll"))).toBe(false);
+      expect(cacheFiles.some((file) => file.endsWith(".o"))).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("does not reuse stale deterministic IR scratch paths", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-stale-ll-"));
     const previousBplCc = process.env.BPL_CC;
