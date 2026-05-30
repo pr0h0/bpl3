@@ -11,9 +11,10 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 
-import { getCompilerDriver } from "../common/CompilerDriver";
+import { getCompilerDriver, isWasmTarget } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
 
 export interface CachedModule {
   path: string;
@@ -541,6 +542,7 @@ export class ModuleCache {
         libraryPath,
       ]),
       ...(options.libraries ?? []).map((library) => `-l${library}`),
+      ...(isWasmTarget(target) ? [] : getNativeLinkerFlags()),
       ...(options.clangFlags ?? []),
       "-o",
       outputPath,

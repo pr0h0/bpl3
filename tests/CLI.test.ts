@@ -712,6 +712,45 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should use native linker defaults for cached module builds", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), "tests/temp_cache_native_link-"),
+    );
+    const helperFile = path.join(tempDir, "helper.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "native_link_app");
+
+    fs.writeFileSync(
+      helperFile,
+      ["export zero;", "frame zero() ret int {", "    return 0;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import zero from "./helper.bpl";',
+        "extern cos(x: double) ret double;",
+        "frame main() ret int {",
+        "    local value: double = cos(0.0);",
+        "    return cast<int>(value) + zero();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["build", mainFile, "--cache", "-o", outputFile]);
+
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(outputFile)).toBe(true);
+
+      const runResult = spawnSync(outputFile, [], { encoding: "utf-8" });
+      expect(runResult.status).toBe(1);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should print cache stats for cached parallel builds on request", () => {
     const tempDir = fs.mkdtempSync(
       path.join(process.cwd(), "tests/temp_parallel_cache_stats-"),
