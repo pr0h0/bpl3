@@ -180,4 +180,42 @@ describe("LLVM verifier tooling", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("reports verifier spawn errors when stderr is empty", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-llvm-verifier-timeout-"));
+    const toolDir = join(dir, "tools");
+    const fakeOpt = join(toolDir, "hanging-opt.js");
+    const irPath = join(dir, "module.ll");
+
+    mkdirSync(toolDir);
+    writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+    writeFileSync(
+      fakeOpt,
+      [
+        "#!/usr/bin/env node",
+        'if (process.argv.includes("--version")) process.exit(0);',
+        "setTimeout(() => {}, 100000);",
+      ].join("\n"),
+    );
+    chmodSync(fakeOpt, 0o755);
+
+    process.env.BPL_OPT = fakeOpt;
+    process.env.BPL_LLVM_AS = join(dir, "missing-llvm-as");
+    process.env.BPL_LLC = join(dir, "missing-llc");
+    process.env.BPL_CC = join(dir, "missing-clang");
+    delete process.env.OPT;
+    delete process.env.LLVM_AS;
+    delete process.env.LLC;
+    delete process.env.CC;
+
+    try {
+      const result = verifyLlvmFile(irPath, { timeout: 1000 });
+
+      expect(result.exitCode).toBe(-1);
+      expect(result.tool).toBe(fakeOpt);
+      expect(result.stderr).toMatch(/ETIMEDOUT|timed out|timeout/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

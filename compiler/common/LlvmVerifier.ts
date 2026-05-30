@@ -86,7 +86,7 @@ export function verifyLlvmFile(
         tool: candidate.tool,
         args,
         stdout: String(result.stdout ?? ""),
-        stderr: String(result.stderr ?? result.error?.message ?? ""),
+        stderr: getVerifierErrorOutput(result.stderr, result.error),
         exitCode: result.status ?? -1,
       };
     } finally {
@@ -106,6 +106,14 @@ export function verifyLlvmFile(
 
 function formatVerifierToolName(tool: string): string {
   return basename(tool).replace(/[^A-Za-z0-9_.-]/g, "_");
+}
+
+function getVerifierErrorOutput(
+  stderr: string | Buffer | null | undefined,
+  error: Error | undefined,
+): string {
+  const stderrText = String(stderr ?? "");
+  return stderrText.length > 0 ? stderrText : (error?.message ?? "");
 }
 
 function isToolAvailable(
