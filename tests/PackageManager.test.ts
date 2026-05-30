@@ -1394,6 +1394,54 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should preserve existing installs when the local lockfile is invalid", () => {
+      const manifest = {
+        name: "lock-preflight-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export oldVersion;");
+      const firstTarballPath = packageManager.pack(tempDir);
+
+      const installDir = path.join(tempDir, "lock-preflight-install");
+      fs.mkdirSync(installDir);
+      process.chdir(installDir);
+
+      const localPM = new PackageManager();
+      localPM.install(firstTarballPath, { global: false, verbose: false });
+
+      process.chdir(tempDir);
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ ...manifest, version: "2.0.0" }, null, 2),
+      );
+      fs.writeFileSync("index.bpl", "export newVersion;");
+      const secondTarballPath = packageManager.pack(tempDir);
+
+      process.chdir(installDir);
+      fs.writeFileSync(
+        path.join(installDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 2, packages: {} }, null, 2),
+      );
+
+      expect(() =>
+        localPM.install(secondTarballPath, { global: false, verbose: false }),
+      ).toThrow(/Invalid bpl\.lock/);
+      expect(
+        fs.readFileSync(
+          path.join(
+            installDir,
+            "bpl_modules",
+            "lock-preflight-pkg",
+            "index.bpl",
+          ),
+          "utf8",
+        ),
+      ).toBe("export oldVersion;");
+    });
+
     test("should restore local packages from bpl.lock", () => {
       const manifest = {
         name: "restore-test-pkg",

@@ -789,8 +789,9 @@ export class PackageManager {
     manifest: PackageManifest,
     installPath: string,
     source: string,
+    existingLock?: PackageLockFile,
   ): void {
-    const lock = this.loadLockFile();
+    const lock = existingLock ?? this.loadLockFile();
     lock.packages[manifest.name] = {
       version: manifest.version,
       source,
@@ -2188,6 +2189,8 @@ export class PackageManager {
         );
       }
 
+      const localLock = options.global ? undefined : this.loadLockFile();
+
       compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
 
       // Create target directory
@@ -2217,7 +2220,7 @@ export class PackageManager {
         }
         this.writeArchiveProvenance(cachedArchivePath, packageDir, manifest);
       } else {
-        this.recordLocalInstall(manifest, installPath, lockSource);
+        this.recordLocalInstall(manifest, installPath, lockSource, localLock);
       }
 
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
