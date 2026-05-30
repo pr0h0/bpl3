@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -16,6 +15,7 @@ import {
   getLlvmVerifierCandidates,
   verifyLlvmFile,
 } from "../compiler/common/LlvmVerifier";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 function withLlvmFile(ir: string, callback: (path: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), "bpl-llvm-verifier-test-"));
@@ -135,30 +135,24 @@ describe("LLVM verifier tooling", () => {
   test("uses a private verifier output path instead of predictable IR-directory names", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-llvm-verifier-output-"));
     const toolDir = join(dir, "tools");
-    const fakeLlvmAs = join(toolDir, "fake-llvm-as.js");
     const irPath = join(dir, "module.ll");
     const symlinkTarget = join(dir, "outside-output");
+    mkdirSync(toolDir);
+    const fakeLlvmAs = writeNodeCommandShim(join(toolDir, "fake-llvm-as"), [
+      'const fs = require("fs");',
+      'if (process.argv.includes("--version")) process.exit(0);',
+      'const outIndex = process.argv.indexOf("-o");',
+      'if (outIndex >= 0) fs.writeFileSync(process.argv[outIndex + 1], "verified");',
+      "process.exit(0);",
+    ]);
     const oldPredictableOutput = join(
       dir,
       `module.ll.${basename(fakeLlvmAs)}.verify.out`,
     );
 
     writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
-    mkdirSync(toolDir);
     writeFileSync(symlinkTarget, "original");
     symlinkSync(symlinkTarget, oldPredictableOutput, "file");
-    writeFileSync(
-      fakeLlvmAs,
-      [
-        "#!/usr/bin/env node",
-        'const fs = require("fs");',
-        'if (process.argv.includes("--version")) process.exit(0);',
-        'const outIndex = process.argv.indexOf("-o");',
-        'if (outIndex >= 0) fs.writeFileSync(process.argv[outIndex + 1], "verified");',
-        "process.exit(0);",
-      ].join("\n"),
-    );
-    chmodSync(fakeLlvmAs, 0o755);
 
     process.env.BPL_OPT = join(dir, "missing-opt");
     process.env.BPL_LLVM_AS = fakeLlvmAs;
@@ -184,20 +178,14 @@ describe("LLVM verifier tooling", () => {
   test("reports verifier spawn errors when stderr is empty", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-llvm-verifier-timeout-"));
     const toolDir = join(dir, "tools");
-    const fakeOpt = join(toolDir, "hanging-opt.js");
     const irPath = join(dir, "module.ll");
 
     mkdirSync(toolDir);
+    const fakeOpt = writeNodeCommandShim(join(toolDir, "hanging-opt"), [
+      'if (process.argv.includes("--version")) process.exit(0);',
+      "setTimeout(() => {}, 100000);",
+    ]);
     writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
-    writeFileSync(
-      fakeOpt,
-      [
-        "#!/usr/bin/env node",
-        'if (process.argv.includes("--version")) process.exit(0);',
-        "setTimeout(() => {}, 100000);",
-      ].join("\n"),
-    );
-    chmodSync(fakeOpt, 0o755);
 
     process.env.BPL_OPT = fakeOpt;
     process.env.BPL_LLVM_AS = join(dir, "missing-llvm-as");

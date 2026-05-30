@@ -7,6 +7,7 @@ import * as path from "path";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
 import { PackageManager } from "../compiler/middleend/PackageManager";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("PackageManager", () => {
   let tempDir: string;
@@ -67,10 +68,9 @@ describe("PackageManager", () => {
     const fakeTar = path.join(toolDir, "tar-proxy.js");
     fs.mkdirSync(toolDir);
 
-    fs.writeFileSync(
+    const commandPath = writeNodeCommandShim(
       fakeTar,
       [
-        "#!/usr/bin/env node",
         'const { spawnSync } = require("child_process");',
         'const fs = require("fs");',
         "const args = process.argv.slice(2);",
@@ -83,12 +83,10 @@ describe("PackageManager", () => {
         "  process.exit(127);",
         "}",
         "process.exit(result.status ?? 1);",
-        "",
-      ].join("\n"),
+      ],
     );
-    fs.chmodSync(fakeTar, 0o755);
 
-    return { fakeTar, logPath };
+    return { fakeTar: commandPath, logPath };
   }
 
   describe("Package Initialization", () => {

@@ -1,7 +1,6 @@
 import { createHash } from "crypto";
 import { describe, expect, it } from "bun:test";
 import {
-  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -20,6 +19,7 @@ import {
   MODULE_CACHE_VERSION,
   ModuleCache,
 } from "../compiler/middleend/ModuleCache";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 const EMPTY_MAIN_IR = `
   define i32 @main() {
@@ -507,20 +507,13 @@ describe("ModuleCache", () => {
     const poisonedSuffix = `${process.pid}-${fixedTimestamp}-8-0`;
 
     try {
-      const fakeCompiler = join(dir, "fake-cc.js");
-      writeFileSync(
-        fakeCompiler,
-        [
-          "#!/usr/bin/env node",
-          'const fs = require("fs");',
-          "const args = process.argv.slice(2);",
-          'const outputIndex = args.lastIndexOf("-o") + 1;',
-          "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
-          'fs.writeFileSync(args[outputIndex], "object\\n");',
-          "",
-        ].join("\n"),
-      );
-      chmodSync(fakeCompiler, 0o755);
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "object\\n");',
+      ]);
       process.env.BPL_CC = fakeCompiler;
 
       const cache = new ModuleCache(dir);
