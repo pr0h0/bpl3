@@ -1017,6 +1017,61 @@ describe("PackageManager", () => {
       ).toThrow(/Package archive path is not a file/);
     });
 
+    test("should not follow atomic temp symlinks while caching global package archives", () => {
+      const packageDir = path.join(tempDir, "global-cache-temp-package");
+      const installDir = path.join(tempDir, "global-cache-temp-install");
+      const globalPackageDir = path.join(tempDir, "global-cache-temp");
+      const originalDateNow = Date.now;
+      const originalRandom = Math.random;
+      const fixedTimestamp = 1700000000000;
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(installDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "global-cache-temp",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const cachedArchivePath = path.join(
+        globalPackageDir,
+        "global-cache-temp-1.0.0.tgz",
+      );
+      const outsideArchive = path.join(tempDir, "outside-cache.tgz");
+      const poisonedTempArchive = path.join(
+        globalPackageDir,
+        `.global-cache-temp-1.0.0.tgz.${process.pid}-${fixedTimestamp}-8-0.tmp`,
+      );
+      fs.writeFileSync(outsideArchive, "outside\n");
+      fs.symlinkSync(outsideArchive, poisonedTempArchive, "file");
+
+      try {
+        Date.now = () => fixedTimestamp;
+        Math.random = () => 0.5;
+
+        const localPM = new PackageManager(installDir);
+        localPM["globalPackageDir"] = globalPackageDir;
+        localPM.install(tarballPath, { global: true, verbose: false });
+
+        expect(fs.existsSync(cachedArchivePath)).toBe(true);
+        expect(fs.existsSync(`${cachedArchivePath}.bplmeta.json`)).toBe(true);
+        expect(fs.readFileSync(outsideArchive, "utf-8")).toBe("outside\n");
+        expect(fs.lstatSync(poisonedTempArchive).isSymbolicLink()).toBe(true);
+      } finally {
+        Date.now = originalDateNow;
+        Math.random = originalRandom;
+      }
+    });
+
     test("should reject package archives with unsafe member paths", () => {
       const sourceDir = path.join(tempDir, "unsafe-archive-source");
       const installDir = path.join(tempDir, "unsafe-archive-install");

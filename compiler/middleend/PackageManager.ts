@@ -679,6 +679,34 @@ export class PackageManager {
     throw new Error(`Failed to create temporary output file for ${filePath}`);
   }
 
+  private copyFileAtomically(sourcePath: string, destinationPath: string): void {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tempPath = this.getAtomicWriteTempPath(destinationPath, attempt);
+      let createdTemp = false;
+
+      try {
+        fs.copyFileSync(sourcePath, tempPath, fs.constants.COPYFILE_EXCL);
+        createdTemp = true;
+        fs.renameSync(tempPath, destinationPath);
+        return;
+      } catch (error) {
+        if (this.isNodeErrorCode(error, "EEXIST")) {
+          continue;
+        }
+        this.removeBestEffort(tempPath);
+        throw error;
+      } finally {
+        if (createdTemp) {
+          this.removeBestEffort(tempPath);
+        }
+      }
+    }
+
+    throw new Error(
+      `Failed to create temporary copy file for ${destinationPath}`,
+    );
+  }
+
   private getAtomicWriteTempPath(filePath: string, attempt: number): string {
     return path.join(
       path.dirname(path.resolve(filePath)),
@@ -2128,7 +2156,7 @@ export class PackageManager {
           path.join(packageDir, "bpl.json"),
         );
         if (path.resolve(tarballPath) !== path.resolve(cachedArchivePath)) {
-          fs.copyFileSync(tarballPath, cachedArchivePath);
+          this.copyFileAtomically(tarballPath, cachedArchivePath);
         }
         this.writeArchiveProvenance(cachedArchivePath, packageDir, manifest);
       } else {
