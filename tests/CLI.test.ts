@@ -202,6 +202,49 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject compile output paths that are directories before writing artifacts", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-dir-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const result = runCLI(["build", sourceFile, "-o", tempDir]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a directory");
+      expect(result.stderr).not.toContain("Is a directory");
+      expect(result.stderr).not.toContain("EISDIR");
+      expect(fs.existsSync(`${tempDir}.ll`)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject compile output paths whose parent directory is missing", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-parent-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "missing", "app");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const result = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output directory not found");
+      expect(result.stderr).not.toContain("ENOENT");
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject directories in source analysis commands", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-analysis-dir-"),

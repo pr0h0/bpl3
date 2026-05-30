@@ -8,6 +8,7 @@ import * as path from "path";
 import * as fs from "fs";
 import type { CompileOptions, HostDefaults } from "./types";
 import {
+  assertWritableFileOutputPath,
   getHostDefaults,
   getNativeLinkerFlags,
   normalizeArrayOption,
@@ -97,17 +98,18 @@ export function compileToBinary(
   irPath: string,
   options: CompileOptions,
 ): CompileResult {
+  const execPath = getExecutableOutputPath(irPath, options);
+  try {
+    assertWritableFileOutputPath(execPath);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
   const hostDefaults = getHostDefaults();
   const target = options.target ?? hostDefaults.target;
-  const execPathBase = isWasmTarget(target)
-    ? irPath.endsWith(".wasm.ll")
-      ? irPath.replace(/\.ll$/, "")
-      : irPath.replace(/\.ll$/, ".wasm")
-    : irPath.replace(/\.ll$/, "");
-  const execPath = path.isAbsolute(execPathBase)
-    ? execPathBase
-    : path.resolve(execPathBase);
-
   const clangCommand = getCompilerDriver(target);
   const clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
 
@@ -139,6 +141,23 @@ export function compileToBinary(
     success: true,
     executablePath: execPath,
   };
+}
+
+export function getExecutableOutputPath(
+  irPath: string,
+  options: CompileOptions,
+): string {
+  const hostDefaults = getHostDefaults();
+  const target = options.target ?? hostDefaults.target;
+  const execPathBase = isWasmTarget(target)
+    ? irPath.endsWith(".wasm.ll")
+      ? irPath.replace(/\.ll$/, "")
+      : irPath.replace(/\.ll$/, ".wasm")
+    : irPath.replace(/\.ll$/, "");
+
+  return path.isAbsolute(execPathBase)
+    ? execPathBase
+    : path.resolve(execPathBase);
 }
 
 /**

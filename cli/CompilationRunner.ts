@@ -19,8 +19,12 @@ import {
 } from "../compiler";
 import { getBplHome } from "../compiler/common/PathResolver";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
-import { compileBinaryAndRun, isWasmTarget } from "./BinaryRunner";
-import { getHostDefaults } from "./utils";
+import {
+  compileBinaryAndRun,
+  getExecutableOutputPath,
+  isWasmTarget,
+} from "./BinaryRunner";
+import { assertWritableFileOutputPath, getHostDefaults } from "./utils";
 import type { CompileOptions } from "./types";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
@@ -412,16 +416,7 @@ function compileWithModules(
 
   // Write LLVM IR and optionally compile/run
   if (result.output) {
-    const outputPath = getLlvmOutputPath(filePath, options);
-    fs.writeFileSync(outputPath, result.output);
-
-    if (options.verbose || (!options.run && options.emit === "llvm")) {
-      log.info(`LLVM IR written to ${outputPath}`);
-    }
-
-    if (options.emit === "llvm" || options.run || !options.emit) {
-      compileBinaryAndRun(outputPath, options, programArgs);
-    }
+    writeLlvmOutputAndMaybeBuild(filePath, options, result.output, programArgs);
   }
 }
 
@@ -509,16 +504,7 @@ async function compileWithModulesAsync(
 
   // Write LLVM IR and optionally compile/run
   if (result.output) {
-    const outputPath = getLlvmOutputPath(filePath, options);
-    fs.writeFileSync(outputPath, result.output);
-
-    if (options.verbose || (!options.run && options.emit === "llvm")) {
-      log.info(`LLVM IR written to ${outputPath}`);
-    }
-
-    if (options.emit === "llvm" || options.run || !options.emit) {
-      compileBinaryAndRun(outputPath, options, programArgs);
-    }
+    writeLlvmOutputAndMaybeBuild(filePath, options, result.output, programArgs);
   }
 }
 
@@ -604,26 +590,7 @@ function compileSingleFile(
   const ir = generator.generate(ast, filePath);
   endCodeGeneration();
 
-  // Write LLVM IR
-  let irPath: string;
-  if (options.output) {
-    irPath = options.output.endsWith(".ll")
-      ? options.output
-      : options.output + ".ll";
-  } else {
-    irPath = filePath.replace(/\.[^/.]+$/, "") + ".ll";
-  }
-
-  fs.writeFileSync(irPath, ir);
-
-  if (options.verbose || (!options.run && options.emit === "llvm")) {
-    log.info(`LLVM IR written to ${irPath}`);
-  }
-
-  // 5. Compile & Run
-  if (options.emit === "llvm") {
-    compileBinaryAndRun(irPath, options, programArgs);
-  }
+  writeLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
 }
 
 /**
@@ -642,6 +609,34 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
   return options.output.endsWith(".ll")
     ? options.output
     : `${options.output}.ll`;
+}
+
+function writeLlvmOutputAndMaybeBuild(
+  filePath: string,
+  options: CompileOptions,
+  ir: string,
+  programArgs?: string[],
+): void {
+  const outputPath = getLlvmOutputPath(filePath, options);
+  assertWritableFileOutputPath(outputPath);
+
+  if (shouldCompileExecutable(options)) {
+    assertWritableFileOutputPath(getExecutableOutputPath(outputPath, options));
+  }
+
+  fs.writeFileSync(outputPath, ir);
+
+  if (options.verbose || (!options.run && options.emit === "llvm")) {
+    log.info(`LLVM IR written to ${outputPath}`);
+  }
+
+  if (shouldCompileExecutable(options)) {
+    compileBinaryAndRun(outputPath, options, programArgs);
+  }
+}
+
+function shouldCompileExecutable(options: CompileOptions): boolean {
+  return options.emit === "llvm" || Boolean(options.run) || !options.emit;
 }
 
 function printCacheStatsIfRequested(
