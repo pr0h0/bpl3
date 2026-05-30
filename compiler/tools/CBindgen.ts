@@ -424,14 +424,16 @@ function extractTypedefs(
   const pattern = /typedef\s+([^;{}]+?)\s*;/g;
 
   for (const match of cleaned.matchAll(pattern)) {
-    const declaration = parseNamedDeclaration(match[1]!.trim(), 0);
-    const name = declaration.name;
-    if (!name || name === "arg0") continue;
-    if (aggregateNames.has(name)) continue;
-    typedefs.push({
-      name,
-      mappedType: mapCType(declaration.type, {}),
-    });
+    for (const rawDeclaration of expandCDeclaration(match[1]!.trim())) {
+      const declaration = parseNamedDeclaration(rawDeclaration, typedefs.length);
+      const name = declaration.name;
+      if (!name || name === `arg${typedefs.length}`) continue;
+      if (aggregateNames.has(name)) continue;
+      typedefs.push({
+        name,
+        mappedType: mapCType(declaration.type, {}),
+      });
+    }
   }
 
   return typedefs;
@@ -445,7 +447,7 @@ function parseStructFields(body: string): CParameter[] {
     .filter(Boolean)) {
     if (isUnsupportedStructField(declaration)) continue;
 
-    for (const field of expandStructFieldDeclaration(declaration)) {
+    for (const field of expandCDeclaration(declaration)) {
       fields.push(parseNamedDeclaration(field, fields.length));
     }
   }
@@ -457,7 +459,7 @@ function isUnsupportedStructField(field: string): boolean {
   return field.includes(":") || /\(\s*\*/.test(field);
 }
 
-function expandStructFieldDeclaration(declaration: string): string[] {
+function expandCDeclaration(declaration: string): string[] {
   const declarators = splitTopLevelParameters(declaration)
     .map((field) => field.trim())
     .filter(Boolean);

@@ -1169,6 +1169,7 @@ describe("CLI Tests", () => {
         '#define CONCAT_GREETING "hello" "world"',
         "typedef unsigned int bpl_size;",
         "typedef long unsigned int odd_size;",
+        "typedef unsigned long bpl_word, *bpl_word_ptr;",
         "typedef struct Point { int x; double y; } Point;",
         "typedef const char *bpl_cstr;",
         "typedef void *bpl_handle;",
@@ -1219,6 +1220,8 @@ describe("CLI Tests", () => {
       expect(result.stdout).not.toContain("CONCAT_GREETING");
       expect(result.stdout).toContain("type bpl_size = uint;");
       expect(result.stdout).toContain("type odd_size = ulong;");
+      expect(result.stdout).toContain("type bpl_word = ulong;");
+      expect(result.stdout).toContain("type bpl_word_ptr = *ulong;");
       expect(result.stdout).toContain("type bpl_cstr = string;");
       expect(result.stdout).toContain("type bpl_handle = *void;");
       expect(result.stdout).toContain("type PointRef = *Point;");
