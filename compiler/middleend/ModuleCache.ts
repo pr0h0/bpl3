@@ -212,6 +212,9 @@ export class ModuleCache {
       if (!this.isCachedModule(value)) {
         return null;
       }
+      if (value.path !== modulePath) {
+        return null;
+      }
       modules.set(modulePath, value);
     }
 

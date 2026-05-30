@@ -139,6 +139,43 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects cache manifests whose entry path does not match the key", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-path-mismatch-"));
+
+    try {
+      const cacheDir = join(dir, ".bpl-cache");
+      mkdirSync(cacheDir, { recursive: true });
+      const modulePath = join(dir, "main.bpl");
+      const objectPath = join(cacheDir, "cached-object.o");
+      writeFileSync(objectPath, "cached object");
+      writeFileSync(
+        join(cacheDir, "manifest.json"),
+        JSON.stringify(
+          {
+            version: MODULE_CACHE_VERSION,
+            modules: {
+              [modulePath]: {
+                path: join(dir, "other.bpl"),
+                hash: "hash",
+                objectFile: objectPath,
+                timestamp: 1,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const cache = new ModuleCache(dir);
+
+      expect(cache.getStats().totalModules).toBe(0);
+      expect(cache.getCachedObjectFile(modulePath)).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("honors BPL_CC when compiling module objects", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-driver-"));
     const previousBplCc = process.env.BPL_CC;
