@@ -55,6 +55,7 @@ export class CodeGenerator extends StatementGenerator {
       this.debugInfoGenerator = new DebugInfoGenerator(
         filePath || "unknown.bpl",
         ".",
+        this.target,
       );
       this.debugInfoGenerator.createCompileUnit();
     }

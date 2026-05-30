@@ -1,20 +1,23 @@
 import * as path from "path";
 import { spawnSync } from "child_process";
+import { getCompilerDriver } from "../../common/CompilerDriver";
 
-/** Cached clang version string */
-let cachedClangVersion: string | null = null;
+/** Cached compiler driver version strings keyed by selected command. */
+const cachedCompilerVersions = new Map<string, string>();
 
 /**
- * Get the clang version for DWARF producer string.
+ * Get the selected compiler driver version for DWARF producer strings.
  * Caches the result for subsequent calls.
  */
-function getClangVersion(): string {
-  if (cachedClangVersion !== null) {
-    return cachedClangVersion;
+function getCompilerDriverVersion(target?: string): string {
+  const compilerCommand = getCompilerDriver(target);
+  const cached = cachedCompilerVersions.get(compilerCommand);
+  if (cached) {
+    return cached;
   }
 
   try {
-    const result = spawnSync("clang", ["--version"], {
+    const result = spawnSync(compilerCommand, ["--version"], {
       encoding: "utf-8",
       timeout: 5000,
     });
@@ -24,22 +27,28 @@ function getClangVersion(): string {
         /(?:clang|Debian clang|Apple clang)\s+version\s+([^\s]+)/i,
       );
       if (match) {
-        cachedClangVersion = `clang version ${match[1]}`;
-        return cachedClangVersion;
+        const version = `clang version ${match[1]}`;
+        cachedCompilerVersions.set(compilerCommand, version);
+        return version;
       }
       // Fallback: use first line
       const firstLine = result.stdout.split("\n")[0]?.trim();
       if (firstLine) {
-        cachedClangVersion = firstLine;
-        return cachedClangVersion;
+        cachedCompilerVersions.set(compilerCommand, firstLine);
+        return firstLine;
       }
     }
   } catch {
     // Ignore errors, fallback to default
   }
 
-  cachedClangVersion = "BPL compiler";
-  return cachedClangVersion;
+  const fallback = "BPL compiler";
+  cachedCompilerVersions.set(compilerCommand, fallback);
+  return fallback;
+}
+
+function escapeLlvmMetadataString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 export class DebugInfoGenerator {
@@ -54,6 +63,7 @@ export class DebugInfoGenerator {
   constructor(
     private filename: string,
     private directory: string,
+    private target?: string,
   ) {}
 
   public reset() {
@@ -96,7 +106,9 @@ export class DebugInfoGenerator {
     // !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "BPL", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
     // We'll use DW_LANG_C99 (12) as a placeholder or similar.
 
-    const actualProducer = producer || getClangVersion();
+    const actualProducer = escapeLlvmMetadataString(
+      producer || getCompilerDriverVersion(this.target),
+    );
     const fileId = this.getFileNodeId(this.filename);
     const _enumsId = this.addNode("!{}"); // Empty enums list for now
 
@@ -338,7 +350,10 @@ export class DebugInfoGenerator {
       `!llvm.module.flags = !{!${debugInfoVersionId}, !${wcharSizeId}, !${dwarfVersionId}, !${picLevelId}, !${pieLevelId}, !${uwtableId}, !${framePointerId}}`,
     );
 
-    const identId = this.addNode(`!{!"Debian clang version 21.1.6 (3)"}`);
+    const ident = escapeLlvmMetadataString(
+      getCompilerDriverVersion(this.target),
+    );
+    const identId = this.addNode(`!{!"${ident}"}`);
     output.push(`!llvm.ident = !{!${identId}}`);
 
     // Emit all nodes

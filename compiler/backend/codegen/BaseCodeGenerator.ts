@@ -131,7 +131,11 @@ export class BaseCodeGenerator {
     this.functionAttributeGroups = new FunctionAttributeGroups({
       preserveFramePointer: this.shouldPreserveFramePointers(),
     });
-    this.debugInfoGenerator = new DebugInfoGenerator("unknown.bpl", ".");
+    this.debugInfoGenerator = new DebugInfoGenerator(
+      "unknown.bpl",
+      ".",
+      this.target,
+    );
 
     // Register built-in struct layouts
     this.registerBuiltinLayouts();

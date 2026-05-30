@@ -53,6 +53,28 @@ describe("CodeGenerator", () => {
     }
   });
 
+  it("uses the selected compiler driver for DWARF producer metadata", () => {
+    const previousBplCc = process.env.BPL_CC;
+    process.env.BPL_CC = join(
+      tmpdir(),
+      `definitely-missing-dwarf-cc-${process.pid}`,
+    );
+
+    try {
+      const ir = compile("frame main() { return; }", { dwarf: true });
+
+      expect(ir).toContain('producer: "BPL compiler"');
+      expect(ir).toContain('!{!"BPL compiler"}');
+      expect(ir).not.toContain("Debian clang version 21.1.6 (3)");
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+    }
+  });
+
   it("should generate code for a simple function", () => {
     const source = "frame main() { return; }";
     const ir = compile(source);
