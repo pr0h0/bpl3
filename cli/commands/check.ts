@@ -66,6 +66,7 @@ export function registerCheckCommand(program: Command): void {
       const results: any[] = [];
 
       for (const filePath of files) {
+        totalFiles++;
         try {
           if (!fs.existsSync(filePath)) {
             if (options.json) {
@@ -82,7 +83,6 @@ export function registerCheckCommand(program: Command): void {
           }
 
           const fileStartTime = Date.now();
-          totalFiles++;
 
           // Read and lex
           const content = fs.readFileSync(filePath, "utf-8");

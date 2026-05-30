@@ -425,6 +425,27 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should count missing files in check JSON totals", () => {
+    const missingFile = path.join(
+      process.cwd(),
+      "tests/does-not-exist-check.bpl",
+    );
+    const result = runCLI(["check", "--json", missingFile]);
+
+    expect(result.status).toBe(1);
+    const report = JSON.parse(result.stdout);
+    expect(report.success).toBe(false);
+    expect(report.totalFiles).toBe(1);
+    expect(report.errorCount).toBe(1);
+    expect(report.files).toEqual([
+      {
+        file: missingFile,
+        success: false,
+        error: "File not found",
+      },
+    ]);
+  });
+
   it("should scaffold library projects with package-friendly defaults", () => {
     const tempDir = fs.mkdtempSync(path.join(process.cwd(), "tests/temp_new-"));
     const projectName = "sample-lib";
