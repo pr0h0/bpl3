@@ -2232,6 +2232,33 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report symlinked package lockfiles without throwing", () => {
+      const appDir = path.join(tempDir, "doctor-symlink-lock-app");
+      const targetLock = path.join(tempDir, "outside-lock.json");
+      fs.mkdirSync(appDir);
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-symlink-lock-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        targetLock,
+        JSON.stringify({ lockfileVersion: 1, packages: {} }),
+      );
+      fs.symlinkSync(targetLock, path.join(appDir, "bpl.lock"), "file");
+
+      const report = new PackageManager(appDir).doctorPackages();
+      expect(report.ok).toBe(false);
+      expect(report.lockfile.exists).toBe(true);
+      expect(report.lockfile.verified).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          kind: "invalid-lockfile",
+          message: expect.stringContaining("symbolic link"),
+        }),
+      );
+    });
+
     test("should reject malformed package lockfile schema", () => {
       const appDir = path.join(tempDir, "invalid-lock-schema-app");
       fs.mkdirSync(appDir);
@@ -2282,6 +2309,23 @@ describe("PackageManager", () => {
 
       expect(() => new PackageManager(appDir).loadLockFile()).toThrow(
         /Invalid bpl\.lock path/,
+      );
+
+      const symlinkAppDir = path.join(tempDir, "invalid-lock-symlink-app");
+      const targetLock = path.join(tempDir, "target-lock.json");
+      fs.mkdirSync(symlinkAppDir);
+      fs.writeFileSync(
+        targetLock,
+        JSON.stringify({ lockfileVersion: 1, packages: {} }),
+      );
+      fs.symlinkSync(
+        targetLock,
+        path.join(symlinkAppDir, "bpl.lock"),
+        "file",
+      );
+
+      expect(() => new PackageManager(symlinkAppDir).loadLockFile()).toThrow(
+        /symbolic link/,
       );
     });
 

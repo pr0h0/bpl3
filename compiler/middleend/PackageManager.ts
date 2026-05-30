@@ -366,10 +366,6 @@ export class PackageManager {
 
   loadLockFile(): PackageLockFile {
     const lockPath = this.getLockFilePath();
-    if (!fs.existsSync(lockPath)) {
-      return { lockfileVersion: 1, packages: {} };
-    }
-
     const location: SourceLocation = {
       file: lockPath,
       startLine: 1,
@@ -378,12 +374,8 @@ export class PackageManager {
       endColumn: 1,
     };
 
-    if (!fs.statSync(lockPath).isFile()) {
-      throw new CompilerError(
-        "Invalid bpl.lock path",
-        "bpl.lock must be a regular file.",
-        location,
-      );
+    if (!this.assertReadableLockFilePath(lockPath, location)) {
+      return { lockfileVersion: 1, packages: {} };
     }
 
     let parsed: unknown;
@@ -403,6 +395,32 @@ export class PackageManager {
       lockfileVersion: 1,
       packages: parsed.packages || {},
     };
+  }
+
+  private assertReadableLockFilePath(
+    lockPath: string,
+    location: SourceLocation,
+  ): boolean {
+    const existingLock = this.tryLstat(lockPath);
+    if (!existingLock) return false;
+
+    if (existingLock.isSymbolicLink()) {
+      throw new CompilerError(
+        "Invalid bpl.lock path: symbolic link",
+        "bpl.lock must be a regular file, not a symbolic link.",
+        location,
+      );
+    }
+
+    if (!existingLock.isFile()) {
+      throw new CompilerError(
+        "Invalid bpl.lock path",
+        "bpl.lock must be a regular file.",
+        location,
+      );
+    }
+
+    return true;
   }
 
   private validateLockFileShape(
@@ -501,7 +519,22 @@ export class PackageManager {
 
   private saveLockFile(lock: PackageLockFile): void {
     const lockPath = this.getLockFilePath();
-    if (fs.existsSync(lockPath) && !fs.statSync(lockPath).isFile()) {
+    const existingLock = this.tryLstat(lockPath);
+    if (existingLock?.isSymbolicLink()) {
+      throw new CompilerError(
+        "Invalid bpl.lock path: symbolic link",
+        "bpl.lock must be a regular file, not a symbolic link.",
+        {
+          file: lockPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (existingLock && !existingLock.isFile()) {
       throw new CompilerError(
         "Invalid bpl.lock path",
         "bpl.lock must be a regular file.",
@@ -2785,7 +2818,7 @@ export class PackageManager {
     }
 
     const lockPath = this.getLockFilePath();
-    const lockExists = fs.existsSync(lockPath);
+    const lockExists = Boolean(this.tryLstat(lockPath));
     let lock: PackageLockFile | null = null;
     let lockLoadError: string | null = null;
 
