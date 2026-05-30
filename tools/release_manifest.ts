@@ -159,18 +159,33 @@ function assertWritableManifestPath(outPath: string): void {
     }
   }
 
-  const parentPath = dirname(outPath);
-  const parentStats = tryLstat(parentPath);
-  if (parentStats) {
-    if (parentStats.isSymbolicLink()) {
-      throw new Error(
-        `Release manifest output directory is a symbolic link: ${parentPath}`,
-      );
+  assertWritableManifestParent(outPath);
+}
+
+function assertWritableManifestParent(outPath: string): void {
+  for (
+    let parentPath = dirname(resolve(outPath));
+    ;
+    parentPath = dirname(parentPath)
+  ) {
+    const parentStats = tryLstat(parentPath);
+    if (parentStats) {
+      if (parentStats.isSymbolicLink()) {
+        throw new Error(
+          `Release manifest output directory is a symbolic link: ${parentPath}`,
+        );
+      }
+      if (!parentStats.isDirectory()) {
+        throw new Error(
+          `Release manifest output parent is not a directory: ${parentPath}`,
+        );
+      }
+      return;
     }
-    if (!parentStats.isDirectory()) {
-      throw new Error(
-        `Release manifest output parent is not a directory: ${parentPath}`,
-      );
+
+    const nextParent = dirname(parentPath);
+    if (nextParent === parentPath) {
+      return;
     }
   }
 }
@@ -183,7 +198,7 @@ function tryLstat(filePath: string): Stats | null {
       error &&
       typeof error === "object" &&
       "code" in error &&
-      error.code === "ENOENT"
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
     ) {
       return null;
     }

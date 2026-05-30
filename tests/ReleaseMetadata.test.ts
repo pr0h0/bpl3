@@ -198,6 +198,38 @@ describe("Release metadata", () => {
     }
   });
 
+  test("release manifest rejects output paths below file parents", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-output-parent-file-test-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const parentFile = join(tempRoot, "not-a-dir");
+      const outPath = join(parentFile, "release-manifest.json");
+      writeFileSync(parentFile, "not a directory\n");
+
+      let errorMessage = "";
+      try {
+        writeReleaseManifest(outPath, {
+          repoRoot: tempRoot,
+          generatedAt: "2026-05-29T00:00:00.000Z",
+        });
+      } catch (error: unknown) {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(errorMessage).toContain(
+        "Release manifest output parent is not a directory",
+      );
+      expect(errorMessage).toContain(parentFile);
+      expect(errorMessage).not.toContain("ENOTDIR");
+      expect(readFileSync(parentFile, "utf8")).toBe("not a directory\n");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("compiler workflows opt into Node 24 JavaScript actions", () => {
     const workflowNames = ["compiler-correctness.yml", "compiler-fuzz.yml"];
 

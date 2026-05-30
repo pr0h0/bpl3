@@ -317,6 +317,34 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package output paths whose parent path is a file", () => {
+      const parentPath = path.join(tempDir, "package-output-parent");
+      const outputPath = path.join(parentPath, "packages");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          { name: "bad-output-parent-pkg", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync(parentPath, "not a directory");
+
+      let errorMessage = "";
+      try {
+        packageManager.pack(tempDir, outputPath);
+      } catch (error: unknown) {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(errorMessage).toContain(
+        "Package output parent path is not a directory",
+      );
+      expect(errorMessage).toContain(parentPath);
+      expect(errorMessage).not.toContain("ENOTDIR");
+    });
+
     test("should reject package output paths that are symbolic links", () => {
       const outputPath = path.join(tempDir, "package-output-link");
       const targetDir = path.join(tempDir, "outside-output");

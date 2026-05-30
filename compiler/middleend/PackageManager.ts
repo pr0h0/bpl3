@@ -1365,7 +1365,7 @@ export class PackageManager {
         error &&
         typeof error === "object" &&
         "code" in error &&
-        error.code === "ENOENT"
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
       ) {
         return undefined;
       }
@@ -1670,7 +1670,55 @@ export class PackageManager {
       );
     }
 
+    this.assertWritablePackageOutputParent(outputPath, manifestPath);
     fs.mkdirSync(outputPath, { recursive: true });
+  }
+
+  private assertWritablePackageOutputParent(
+    outputPath: string,
+    manifestPath: string,
+  ): void {
+    for (
+      let parentPath = path.dirname(path.resolve(outputPath));
+      ;
+      parentPath = path.dirname(parentPath)
+    ) {
+      const existing = this.tryLstat(parentPath);
+      if (existing) {
+        if (existing.isSymbolicLink()) {
+          throw new CompilerError(
+            `Package output parent path is a symbolic link: ${parentPath}`,
+            "Choose an output path whose parent directories are real directories.",
+            {
+              file: manifestPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+
+        if (!existing.isDirectory()) {
+          throw new CompilerError(
+            `Package output parent path is not a directory: ${parentPath}`,
+            "Choose an output path whose parent is a directory.",
+            {
+              file: manifestPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+
+        return;
+      }
+
+      const nextParent = path.dirname(parentPath);
+      if (nextParent === parentPath) return;
+    }
   }
 
   private ensurePackageArchiveOutputFile(

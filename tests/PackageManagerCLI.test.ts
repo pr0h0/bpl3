@@ -137,6 +137,33 @@ describe("Package Manager CLI", () => {
       ).toBe(false);
     });
 
+    test("should reject pack output paths whose parent path is a file", () => {
+      const manifest = {
+        name: "cli-output-parent-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const parentPath = path.join(tempDir, "not-a-dir");
+      const outputDir = path.join(parentPath, "packages");
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync(parentPath, "not a directory");
+
+      const result = spawnSync("bun", [bplPath, "pack", "-o", outputDir], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Package output parent path is not a directory",
+      );
+      expect(result.stderr).toContain(parentPath);
+      expect(result.stderr).not.toContain("ENOTDIR");
+    });
+
     test("should fail without bpl.json", () => {
       const result = spawnSync("bun", [bplPath, "pack"], {
         cwd: tempDir,
