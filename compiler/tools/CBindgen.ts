@@ -438,16 +438,52 @@ function extractTypedefs(
 }
 
 function parseStructFields(body: string): CParameter[] {
-  return body
+  const fields: CParameter[] = [];
+  for (const declaration of body
     .split(";")
     .map((field) => field.trim())
-    .filter(Boolean)
-    .filter((field) => !isUnsupportedStructField(field))
-    .map((field, index) => parseNamedDeclaration(field, index));
+    .filter(Boolean)) {
+    if (isUnsupportedStructField(declaration)) continue;
+
+    for (const field of expandStructFieldDeclaration(declaration)) {
+      fields.push(parseNamedDeclaration(field, fields.length));
+    }
+  }
+
+  return fields;
 }
 
 function isUnsupportedStructField(field: string): boolean {
   return field.includes(":") || /\(\s*\*/.test(field);
+}
+
+function expandStructFieldDeclaration(declaration: string): string[] {
+  const declarators = splitTopLevelParameters(declaration)
+    .map((field) => field.trim())
+    .filter(Boolean);
+  if (declarators.length <= 1) {
+    return declarators;
+  }
+
+  const baseType = extractDeclarationBaseType(declarators[0]!);
+  if (!baseType) {
+    return [declaration];
+  }
+
+  return declarators.map((declarator, index) =>
+    index === 0 ? declarator : `${baseType} ${declarator}`,
+  );
+}
+
+function extractDeclarationBaseType(declaration: string): string | null {
+  const match =
+    /^(.*?)([A-Za-z_]\w*)(?:\s*(?:\[[^\]]*\])*)\s*$/.exec(declaration);
+  if (!match) return null;
+
+  const beforeName = match[1]!.trim();
+  if (!beforeName) return null;
+
+  return beforeName.replace(/\*+\s*$/, "").trim() || null;
 }
 
 function parseEnumVariants(body: string): string[] {
