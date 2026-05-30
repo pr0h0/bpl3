@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
+import { join } from "path";
 
 import {
   formatTriageSummary,
@@ -73,5 +75,20 @@ describe("CI triage helper", () => {
     expect(formatted).toContain("Ubuntu system clang release");
     expect(formatted).toContain("Run CI-safe test suite");
     expect(formatted).toContain("bun run test:ci");
+  });
+
+  test("prints offline help without requiring a GitHub API call", () => {
+    const result = spawnSync("bun", ["run", "ci:triage", "--", "--help"], {
+      cwd: join(import.meta.dir, ".."),
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Usage: bun tools/ci_triage.ts");
+    expect(result.stdout).toContain("--repo owner/repo");
+    expect(result.stdout).toContain("--json");
+    expect(result.stdout).toContain("run-id-or-actions-url");
+    expect(result.stderr).not.toContain("GitHub API");
+    expect(result.stderr).not.toContain("Expected a GitHub Actions run URL");
   });
 });

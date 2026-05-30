@@ -826,6 +826,8 @@ bun run release:smoke
 
 # Summarize a GitHub Actions run and print local repro commands for failed steps.
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
+# Print CI triage usage without making a GitHub API request.
+bun run ci:triage -- --help
 
 # Run only the VS Code extension tests
 bun run test:vscode-ext

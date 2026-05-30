@@ -54,6 +54,20 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
 ];
 
+export function formatCiTriageHelp(): string {
+  return [
+    "Usage: bun tools/ci_triage.ts [--json] [--repo owner/repo] <run-id-or-actions-url>",
+    "",
+    "Summarize failed GitHub Actions jobs and print local BPL reproduction commands.",
+    "",
+    "Options:",
+    "  --json             Print machine-readable JSON.",
+    "  --repo owner/repo  Default repository for numeric run IDs.",
+    "  -h, --help         Show this help without making a GitHub API request.",
+    "",
+  ].join("\n");
+}
+
 export function parseGitHubRunLocator(
   input: string,
   defaultRepo = DEFAULT_REPO,
@@ -188,14 +202,18 @@ async function fetchWorkflowJobs(
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const help = takeFlag(args, "--help") || takeFlag(args, "-h");
+  if (help) {
+    process.stdout.write(formatCiTriageHelp());
+    return;
+  }
+
   const json = takeFlag(args, "--json");
   const repo = takeOption(args, "--repo") ?? DEFAULT_REPO;
   const run = takeOption(args, "--run") ?? args[0];
 
   if (!run) {
-    console.error(
-      "Usage: bun tools/ci_triage.ts [--json] [--repo owner/repo] <run-id-or-actions-url>",
-    );
+    console.error(formatCiTriageHelp().trimEnd());
     process.exit(2);
   }
 

@@ -416,16 +416,29 @@ function runPackedCacheStatsSmoke(installedBpl: string): void {
 
 function runPackedHelperScriptSmoke(installDir: string): void {
   const packageDir = join(installDir, "node_modules", "bpl-v3");
-  const result = runStep(
+  const fuzzRepro = runStep(
     "check packed npm CLI fuzz artifact repro helper",
     "npm",
     ["run", "fuzz:repro", "--", "--help"],
     { cwd: packageDir, bplHome: null },
   );
 
-  assertOutputContains(result.stdout, [
+  assertOutputContains(fuzzRepro.stdout, [
     "Usage: bun tools/fuzz_artifact_repro.ts",
     "fuzz/crashes",
+  ]);
+
+  const ciTriage = runStep(
+    "check packed npm CLI CI triage helper",
+    "npm",
+    ["run", "ci:triage", "--", "--help"],
+    { cwd: packageDir, bplHome: null },
+  );
+
+  assertOutputContains(ciTriage.stdout, [
+    "Usage: bun tools/ci_triage.ts",
+    "--repo owner/repo",
+    "run-id-or-actions-url",
   ]);
 }
 

@@ -30,7 +30,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Agent Board Workflow Docs** - Documented the BPL Agent Board as the
   credential-free source of truth for active task tracking, criteria, review
   state, and verification evidence.
-- **CI Triage Helper** - Added `bun run ci:triage -- <actions-run-url>` to summarize failed GitHub Actions jobs and print local reproduction commands without requiring GitHub admin access.
+- **CI Triage Helper** - Added `bun run ci:triage -- <actions-run-url>` to
+  summarize failed GitHub Actions jobs and print local reproduction commands
+  without requiring GitHub admin access. The helper now also supports offline
+  `--help` output for packed-package smoke checks.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors
