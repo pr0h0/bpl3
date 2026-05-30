@@ -99,8 +99,12 @@ export function compileToBinary(
   options: CompileOptions,
 ): CompileResult {
   const execPath = getExecutableOutputPath(irPath, options);
+  let clangArgs: string[];
   try {
     assertWritableFileOutputPath(execPath);
+    const hostDefaults = getHostDefaults();
+    const target = options.target ?? hostDefaults.target;
+    clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
   } catch (error) {
     return {
       success: false,
@@ -111,7 +115,6 @@ export function compileToBinary(
   const hostDefaults = getHostDefaults();
   const target = options.target ?? hostDefaults.target;
   const clangCommand = getCompilerDriver(target);
-  const clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
 
   if (options.verbose) {
     log.info("---------------------------------------------");
@@ -345,17 +348,16 @@ function buildClangArgs(
     }
   }
 
-  if (!options.skipRuntime && linkWasm) {
+  if (!options.skipRuntime && wasmTarget) {
     const runtimeWasmPath = path.join(getBplHome(), "lib", "runtime_wasm.ll");
-    if (fs.existsSync(runtimeWasmPath)) {
-      const alreadyLinked =
-        (options.object &&
-          normalizeArrayOption(options.object).includes(runtimeWasmPath)) ||
-        args.includes(runtimeWasmPath);
+    assertReadableRuntimeInput(runtimeWasmPath, "WebAssembly runtime IR");
+    const alreadyLinked =
+      (options.object &&
+        normalizeArrayOption(options.object).includes(runtimeWasmPath)) ||
+      args.includes(runtimeWasmPath);
 
-      if (!alreadyLinked) {
-        args.push(runtimeWasmPath);
-      }
+    if (linkWasm && !alreadyLinked) {
+      args.push(runtimeWasmPath);
     }
 
     if (wasmRuntimeMode === "host") {
@@ -364,17 +366,17 @@ function buildClangArgs(
         "lib",
         "runtime_wasm_host.ll",
       );
-      if (fs.existsSync(runtimeWasmHostPath)) {
-        const alreadyLinked =
-          (options.object &&
-            normalizeArrayOption(options.object).includes(
-              runtimeWasmHostPath,
-            )) ||
-          args.includes(runtimeWasmHostPath);
+      assertReadableRuntimeInput(
+        runtimeWasmHostPath,
+        "Hosted WebAssembly runtime IR",
+      );
+      const alreadyLinked =
+        (options.object &&
+          normalizeArrayOption(options.object).includes(runtimeWasmHostPath)) ||
+        args.includes(runtimeWasmHostPath);
 
-        if (!alreadyLinked) {
-          args.push(runtimeWasmHostPath);
-        }
+      if (linkWasm && !alreadyLinked) {
+        args.push(runtimeWasmHostPath);
       }
     }
   }
@@ -383,4 +385,42 @@ function buildClangArgs(
   args.push(irPath, "-o", execPath);
 
   return args;
+}
+
+function assertReadableRuntimeInput(filePath: string, label: string): void {
+  const linkStats = tryLstat(filePath);
+  if (!linkStats) {
+    throw new Error(
+      `${label} not found: ${filePath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
+    );
+  }
+
+  if (linkStats.isSymbolicLink() && !fs.existsSync(filePath)) {
+    throw new Error(
+      `${label} is a broken symbolic link: ${filePath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
+    );
+  }
+
+  if (!fs.statSync(filePath).isFile()) {
+    throw new Error(
+      `${label} is not a file: ${filePath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
+    );
+  }
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }

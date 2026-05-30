@@ -13,6 +13,30 @@ function runCLI(args: string[]) {
   });
 }
 
+function linkBplHomeFixture(
+  bplHome: string,
+  options: { excludeLibEntries?: Set<string> } = {},
+): void {
+  const libDir = path.join(bplHome, "lib");
+  fs.mkdirSync(libDir, { recursive: true });
+  fs.symlinkSync(
+    path.join(process.cwd(), "grammar"),
+    path.join(bplHome, "grammar"),
+    "dir",
+  );
+
+  for (const entry of fs.readdirSync(path.join(process.cwd(), "lib"))) {
+    if (options.excludeLibEntries?.has(entry)) continue;
+    const realPath = path.join(process.cwd(), "lib", entry);
+    const linkPath = path.join(libDir, entry);
+    fs.symlinkSync(
+      realPath,
+      linkPath,
+      fs.statSync(realPath).isDirectory() ? "dir" : "file",
+    );
+  }
+}
+
 describe("CLI Tests", () => {
   it("should lint files and report errors", () => {
     const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
@@ -1926,6 +1950,92 @@ describe("CLI Tests", () => {
       for (const file of [tempFile, wasmFile, llvmFile]) {
         if (fs.existsSync(file)) fs.unlinkSync(file);
       }
+    }
+  });
+
+  it("should report missing wasm runtime IR before linking", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-wasm-runtime-"));
+    const bplHome = path.join(tempDir, "bpl-home");
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const wasmFile = path.join(tempDir, "main.wasm");
+    linkBplHomeFixture(bplHome, {
+      excludeLibEntries: new Set(["runtime_wasm.ll"]),
+    });
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "build",
+          sourceFile,
+          "--target",
+          "wasm32-unknown-unknown",
+          "-o",
+          wasmFile,
+        ],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            BPL_HOME: bplHome,
+            NO_COLOR: "1",
+          },
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("WebAssembly runtime IR not found");
+      expect(result.stderr).not.toContain("clang");
+      expect(fs.existsSync(wasmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report missing hosted wasm runtime IR before linking", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-wasm-host-runtime-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const wasmFile = path.join(tempDir, "main.wasm");
+    linkBplHomeFixture(bplHome, {
+      excludeLibEntries: new Set(["runtime_wasm_host.ll"]),
+    });
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "build",
+          sourceFile,
+          "--target",
+          "wasm32-unknown-unknown",
+          "--wasm-runtime",
+          "host",
+          "-o",
+          wasmFile,
+        ],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            BPL_HOME: bplHome,
+            NO_COLOR: "1",
+          },
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Hosted WebAssembly runtime IR not found");
+      expect(result.stderr).not.toContain("clang");
+      expect(fs.existsSync(wasmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
