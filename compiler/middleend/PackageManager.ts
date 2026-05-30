@@ -278,7 +278,57 @@ export class PackageManager {
       return;
     }
 
+    this.assertPackageManagerDirectoryParent(dirPath, label);
     fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  private assertPackageManagerDirectoryParent(
+    dirPath: string,
+    label: string,
+  ): void {
+    for (
+      let parentPath = path.dirname(path.resolve(dirPath));
+      ;
+      parentPath = path.dirname(parentPath)
+    ) {
+      const existingPath = this.tryLstat(parentPath);
+      if (existingPath) {
+        if (existingPath.isSymbolicLink()) {
+          const targetStats = this.tryStat(parentPath);
+          if (targetStats?.isDirectory()) return;
+
+          throw new CompilerError(
+            `${label} parent path is a symbolic link: ${parentPath}`,
+            "Move the symlink out of the way or choose a real package root directory.",
+            {
+              file: parentPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+
+        if (!existingPath.isDirectory()) {
+          throw new CompilerError(
+            `${label} parent path is not a directory: ${parentPath}`,
+            "Move the file out of the way or choose a different package root.",
+            {
+              file: parentPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
+        return;
+      }
+
+      const nextParent = path.dirname(parentPath);
+      if (nextParent === parentPath) return;
+    }
   }
 
   private linkBinaries(
@@ -1360,6 +1410,22 @@ export class PackageManager {
   private tryLstat(filePath: string): fs.Stats | undefined {
     try {
       return fs.lstatSync(filePath);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
+      ) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  private tryStat(filePath: string): fs.Stats | undefined {
+    try {
+      return fs.statSync(filePath);
     } catch (error) {
       if (
         error &&

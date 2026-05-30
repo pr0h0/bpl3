@@ -132,6 +132,24 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package roots whose parent path is a file", () => {
+      const projectFile = path.join(tempDir, "bad-package-root-parent");
+      fs.writeFileSync(projectFile, "not a directory");
+
+      let errorMessage = "";
+      try {
+        new PackageManager(projectFile);
+      } catch (error: unknown) {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(errorMessage).toContain(
+        "Local package directory parent path is not a directory",
+      );
+      expect(errorMessage).toContain(projectFile);
+      expect(errorMessage).not.toContain("ENOTDIR");
+    });
+
     test("should reject package roots whose bpl_modules path is a symlink", () => {
       const projectDir = path.join(tempDir, "symlink-local-package-dir");
       const targetDir = path.join(tempDir, "outside-package-root");
