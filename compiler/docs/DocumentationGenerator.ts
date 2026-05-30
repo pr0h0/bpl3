@@ -11,6 +11,8 @@ export class DocumentationGenerator {
   private output: string[] = [];
 
   public generate(filePath: string): string {
+    this.visitedFiles = new Set<string>();
+    this.output = [];
     this.processFile(path.resolve(filePath));
     return this.output.join("\n");
   }
