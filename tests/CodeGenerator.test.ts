@@ -117,6 +117,34 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("throws instead of emitting a placeholder for unknown expression kinds", () => {
+    const program = parseAndCheck(`
+      frame bad() ret int {
+        return 1;
+      }
+    `);
+    const expr = getOnlyReturnExpression(program);
+    (expr as any).kind = "UnknownExpression";
+
+    expect(() => new CodeGenerator().generate(program)).toThrow(
+      /Unhandled expression kind during code generation: UnknownExpression/,
+    );
+  });
+
+  it("throws instead of emitting a placeholder for unknown literal types", () => {
+    const program = parseAndCheck(`
+      frame bad() ret int {
+        return 1;
+      }
+    `);
+    const expr = getOnlyReturnExpression(program) as AST.LiteralExpr;
+    (expr as any).type = "vector";
+
+    expect(() => new CodeGenerator().generate(program)).toThrow(
+      /Unsupported literal type during code generation: vector/,
+    );
+  });
+
   it("should generate code for a simple function", () => {
     const source = "frame main() { return; }";
     const ir = compile(source);

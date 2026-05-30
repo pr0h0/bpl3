@@ -88,10 +88,11 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           expr as AST.GenericInstantiationExpr,
         );
       default:
-        codeGenLog.warn(
-          `Unhandled expression kind: ${(expr as AST.Expression).kind}`,
+        throw this.createError(
+          `Unhandled expression kind during code generation: ${(expr as AST.Expression).kind}`,
+          expr,
+          "This is an internal compiler error. All type-checked expression kinds should have a code generation path.",
         );
-        return "0"; // Placeholder
     }
   }
 
@@ -384,7 +385,12 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       // Get pointer to first element
       return `getelementptr inbounds ([${len} x i8], [${len} x i8]* ${varName}, i64 0, i64 0)`; // This returns i8*
     }
-    return "0";
+
+    throw this.createError(
+      `Unsupported literal type during code generation: ${expr.type}`,
+      expr,
+      "This is an internal compiler error. All type-checked literal types should have a code generation path.",
+    );
   }
 
   protected generateIdentifier(expr: AST.IdentifierExpr): string {
