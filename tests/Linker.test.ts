@@ -214,6 +214,7 @@ describe("Linker", () => {
     const outputPath = join(dir, "main");
     const missingObject = join(dir, "missing.o");
     const objectDir = join(dir, "objects");
+    const unsupportedObject = join(dir, "notes.txt");
     const originalError = console.error;
 
     writeFileSync(
@@ -226,6 +227,7 @@ describe("Linker", () => {
       `,
     );
     mkdirSync(objectDir);
+    writeFileSync(unsupportedObject, "not an object");
 
     try {
       console.error = () => {};
@@ -246,6 +248,15 @@ describe("Linker", () => {
         clangFlags: ["-Wno-override-module"],
       });
       expect(directoryOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+
+      const unsupportedOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        objectFiles: [unsupportedObject],
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(unsupportedOk).toBe(false);
       expect(existsSync(outputPath)).toBe(false);
     } finally {
       console.error = originalError;

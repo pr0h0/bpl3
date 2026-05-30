@@ -125,6 +125,8 @@ export class Linker {
   }
 
   private validateObjectFiles(objectFiles: string[]): void {
+    const supportedExtensions = new Set([".ll", ".o", ".obj", ".a"]);
+
     for (const objectFile of objectFiles) {
       if (!fs.existsSync(objectFile)) {
         throw new CompilerError(
@@ -144,6 +146,21 @@ export class Linker {
         throw new CompilerError(
           `Object path is not a file: ${objectFile}`,
           "Pass a regular object, archive, or LLVM IR file to --object.",
+          {
+            file: objectFile,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      const ext = path.extname(objectFile).toLowerCase();
+      if (!supportedExtensions.has(ext)) {
+        throw new CompilerError(
+          `Unsupported object file format: ${ext || "(none)"}`,
+          "Use a supported object input: .ll, .o, .obj, or .a.",
           {
             file: objectFile,
             startLine: 1,
