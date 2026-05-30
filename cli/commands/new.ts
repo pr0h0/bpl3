@@ -46,11 +46,7 @@ export function registerNewCommand(program: Command): void {
 
           const projectPath = path.resolve(process.cwd(), name);
 
-          // Check if directory already exists
-          if (fs.existsSync(projectPath)) {
-            log.error(`Directory already exists: ${projectPath}`);
-            process.exit(1);
-          }
+          assertProjectPathAvailable(projectPath);
 
           // Create project directory
           fs.mkdirSync(projectPath, { recursive: true });
@@ -305,5 +301,41 @@ function validateProjectName(name: string): void {
       `Invalid project name: ${name} (use lowercase letters, numbers, and hyphens only).`,
     );
     process.exit(1);
+  }
+}
+
+function assertProjectPathAvailable(projectPath: string): void {
+  const existingPath = tryLstat(projectPath);
+  if (!existingPath) return;
+
+  if (existingPath.isDirectory()) {
+    throw new Error(`Directory already exists: ${projectPath}`);
+  }
+
+  if (existingPath.isSymbolicLink()) {
+    throw new Error(
+      `Project path already exists as a symbolic link: ${projectPath}`,
+    );
+  }
+
+  throw new Error(
+    `Project path already exists and is not a directory: ${projectPath}`,
+  );
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
   }
 }

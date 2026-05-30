@@ -911,6 +911,52 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject existing non-directory project paths before scaffolding", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-collision-"));
+    const fileName = "taken-file";
+    const linkName = "taken-link";
+    const filePath = path.join(tempDir, fileName);
+    const linkPath = path.join(tempDir, linkName);
+    fs.writeFileSync(filePath, "not a project directory");
+    fs.symlinkSync(path.join(tempDir, "missing-target"), linkPath, "file");
+
+    try {
+      const fileCollision = spawnSync(
+        "bun",
+        [BPL_CLI, "new", fileName, "--no-git"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(fileCollision.status).toBe(1);
+      expect(fileCollision.stderr).toContain(
+        "Project path already exists and is not a directory",
+      );
+      expect(fileCollision.stderr).toContain(filePath);
+      expect(fileCollision.stderr).not.toContain("EEXIST");
+
+      const linkCollision = spawnSync(
+        "bun",
+        [BPL_CLI, "new", linkName, "--no-git"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(linkCollision.status).toBe(1);
+      expect(linkCollision.stderr).toContain(
+        "Project path already exists as a symbolic link",
+      );
+      expect(linkCollision.stderr).toContain(linkPath);
+      expect(linkCollision.stderr).not.toContain("EEXIST");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should honor BPL_CC when skipping unavailable package IR verification", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-no-cc-"));
     fs.writeFileSync(
