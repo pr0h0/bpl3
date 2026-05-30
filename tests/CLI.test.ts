@@ -214,6 +214,53 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should not remove git-tracked files during clean", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-clean-tracked-"),
+    );
+    const buildDir = path.join(tempDir, "build");
+    fs.mkdirSync(buildDir);
+
+    const trackedLl = path.join(tempDir, "runtime.ll");
+    const trackedBuildFile = path.join(buildDir, "keep.txt");
+    const untrackedObject = path.join(tempDir, "generated.o");
+
+    fs.writeFileSync(trackedLl, "; tracked runtime ir");
+    fs.writeFileSync(trackedBuildFile, "tracked artifact");
+    fs.writeFileSync(untrackedObject, "object");
+
+    try {
+      const init = spawnSync("git", ["init"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+      });
+      expect(init.status).toBe(0);
+
+      const add = spawnSync("git", ["add", "runtime.ll", "build/keep.txt"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+      });
+      expect(add.status).toBe(0);
+
+      const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(clean.status).toBe(0);
+      const cleanReport = JSON.parse(clean.stdout);
+      expect(cleanReport.entries).toEqual([
+        { path: "generated.o", type: "file" },
+      ]);
+      expect(fs.existsSync(trackedLl)).toBe(true);
+      expect(fs.existsSync(trackedBuildFile)).toBe(true);
+      expect(fs.existsSync(untrackedObject)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should quote forwarded run-script arguments", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     const outputFile = path.join(tempDir, "script-args.txt");

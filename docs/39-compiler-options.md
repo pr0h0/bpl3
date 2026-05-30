@@ -155,7 +155,9 @@ or malformed provenance sidecars for otherwise valid cached archives.
 
 ### `bpl clean`
 
-Remove build artifacts.
+Remove build artifacts. In git repositories, tracked files are skipped so
+checked-in runtime IR, examples, or release artifacts are not removed by
+accident.
 
 **Options:**
 

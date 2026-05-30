@@ -5,6 +5,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { spawnSync } from "child_process";
 import { Command } from "commander";
 import { Logger } from "../../compiler/common/Logger";
 
@@ -49,6 +50,7 @@ export function registerCleanCommand(program: Command): void {
           const globalOpts = command.parent?.opts() || {};
           const outputJson = options.json || globalOpts.json;
           const entriesToDelete: CleanEntry[] = [];
+          const trackedPaths = getGitTrackedPaths(cwd);
           const cacheDirs = [
             path.join(cwd, ".bpl-cache"),
             path.join(cwd, "build"),
@@ -86,14 +88,11 @@ export function registerCleanCommand(program: Command): void {
                   // Check if file matches any pattern
                   const ext = path.extname(entry.name);
                   const base = path.basename(entry.name, ext);
+                  const gitRelativePath = normalizeGitRelativePath(relativePath);
 
                   if (
-                    ext === ".ll" ||
-                    ext === ".o" ||
-                    ext === ".exe" ||
-                    ext === ".out" ||
-                    (base === "main" && ext === "") ||
-                    (base === "a" && ext === ".out")
+                    isBuildArtifact(base, ext) &&
+                    !trackedPaths.has(gitRelativePath)
                   ) {
                     entriesToDelete.push({ path: relativePath, type: "file" });
 
@@ -122,6 +121,11 @@ export function registerCleanCommand(program: Command): void {
           for (const dir of cacheDirs) {
             if (fs.existsSync(dir)) {
               const relativePath = path.relative(cwd, dir);
+              const gitRelativePath = normalizeGitRelativePath(relativePath);
+              if (hasTrackedPathUnder(trackedPaths, gitRelativePath)) {
+                continue;
+              }
+
               entriesToDelete.push({
                 path: `${relativePath}/`,
                 type: "directory",
@@ -176,4 +180,49 @@ export function registerCleanCommand(program: Command): void {
         }
       },
     );
+}
+
+function isBuildArtifact(base: string, ext: string): boolean {
+  return (
+    ext === ".ll" ||
+    ext === ".o" ||
+    ext === ".exe" ||
+    ext === ".out" ||
+    (base === "main" && ext === "") ||
+    (base === "a" && ext === ".out")
+  );
+}
+
+function getGitTrackedPaths(cwd: string): Set<string> {
+  const result = spawnSync("git", ["-C", cwd, "ls-files", "-z", "--", "."], {
+    encoding: "utf-8",
+  });
+
+  if (result.status !== 0 || result.error) {
+    return new Set();
+  }
+
+  return new Set(
+    result.stdout
+      .split("\0")
+      .filter(Boolean)
+      .map((trackedPath) => normalizeGitRelativePath(trackedPath)),
+  );
+}
+
+function normalizeGitRelativePath(relativePath: string): string {
+  return relativePath.split(path.sep).join("/");
+}
+
+function hasTrackedPathUnder(
+  trackedPaths: Set<string>,
+  directory: string,
+): boolean {
+  const prefix = directory.endsWith("/") ? directory : `${directory}/`;
+  for (const trackedPath of trackedPaths) {
+    if (trackedPath === directory || trackedPath.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
 }
