@@ -29,6 +29,8 @@ const TYPE_MAP: Record<string, string> = {
   float: "float",
   double: "double",
 };
+const NUMERIC_CONSTANT_PATTERN =
+  /^([+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d+)?))([uUlLfF]*)$/;
 
 export function generateBplBindings(options: BindgenOptions): string {
   if (!fs.existsSync(options.headerPath)) {
@@ -138,15 +140,16 @@ function stripComments(source: string): string {
 function extractConstants(source: string): CConstant[] {
   const constants: CConstant[] = [];
   const pattern =
-    /^\s*#define\s+([A-Za-z_]\w*)\s+("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?)\s*$/gm;
+    /^\s*#define\s+([A-Za-z_]\w*)\s+("(?:[^"\\]|\\.)*"|[+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d+)?)(?:[uUlLfF]+)?)\s*$/gm;
 
   for (const match of stripComments(source).matchAll(pattern)) {
     const name = match[1]!;
-    const value = match[2]!;
+    const rawValue = match[2]!;
+    const value = normalizeConstantValue(rawValue);
     constants.push({
       name,
       value,
-      type: inferConstantType(value),
+      type: inferConstantType(rawValue),
     });
   }
 
@@ -155,8 +158,21 @@ function extractConstants(source: string): CConstant[] {
 
 function inferConstantType(value: string): string {
   if (value.startsWith('"')) return "string";
+  const suffix = getNumericConstantSuffix(value);
+  if (/[fF]/.test(suffix)) return "float";
   if (value.includes(".")) return "double";
+  if (/[uU]/.test(suffix)) return "uint";
   return "int";
+}
+
+function normalizeConstantValue(value: string): string {
+  if (value.startsWith('"')) return value;
+  const match = NUMERIC_CONSTANT_PATTERN.exec(value);
+  return match?.[1] ?? value;
+}
+
+function getNumericConstantSuffix(value: string): string {
+  return NUMERIC_CONSTANT_PATTERN.exec(value)?.[2] ?? "";
 }
 
 function extractStructs(source: string): CStruct[] {
