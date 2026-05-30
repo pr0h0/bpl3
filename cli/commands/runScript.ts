@@ -50,11 +50,16 @@ export function registerRunScriptCommand(program: Command): void {
         };
         const manifestPath = path.join(process.cwd(), "bpl.json");
 
-        if (!fs.existsSync(manifestPath)) {
+        const manifestStat = tryLstat(manifestPath);
+        if (!manifestStat) {
           log.error("No bpl.json found in current directory.");
           process.exit(1);
         }
-        if (!fs.statSync(manifestPath).isFile()) {
+        if (manifestStat.isSymbolicLink()) {
+          log.error("bpl.json is a symbolic link.");
+          process.exit(1);
+        }
+        if (!manifestStat.isFile()) {
           log.error("bpl.json is not a file.");
           process.exit(1);
         }
@@ -159,6 +164,23 @@ function getPackageScripts(manifest: any): PackageScript[] {
 
     return { name, command };
   });
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function printScriptList(scripts: PackageScript[], outputJson: boolean): void {

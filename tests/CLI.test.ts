@@ -754,6 +754,32 @@ describe("CLI Tests", () => {
       expect(nonObjectManifest.stderr).toContain(
         "bpl.json must contain a JSON object",
       );
+
+      fs.unlinkSync(path.join(tempDir, "bpl.json"));
+      const targetManifest = path.join(tempDir, "linked-manifest.json");
+      fs.writeFileSync(
+        targetManifest,
+        JSON.stringify({
+          name: "linked-run-script-test",
+          version: "1.0.0",
+          scripts: {
+            linked: "echo should-not-run",
+          },
+        }),
+      );
+      fs.symlinkSync(targetManifest, path.join(tempDir, "bpl.json"), "file");
+      const symlinkManifest = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "--list"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(symlinkManifest.status).toBe(1);
+      expect(symlinkManifest.stderr).toContain("bpl.json is a symbolic link");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
