@@ -398,6 +398,35 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should honor CC when building native binaries", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-build-cc-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const missingCc = path.join(tempDir, "definitely-missing-cc");
+    fs.writeFileSync(
+      sourceFile,
+      ["frame main() ret int {", "    return 0;", "}"].join("\n"),
+    );
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "build", sourceFile], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          CC: missingCc,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `Failed to compile LLVM IR with ${missingCc}`,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should generate BPL extern declarations from simple C headers", () => {
     const tempHeader = path.join(process.cwd(), "tests/temp_bindgen.h");
     fs.writeFileSync(

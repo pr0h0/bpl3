@@ -383,6 +383,9 @@ Compile for different target platforms:
 - `--sysroot <path>`: Sysroot for cross-compilation
 - `--clang-flag <flag>`: Pass additional flags to clang
 
+Native binary builds use `BPL_CC`, then `CC`, then `clang` to select the C/LLVM
+driver. WebAssembly builds use `BPL_WASM_CC`, then `WASM_CC`, then `clang`.
+
 **Supported Targets:**
 
 These triples are covered by code generation smoke tests. They confirm that the
