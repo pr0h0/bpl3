@@ -429,6 +429,30 @@ describe("PackageManager", () => {
         fs.rmSync(outsideDir, { recursive: true, force: true });
       }
     });
+
+    test("should reject missing package bin entries", () => {
+      const packageDir = path.join(tempDir, "missing-bin-package");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "missing-bin-package",
+            version: "1.0.0",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      expect(() => packageManager.pack(packageDir)).toThrow(
+        /Missing package bin entry/,
+      );
+    });
   });
 
   describe("Package Installation", () => {
@@ -566,6 +590,82 @@ describe("PackageManager", () => {
           verbose: false,
         }),
       ).toThrow(/Local binary directory path is not a directory/);
+    });
+
+    test("should reject package binary link targets that are directories", () => {
+      const packageDir = path.join(tempDir, "bin-target-package");
+      const installDir = path.join(tempDir, "bin-target-install");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "bin-target-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const targetPath = path.join(installDir, "bpl_modules", ".bin", "tool");
+      fs.mkdirSync(targetPath, { recursive: true });
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Cannot link package binary 'tool'/);
+    });
+
+    test("should reject package archives with missing bin entries", () => {
+      const sourceDir = path.join(tempDir, "missing-bin-archive-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const installDir = path.join(tempDir, "missing-bin-archive-install");
+      const tarballPath = path.join(tempDir, "missing-bin-archive-1.0.0.tgz");
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "missing-bin-archive",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export test;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", tarballPath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Missing package bin entry/);
     });
 
     test("should reject package archives with unsafe member paths", () => {

@@ -297,14 +297,30 @@ export class PackageManager {
         );
       }
 
-      const sourcePath = this.resolvePackageRelativePath(
+      const manifestPath = path.join(installPath, "bpl.json");
+      const sourcePath = this.validatePackageBinFile(
         installPath,
         relativePath,
+        manifestPath,
       );
       const targetPath = path.join(binDir, name);
 
       // Remove existing link/file
-      if (fs.existsSync(targetPath)) {
+      const existingTarget = this.tryLstat(targetPath);
+      if (existingTarget) {
+        if (existingTarget.isDirectory()) {
+          throw new CompilerError(
+            `Cannot link package binary '${name}'`,
+            `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
+            {
+              file: manifestPath,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 1,
+            },
+          );
+        }
         fs.unlinkSync(targetPath);
       }
 
@@ -1192,6 +1208,58 @@ export class PackageManager {
     }
   }
 
+  private validatePackageBinFile(
+    packageDir: string,
+    relativePath: string,
+    manifestPath: string,
+  ): string {
+    const location: SourceLocation = {
+      file: manifestPath,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    };
+    const fullPath = this.resolvePackageRelativePath(packageDir, relativePath);
+
+    if (!fs.existsSync(fullPath)) {
+      throw new CompilerError(
+        `Missing package bin entry: ${relativePath}`,
+        "Package bin entries must point to regular files included in the package.",
+        location,
+      );
+    }
+
+    const binaryStat = fs.lstatSync(fullPath);
+    if (binaryStat.isSymbolicLink()) {
+      throw new CompilerError(
+        `Unsupported package bin entry: ${relativePath}`,
+        "Package bin entries must be regular files, not symbolic links.",
+        location,
+      );
+    }
+
+    if (!binaryStat.isFile()) {
+      throw new CompilerError(
+        `Unsupported package bin entry: ${relativePath}`,
+        "Package bin entries must point to regular files.",
+        location,
+      );
+    }
+
+    const packageRoot = fs.realpathSync(packageDir);
+    const realBinaryPath = fs.realpathSync(fullPath);
+    if (!this.isWithinPackage(packageRoot, realBinaryPath)) {
+      throw new CompilerError(
+        `Invalid 'bin' path for ${relativePath}`,
+        "Package bin entries must resolve inside the package root.",
+        location,
+      );
+    }
+
+    return fullPath;
+  }
+
   private isSafeBinCommandName(commandName: string): boolean {
     return (
       commandName.length > 0 &&
@@ -1230,6 +1298,22 @@ export class PackageManager {
     relativePath: string,
   ): string {
     return path.resolve(packageDir, ...relativePath.split(/[\\/]+/));
+  }
+
+  private tryLstat(filePath: string): fs.Stats | undefined {
+    try {
+      return fs.lstatSync(filePath);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1406,62 +1490,12 @@ export class PackageManager {
     // Also include 'bin' files
     if (manifest.bin) {
       for (const binaryPath of Object.values(manifest.bin)) {
-        const fullPath = this.resolvePackageRelativePath(
+        const fullPath = this.validatePackageBinFile(
           packageDir,
           binaryPath as string,
+          manifestPath,
         );
-        if (fs.existsSync(fullPath)) {
-          const binaryStat = fs.lstatSync(fullPath);
-          if (binaryStat.isSymbolicLink()) {
-            throw new CompilerError(
-              `Unsupported package bin entry: ${binaryPath}`,
-              "Package bin entries must be regular files, not symbolic links.",
-              {
-                file: manifestPath,
-                startLine: 1,
-                startColumn: 1,
-                endLine: 1,
-                endColumn: 1,
-              },
-            );
-          }
-
-          if (!binaryStat.isFile()) {
-            throw new CompilerError(
-              `Unsupported package bin entry: ${binaryPath}`,
-              "Package bin entries must point to regular files.",
-              {
-                file: manifestPath,
-                startLine: 1,
-                startColumn: 1,
-                endLine: 1,
-                endColumn: 1,
-              },
-            );
-          }
-
-          const packageRoot = fs.realpathSync(packageDir);
-          const realBinaryPath = fs.realpathSync(fullPath);
-          if (!this.isWithinPackage(packageRoot, realBinaryPath)) {
-            throw new CompilerError(
-              `Invalid 'bin' path for ${binaryPath}`,
-              "Package bin entries must resolve inside the package root.",
-              {
-                file: manifestPath,
-                startLine: 1,
-                startColumn: 1,
-                endLine: 1,
-                endColumn: 1,
-              },
-            );
-          }
-
-          files.push(fullPath);
-        } else {
-          compilerLog.warn(
-            `Warning: Binary '${binaryPath}' not found, skipping.`,
-          );
-        }
+        files.push(fullPath);
       }
     }
 
