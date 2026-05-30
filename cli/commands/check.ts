@@ -14,6 +14,7 @@ import {
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import { getInputFilePathError } from "../utils";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
+import { updateConfig } from "../../compiler/common/Config";
 
 const log = new Logger("Check");
 
@@ -59,6 +60,12 @@ export function registerCheckCommand(program: Command): void {
       // Handle quiet mode
       if (options.quiet) {
         setLogLevel(LogLevel.SILENT);
+      }
+      if (options.color !== undefined) {
+        updateConfig({
+          features: { colorize: options.color },
+        });
+        diagnosticFormatter.setConfig({ colorize: options.color });
       }
 
       const startTime = Date.now();

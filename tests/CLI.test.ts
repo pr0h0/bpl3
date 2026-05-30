@@ -125,6 +125,35 @@ describe("CLI Tests", () => {
     expect(noColor.stderr).not.toContain("\x1b[");
   });
 
+  it("should apply explicit color flags to check diagnostics", () => {
+    const tempFile = path.join(process.cwd(), "tests/temp_check_color.bpl");
+    const env: Record<string, string | undefined> = { ...process.env };
+    delete env.NO_COLOR;
+    fs.writeFileSync(tempFile, 'frame main() { local x: int = "bad"; }');
+
+    try {
+      const color = spawnSync("bun", [BPL_CLI, "check", tempFile, "--color"], {
+        encoding: "utf-8",
+        env,
+      });
+      const noColor = spawnSync(
+        "bun",
+        [BPL_CLI, "check", tempFile, "--no-color"],
+        {
+          encoding: "utf-8",
+          env,
+        },
+      );
+
+      expect(color.status).toBe(1);
+      expect(color.stderr).toContain("\x1b[");
+      expect(noColor.status).toBe(1);
+      expect(noColor.stderr).not.toContain("\x1b[");
+    } finally {
+      fs.rmSync(tempFile, { force: true });
+    }
+  });
+
   it("should print phase timing output when requested", () => {
     const result = spawnSync(
       "bun",
