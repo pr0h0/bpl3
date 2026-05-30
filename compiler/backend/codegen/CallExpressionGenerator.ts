@@ -703,7 +703,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           );
           return castResult;
         }
-        return "0";
+        throw this.createError(
+          `Unsupported return type '${resultType}' for ${funcName} intrinsic lowering`,
+          expr,
+          "Declare memcpy/memmove as returning void or a pointer type, or rename the extern if it is not the standard memory intrinsic.",
+        );
       } else if (funcName === "memset") {
         this.usedLlvmMemIntrinsics.add("memset");
         const dest = this.generateExpression(expr.args[0]!);
@@ -751,7 +755,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           );
           return castResult;
         }
-        return "0";
+        throw this.createError(
+          `Unsupported return type '${resultType}' for memset intrinsic lowering`,
+          expr,
+          "Declare memset as returning void or a pointer type, or rename the extern if it is not the standard memory intrinsic.",
+        );
       }
 
       // Handle generic function call

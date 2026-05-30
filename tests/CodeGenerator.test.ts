@@ -145,6 +145,20 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("rejects unsupported memory intrinsic return types", () => {
+    expect(() =>
+      compile(`
+        extern memcpy(dest: *void, src: *void, len: long, is_volatile: bool) ret int;
+
+        frame bad() ret int {
+          local src: int = 1;
+          local dest: int = 0;
+          return memcpy(cast<*void>(&dest), cast<*void>(&src), 4, false);
+        }
+      `),
+    ).toThrow(/Unsupported return type 'i32' for memcpy intrinsic lowering/);
+  });
+
   it("should generate code for a simple function", () => {
     const source = "frame main() { return; }";
     const ir = compile(source);
