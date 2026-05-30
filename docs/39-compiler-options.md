@@ -164,6 +164,9 @@ checked-in runtime IR, examples, or release artifacts are not removed by
 accident. If `build/`, `dist/`, or `.bpl-cache/` contains tracked files,
 `bpl clean` preserves the directory and tracked contents while still removing
 untracked build artifacts inside it.
+The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
+to 5000 milliseconds; if the probe fails or times out inside a git repository,
+`bpl clean` refuses to remove files.
 
 **Options:**
 

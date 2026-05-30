@@ -10,6 +10,7 @@ import { Command } from "commander";
 import { Logger } from "../../compiler/common/Logger";
 
 const log = new Logger("Clean");
+const CLEAN_GIT_TIMEOUT_MS = 5000;
 
 interface CleanEntry {
   path: string;
@@ -242,6 +243,7 @@ function isBuildArtifact(base: string, ext: string): boolean {
 function getGitTrackedPaths(cwd: string): Set<string> | null {
   const result = spawnSync("git", ["-C", cwd, "ls-files", "-z", "--", "."], {
     encoding: "utf-8",
+    timeout: getCleanGitTimeoutMs(),
   });
 
   if (result.status !== 0 || result.error) {
@@ -254,6 +256,18 @@ function getGitTrackedPaths(cwd: string): Set<string> | null {
       .filter(Boolean)
       .map((trackedPath) => normalizeGitRelativePath(trackedPath)),
   );
+}
+
+function getCleanGitTimeoutMs(): number {
+  const raw = process.env.BPL_CLEAN_GIT_TIMEOUT_MS;
+  if (!raw) return CLEAN_GIT_TIMEOUT_MS;
+
+  const parsed = Number(raw);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  return CLEAN_GIT_TIMEOUT_MS;
 }
 
 function findGitRepositoryMarker(startDir: string): string | null {

@@ -1127,6 +1127,40 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should time out hanging git tracked-file probes during clean", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-clean-git-timeout-"),
+    );
+    const fakeBin = path.join(tempDir, "bin");
+    const artifact = path.join(tempDir, "main.ll");
+
+    fs.mkdirSync(path.join(tempDir, ".git"));
+    fs.mkdirSync(fakeBin);
+    fs.writeFileSync(artifact, "; tracked-looking ir");
+    writeNodeCommandShim(path.join(fakeBin, "git"), [
+      "setInterval(() => {}, 1000);",
+    ]);
+
+    try {
+      const clean = spawnSync("bun", [BPL_CLI, "clean", "--json"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_CLEAN_GIT_TIMEOUT_MS: "100",
+          NO_COLOR: "1",
+          PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}`,
+        },
+      });
+
+      expect(clean.status).toBe(1);
+      expect(clean.stderr).toContain("Could not determine git-tracked files");
+      expect(fs.existsSync(artifact)).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should quote forwarded run-script arguments", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     const outputFile = path.join(tempDir, "script-args.txt");
