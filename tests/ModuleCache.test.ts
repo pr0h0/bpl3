@@ -187,7 +187,8 @@ describe("ModuleCache", () => {
       process.env.BPL_CC = missingCompiler;
       const cache = new ModuleCache(dir);
 
-      expect(() =>
+      let thrown: unknown;
+      try {
         cache.compileModule(
           "main.bpl",
           "frame main() ret int { return 0; }",
@@ -195,8 +196,16 @@ describe("ModuleCache", () => {
           false,
           undefined,
           0,
-        ),
-      ).toThrow(missingCompiler);
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      const message = (thrown as Error).message;
+      expect(message).toContain(missingCompiler);
+      expect(message).toContain("command not found");
+      expect(message).not.toContain("ENOENT");
       expect(
         readdirSync(join(dir, ".bpl-cache")).some((file) =>
           file.endsWith(".ll"),
@@ -221,8 +230,9 @@ describe("ModuleCache", () => {
       process.env.BPL_CC = missingCompiler;
       const cache = new ModuleCache(dir);
 
-      await expect(
-        cache.compileModules(
+      let thrown: unknown;
+      try {
+        await cache.compileModules(
           [
             {
               modulePath: "main.bpl",
@@ -231,8 +241,16 @@ describe("ModuleCache", () => {
             },
           ],
           { jobs: 1, optimizationLevel: 0 },
-        ),
-      ).rejects.toThrow(missingCompiler);
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      const message = (thrown as Error).message;
+      expect(message).toContain(missingCompiler);
+      expect(message).toContain("command not found");
+      expect(message).not.toContain("ENOENT");
 
       const cacheFiles = readdirSync(join(dir, ".bpl-cache"));
       expect(cacheFiles.some((file) => file.endsWith(".ll"))).toBe(false);

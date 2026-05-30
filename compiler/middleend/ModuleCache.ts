@@ -474,10 +474,11 @@ export class ModuleCache {
       });
 
       if (result.status !== 0) {
-        const error =
-          result.stderr?.toString() ||
-          result.error?.message ||
-          "Unknown compilation error";
+        const error = this.formatCompilerDriverFailure(
+          result.stderr?.toString(),
+          result.error,
+          "Unknown compilation error",
+        );
         throw new CompilerError(
           `Failed to compile ${modulePath} with ${compilerCommand}: ${error}`,
           "Check compiler driver output for details.",
@@ -809,7 +810,7 @@ export class ModuleCache {
       child.on("error", (error) => {
         reject(
           new CompilerError(
-            `Failed to compile ${modulePath} with ${compilerCommand}: ${error.message}`,
+            `Failed to compile ${modulePath} with ${compilerCommand}: ${this.formatSpawnFailure(error)}`,
             "Check compiler driver output for details.",
             {
               file: modulePath,
@@ -887,10 +888,11 @@ export class ModuleCache {
     });
 
     if (result.status !== 0) {
-      const error =
-        result.stderr?.toString() ||
-        result.error?.message ||
-        "Unknown linking error";
+      const error = this.formatCompilerDriverFailure(
+        result.stderr?.toString(),
+        result.error,
+        "Unknown linking error",
+      );
       throw new CompilerError(
         `Failed to link modules with ${compilerCommand}: ${error}`,
         "Check compiler driver output for details.",
@@ -962,6 +964,36 @@ export class ModuleCache {
         location,
       );
     }
+  }
+
+  private formatCompilerDriverFailure(
+    stderr: string | undefined,
+    error: Error | undefined,
+    fallback: string,
+  ): string {
+    return stderr || this.formatSpawnFailure(error) || fallback;
+  }
+
+  private formatSpawnFailure(error: Error | undefined): string | undefined {
+    if (!error) {
+      return undefined;
+    }
+
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : undefined;
+    if (code === "ENOENT") {
+      return "command not found";
+    }
+    if (code === "EACCES") {
+      return "permission denied";
+    }
+    if (code === "ENOEXEC") {
+      return "not executable";
+    }
+
+    return error.message;
   }
 
   /**
