@@ -2196,7 +2196,8 @@ describe("CLI Tests", () => {
       );
       expect(compilerCheck.ok).toBe(false);
       expect(compilerCheck.detail).toContain(hangingCompiler);
-      expect(compilerCheck.detail).toMatch(/ETIMEDOUT|timed out|timeout/i);
+      expect(compilerCheck.detail).toContain("timed out");
+      expect(compilerCheck.detail).not.toContain("ETIMEDOUT");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

@@ -28,6 +28,9 @@ export function formatSpawnFailureReason(
   if (code === "ENOEXEC") {
     return "not executable";
   }
+  if (code === "ETIMEDOUT") {
+    return "timed out";
+  }
 
   return error.message;
 }
