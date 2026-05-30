@@ -224,6 +224,23 @@ describe("ModuleResolver", () => {
     }).toThrow();
   });
 
+  it("should reject missing and directory entry module paths with compiler errors", () => {
+    const resolver = new ModuleResolver({ stdLibPath: tempDir });
+    const missingEntry = path.join(tempDir, "missing-entry.bpl");
+    const directoryEntry = path.join(tempDir, "directory-entry");
+    fs.mkdirSync(directoryEntry, { recursive: true });
+
+    const missingError = captureCompilerError(() => {
+      resolver.resolveModules(missingEntry);
+    });
+    expect(missingError.message).toContain("Module file not found");
+
+    const directoryError = captureCompilerError(() => {
+      resolver.resolveModules(directoryEntry);
+    });
+    expect(directoryError.message).toContain("Module path is not a file");
+  });
+
   it("should prefer .bpl over legacy .x when resolving extensionless imports", () => {
     const sourceDir = path.join(tempDir, "extension-preference");
     fs.mkdirSync(sourceDir, { recursive: true });
@@ -253,6 +270,22 @@ describe("ModuleResolver", () => {
     const resolver = new ModuleResolver({ stdLibPath: tempDir });
 
     expect(resolver.resolveModulePath("./ambiguous", mainPath)).toBe(bplIndex);
+  });
+
+  it("should skip directory index candidates when resolving directory imports", () => {
+    const sourceDir = path.join(tempDir, "directory-index-file-check");
+    const moduleDir = path.join(sourceDir, "ambiguous");
+    fs.mkdirSync(path.join(moduleDir, "index.bpl"), { recursive: true });
+    const mainPath = path.join(sourceDir, "main.bpl");
+    const legacyIndex = path.join(moduleDir, "index.x");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+    fs.writeFileSync(legacyIndex, "export legacyValue;");
+
+    const resolver = new ModuleResolver({ stdLibPath: tempDir });
+
+    expect(resolver.resolveModulePath("./ambiguous", mainPath)).toBe(
+      legacyIndex,
+    );
   });
 
   it("should resolve installed package imports from nested source files independent of cwd", () => {

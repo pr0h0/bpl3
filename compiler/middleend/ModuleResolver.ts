@@ -103,7 +103,7 @@ export class ModuleResolver {
         // Try index files in the directory
         for (const indexName of ["index.bpl", "index.x"]) {
           const indexPath = path.join(filePath, indexName);
-          if (fs.existsSync(indexPath)) {
+          if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
             return this.normalizePath(indexPath);
           }
         }
@@ -266,6 +266,8 @@ export class ModuleResolver {
     modulePath: string,
     visited: Set<string> = new Set(),
   ): ModuleInfo {
+    this.assertReadableModuleFile(modulePath);
+
     // Check cache
     if (this.modules.has(modulePath)) {
       return this.modules.get(modulePath)!;
@@ -331,6 +333,37 @@ export class ModuleResolver {
     }
 
     return moduleInfo;
+  }
+
+  private assertReadableModuleFile(modulePath: string): void {
+    if (!fs.existsSync(modulePath)) {
+      throw new CompilerError(
+        `Module file not found: ${modulePath}`,
+        "Check that the entry file exists and that imports resolve to files.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
+    const stat = fs.statSync(modulePath);
+    if (!stat.isFile()) {
+      throw new CompilerError(
+        `Module path is not a file: ${modulePath}`,
+        "Use a .bpl file path or import a directory that contains index.bpl.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
   }
 
   /**
