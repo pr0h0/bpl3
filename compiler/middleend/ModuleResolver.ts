@@ -59,7 +59,7 @@ export class ModuleResolver {
   private searchPaths: string[] = [];
 
   /** Supported file extensions */
-  private readonly SUPPORTED_EXTENSIONS = [".x", ".bpl", ""];
+  private readonly SUPPORTED_EXTENSIONS = [".bpl", ".x", ""];
 
   constructor(options: { stdLibPath?: string; searchPaths?: string[] } = {}) {
     // Use PathResolver to get the standard library path from BPL_HOME
@@ -101,7 +101,7 @@ export class ModuleResolver {
       }
       if (stat.isDirectory()) {
         // Try index files in the directory
-        for (const indexName of ["index.x", "index.bpl"]) {
+        for (const indexName of ["index.bpl", "index.x"]) {
           const indexPath = path.join(filePath, indexName);
           if (fs.existsSync(indexPath)) {
             return this.normalizePath(indexPath);

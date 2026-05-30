@@ -224,6 +224,37 @@ describe("ModuleResolver", () => {
     }).toThrow();
   });
 
+  it("should prefer .bpl over legacy .x when resolving extensionless imports", () => {
+    const sourceDir = path.join(tempDir, "extension-preference");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    const mainPath = path.join(sourceDir, "main.bpl");
+    const bplModule = path.join(sourceDir, "ambiguous.bpl");
+    const legacyModule = path.join(sourceDir, "ambiguous.x");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+    fs.writeFileSync(bplModule, "export bplValue;");
+    fs.writeFileSync(legacyModule, "export legacyValue;");
+
+    const resolver = new ModuleResolver({ stdLibPath: tempDir });
+
+    expect(resolver.resolveModulePath("./ambiguous", mainPath)).toBe(bplModule);
+  });
+
+  it("should prefer index.bpl over index.x for directory imports", () => {
+    const sourceDir = path.join(tempDir, "index-preference");
+    const moduleDir = path.join(sourceDir, "ambiguous");
+    fs.mkdirSync(moduleDir, { recursive: true });
+    const mainPath = path.join(sourceDir, "main.bpl");
+    const bplIndex = path.join(moduleDir, "index.bpl");
+    const legacyIndex = path.join(moduleDir, "index.x");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+    fs.writeFileSync(bplIndex, "export bplValue;");
+    fs.writeFileSync(legacyIndex, "export legacyValue;");
+
+    const resolver = new ModuleResolver({ stdLibPath: tempDir });
+
+    expect(resolver.resolveModulePath("./ambiguous", mainPath)).toBe(bplIndex);
+  });
+
   it("should resolve installed package imports from nested source files independent of cwd", () => {
     const appDir = path.join(tempDir, "package-app");
     const sourceDir = path.join(appDir, "src");
