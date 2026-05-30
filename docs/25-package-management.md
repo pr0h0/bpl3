@@ -53,7 +53,9 @@ my-package/
 
 `src/index.bpl` is the public package entry point. Keep exports there small and
 intentional so editor tooling, package consumers, and cache invalidation all see
-a stable API surface.
+a stable API surface. `bpl pack` does not follow symlinked source files and
+rejects symlinked `bin` entries, so package archives contain only regular files
+from inside the package root.
 
 To create a package manually:
 

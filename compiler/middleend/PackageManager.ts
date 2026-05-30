@@ -1128,7 +1128,14 @@ export class PackageManager {
           relativeBinaryPath,
         );
         if (!this.isWithinPackage(packageDir, binaryPath)) continue;
-        if (fs.existsSync(binaryPath) && fs.statSync(binaryPath).isFile()) {
+        if (!fs.existsSync(binaryPath)) continue;
+
+        const stat = fs.lstatSync(binaryPath);
+        if (stat.isSymbolicLink() || !stat.isFile()) continue;
+
+        const packageRoot = fs.realpathSync(packageDir);
+        const realBinaryPath = fs.realpathSync(binaryPath);
+        if (this.isWithinPackage(packageRoot, realBinaryPath)) {
           files.add(binaryPath);
         }
       }
@@ -1167,7 +1174,11 @@ export class PackageManager {
     const items = fs.readdirSync(dir);
     for (const item of items) {
       const fullPath = path.join(dir, item);
-      const stat = fs.statSync(fullPath);
+      const stat = fs.lstatSync(fullPath);
+
+      if (stat.isSymbolicLink()) {
+        continue;
+      }
 
       if (stat.isDirectory()) {
         // Skip node_modules, bpl_modules, .bpl-cache, etc.
@@ -1214,6 +1225,7 @@ export class PackageManager {
   pack(packageDir: string, outputDir?: string): string {
     const manifest = this.loadManifest(packageDir);
     const outputPath = outputDir || packageDir;
+    const manifestPath = path.join(packageDir, "bpl.json");
 
     // Create tarball filename
     const tarballName = `${manifest.name}-${manifest.version}.tgz`;
@@ -1232,6 +1244,51 @@ export class PackageManager {
           binaryPath as string,
         );
         if (fs.existsSync(fullPath)) {
+          const binaryStat = fs.lstatSync(fullPath);
+          if (binaryStat.isSymbolicLink()) {
+            throw new CompilerError(
+              `Unsupported package bin entry: ${binaryPath}`,
+              "Package bin entries must be regular files, not symbolic links.",
+              {
+                file: manifestPath,
+                startLine: 1,
+                startColumn: 1,
+                endLine: 1,
+                endColumn: 1,
+              },
+            );
+          }
+
+          if (!binaryStat.isFile()) {
+            throw new CompilerError(
+              `Unsupported package bin entry: ${binaryPath}`,
+              "Package bin entries must point to regular files.",
+              {
+                file: manifestPath,
+                startLine: 1,
+                startColumn: 1,
+                endLine: 1,
+                endColumn: 1,
+              },
+            );
+          }
+
+          const packageRoot = fs.realpathSync(packageDir);
+          const realBinaryPath = fs.realpathSync(fullPath);
+          if (!this.isWithinPackage(packageRoot, realBinaryPath)) {
+            throw new CompilerError(
+              `Invalid 'bin' path for ${binaryPath}`,
+              "Package bin entries must resolve inside the package root.",
+              {
+                file: manifestPath,
+                startLine: 1,
+                startColumn: 1,
+                endLine: 1,
+                endColumn: 1,
+              },
+            );
+          }
+
           files.push(fullPath);
         } else {
           compilerLog.warn(
@@ -1240,8 +1297,6 @@ export class PackageManager {
         }
       }
     }
-
-    const manifestPath = path.join(packageDir, "bpl.json");
 
     if (files.length === 0) {
       throw new CompilerError(

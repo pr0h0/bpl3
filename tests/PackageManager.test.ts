@@ -189,6 +189,38 @@ describe("PackageManager", () => {
       // If the test passes, the package was created without errors
     });
 
+    test("should not follow symlinked source files while packing", () => {
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-outside-"));
+      const outsideSource = path.join(outsideDir, "secret.bpl");
+      const linkedSource = path.join(tempDir, "linked.bpl");
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify({ name: "symlink-source", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync("index.bpl", "frame test() ret int { return 0; }");
+      fs.writeFileSync(outsideSource, "frame secret() ret int { return 99; }");
+
+      try {
+        fs.symlinkSync(outsideSource, linkedSource);
+      } catch {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+        return;
+      }
+
+      try {
+        const tarballPath = packageManager.pack(tempDir);
+        const listing = spawnSync("tar", ["-tzf", tarballPath], {
+          encoding: "utf-8",
+        });
+
+        expect(listing.status).toBe(0);
+        expect(listing.stdout).toContain("package/index.bpl");
+        expect(listing.stdout).not.toContain("package/linked.bpl");
+      } finally {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+
     test("should reject bin paths that escape the package root", () => {
       const packageDir = path.join(tempDir, "unsafe-bin-package");
       fs.mkdirSync(packageDir);
@@ -215,6 +247,43 @@ describe("PackageManager", () => {
       expect(() => packageManager.pack(packageDir)).toThrow(
         /Invalid 'bin' path/,
       );
+    });
+
+    test("should reject symlinked package bin entries", () => {
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-outside-"));
+      const outsideTool = path.join(outsideDir, "tool.sh");
+      fs.mkdirSync(path.join(tempDir, "bin"));
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          {
+            name: "symlink-bin-package",
+            version: "1.0.0",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync(outsideTool, "#!/usr/bin/env sh\necho outside\n");
+
+      try {
+        fs.symlinkSync(outsideTool, path.join(tempDir, "bin", "tool.sh"));
+      } catch {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+        return;
+      }
+
+      try {
+        expect(() => packageManager.pack(tempDir)).toThrow(
+          /Unsupported package bin entry/,
+        );
+      } finally {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
     });
   });
 
