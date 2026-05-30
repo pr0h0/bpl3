@@ -22,11 +22,13 @@ bpl build main.bpl -l m
 ## Generating Bindings
 
 Use `bpl bindgen` to generate BPL declarations from C headers. It supports
-simple function prototypes, numeric `#define` constants, primitive and pointer
-typedefs, plain structs, fixed-size struct arrays, C array parameters, and enums:
+simple function prototypes, numeric/string/char `#define` constants, primitive
+and pointer typedefs, plain structs, fixed-size struct arrays, C array
+parameters, and enums:
 
 ```c
 #define ANSWER 42
+#define DEFAULT_MARK 'x'
 typedef unsigned int bpl_size;
 typedef const char *bpl_cstr;
 typedef void *bpl_handle;
@@ -48,6 +50,7 @@ The generated BPL is intentionally conservative:
 
 ```bpl
 global const ANSWER: int = 42;
+global const DEFAULT_MARK: char = 'x';
 type bpl_size = uint;
 type bpl_cstr = string;
 type bpl_handle = *void;

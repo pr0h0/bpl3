@@ -1163,7 +1163,9 @@ describe("CLI Tests", () => {
         '#define WRAPPED_GREETING ("hello")',
         '#define DOC_URL "https://example.test/docs"',
         '#define COMMENT_PATTERN "/*not a comment*/"',
+        "#define DEFAULT_MARK 'x'",
         "#define SHIFT_EXPRESSION (1 << 2)",
+        "#define MULTI_CHAR 'xy'",
         '#define CONCAT_GREETING "hello" "world"',
         "typedef unsigned int bpl_size;",
         "typedef long unsigned int odd_size;",
@@ -1210,7 +1212,9 @@ describe("CLI Tests", () => {
       expect(result.stdout).toContain(
         'global const COMMENT_PATTERN: string = "/*not a comment*/";',
       );
+      expect(result.stdout).toContain("global const DEFAULT_MARK: char = 'x';");
       expect(result.stdout).not.toContain("SHIFT_EXPRESSION");
+      expect(result.stdout).not.toContain("MULTI_CHAR");
       expect(result.stdout).not.toContain("CONCAT_GREETING");
       expect(result.stdout).toContain("type bpl_size = uint;");
       expect(result.stdout).toContain("type odd_size = ulong;");

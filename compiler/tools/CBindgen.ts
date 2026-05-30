@@ -32,6 +32,7 @@ const TYPE_MAP: Record<string, string> = {
 const NUMERIC_CONSTANT_PATTERN =
   /^([+-]?(?:0[xX][0-9A-Fa-f]+|\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([uUlLfF]*)$/;
 const STRING_CONSTANT_PATTERN = /^"(?:[^"\\]|\\.)*"$/;
+const CHAR_CONSTANT_PATTERN = /^'(?:[^'\\]|\\.)'$/;
 const SCALAR_CONSTANT_TYPES = new Set([
   "char",
   "i8",
@@ -253,6 +254,10 @@ function parseConstantValue(rawValue: string): ParsedConstantValue | null {
   if (normalized.value.startsWith('"')) {
     if (!STRING_CONSTANT_PATTERN.test(normalized.value)) return null;
     return { value: normalized.value, type: "string" };
+  }
+  if (normalized.value.startsWith("'")) {
+    if (!CHAR_CONSTANT_PATTERN.test(normalized.value)) return null;
+    return { value: normalized.value, type: "char" };
   }
 
   if (!NUMERIC_CONSTANT_PATTERN.test(normalized.value)) {
