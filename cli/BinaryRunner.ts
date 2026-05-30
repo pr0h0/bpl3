@@ -101,6 +101,7 @@ export function compileToBinary(
   const execPath = getExecutableOutputPath(irPath, options);
   let clangArgs: string[];
   try {
+    assertReadableCompileInput(irPath, "LLVM IR input");
     assertWritableFileOutputPath(execPath);
     const hostDefaults = getHostDefaults();
     const target = options.target ?? hostDefaults.target;
@@ -407,6 +408,21 @@ function assertReadableRuntimeInput(filePath: string, label: string): void {
     throw new Error(
       `${label} is not a file: ${filePath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
     );
+  }
+}
+
+function assertReadableCompileInput(filePath: string, label: string): void {
+  const linkStats = tryLstat(filePath);
+  if (!linkStats) {
+    throw new Error(`${label} not found: ${filePath}.`);
+  }
+
+  if (linkStats.isSymbolicLink() && !fs.existsSync(filePath)) {
+    throw new Error(`${label} is a broken symbolic link: ${filePath}.`);
+  }
+
+  if (!fs.statSync(filePath).isFile()) {
+    throw new Error(`${label} is not a file: ${filePath}.`);
   }
 }
 
