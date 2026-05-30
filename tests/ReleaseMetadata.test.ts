@@ -153,6 +153,12 @@ describe("Release metadata", () => {
       expect(() => assertStandaloneCompilerArtifact(linkPath)).toThrow(
         /Standalone compiler is a symbolic link/,
       );
+
+      rmSync(linkPath);
+      symlinkSync(join(tempRoot, "missing-bpl"), linkPath, "file");
+      expect(() => assertStandaloneCompilerArtifact(linkPath)).toThrow(
+        /Standalone compiler is a symbolic link/,
+      );
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

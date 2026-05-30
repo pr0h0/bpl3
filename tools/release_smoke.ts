@@ -426,11 +426,11 @@ function assertBuiltBinary(): void {
 }
 
 export function assertStandaloneCompilerArtifact(binaryPath: string): void {
-  if (!existsSync(binaryPath)) {
+  const linkStats = tryLstat(binaryPath);
+  if (!linkStats) {
     throw new Error(`Standalone compiler was not built at ${binaryPath}`);
   }
 
-  const linkStats = lstatSync(binaryPath);
   if (linkStats.isSymbolicLink()) {
     throw new Error(`Standalone compiler is a symbolic link: ${binaryPath}`);
   }
@@ -440,6 +440,23 @@ export function assertStandaloneCompilerArtifact(binaryPath: string): void {
     throw new Error(
       `Standalone compiler is not a non-empty file: ${binaryPath}`,
     );
+  }
+}
+
+function tryLstat(filePath: string) {
+  try {
+    return lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
   }
 }
 
