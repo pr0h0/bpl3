@@ -26,10 +26,14 @@ import { updateConfig } from "../compiler/common/Config";
 
 const log = new Logger("CompilationRunner");
 
+type CliOptimizationLevel = "0" | "1" | "2" | "3";
+
 /**
  * Apply CLI options to global configuration
  */
 function applyOptions(options: CompileOptions): void {
+  normalizeCompileOptions(options);
+
   // Handle quiet mode
   if (options.quiet) {
     setLogLevel(LogLevel.SILENT);
@@ -65,9 +69,9 @@ export function processFile(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
-  applyOptions(options);
-
   try {
+    applyOptions(options);
+
     if (!fs.existsSync(filePath)) {
       log.error(`File not found: ${filePath}`);
       process.exit(1);
@@ -100,9 +104,9 @@ export async function processFileAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
-  applyOptions(options);
-
   try {
+    applyOptions(options);
+
     if (!fs.existsSync(filePath)) {
       log.error(`File not found: ${filePath}`);
       process.exit(1);
@@ -136,6 +140,8 @@ export function processCode(
   programArgs?: string[],
 ): void {
   try {
+    applyOptions(options);
+
     // Register source for error reporting
     SourceManager.setSource(sourceLabel, code);
     processCodeInternal(code, sourceLabel, options, programArgs);
@@ -157,6 +163,43 @@ function handleCompilationError(e: unknown, options: CompileOptions): never {
     }
   }
   process.exit(1);
+}
+
+function normalizeCompileOptions(options: CompileOptions): void {
+  options.O = parseOptimizationLevel(options.O);
+
+  if (options.jobs !== undefined) {
+    options.jobs = parseJobs(options.jobs);
+  }
+}
+
+function parseOptimizationLevel(
+  value: string | undefined,
+): CliOptimizationLevel {
+  const raw = value ?? "0";
+  if (/^[0-3]$/.test(raw)) {
+    return raw as CliOptimizationLevel;
+  }
+
+  throw new Error(
+    `Invalid optimization level "${raw}". Use one of: 0, 1, 2, 3.`,
+  );
+}
+
+function parseJobs(value: string | number): number {
+  const raw = String(value);
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(
+      `Invalid jobs count "${raw}". Use a positive integer greater than zero.`,
+    );
+  }
+
+  const jobs = Number(raw);
+  if (!Number.isSafeInteger(jobs)) {
+    throw new Error(`Invalid jobs count "${raw}". Use a safe positive integer.`);
+  }
+
+  return jobs;
 }
 
 /**

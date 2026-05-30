@@ -38,6 +38,32 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("cannot assign *i8 to i32");
   });
 
+  it("should reject invalid optimization levels for eval input", () => {
+    const result = runCLI([
+      "--eval",
+      "frame main() ret int { return 0; }",
+      "-O",
+      "fast",
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid optimization level "fast"');
+    expect(result.stderr).toContain("Use one of: 0, 1, 2, 3");
+  });
+
+  it("should reject invalid cache job counts for eval input", () => {
+    const result = runCLI([
+      "--eval",
+      "frame main() ret int { return 0; }",
+      "--jobs",
+      "0",
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid jobs count "0"');
+    expect(result.stderr).toContain("positive integer greater than zero");
+  });
+
   it("should compile with --dwarf flag and generate debug metadata", () => {
     const dwarfFile = path.join(process.cwd(), "examples/dwarf_test/main.bpl");
     // We use --emit llvm to avoid running the binary, just check compilation
