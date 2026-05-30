@@ -120,7 +120,7 @@ function tryLstat(filePath: string): fs.Stats | null {
       error &&
       typeof error === "object" &&
       "code" in error &&
-      error.code === "ENOENT"
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
     ) {
       return null;
     }

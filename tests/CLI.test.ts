@@ -245,6 +245,35 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject compile output paths whose parent path is a file", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-output-parent-file-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const parentFile = path.join(tempDir, "not-a-dir");
+    const outputFile = path.join(parentFile, "app");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+    fs.writeFileSync(parentFile, "not a directory\n");
+
+    try {
+      const result = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output parent path is not a directory");
+      expect(result.stderr).not.toContain("ENOTDIR");
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject compile output paths that are symbolic links before writing artifacts", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
@@ -1745,6 +1774,51 @@ describe("CLI Tests", () => {
       expect(result.stderr).toContain(outputFile);
       expect(result.stderr).not.toContain("ENOENT");
       expect(fs.existsSync(targetFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject cached module output paths whose parent path is a file", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cache-output-parent-file-"),
+    );
+    const moduleFile = path.join(tempDir, "math.bpl");
+    const mainFile = path.join(tempDir, "main.bpl");
+    const parentFile = path.join(tempDir, "not-a-dir");
+    const outputFile = path.join(parentFile, "app");
+    fs.writeFileSync(
+      moduleFile,
+      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      mainFile,
+      [
+        'import answer from "./math.bpl";',
+        "frame main() ret int {",
+        "    return answer();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(parentFile, "not a directory\n");
+
+    try {
+      const result = runCLI([
+        "build",
+        mainFile,
+        "--cache",
+        "--jobs",
+        "2",
+        "-o",
+        outputFile,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output parent path is not a directory");
+      expect(result.stderr).not.toContain("ENOTDIR");
+      expect(fs.existsSync(outputFile)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

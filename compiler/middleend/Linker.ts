@@ -233,7 +233,7 @@ export class Linker {
         error &&
         typeof error === "object" &&
         "code" in error &&
-        error.code === "ENOENT"
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
       ) {
         return null;
       }
