@@ -3038,6 +3038,49 @@ describe("PackageManager", () => {
         ),
       ).toBe(true);
     });
+
+    test("should reject package binary unlink targets that are regular files", () => {
+      const packageDir = path.join(tempDir, "uninstall-bin-file-package");
+      const installDir = path.join(tempDir, "uninstall-bin-file-install");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "uninstall-bin-file-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const localPM = new PackageManager(installDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+      const targetPath = path.join(installDir, "bpl_modules", ".bin", "tool");
+      fs.unlinkSync(targetPath);
+      fs.writeFileSync(targetPath, "user-owned command");
+
+      expect(() =>
+        localPM.uninstall("uninstall-bin-file-package", { global: false }),
+      ).toThrow(/Cannot unlink package binary 'tool'/);
+      expect(fs.readFileSync(targetPath, "utf-8")).toBe("user-owned command");
+      expect(
+        fs.existsSync(
+          path.join(installDir, "bpl_modules", "uninstall-bin-file-package"),
+        ),
+      ).toBe(true);
+    });
   });
 
   describe("Package Resolution", () => {

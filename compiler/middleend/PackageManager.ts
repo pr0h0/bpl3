@@ -2940,7 +2940,7 @@ export class PackageManager {
     // Unlink binaries
     if (manifest.bin) {
       const binDir = options.global ? this.globalBinDir : this.localBinDir;
-      for (const name of Object.keys(manifest.bin)) {
+      for (const [name, relativePath] of Object.entries(manifest.bin)) {
         const targetPath = path.join(binDir, name);
         const existingTarget = this.tryLstat(targetPath);
         if (existingTarget) {
@@ -2957,6 +2957,43 @@ export class PackageManager {
               },
             );
           }
+
+          if (!existingTarget.isSymbolicLink()) {
+            throw new CompilerError(
+              `Cannot unlink package binary '${name}'`,
+              `A non-symlink file exists at ${targetPath}. Move it out of the way and try again.`,
+              {
+                file: path.join(packagePath, "bpl.json"),
+                startLine: 1,
+                startColumn: 1,
+                endLine: 1,
+                endColumn: 1,
+              },
+            );
+          }
+
+          const expectedSourcePath = this.resolvePackageRelativePath(
+            packagePath,
+            relativePath,
+          );
+          const linkedPath = path.resolve(
+            path.dirname(targetPath),
+            fs.readlinkSync(targetPath),
+          );
+          if (path.resolve(expectedSourcePath) !== linkedPath) {
+            throw new CompilerError(
+              `Cannot unlink package binary '${name}'`,
+              `The binary link at ${targetPath} does not point to ${expectedSourcePath}. Move it out of the way and try again.`,
+              {
+                file: path.join(packagePath, "bpl.json"),
+                startLine: 1,
+                startColumn: 1,
+                endLine: 1,
+                endColumn: 1,
+              },
+            );
+          }
+
           fs.unlinkSync(targetPath);
         }
       }
