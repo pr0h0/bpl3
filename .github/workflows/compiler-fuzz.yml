@@ -51,6 +51,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Lint
+        run: bun run lint
+
       - name: Prepare crash artifact directory
         run: |
           rm -rf "$FUZZ_CRASH_DIR"

@@ -34,6 +34,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Lint
+        run: bun run lint
+
       - name: Run Windows-safe codegen tests
         run: bun run test:codegen-cross-platform
 
@@ -142,6 +145,9 @@ jobs:
 
       - name: Type check
         run: bun run check
+
+      - name: Lint
+        run: bun run lint
 
       - name: Run WebAssembly runtime tests
         env:

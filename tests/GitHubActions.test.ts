@@ -21,6 +21,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("npm ci --prefix vscode-ext");
     expect(workflow).toContain("bun run check");
+    expect(workflow).toContain("bun run lint");
     expect(workflow).toContain("bun run fuzz:long");
     expect(workflow).toContain("bun run fuzz:differential");
     expect(workflow).toContain("FUZZ_SEEDS");
@@ -96,6 +97,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("npm ci --prefix vscode-ext");
     expect(workflow).toContain("bun run check");
+    expect(workflow).toContain("bun run lint");
     expect(workflow).toContain("bun run test:correctness");
     expect(workflow).toContain("bun run test:sanitizers");
     expect(workflow).toContain("Windows parser/typecheck/codegen smoke");
@@ -210,10 +212,13 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("npm ci --prefix vscode-ext");
 
     const typecheckIndex = workflow.indexOf("Type check");
+    const lintIndex = workflow.indexOf("Lint");
     const ciSuiteIndex = workflow.indexOf("Run CI-safe test suite");
     const correctnessIndex = workflow.indexOf("Run compiler correctness tests");
 
+    expect(lintIndex).toBeGreaterThan(typecheckIndex);
     expect(ciSuiteIndex).toBeGreaterThan(typecheckIndex);
+    expect(ciSuiteIndex).toBeGreaterThan(lintIndex);
     expect(correctnessIndex).toBeGreaterThan(ciSuiteIndex);
   });
 
