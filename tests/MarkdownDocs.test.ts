@@ -156,4 +156,25 @@ describe("Markdown documentation", () => {
 
     expect(failures).toEqual([]);
   });
+
+  test("compiler options document machine-readable JSON contracts", () => {
+    const text = readFileSync("docs/39-compiler-options.md", "utf8");
+    const requiredSnippets = [
+      "### Machine-readable JSON contracts",
+      "bpl check --json",
+      "bpl lint --json",
+      "bpl doctor --json",
+      "bpl doctor packages --json",
+      "bpl package-cache verify [package] --json",
+      "bpl run-script --list --json",
+      "bpl clean --dry-run --json",
+      "`schemaVersion`",
+      "`success`",
+      "stderr",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet);
+    }
+  });
 });

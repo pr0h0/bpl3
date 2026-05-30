@@ -236,6 +236,24 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 
+### Machine-readable JSON contracts
+
+JSON-capable commands write machine-readable data to stdout. Human-readable
+logger text belongs on stderr for non-JSON failures; JSON-mode failures that are
+part of a command's validation path use stdout with `success: false` or
+`ok: false` so CI and editor integrations can parse the result consistently.
+
+| Command | Stable stdout shape |
+| --- | --- |
+| `bpl check --json` | Type-check diagnostics with `success`, `errors`, source ranges, previews, and diagnostic codes. |
+| `bpl lint --json` | Lint diagnostics with `success`, rule codes, source ranges, and messages. |
+| `bpl doctor --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. Unknown doctor scopes in JSON mode return `{ "success": false, "error": "..." }`. |
+| `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. |
+| `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`. |
+| `bpl run-script --list --json` | Script list with `success: true` and `scripts`; manifest or script validation failures return `{ "success": false, "error": "..." }` on stdout. |
+| `bpl clean --dry-run --json` | Cleanup preview with `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
+| `bpl list --json` / `bpl list --tree --json` | Installed package summaries or dependency tree data for package tooling. |
+
 ## Direct Code Compilation
 
 For quick testing without files:
