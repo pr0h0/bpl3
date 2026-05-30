@@ -1064,7 +1064,7 @@ export class PackageManager {
           );
         }
 
-        if (typeof source !== "string" || source.length === 0) {
+        if (typeof source !== "string" || source.trim().length === 0) {
           throw new CompilerError(
             `Invalid '${field}' source for ${packageName}`,
             "Use a non-empty version, range, package name, or file source string.",
@@ -1082,7 +1082,11 @@ export class PackageManager {
     if (!manifest.scripts) return;
 
     for (const [scriptName, command] of Object.entries(manifest.scripts)) {
-      if (scriptName.length === 0 || typeof command !== "string") {
+      if (
+        scriptName.length === 0 ||
+        typeof command !== "string" ||
+        command.trim().length === 0
+      ) {
         throw new CompilerError(
           "Invalid 'scripts' field",
           "'scripts' entries must map non-empty script names to command strings.",

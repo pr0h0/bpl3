@@ -126,9 +126,9 @@ Supported dependency sources are:
 - `package-name` for the newest matching cached archive.
 
 `dependencies` and `devDependencies` must be JSON objects whose keys are
-lowercase package names and whose values are non-empty strings. Invalid
-dependency maps fail while loading `bpl.json`, before install or lockfile
-commands mutate the project.
+lowercase package names and whose values are non-empty, non-whitespace strings.
+Invalid dependency maps fail while loading `bpl.json`, before install or
+lockfile commands mutate the project.
 
 ```json
 {
@@ -347,9 +347,9 @@ Packages can define shell scripts in `bpl.json`:
 
 List them with `bpl run-script --list` or as JSON with
 `bpl run-script --list --json`. Run one with `bpl run-script <name>` or
-`bpl rs <name>`. Extra arguments are forwarded to the script as quoted shell
-arguments, so values containing spaces or shell metacharacters remain single
-arguments.
+`bpl rs <name>`. Script commands must be non-empty strings. Extra arguments are
+forwarded to the script as quoted shell arguments, so values containing spaces
+or shell metacharacters remain single arguments.
 
 ```bash
 bpl run-script --list

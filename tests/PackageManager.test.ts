@@ -2170,25 +2170,31 @@ describe("PackageManager", () => {
       }
     });
 
-    test("should reject non-string package scripts", () => {
-      fs.writeFileSync(
-        "bpl.json",
-        JSON.stringify(
-          {
-            name: "script-validation",
-            version: "1.0.0",
-            scripts: {
-              bad: ["bpl", "check"],
-            },
+    test("should reject invalid package script commands", () => {
+      const manifests = [
+        {
+          name: "script-validation",
+          version: "1.0.0",
+          scripts: {
+            bad: ["bpl", "check"],
           },
-          null,
-          2,
-        ),
-      );
+        },
+        {
+          name: "script-validation",
+          version: "1.0.0",
+          scripts: {
+            empty: "   ",
+          },
+        },
+      ];
 
-      expect(() => packageManager.loadManifest(tempDir)).toThrow(
-        /Invalid 'scripts' field/,
-      );
+      for (const manifest of manifests) {
+        fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+
+        expect(() => packageManager.loadManifest(tempDir)).toThrow(
+          /Invalid 'scripts' field/,
+        );
+      }
     });
 
     test("should reject malformed dependency maps", () => {
@@ -2210,6 +2216,13 @@ describe("PackageManager", () => {
           version: "1.0.0",
           devDependencies: {
             "test-tools": ["file:../test-tools.tgz"],
+          },
+        },
+        {
+          name: "dependency-validation",
+          version: "1.0.0",
+          dependencies: {
+            "math-core": "   ",
           },
         },
       ];

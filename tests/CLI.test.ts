@@ -526,28 +526,51 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should reject non-string run-script entries", () => {
+  it("should reject invalid run-script entries", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
-    fs.writeFileSync(
-      path.join(tempDir, "bpl.json"),
-      JSON.stringify({
-        name: "run-script-test",
-        version: "1.0.0",
-        scripts: {
-          bad: ["echo", "bad"],
-        },
-      }),
-    );
 
     try {
-      const result = spawnSync("bun", [BPL_CLI, "run-script", "bad"], {
+      fs.writeFileSync(
+        path.join(tempDir, "bpl.json"),
+        JSON.stringify({
+          name: "run-script-test",
+          version: "1.0.0",
+          scripts: {
+            bad: ["echo", "bad"],
+          },
+        }),
+      );
+      const nonString = spawnSync("bun", [BPL_CLI, "run-script", "bad"], {
         cwd: tempDir,
         encoding: "utf-8",
         env: { ...process.env, NO_COLOR: "1" },
       });
 
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("must be a string");
+      expect(nonString.status).toBe(1);
+      expect(nonString.stderr).toContain("must be a non-empty string");
+
+      fs.writeFileSync(
+        path.join(tempDir, "bpl.json"),
+        JSON.stringify({
+          name: "run-script-test",
+          version: "1.0.0",
+          scripts: {
+            empty: "   ",
+          },
+        }),
+      );
+      const emptyCommand = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "empty"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(emptyCommand.status).toBe(1);
+      expect(emptyCommand.stderr).toContain("must be a non-empty string");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

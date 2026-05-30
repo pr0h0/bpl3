@@ -140,8 +140,8 @@ function getPackageScripts(manifest: any): PackageScript[] {
       process.exit(1);
     }
 
-    if (typeof command !== "string") {
-      log.error(`Script '${name}' in bpl.json must be a string`);
+    if (typeof command !== "string" || command.trim().length === 0) {
+      log.error(`Script '${name}' in bpl.json must be a non-empty string`);
       process.exit(1);
     }
 
