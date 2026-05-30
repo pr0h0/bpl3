@@ -38,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Run-Script JSON Errors** - `bpl run-script --json` now reports manifest and
   script validation failures as machine-readable `{ success, error }` JSON while
   preserving human-readable logger output without `--json`.
+- **Run-Script Argument Forwarding Coverage** - Added regression coverage for
+  option-looking, empty, quoted, substituted, piped, redirected, ampersand, and
+  multiline arguments forwarded through `bpl run-script`.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

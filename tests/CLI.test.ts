@@ -1207,6 +1207,58 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should preserve option-like and shell metacharacter run-script arguments", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    const outputFile = path.join(tempDir, "script-args.json");
+    const forwardedArgs = [
+      "--release",
+      "-x",
+      "",
+      "dollar$HOME",
+      "`uname`",
+      "$(uname)",
+      "pipe|value",
+      "amp&value",
+      "redir>file",
+      'quote"double',
+      "back\\slash",
+      "line\nbreak",
+    ];
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "run-script-arg-hardening",
+          version: "1.0.0",
+          scripts: {
+            capture: `node -e "require('fs').writeFileSync(process.argv[1], JSON.stringify(process.argv.slice(2)))" ${JSON.stringify(outputFile)}`,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "capture", "--", ...forwardedArgs],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(fs.readFileSync(outputFile, "utf-8"))).toEqual(
+        forwardedArgs,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should compose run-script PATH without a parent PATH", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     const outputFile = path.join(tempDir, "script-path.txt");
