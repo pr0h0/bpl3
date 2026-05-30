@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -86,6 +87,27 @@ describe("CodeGenerator", () => {
       compile("frame main() { return; }", { debugIrPath });
 
       expect(readFileSync(targetPath, "utf8")).toBe("original\n");
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not write debug IR through symlinked parent directories", () => {
+    const cwd = process.cwd();
+    const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));
+    const realParent = join(dir, "real-parent");
+    const linkedParent = join(dir, "linked-parent");
+    const debugIrPath = join(linkedParent, "debug.ll");
+
+    try {
+      process.chdir(dir);
+      mkdirSync(realParent);
+      symlinkSync(realParent, linkedParent, "dir");
+
+      compile("frame main() { return; }", { debugIrPath });
+
+      expect(existsSync(join(realParent, "debug.ll"))).toBe(false);
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });

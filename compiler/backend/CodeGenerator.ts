@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 import * as AST from "../common/AST";
 import {
   createTypeStructDecl,
@@ -403,6 +404,17 @@ export class CodeGenerator extends StatementGenerator {
     }
     if (existingPath && !existingPath.isFile()) {
       throw new Error(`Debug IR path is not a file: ${this.debugIrPath}`);
+    }
+
+    const debugIrParent = path.dirname(path.resolve(this.debugIrPath));
+    const parentPath = fs.lstatSync(debugIrParent);
+    if (parentPath.isSymbolicLink()) {
+      throw new Error(
+        `Debug IR parent path is a symbolic link: ${debugIrParent}`,
+      );
+    }
+    if (!parentPath.isDirectory()) {
+      throw new Error(`Debug IR parent path is not a directory: ${debugIrParent}`);
     }
 
     fs.writeFileSync(this.debugIrPath, result);
