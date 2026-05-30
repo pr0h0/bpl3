@@ -2150,6 +2150,7 @@ export class PackageManager {
       const packageDir = path.join(tempDir, "package");
       this.validateExtractedPackageTree(packageDir, tarballPath);
       const manifest = this.loadManifest(packageDir);
+      const extractedManifestPath = path.join(packageDir, "bpl.json");
       const cachedArchivePath = path.join(
         this.globalPackageDir,
         `${manifest.name}-${manifest.version}.tgz`,
@@ -2190,6 +2191,17 @@ export class PackageManager {
       }
 
       const localLock = options.global ? undefined : this.loadLockFile();
+      if (options.global) {
+        fs.mkdirSync(this.globalPackageDir, { recursive: true });
+        this.ensurePackageArchiveOutputFile(
+          cachedArchivePath,
+          extractedManifestPath,
+        );
+        this.ensurePackageProvenanceOutputFile(
+          cachedArchivePath,
+          extractedManifestPath,
+        );
+      }
 
       compilerLog.info(`Installing ${manifest.name}@${manifest.version}...`);
 
@@ -2210,10 +2222,9 @@ export class PackageManager {
       this.linkBinaries(manifest, installPath, options.global || false);
 
       if (options.global) {
-        fs.mkdirSync(this.globalPackageDir, { recursive: true });
         this.ensurePackageArchiveOutputFile(
           cachedArchivePath,
-          path.join(packageDir, "bpl.json"),
+          extractedManifestPath,
         );
         if (path.resolve(tarballPath) !== path.resolve(cachedArchivePath)) {
           this.copyFileAtomically(tarballPath, cachedArchivePath);
@@ -2503,13 +2514,28 @@ export class PackageManager {
     };
 
     const provenancePath = this.getArchiveProvenancePath(archivePath);
+    this.ensurePackageProvenanceOutputFile(
+      archivePath,
+      path.join(packageDir, "bpl.json"),
+    );
+
+    this.writeFileAtomically(provenancePath, JSON.stringify(provenance, null, 2));
+
+    return provenance;
+  }
+
+  private ensurePackageProvenanceOutputFile(
+    archivePath: string,
+    locationPath: string,
+  ): void {
+    const provenancePath = this.getArchiveProvenancePath(archivePath);
     const provenanceStat = this.tryLstat(provenancePath);
     if (provenanceStat?.isSymbolicLink()) {
       throw new CompilerError(
         `Package provenance path is a symbolic link: ${provenancePath}`,
         "Remove the existing path or choose a different package output directory.",
         {
-          file: archivePath,
+          file: locationPath,
           startLine: 1,
           startColumn: 1,
           endLine: 1,
@@ -2522,7 +2548,7 @@ export class PackageManager {
         `Package provenance path is not a file: ${provenancePath}`,
         "Remove the existing path or choose a different package output directory.",
         {
-          file: archivePath,
+          file: locationPath,
           startLine: 1,
           startColumn: 1,
           endLine: 1,
@@ -2530,10 +2556,6 @@ export class PackageManager {
         },
       );
     }
-
-    this.writeFileAtomically(provenancePath, JSON.stringify(provenance, null, 2));
-
-    return provenance;
   }
 
   private readArchiveProvenance(

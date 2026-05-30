@@ -1162,6 +1162,63 @@ describe("PackageManager", () => {
       ).toThrow(/Package archive path is not a file/);
     });
 
+    test("should preserve existing global installs when cache provenance is blocked", () => {
+      const packageDir = path.join(tempDir, "global-provenance-package");
+      const globalPackageDir = path.join(tempDir, "global-provenance-cache");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "global-provenance",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export oldVersion;");
+      const firstTarballPath = new PackageManager(packageDir).pack(packageDir);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.install(firstTarballPath, { global: true, verbose: false });
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "global-provenance",
+            version: "2.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export newVersion;");
+      const secondTarballPath = new PackageManager(packageDir).pack(packageDir);
+      const blockedProvenancePath = path.join(
+        globalPackageDir,
+        "global-provenance-2.0.0.tgz.bplmeta.json",
+      );
+      const outsidePath = path.join(tempDir, "outside-provenance.json");
+      fs.writeFileSync(outsidePath, "{}\n");
+      fs.symlinkSync(outsidePath, blockedProvenancePath, "file");
+
+      expect(() =>
+        localPM.install(secondTarballPath, { global: true, verbose: false }),
+      ).toThrow(/Package provenance path is a symbolic link/);
+      expect(
+        fs.readFileSync(
+          path.join(globalPackageDir, "global-provenance", "index.bpl"),
+          "utf8",
+        ),
+      ).toBe("export oldVersion;");
+    });
+
     test("should not follow atomic temp symlinks while caching global package archives", () => {
       const packageDir = path.join(tempDir, "global-cache-temp-package");
       const installDir = path.join(tempDir, "global-cache-temp-install");
