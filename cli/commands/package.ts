@@ -71,7 +71,7 @@ export function registerPackageCommands(program: Command): void {
             process.exit(1);
           }
 
-          // Verify LLVM IR validity by running clang -S
+          // Verify LLVM IR validity with the selected compiler driver.
           // This catches CodeGen errors like invalid instructions that TypeChecker missed
           if (result.output) {
             const tempDir = fs.mkdtempSync(
@@ -102,11 +102,11 @@ export function registerPackageCommands(program: Command): void {
                 log.error(
                   "Package verification failed - generated invalid code:",
                 );
-                console.error(check.stderr || "Unknown clang error");
+                console.error(check.stderr || `Unknown ${cc} error`);
                 process.exit(1);
               }
             } catch (e) {
-              // If clang is missing, we warn but allow packing (maybe cross-compiling or no clang env)
+              // If the compiler driver is missing, warn but allow packing.
               log.warn(
                 `Skipping IR verification: ${e instanceof Error ? e.message : String(e)}`,
               );
