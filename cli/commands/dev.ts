@@ -34,7 +34,7 @@ export function registerDevCommand(program: Command): void {
     .option("-q, --quiet", "suppress non-error output")
     .option("--clear", "clear screen on each recompile")
     .option("--no-run", "compile only, don't execute")
-    .option("-O <level>", "optimization level: 0, 1, 2, or 3", "0")
+    .option("-O <level>", "optimization level: 0, 1, 2, or 3")
     .option("--debug", "generate debug information (DWARF)")
     .option("--time", "show compilation time statistics")
     .option("--cache", "enable incremental compilation with module caching")
@@ -46,18 +46,23 @@ export function registerDevCommand(program: Command): void {
       (
         file: string,
         args: string[],
-        options: CompileOptions,
+        _options: CompileOptions,
         command: Command,
       ) => {
         try {
           // Merge parent options if any
           const globalOpts = command.parent?.opts() || {};
+          const localOpts = command.opts<CompileOptions>();
           const compileOptions: CompileOptions = {
             ...globalOpts,
-            ...options,
+            ...localOpts,
             watch: true,
-            run: options.noRun !== true, // Default to running unless --no-run
-            dwarf: options.debug || options.dwarf,
+            run: localOpts.noRun !== true, // Default to running unless --no-run
+            dwarf:
+              localOpts.debug ||
+              localOpts.dwarf ||
+              globalOpts.debug ||
+              globalOpts.dwarf,
           };
 
           watchMode(file, compileOptions, args);

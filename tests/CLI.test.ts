@@ -206,6 +206,33 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should let inherited optimization reach the run subcommand", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-opt-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "extern printf(fmt: string, ...);",
+        "frame main() ret int {",
+        '    printf("run-optimized\\n");',
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["-O", "3", "run", "-v", sourceFile]);
+      const output = `${result.stdout}\n${result.stderr}`;
+
+      expect(result.status).toBe(0);
+      expect(output).toContain(" -O3 ");
+      expect(output).not.toContain(" -O0 ");
+      expect(output).toContain("run-optimized");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should validate entry points before linking module builds", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-module-entry-"),

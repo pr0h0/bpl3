@@ -31,7 +31,7 @@ export function registerRunCommand(program: Command): void {
     .description("Compile and execute a BPL program")
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
-    .option("-O <level>", "optimization level: 0, 1, 2, or 3", "0")
+    .option("-O <level>", "optimization level: 0, 1, 2, or 3")
     .option("--debug", "generate debug information (DWARF)")
     .option("--time", "show compilation time statistics")
     .option("--cache", "enable incremental compilation with module caching")
@@ -46,17 +46,22 @@ export function registerRunCommand(program: Command): void {
       async (
         file: string,
         args: string[],
-        options: CompileOptions,
+        _options: CompileOptions,
         command: Command,
       ) => {
         try {
           // Merge parent options if any
           const globalOpts = command.parent?.opts() || {};
+          const localOpts = command.opts<CompileOptions>();
           const compileOptions: CompileOptions = {
             ...globalOpts,
-            ...options,
+            ...localOpts,
             run: true,
-            dwarf: options.debug || options.dwarf,
+            dwarf:
+              localOpts.debug ||
+              localOpts.dwarf ||
+              globalOpts.debug ||
+              globalOpts.dwarf,
           };
 
           await processFileAsync(file, compileOptions, args);
