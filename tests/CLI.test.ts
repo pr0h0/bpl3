@@ -992,6 +992,7 @@ describe("CLI Tests", () => {
       [
         "#define ANSWER 42",
         "#define FLAGS 0xFFu",
+        "#define BIG_COUNT 42UL",
         "#define SCALE 1.5f",
         "typedef unsigned int bpl_size;",
         "typedef struct Point { int x; double y; } Point;",
@@ -1007,6 +1008,7 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("global const ANSWER: int = 42;");
       expect(result.stdout).toContain("global const FLAGS: uint = 0xFF;");
+      expect(result.stdout).toContain("global const BIG_COUNT: ulong = 42;");
       expect(result.stdout).toContain("global const SCALE: float = 1.5;");
       expect(result.stdout).toContain("type bpl_size = uint;");
       expect(result.stdout).toContain("struct Point {");
