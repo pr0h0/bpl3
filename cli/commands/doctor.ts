@@ -94,23 +94,27 @@ export function registerDoctorCommand(program: Command, version: string): void {
 function createDoctorReport(version: string): DoctorReport {
   const bplHome = getBplHome();
   const checks: DoctorCheck[] = [
-    checkPath("BPL home", bplHome, "Set BPL_HOME to the BPL install root."),
-    checkPath(
+    checkDirectory(
+      "BPL home",
+      bplHome,
+      "Set BPL_HOME to the BPL install root.",
+    ),
+    checkFile(
       "Runtime IR",
       path.join(bplHome, "lib", "runtime.ll"),
       "Run `bun run build:runtime` or reinstall BPL.",
     ),
-    checkPath(
+    checkFile(
       "Runtime support object",
       path.join(bplHome, "lib", "runtime_support.o"),
       "Run `bun run build:runtime` or reinstall BPL.",
     ),
-    checkPath(
+    checkFile(
       "WebAssembly runtime IR",
       path.join(bplHome, "lib", "runtime_wasm.ll"),
       "Reinstall BPL or restore lib/runtime_wasm.ll from the release package.",
     ),
-    checkPath(
+    checkFile(
       "Hosted WebAssembly runtime IR",
       path.join(bplHome, "lib", "runtime_wasm_host.ll"),
       "Reinstall BPL or restore lib/runtime_wasm_host.ll from the release package.",
@@ -182,21 +186,66 @@ function createDoctorReport(version: string): DoctorReport {
   };
 }
 
-function checkPath(name: string, filePath: string, hint: string): DoctorCheck {
-  return fs.existsSync(filePath)
-    ? {
-        name,
-        ok: true,
-        detail: filePath,
-        required: true,
-      }
-    : {
-        name,
-        ok: false,
-        detail: `${filePath} not found`,
-        hint,
-        required: true,
-      };
+function checkDirectory(
+  name: string,
+  directoryPath: string,
+  hint: string,
+): DoctorCheck {
+  if (!fs.existsSync(directoryPath)) {
+    return {
+      name,
+      ok: false,
+      detail: `${directoryPath} not found`,
+      hint,
+      required: true,
+    };
+  }
+
+  if (!fs.statSync(directoryPath).isDirectory()) {
+    return {
+      name,
+      ok: false,
+      detail: `${directoryPath} is not a directory`,
+      hint,
+      required: true,
+    };
+  }
+
+  return {
+    name,
+    ok: true,
+    detail: directoryPath,
+    required: true,
+  };
+}
+
+function checkFile(name: string, filePath: string, hint: string): DoctorCheck {
+  if (!fs.existsSync(filePath)) {
+    return {
+      name,
+      ok: false,
+      detail: `${filePath} not found`,
+      hint,
+      required: true,
+    };
+  }
+
+  if (!fs.statSync(filePath).isFile()) {
+    return {
+      name,
+      ok: false,
+      detail: `${filePath} is not a file`,
+      hint,
+      required: true,
+    };
+  }
+
+  return {
+    name,
+    ok: true,
+    detail: filePath,
+    required: true,
+  };
 }
 
 function checkCommand(

@@ -1103,6 +1103,58 @@ describe("CLI Tests", () => {
     ).toBe(true);
   });
 
+  it("should report wrong path kinds in doctor diagnostics", () => {
+    const wrongHomeRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-home-"),
+    );
+    const fileBplHome = path.join(wrongHomeRoot, "bpl-home");
+    const runtimeBplHome = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-home-"),
+    );
+
+    try {
+      fs.writeFileSync(fileBplHome, "not a directory");
+      const fileHomeResult = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_HOME: fileBplHome,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(fileHomeResult.status).toBe(1);
+      const fileHomeReport = JSON.parse(fileHomeResult.stdout);
+      const homeCheck = fileHomeReport.checks.find(
+        (check: { name: string }) => check.name === "BPL home",
+      );
+      expect(homeCheck.ok).toBe(false);
+      expect(homeCheck.detail).toContain("is not a directory");
+
+      fs.mkdirSync(path.join(runtimeBplHome, "lib"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeBplHome, "lib", "runtime.ll"));
+      const runtimeResult = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_HOME: runtimeBplHome,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(runtimeResult.status).toBe(1);
+      const runtimeReport = JSON.parse(runtimeResult.stdout);
+      const runtimeCheck = runtimeReport.checks.find(
+        (check: { name: string }) => check.name === "Runtime IR",
+      );
+      expect(runtimeCheck.ok).toBe(false);
+      expect(runtimeCheck.detail).toContain("is not a file");
+    } finally {
+      fs.rmSync(wrongHomeRoot, { recursive: true, force: true });
+      fs.rmSync(runtimeBplHome, { recursive: true, force: true });
+    }
+  });
+
   it("should honor BPL_CC in doctor diagnostics", () => {
     const missingCompiler = path.join(
       os.tmpdir(),
