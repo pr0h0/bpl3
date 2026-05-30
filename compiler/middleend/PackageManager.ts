@@ -1481,6 +1481,7 @@ export class PackageManager {
     // Create tarball filename
     const tarballName = `${manifest.name}-${manifest.version}.tgz`;
     const tarballPath = path.join(outputPath, tarballName);
+    this.ensurePackageArchiveOutputFile(tarballPath, manifestPath);
 
     compilerLog.info(`Packing ${manifest.name}@${manifest.version}...`);
 
@@ -1598,6 +1599,26 @@ export class PackageManager {
     }
 
     fs.mkdirSync(outputPath, { recursive: true });
+  }
+
+  private ensurePackageArchiveOutputFile(
+    archivePath: string,
+    manifestPath: string,
+  ): void {
+    const existing = this.tryLstat(archivePath);
+    if (existing && !existing.isFile()) {
+      throw new CompilerError(
+        `Package archive path is not a file: ${archivePath}`,
+        "Remove the existing path or choose a different package version/output directory.",
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
   }
 
   /**
@@ -1742,6 +1763,10 @@ export class PackageManager {
 
       if (options.global) {
         fs.mkdirSync(this.globalPackageDir, { recursive: true });
+        this.ensurePackageArchiveOutputFile(
+          cachedArchivePath,
+          path.join(packageDir, "bpl.json"),
+        );
         if (path.resolve(tarballPath) !== path.resolve(cachedArchivePath)) {
           fs.copyFileSync(tarballPath, cachedArchivePath);
         }

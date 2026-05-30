@@ -294,6 +294,23 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject package archive output paths that are directories", () => {
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          { name: "archive-output-dir-pkg", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.mkdirSync(path.join(tempDir, "archive-output-dir-pkg-1.0.0.tgz"));
+
+      expect(() => packageManager.pack(tempDir)).toThrow(
+        /Package archive path is not a file/,
+      );
+    });
+
     test("should reject package provenance paths that are not files", () => {
       const outputDir = path.join(tempDir, "provenance-output");
       const provenancePath = path.join(
@@ -666,6 +683,35 @@ describe("PackageManager", () => {
           verbose: false,
         }),
       ).toThrow(/Missing package bin entry/);
+    });
+
+    test("should reject global cache archive targets that are directories", () => {
+      const packageDir = path.join(tempDir, "global-cache-target-package");
+      const globalPackageDir = path.join(tempDir, "global-cache-target");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "global-cache-target",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      fs.mkdirSync(path.join(globalPackageDir, "global-cache-target-1.0.0.tgz"));
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() =>
+        localPM.install(tarballPath, { global: true, verbose: false }),
+      ).toThrow(/Package archive path is not a file/);
     });
 
     test("should reject package archives with unsafe member paths", () => {
