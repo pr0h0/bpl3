@@ -16,6 +16,8 @@ import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
 
+export const MODULE_CACHE_VERSION = "2.0.0";
+
 export interface CachedModule {
   path: string;
   hash: string;
@@ -170,16 +172,18 @@ export class ModuleCache {
         const data = fs.readFileSync(this.manifestPath, "utf-8");
         const parsed = JSON.parse(data);
         const manifest = this.parseManifest(parsed);
-        if (manifest) {
+        if (manifest?.version === MODULE_CACHE_VERSION) {
           return manifest;
         }
-        compilerLog.warn("Invalid cache manifest schema, creating new one");
+        compilerLog.warn(
+          "Invalid cache manifest schema or version, creating new one",
+        );
       } catch {
         compilerLog.warn("Failed to load cache manifest, creating new one");
       }
     }
     return {
-      version: "1.0.0",
+      version: MODULE_CACHE_VERSION,
       modules: new Map(),
     };
   }
@@ -262,6 +266,7 @@ export class ModuleCache {
     return this.calculateHash(
       JSON.stringify({
         content,
+        cacheVersion: MODULE_CACHE_VERSION,
         target: target ?? "",
         optimizationLevel: optimizationLevel ?? 0,
         compilerDriver: getCompilerDriver(target),
@@ -920,7 +925,7 @@ export class ModuleCache {
     }
     this.ensureCacheDir();
     this.manifest = {
-      version: "1.0.0",
+      version: MODULE_CACHE_VERSION,
       modules: new Map(),
     };
     this.saveManifest();

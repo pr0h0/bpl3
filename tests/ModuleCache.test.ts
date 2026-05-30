@@ -14,7 +14,10 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import { getCompilerDriver } from "../compiler/common/CompilerDriver";
-import { ModuleCache } from "../compiler/middleend/ModuleCache";
+import {
+  MODULE_CACHE_VERSION,
+  ModuleCache,
+} from "../compiler/middleend/ModuleCache";
 
 const EMPTY_MAIN_IR = `
   define i32 @main() {
@@ -78,6 +81,59 @@ describe("ModuleCache", () => {
       expect(withDebugFlag).not.toBe(plain);
       expect(existsSync(plain)).toBe(true);
       expect(existsSync(withDebugFlag)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores manifests from older module cache versions", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-version-"));
+
+    try {
+      const cacheDir = join(dir, ".bpl-cache");
+      mkdirSync(cacheDir, { recursive: true });
+      const staleObject = join(cacheDir, "stale.o");
+      writeFileSync(staleObject, "stale object");
+      writeFileSync(
+        join(cacheDir, "manifest.json"),
+        JSON.stringify(
+          {
+            version: "1.0.0",
+            modules: {
+              "main.bpl": {
+                path: "main.bpl",
+                hash: "stale",
+                objectFile: staleObject,
+                timestamp: 1,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const cache = new ModuleCache(dir);
+
+      expect(cache.getStats().totalModules).toBe(0);
+      expect(cache.getCachedObjectFile("main.bpl")).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes the active module cache version to fresh manifests", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-version-write-"));
+
+    try {
+      const cache = new ModuleCache(dir);
+      cache.clearCache();
+
+      const manifest = JSON.parse(
+        readFileSync(join(dir, ".bpl-cache", "manifest.json"), "utf-8"),
+      );
+
+      expect(manifest.version).toBe(MODULE_CACHE_VERSION);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -275,7 +331,7 @@ describe("ModuleCache", () => {
         join(cacheDir, "manifest.json"),
         JSON.stringify(
           {
-            version: "1.0.0",
+            version: MODULE_CACHE_VERSION,
             modules: {
               [modulePath]: {
                 path: modulePath,
@@ -312,7 +368,7 @@ describe("ModuleCache", () => {
         join(cacheDir, "manifest.json"),
         JSON.stringify(
           {
-            version: "1.0.0",
+            version: MODULE_CACHE_VERSION,
             modules: {
               [modulePath]: {
                 path: modulePath,
@@ -375,6 +431,7 @@ function getModuleHashForTest(
     .update(
       JSON.stringify({
         content,
+        cacheVersion: MODULE_CACHE_VERSION,
         target: target ?? "",
         optimizationLevel: optimizationLevel ?? 0,
         compilerDriver: getCompilerDriver(target),
