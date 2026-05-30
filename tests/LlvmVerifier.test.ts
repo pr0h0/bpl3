@@ -201,7 +201,7 @@ describe("LLVM verifier tooling", () => {
 
       expect(result.exitCode).toBe(-1);
       expect(result.tool).toBe(fakeOpt);
-      expect(result.stderr).toMatch(/ETIMEDOUT|timed out|timeout/i);
+      expect(result.stderr).toBe("timed out");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

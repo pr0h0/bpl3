@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { basename, dirname, join } from "path";
 import { getCompilerDriver } from "./CompilerDriver";
+import { formatSpawnFailureReason } from "./ProcessErrors";
 
 export interface LlvmVerifierResult {
   tool: string;
@@ -113,7 +114,9 @@ function getVerifierErrorOutput(
   error: Error | undefined,
 ): string {
   const stderrText = String(stderr ?? "");
-  return stderrText.length > 0 ? stderrText : (error?.message ?? "");
+  return stderrText.length > 0
+    ? stderrText
+    : (formatSpawnFailureReason(error) ?? error?.message ?? "");
 }
 
 function isToolAvailable(
