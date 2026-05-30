@@ -2253,6 +2253,8 @@ export class PackageManager {
     version?: string;
     dryRun?: boolean;
   } = {}): PackageCacheCleanResult {
+    validatePackageCacheVersionFilter(options.version);
+
     const removed = this.listPackageCache(options.packageName).filter((entry) =>
       options.version ? entry.version === options.version : true,
     );
@@ -2393,6 +2395,8 @@ export class PackageManager {
     packageName?: string,
     options: { version?: string; dryRun?: boolean } = {},
   ): PackageCacheRepairResult {
+    validatePackageCacheVersionFilter(options.version);
+
     const entries = this.listPackageCache(packageName).filter((entry) =>
       options.version ? entry.version === options.version : true,
     );
@@ -2895,6 +2899,24 @@ function validatePackageName(name: string, location: SourceLocation): void {
       `Invalid package name: ${name} (use lowercase letters, numbers, and hyphens only)`,
       "Use a package-safe name such as 'my-package'.",
       location,
+    );
+  }
+}
+
+function validatePackageCacheVersionFilter(version: string | undefined): void {
+  if (version === undefined) return;
+
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new CompilerError(
+      `Invalid package cache version filter: ${version}`,
+      "Use an exact semantic version such as '1.2.3'.",
+      {
+        file: "package-cache",
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
     );
   }
 }

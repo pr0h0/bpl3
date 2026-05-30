@@ -796,6 +796,60 @@ describe("Package Manager CLI", () => {
       const verification = JSON.parse(verifyResult.stdout);
       expect(verification.ok).toBe(true);
     });
+
+    test("should reject invalid package-cache version filters", () => {
+      const homeDir = path.join(tempDir, "cache-invalid-version-home");
+      fs.mkdirSync(path.join(homeDir, ".bpl", "packages"), {
+        recursive: true,
+      });
+      const env = {
+        ...process.env,
+        HOME: homeDir,
+        NO_COLOR: "1",
+      };
+
+      const cleanResult = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "clean",
+          "cache-cli",
+          "--package-version",
+          "^1.0.0",
+        ],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(cleanResult.status).toBe(1);
+      expect(cleanResult.stderr).toContain(
+        "Invalid package cache version filter: ^1.0.0",
+      );
+
+      const repairResult = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "repair",
+          "cache-cli",
+          "--package-version",
+          "latest",
+        ],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(repairResult.status).toBe(1);
+      expect(repairResult.stderr).toContain(
+        "Invalid package cache version filter: latest",
+      );
+    });
   });
 
   describe("uninstall command", () => {
