@@ -68,6 +68,8 @@ export class Linker {
         compilerLog.info("Starting linking process...");
       }
 
+      this.validateObjectFiles(options.objectFiles || []);
+
       // Merge all LLVM IR files
       const mergedIR = this.mergeIRFiles(options.irFiles, options.verbose);
 
@@ -119,6 +121,38 @@ export class Linker {
     } catch (e) {
       compilerLog.error(`Linker error: ${e}`);
       return false;
+    }
+  }
+
+  private validateObjectFiles(objectFiles: string[]): void {
+    for (const objectFile of objectFiles) {
+      if (!fs.existsSync(objectFile)) {
+        throw new CompilerError(
+          `Object file not found: ${objectFile}`,
+          "Check the --object path or remove it from the build command.",
+          {
+            file: objectFile,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      if (!fs.statSync(objectFile).isFile()) {
+        throw new CompilerError(
+          `Object path is not a file: ${objectFile}`,
+          "Pass a regular object, archive, or LLVM IR file to --object.",
+          {
+            file: objectFile,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
     }
   }
 

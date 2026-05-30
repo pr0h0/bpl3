@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -171,6 +172,51 @@ describe("Linker", () => {
         process.env.BPL_CC = previousBplCc;
       }
       console.log = originalLog;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects missing and directory object files before linking", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-object-input-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const missingObject = join(dir, "missing.o");
+    const objectDir = join(dir, "objects");
+    const originalError = console.error;
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    mkdirSync(objectDir);
+
+    try {
+      console.error = () => {};
+
+      const missingOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        objectFiles: [missingObject],
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(missingOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+
+      const directoryOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        objectFiles: [objectDir],
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(directoryOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+    } finally {
+      console.error = originalError;
       rmSync(dir, { recursive: true, force: true });
     }
   });
