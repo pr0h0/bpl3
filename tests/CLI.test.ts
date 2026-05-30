@@ -1480,6 +1480,36 @@ describe("CLI Tests", () => {
       );
       expect(runtimeCheck.ok).toBe(false);
       expect(runtimeCheck.detail).toContain("is not a file");
+
+      fs.rmSync(path.join(runtimeBplHome, "lib", "runtime.ll"), {
+        recursive: true,
+        force: true,
+      });
+      fs.symlinkSync(
+        path.join(runtimeBplHome, "lib", "missing-runtime.ll"),
+        path.join(runtimeBplHome, "lib", "runtime.ll"),
+        "file",
+      );
+      const brokenRuntimeResult = spawnSync(
+        "bun",
+        [BPL_CLI, "doctor", "--json"],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            BPL_HOME: runtimeBplHome,
+            NO_COLOR: "1",
+          },
+        },
+      );
+
+      expect(brokenRuntimeResult.status).toBe(1);
+      const brokenRuntimeReport = JSON.parse(brokenRuntimeResult.stdout);
+      const brokenRuntimeCheck = brokenRuntimeReport.checks.find(
+        (check: { name: string }) => check.name === "Runtime IR",
+      );
+      expect(brokenRuntimeCheck.ok).toBe(false);
+      expect(brokenRuntimeCheck.detail).toContain("broken symbolic link");
     } finally {
       fs.rmSync(wrongHomeRoot, { recursive: true, force: true });
       fs.rmSync(runtimeBplHome, { recursive: true, force: true });

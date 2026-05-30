@@ -191,11 +191,22 @@ function checkDirectory(
   directoryPath: string,
   hint: string,
 ): DoctorCheck {
-  if (!fs.existsSync(directoryPath)) {
+  const linkStats = tryLstat(directoryPath);
+  if (!linkStats) {
     return {
       name,
       ok: false,
       detail: `${directoryPath} not found`,
+      hint,
+      required: true,
+    };
+  }
+
+  if (linkStats.isSymbolicLink() && !fs.existsSync(directoryPath)) {
+    return {
+      name,
+      ok: false,
+      detail: `${directoryPath} is a broken symbolic link`,
       hint,
       required: true,
     };
@@ -220,11 +231,22 @@ function checkDirectory(
 }
 
 function checkFile(name: string, filePath: string, hint: string): DoctorCheck {
-  if (!fs.existsSync(filePath)) {
+  const linkStats = tryLstat(filePath);
+  if (!linkStats) {
     return {
       name,
       ok: false,
       detail: `${filePath} not found`,
+      hint,
+      required: true,
+    };
+  }
+
+  if (linkStats.isSymbolicLink() && !fs.existsSync(filePath)) {
+    return {
+      name,
+      ok: false,
+      detail: `${filePath} is a broken symbolic link`,
       hint,
       required: true,
     };
@@ -246,6 +268,23 @@ function checkFile(name: string, filePath: string, hint: string): DoctorCheck {
     detail: filePath,
     required: true,
   };
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function checkCommand(
