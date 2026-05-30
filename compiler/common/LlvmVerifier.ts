@@ -1,6 +1,7 @@
 import { spawnSync } from "child_process";
 import { rmSync } from "fs";
 import { basename, dirname, join } from "path";
+import { getCompilerDriver } from "./CompilerDriver";
 
 export interface LlvmVerifierResult {
   tool: string;
@@ -15,42 +16,44 @@ export interface LlvmVerifierOptions {
   timeout?: number;
 }
 
-interface LlvmVerifierCandidate {
+export interface LlvmVerifierCandidate {
   tool: string;
   args: (irPath: string, outputPath: string) => string[];
 }
 
 const VERIFY_TIMEOUT_MS = 30000;
 
-const VERIFIER_CANDIDATES: LlvmVerifierCandidate[] = [
-  {
-    tool: "opt",
-    args: (irPath) => ["-passes=verify", "-disable-output", irPath],
-  },
-  {
-    tool: "llvm-as",
-    args: (irPath, outputPath) => [irPath, "-o", outputPath],
-  },
-  {
-    tool: "llc",
-    args: (irPath, outputPath) => [
-      "-filetype=null",
-      irPath,
-      "-o",
-      outputPath,
-    ],
-  },
-  {
-    tool: "clang",
-    args: (irPath, outputPath) => [
-      "-Wno-override-module",
-      "-c",
-      irPath,
-      "-o",
-      outputPath,
-    ],
-  },
-];
+export function getLlvmVerifierCandidates(): LlvmVerifierCandidate[] {
+  return [
+    {
+      tool: process.env.BPL_OPT || process.env.OPT || "opt",
+      args: (irPath) => ["-passes=verify", "-disable-output", irPath],
+    },
+    {
+      tool: process.env.BPL_LLVM_AS || process.env.LLVM_AS || "llvm-as",
+      args: (irPath, outputPath) => [irPath, "-o", outputPath],
+    },
+    {
+      tool: process.env.BPL_LLC || process.env.LLC || "llc",
+      args: (irPath, outputPath) => [
+        "-filetype=null",
+        irPath,
+        "-o",
+        outputPath,
+      ],
+    },
+    {
+      tool: getCompilerDriver(),
+      args: (irPath, outputPath) => [
+        "-Wno-override-module",
+        "-c",
+        irPath,
+        "-o",
+        outputPath,
+      ],
+    },
+  ];
+}
 
 export function verifyLlvmFile(
   irPath: string,
@@ -59,14 +62,14 @@ export function verifyLlvmFile(
   const cwd = options.cwd ?? dirname(irPath);
   const timeout = options.timeout ?? VERIFY_TIMEOUT_MS;
 
-  for (const candidate of VERIFIER_CANDIDATES) {
+  for (const candidate of getLlvmVerifierCandidates()) {
     if (!isToolAvailable(candidate.tool, cwd, timeout)) {
       continue;
     }
 
     const outputPath = join(
       cwd,
-      `${basename(irPath)}.${candidate.tool}.verify.out`,
+      `${basename(irPath)}.${formatVerifierToolName(candidate.tool)}.verify.out`,
     );
     const args = candidate.args(irPath, outputPath);
     const result = spawnSync(candidate.tool, args, {
@@ -92,9 +95,13 @@ export function verifyLlvmFile(
     args: [],
     stdout: "",
     stderr:
-      "No LLVM verifier tool found. Install opt, llvm-as, llc, or clang.",
+      "No LLVM verifier tool found. Install opt, llvm-as, llc, or clang, or set BPL_OPT/BPL_LLVM_AS/BPL_LLC/BPL_CC.",
     exitCode: -1,
   };
+}
+
+function formatVerifierToolName(tool: string): string {
+  return basename(tool).replace(/[^A-Za-z0-9_.-]/g, "_");
 }
 
 function isToolAvailable(

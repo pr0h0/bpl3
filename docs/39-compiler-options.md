@@ -393,6 +393,8 @@ include the selected driver, target, sysroot, optimization level, and forwarded
 compiler flags so incompatible toolchain invocations do not reuse stale objects.
 When inspecting precompiled object-file symbols, BPL uses `BPL_NM`, then `NM`,
 then `nm`.
+LLVM IR verification uses `BPL_OPT`/`OPT`, `BPL_LLVM_AS`/`LLVM_AS`,
+`BPL_LLC`/`LLC`, then the selected native compiler driver.
 
 **Supported Targets:**
 
