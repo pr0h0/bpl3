@@ -605,10 +605,23 @@ export class ModuleCache {
 
   private isUsableCacheFile(filePath: string): boolean {
     try {
+      if (!this.isPathInsideCacheDir(filePath)) {
+        return false;
+      }
+
       return fs.lstatSync(filePath).isFile();
     } catch {
       return false;
     }
+  }
+
+  private isPathInsideCacheDir(filePath: string): boolean {
+    const cacheRoot = path.resolve(this.cacheDir);
+    const resolvedPath = path.resolve(filePath);
+    return (
+      resolvedPath.length > cacheRoot.length &&
+      resolvedPath.startsWith(`${cacheRoot}${path.sep}`)
+    );
   }
 
   private assertWritableCacheFilePath(

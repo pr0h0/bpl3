@@ -299,6 +299,43 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("ignores cached object paths outside the cache directory", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-outside-object-"));
+
+    try {
+      const cacheDir = join(dir, ".bpl-cache");
+      const objectPath = join(dir, "outside.o");
+      const modulePath = join(dir, "main.bpl");
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(objectPath, "outside object\n");
+      writeFileSync(
+        join(cacheDir, "manifest.json"),
+        JSON.stringify(
+          {
+            version: "1.0.0",
+            modules: {
+              [modulePath]: {
+                path: modulePath,
+                hash: "hash",
+                objectFile: objectPath,
+                timestamp: 1,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const cache = new ModuleCache(dir);
+
+      expect(cache.getCachedObjectFile(modulePath)).toBeNull();
+      expect(cache.getStats().cacheSize).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects symlinked cache manifests before saving", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-manifest-link-"));
 
