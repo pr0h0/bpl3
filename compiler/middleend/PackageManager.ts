@@ -874,6 +874,14 @@ export class PackageManager {
       const content = fs.readFileSync(manifestPath, "utf-8");
       const manifest = JSON.parse(content) as PackageManifest;
 
+      if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+        throw new CompilerError(
+          "Invalid package manifest",
+          "bpl.json must contain a JSON object.",
+          location,
+        );
+      }
+
       // Validate required fields
       if (!manifest.name) {
         throw new CompilerError(
@@ -882,10 +890,24 @@ export class PackageManager {
           location,
         );
       }
+      if (typeof manifest.name !== "string") {
+        throw new CompilerError(
+          "Invalid package manifest 'name' field",
+          "'name' must be a non-empty string.",
+          location,
+        );
+      }
       if (!manifest.version) {
         throw new CompilerError(
           "Package manifest missing 'version' field",
           "Add a 'version' field to bpl.json (e.g., '0.1.0').",
+          location,
+        );
+      }
+      if (typeof manifest.version !== "string") {
+        throw new CompilerError(
+          "Invalid package manifest 'version' field",
+          "'version' must be a semantic version string.",
           location,
         );
       }
@@ -909,6 +931,7 @@ export class PackageManager {
       }
 
       // Validate dependencies, scripts, and bin
+      this.validateManifestMetadataFields(manifest, location);
       this.validateManifestDependencyEntries(manifest, location);
       if (
         manifest.scripts &&
@@ -942,6 +965,80 @@ export class PackageManager {
         "Check that bpl.json is valid JSON.",
         location,
       );
+    }
+  }
+
+  private validateManifestMetadataFields(
+    manifest: PackageManifest,
+    location: SourceLocation,
+  ): void {
+    for (const field of ["description", "author", "license"] as const) {
+      if (manifest[field] !== undefined && typeof manifest[field] !== "string") {
+        throw new CompilerError(
+          `Invalid package manifest '${field}' field`,
+          `'${field}' must be a string when present.`,
+          location,
+        );
+      }
+    }
+
+    if (manifest.main !== undefined) {
+      if (
+        typeof manifest.main !== "string" ||
+        !this.isSafeManifestRelativePath(manifest.main)
+      ) {
+        throw new CompilerError(
+          "Invalid package manifest 'main' field",
+          "'main' must be a package-relative path that does not contain '..'.",
+          location,
+        );
+      }
+    }
+
+    if (manifest.exports !== undefined) {
+      if (
+        !Array.isArray(manifest.exports) ||
+        manifest.exports.some(
+          (entry) =>
+            typeof entry !== "string" ||
+            !this.isSafeManifestRelativePath(entry),
+        )
+      ) {
+        throw new CompilerError(
+          "Invalid package manifest 'exports' field",
+          "'exports' must be an array of package-relative paths.",
+          location,
+        );
+      }
+    }
+
+    if (manifest.keywords !== undefined) {
+      if (
+        !Array.isArray(manifest.keywords) ||
+        manifest.keywords.some((keyword) => typeof keyword !== "string")
+      ) {
+        throw new CompilerError(
+          "Invalid package manifest 'keywords' field",
+          "'keywords' must be an array of strings.",
+          location,
+        );
+      }
+    }
+
+    if (manifest.repository !== undefined) {
+      if (
+        !manifest.repository ||
+        typeof manifest.repository !== "object" ||
+        Array.isArray(manifest.repository) ||
+        typeof manifest.repository.type !== "string" ||
+        typeof manifest.repository.url !== "string"
+      ) {
+        throw new CompilerError(
+          "Invalid package manifest 'repository' field",
+          "'repository' must contain string 'type' and 'url' fields.",
+          location,
+        );
+      }
     }
   }
 
@@ -1057,6 +1154,19 @@ export class PackageManager {
 
     const parts = relativePath.split(/[\\/]+/);
     return parts.every((part) => part.length > 0 && part !== "..");
+  }
+
+  private isSafeManifestRelativePath(relativePath: string): boolean {
+    if (relativePath.length === 0) return false;
+    if (path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) {
+      return false;
+    }
+
+    const parts = relativePath.split(/[\\/]+/);
+    return (
+      parts.some((part) => part !== ".") &&
+      parts.every((part) => part.length > 0 && part !== "..")
+    );
   }
 
   private resolvePackageRelativePath(

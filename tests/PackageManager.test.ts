@@ -2006,6 +2006,64 @@ describe("PackageManager", () => {
       });
     });
 
+    test("should reject malformed manifest metadata fields", () => {
+      const manifests = [
+        ["[]", /Invalid package manifest/],
+        [
+          JSON.stringify({ name: 123, version: "1.0.0" }, null, 2),
+          /Invalid package manifest 'name' field/,
+        ],
+        [
+          JSON.stringify({ name: "bad-version-type", version: 1 }, null, 2),
+          /Invalid package manifest 'version' field/,
+        ],
+        [
+          JSON.stringify(
+            {
+              name: "unsafe-main",
+              version: "1.0.0",
+              main: "../index.bpl",
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest 'main' field/,
+        ],
+        [
+          JSON.stringify(
+            {
+              name: "bad-exports",
+              version: "1.0.0",
+              exports: ["src/index.bpl", "../secret.bpl"],
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest 'exports' field/,
+        ],
+        [
+          JSON.stringify(
+            {
+              name: "bad-keywords",
+              version: "1.0.0",
+              keywords: ["good", 99],
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest 'keywords' field/,
+        ],
+      ] as const;
+
+      for (const [content, errorPattern] of manifests) {
+        fs.writeFileSync("bpl.json", content);
+
+        expect(() => packageManager.loadManifest(tempDir)).toThrow(
+          errorPattern,
+        );
+      }
+    });
+
     test("should reject non-string package scripts", () => {
       fs.writeFileSync(
         "bpl.json",

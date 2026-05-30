@@ -30,6 +30,11 @@ The configuration file defines the package metadata.
 }
 ```
 
+`name` and `version` must be strings, `main` and `exports` must stay inside the
+package root, and optional metadata such as `keywords` and `repository` is
+validated before packing or installing. Invalid manifests fail while loading
+`bpl.json` instead of later during path handling or archive creation.
+
 ## Creating a Package
 
 The quickest path is the library template:
