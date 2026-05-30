@@ -893,6 +893,62 @@ describe("PackageManager", () => {
       ).toThrow(/Cannot link package binary 'tool'/);
     });
 
+    test("should keep existing installs when binary link targets are blocked", () => {
+      const installDir = path.join(tempDir, "bin-preflight-install");
+
+      const createPackage = (version: string, source: string): string => {
+        const packageDir = path.join(tempDir, `bin-preflight-${version}`);
+        fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "bin-preflight",
+              version,
+              main: "index.bpl",
+              bin: {
+                tool: "bin/tool.sh",
+              },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), source);
+        fs.writeFileSync(
+          path.join(packageDir, "bin", "tool.sh"),
+          "#!/usr/bin/env sh\necho tool\n",
+        );
+        return new PackageManager(packageDir).pack(packageDir);
+      };
+
+      const firstTarball = createPackage("1.0.0", "export old;");
+      const secondTarball = createPackage("2.0.0", "export new;");
+      const manager = new PackageManager(installDir);
+      manager.install(firstTarball, { global: false, verbose: false });
+
+      const binTarget = path.join(installDir, "bpl_modules", ".bin", "tool");
+      fs.unlinkSync(binTarget);
+      fs.mkdirSync(binTarget);
+
+      expect(() =>
+        manager.install(secondTarball, { global: false, verbose: false }),
+      ).toThrow(/Cannot link package binary 'tool'/);
+
+      const installedPath = path.join(
+        installDir,
+        "bpl_modules",
+        "bin-preflight",
+      );
+      const installedManifest = JSON.parse(
+        fs.readFileSync(path.join(installedPath, "bpl.json"), "utf-8"),
+      );
+      expect(installedManifest.version).toBe("1.0.0");
+      expect(
+        fs.readFileSync(path.join(installedPath, "index.bpl"), "utf-8"),
+      ).toBe("export old;");
+    });
+
     test("should reject package archives with missing bin entries", () => {
       const sourceDir = path.join(tempDir, "missing-bin-archive-source");
       const packageRoot = path.join(sourceDir, "package");

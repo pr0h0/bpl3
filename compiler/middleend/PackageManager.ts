@@ -411,6 +411,57 @@ export class PackageManager {
     }
   }
 
+  private assertPackageBinaryTargetsWritable(
+    manifest: PackageManifest,
+    packageDir: string,
+    isGlobal: boolean,
+  ): void {
+    if (!manifest.bin) return;
+
+    const binDir = isGlobal ? this.globalBinDir : this.localBinDir;
+    this.ensurePackageManagerDirectory(
+      binDir,
+      isGlobal ? "Global binary directory" : "Local binary directory",
+    );
+    const manifestPath = path.join(packageDir, "bpl.json");
+
+    for (const [name, relativePath] of Object.entries(manifest.bin)) {
+      if (
+        !this.isSafeBinCommandName(name) ||
+        !this.isSafePackageRelativePath(relativePath)
+      ) {
+        throw new CompilerError(
+          "Invalid 'bin' field",
+          "'bin' entries must use safe command names and package-relative executable paths.",
+          {
+            file: manifestPath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      this.validatePackageBinFile(packageDir, relativePath, manifestPath);
+      const targetPath = path.join(binDir, name);
+      const existingTarget = this.tryLstat(targetPath);
+      if (existingTarget?.isDirectory()) {
+        throw new CompilerError(
+          `Cannot link package binary '${name}'`,
+          `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
+          {
+            file: manifestPath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+    }
+  }
+
   private getLockFilePath(): string {
     return path.join(this.projectRoot, "bpl.lock");
   }
@@ -2052,6 +2103,11 @@ export class PackageManager {
 
       // Create target directory
       const installPath = path.join(targetDir, manifest.name);
+      this.assertPackageBinaryTargetsWritable(
+        manifest,
+        packageDir,
+        options.global || false,
+      );
 
       // Remove existing installation
       if (fs.existsSync(installPath)) {
