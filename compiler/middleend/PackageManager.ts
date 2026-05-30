@@ -155,6 +155,13 @@ export interface PackageCacheVerificationReport {
   issues: PackageCacheVerificationIssue[];
 }
 
+export interface PackageCacheRepairResult {
+  dryRun: boolean;
+  repaired: PackageCacheEntry[];
+  unchanged: PackageCacheEntry[];
+  issues: PackageCacheVerificationIssue[];
+}
+
 export interface PackageLockRepairResult {
   packages: number;
   updated: string[];
@@ -2026,6 +2033,106 @@ export class PackageManager {
     return {
       ok: issues.length === 0,
       entriesChecked: entries.length,
+      issues,
+    };
+  }
+
+  repairPackageCache(
+    packageName?: string,
+    options: { version?: string; dryRun?: boolean } = {},
+  ): PackageCacheRepairResult {
+    const entries = this.listPackageCache(packageName).filter((entry) =>
+      options.version ? entry.version === options.version : true,
+    );
+    const repaired: PackageCacheEntry[] = [];
+    const unchanged: PackageCacheEntry[] = [];
+    const issues: PackageCacheVerificationIssue[] = [];
+
+    const addIssue = (
+      entry: PackageCacheEntry,
+      kind: PackageCacheVerificationIssueKind,
+      message: string,
+      provenancePath: string | undefined = entry.provenancePath,
+    ) => {
+      issues.push({
+        packageName: entry.name,
+        version: entry.version,
+        kind,
+        message,
+        path: entry.path,
+        provenancePath,
+      });
+    };
+
+    for (const entry of entries) {
+      if (entry.provenanceStatus === "verified") {
+        unchanged.push(entry);
+        continue;
+      }
+
+      if (
+        entry.provenanceStatus !== "missing" &&
+        entry.provenanceStatus !== "invalid"
+      ) {
+        addIssue(
+          entry,
+          entry.provenanceStatus,
+          `${entry.file}: refusing to repair suspicious provenance state (${entry.provenanceIssue})`,
+        );
+        continue;
+      }
+
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "bpl-cache-repair-"),
+      );
+
+      try {
+        this.validatePackageArchiveMembers(entry.path);
+        const extractResult = spawnSync(
+          "tar",
+          ["-xzf", entry.path, "-C", tempDir],
+          { stdio: "pipe" },
+        );
+
+        if (extractResult.status !== 0) {
+          const detail =
+            extractResult.stderr?.toString().trim() || "unknown tar error";
+          throw new Error(`failed to extract archive (${detail})`);
+        }
+
+        const packageDir = path.join(tempDir, "package");
+        this.validateExtractedPackageTree(packageDir, entry.path);
+        const manifest = this.loadManifest(packageDir);
+
+        if (manifest.name !== entry.name || manifest.version !== entry.version) {
+          addIssue(
+            entry,
+            "manifest-mismatch",
+            `${entry.file}: extracted manifest declares ${manifest.name}@${manifest.version}`,
+          );
+          continue;
+        }
+
+        if (!options.dryRun) {
+          this.writeArchiveProvenance(entry.path, packageDir, manifest);
+        }
+        repaired.push(entry);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        addIssue(
+          entry,
+          "invalid-archive",
+          `${entry.file}: invalid package archive (${detail})`,
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    }
+
+    return {
+      dryRun: Boolean(options.dryRun),
+      repaired,
+      unchanged,
       issues,
     };
   }

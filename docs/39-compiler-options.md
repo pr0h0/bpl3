@@ -147,7 +147,8 @@ explicitly requires wasm builds.
 `bpl doctor packages` checks the current package project: manifest validity,
 lockfile verification, missing transitive dependencies, unreachable lockfile
 sources, duplicate installed package names, package cache provenance warnings,
-and the dependency tree.
+and the dependency tree. Use `bpl package-cache repair` to regenerate missing
+or malformed provenance sidecars for otherwise valid cached archives.
 
 ### `bpl clean`
 

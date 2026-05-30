@@ -1450,6 +1450,38 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should repair missing package cache provenance for valid archives", () => {
+      const globalPackageDir = path.join(tempDir, "cache-repair-packages");
+      fs.mkdirSync(globalPackageDir);
+
+      const cachePath = createCachedPackage(
+        "cache-repair",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      fs.unlinkSync(`${cachePath}.bplmeta.json`);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const dryRun = localPM.repairPackageCache("cache-repair", {
+        dryRun: true,
+      });
+      expect(dryRun.dryRun).toBe(true);
+      expect(dryRun.repaired.length).toBe(1);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+
+      const repair = localPM.repairPackageCache("cache-repair");
+      expect(repair.dryRun).toBe(false);
+      expect(repair.repaired.length).toBe(1);
+      expect(repair.issues).toEqual([]);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(true);
+
+      const report = localPM.verifyPackageCache("cache-repair");
+      expect(report.ok).toBe(true);
+    });
+
     test("should report package doctor issues for missing lockfiles and duplicate installed names", () => {
       const appDir = path.join(tempDir, "doctor-app");
       const firstDir = path.join(appDir, "bpl_modules", "doctor-one");

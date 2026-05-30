@@ -13,6 +13,7 @@ import {
   Compiler,
   CompilerError,
   type PackageCacheEntry,
+  type PackageCacheRepairResult,
   type PackageCacheVerificationIssue,
   type PackageCacheVerificationReport,
   type PackageDependencyTreeNode,
@@ -251,7 +252,7 @@ export function registerPackageCommands(program: Command): void {
 
   const packageCache = program
     .command("package-cache")
-    .description("List, verify, and clean cached package archives");
+    .description("List, verify, repair, and clean cached package archives");
 
   packageCache
     .command("list [package]")
@@ -362,6 +363,50 @@ export function registerPackageCommands(program: Command): void {
         }
       },
     );
+
+  packageCache
+    .command("repair [package]")
+    .description("Regenerate missing or invalid package cache provenance")
+    .option(
+      "--package-version <version>",
+      "only repair a specific package version",
+    )
+    .option("--dry-run", "show what would be repaired without writing files")
+    .option("--json", "output machine-readable repair result")
+    .action(
+      (
+        packageName: string | undefined,
+        options: {
+          packageVersion?: string;
+          dryRun?: boolean;
+          json?: boolean;
+        },
+        command: Command,
+      ) => {
+        try {
+          const pm = new PackageManager();
+          const result = pm.repairPackageCache(packageName, {
+            version: options.packageVersion,
+            dryRun: options.dryRun,
+          });
+          const globalOpts = command.parent?.parent?.opts() || {};
+          const outputJson = options.json || globalOpts.json;
+
+          if (outputJson) {
+            console.log(JSON.stringify(result, null, 2));
+          } else {
+            logPackageCacheRepairResult(result);
+          }
+
+          if (result.issues.length > 0) {
+            process.exit(1);
+          }
+        } catch (e) {
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        }
+      },
+    );
 }
 
 function formatPackageCommandError(error: unknown): string {
@@ -426,4 +471,24 @@ function formatPackageCacheVerificationIssue(
     ? ` provenance=${issue.provenancePath}`
     : "";
   return `[${issue.kind}] ${issue.message} path=${issue.path}${provenance}`;
+}
+
+function logPackageCacheRepairResult(result: PackageCacheRepairResult): void {
+  const verb = result.dryRun ? "Would repair" : "Repaired";
+
+  for (const entry of result.repaired) {
+    log.info(`${verb} ${formatPackageCacheEntry(entry)}`);
+  }
+
+  if (result.repaired.length === 0 && result.issues.length === 0) {
+    log.info("No package cache provenance needed repair");
+  } else {
+    log.info(
+      `${verb} ${result.repaired.length} cached archive(s); ${result.unchanged.length} already verified`,
+    );
+  }
+
+  for (const issue of result.issues) {
+    log.error(`  ${formatPackageCacheVerificationIssue(issue)}`);
+  }
 }

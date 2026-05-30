@@ -1007,6 +1007,7 @@ export {
   type PackageArchiveProvenance,
   type PackageCacheCleanResult,
   type PackageCacheEntry,
+  type PackageCacheRepairResult,
   type PackageCacheVerificationIssue,
   type PackageCacheVerificationIssueKind,
   type PackageCacheVerificationReport,

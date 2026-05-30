@@ -651,6 +651,64 @@ describe("Package Manager CLI", () => {
         true,
       );
     });
+
+    test("should repair missing cache provenance for valid archives", () => {
+      const homeDir = path.join(tempDir, "cache-repair-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      const packageDir = path.join(tempDir, "cache-repair-package");
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cache-repair-cli", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+      const packResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(packResult.status).toBe(0);
+
+      const tarballPath = path.join(packageDir, "cache-repair-cli-1.0.0.tgz");
+      fs.copyFileSync(tarballPath, path.join(cacheDir, path.basename(tarballPath)));
+
+      const env = {
+        ...process.env,
+        HOME: homeDir,
+      };
+
+      const repairResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "repair", "cache-repair-cli", "--json"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(repairResult.status).toBe(0);
+      const repair = JSON.parse(repairResult.stdout);
+      expect(repair.repaired.length).toBe(1);
+      expect(repair.issues).toEqual([]);
+
+      const verifyResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "verify", "cache-repair-cli", "--json"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(verifyResult.status).toBe(0);
+      const verification = JSON.parse(verifyResult.stdout);
+      expect(verification.ok).toBe(true);
+    });
   });
 
   describe("uninstall command", () => {

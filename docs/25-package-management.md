@@ -272,6 +272,8 @@ bpl package-cache list
 bpl package-cache list math-core --json
 bpl package-cache verify
 bpl package-cache verify math-core --json
+bpl package-cache repair math-core --dry-run
+bpl package-cache repair math-core --package-version 1.0.0
 bpl package-cache clean math-core --package-version 1.0.0 --dry-run
 bpl package-cache clean math-core --package-version 1.0.0
 ```
@@ -283,6 +285,11 @@ and the extracted package content hash. Missing sidecars are reported as
 trusted. `bpl doctor packages` includes the same cache verification result in
 its JSON report and prints provenance warnings for stale or damaged cache
 entries.
+
+`package-cache repair` regenerates missing or malformed provenance sidecars for
+valid cached archives. It refuses to repair archive hash mismatches or manifest
+mismatches because those states may indicate a stale or damaged archive; clean
+and repack those entries instead.
 
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a
