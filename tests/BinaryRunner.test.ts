@@ -178,6 +178,27 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("reports compiler driver spawn failures", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-cc-"));
+    const irPath = path.join(tempDir, "main.ll");
+    const missingCompiler = path.join(tempDir, "missing-cc");
+
+    try {
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = missingCompiler;
+
+      const result = compileToBinary(irPath, { skipRuntime: true });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Failed to compile LLVM IR");
+      expect(result.error).toContain(missingCompiler);
+      expect(result.error).toContain("command not found");
+      expect(result.error).not.toContain("ENOENT");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("reports executable spawn failures", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-missing-"));
     const missingExecutable = path.join(tempDir, "missing-program");

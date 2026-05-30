@@ -140,7 +140,9 @@ export function compileToBinary(
 
   if (compileResult.status !== 0) {
     const stderr = compileResult.stderr?.toString() ?? "";
-    const spawnError = compileResult.error?.message ?? "";
+    const spawnError = compileResult.error
+      ? formatCompileSpawnError(compileResult.error, clangCommand)
+      : "";
     return {
       success: false,
       error: `Failed to compile LLVM IR with ${clangCommand}${stderr || spawnError ? `\n${stderr || spawnError}` : ""}`,
@@ -476,6 +478,21 @@ function formatRunSpawnError(error: Error, execPath: string): string {
   }
 
   return `Failed to run executable ${execPath}: ${error.message}`;
+}
+
+function formatCompileSpawnError(error: Error, command: string): string {
+  const code = "code" in error ? error.code : undefined;
+  if (code === "ENOENT") {
+    return `${command}: command not found`;
+  }
+  if (code === "EACCES") {
+    return `${command}: permission denied`;
+  }
+  if (code === "ENOEXEC") {
+    return `${command}: not executable`;
+  }
+
+  return `${command}: ${error.message}`;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
