@@ -106,6 +106,12 @@ export function compileToBinary(
     for (const objectPath of normalizeArrayOption(options.object)) {
       assertReadableCompileInput(objectPath, "Link object input");
     }
+    if (options.sysroot) {
+      assertReadableDirectoryInput(options.sysroot, "Sysroot input");
+    }
+    for (const libPath of normalizeArrayOption(options.libPath)) {
+      assertReadableDirectoryInput(libPath, "Library search path input");
+    }
     const hostDefaults = getHostDefaults();
     const target = options.target ?? hostDefaults.target;
     clangArgs = buildClangArgs(irPath, execPath, options, hostDefaults);
@@ -426,6 +432,21 @@ function assertReadableCompileInput(filePath: string, label: string): void {
 
   if (!fs.statSync(filePath).isFile()) {
     throw new Error(`${label} is not a file: ${filePath}.`);
+  }
+}
+
+function assertReadableDirectoryInput(filePath: string, label: string): void {
+  const linkStats = tryLstat(filePath);
+  if (!linkStats) {
+    throw new Error(`${label} not found: ${filePath}.`);
+  }
+
+  if (linkStats.isSymbolicLink() && !fs.existsSync(filePath)) {
+    throw new Error(`${label} is a broken symbolic link: ${filePath}.`);
+  }
+
+  if (!fs.statSync(filePath).isDirectory()) {
+    throw new Error(`${label} is not a directory: ${filePath}.`);
   }
 }
 

@@ -124,4 +124,57 @@ describe("BinaryRunner", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("reports missing sysroot inputs before invoking clang", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-sysroot-"),
+    );
+    const irPath = path.join(tempDir, "main.ll");
+    const sysrootPath = path.join(tempDir, "missing-sysroot");
+
+    try {
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = path.join(tempDir, "missing-cc");
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        sysroot: sysrootPath,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Sysroot input not found");
+      expect(result.error).toContain(sysrootPath);
+      expect(result.error).not.toContain("missing-cc");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports file library search paths before invoking clang", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-libpath-"),
+    );
+    const irPath = path.join(tempDir, "main.ll");
+    const libPath = path.join(tempDir, "not-a-directory");
+
+    try {
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.writeFileSync(libPath, "not a directory\n");
+      process.env.BPL_CC = path.join(tempDir, "missing-cc");
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        libPath,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain(
+        "Library search path input is not a directory",
+      );
+      expect(result.error).toContain(libPath);
+      expect(result.error).not.toContain("missing-cc");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
