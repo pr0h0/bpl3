@@ -112,9 +112,10 @@ function createDoctorReport(version: string): DoctorReport {
       "Reinstall BPL or restore lib/runtime_wasm_host.ll from the release package.",
     ),
     checkCommand(
-      "clang",
+      "native compiler",
+      getNativeCompilerCommand(),
       ["--version"],
-      "Install clang/LLVM and add it to PATH.",
+      "Install clang/LLVM and add it to PATH, or set BPL_CC/CC to a working compiler driver.",
     ),
     checkAnyCommand(
       "wasm linker",
@@ -166,15 +167,18 @@ function checkPath(name: string, filePath: string, hint: string): DoctorCheck {
 
 function checkCommand(
   name: string,
+  command: string,
   args: string[],
   hint: string,
   required = true,
 ): DoctorCheck {
-  const result = spawnSync(name, args, { encoding: "utf-8" });
-  const detail =
+  const result = spawnSync(command, args, { encoding: "utf-8" });
+  const commandDetail =
     result.stdout?.split("\n")[0]?.trim() ||
     result.stderr?.split("\n")[0]?.trim() ||
-    `${name} exited with status ${result.status ?? "unknown"}`;
+    result.error?.message ||
+    `${command} exited with status ${result.status ?? "unknown"}`;
+  const detail = `${command}: ${commandDetail}`;
 
   return result.status === 0
     ? {
@@ -190,6 +194,10 @@ function checkCommand(
         hint,
         required,
       };
+}
+
+function getNativeCompilerCommand(): string {
+  return process.env.BPL_CC || process.env.CC || "clang";
 }
 
 function checkAnyCommand(
