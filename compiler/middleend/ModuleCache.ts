@@ -127,6 +127,20 @@ export class ModuleCache {
    */
   private loadManifest(): CacheManifest {
     if (fs.existsSync(this.manifestPath)) {
+      if (!fs.statSync(this.manifestPath).isFile()) {
+        throw new CompilerError(
+          `Module cache manifest path is not a file: ${this.manifestPath}`,
+          "Remove the path so the compiler can recreate the cache manifest.",
+          {
+            file: this.manifestPath,
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        );
+      }
+
       try {
         const data = fs.readFileSync(this.manifestPath, "utf-8");
         const parsed = JSON.parse(data);
