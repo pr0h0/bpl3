@@ -1646,6 +1646,54 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should time out hanging package IR verification drivers", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-timeout-"));
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "timeout-cc-pack",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(tempDir, "index.bpl"),
+      ["frame main() ret int {", "    return 0;", "}"].join("\n"),
+    );
+    const hangingCompiler = writeNodeCommandShim(
+      path.join(tempDir, "hanging-cc"),
+      ["setInterval(() => {}, 1000);"],
+    );
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "pack"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_CC: hangingCompiler,
+          BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS: "100",
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("Skipping IR verification");
+      expect(result.stderr).toContain(hangingCompiler);
+      expect(result.stderr).toContain("timed out");
+      expect(result.stderr).not.toContain("ETIMEDOUT");
+      expect(fs.existsSync(path.join(tempDir, "timeout-cc-pack-1.0.0.tgz"))).toBe(
+        true,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should honor CC when building native binaries", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-build-cc-"));
     const sourceFile = path.join(tempDir, "main.bpl");

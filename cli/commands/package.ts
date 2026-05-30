@@ -29,6 +29,7 @@ import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 
 const log = new Logger("Package");
+const PACKAGE_IR_VERIFY_TIMEOUT_MS = 30000;
 
 /**
  * Register all package management commands
@@ -439,7 +440,7 @@ function verifyPackageLLVMIR(llvmIR: string): void {
     const check = spawnSync(
       cc,
       ["-S", "-o", os.devNull, "-x", "ir", tempLL, "-Wno-override-module"],
-      { encoding: "utf-8" },
+      { encoding: "utf-8", timeout: getPackageIrVerifyTimeoutMs() },
     );
 
     if (check.error) {
@@ -460,6 +461,21 @@ function verifyPackageLLVMIR(llvmIR: string): void {
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+function getPackageIrVerifyTimeoutMs(): number {
+  const raw = process.env.BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS;
+  if (!raw) return PACKAGE_IR_VERIFY_TIMEOUT_MS;
+
+  const parsed = Number(raw);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  log.warn(
+    `Ignoring invalid BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=${raw}; using ${PACKAGE_IR_VERIFY_TIMEOUT_MS}ms`,
+  );
+  return PACKAGE_IR_VERIFY_TIMEOUT_MS;
 }
 
 function formatSpawnFailure(error: Error, command: string): string {

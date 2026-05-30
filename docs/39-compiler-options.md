@@ -405,6 +405,9 @@ When inspecting precompiled object-file symbols, BPL uses `BPL_NM`, then `NM`,
 then `nm`.
 LLVM IR verification uses `BPL_OPT`/`OPT`, `BPL_LLVM_AS`/`LLVM_AS`,
 `BPL_LLC`/`LLC`, then the selected native compiler driver.
+Package IR verification during `bpl pack` uses the selected native compiler
+driver and is bounded by `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS`, defaulting to
+30000 milliseconds.
 
 **Supported Targets:**
 

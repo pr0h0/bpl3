@@ -300,6 +300,11 @@ Archive creation, inspection, and extraction use `BPL_TAR`, then `TAR`, then
 `tar`. Set one of these variables when the system tar is not on `PATH` or when
 CI should use a specific archive tool.
 
+`bpl pack` also verifies generated package LLVM IR with `BPL_CC`, `CC`, or
+`clang` when available. That verifier is bounded by
+`BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` and defaults to 30000 milliseconds so a
+hung compiler driver does not block package creation forever.
+
 ```bash
 bpl package-cache list
 bpl package-cache list math-core --json
