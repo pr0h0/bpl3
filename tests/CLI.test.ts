@@ -245,6 +245,35 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject compile output paths that are symbolic links before writing artifacts", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-link-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const outputBase = path.join(tempDir, "app");
+    const outputLl = `${outputBase}.ll`;
+    const targetLl = path.join(tempDir, "target.ll");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+    fs.symlinkSync(targetLl, outputLl, "file");
+
+    try {
+      const result = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputBase,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a symbolic link");
+      expect(result.stderr).toContain(outputLl);
+      expect(result.stderr).not.toContain("ENOENT");
+      expect(fs.existsSync(targetLl)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject directories in source analysis commands", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-analysis-dir-"),
@@ -1100,6 +1129,27 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("Output path is a directory");
       expect(result.stderr).not.toContain("EISDIR");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject bindgen output paths that are symbolic links", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-link-"));
+    const tempHeader = path.join(tempDir, "input.h");
+    const outputFile = path.join(tempDir, "bindings.bpl");
+    const targetFile = path.join(tempDir, "target.bpl");
+    fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
+    fs.symlinkSync(targetFile, outputFile, "file");
+
+    try {
+      const result = runCLI(["bindgen", tempHeader, "-o", outputFile]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Output path is a symbolic link");
+      expect(result.stderr).toContain(outputFile);
+      expect(result.stderr).not.toContain("ENOENT");
+      expect(fs.existsSync(targetFile)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

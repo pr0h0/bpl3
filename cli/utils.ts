@@ -79,8 +79,15 @@ export function normalizeArrayOption(
 }
 
 export function assertWritableFileOutputPath(outputPath: string): void {
-  if (fs.existsSync(outputPath) && fs.statSync(outputPath).isDirectory()) {
+  const existingOutput = tryLstat(outputPath);
+  if (existingOutput?.isSymbolicLink()) {
+    throw new Error(`Output path is a symbolic link: ${outputPath}`);
+  }
+  if (existingOutput?.isDirectory()) {
     throw new Error(`Output path is a directory: ${outputPath}`);
+  }
+  if (existingOutput && !existingOutput.isFile()) {
+    throw new Error(`Output path is not a regular file: ${outputPath}`);
   }
 
   const outputDir = path.dirname(path.resolve(outputPath));
@@ -89,5 +96,22 @@ export function assertWritableFileOutputPath(outputPath: string): void {
   }
   if (!fs.statSync(outputDir).isDirectory()) {
     throw new Error(`Output parent path is not a directory: ${outputDir}`);
+  }
+}
+
+function tryLstat(filePath: string): fs.Stats | null {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
   }
 }
