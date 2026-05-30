@@ -163,7 +163,12 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       this.emit(`  ${reg} = xor ${type} ${val}, -1`);
       return reg;
     }
-    return "0";
+
+    throw this.createError(
+      `Unsupported unary operator '${expr.operator.lexeme}' during code generation`,
+      expr,
+      "This is an internal compiler error. The type checker should reject unsupported unary operators before code generation.",
+    );
   }
 
   protected getAllSpecMethods(specDecl: AST.SpecDecl): AST.SpecMethod[] {

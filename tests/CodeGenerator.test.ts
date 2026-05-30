@@ -3,22 +3,34 @@ import { existsSync, mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
+import * as AST from "../compiler/common/AST";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
-function compile(
-  source: string,
-  options: ConstructorParameters<typeof CodeGenerator>[0] = {},
-): string {
+function parseAndCheck(source: string): AST.Program {
   const tokens = lexWithGrammar(source, "test.bpl");
   const parser = new Parser(source, "test.bpl", tokens);
   const program = parser.parse();
   const typeChecker = new TypeChecker();
   typeChecker.checkProgram(program);
+  return program;
+}
+
+function compile(
+  source: string,
+  options: ConstructorParameters<typeof CodeGenerator>[0] = {},
+): string {
+  const program = parseAndCheck(source);
   const generator = new CodeGenerator(options);
   return generator.generate(program);
+}
+
+function getOnlyReturnExpression(program: AST.Program): AST.Expression {
+  const fn = program.statements[0] as AST.FunctionDecl;
+  const ret = fn.body.statements[0] as AST.ReturnStmt;
+  return ret.value!;
 }
 
 describe("CodeGenerator", () => {
@@ -73,6 +85,36 @@ describe("CodeGenerator", () => {
         process.env.BPL_CC = previousBplCc;
       }
     }
+  });
+
+  it("throws instead of emitting a placeholder for unsupported binary operators", () => {
+    const program = parseAndCheck(`
+      frame bad(a: int, b: int) ret int {
+        return a + b;
+      }
+    `);
+    const expr = getOnlyReturnExpression(program) as AST.BinaryExpr;
+    (expr.operator as any).type = 999999;
+    (expr.operator as any).lexeme = "??";
+
+    expect(() => new CodeGenerator().generate(program)).toThrow(
+      /Unsupported binary operator '\?\?'/,
+    );
+  });
+
+  it("throws instead of emitting a placeholder for unsupported unary operators", () => {
+    const program = parseAndCheck(`
+      frame bad(a: int) ret int {
+        return -a;
+      }
+    `);
+    const expr = getOnlyReturnExpression(program) as AST.UnaryExpr;
+    (expr.operator as any).type = 999999;
+    (expr.operator as any).lexeme = "@";
+
+    expect(() => new CodeGenerator().generate(program)).toThrow(
+      /Unsupported unary operator '@'/,
+    );
   });
 
   it("should generate code for a simple function", () => {

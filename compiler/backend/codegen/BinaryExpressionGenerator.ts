@@ -15,7 +15,6 @@ import * as AST from "../../common/AST";
 import { TokenType } from "../../frontend/TokenType";
 import { AddressExpressionGenerator } from "./AddressExpressionGenerator";
 import { isEnumType } from "./utils";
-import { codeGenLog } from "../../common/Logger";
 
 export abstract class BinaryExpressionGenerator extends AddressExpressionGenerator {
   /**
@@ -912,7 +911,12 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       this.emit(`  ${reg} = ${op} ${leftType} ${left}, ${finalRight}`);
       return reg;
     }
-    return "0";
+
+    throw this.createError(
+      `Unsupported binary operator '${expr.operator.lexeme}' during code generation`,
+      expr,
+      "This is an internal compiler error. The type checker should reject unsupported binary operators before code generation.",
+    );
   }
 
   /**
@@ -973,10 +977,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     const decl = this.structMap.get(structName);
 
     if (!decl) {
-      codeGenLog.warn(
+      throw this.createError(
         `Struct definition not found for equality check: ${structName}`,
+        expr,
+        "This is an internal compiler error. Struct equality requires a resolved struct declaration.",
       );
-      return "0"; // Should fallback to icmp but that fails for aggregates
     }
 
     // 1. Check for __eq__ overload
@@ -1188,7 +1193,13 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   ): string {
     const structName = type.substring(8);
     const decl = this.structMap.get(structName);
-    if (!decl) return "0";
+    if (!decl) {
+      throw this.createError(
+        `Struct definition not found for equality check: ${structName}`,
+        undefined,
+        "This is an internal compiler error. Struct equality requires a resolved struct declaration.",
+      );
+    }
 
     const resPtr = this.allocateStack(
       `struct_inner_eq_${this.labelCount++}`,
