@@ -25,14 +25,19 @@ Use `bpl bindgen` to generate BPL declarations from C headers. It supports
 simple function prototypes, numeric/string/char `#define` constants, primitive
 and pointer typedefs, multiple declarators in typedefs and struct fields, plain
 structs, fixed-size struct arrays, pointer-return functions, C array
-parameters, and enums:
+parameters, line-continuation splicing, and enums:
 
 ```c
 #define ANSWER 42
+#define SCIENTIFIC_DOUBLE 1e-3
+#define CONTINUED_COUNT \
+  64u
 #define FEATURE_BITS 0b1010u
 #define FILE_MODE 0755
 #define DEFAULT_MARK 'x'
 typedef unsigned int bpl_size;
+typedef unsigned \
+  long continued_word;
 typedef unsigned long bpl_word, *bpl_word_ptr;
 typedef const char *bpl_cstr;
 typedef void *bpl_handle;
@@ -56,10 +61,13 @@ The generated BPL is intentionally conservative:
 
 ```bpl
 global const ANSWER: int = 42;
+global const SCIENTIFIC_DOUBLE: double = 1e-3;
+global const CONTINUED_COUNT: uint = 64;
 global const FEATURE_BITS: uint = 0b1010;
 global const FILE_MODE: int = 0o755;
 global const DEFAULT_MARK: char = 'x';
 type bpl_size = uint;
+type continued_word = ulong;
 type bpl_word = ulong;
 type bpl_word_ptr = *ulong;
 type bpl_cstr = string;
@@ -99,7 +107,9 @@ For function parameters, C array declarations such as `int values[]` or
 pointers. Multidimensional parameter arrays decay at the outer dimension, so
 `int matrix[2][3]` becomes `*int[3]`. Fixed arrays inside structs stay fixed
 arrays. Legacy C octal constants such as `0755` are normalized to BPL `0o755`
-syntax so generated bindings preserve C numeric semantics.
+syntax, binary constants keep `0b` syntax, and exponent-only floating constants
+such as `1e-3` are emitted as `double` so generated bindings preserve C numeric
+semantics.
 
 Review generated pointer, enum-value, and platform-sized integer mappings before
 publishing bindings for a library. Complex macros, inline functions, function
