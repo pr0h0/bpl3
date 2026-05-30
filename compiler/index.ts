@@ -206,7 +206,9 @@ export class Compiler {
       const typeChecker = new TypeChecker({
         collectAllErrors: this.options.collectAllErrors,
       });
-      typeChecker.checkProgram(ast);
+      typeChecker.checkProgram(ast, undefined, {
+        isEntryPoint: Boolean(this.options.requireEntryPoint),
+      });
       const typeErrors = typeChecker.getErrors();
       if (typeErrors.length > 0) {
         return { success: false, errors: typeErrors, ast };
