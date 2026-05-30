@@ -43,4 +43,18 @@ describe("PackageResolver", () => {
       path.join(globalPackageDir, "math-10.0.0", "index.bpl"),
     );
   });
+
+  test("does not throw when the global package directory path is a file", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    fs.mkdirSync(appDir);
+    fs.writeFileSync(globalPackageDir, "not a directory");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("package-not-found");
+  });
 });

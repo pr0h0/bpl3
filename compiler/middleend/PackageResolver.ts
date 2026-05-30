@@ -238,6 +238,7 @@ function getPackageRootCandidates(
 ): string[] {
   const candidates = [path.join(baseDir, packageName)];
   if (!includeVersionedGlobalDirs || !fs.existsSync(baseDir)) return candidates;
+  if (!fs.statSync(baseDir).isDirectory()) return candidates;
 
   const versioned = fs
     .readdirSync(baseDir, { withFileTypes: true })
