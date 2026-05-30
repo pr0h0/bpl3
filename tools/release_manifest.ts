@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
 import {
-  existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
-  statSync,
+  type Stats,
   writeFileSync,
 } from "fs";
 import { basename, dirname, join, relative, resolve } from "path";
@@ -116,6 +116,7 @@ export function writeReleaseManifest(
   options: CreateReleaseManifestOptions,
 ): ReleaseManifest {
   const manifest = createReleaseManifest(options);
+  assertWritableManifestPath(outPath);
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
@@ -126,11 +127,14 @@ function artifactFor(
   filePath: string,
   kind: ReleaseManifestArtifact["kind"],
 ): ReleaseManifestArtifact {
-  if (!existsSync(filePath)) {
+  const stats = tryLstat(filePath);
+  if (!stats) {
     throw new Error(`Release artifact is missing: ${filePath}`);
   }
 
-  const stats = statSync(filePath);
+  if (stats.isSymbolicLink()) {
+    throw new Error(`Release artifact is a symbolic link: ${filePath}`);
+  }
   if (!stats.isFile() || stats.size <= 0) {
     throw new Error(`Release artifact is not a non-empty file: ${filePath}`);
   }
@@ -142,6 +146,49 @@ function artifactFor(
     bytes: stats.size,
     sha256: sha256File(filePath),
   };
+}
+
+function assertWritableManifestPath(outPath: string): void {
+  const stats = tryLstat(outPath);
+  if (stats) {
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Release manifest output is a symbolic link: ${outPath}`);
+    }
+    if (!stats.isFile()) {
+      throw new Error(`Release manifest output is not a file: ${outPath}`);
+    }
+  }
+
+  const parentPath = dirname(outPath);
+  const parentStats = tryLstat(parentPath);
+  if (parentStats) {
+    if (parentStats.isSymbolicLink()) {
+      throw new Error(
+        `Release manifest output directory is a symbolic link: ${parentPath}`,
+      );
+    }
+    if (!parentStats.isDirectory()) {
+      throw new Error(
+        `Release manifest output parent is not a directory: ${parentPath}`,
+      );
+    }
+  }
+}
+
+function tryLstat(filePath: string): Stats | null {
+  try {
+    return lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function parsePackJson(stdout: string): NpmPackageMetadata {

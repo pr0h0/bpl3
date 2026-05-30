@@ -5,11 +5,15 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { createReleaseManifest } from "../tools/release_manifest";
+import {
+  createReleaseManifest,
+  writeReleaseManifest,
+} from "../tools/release_manifest";
 
 describe("Release metadata", () => {
   test("package metadata exposes a release check and stable CLI entrypoint", () => {
@@ -57,34 +61,7 @@ describe("Release metadata", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 
     try {
-      mkdirSync(join(tempRoot, "lib"), { recursive: true });
-      writeFileSync(
-        join(tempRoot, "package.json"),
-        JSON.stringify(
-          {
-            name: "bpl-v3",
-            version: "9.9.9",
-            license: "Apache-2.0",
-            bin: { bpl: "./bpl" },
-          },
-          null,
-          2,
-        ),
-      );
-      writeFileSync(join(tempRoot, "bpl"), "standalone compiler\n");
-      writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
-      writeFileSync(
-        join(tempRoot, "lib", "runtime_wasm.ll"),
-        "wasm runtime ir\n",
-      );
-      writeFileSync(
-        join(tempRoot, "lib", "runtime_wasm_host.ll"),
-        "wasm host runtime ir\n",
-      );
-      writeFileSync(
-        join(tempRoot, "lib", "runtime_support.o"),
-        "runtime support\n",
-      );
+      writeReleaseFixture(tempRoot);
 
       const tarballPath = join(tempRoot, "bpl-v3-9.9.9.tgz");
       writeFileSync(tarballPath, "packed npm tarball\n");
@@ -138,6 +115,63 @@ describe("Release metadata", () => {
     }
   });
 
+  test("release manifest rejects symlinked shipped artifacts", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-artifact-link-test-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const outsideRuntime = join(tempRoot, "outside-runtime.ll");
+      writeFileSync(outsideRuntime, "outside runtime\n");
+      rmSync(join(tempRoot, "lib", "runtime.ll"));
+      symlinkSync(outsideRuntime, join(tempRoot, "lib", "runtime.ll"), "file");
+
+      expect(() =>
+        createReleaseManifest({
+          repoRoot: tempRoot,
+          generatedAt: "2026-05-29T00:00:00.000Z",
+        }),
+      ).toThrow(/Release artifact is a symbolic link/);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("release manifest refuses symlinked output paths", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-output-link-test-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const targetPath = join(tempRoot, "outside-manifest.json");
+      const linkPath = join(tempRoot, "dist", "release-manifest.json");
+      mkdirSync(join(tempRoot, "dist"));
+      writeFileSync(targetPath, "original\n");
+      symlinkSync(targetPath, linkPath, "file");
+
+      expect(() =>
+        writeReleaseManifest(linkPath, {
+          repoRoot: tempRoot,
+          generatedAt: "2026-05-29T00:00:00.000Z",
+        }),
+      ).toThrow(/Release manifest output is a symbolic link/);
+      expect(readFileSync(targetPath, "utf8")).toBe("original\n");
+
+      rmSync(linkPath);
+      symlinkSync(join(tempRoot, "missing-manifest.json"), linkPath, "file");
+      expect(() =>
+        writeReleaseManifest(linkPath, {
+          repoRoot: tempRoot,
+          generatedAt: "2026-05-29T00:00:00.000Z",
+        }),
+      ).toThrow(/Release manifest output is a symbolic link/);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("compiler workflows opt into Node 24 JavaScript actions", () => {
     const workflowNames = ["compiler-correctness.yml", "compiler-fuzz.yml"];
 
@@ -153,3 +187,28 @@ describe("Release metadata", () => {
     }
   });
 });
+
+function writeReleaseFixture(tempRoot: string): void {
+  mkdirSync(join(tempRoot, "lib"), { recursive: true });
+  writeFileSync(
+    join(tempRoot, "package.json"),
+    JSON.stringify(
+      {
+        name: "bpl-v3",
+        version: "9.9.9",
+        license: "Apache-2.0",
+        bin: { bpl: "./bpl" },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(join(tempRoot, "bpl"), "standalone compiler\n");
+  writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
+  writeFileSync(join(tempRoot, "lib", "runtime_wasm.ll"), "wasm runtime ir\n");
+  writeFileSync(
+    join(tempRoot, "lib", "runtime_wasm_host.ll"),
+    "wasm host runtime ir\n",
+  );
+  writeFileSync(join(tempRoot, "lib", "runtime_support.o"), "runtime support\n");
+}
