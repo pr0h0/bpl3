@@ -235,12 +235,35 @@ export class PackageManager {
    * Ensure package directories exist
    */
   private ensureDirectories(): void {
-    if (!fs.existsSync(this.globalPackageDir)) {
-      fs.mkdirSync(this.globalPackageDir, { recursive: true });
+    this.ensurePackageManagerDirectory(
+      this.globalPackageDir,
+      "Global package directory",
+    );
+    this.ensurePackageManagerDirectory(
+      this.localPackageDir,
+      "Local package directory",
+    );
+  }
+
+  private ensurePackageManagerDirectory(dirPath: string, label: string): void {
+    if (fs.existsSync(dirPath)) {
+      if (!fs.statSync(dirPath).isDirectory()) {
+        throw new CompilerError(
+          `${label} path is not a directory: ${dirPath}`,
+          "Move the file out of the way or choose a different package root.",
+          {
+            file: dirPath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+      return;
     }
-    if (!fs.existsSync(this.localPackageDir)) {
-      fs.mkdirSync(this.localPackageDir, { recursive: true });
-    }
+
+    fs.mkdirSync(dirPath, { recursive: true });
   }
 
   private linkBinaries(

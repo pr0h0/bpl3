@@ -81,6 +81,16 @@ describe("PackageManager", () => {
       expect(fs.existsSync(path.join(tempDir, "bpl.json"))).toBe(false);
     });
 
+    test("should reject package roots whose bpl_modules path is a file", () => {
+      const projectDir = path.join(tempDir, "bad-local-package-dir");
+      fs.mkdirSync(projectDir, { recursive: true });
+      fs.writeFileSync(path.join(projectDir, "bpl_modules"), "not a directory");
+
+      expect(() => new PackageManager(projectDir)).toThrow(
+        /Local package directory path is not a directory/,
+      );
+    });
+
     test("should create a valid bpl.json manifest", () => {
       const manifestPath = path.join(tempDir, "bpl.json");
 
