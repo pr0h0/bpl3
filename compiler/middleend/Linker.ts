@@ -70,6 +70,7 @@ export class Linker {
 
       this.validateOutputPath(options.outputPath);
       this.validateObjectFiles(options.objectFiles || []);
+      this.validateDirectoryInputs(options);
 
       // Merge all LLVM IR files
       const mergedIR = this.mergeIRFiles(options.irFiles, options.verbose);
@@ -122,6 +123,69 @@ export class Linker {
     } catch (e) {
       compilerLog.error(`Linker error: ${e}`);
       return false;
+    }
+  }
+
+  private validateDirectoryInputs(options: LinkOptions): void {
+    if (options.sysroot) {
+      this.validateReadableDirectoryInput(
+        options.sysroot,
+        "Sysroot path",
+        "Check the --sysroot path or remove it from the build command.",
+      );
+    }
+
+    for (const libraryPath of options.libraryPaths || []) {
+      this.validateReadableDirectoryInput(
+        libraryPath,
+        "Library search path",
+        "Check the -L/--lib-path value or remove it from the build command.",
+      );
+    }
+  }
+
+  private validateReadableDirectoryInput(
+    directoryPath: string,
+    label: string,
+    hint: string,
+  ): void {
+    const directoryStats = this.tryLstat(directoryPath);
+    if (!directoryStats) {
+      throw new CompilerError(`${label} not found: ${directoryPath}`, hint, {
+        file: directoryPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      });
+    }
+
+    if (directoryStats.isSymbolicLink() && !fs.existsSync(directoryPath)) {
+      throw new CompilerError(
+        `${label} is a broken symbolic link: ${directoryPath}`,
+        hint,
+        {
+          file: directoryPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (!fs.statSync(directoryPath).isDirectory()) {
+      throw new CompilerError(
+        `${label} is not a directory: ${directoryPath}`,
+        hint,
+        {
+          file: directoryPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
     }
   }
 

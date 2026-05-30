@@ -298,6 +298,67 @@ describe("Linker", () => {
     }
   });
 
+  it("rejects invalid directory options before invoking the compiler driver", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-dir-options-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const missingSysroot = join(dir, "missing-sysroot");
+    const libraryPathFile = join(dir, "not-a-library-dir");
+    const missingCompiler = join(dir, "definitely-missing-cc");
+    const previousBplCc = process.env.BPL_CC;
+    const originalError = console.error;
+    const errors: string[] = [];
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    writeFileSync(libraryPathFile, "not a directory\n");
+
+    try {
+      process.env.BPL_CC = missingCompiler;
+      console.error = (...args: unknown[]) => {
+        errors.push(args.map(String).join(" "));
+      };
+
+      const missingSysrootOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        sysroot: missingSysroot,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(missingSysrootOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+
+      const fileLibraryPathOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        libraryPaths: [libraryPathFile],
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(fileLibraryPathOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+
+      const errorOutput = errors.join("\n");
+      expect(errorOutput).toContain("Sysroot path not found");
+      expect(errorOutput).toContain("Library search path is not a directory");
+      expect(errorOutput).not.toContain(missingCompiler);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      console.error = originalError;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects invalid output paths before linking", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-output-"));
     const irPath = join(dir, "main.ll");
