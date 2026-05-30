@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -47,6 +47,37 @@ describe("Linker", () => {
       expect(logs.join("\n")).toContain("-O3");
     } finally {
       console.log = originalLog;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not clobber an output sibling .ll file while linking", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-no-clobber-"));
+    const irPath = join(dir, "input.ll");
+    const outputPath = join(dir, "main");
+    const siblingLl = `${outputPath}.ll`;
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    writeFileSync(siblingLl, "keep me");
+
+    try {
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+
+      expect(ok).toBe(true);
+      expect(readFileSync(siblingLl, "utf-8")).toBe("keep me");
+    } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });

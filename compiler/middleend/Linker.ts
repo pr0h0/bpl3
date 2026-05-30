@@ -10,6 +10,8 @@
 
 import { spawnSync } from "child_process";
 import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 import { getCompilerDriver } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
@@ -183,8 +185,8 @@ export class Linker {
    * Compile merged IR to executable with the selected compiler driver.
    */
   private compileWithClang(mergedIR: string, options: LinkOptions): boolean {
-    // Write merged IR to temporary file
-    const tmpIRFile = options.outputPath + ".ll";
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-link-"));
+    const tmpIRFile = path.join(tempDir, "merged.ll");
 
     try {
       fs.writeFileSync(tmpIRFile, mergedIR);
@@ -274,14 +276,11 @@ export class Linker {
 
       return true;
     } finally {
-      // Clean up temporary IR file
-      if (fs.existsSync(tmpIRFile)) {
-        try {
-          fs.unlinkSync(tmpIRFile);
-        } catch {
-          if (options.verbose) {
-            compilerLog.warn(`Could not clean up temporary file: ${tmpIRFile}`);
-          }
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        if (options.verbose) {
+          compilerLog.warn(`Could not clean up temporary directory: ${tempDir}`);
         }
       }
     }
