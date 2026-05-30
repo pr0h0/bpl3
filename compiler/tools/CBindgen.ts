@@ -365,7 +365,7 @@ function inferConstantType(value: string): string {
   if (value.startsWith('"')) return "string";
   const suffix = getNumericConstantSuffix(value);
   if (/[fF]/.test(suffix)) return "float";
-  if (value.includes(".")) return "double";
+  if (value.includes(".") || /[eE]/.test(value)) return "double";
   if (/[uU]/.test(suffix) && /[lL]/.test(suffix)) return "ulong";
   if (/[uU]/.test(suffix)) return "uint";
   if (/[lL]/.test(suffix)) return "long";

@@ -1203,6 +1203,7 @@ describe("CLI Tests", () => {
         "#define CAST_LIMIT ((unsigned long)4096)",
         "#define NEGATIVE_LIMIT (-7L)",
         "#define SCIENTIFIC_SCALE (1e-3f)",
+        "#define SCIENTIFIC_DOUBLE 1e-3",
         "#define CONTINUED_COUNT \\",
         "  64u",
         '#define WRAPPED_GREETING ("hello")',
@@ -1259,6 +1260,9 @@ describe("CLI Tests", () => {
       );
       expect(result.stdout).toContain(
         "global const SCIENTIFIC_SCALE: float = 1e-3;",
+      );
+      expect(result.stdout).toContain(
+        "global const SCIENTIFIC_DOUBLE: double = 1e-3;",
       );
       expect(result.stdout).toContain(
         "global const CONTINUED_COUNT: uint = 64;",
