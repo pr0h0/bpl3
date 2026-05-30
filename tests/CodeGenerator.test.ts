@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -59,6 +66,26 @@ describe("CodeGenerator", () => {
       compile("frame main() { return; }", { debugIrPath });
 
       expect(existsSync(debugIrPath)).toBe(true);
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not write debug IR through symbolic links", () => {
+    const cwd = process.cwd();
+    const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));
+    const targetPath = join(dir, "outside.ll");
+    const debugIrPath = join(dir, "debug.ll");
+
+    try {
+      process.chdir(dir);
+      writeFileSync(targetPath, "original\n");
+      symlinkSync(targetPath, debugIrPath, "file");
+
+      compile("frame main() { return; }", { debugIrPath });
+
+      expect(readFileSync(targetPath, "utf8")).toBe("original\n");
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });

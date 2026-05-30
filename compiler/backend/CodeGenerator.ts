@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as AST from "../common/AST";
 import {
   createTypeStructDecl,
@@ -369,8 +370,7 @@ export class CodeGenerator extends StatementGenerator {
 
     if (this.debugIrPath) {
       try {
-        const fs = require("fs");
-        fs.writeFileSync(this.debugIrPath, result);
+        this.writeDebugIr(result);
       } catch (e) {
         codeGenLog.debug("Failed to write debug IR file:", {
           error: String(e),
@@ -379,6 +379,33 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     return result;
+  }
+
+  private writeDebugIr(result: string): void {
+    if (!this.debugIrPath) return;
+
+    let existingPath: fs.Stats | undefined;
+    try {
+      existingPath = fs.lstatSync(this.debugIrPath);
+    } catch (error) {
+      if (
+        !error ||
+        typeof error !== "object" ||
+        !("code" in error) ||
+        error.code !== "ENOENT"
+      ) {
+        throw error;
+      }
+    }
+
+    if (existingPath?.isSymbolicLink()) {
+      throw new Error(`Debug IR path is a symbolic link: ${this.debugIrPath}`);
+    }
+    if (existingPath && !existingPath.isFile()) {
+      throw new Error(`Debug IR path is not a file: ${this.debugIrPath}`);
+    }
+
+    fs.writeFileSync(this.debugIrPath, result);
   }
 
   private generateTopLevel(node: AST.ASTNode) {
