@@ -322,7 +322,8 @@ function buildClangArgs(
 
     // Link LLVM IR declarations (core exception handling)
     const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
-    if (fs.existsSync(runtimeLLPath)) {
+    if (tryLstat(runtimeLLPath)) {
+      assertReadableRuntimeInput(runtimeLLPath, "Runtime IR");
       // Avoid duplicate linking if it was already added to 'object' in CompilationRunner
       const alreadyLinked =
         (options.object &&
@@ -336,7 +337,8 @@ function buildClangArgs(
 
     // Link C runtime support (signal handlers, stack traces)
     const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
-    if (fs.existsSync(runtimeSupportPath)) {
+    if (tryLstat(runtimeSupportPath)) {
+      assertReadableRuntimeInput(runtimeSupportPath, "Runtime support object");
       const alreadyLinkedSupport =
         (options.object &&
           normalizeArrayOption(options.object).includes(runtimeSupportPath)) ||
