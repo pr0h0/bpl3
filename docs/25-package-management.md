@@ -45,6 +45,9 @@ cd my-package
 bpl check src/index.bpl
 ```
 
+The template uses the project name as the package manifest name, so `bpl new`
+accepts package-safe names only: lowercase letters, numbers, and hyphens.
+
 This creates:
 
 ```

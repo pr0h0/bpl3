@@ -36,6 +36,8 @@ export function registerNewCommand(program: Command): void {
         options: { verbose?: boolean; git?: boolean; template?: string },
       ) => {
         try {
+          validateProjectName(name);
+
           const template = options.template ?? "app";
           if (template !== "app" && template !== "library") {
             log.error("Unsupported template. Use 'app' or 'library'.");
@@ -286,4 +288,22 @@ Thumbs.db
         }
       },
     );
+}
+
+function validateProjectName(name: string): void {
+  if (
+    name.includes("/") ||
+    name.includes("\\") ||
+    path.basename(name) !== name
+  ) {
+    log.error("Invalid project name. Use a package name, not a path.");
+    process.exit(1);
+  }
+
+  if (!/^[a-z0-9-]+$/.test(name)) {
+    log.error(
+      `Invalid project name: ${name} (use lowercase letters, numbers, and hyphens only).`,
+    );
+    process.exit(1);
+  }
 }

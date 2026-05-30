@@ -95,6 +95,10 @@ machine-readable error locations instead of terminal-formatted snippets.
 
 Create a new BPL project.
 
+Project names must be valid package names: lowercase letters, numbers, and
+hyphens only. Pass a name, not a path; create the parent directory first if you
+want the project somewhere else.
+
 **Examples:**
 
 ```bash

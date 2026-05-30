@@ -474,6 +474,43 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject invalid project names before scaffolding", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-invalid-"));
+    const outsideDir = path.join(tempDir, "outside");
+
+    try {
+      const badPackageName = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "Bad_Name", "--no-git"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(badPackageName.status).toBe(1);
+      expect(badPackageName.stderr).toContain("Invalid project name: Bad_Name");
+      expect(fs.existsSync(path.join(tempDir, "Bad_Name"))).toBe(false);
+
+      const pathLikeName = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "../outside", "--no-git"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      expect(pathLikeName.status).toBe(1);
+      expect(pathLikeName.stderr).toContain(
+        "Invalid project name. Use a package name, not a path.",
+      );
+      expect(fs.existsSync(outsideDir)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should honor BPL_CC when skipping unavailable package IR verification", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-no-cc-"));
     fs.writeFileSync(
