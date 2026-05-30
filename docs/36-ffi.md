@@ -24,7 +24,8 @@ bpl build main.bpl -l m
 Use `bpl bindgen` to generate BPL declarations from C headers. It supports
 simple function prototypes, numeric/string/char `#define` constants, primitive
 and pointer typedefs, multiple declarators in typedefs and struct fields, plain
-structs, fixed-size struct arrays, C array parameters, and enums:
+structs, fixed-size struct arrays, pointer-return functions, C array
+parameters, and enums:
 
 ```c
 #define ANSWER 42
@@ -40,6 +41,7 @@ typedef struct Buffer { unsigned char bytes[16]; } Buffer;
 typedef struct PackedFields { int x, y; char *label, marker; } PackedFields;
 typedef enum Color { COLOR_RED = 1, COLOR_BLUE = 2 } Color;
 int puts(const char *s);
+void *malloc(size_t size);
 double pow(double base, double exp);
 void fill(int values[], unsigned long count);
 void fill_matrix(int matrix[2][3]);
@@ -85,6 +87,7 @@ enum Color {
 }
 
 extern puts(s: string) ret int;
+extern malloc(size: ulong) ret *void;
 extern pow(base: double, exp: double) ret double;
 extern fill(values: *int, count: ulong) ret void;
 extern fill_matrix(matrix: *int[3]) ret void;

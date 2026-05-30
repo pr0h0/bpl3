@@ -1085,6 +1085,8 @@ describe("CLI Tests", () => {
       [
         "int puts(const char *s);",
         "void free(void *ptr);",
+        "void *malloc(size_t size);",
+        "char *strdup(const char *s);",
         "double pow(double base, double exp);",
         "int printf(const char *fmt, ...);",
         "int abs(int);",
@@ -1097,6 +1099,8 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("extern puts(s: string) ret int;");
       expect(result.stdout).toContain("extern free(ptr: *void) ret void;");
+      expect(result.stdout).toContain("extern malloc(size: ulong) ret *void;");
+      expect(result.stdout).toContain("extern strdup(s: string) ret string;");
       expect(result.stdout).toContain(
         "extern pow(base: double, exp: double) ret double;",
       );

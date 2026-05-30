@@ -125,14 +125,20 @@ function extractFunctionPrototypes(source: string): CPrototype[] {
   const cleaned = stripCommentsAndDirectives(source);
   const prototypes: CPrototype[] = [];
   const pattern =
-    /(?:^|;)\s*([A-Za-z_][\w\s*]*?)\s+([A-Za-z_]\w*)\s*\(([^;{}]*)\)\s*;/gm;
+    /(?:^|;)\s*([A-Za-z_][\w\s*]*?(?:\*+\s*)?[A-Za-z_]\w*)\s*\(([^;{}]*)\)\s*;/gm;
 
   for (const match of cleaned.matchAll(pattern)) {
-    const returnType = match[1]?.trim();
-    const name = match[2]?.trim();
-    const rawParams = match[3]?.trim() ?? "";
+    const declaration = parseNamedDeclaration(match[1]!.trim(), 0);
+    const returnType = declaration.type;
+    const name = declaration.name;
+    const rawParams = match[2]?.trim() ?? "";
 
-    if (!returnType || !name || returnType.startsWith("typedef")) {
+    if (
+      !returnType ||
+      !name ||
+      name === "arg0" ||
+      returnType.startsWith("typedef")
+    ) {
       continue;
     }
 
