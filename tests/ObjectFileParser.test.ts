@@ -113,7 +113,11 @@ describe("ObjectFileParser", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-object-parser-"));
     const missingObject = path.join(tempDir, "missing.ll");
     const objectDir = path.join(tempDir, "objects");
+    const targetObject = path.join(tempDir, "target.ll");
+    const linkedObject = path.join(tempDir, "linked.ll");
     fs.mkdirSync(objectDir);
+    fs.writeFileSync(targetObject, "declare void @external_symbol()\n");
+    fs.symlinkSync(targetObject, linkedObject, "file");
 
     try {
       expect(() => ObjectFileParser.parseObjectFile(missingObject)).toThrow(
@@ -127,6 +131,9 @@ describe("ObjectFileParser", () => {
       );
       expect(() => ObjectFileParser.parseELFObject(objectDir)).toThrow(
         /Object path is not a file/,
+      );
+      expect(() => ObjectFileParser.parseObjectFile(linkedObject)).toThrow(
+        /Object path is a symbolic link/,
       );
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

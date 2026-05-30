@@ -184,7 +184,8 @@ export class ObjectFileParser {
   }
 
   private static validateObjectInputFile(filePath: string, hint: string): void {
-    if (!fs.existsSync(filePath)) {
+    const fileStats = this.tryLstat(filePath);
+    if (!fileStats) {
       throw new CompilerError(`Object file not found: ${filePath}`, hint, {
         file: filePath,
         startLine: 1,
@@ -194,7 +195,21 @@ export class ObjectFileParser {
       });
     }
 
-    if (!fs.statSync(filePath).isFile()) {
+    if (fileStats.isSymbolicLink()) {
+      throw new CompilerError(
+        `Object path is a symbolic link: ${filePath}`,
+        hint,
+        {
+          file: filePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (!fileStats.isFile()) {
       throw new CompilerError(`Object path is not a file: ${filePath}`, hint, {
         file: filePath,
         startLine: 1,
@@ -202,6 +217,23 @@ export class ObjectFileParser {
         endLine: 1,
         endColumn: 1,
       });
+    }
+  }
+
+  private static tryLstat(filePath: string): fs.Stats | null {
+    try {
+      return fs.lstatSync(filePath);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
+      ) {
+        return null;
+      }
+
+      throw error;
     }
   }
 

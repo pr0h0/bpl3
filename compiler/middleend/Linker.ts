@@ -129,7 +129,8 @@ export class Linker {
     const supportedExtensions = new Set([".ll", ".o", ".obj", ".a"]);
 
     for (const objectFile of objectFiles) {
-      if (!fs.existsSync(objectFile)) {
+      const objectStats = this.tryLstat(objectFile);
+      if (!objectStats) {
         throw new CompilerError(
           `Object file not found: ${objectFile}`,
           "Check the --object path or remove it from the build command.",
@@ -143,7 +144,21 @@ export class Linker {
         );
       }
 
-      if (!fs.statSync(objectFile).isFile()) {
+      if (objectStats.isSymbolicLink()) {
+        throw new CompilerError(
+          `Object path is a symbolic link: ${objectFile}`,
+          "Pass a regular object, archive, or LLVM IR file to --object.",
+          {
+            file: objectFile,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          },
+        );
+      }
+
+      if (!objectStats.isFile()) {
         throw new CompilerError(
           `Object path is not a file: ${objectFile}`,
           "Pass a regular object, archive, or LLVM IR file to --object.",
@@ -209,14 +224,22 @@ export class Linker {
     }
 
     const outputDir = path.dirname(path.resolve(outputPath));
-    if (!fs.existsSync(outputDir)) {
+    const outputDirStats = this.tryLstat(outputDir);
+    if (!outputDirStats) {
       throw new CompilerError(
         `Output directory not found: ${outputDir}`,
         "Create the output directory or choose an existing parent directory.",
         location,
       );
     }
-    if (!fs.statSync(outputDir).isDirectory()) {
+    if (outputDirStats.isSymbolicLink()) {
+      throw new CompilerError(
+        `Output parent path is a symbolic link: ${outputDir}`,
+        "Choose an output path whose parent is a real directory.",
+        location,
+      );
+    }
+    if (!outputDirStats.isDirectory()) {
       throw new CompilerError(
         `Output parent path is not a directory: ${outputDir}`,
         "Choose an output path whose parent is a directory.",
@@ -311,7 +334,8 @@ export class Linker {
     notFileMessage: string,
     hint: string,
   ): void {
-    if (!fs.existsSync(filePath)) {
+    const inputStats = this.tryLstat(filePath);
+    if (!inputStats) {
       throw new CompilerError(`${missingMessage}: ${filePath}`, hint, {
         file: filePath,
         startLine: 1,
@@ -321,7 +345,17 @@ export class Linker {
       });
     }
 
-    if (!fs.statSync(filePath).isFile()) {
+    if (inputStats.isSymbolicLink()) {
+      throw new CompilerError(`IR path is a symbolic link: ${filePath}`, hint, {
+        file: filePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      });
+    }
+
+    if (!inputStats.isFile()) {
       throw new CompilerError(`${notFileMessage}: ${filePath}`, hint, {
         file: filePath,
         startLine: 1,
@@ -376,9 +410,7 @@ export class Linker {
       // Add object files
       if (options.objectFiles && options.objectFiles.length > 0) {
         for (const objFile of options.objectFiles) {
-          if (fs.existsSync(objFile)) {
-            clangArgs.push(objFile);
-          }
+          clangArgs.push(objFile);
         }
       }
 

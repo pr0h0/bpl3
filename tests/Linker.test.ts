@@ -182,8 +182,20 @@ describe("Linker", () => {
     const outputPath = join(dir, "main");
     const missingIr = join(dir, "missing.ll");
     const irDir = join(dir, "ir");
+    const targetIr = join(dir, "target.ll");
+    const linkedIr = join(dir, "linked.ll");
     const originalError = console.error;
     mkdirSync(irDir);
+    writeFileSync(
+      targetIr,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    symlinkSync(targetIr, linkedIr, "file");
 
     try {
       console.error = () => {};
@@ -203,6 +215,14 @@ describe("Linker", () => {
       });
       expect(directoryOk).toBe(false);
       expect(existsSync(outputPath)).toBe(false);
+
+      const symlinkOk = new Linker().link({
+        irFiles: [linkedIr],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(symlinkOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
     } finally {
       console.error = originalError;
       rmSync(dir, { recursive: true, force: true });
@@ -216,6 +236,8 @@ describe("Linker", () => {
     const missingObject = join(dir, "missing.o");
     const objectDir = join(dir, "objects");
     const unsupportedObject = join(dir, "notes.txt");
+    const targetObject = join(dir, "target.ll");
+    const linkedObject = join(dir, "linked.ll");
     const originalError = console.error;
 
     writeFileSync(
@@ -229,6 +251,8 @@ describe("Linker", () => {
     );
     mkdirSync(objectDir);
     writeFileSync(unsupportedObject, "not an object");
+    writeFileSync(targetObject, "declare void @external_symbol()\n");
+    symlinkSync(targetObject, linkedObject, "file");
 
     try {
       console.error = () => {};
@@ -259,6 +283,15 @@ describe("Linker", () => {
       });
       expect(unsupportedOk).toBe(false);
       expect(existsSync(outputPath)).toBe(false);
+
+      const symlinkOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        objectFiles: [linkedObject],
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(symlinkOk).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
     } finally {
       console.error = originalError;
       rmSync(dir, { recursive: true, force: true });
@@ -274,6 +307,9 @@ describe("Linker", () => {
     const missingParentOutput = join(dir, "missing", "app");
     const parentFile = join(dir, "not-a-dir");
     const parentFileOutput = join(parentFile, "app");
+    const realParentDir = join(dir, "real-parent");
+    const linkedParentDir = join(dir, "linked-parent");
+    const linkedParentOutput = join(linkedParentDir, "app");
     const originalError = console.error;
     const errors: string[] = [];
 
@@ -287,8 +323,10 @@ describe("Linker", () => {
       `,
     );
     mkdirSync(outputDir);
+    mkdirSync(realParentDir);
     writeFileSync(parentFile, "not a directory\n");
     symlinkSync(outputLinkTarget, outputLink, "file");
+    symlinkSync(realParentDir, linkedParentDir, "dir");
 
     try {
       console.error = (...args: unknown[]) => {
@@ -325,11 +363,22 @@ describe("Linker", () => {
       });
       expect(parentFileOk).toBe(false);
       expect(existsSync(parentFileOutput)).toBe(false);
+
+      const symlinkParentOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath: linkedParentOutput,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(symlinkParentOk).toBe(false);
+      expect(existsSync(linkedParentOutput)).toBe(false);
       expect(errors.join("\n")).toContain("Output path is a directory");
       expect(errors.join("\n")).toContain("Output path is a symbolic link");
       expect(errors.join("\n")).toContain("Output directory not found");
       expect(errors.join("\n")).toContain(
         "Output parent path is not a directory",
+      );
+      expect(errors.join("\n")).toContain(
+        "Output parent path is a symbolic link",
       );
       expect(errors.join("\n")).not.toContain("EISDIR");
       expect(errors.join("\n")).not.toContain("ENOENT");
