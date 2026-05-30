@@ -9,6 +9,7 @@ import { writeNodeCommandShim } from "./helpers/executableShim";
 describe("BinaryRunner", () => {
   const originalBplHome = process.env.BPL_HOME;
   const originalBplCc = process.env.BPL_CC;
+  const originalBplWasmCc = process.env.BPL_WASM_CC;
 
   afterEach(() => {
     if (originalBplHome === undefined) {
@@ -20,6 +21,11 @@ describe("BinaryRunner", () => {
       delete process.env.BPL_CC;
     } else {
       process.env.BPL_CC = originalBplCc;
+    }
+    if (originalBplWasmCc === undefined) {
+      delete process.env.BPL_WASM_CC;
+    } else {
+      process.env.BPL_WASM_CC = originalBplWasmCc;
     }
   });
 
@@ -233,6 +239,44 @@ describe("BinaryRunner", () => {
             (entry) => entry.startsWith(".program.") && entry.endsWith(".tmp"),
           ),
       ).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("honors BPL_WASM_CC when compiling wasm targets", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-wasm-"));
+    const irPath = path.join(tempDir, "program.ll");
+    const outputPath = path.join(tempDir, "program.wasm");
+    const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
+
+    try {
+      const fakeWasmCompiler = writeNodeCommandShim(
+        path.join(tempDir, "fake-wasm-cc"),
+        [
+          'const fs = require("fs");',
+          "const args = process.argv.slice(2);",
+          `fs.writeFileSync(${JSON.stringify(argsLogPath)}, args.join("\\n"));`,
+          'const outputIndex = args.lastIndexOf("-o") + 1;',
+          "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+          'fs.writeFileSync(args[outputIndex], "wasm-bytes\\n");',
+        ],
+      );
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_CC = path.join(tempDir, "missing-native-cc");
+      process.env.BPL_WASM_CC = fakeWasmCompiler;
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        target: "wasm32-unknown-unknown",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.executablePath).toBe(outputPath);
+      expect(fs.readFileSync(outputPath, "utf-8")).toBe("wasm-bytes\n");
+      const args = fs.readFileSync(argsLogPath, "utf-8").split("\n");
+      expect(args).toContain("-target");
+      expect(args).toContain("wasm32-unknown-unknown");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
