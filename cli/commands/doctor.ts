@@ -8,6 +8,7 @@ import * as os from "os";
 import * as path from "path";
 import { spawnSync } from "child_process";
 import { Command } from "commander";
+import { getLlvmVerifierCandidates } from "../../compiler/common/LlvmVerifier";
 import { getBplHome } from "../../compiler/common/PathResolver";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
@@ -139,6 +140,15 @@ function createDoctorReport(version: string): DoctorReport {
       getPackageArchiveTool(),
       ["--version"],
       "Install tar, or set BPL_TAR/TAR to a working package archive tool.",
+      false,
+    ),
+    checkAnyCommand(
+      "LLVM verifier",
+      getLlvmVerifierCandidates().map((candidate) => [
+        candidate.tool,
+        ["--version"],
+      ]),
+      "Install opt, llvm-as, llc, or clang; or set BPL_OPT, BPL_LLVM_AS, BPL_LLC, or BPL_CC.",
       false,
     ),
     checkAnyCommand(

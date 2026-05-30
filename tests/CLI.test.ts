@@ -565,6 +565,7 @@ describe("CLI Tests", () => {
         "wasm compiler",
         "object symbol tool",
         "package archive tool",
+        "LLVM verifier",
         "native compiler",
       ]),
     );
