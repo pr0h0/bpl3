@@ -442,7 +442,9 @@ function verifyPackageLLVMIR(llvmIR: string): void {
     );
 
     if (check.error) {
-      log.warn(`Skipping IR verification: ${check.error.message}`);
+      log.warn(
+        `Skipping IR verification: ${formatSpawnFailure(check.error, cc)}`,
+      );
       return;
     }
 
@@ -457,6 +459,24 @@ function verifyPackageLLVMIR(llvmIR: string): void {
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+function formatSpawnFailure(error: Error, command: string): string {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : undefined;
+  if (code === "ENOENT") {
+    return `${command}: command not found`;
+  }
+  if (code === "EACCES") {
+    return `${command}: permission denied`;
+  }
+  if (code === "ENOEXEC") {
+    return `${command}: not executable`;
+  }
+
+  return `${command}: ${error.message}`;
 }
 
 function getPackageVerifierDriver(): string | null {

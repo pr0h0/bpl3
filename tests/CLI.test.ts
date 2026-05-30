@@ -1477,6 +1477,8 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("Skipping IR verification");
       expect(result.stderr).toContain(missingCompiler);
+      expect(result.stderr).toContain("command not found");
+      expect(result.stderr).not.toContain("ENOENT");
       expect(
         fs.existsSync(path.join(tempDir, "missing-cc-pack-1.0.0.tgz")),
       ).toBe(true);
