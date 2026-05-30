@@ -244,6 +244,7 @@ export function runExecutable(
 
   const runResult = spawnSync(execPath, programArgs, {
     stdio: "inherit",
+    ...getRunTimeoutOption(),
   });
 
   if (runResult.error) {
@@ -566,8 +567,24 @@ function formatRunSpawnError(error: Error, execPath: string): string {
   if (code === "ENOEXEC") {
     return `Executable format is not runnable on this host: ${execPath}`;
   }
+  if (code === "ETIMEDOUT") {
+    return `Executable timed out: ${execPath}`;
+  }
 
   return `Failed to run executable ${execPath}: ${error.message}`;
+}
+
+function getRunTimeoutOption(): { timeout?: number } {
+  const raw = process.env.BPL_RUN_TIMEOUT_MS;
+  if (!raw) return {};
+
+  const parsed = Number(raw);
+  if (Number.isSafeInteger(parsed) && parsed > 0) {
+    return { timeout: parsed };
+  }
+
+  log.warn(`Ignoring invalid BPL_RUN_TIMEOUT_MS=${raw}; running without timeout`);
+  return {};
 }
 
 function formatCompileSpawnError(error: Error, command: string): string {

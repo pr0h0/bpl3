@@ -17,6 +17,7 @@ describe("BinaryRunner", () => {
     process.env.BPL_COMPILE_DRIVER_TIMEOUT_MS;
   const originalWasmLinkerProbeTimeout =
     process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
+  const originalRunTimeout = process.env.BPL_RUN_TIMEOUT_MS;
 
   afterEach(() => {
     if (originalBplHome === undefined) {
@@ -59,6 +60,11 @@ describe("BinaryRunner", () => {
     } else {
       process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS =
         originalWasmLinkerProbeTimeout;
+    }
+    if (originalRunTimeout === undefined) {
+      delete process.env.BPL_RUN_TIMEOUT_MS;
+    } else {
+      process.env.BPL_RUN_TIMEOUT_MS = originalRunTimeout;
     }
   });
 
@@ -507,6 +513,28 @@ describe("BinaryRunner", () => {
       expect(result.exitCode).toBe(1);
       expect(result.error).toContain("Executable not found");
       expect(result.error).toContain(missingExecutable);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("times out hanging executable runs when requested", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-timeout-"));
+
+    try {
+      const hangingExecutable = writeNodeCommandShim(
+        path.join(tempDir, "hanging-program"),
+        ["setInterval(() => {}, 1000);"],
+      );
+      process.env.BPL_RUN_TIMEOUT_MS = "100";
+
+      const result = runExecutable(hangingExecutable);
+
+      expect(result.success).toBe(false);
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toContain("Executable timed out");
+      expect(result.error).toContain(hangingExecutable);
+      expect(result.error).not.toContain("ETIMEDOUT");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
