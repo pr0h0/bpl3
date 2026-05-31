@@ -365,7 +365,7 @@ function resolvePackageEntryPoint(
   }
 
   return resolvePackageSourcePath(
-    path.join(packageRoot, ...mainEntry.split(/[\\/]+/)),
+    path.join(packageRoot, ...mainEntry.split(/[\\/]/)),
     trace,
   );
 }
@@ -421,10 +421,9 @@ function isSafeManifestRelativePath(relativePath: string): boolean {
     return false;
   }
 
-  const parts = relativePath.split(/[\\/]+/);
-  return (
-    parts.some((part) => part !== ".") &&
-    parts.every((part) => part.length > 0 && part !== "..")
+  const parts = relativePath.split(/[\\/]/);
+  return parts.every(
+    (part) => part.length > 0 && part !== "." && part !== "..",
   );
 }
 

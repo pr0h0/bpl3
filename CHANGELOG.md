@@ -121,6 +121,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Import Safety Docs** - Documented tested package import safety
   rules for invalid path segments, manifest-name matching, global versioned
   directories, and symlink rejection.
+- **Strict Package Manifest Paths** - Package `main`, `exports`, and `bin`
+  manifest paths now reject empty, `.`, and `..` segments instead of
+  normalizing ambiguous package-relative paths.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

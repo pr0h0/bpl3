@@ -1383,7 +1383,7 @@ export class PackageManager {
       ) {
         throw new CompilerError(
           "Invalid package manifest 'main' field",
-          "'main' must be a package-relative path that does not contain '..'.",
+          "'main' must be a package-relative path without empty, '.', or '..' segments.",
           location,
         );
       }
@@ -1400,7 +1400,7 @@ export class PackageManager {
       ) {
         throw new CompilerError(
           "Invalid package manifest 'exports' field",
-          "'exports' must be an array of package-relative paths.",
+          "'exports' must be an array of package-relative paths without empty, '.', or '..' segments.",
           location,
         );
       }
@@ -1515,7 +1515,7 @@ export class PackageManager {
       ) {
         throw new CompilerError(
           `Invalid 'bin' path for ${commandName}: ${String(executablePath)}`,
-          "Use a package-relative executable path that does not contain '..'.",
+          "Use a package-relative executable path without empty, '.', or '..' segments.",
           location,
         );
       }
@@ -1602,8 +1602,10 @@ export class PackageManager {
       return false;
     }
 
-    const parts = relativePath.split(/[\\/]+/);
-    return parts.every((part) => part.length > 0 && part !== "..");
+    const parts = relativePath.split(/[\\/]/);
+    return parts.every(
+      (part) => part.length > 0 && part !== "." && part !== "..",
+    );
   }
 
   private isSafeManifestRelativePath(relativePath: string): boolean {
@@ -1612,10 +1614,9 @@ export class PackageManager {
       return false;
     }
 
-    const parts = relativePath.split(/[\\/]+/);
-    return (
-      parts.some((part) => part !== ".") &&
-      parts.every((part) => part.length > 0 && part !== "..")
+    const parts = relativePath.split(/[\\/]/);
+    return parts.every(
+      (part) => part.length > 0 && part !== "." && part !== "..",
     );
   }
 
@@ -1623,7 +1624,7 @@ export class PackageManager {
     packageDir: string,
     relativePath: string,
   ): string {
-    return path.resolve(packageDir, ...relativePath.split(/[\\/]+/));
+    return path.resolve(packageDir, ...relativePath.split(/[\\/]/));
   }
 
   private tryLstat(filePath: string): fs.Stats | undefined {

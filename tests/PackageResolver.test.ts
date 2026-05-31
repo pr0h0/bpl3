@@ -196,6 +196,39 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain("unsafe entrypoint");
   });
 
+  test("does not normalize ambiguous package entrypoint segments", () => {
+    const appDir = path.join(tempDir, "app");
+
+    for (const main of ["src//index.bpl", "src/./index.bpl"]) {
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        `math-${main.includes("//") ? "empty" : "dot"}`,
+      );
+      fs.mkdirSync(path.join(packageDir, "src"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: path.basename(packageDir),
+            version: "1.0.0",
+            main,
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "src", "index.bpl"), "export add;");
+
+      const details = resolvePackageImport(path.basename(packageDir), appDir);
+
+      expect(details.result).toBeNull();
+      expect(details.trace.failureReason).toBe("manifest-invalid");
+      expect(details.trace.failureMessage).toContain("unsafe entrypoint");
+      expect(details.trace.failureMessage).toContain(main);
+    }
+  });
+
   test("does not resolve package roots whose manifest name does not match the import", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");

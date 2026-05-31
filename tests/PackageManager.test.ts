@@ -3603,6 +3603,67 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should reject ambiguous manifest path segments", () => {
+      const manifests = [
+        {
+          manifest: {
+            name: "bad-main-empty-segment",
+            version: "1.0.0",
+            main: "src//index.bpl",
+          },
+          errorPattern: /Invalid package manifest 'main' field/,
+        },
+        {
+          manifest: {
+            name: "bad-main-dot-segment",
+            version: "1.0.0",
+            main: "src/./index.bpl",
+          },
+          errorPattern: /Invalid package manifest 'main' field/,
+        },
+        {
+          manifest: {
+            name: "bad-exports-empty-segment",
+            version: "1.0.0",
+            exports: ["src//index.bpl"],
+          },
+          errorPattern: /Invalid package manifest 'exports' field/,
+        },
+        {
+          manifest: {
+            name: "bad-exports-dot-segment",
+            version: "1.0.0",
+            exports: ["src/./index.bpl"],
+          },
+          errorPattern: /Invalid package manifest 'exports' field/,
+        },
+        {
+          manifest: {
+            name: "bad-bin-empty-segment",
+            version: "1.0.0",
+            bin: { tool: "bin//tool.bpl" },
+          },
+          errorPattern: /Invalid 'bin' path/,
+        },
+        {
+          manifest: {
+            name: "bad-bin-dot-segment",
+            version: "1.0.0",
+            bin: { tool: "bin/./tool.bpl" },
+          },
+          errorPattern: /Invalid 'bin' path/,
+        },
+      ] as const;
+
+      for (const { manifest, errorPattern } of manifests) {
+        fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+
+        expect(() => packageManager.loadManifest(tempDir)).toThrow(
+          errorPattern,
+        );
+      }
+    });
+
     test("should reject package manifest paths that are not files", () => {
       fs.mkdirSync("bpl.json");
 
