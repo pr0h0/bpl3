@@ -379,4 +379,24 @@ describe("Markdown documentation", () => {
       expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
     }
   });
+
+  test("compiler correctness docs document CI triage commands", () => {
+    const combinedDocs = [
+      readFileSync("README.md", "utf8"),
+      readFileSync("docs/60-compiler-correctness.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>",
+      "When a wasm/toolchain step fails, the triage helper prints",
+      "bun index.ts doctor --json",
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "When the scheduled `Compiler Fuzz` workflow fails",
+      "bun run fuzz:repro -- fuzz/crashes",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });

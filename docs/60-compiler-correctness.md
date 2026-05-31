@@ -61,6 +61,22 @@ bun run test:wasm
 BPL_REQUIRE_WASM_LD=1 bun run test:wasm
 ```
 
+When a GitHub Actions run fails, ask the CI triage helper to summarize failed
+steps and print focused local commands:
+
+```bash
+bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
+```
+
+When a wasm/toolchain step fails, the triage helper prints the optional wasm
+suite, the CI-required linker mode, and the local doctor report command:
+
+```bash
+bun run test:wasm
+BPL_REQUIRE_WASM_LD=1 bun run test:wasm
+bun index.ts doctor --json
+```
+
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.
 `BPL_RUNTIME_BUILD=release` compiles it with `-O2 -g`.
 

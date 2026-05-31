@@ -849,6 +849,8 @@ bun test tests/ReleaseHelperSmoke.test.ts
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 # Print CI triage usage without making a GitHub API request.
 bun run ci:triage -- --help
+# Wasm/toolchain failures include required-linker mode and doctor diagnostics.
+bun index.ts doctor --json
 
 # Run only the VS Code extension tests
 bun run test:vscode-ext
