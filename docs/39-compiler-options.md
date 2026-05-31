@@ -294,7 +294,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl package-cache list [package] --json` | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`; unsafe cache-root validation failures return `success: false`, `entries: []`, and `error`. |
 | `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`; malformed sidecars and symlinked provenance paths use `invalid-provenance` with `provenancePath`, and unsafe cache-root validation failures return `success: false`, `ok: false`, `entriesChecked: 0`, `issues: []`, and `error`. |
 | `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check: "package-cache-clean"` or `check: "package-cache-repair"`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads; validation failures return `success: false`, the requested `dryRun`, empty collection fields such as `removed: []` or `repaired: []`, and `error`. |
-| `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures, including final `bpl.json` symlinks and symlinked manifest parents, return the same `schemaVersion`/`check` with `success: false` and `error` on stdout. Named-script validation failures use `check: "run-script"`. |
+| `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures, including final `bpl.json` symlinks and symlinked manifest parents, return the same `schemaVersion`/`check` with `success: false`, `error`, and a stable `errorCode` on stdout. Named-script validation failures use `check: "run-script"`. |
 | `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. Clean validation failures, including symlinked working-directory paths, return `success: false`, `dryRun`, `count: 0`, `entries: []`, and `error` on stdout. |
 | `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data; unsafe package-root validation failures return `success: false`, `packages: []` or `tree: []`, and `error`. |
 
@@ -318,6 +318,19 @@ git repositories use `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`. These codes are
 additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text while keeping `count: 0` and `entries: []` so
 automation can confirm no cleanup happened.
+
+Run-script validation `errorCode` values are stable when `bpl run-script
+--json` or `bpl run-script --list --json` can classify the validation failure.
+Manifest validation uses `BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND`,
+`BPL_RUN_SCRIPT_MANIFEST_SYMLINK`, `BPL_RUN_SCRIPT_MANIFEST_NOT_FILE`,
+`BPL_RUN_SCRIPT_MANIFEST_PARENT_SYMLINK`,
+`BPL_RUN_SCRIPT_MANIFEST_INVALID_JSON`, and
+`BPL_RUN_SCRIPT_MANIFEST_NOT_OBJECT`. Script-table validation uses
+`BPL_RUN_SCRIPT_SCRIPTS_NOT_OBJECT`, `BPL_RUN_SCRIPT_NAME_EMPTY`,
+`BPL_RUN_SCRIPT_COMMAND_NOT_STRING`, and `BPL_RUN_SCRIPT_COMMAND_EMPTY`.
+Named-script lookup failures use `BPL_RUN_SCRIPT_NOT_FOUND`. These codes are
+additive fields on the stdout JSON failure report, preserving the
+human-readable `error` text for older consumers and logs.
 
 Import-resolution failures use the same diagnostic objects as type errors.
 `bpl check --json` reports missing modules, unsafe `std/` paths, and package
