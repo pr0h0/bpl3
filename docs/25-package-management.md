@@ -35,6 +35,12 @@ package root, and optional metadata such as `keywords` and `repository` is
 validated before packing or installing. Invalid manifests fail while loading
 `bpl.json` instead of later during path handling or archive creation.
 
+`main`, `exports`, and `bin` path values are strict package-relative paths.
+They cannot be absolute and cannot contain empty, `.`, or `..` path segments.
+Use normalized paths such as `src/index.bpl` or `bin/tool.bpl`;
+`src//index.bpl`, `src/./index.bpl`, and `../secret.bpl` are rejected before
+packing or installing.
+
 ## Creating a Package
 
 The quickest path is the library template:

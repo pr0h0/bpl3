@@ -208,4 +208,21 @@ describe("Markdown documentation", () => {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
     }
   });
+
+  test("package docs document strict manifest path rules", () => {
+    const text = readFileSync("docs/25-package-management.md", "utf8").replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "`main`, `exports`, and `bin` path values are strict package-relative paths",
+      "cannot contain empty, `.`, or `..` path segments",
+      "`src//index.bpl`, `src/./index.bpl`, and `../secret.bpl` are rejected",
+      "`bin/tool.bpl`",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });
