@@ -19,6 +19,63 @@ function runCli(
   });
 }
 
+type CheckJsonDiagnostic = {
+  message: string;
+  hint: string;
+  location: {
+    file: string;
+    start: { line: number; column: number };
+  };
+};
+
+type CheckJsonFailureReport = {
+  schemaVersion: number;
+  check: string;
+  success: boolean;
+  totalFiles: number;
+  errorCount: number;
+  files: Array<{
+    file: string;
+    success: boolean;
+    diagnostics: CheckJsonDiagnostic[];
+  }>;
+};
+
+function expectSingleCheckJsonDiagnostic(
+  result: SpawnSyncReturns<string>,
+  sourceFile: string,
+  start: { line: number; column: number } = { line: 1, column: 1 },
+): CheckJsonDiagnostic {
+  expect(result.status).toBe(1);
+  const report = parseJsonObjectStdout<CheckJsonFailureReport>(result);
+
+  expect(report).toMatchObject({
+    schemaVersion: 1,
+    check: "check",
+    success: false,
+    totalFiles: 1,
+    errorCount: 1,
+    files: [
+      {
+        file: sourceFile,
+        success: false,
+        diagnostics: [
+          {
+            location: {
+              file: sourceFile,
+              start,
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  const diagnostic = report.files[0]?.diagnostics[0];
+  expect(diagnostic).toBeDefined();
+  return diagnostic as CheckJsonDiagnostic;
+}
+
 describe("CLI JSON parseability", () => {
   let tempDir: string;
 
@@ -558,49 +615,7 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile], {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
-    expect(result.status).toBe(1);
-    const report = parseJsonObjectStdout<{
-      schemaVersion: number;
-      check: string;
-      success: boolean;
-      totalFiles: number;
-      errorCount: number;
-      files: Array<{
-        file: string;
-        success: boolean;
-        diagnostics: Array<{
-          message: string;
-          hint: string;
-          location: {
-            file: string;
-            start: { line: number; column: number };
-          };
-        }>;
-      }>;
-    }>(result);
-
-    expect(report).toMatchObject({
-      schemaVersion: 1,
-      check: "check",
-      success: false,
-      totalFiles: 1,
-      errorCount: 1,
-      files: [
-        {
-          file: sourceFile,
-          success: false,
-          diagnostics: [
-            {
-              location: {
-                file: sourceFile,
-                start: { line: 1, column: 1 },
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const diagnostic = report.files[0]?.diagnostics[0];
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic?.message).toContain("invalid package root");
     expect(diagnostic?.message).toContain("not a directory");
     expect(diagnostic?.message).toContain(unsafePackageRoot);
@@ -655,49 +670,7 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile], {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
-    expect(result.status).toBe(1);
-    const report = parseJsonObjectStdout<{
-      schemaVersion: number;
-      check: string;
-      success: boolean;
-      totalFiles: number;
-      errorCount: number;
-      files: Array<{
-        file: string;
-        success: boolean;
-        diagnostics: Array<{
-          message: string;
-          hint: string;
-          location: {
-            file: string;
-            start: { line: number; column: number };
-          };
-        }>;
-      }>;
-    }>(result);
-
-    expect(report).toMatchObject({
-      schemaVersion: 1,
-      check: "check",
-      success: false,
-      totalFiles: 1,
-      errorCount: 1,
-      files: [
-        {
-          file: sourceFile,
-          success: false,
-          diagnostics: [
-            {
-              location: {
-                file: sourceFile,
-                start: { line: 1, column: 1 },
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const diagnostic = report.files[0]?.diagnostics[0];
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic?.message).toContain("invalid package search directory");
     expect(diagnostic?.message).toContain("symbolic link");
     expect(diagnostic?.message).toContain(linkedModulesDir);
@@ -751,49 +724,7 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile], {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
-    expect(result.status).toBe(1);
-    const report = parseJsonObjectStdout<{
-      schemaVersion: number;
-      check: string;
-      success: boolean;
-      totalFiles: number;
-      errorCount: number;
-      files: Array<{
-        file: string;
-        success: boolean;
-        diagnostics: Array<{
-          message: string;
-          hint: string;
-          location: {
-            file: string;
-            start: { line: number; column: number };
-          };
-        }>;
-      }>;
-    }>(result);
-
-    expect(report).toMatchObject({
-      schemaVersion: 1,
-      check: "check",
-      success: false,
-      totalFiles: 1,
-      errorCount: 1,
-      files: [
-        {
-          file: sourceFile,
-          success: false,
-          diagnostics: [
-            {
-              location: {
-                file: sourceFile,
-                start: { line: 1, column: 1 },
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const diagnostic = report.files[0]?.diagnostics[0];
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic?.message).toContain("invalid package search directory");
     expect(diagnostic?.message).toContain("symbolic link");
     expect(diagnostic?.message).toContain(linkedWorkspaceDir);
@@ -845,49 +776,7 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile], {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
-    expect(result.status).toBe(1);
-    const report = parseJsonObjectStdout<{
-      schemaVersion: number;
-      check: string;
-      success: boolean;
-      totalFiles: number;
-      errorCount: number;
-      files: Array<{
-        file: string;
-        success: boolean;
-        diagnostics: Array<{
-          message: string;
-          hint: string;
-          location: {
-            file: string;
-            start: { line: number; column: number };
-          };
-        }>;
-      }>;
-    }>(result);
-
-    expect(report).toMatchObject({
-      schemaVersion: 1,
-      check: "check",
-      success: false,
-      totalFiles: 1,
-      errorCount: 1,
-      files: [
-        {
-          file: sourceFile,
-          success: false,
-          diagnostics: [
-            {
-              location: {
-                file: sourceFile,
-                start: { line: 1, column: 1 },
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const diagnostic = report.files[0]?.diagnostics[0];
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic?.message).toContain(
       "Global package directory path is a symbolic link",
     );
