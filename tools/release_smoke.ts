@@ -50,6 +50,13 @@ interface PackageDoctorReport {
   issues: unknown[];
 }
 
+interface PackageCacheListReport {
+  schemaVersion: 1;
+  check: "package-cache-list";
+  success: boolean;
+  entries: unknown[];
+}
+
 interface BuildReport {
   schemaVersion: 1;
   check: "build";
@@ -252,6 +259,7 @@ function runPackedPackageSmoke(): void {
     }
 
     runPackedPackageDoctorSmoke(installedBpl, installDir);
+    runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
@@ -416,6 +424,32 @@ function runPackedPackageDoctorSmoke(installedBpl: string, installDir: string): 
   ) {
     throw new Error(
       `Packed npm CLI package doctor cache verification was not isolated:\n${JSON.stringify(report.cacheVerification, null, 2)}`,
+    );
+  }
+}
+
+function runPackedPackageCacheListJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const homeDir = join(installDir, "package-cache-list-home");
+  mkdirSync(homeDir, { recursive: true });
+
+  const result = runStep(
+    "check packed npm CLI package-cache list JSON",
+    installedBpl,
+    ["package-cache", "list", "--json"],
+    {
+      cwd: installDir,
+      bplHome: null,
+      env: { HOME: homeDir },
+    },
+  );
+  const report = parsePackageCacheListReport(result.stdout);
+
+  if (!report.success || report.entries.length !== 0) {
+    throw new Error(
+      `Packed npm CLI package-cache list JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
     );
   }
 }
@@ -850,6 +884,29 @@ function parsePackageDoctorReport(stdout: string): PackageDoctorReport {
     throw new Error(
       [
         "Package doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageCacheListReport(stdout: string): PackageCacheListReport {
+  try {
+    const report = JSON.parse(stdout) as PackageCacheListReport;
+    assertJsonReportContract(
+      report,
+      "package-cache-list",
+      "package-cache list",
+    );
+    if (!Array.isArray(report.entries)) {
+      throw new Error("package-cache list entries is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package-cache list did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
