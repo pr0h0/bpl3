@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { parseJsonObjectStdout } from "./helpers/cliJson";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
@@ -653,7 +654,11 @@ describe("CLI Tests", () => {
     try {
       const check = runCLI(["check", "--json", sourceDir]);
       expect(check.status).toBe(1);
-      expect(JSON.parse(check.stdout).files[0]).toEqual({
+      expect(
+        parseJsonObjectStdout<{
+          files: Array<{ file: string; success: boolean; error: string }>;
+        }>(check).files[0],
+      ).toEqual({
         file: sourceDir,
         success: false,
         error: "Input path is not a file",
@@ -661,7 +666,11 @@ describe("CLI Tests", () => {
 
       const lint = runCLI(["lint", "--json", sourceDir]);
       expect(lint.status).toBe(1);
-      expect(JSON.parse(lint.stdout).files[0]).toEqual({
+      expect(
+        parseJsonObjectStdout<{
+          files: Array<{ file: string; success: boolean; error: string }>;
+        }>(lint).files[0],
+      ).toEqual({
         file: sourceDir,
         success: false,
         error: "Input path is not a file",
@@ -688,7 +697,11 @@ describe("CLI Tests", () => {
     try {
       const check = runCLI(["check", "--json", linkedFile]);
       expect(check.status).toBe(1);
-      expect(JSON.parse(check.stdout).files[0]).toEqual({
+      expect(
+        parseJsonObjectStdout<{
+          files: Array<{ file: string; success: boolean; error: string }>;
+        }>(check).files[0],
+      ).toEqual({
         file: linkedFile,
         success: false,
         error: "Input path is a symbolic link",
@@ -696,7 +709,11 @@ describe("CLI Tests", () => {
 
       const lint = runCLI(["lint", "--json", linkedFile]);
       expect(lint.status).toBe(1);
-      expect(JSON.parse(lint.stdout).files[0]).toEqual({
+      expect(
+        parseJsonObjectStdout<{
+          files: Array<{ file: string; success: boolean; error: string }>;
+        }>(lint).files[0],
+      ).toEqual({
         file: linkedFile,
         success: false,
         error: "Input path is a symbolic link",
@@ -907,7 +924,14 @@ describe("CLI Tests", () => {
         },
       );
       expect(dryRun.status).toBe(0);
-      const dryRunReport = JSON.parse(dryRun.stdout);
+      const dryRunReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        dryRun: boolean;
+        count: number;
+        entries: Array<{ path: string; type: string }>;
+      }>(dryRun);
       expect(dryRunReport).toMatchObject({
         schemaVersion: 1,
         check: "clean",
@@ -932,7 +956,13 @@ describe("CLI Tests", () => {
         env: { ...process.env, NO_COLOR: "1" },
       });
       expect(clean.status).toBe(0);
-      const cleanReport = JSON.parse(clean.stdout);
+      const cleanReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        dryRun: boolean;
+        count: number;
+      }>(clean);
       expect(cleanReport).toMatchObject({
         schemaVersion: 1,
         check: "clean",
