@@ -2102,3 +2102,42 @@ and `bool`/`i1` operands continue to participate in numeric arithmetic.
 `i1`, and the aggregate arithmetic guard allows unresolved generic parameters
 while still rejecting aggregate operands that do not define an operator
 overload.
+
+---
+
+### BUG-150: Package Binary Install Can Replace Existing Files
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Installing a package with a `bin` entry rejected existing
+directory targets under `bpl_modules/.bin`, but it did not reject regular files
+with the same command name. On POSIX systems, the atomic `rename` of the staged
+symlink could replace that user-owned file.
+
+**Reproduction**:
+
+```json
+{
+  "name": "tool-package",
+  "version": "1.0.0",
+  "main": "index.bpl",
+  "bin": {
+    "tool": "bin/tool.sh"
+  }
+}
+```
+
+Before installing the package, create `bpl_modules/.bin/tool` as a regular
+file.
+
+**Expected**: Installation fails before replacing the file and leaves the file
+contents unchanged.
+
+**Actual**: Installation succeeded and replaced the file with a package binary
+symlink.
+
+**Resolution**: Package binary link preflight and the atomic link path now only
+allow absent targets or existing symlinks. Existing regular files and
+directories produce a `CompilerError` and remain untouched.

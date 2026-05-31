@@ -408,20 +408,11 @@ export class PackageManager {
       );
       const targetPath = path.join(binDir, name);
 
-      const existingTarget = this.tryLstat(targetPath);
-      if (existingTarget?.isDirectory()) {
-        throw new CompilerError(
-          `Cannot link package binary '${name}'`,
-          `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
-          {
-            file: manifestPath,
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
-        );
-      }
+      this.assertPackageBinaryTargetReplaceable(
+        targetPath,
+        name,
+        manifestPath,
+      );
 
       // Ensure source is executable
       if (process.platform !== "win32") {
@@ -467,19 +458,12 @@ export class PackageManager {
         createdTemp = true;
 
         const existingTarget = this.tryLstat(targetPath);
-        if (existingTarget?.isDirectory()) {
-          throw new CompilerError(
-            `Cannot link package binary '${commandName}'`,
-            `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
-            {
-              file: manifestPath,
-              startLine: 1,
-              startColumn: 1,
-              endLine: 1,
-              endColumn: 1,
-            },
-          );
-        }
+        this.assertPackageBinaryTargetReplaceable(
+          targetPath,
+          commandName,
+          manifestPath,
+          existingTarget,
+        );
 
         fs.renameSync(tempPath, targetPath);
         return;
@@ -544,20 +528,39 @@ export class PackageManager {
       this.validatePackageBinFile(packageDir, relativePath, manifestPath);
       const targetPath = path.join(binDir, name);
       const existingTarget = this.tryLstat(targetPath);
-      if (existingTarget?.isDirectory()) {
-        throw new CompilerError(
-          `Cannot link package binary '${name}'`,
-          `A directory already exists at ${targetPath}. Move it out of the way and try again.`,
-          {
-            file: manifestPath,
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
-        );
-      }
+      this.assertPackageBinaryTargetReplaceable(
+        targetPath,
+        name,
+        manifestPath,
+        existingTarget,
+      );
     }
+  }
+
+  private assertPackageBinaryTargetReplaceable(
+    targetPath: string,
+    commandName: string,
+    manifestPath: string,
+    existingTarget = this.tryLstat(targetPath),
+  ): void {
+    if (!existingTarget || existingTarget.isSymbolicLink()) {
+      return;
+    }
+
+    const existingKind = existingTarget.isDirectory()
+      ? "A directory"
+      : "A non-symlink file";
+    throw new CompilerError(
+      `Cannot link package binary '${commandName}'`,
+      `${existingKind} already exists at ${targetPath}. Move it out of the way and try again.`,
+      {
+        file: manifestPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private getLockFilePath(): string {

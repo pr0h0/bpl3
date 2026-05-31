@@ -1035,6 +1035,51 @@ describe("PackageManager", () => {
       ).toThrow(/Cannot link package binary 'tool'/);
     });
 
+    test("should reject package binary link targets that are regular files", () => {
+      const packageDir = path.join(tempDir, "bin-file-target-package");
+      const installDir = path.join(tempDir, "bin-file-target-install");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "bin-file-target-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const targetPath = path.join(installDir, "bpl_modules", ".bin", "tool");
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.writeFileSync(targetPath, "user-owned command\n");
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Cannot link package binary 'tool'/);
+      expect(fs.lstatSync(targetPath).isFile()).toBe(true);
+      expect(fs.readFileSync(targetPath, "utf-8")).toBe("user-owned command\n");
+      expect(
+        fs.existsSync(
+          path.join(installDir, "bpl_modules", "bin-file-target-package"),
+        ),
+      ).toBe(false);
+    });
+
     test("should keep existing installs when binary link targets are blocked", () => {
       const installDir = path.join(tempDir, "bin-preflight-install");
 
