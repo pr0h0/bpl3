@@ -242,6 +242,100 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps build JSON stdout parseable with invalid compiler driver timeout environment", () => {
+    const buildSource = path.join(tempDir, "timeout-build-main.bpl");
+    const buildOutput = path.join(tempDir, "timeout-json-build-app");
+    fs.writeFileSync(buildSource, "frame main() ret int { return 0; }\n");
+
+    const result = runCli(["build", buildSource, "--json", "-o", buildOutput], {
+      env: { BPL_COMPILE_DRIVER_TIMEOUT_MS: "0" },
+    });
+
+    const report = expectJsonStdoutReport<{
+      file: string;
+      output: { llvm: string; executable: string };
+    }>(result, {
+      status: 0,
+      check: "build",
+      success: true,
+    });
+    expect(report.file).toBe(buildSource);
+    expect(report.output).toEqual({
+      llvm: `${buildOutput}.ll`,
+      executable: buildOutput,
+    });
+    expect(JSON.stringify(report)).not.toContain(
+      "Ignoring invalid BPL_COMPILE_DRIVER_TIMEOUT_MS",
+    );
+    expect(result.stderr).toBe("");
+  });
+
+  test("keeps build JSON object diagnostics parseable with invalid object timeout environment", () => {
+    const buildSource = path.join(tempDir, "object-diagnostic-main.bpl");
+    const missingObject = path.join(tempDir, "missing.o");
+    const fakeObject = path.join(tempDir, "fake.o");
+    const missingOutput = path.join(tempDir, "missing-object-app");
+    const fakeOutput = path.join(tempDir, "fake-object-app");
+    fs.writeFileSync(buildSource, "frame main() ret int { return 0; }\n");
+    fs.writeFileSync(fakeObject, "not an object\n");
+
+    const missingResult = runCli(
+      [
+        "build",
+        buildSource,
+        "--json",
+        "--object",
+        missingObject,
+        "-o",
+        missingOutput,
+      ],
+      { env: { BPL_OBJECT_SYMBOL_TIMEOUT_MS: "0" } },
+    );
+    const missingReport = expectJsonStdoutReport<{
+      file: string;
+      error: string;
+    }>(missingResult, {
+      status: 1,
+      check: "build",
+      success: false,
+    });
+    expect(missingReport.file).toBe(buildSource);
+    expect(missingReport.error).toContain("Link object input not found");
+    expect(missingReport.error).toContain(missingObject);
+    expect(missingReport.error).not.toContain(
+      "Ignoring invalid BPL_OBJECT_SYMBOL_TIMEOUT_MS",
+    );
+    expect(missingResult.stderr).toBe("");
+
+    const fakeResult = runCli(
+      [
+        "build",
+        buildSource,
+        "--json",
+        "--object",
+        fakeObject,
+        "-o",
+        fakeOutput,
+      ],
+      { env: { BPL_OBJECT_SYMBOL_TIMEOUT_MS: "0" } },
+    );
+    const fakeReport = expectJsonStdoutReport<{
+      file: string;
+      error: string;
+    }>(fakeResult, {
+      status: 1,
+      check: "build",
+      success: false,
+    });
+    expect(fakeReport.file).toBe(buildSource);
+    expect(fakeReport.error).toContain("Failed to compile LLVM IR with clang");
+    expect(fakeReport.error).toContain(fakeObject);
+    expect(fakeReport.error).not.toContain(
+      "Ignoring invalid BPL_OBJECT_SYMBOL_TIMEOUT_MS",
+    );
+    expect(fakeResult.stderr).toBe("");
+  });
+
   test("keeps package command JSON stdout parseable", () => {
     const list = runCli(["list", "--json"], { cwd: tempDir });
     expect(list.status).toBe(0);
