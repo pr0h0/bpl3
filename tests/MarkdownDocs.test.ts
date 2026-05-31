@@ -256,7 +256,7 @@ describe("Markdown documentation", () => {
       "The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands",
       "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
       "bpl doctor packages --json",
-      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, or `BPL_PACKAGE_ARCHIVE_*`",
+      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or PackageManager manifest-loading failures",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",
       "unsafe cache-root validation failures",
@@ -359,6 +359,34 @@ describe("Markdown documentation", () => {
 
     for (const snippet of requiredSnippets) {
       expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
+  test("package docs document package manager manifest JSON error codes", () => {
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "PackageManager manifest-loading failures",
+      "BPL_PACKAGE_MANIFEST_SYMLINK",
+      "BPL_PACKAGE_MANIFEST_NOT_FILE",
+      "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+      "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
+      "BPL_PACKAGE_MANIFEST_NAME_MISSING",
+      "BPL_PACKAGE_MANIFEST_NAME_INVALID",
+      "BPL_PACKAGE_MANIFEST_VERSION_MISSING",
+      "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
+      "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
+      "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package manifest error codes\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
     }
   });
 

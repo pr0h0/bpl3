@@ -235,6 +235,17 @@ malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
 `BPL_PACKAGE_INSTALL_*_CONFLICT` for project-mode option conflicts, and
 `BPL_PACKAGE_ARCHIVE_*` for direct archive paths that are symlinks, pass through
 symlinked parents, or are not files.
+PackageManager manifest-loading failures also carry stable
+`BPL_PACKAGE_MANIFEST_*` codes: `BPL_PACKAGE_MANIFEST_MISSING`,
+`BPL_PACKAGE_MANIFEST_SYMLINK`, `BPL_PACKAGE_MANIFEST_NOT_FILE`,
+`BPL_PACKAGE_MANIFEST_PARSE_ERROR`, `BPL_PACKAGE_MANIFEST_NOT_OBJECT`,
+`BPL_PACKAGE_MANIFEST_NAME_MISSING`, `BPL_PACKAGE_MANIFEST_NAME_INVALID`,
+`BPL_PACKAGE_MANIFEST_VERSION_MISSING`,
+`BPL_PACKAGE_MANIFEST_VERSION_INVALID`,
+`BPL_PACKAGE_MANIFEST_MAIN_INVALID`, and
+`BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID`. Reproduce the focused JSON
+contract with
+`bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"`.
 
 `bpl doctor packages --json` reports malformed or unsafe lockfiles as
 `kind: "invalid-lockfile"` issues with stable `BPL_LOCKFILE_*` codes, including

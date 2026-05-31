@@ -65,6 +65,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the packed npm CLI preserves package/import JSON diagnostic codes such as
   `BPL_PACKAGE_MANIFEST_MISSING`, with a focused metadata repro command for the
   smoke contract.
+- **Package Manifest JSON Codes** - `bpl install --json` now includes stable
+  PackageManager manifest-loading `BPL_PACKAGE_MANIFEST_*` `errorCode` values
+  for missing, symlinked, non-file, malformed, invalid-shape, and invalid-field
+  `bpl.json` failures.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
