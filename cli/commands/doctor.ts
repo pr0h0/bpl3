@@ -13,6 +13,10 @@ import { getBplHome } from "../../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
+import {
+  getTimeoutEnvDiagnostics,
+  type TimeoutEnvDiagnostic,
+} from "../../compiler/common/Env";
 import { formatSpawnFailureReason } from "../../compiler/common/ProcessErrors";
 import { getObjectSymbolTool } from "../../compiler/middleend/ObjectFileParser";
 import {
@@ -66,6 +70,7 @@ interface DoctorReport {
   };
   bplHome: string;
   checks: DoctorCheck[];
+  timeouts: TimeoutEnvDiagnostic[];
 }
 
 export function registerDoctorCommand(program: Command, version: string): void {
@@ -216,6 +221,7 @@ function createDoctorReport(version: string): DoctorReport {
       },
       bplHome,
       checks,
+      timeouts: getTimeoutEnvDiagnostics(),
     },
   );
 }
@@ -520,6 +526,25 @@ function printDoctorReport(report: DoctorReport): void {
     console.log(`Bun: ${report.platform.bun}`);
   }
   console.log(`BPL_HOME: ${report.bplHome}`);
+  console.log("");
+  console.log("Timeouts:");
+  for (const timeout of report.timeouts) {
+    const status = timeout.isValid ? "OK" : "WARN";
+    const effective =
+      timeout.effectiveMs === null ? "none" : `${timeout.effectiveMs}ms`;
+    const source =
+      timeout.raw === null
+        ? "default"
+        : timeout.isValid
+          ? `env: ${timeout.raw}`
+          : `invalid: ${timeout.raw}`;
+    console.log(`${status} ${timeout.name}: ${effective} (${source})`);
+    if (!timeout.isValid) {
+      console.log(
+        `  hint: invalid value ignored; expected a positive integer; ${timeout.fallbackAction}`,
+      );
+    }
+  }
   console.log("");
 
   for (const check of report.checks) {

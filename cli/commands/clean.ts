@@ -7,7 +7,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawnSync } from "child_process";
 import { Command } from "commander";
-import { getPositiveIntegerEnv } from "../../compiler/common/Env";
+import {
+  getPositiveIntegerEnv,
+  TIMEOUT_ENV_DEFAULTS,
+} from "../../compiler/common/Env";
 import { Logger } from "../../compiler/common/Logger";
 import {
   CLI_JSON_CHECKS,
@@ -16,7 +19,7 @@ import {
 import { findSymlinkedPathComponent } from "../../compiler/common/PathSafety";
 
 const log = new Logger("Clean");
-const CLEAN_GIT_TIMEOUT_MS = 5000;
+const CLEAN_GIT_TIMEOUT_MS = TIMEOUT_ENV_DEFAULTS.BPL_CLEAN_GIT_TIMEOUT_MS;
 
 interface CleanEntry {
   path: string;

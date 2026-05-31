@@ -23,6 +23,15 @@ type DoctorCheck = {
   recommendedCommands?: string[];
 };
 
+type TimeoutEnvDiagnostic = {
+  name: string;
+  raw: string | null;
+  isValid: boolean;
+  defaultMs: number | null;
+  effectiveMs: number | null;
+  fallbackAction: string;
+};
+
 type DoctorReport = {
   version: string;
   platform: {
@@ -30,6 +39,7 @@ type DoctorReport = {
     arch: string;
   };
   checks: DoctorCheck[];
+  timeouts?: TimeoutEnvDiagnostic[];
 };
 
 function runCLI(args: string[]) {
@@ -3044,6 +3054,90 @@ describe("CLI Tests", () => {
         (check) => check.ok === true || check.required === false,
       ),
     ).toBe(true);
+  });
+
+  it("should report timeout environment configuration from doctor as JSON", () => {
+    const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_COMPILE_DRIVER_TIMEOUT_MS: "1234",
+        BPL_RUN_TIMEOUT_MS: "0",
+        BPL_WASM_LINKER_PROBE_TIMEOUT_MS: "bad",
+        NO_COLOR: "1",
+      },
+    });
+
+    const report = expectDoctorJsonReport(result, {
+      status: 0,
+      success: true,
+    });
+    expect(report.timeouts).toBeArray();
+    expect(report.timeouts?.map((timeout) => timeout.name)).toEqual(
+      expect.arrayContaining([
+        "BPL_COMPILE_DRIVER_TIMEOUT_MS",
+        "BPL_CLEAN_GIT_TIMEOUT_MS",
+        "BPL_PACKAGE_TOOL_TIMEOUT_MS",
+        "BPL_OBJECT_SYMBOL_TIMEOUT_MS",
+        "BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS",
+        "BPL_RUN_TIMEOUT_MS",
+        "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
+      ]),
+    );
+
+    const compilerTimeout = report.timeouts?.find(
+      (timeout) => timeout.name === "BPL_COMPILE_DRIVER_TIMEOUT_MS",
+    );
+    expect(compilerTimeout).toMatchObject({
+      raw: "1234",
+      isValid: true,
+      defaultMs: 600000,
+      effectiveMs: 1234,
+      fallbackAction: "using 600000ms",
+    });
+
+    const runTimeout = report.timeouts?.find(
+      (timeout) => timeout.name === "BPL_RUN_TIMEOUT_MS",
+    );
+    expect(runTimeout).toMatchObject({
+      raw: "0",
+      isValid: false,
+      defaultMs: null,
+      effectiveMs: null,
+      fallbackAction: "running without timeout",
+    });
+
+    const wasmTimeout = report.timeouts?.find(
+      (timeout) => timeout.name === "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
+    );
+    expect(wasmTimeout).toMatchObject({
+      raw: "bad",
+      isValid: false,
+      defaultMs: 5000,
+      effectiveMs: 5000,
+      fallbackAction: "using 5000ms",
+    });
+  });
+
+  it("should report timeout environment configuration in doctor text output", () => {
+    const result = spawnSync("bun", [BPL_CLI, "doctor"], {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_RUN_TIMEOUT_MS: "0",
+        NO_COLOR: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Timeouts:");
+    expect(result.stdout).toContain("WARN BPL_RUN_TIMEOUT_MS: none (invalid: 0)");
+    expect(result.stdout).toContain(
+      "hint: invalid value ignored; expected a positive integer; running without timeout",
+    );
+    expect(result.stdout).toContain(
+      "OK BPL_COMPILE_DRIVER_TIMEOUT_MS: 600000ms (default)",
+    );
   });
 
   it("should report invalid temporary directories in doctor diagnostics", () => {

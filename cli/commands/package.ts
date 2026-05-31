@@ -24,7 +24,10 @@ import type {
   PackageOptionsVerbose,
 } from "../types";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
-import { getPositiveIntegerEnv } from "../../compiler/common/Env";
+import {
+  getPositiveIntegerEnv,
+  TIMEOUT_ENV_DEFAULTS,
+} from "../../compiler/common/Env";
 import {
   Logger,
   LogLevel,
@@ -39,7 +42,8 @@ import {
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 
 const log = new Logger("Package");
-const PACKAGE_IR_VERIFY_TIMEOUT_MS = 30000;
+const PACKAGE_IR_VERIFY_TIMEOUT_MS =
+  TIMEOUT_ENV_DEFAULTS.BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS;
 
 /**
  * Register all package management commands

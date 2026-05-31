@@ -14,7 +14,7 @@ import * as path from "path";
 import { spawnSync } from "child_process";
 
 import { CompilerError } from "../common/CompilerError";
-import { getPositiveIntegerEnv } from "../common/Env";
+import { getPositiveIntegerEnv, TIMEOUT_ENV_DEFAULTS } from "../common/Env";
 import { compilerLog } from "../common/Logger";
 import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
@@ -24,7 +24,8 @@ export function getObjectSymbolTool(): string {
   return process.env.BPL_NM || process.env.NM || "nm";
 }
 
-const OBJECT_SYMBOL_TIMEOUT_MS = 30000;
+const OBJECT_SYMBOL_TIMEOUT_MS =
+  TIMEOUT_ENV_DEFAULTS.BPL_OBJECT_SYMBOL_TIMEOUT_MS;
 
 export class ObjectFileParser {
   /**

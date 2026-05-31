@@ -526,6 +526,13 @@ override:
 - `BPL_OBJECT_SYMBOL_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
 - `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
 
+`bpl doctor --json` reports timeout environment configuration in `timeouts`.
+Each entry includes the known timeout variable name plus `raw`, `isValid`,
+`defaultMs`, `effectiveMs`, and `fallbackAction`, so CI logs can show whether a
+timeout came from the environment, a default, or an ignored invalid override.
+Text `bpl doctor` prints a `Timeouts:` section with the same effective values
+and warns inline for invalid timeout values.
+
 **Supported Targets:**
 
 These triples are covered by code generation smoke tests. They confirm that the

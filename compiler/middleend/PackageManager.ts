@@ -11,7 +11,7 @@ import * as os from "os";
 import * as path from "path";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
-import { getPositiveIntegerEnv } from "../common/Env";
+import { getPositiveIntegerEnv, TIMEOUT_ENV_DEFAULTS } from "../common/Env";
 import {
   CLI_JSON_CHECKS,
   CLI_JSON_SCHEMA_VERSION,
@@ -30,7 +30,8 @@ export function getPackageArchiveTool(): string {
   return process.env.BPL_TAR || process.env.TAR || "tar";
 }
 
-const PACKAGE_ARCHIVE_TOOL_TIMEOUT_MS = 300000;
+const PACKAGE_ARCHIVE_TOOL_TIMEOUT_MS =
+  TIMEOUT_ENV_DEFAULTS.BPL_PACKAGE_TOOL_TIMEOUT_MS;
 
 export function getPackageArchiveToolTimeoutMs(): number {
   return getPositiveIntegerEnv(

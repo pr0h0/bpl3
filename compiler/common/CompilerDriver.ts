@@ -1,8 +1,9 @@
 import { Logger } from "./Logger";
-import { getPositiveIntegerEnv } from "./Env";
+import { getPositiveIntegerEnv, TIMEOUT_ENV_DEFAULTS } from "./Env";
 
 const compilerDriverLog = new Logger("CompilerDriver");
-const COMPILE_DRIVER_TIMEOUT_MS = 600000;
+const COMPILE_DRIVER_TIMEOUT_MS =
+  TIMEOUT_ENV_DEFAULTS.BPL_COMPILE_DRIVER_TIMEOUT_MS;
 
 export function isWasmTarget(target?: string): boolean {
   return target?.toLowerCase().includes("wasm") ?? false;

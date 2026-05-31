@@ -1,5 +1,8 @@
 import { spawnSync } from "child_process";
-import { getPositiveIntegerEnv } from "../compiler/common/Env";
+import {
+  getPositiveIntegerEnv,
+  TIMEOUT_ENV_DEFAULTS,
+} from "../compiler/common/Env";
 
 export const DEFAULT_WASM_LINKER_CANDIDATES: string[] = [
   "wasm-ld",
@@ -9,7 +12,8 @@ export const DEFAULT_WASM_LINKER_CANDIDATES: string[] = [
   "ld.lld",
 ];
 
-const DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS = 5000;
+const DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS =
+  TIMEOUT_ENV_DEFAULTS.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
 
 export function getWasmLinkerCandidates(
   env: NodeJS.ProcessEnv = process.env,
