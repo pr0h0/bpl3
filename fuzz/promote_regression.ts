@@ -143,6 +143,7 @@ Options:
 
 function promoteFuzzRegression(options: CliOptions): PromotionResult {
   const sourcePath = resolveSourcePath(options);
+  assertFuzzRegressionSourcePath(sourcePath);
   const source = readFileSync(sourcePath, "utf8");
   const name = sanitizeName(options.name ?? inferNameFromPath(sourcePath));
   assertWritableCorpusDirectory(options.corpusDir);
@@ -274,6 +275,41 @@ function resolveSourcePath(options: CliOptions): string {
 function readCrashMetadata(metadataPath: string): CrashMetadata {
   assertCrashMetadataPath(metadataPath);
   return JSON.parse(readFileSync(metadataPath, "utf8")) as CrashMetadata;
+}
+
+function assertFuzzRegressionSourcePath(sourcePath: string): void {
+  const absoluteSourcePath = resolve(sourcePath);
+
+  for (const componentPath of pathComponents(absoluteSourcePath)) {
+    const componentStats = tryLstat(componentPath);
+    if (!componentStats) {
+      continue;
+    }
+
+    if (componentStats.isSymbolicLink()) {
+      if (componentPath === absoluteSourcePath) {
+        throw new Error(
+          `Fuzz regression source path is a symbolic link: ${componentPath}`,
+        );
+      }
+
+      throw new Error(
+        `Fuzz regression source parent contains a symbolic link: ${componentPath}`,
+      );
+    }
+
+    if (componentPath === absoluteSourcePath) {
+      if (!componentStats.isFile()) {
+        throw new Error(
+          `Fuzz regression source path is not a file: ${componentPath}`,
+        );
+      }
+    } else if (!componentStats.isDirectory()) {
+      throw new Error(
+        `Fuzz regression source parent is not a directory: ${componentPath}`,
+      );
+    }
+  }
 }
 
 function tryLstat(filePath: string): Stats | null {
