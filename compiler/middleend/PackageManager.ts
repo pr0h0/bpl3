@@ -4348,6 +4348,7 @@ function validatePackageCacheVersionFilter(version: string | undefined): void {
         endLine: 1,
         endColumn: 1,
       },
+      "BPL_PACKAGE_CACHE_VERSION_INVALID",
     );
   }
 }

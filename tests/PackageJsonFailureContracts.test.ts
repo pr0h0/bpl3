@@ -212,6 +212,74 @@ describe("Package JSON failure contracts", () => {
     }
   });
 
+  test("surfaces stable package-cache version filter error codes", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-cache-codes-"));
+
+    try {
+      const cases: Array<{
+        args: string[];
+        expectedCheck: string;
+        expectedPayload: Record<string, unknown>;
+      }> = [
+        {
+          args: [
+            "package-cache",
+            "clean",
+            "pkg",
+            "--package-version",
+            "^1.0.0",
+            "--dry-run",
+            "--json",
+          ],
+          expectedCheck: "package-cache-clean",
+          expectedPayload: {
+            removed: [],
+            dryRun: true,
+          },
+        },
+        {
+          args: [
+            "package-cache",
+            "repair",
+            "pkg",
+            "--package-version",
+            "latest",
+            "--dry-run",
+            "--json",
+          ],
+          expectedCheck: "package-cache-repair",
+          expectedPayload: {
+            dryRun: true,
+            repaired: [],
+            unchanged: [],
+            issues: [],
+          },
+        },
+      ];
+
+      for (const testCase of cases) {
+        const report = expectJsonStdoutReport(
+          runCli(
+            testCase.args,
+            cleanPackageRoot(tempDir, testCase.expectedCheck),
+          ),
+          {
+            status: 1,
+            check: testCase.expectedCheck,
+            success: false,
+          },
+        );
+        expect(report).toMatchObject({
+          ...testCase.expectedPayload,
+          error: expect.stringContaining("Invalid package cache version filter"),
+          errorCode: "BPL_PACKAGE_CACHE_VERSION_INVALID",
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("surfaces stable package install option conflict error codes", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-option-codes-"));
 
