@@ -989,6 +989,62 @@ function runPackedHelperScriptSmoke(installDir: string): void {
     "fuzz/crashes",
   ]);
 
+  console.log(
+    "release smoke: check packed npm CLI fuzz artifact repro usage errors",
+  );
+  const fuzzReproEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    BPL_HOME: undefined,
+    NO_COLOR: "1",
+  };
+  const fuzzReproUsageError = spawnSync(
+    "npm",
+    ["run", "fuzz:repro", "--", "--input", "--json"],
+    {
+      cwd: packageDir,
+      encoding: "utf-8",
+      env: fuzzReproEnv,
+      timeout: smokeTimeoutMs,
+    },
+  );
+
+  if (fuzzReproUsageError.error) {
+    throw fuzzReproUsageError.error;
+  }
+  if (fuzzReproUsageError.status !== 2) {
+    throw new Error(
+      [
+        "Packed npm CLI fuzz repro usage error smoke did not fail as expected.",
+        `exit: ${fuzzReproUsageError.status ?? "unknown"}`,
+        `stdout:\n${fuzzReproUsageError.stdout}`,
+        `stderr:\n${fuzzReproUsageError.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (!fuzzReproUsageError.stderr.includes("--input requires a value")) {
+    throw new Error(
+      [
+        "Packed npm CLI fuzz repro usage error did not report the missing option.",
+        `stdout:\n${fuzzReproUsageError.stdout}`,
+        `stderr:\n${fuzzReproUsageError.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (
+    fuzzReproUsageError.stdout.includes("Fuzz artifact path does not exist") ||
+    fuzzReproUsageError.stderr.includes("Fuzz artifact path does not exist") ||
+    fuzzReproUsageError.stdout.includes("No fuzz artifact metadata found") ||
+    fuzzReproUsageError.stderr.includes("No fuzz artifact metadata found")
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI fuzz repro usage error reached artifact discovery.",
+        `stdout:\n${fuzzReproUsageError.stdout}`,
+        `stderr:\n${fuzzReproUsageError.stderr}`,
+      ].join("\n"),
+    );
+  }
+
   const ciTriage = runStep(
     "check packed npm CLI CI triage helper",
     "npm",
