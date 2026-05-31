@@ -50,6 +50,22 @@ interface PackageDoctorReport {
   issues: unknown[];
 }
 
+interface PackageListReport {
+  schemaVersion: 1;
+  check: "package-list";
+  success: boolean;
+  scope: string;
+  packages: unknown[];
+}
+
+interface PackageListTreeReport {
+  schemaVersion: 1;
+  check: "package-list-tree";
+  success: boolean;
+  scope: string;
+  tree: unknown[];
+}
+
 interface PackageCacheListReport {
   schemaVersion: 1;
   check: "package-cache-list";
@@ -311,6 +327,7 @@ function runPackedPackageSmoke(): void {
 
     runPackedDoctorFailureJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
+    runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
     runPackedCheckJsonSmoke(installedBpl);
@@ -636,6 +653,47 @@ function runPackedPackageDoctorSmoke(installedBpl: string, installDir: string): 
   ) {
     throw new Error(
       `Packed npm CLI package doctor cache verification was not isolated:\n${JSON.stringify(report.cacheVerification, null, 2)}`,
+    );
+  }
+}
+
+function runPackedPackageListJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const list = runStep(
+    "check packed npm CLI package list JSON",
+    installedBpl,
+    ["list", "--json"],
+    { cwd: installDir, bplHome: null },
+  );
+  const listReport = parsePackageListReport(list.stdout);
+
+  if (
+    !listReport.success ||
+    listReport.scope !== "local" ||
+    listReport.packages.length !== 0
+  ) {
+    throw new Error(
+      `Packed npm CLI package list JSON was not isolated:\n${JSON.stringify(listReport, null, 2)}`,
+    );
+  }
+
+  const tree = runStep(
+    "check packed npm CLI package list tree JSON",
+    installedBpl,
+    ["list", "--tree", "--json"],
+    { cwd: installDir, bplHome: null },
+  );
+  const treeReport = parsePackageListTreeReport(tree.stdout);
+
+  if (
+    !treeReport.success ||
+    treeReport.scope !== "local" ||
+    treeReport.tree.length !== 0
+  ) {
+    throw new Error(
+      `Packed npm CLI package list tree JSON was not isolated:\n${JSON.stringify(treeReport, null, 2)}`,
     );
   }
 }
@@ -1253,6 +1311,48 @@ function parsePackageDoctorReport(stdout: string): PackageDoctorReport {
     throw new Error(
       [
         "Package doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageListReport(stdout: string): PackageListReport {
+  try {
+    const report = JSON.parse(stdout) as PackageListReport;
+    assertJsonReportContract(report, "package-list", "package list");
+    if (!Array.isArray(report.packages)) {
+      throw new Error("package list packages is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package list did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageListTreeReport(stdout: string): PackageListTreeReport {
+  try {
+    const report = JSON.parse(stdout) as PackageListTreeReport;
+    assertJsonReportContract(
+      report,
+      "package-list-tree",
+      "package list tree",
+    );
+    if (!Array.isArray(report.tree)) {
+      throw new Error("package list tree is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package list tree did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

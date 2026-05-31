@@ -36,6 +36,12 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package doctor JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package list JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package list tree JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package-cache list JSON",
       );
       expect(result.stdout).toContain(
