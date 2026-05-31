@@ -270,6 +270,64 @@ describe("ModuleResolver", () => {
     expect(resolver.getModule(linkedEntry)).toBe(entryModule);
   });
 
+  it("should reject broken symlink import candidates before extension fallback", () => {
+    const sourceDir = path.join(tempDir, "broken-symlink-import");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    const mainPath = path.join(sourceDir, "main.bpl");
+    const brokenBplCandidate = path.join(sourceDir, "linked.bpl");
+    const legacyFallback = path.join(sourceDir, "linked.x");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "./linked";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.symlinkSync(
+      path.join(sourceDir, "missing-linked.bpl"),
+      brokenBplCandidate,
+      "file",
+    );
+    fs.writeFileSync(legacyFallback, "export value;");
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("Module path is a symbolic link");
+    expect(error.message).toContain(brokenBplCandidate);
+  });
+
+  it("should normalize symlinked import module identities", () => {
+    const sourceDir = path.join(tempDir, "symlink-import");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    const mainPath = path.join(sourceDir, "main.bpl");
+    const realModule = path.join(sourceDir, "real-linked.bpl");
+    const linkedModule = path.join(sourceDir, "linked.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "./linked.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(realModule, "export value;");
+    fs.symlinkSync(realModule, linkedModule, "file");
+
+    const modules = new ModuleResolver({ stdLibPath: tempDir }).resolveModules(
+      mainPath,
+    );
+
+    expect(
+      modules.some((module) => module.path === fs.realpathSync(realModule)),
+    ).toBe(true);
+    expect(modules.some((module) => module.path === linkedModule)).toBe(false);
+  });
+
   it("should prefer .bpl over legacy .x when resolving extensionless imports", () => {
     const sourceDir = path.join(tempDir, "extension-preference");
     fs.mkdirSync(sourceDir, { recursive: true });

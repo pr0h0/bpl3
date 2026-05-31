@@ -278,8 +278,10 @@ package roots, manifests, entry files, or subpath entries; malformed packages
 are treated as package metadata instead of silently importing a different
 package.
 
-Entry module paths are checked before parsing. Missing files, directories, and
-broken symlink paths produce distinct diagnostics; valid symlink entry paths are
+Entry module paths and import candidates are checked before parsing. Missing
+files, directories, and broken symlink paths produce distinct diagnostics.
+Broken symlink import candidates are rejected before falling back to
+lower-priority extensions such as `.x`; valid symlink entry and import paths are
 normalized to their real module path before dependency graph construction.
 
 ## Re-exports

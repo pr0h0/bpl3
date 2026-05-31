@@ -92,32 +92,84 @@ export class ModuleResolver {
    * Try to resolve a path with various extensions
    */
   private tryResolveWithExtensions(filePath: string): string | null {
-    const exists = fs.existsSync(filePath);
-    // Check if path exists as-is
-    if (exists) {
-      const stat = fs.statSync(filePath);
-      if (stat.isFile()) {
-        return this.normalizePath(filePath);
-      }
-      if (stat.isDirectory()) {
-        // Try index files in the directory
-        for (const indexName of ["index.bpl", "index.x"]) {
-          const indexPath = path.join(filePath, indexName);
-          if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
-            return this.normalizePath(indexPath);
-          }
-        }
-      }
+    const directResult = this.tryResolveModuleCandidate(filePath, {
+      allowDirectoryIndex: true,
+    });
+    if (directResult) {
+      return directResult;
     }
 
     // Try with extensions
     for (const ext of this.SUPPORTED_EXTENSIONS) {
       const withExt = filePath + ext;
-      if (fs.existsSync(withExt)) {
-        const stat = fs.statSync(withExt);
-        if (stat.isFile()) {
-          return this.normalizePath(withExt);
-        }
+      const result = this.tryResolveModuleCandidate(withExt, {
+        allowDirectoryIndex: false,
+      });
+      if (result) {
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  private tryResolveModuleCandidate(
+    candidatePath: string,
+    options: { allowDirectoryIndex: boolean },
+  ): string | null {
+    const stat = this.tryLstat(candidatePath);
+    if (!stat) {
+      return null;
+    }
+
+    if (stat.isSymbolicLink()) {
+      let targetStat: fs.Stats;
+      try {
+        targetStat = fs.statSync(candidatePath);
+      } catch {
+        throw new CompilerError(
+          `Module path is a symbolic link: ${candidatePath}`,
+          "Use a real .bpl file path or repair the symlink target.",
+          {
+            file: candidatePath,
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        );
+      }
+
+      if (targetStat.isFile()) {
+        return this.normalizePath(candidatePath);
+      }
+
+      if (targetStat.isDirectory() && options.allowDirectoryIndex) {
+        return this.tryResolveDirectoryIndex(candidatePath);
+      }
+
+      return null;
+    }
+
+    if (stat.isFile()) {
+      return this.normalizePath(candidatePath);
+    }
+
+    if (stat.isDirectory() && options.allowDirectoryIndex) {
+      return this.tryResolveDirectoryIndex(candidatePath);
+    }
+
+    return null;
+  }
+
+  private tryResolveDirectoryIndex(directoryPath: string): string | null {
+    for (const indexName of ["index.bpl", "index.x"]) {
+      const indexPath = path.join(directoryPath, indexName);
+      const result = this.tryResolveModuleCandidate(indexPath, {
+        allowDirectoryIndex: false,
+      });
+      if (result) {
+        return result;
       }
     }
 

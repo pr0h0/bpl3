@@ -292,6 +292,11 @@ The resolver does not follow symlinked package roots, manifests, entry files, or
 subpath entries, so package imports cannot escape the installed package root
 through filesystem links.
 
+Regular module import candidates use the same filesystem diagnostics: broken
+symlink candidates are reported as symlinks before extension fallback can import
+a lower-priority `.x` file, while valid symlink imports normalize to their real
+module path.
+
 Workspace packages are supported without installing an archive. If an ancestor
 directory contains `packages/<package-name>/bpl.json`, imports can resolve
 through that workspace before falling back to global packages. The runnable
