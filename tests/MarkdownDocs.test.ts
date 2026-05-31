@@ -224,6 +224,28 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("release docs document packed helper support and exclusions", () => {
+    const readme = readFileSync("README.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${readme}\n${changelog}`.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Packed npm helper scripts supported from installed packages",
+      "npm run fuzz:repro -- --help",
+      "npm run fuzz -- --help",
+      "npm run fuzz:replay -- --help",
+      "npm run fuzz:promote -- --help",
+      "npm run ci:triage -- --help",
+      "playground/examples/70-browser-wasm-showcase.json",
+      "compiler/common/PathSafety.ts",
+      "broad compiler sources",
+      "bun test tests/ReleaseHelperSmoke.test.ts",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document strict manifest path rules", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

@@ -119,6 +119,24 @@ artifacts, wasm runtime shims, shell completions, documentation, example
 configs, and VS Code extension. The manifest command writes
 `dist/release-manifest.json` with SHA-256 checksums for shipped artifacts.
 
+Packed npm helper scripts supported from installed packages:
+
+```bash
+npm run fuzz:repro -- --help
+npm run fuzz -- --help
+npm run fuzz:replay -- --help
+npm run fuzz:promote -- --help
+npm run ci:triage -- --help
+```
+
+The packed `fuzz`, `fuzz:replay`, and `fuzz:promote` scripts validate usage in
+installed packages before delegating to source-tree fuzz helpers when a checkout
+is present. The package intentionally excludes source-only files such as
+`playground/examples/70-browser-wasm-showcase.json`, `tests/`, `fuzz/`, and
+broad compiler sources. The narrow exception is
+`compiler/common/PathSafety.ts`, which is shipped because packed helper scripts
+share its symlink-safe path validation.
+
 ## 🚀 Quick Start
 
 ### Hello World
@@ -823,6 +841,9 @@ bun run test:ci
 # package scripts that call tools/*.ts and verifies those helper files are in the
 # packed npm tarball.
 bun run release:smoke
+
+# Run the focused packed-helper sweep without the full release package smoke.
+bun test tests/ReleaseHelperSmoke.test.ts
 
 # Summarize a GitHub Actions run and print local repro commands for failed steps.
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
