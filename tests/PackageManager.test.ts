@@ -1914,6 +1914,76 @@ describe("PackageManager", () => {
       ).toThrow(/manifest name mismatch/);
     });
 
+    test("should reject symlinked package roots during lock verification", () => {
+      const appDir = path.join(tempDir, "symlink-lock-app");
+      const outsidePackageDir = path.join(tempDir, "outside-symlink-lock-pkg");
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const packagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "symlink-lock-pkg",
+      );
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsidePackageDir);
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "symlink-lock-app", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-lock-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "index.bpl"),
+        "export stable;",
+      );
+
+      const localPM = new PackageManager(appDir);
+      const hash = localPM["calculatePackageHash"](outsidePackageDir);
+      fs.symlinkSync(outsidePackageDir, packagePath, "dir");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "symlink-lock-pkg": {
+                version: "1.0.0",
+                source: "file:source.tgz",
+                hash,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "symlink-lock-pkg",
+          kind: "invalid-package-root",
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "symlink-lock-pkg: installed package root is a symbolic link",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/installed package root is a symbolic link/);
+    });
+
     test("should verify installed package binaries against bpl.lock", () => {
       const manifest = {
         name: "bin-lock-test",

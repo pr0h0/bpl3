@@ -97,6 +97,7 @@ export interface PackageLockFile {
 export type PackageLockVerificationIssueKind =
   | "missing-lockfile"
   | "missing-package"
+  | "invalid-package-root"
   | "invalid-manifest"
   | "name-mismatch"
   | "version-mismatch"
@@ -870,11 +871,38 @@ export class PackageManager {
       packagesChecked++;
       const installPath = path.join(this.localPackageDir, packageName);
 
-      if (!fs.existsSync(installPath)) {
+      const packageRootStats = this.tryLstat(installPath);
+      if (!packageRootStats) {
         addIssue({
           packageName,
           kind: "missing-package",
           message: `${packageName}: missing from bpl_modules (expected ${entry.version} from ${entry.source})`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+        });
+        continue;
+      }
+
+      if (packageRootStats.isSymbolicLink()) {
+        addIssue({
+          packageName,
+          kind: "invalid-package-root",
+          message: `${packageName}: installed package root is a symbolic link (${installPath})`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+        });
+        continue;
+      }
+
+      if (!packageRootStats.isDirectory()) {
+        addIssue({
+          packageName,
+          kind: "invalid-package-root",
+          message: `${packageName}: installed package root is not a directory (${installPath})`,
           packagePath: installPath,
           source: entry.source,
           expectedVersion: entry.version,
@@ -955,7 +983,29 @@ export class PackageManager {
         manifest.dependencies || {},
       )) {
         const dependencyPath = path.join(this.localPackageDir, dependencyName);
-        if (fs.existsSync(dependencyPath)) continue;
+        const dependencyStats = this.tryLstat(dependencyPath);
+        if (
+          dependencyStats &&
+          !dependencyStats.isSymbolicLink() &&
+          dependencyStats.isDirectory()
+        ) {
+          continue;
+        }
+
+        if (dependencyStats) {
+          addIssue({
+            packageName: dependencyName,
+            kind: "invalid-package-root",
+            message: `${packageName}: dependency '${dependencyName}' has an invalid package root in bpl_modules`,
+            packagePath: dependencyPath,
+            source: lock.packages[dependencyName]?.source,
+            expectedVersion: lock.packages[dependencyName]?.version,
+            expectedHash: lock.packages[dependencyName]?.hash,
+            dependencyOf: packageName,
+            requestedSource,
+          });
+          continue;
+        }
 
         addIssue({
           packageName: dependencyName,
@@ -1162,6 +1212,10 @@ export class PackageManager {
 
     if (issueKinds.has("name-mismatch")) {
       return `${restoreHelp} Reinstall the package so bpl_modules directory names and bpl.lock entries match manifest names.`;
+    }
+
+    if (issueKinds.has("invalid-package-root")) {
+      return `${restoreHelp} Move unexpected files or symlinks out of bpl_modules and reinstall the package.`;
     }
 
     if (

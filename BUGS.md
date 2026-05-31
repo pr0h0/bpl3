@@ -159,6 +159,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-148 | TypeChecker/Codegen | Aggregate `+` expressions on structs or tuples compile to invalid LLVM `add` instructions.                                | Fixed    | Arithmetic validation now includes `+`, so aggregate addition without an overload is rejected before code generation. Regression: `tests/InternalErrorBoundary.test.ts`.                                                                                                                   |
 | BUG-151 | Package Manager     | Package installs can replace regular files or symlinks at `bpl_modules/<package>`.                                        | Fixed    | Package install targets are now preflighted before staging replacement; only absent paths or real directories are replaceable. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
 | BUG-152 | Package Manager     | Package uninstall treats symlinked package roots as installed packages.                                                    | Fixed    | Uninstall now rejects symlinked package roots before reading manifests, unlinking binaries, or removing the package path. Regression: `tests/PackageManager.test.ts`.                                                                                                                       |
+| BUG-153 | Package Manager     | Lock verification treats symlinked installed package roots as valid packages.                                              | Fixed    | `bpl install --locked` and lock verification now reject symlinked or non-directory package roots before loading manifests or hashing package contents. Regression: `tests/PackageManager.test.ts`.                                                                                          |
 
 ## Details
 
@@ -2210,3 +2211,39 @@ symlink and external target untouched.
 loading its manifest. Missing packages still report "not installed", real
 directories continue through the normal uninstall path, and symlinked roots
 produce a `CompilerError`.
+
+---
+
+### BUG-153: Package Lock Verification Treats Symlinked Roots As Valid Packages
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Lock verification checked `bpl_modules/<package>` with
+`existsSync` and then loaded the manifest and hash through that path. If the
+package root itself was a symlink, verification followed the symlink and could
+accept the external target as matching the lock entry.
+
+**Reproduction**:
+
+```bash
+mkdir -p app/bpl_modules outside-package
+printf '{"name":"linked-pkg","version":"1.0.0","main":"index.bpl"}\n' > outside-package/bpl.json
+printf 'export stable;\n' > outside-package/index.bpl
+ln -s ../../outside-package app/bpl_modules/linked-pkg
+cd app
+bpl install --locked
+```
+
+**Expected**: Locked install rejects the symlinked installed package root and
+reports that the package root is invalid.
+
+**Actual**: Lock verification followed the symlink and could succeed when the
+target contents matched the lock hash.
+
+**Resolution**: Lock verification now checks installed package roots with
+`lstat` before reading manifests or calculating package hashes. Missing
+packages still report `missing-package`; symlinked roots and non-directory
+roots report `invalid-package-root`, and locked install fails with the lock
+verification diagnostic.

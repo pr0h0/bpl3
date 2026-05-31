@@ -175,11 +175,12 @@ To verify CI is using the checked-in package contents without mutating
 bpl install --locked
 ```
 
-`--locked` fails if a package is missing, declares a different manifest name or
-version than the lock entry, or its source hash no longer matches the lockfile.
-It also checks installed package manifests for missing transitive dependencies,
-so deleting `bpl_modules/math-core` will be reported even when only
-`math-extra` imports it.
+`--locked` fails if a package is missing, if `bpl_modules/<package>` is a
+symlink or non-directory, if the installed manifest declares a different name
+or version than the lock entry, or if its source hash no longer matches the
+lockfile. It also checks installed package manifests for missing or malformed
+transitive dependency roots, so deleting `bpl_modules/math-core` will be
+reported even when only `math-extra` imports it.
 
 To re-resolve `bpl.json` dependency selectors and rewrite `bpl.lock`, run:
 

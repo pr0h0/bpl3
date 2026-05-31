@@ -370,6 +370,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Uninstall Symlink Safety (BUG-152)** - `bpl uninstall` now rejects
   symlinked package roots in `bpl_modules` instead of treating them as installed
   packages and unlinking the symlink.
+- **Package Lock Symlink Safety (BUG-153)** - `bpl install --locked` now rejects
+  symlinked or non-directory package roots in `bpl_modules` before manifest
+  loading or package hashing can follow them.
 - **Package Import Manifest Validation**: Package resolution now rejects invalid package import names before searching, rejects malformed package roots whose `bpl.json` `name` or `version` does not satisfy package manifest rules, and rejects versioned global package directories whose manifest `version` does not match the directory version.
 - **WebAssembly Linker Selection**: Treat explicit `WASM_LD` settings as authoritative instead of falling back to other linker names on `PATH`, making CI and local wasm linker failure tests deterministic.
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.
