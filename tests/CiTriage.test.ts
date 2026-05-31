@@ -237,6 +237,27 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps docs JSON validation failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"',
+      'bun test tests/CLI.test.ts -t "documentation"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_DOCS_INPUT_NOT_FILE")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_DOCS_OUTPUT_DIRECTORY")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_DOCS_INPUT_PARENT_SYMLINK")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("Documentation input is not a file in docs --json"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps doctor scope JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
@@ -1792,6 +1813,69 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',
         'bun test tests/CLI.test.ts -t "bindgen"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints docs validation repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-docs-codes-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 72,
+              name: "Docs JSON validation failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/72",
+              steps: [
+                {
+                  name: "BPL_DOCS_OUTPUT_DIRECTORY in docs --json",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"',
+        'bun test tests/CLI.test.ts -t "documentation"',
         "bun run check",
       ]);
     } finally {

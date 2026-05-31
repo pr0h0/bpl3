@@ -172,6 +172,19 @@ const BINDGEN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const DOCS_JSON_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "docs JSON validation",
+    "docs JSON contract",
+    "documentation generation success and validation failures",
+    "BPL_DOCS_",
+    "docs --json",
+    "Documentation input is not a file",
+    "Documentation input parent contains a symbolic link",
+    "Output path is a directory",
+  ].join("|"),
+  "i",
+);
 const DOCTOR_SCOPE_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_DOCTOR_SCOPE_UNKNOWN",
@@ -487,6 +500,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "bindgen"',
   ],
   [BINDGEN_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    DOCS_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"',
+  ],
+  [
+    DOCS_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "documentation"',
+  ],
+  [DOCS_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     DOCTOR_SCOPE_JSON_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
