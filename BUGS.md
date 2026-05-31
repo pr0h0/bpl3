@@ -166,6 +166,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-157 | Package Manager     | Plain project install ignores broken symlink `bpl.lock` paths when no dependencies need installing.                        | Fixed    | `installProject()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before restore or no-op install decisions. Regression: `tests/PackageManager.test.ts`.                                                                                                  |
 | BUG-158 | Package Manager     | Local uninstall removes package files before rejecting a broken symlink `bpl.lock`.                                        | Fixed    | `uninstall()` now preloads and validates an existing local lockfile before unlinking binaries or removing package directories. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
 | BUG-159 | Package Manager     | Dependency-tree generation ignores broken symlink `bpl.lock` paths and reports packages as unlocked.                       | Fixed    | `getDependencyTree()` now uses `lstat` to detect existing local lockfile paths before loading them, so symlinked and broken symlink lockfiles are rejected consistently. Regression: `tests/PackageManager.test.ts`.                                                                        |
+| BUG-160 | Package Manager     | Dependency-tree generation follows symlinked package roots in `bpl_modules`.                                               | Fixed    | Dependency-tree node construction now classifies package roots with `lstat` and reports symlinked or non-directory roots as problems without loading manifests through them. Regression: `tests/PackageManager.test.ts`.                                                                    |
 
 ## Details
 
@@ -2449,3 +2450,34 @@ a fallback tree.
 **Resolution**: `getDependencyTree()` now uses `lstat` before lockfile loading,
 matching `loadLockFile()`, locked verification, install preflight, and
 uninstall preflight behavior.
+
+---
+
+### BUG-160: Dependency Trees Follow Symlinked Package Roots
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Dependency-tree node construction used `fs.existsSync()` to
+classify `bpl_modules/<package>` roots. When a package root was a symlink to an
+outside directory, the node was treated as installed and `loadManifest()` read
+the outside target's manifest through the symlink component.
+
+**Reproduction**:
+
+```bash
+mkdir -p bpl_modules
+ln -s ../outside-package bpl_modules/example-package
+bpl list --tree
+```
+
+**Expected**: Dependency-tree generation reports the symlinked package root as
+a problem and does not follow the symlink target.
+
+**Actual**: Dependency-tree generation followed the symlink and reported the
+outside target as an installed package.
+
+**Resolution**: Dependency-tree node construction now classifies package roots
+with `lstat`, reports symlinked and non-directory roots as problems, and only
+loads manifests from real package directories.

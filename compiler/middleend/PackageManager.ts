@@ -3965,6 +3965,9 @@ export class PackageManager {
       ? this.globalPackageDir
       : this.localPackageDir;
     const packagePath = path.join(targetDir, packageName);
+    const packageRootStats = this.tryLstat(packagePath);
+    const packagePathExists = Boolean(packageRootStats);
+    const installed = Boolean(packageRootStats?.isDirectory());
     const lockEntry = lock?.packages[packageName];
 
     if (cycleStart !== -1) {
@@ -3973,22 +3976,25 @@ export class PackageManager {
         name: packageName,
         version: lockEntry?.version,
         source: requestedSource ?? lockEntry?.source,
-        path: fs.existsSync(packagePath) ? packagePath : undefined,
-        installed: fs.existsSync(packagePath),
+        path: packagePathExists ? packagePath : undefined,
+        installed,
         locked: Boolean(lockEntry),
         dependencies: [],
         problems: [`cycle detected: ${cycle}`],
       };
     }
 
-    const installed = fs.existsSync(packagePath);
     const problems: string[] = [];
     let manifest: PackageManifest | undefined;
 
-    if (!installed) {
+    if (!packageRootStats) {
       problems.push(
         `missing from ${options.global ? "global package directory" : "bpl_modules"}`,
       );
+    } else if (packageRootStats.isSymbolicLink()) {
+      problems.push(`package root is a symbolic link: ${packagePath}`);
+    } else if (!packageRootStats.isDirectory()) {
+      problems.push(`package root is not a directory: ${packagePath}`);
     } else {
       try {
         manifest = this.loadManifest(packagePath);
@@ -4015,7 +4021,7 @@ export class PackageManager {
       name: packageName,
       version: manifest?.version ?? lockEntry?.version,
       source: requestedSource ?? lockEntry?.source,
-      path: installed ? packagePath : undefined,
+      path: packagePathExists ? packagePath : undefined,
       installed,
       locked: Boolean(lockEntry),
       dependencies,

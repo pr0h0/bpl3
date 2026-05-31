@@ -3001,6 +3001,59 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report symlinked package roots in dependency trees without following them", () => {
+      const appDir = path.join(tempDir, "tree-linked-root-app");
+      const outsidePackageDir = path.join(tempDir, "outside-tree-linked-root");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsidePackageDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "tree-linked-root-app",
+            version: "1.0.0",
+            dependencies: {
+              "tree-linked-root": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "tree-linked-root",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+
+      const localPM = new PackageManager(appDir);
+      const linkedPackagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "tree-linked-root",
+      );
+      fs.symlinkSync(outsidePackageDir, linkedPackagePath, "dir");
+
+      const tree = localPM.getDependencyTree({ global: false });
+
+      expect(tree[0]).toMatchObject({
+        name: "tree-linked-root",
+        installed: false,
+        locked: false,
+        path: linkedPackagePath,
+      });
+      expect(tree[0]?.problems.join("\n")).toContain("symbolic link");
+      expect(tree[0]?.dependencies).toEqual([]);
+    });
+
     test("should reject cyclic package dependencies with the full chain", () => {
       const globalPackageDir = path.join(tempDir, "cycle-cache");
       const appDir = path.join(tempDir, "cycle-app");
