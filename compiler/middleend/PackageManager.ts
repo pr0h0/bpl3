@@ -2634,6 +2634,15 @@ export class PackageManager {
   }
 
   private resolveGlobalPackageSource(packageSource: string): string | null {
+    if (
+      !this.readPackageManagerDirectoryStats(
+        this.globalPackageDir,
+        "Global package directory",
+      )
+    ) {
+      return null;
+    }
+
     const exactTarballPath = path.join(this.globalPackageDir, packageSource);
     if (packageSource.endsWith(".tgz") && this.tryLstat(exactTarballPath)) {
       return exactTarballPath;
@@ -3139,6 +3148,15 @@ export class PackageManager {
     version: [number, number, number];
     versionText: string;
   }> {
+    if (
+      !this.readPackageManagerDirectoryStats(
+        this.globalPackageDir,
+        "Global package directory",
+      )
+    ) {
+      return [];
+    }
+
     const packagePattern = new RegExp(
       `^${escapeRegExp(packageName)}-(\\d+)\\.(\\d+)\\.(\\d+)\\.tgz$`,
     );

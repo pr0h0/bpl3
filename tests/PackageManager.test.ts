@@ -3323,6 +3323,90 @@ describe("PackageManager", () => {
       expect(localPM.verifyPackageCache("cache-link").entriesChecked).toBe(0);
     });
 
+    test("should reject symlinked global package cache roots during package-name install lookup", () => {
+      const appDir = path.join(tempDir, "cache-root-symlink-name-app");
+      const globalPackageDir = path.join(tempDir, "cache-root-symlink-name");
+      const outsideCacheRoot = path.join(
+        tempDir,
+        "outside-cache-root-name",
+      );
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(outsideCacheRoot);
+      createCachedPackage(
+        "cache-root-name",
+        "1.0.0",
+        "export value;",
+        outsideCacheRoot,
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      fs.rmSync(globalPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsideCacheRoot, globalPackageDir, "dir");
+
+      expect(() =>
+        localPM.install("cache-root-name", {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Global package directory path is a symbolic link/);
+      expect(
+        fs.existsSync(path.join(appDir, "bpl_modules", "cache-root-name")),
+      ).toBe(false);
+    });
+
+    test("should reject symlinked global package cache roots during exact archive install lookup", () => {
+      const appDir = path.join(tempDir, "cache-root-symlink-exact-app");
+      const globalPackageDir = path.join(tempDir, "cache-root-symlink-exact");
+      const outsideCacheRoot = path.join(
+        tempDir,
+        "outside-cache-root-exact",
+      );
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(outsideCacheRoot);
+      createCachedPackage(
+        "cache-root-exact",
+        "1.0.0",
+        "export value;",
+        outsideCacheRoot,
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      fs.rmSync(globalPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsideCacheRoot, globalPackageDir, "dir");
+
+      expect(() =>
+        localPM.install("cache-root-exact-1.0.0.tgz", {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Global package directory path is a symbolic link/);
+      expect(
+        fs.existsSync(path.join(appDir, "bpl_modules", "cache-root-exact")),
+      ).toBe(false);
+    });
+
+    test("should report missing global package cache directories as package misses during install lookup", () => {
+      const appDir = path.join(tempDir, "cache-root-missing-app");
+      const globalPackageDir = path.join(tempDir, "cache-root-missing");
+      fs.mkdirSync(appDir);
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() =>
+        localPM.install("missing-cache-package", {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Package not found: missing-cache-package/);
+    });
+
     test("should clean malformed package cache provenance directories", () => {
       const globalPackageDir = path.join(tempDir, "cache-clean-provenance-dir");
       fs.mkdirSync(globalPackageDir);

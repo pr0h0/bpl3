@@ -196,6 +196,10 @@ bpl install --update
 Use this when a cache-backed selector such as `^1.2.0` should pick up a newer
 matching cached archive. Without `--update`, `bpl install` restores the exact
 archives already recorded in `bpl.lock`.
+Package-name, version selector, and exact cached archive lookup validate the
+global package cache directory itself before probing tarballs. If the cache root
+is a symlink, lookup is rejected; if it is missing, install reports the package
+as unavailable instead of surfacing a raw filesystem error.
 
 To repair the lockfile from packages already installed in `bpl_modules/`, run:
 
