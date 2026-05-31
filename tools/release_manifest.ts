@@ -55,6 +55,24 @@ interface PackageJson {
   scripts?: Record<string, string>;
 }
 
+export interface PackageHelperDependency {
+  path: string;
+  importedBy: readonly string[];
+  reason: string;
+}
+
+export const PACKAGE_HELPER_DEPENDENCIES = [
+  {
+    importedBy: [
+      "tools/fuzz_artifact_repro.ts",
+      "tools/release_manifest.ts",
+    ],
+    path: "compiler/common/PathSafety.ts",
+    reason:
+      "Packed helper scripts share symlink-safe path validation without shipping broad compiler sources.",
+  },
+] as const satisfies readonly PackageHelperDependency[];
+
 export function sha256File(filePath: string): string {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
@@ -87,7 +105,15 @@ export function createReleaseManifest(
       "runtime",
     ),
   ];
-  for (const helperFile of discoverPackageScriptHelperFiles(repoRoot)) {
+  const packageHelperFiles = discoverPackageScriptHelperFiles(repoRoot);
+  const packageHelperDependencyFiles = discoverPackageHelperDependencyFiles(
+    repoRoot,
+    packageHelperFiles,
+  );
+  const helperArtifactFiles = [
+    ...new Set([...packageHelperFiles, ...packageHelperDependencyFiles]),
+  ].sort();
+  for (const helperFile of helperArtifactFiles) {
     artifacts.push(artifactFor(repoRoot, join(repoRoot, helperFile), "helper"));
   }
 
@@ -138,6 +164,42 @@ export function discoverPackageScriptHelperFiles(repoRoot: string): string[] {
   }
 
   return [...helperFiles].sort();
+}
+
+export function discoverPackageHelperDependencyFiles(
+  repoRoot: string,
+  packageHelperFiles: readonly string[] = discoverPackageScriptHelperFiles(
+    repoRoot,
+  ),
+): string[] {
+  const packageHelperFileSet = new Set(packageHelperFiles);
+  const dependencyFiles = new Set<string>();
+
+  for (const dependency of PACKAGE_HELPER_DEPENDENCIES) {
+    const dependencyStats = tryLstat(join(repoRoot, dependency.path));
+    if (!dependencyStats?.isFile()) {
+      throw new Error(
+        `Package helper dependency file is missing or not a file: ${dependency.path}`,
+      );
+    }
+
+    for (const importer of dependency.importedBy) {
+      if (!packageHelperFileSet.has(importer)) {
+        throw new Error(
+          [
+            "Package helper dependency importer is not shipped as a package helper.",
+            `dependency: ${dependency.path}`,
+            `importer: ${importer}`,
+          ].join("\n"),
+        );
+      }
+      assertPackageHelperImportsDependency(repoRoot, importer, dependency.path);
+    }
+
+    dependencyFiles.add(dependency.path);
+  }
+
+  return [...dependencyFiles].sort();
 }
 
 export function writeReleaseManifest(
@@ -201,6 +263,50 @@ function unquoteShellToken(token: string): string {
   }
 
   return token;
+}
+
+function assertPackageHelperImportsDependency(
+  repoRoot: string,
+  importer: string,
+  dependencyPath: string,
+): void {
+  const importerPath = join(repoRoot, importer);
+  const importerStats = tryLstat(importerPath);
+  if (!importerStats?.isFile()) {
+    throw new Error(
+      `Package helper dependency importer is missing or not a file: ${importer}`,
+    );
+  }
+
+  const source = readFileSync(importerPath, "utf-8");
+  const importSpecifier = packageImportSpecifier(importer, dependencyPath);
+  const importSpecifiers = [importSpecifier, `${importSpecifier}.ts`];
+  const importsDependency = importSpecifiers.some(
+    (specifier) =>
+      source.includes(`"${specifier}"`) || source.includes(`'${specifier}'`),
+  );
+  if (!importsDependency) {
+    throw new Error(
+      [
+        "Package helper dependency importer does not import the declared dependency.",
+        `dependency: ${dependencyPath}`,
+        `importer: ${importer}`,
+        `expected import: ${importSpecifier}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function packageImportSpecifier(importer: string, dependencyPath: string): string {
+  const specifier = relative(dirname(importer), dependencyPath)
+    .split(/[\\/]+/)
+    .join("/");
+  const relativeSpecifier = specifier.startsWith(".")
+    ? specifier
+    : `./${specifier}`;
+  return relativeSpecifier.endsWith(".ts")
+    ? relativeSpecifier.slice(0, -".ts".length)
+    : relativeSpecifier;
 }
 
 function assertWritableManifestPath(outPath: string): void {

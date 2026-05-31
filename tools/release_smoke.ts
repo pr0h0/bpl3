@@ -15,11 +15,15 @@ import {
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 import {
+  discoverPackageHelperDependencyFiles,
   discoverPackageScriptHelperFiles,
   writeReleaseManifest,
 } from "./release_manifest";
 
-export { discoverPackageScriptHelperFiles } from "./release_manifest";
+export {
+  discoverPackageHelperDependencyFiles,
+  discoverPackageScriptHelperFiles,
+} from "./release_manifest";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const bplBinary = join(
@@ -28,7 +32,6 @@ const bplBinary = join(
 );
 const smokeTimeoutMs = 60 * 1000;
 const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
-const PACKED_HELPER_DEPENDENCY_FILES = ["compiler/common/PathSafety.ts"];
 
 interface DoctorReport {
   schemaVersion: 1;
@@ -262,6 +265,10 @@ function runPackedPackageSmoke(): void {
     ]);
     const packEntry = parseNpmPackEntry(pack.stdout);
     const packageHelperFiles = discoverPackageScriptHelperFiles(repoRoot);
+    const packageHelperDependencyFiles = discoverPackageHelperDependencyFiles(
+      repoRoot,
+      packageHelperFiles,
+    );
     assertPackedMetadata(packEntry);
     assertPackedFiles(packEntry, [
       "bpl",
@@ -279,15 +286,16 @@ function runPackedPackageSmoke(): void {
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
       ...packageHelperFiles,
-      ...PACKED_HELPER_DEPENDENCY_FILES,
+      ...packageHelperDependencyFiles,
     ]);
     assertSourceOnlyFiles(packEntry, [
       "playground/examples/70-browser-wasm-showcase.json",
     ]);
-    assertPackedFileAllowlist(packEntry, [
-      ...packageHelperFiles,
-      ...PACKED_HELPER_DEPENDENCY_FILES,
-    ]);
+    assertPackedFileAllowlist(
+      packEntry,
+      packageHelperFiles,
+      packageHelperDependencyFiles,
+    );
 
     const tarballPath = join(tempDir, packEntry.filename);
     if (!existsSync(tarballPath)) {
@@ -303,7 +311,10 @@ function runPackedPackageSmoke(): void {
         },
       },
     );
-    assertReleaseManifest(releaseManifest);
+    assertReleaseManifest(releaseManifest, [
+      ...packageHelperFiles,
+      ...packageHelperDependencyFiles,
+    ]);
 
     mkdirSync(installDir, { recursive: true });
     writeFileSync(
@@ -360,16 +371,19 @@ function runPackedPackageSmoke(): void {
   }
 }
 
-function assertReleaseManifest(manifest: {
-  schemaVersion: number;
-  artifacts: Array<{
-    path: string;
-    bytes: number;
-    sha256: string;
-    npmIntegrity?: string;
-    npmShasum?: string;
-  }>;
-}): void {
+function assertReleaseManifest(
+  manifest: {
+    schemaVersion: number;
+    artifacts: Array<{
+      path: string;
+      bytes: number;
+      sha256: string;
+      npmIntegrity?: string;
+      npmShasum?: string;
+    }>;
+  },
+  expectedHelperFiles: string[],
+): void {
   console.log("release smoke: validate release checksum manifest");
 
   if (manifest.schemaVersion !== 1) {
@@ -385,6 +399,7 @@ function assertReleaseManifest(manifest: {
     "lib/runtime_wasm.ll",
     "lib/runtime_wasm_host.ll",
     "lib/runtime_support.o",
+    ...expectedHelperFiles,
   ]) {
     const artifact = artifactsByPath.get(artifactPath);
     if (!artifact?.sha256 || artifact.sha256.length !== 64) {
@@ -1365,6 +1380,7 @@ function assertSourceOnlyFiles(
 function assertPackedFileAllowlist(
   packEntry: NpmPackEntry,
   packageHelperFiles: string[],
+  packageHelperDependencyFiles: string[],
 ): void {
   console.log("release smoke: validate packed npm file allowlist");
 
@@ -1375,6 +1391,7 @@ function assertPackedFileAllowlist(
     "README.md",
     "LICENSE",
     ...packageHelperFiles,
+    ...packageHelperDependencyFiles,
   ];
   const allowedPrefixes = [
     "completions/",

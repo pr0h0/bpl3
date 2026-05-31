@@ -13,7 +13,9 @@ import {
 import { tmpdir } from "os";
 import { join } from "path";
 import {
+  PACKAGE_HELPER_DEPENDENCIES,
   createReleaseManifest,
+  discoverPackageHelperDependencyFiles,
   writeReleaseManifest,
 } from "../tools/release_manifest";
 import {
@@ -90,6 +92,31 @@ describe("Release metadata", () => {
       expect(packageJson.scripts[scriptName]).toContain(helperPath);
       expect(existsSync(join(repoRoot, helperPath))).toBe(true);
     }
+  });
+
+  test("package helper dependency inventory is explicit and narrow", () => {
+    const repoRoot = join(import.meta.dir, "..");
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    );
+
+    expect(PACKAGE_HELPER_DEPENDENCIES).toEqual([
+      {
+        importedBy: [
+          "tools/fuzz_artifact_repro.ts",
+          "tools/release_manifest.ts",
+        ],
+        path: "compiler/common/PathSafety.ts",
+        reason:
+          "Packed helper scripts share symlink-safe path validation without shipping broad compiler sources.",
+      },
+    ]);
+    expect(discoverPackageHelperDependencyFiles(repoRoot)).toEqual([
+      "compiler/common/PathSafety.ts",
+    ]);
+    expect(packageJson.files).toContain("compiler/common/PathSafety.ts");
+    expect(packageJson.files).not.toContain("compiler");
+    expect(packageJson.files).not.toContain("compiler/common");
   });
 
   test("release smoke discovers package script helper files dynamically", async () => {
@@ -222,13 +249,29 @@ describe("Release metadata", () => {
       expect(byPath.get("tools/fuzz_artifact_repro.ts")).toMatchObject({
         kind: "helper",
         sha256: createHash("sha256")
-          .update("fuzz artifact repro helper\n")
+          .update(
+            'import "../compiler/common/PathSafety";\nfuzz artifact repro helper\n',
+          )
+          .digest("hex"),
+      });
+      expect(byPath.get("tools/release_manifest.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update(
+            'import "../compiler/common/PathSafety";\nrelease manifest helper\n',
+          )
           .digest("hex"),
       });
       expect(byPath.get("tools/fuzz_script_wrapper.ts")).toMatchObject({
         kind: "helper",
         sha256: createHash("sha256")
           .update("fuzz script wrapper\n")
+          .digest("hex"),
+      });
+      expect(byPath.get("compiler/common/PathSafety.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update("path safety helper\n")
           .digest("hex"),
       });
       expect(byPath.get("bpl-v3-9.9.9.tgz")).toMatchObject({
@@ -482,6 +525,7 @@ function writeReleaseFixture(tempRoot: string): void {
         bin: { bpl: "./bpl" },
         scripts: {
           "ci:triage": "bun tools/ci_triage.ts",
+          "release:manifest": "bun tools/release_manifest.ts --out dist/release-manifest.json --pack-npm",
           fuzz: "bun tools/fuzz_script_wrapper.ts run",
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
@@ -493,6 +537,7 @@ function writeReleaseFixture(tempRoot: string): void {
     ),
   );
   mkdirSync(join(tempRoot, "tools"), { recursive: true });
+  mkdirSync(join(tempRoot, "compiler", "common"), { recursive: true });
   writeFileSync(join(tempRoot, "bpl"), "standalone compiler\n");
   writeFileSync(join(tempRoot, "tools", "ci_triage.ts"), "ci triage helper\n");
   writeFileSync(
@@ -501,7 +546,15 @@ function writeReleaseFixture(tempRoot: string): void {
   );
   writeFileSync(
     join(tempRoot, "tools", "fuzz_artifact_repro.ts"),
-    "fuzz artifact repro helper\n",
+    'import "../compiler/common/PathSafety";\nfuzz artifact repro helper\n',
+  );
+  writeFileSync(
+    join(tempRoot, "tools", "release_manifest.ts"),
+    'import "../compiler/common/PathSafety";\nrelease manifest helper\n',
+  );
+  writeFileSync(
+    join(tempRoot, "compiler", "common", "PathSafety.ts"),
+    "path safety helper\n",
   );
   writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
   writeFileSync(join(tempRoot, "lib", "runtime_wasm.ll"), "wasm runtime ir\n");
