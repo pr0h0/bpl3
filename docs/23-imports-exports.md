@@ -140,6 +140,11 @@ import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 ```
 
+Explicit `std/` paths must be normalized subpaths inside the standard library.
+They cannot contain empty, `.`, or `..` path segments, so imports such as
+`std//array.bpl`, `std/./array.bpl`, and `std/../array.bpl` are rejected before
+the compiler resolves them against the standard library root.
+
 ## Common Standard Library Imports
 
 ### Strings

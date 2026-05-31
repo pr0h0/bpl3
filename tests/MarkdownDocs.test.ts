@@ -225,4 +225,21 @@ describe("Markdown documentation", () => {
       expect(text).toContain(snippet.replace(/\s+/g, " "));
     }
   });
+
+  test("imports docs document std path safety rules", () => {
+    const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Explicit `std/` paths must be normalized subpaths inside the standard library",
+      "cannot contain empty, `.`, or `..` path segments",
+      "`std//array.bpl`, `std/./array.bpl`, and `std/../array.bpl` are rejected",
+      "standard library root",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });

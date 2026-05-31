@@ -137,6 +137,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CLI Standard Library Import Diagnostics** - Added CLI regressions proving
   unsafe `std/` imports fail during `check` and before build artifacts are
   written.
+- **Standard Library Import Safety Docs** - Documented that explicit `std/`
+  import paths must be normalized subpaths without empty, `.`, or `..`
+  segments.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
