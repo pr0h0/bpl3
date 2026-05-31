@@ -276,6 +276,46 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package-cache JSON stdout parseable for unsafe cache roots", () => {
+    const homeDir = path.join(tempDir, "unsafe-cache-home");
+    const bplHomeDir = path.join(homeDir, ".bpl");
+    const cacheRoot = path.join(bplHomeDir, "packages");
+    fs.mkdirSync(bplHomeDir, { recursive: true });
+    fs.writeFileSync(cacheRoot, "not a directory");
+
+    const cacheList = runCli(["package-cache", "list", "--json"], {
+      cwd: tempDir,
+      env: { HOME: homeDir },
+    });
+    expect(cacheList.status).toBe(1);
+    expect(parseJsonObjectStdout(cacheList)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-list",
+      success: false,
+      entries: [],
+      error: expect.stringContaining(
+        "Global package directory path is not a directory",
+      ),
+    });
+
+    const cacheVerify = runCli(["package-cache", "verify", "--json"], {
+      cwd: tempDir,
+      env: { HOME: homeDir },
+    });
+    expect(cacheVerify.status).toBe(1);
+    expect(parseJsonObjectStdout(cacheVerify)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-verify",
+      success: false,
+      ok: false,
+      entriesChecked: 0,
+      issues: [],
+      error: expect.stringContaining(
+        "Global package directory path is not a directory",
+      ),
+    });
+  });
+
   test("keeps package-cache maintenance JSON stdout parseable", () => {
     const homeDir = path.join(tempDir, "cache-maintenance-home");
     fs.mkdirSync(homeDir);

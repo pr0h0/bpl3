@@ -440,7 +440,10 @@ under `entries`. Package-name and semver cache resolution use the same
 cannot shadow real cached versions. Package-cache listing, verification,
 repair, and clean also validate the global cache root and its parent path
 components before touching archives or provenance sidecars, so a symlinked cache
-parent is rejected instead of followed.
+parent is rejected instead of followed. In JSON mode, unsafe cache-root
+failures from `package-cache list` return `success: false`, `entries: []`, and
+`error`; `package-cache verify` returns `success: false`, `ok: false`,
+`entriesChecked: 0`, `issues: []`, and `error`.
 
 `package-cache verify` checks every matching cached archive. It verifies the
 sidecar schema, the archive hash, the archive file name, the manifest identity,

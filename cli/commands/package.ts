@@ -279,11 +279,11 @@ export function registerPackageCommands(program: Command): void {
         options: { json?: boolean },
         command: Command,
       ) => {
+        const globalOpts = command.parent?.parent?.opts() || {};
+        const outputJson = options.json || globalOpts.json;
         try {
           const pm = new PackageManager();
           const entries = pm.listPackageCache(packageName);
-          const globalOpts = command.parent?.parent?.opts() || {};
-          const outputJson = options.json || globalOpts.json;
 
           if (outputJson) {
             console.log(
@@ -308,6 +308,19 @@ export function registerPackageCommands(program: Command): void {
             log.info(`  ${formatPackageCacheEntry(entry)}`);
           }
         } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageCacheList, false, {
+                  entries: [],
+                  error: formatPackageCommandError(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
           log.error(formatPackageCommandError(e));
           process.exit(1);
         }
@@ -324,11 +337,11 @@ export function registerPackageCommands(program: Command): void {
         options: { json?: boolean },
         command: Command,
       ) => {
+        const globalOpts = command.parent?.parent?.opts() || {};
+        const outputJson = options.json || globalOpts.json;
         try {
           const pm = new PackageManager();
           const report = pm.verifyPackageCache(packageName);
-          const globalOpts = command.parent?.parent?.opts() || {};
-          const outputJson = options.json || globalOpts.json;
 
           if (outputJson) {
             console.log(JSON.stringify(report, null, 2));
@@ -340,6 +353,21 @@ export function registerPackageCommands(program: Command): void {
             process.exit(1);
           }
         } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageCacheVerify, false, {
+                  ok: false,
+                  entriesChecked: 0,
+                  issues: [],
+                  error: formatPackageCommandError(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
           log.error(formatPackageCommandError(e));
           process.exit(1);
         }
