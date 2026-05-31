@@ -338,6 +338,11 @@ export class PackageManager {
         },
       );
     }
+
+    const symlinkedParent = this.findSymlinkedParentPath(dirPath);
+    if (symlinkedParent) {
+      this.throwPackageManagerDirectoryParentSymlink(label, symlinkedParent);
+    }
   }
 
   private assertPackageManagerDirectoryParent(
@@ -352,20 +357,7 @@ export class PackageManager {
       const existingPath = this.tryLstat(parentPath);
       if (existingPath) {
         if (existingPath.isSymbolicLink()) {
-          const targetStats = this.tryStat(parentPath);
-          if (targetStats?.isDirectory()) return;
-
-          throw new CompilerError(
-            `${label} parent path is a symbolic link: ${parentPath}`,
-            "Move the symlink out of the way or choose a real package root directory.",
-            {
-              file: parentPath,
-              startLine: 1,
-              startColumn: 1,
-              endLine: 1,
-              endColumn: 1,
-            },
-          );
+          this.throwPackageManagerDirectoryParentSymlink(label, parentPath);
         }
 
         if (!existingPath.isDirectory()) {
@@ -387,6 +379,23 @@ export class PackageManager {
       const nextParent = path.dirname(parentPath);
       if (nextParent === parentPath) return;
     }
+  }
+
+  private throwPackageManagerDirectoryParentSymlink(
+    label: string,
+    parentPath: string,
+  ): never {
+    throw new CompilerError(
+      `${label} parent path is a symbolic link: ${parentPath}`,
+      "Move the symlink out of the way or choose a real package root directory.",
+      {
+        file: parentPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private linkBinaries(
@@ -1756,20 +1765,6 @@ export class PackageManager {
   private tryLstat(filePath: string): fs.Stats | undefined {
     try {
       return fs.lstatSync(filePath);
-    } catch (error) {
-      if (
-        this.isNodeErrorCode(error, "ENOENT") ||
-        this.isNodeErrorCode(error, "ENOTDIR")
-      ) {
-        return undefined;
-      }
-      throw error;
-    }
-  }
-
-  private tryStat(filePath: string): fs.Stats | undefined {
-    try {
-      return fs.statSync(filePath);
     } catch (error) {
       if (
         this.isNodeErrorCode(error, "ENOENT") ||

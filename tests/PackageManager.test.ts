@@ -62,6 +62,22 @@ describe("PackageManager", () => {
     return cachePath;
   }
 
+  function createSymlinkedCacheRoot(label: string): {
+    globalPackageDir: string;
+    outsideCacheRoot: string;
+  } {
+    const outsideParent = path.join(tempDir, `${label}-outside-parent`);
+    const outsideCacheRoot = path.join(outsideParent, "packages");
+    const symlinkParent = path.join(tempDir, `${label}-link`);
+    fs.mkdirSync(outsideCacheRoot, { recursive: true });
+    fs.symlinkSync(outsideParent, symlinkParent, "dir");
+
+    return {
+      globalPackageDir: path.join(symlinkParent, "packages"),
+      outsideCacheRoot,
+    };
+  }
+
   function createTarProxy(label: string): { fakeTar: string; logPath: string } {
     const toolDir = path.join(tempDir, `${label}-bin`);
     const logPath = path.join(tempDir, `${label}.log`);
@@ -3783,6 +3799,100 @@ describe("PackageManager", () => {
           verbose: false,
         }),
       ).toThrow(/Package not found: missing-cache-package/);
+    });
+
+    test("should reject package cache verification through symlinked parent directories", () => {
+      const { globalPackageDir, outsideCacheRoot } =
+        createSymlinkedCacheRoot("cache-parent-verify");
+      createCachedPackage(
+        "cache-parent-verify",
+        "1.0.0",
+        "export value;",
+        outsideCacheRoot,
+      );
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() => localPM.verifyPackageCache("cache-parent-verify")).toThrow(
+        /Global package directory parent path is a symbolic link/,
+      );
+    });
+
+    test("should reject package cache repair through symlinked parent directories", () => {
+      const { globalPackageDir, outsideCacheRoot } =
+        createSymlinkedCacheRoot("cache-parent-repair");
+      const cachePath = createCachedPackage(
+        "cache-parent-repair",
+        "1.0.0",
+        "export value;",
+        outsideCacheRoot,
+      );
+      fs.unlinkSync(`${cachePath}.bplmeta.json`);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() => localPM.repairPackageCache("cache-parent-repair")).toThrow(
+        /Global package directory parent path is a symbolic link/,
+      );
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+    });
+
+    test("should reject package cache clean through symlinked parent directories without deleting outside files", () => {
+      const { globalPackageDir, outsideCacheRoot } =
+        createSymlinkedCacheRoot("cache-parent-clean");
+      const cachePath = createCachedPackage(
+        "cache-parent-clean",
+        "1.0.0",
+        "export value;",
+        outsideCacheRoot,
+      );
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() =>
+        localPM.cleanPackageCache({ packageName: "cache-parent-clean" }),
+      ).toThrow(/Global package directory parent path is a symbolic link/);
+      expect(fs.existsSync(cachePath)).toBe(true);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(true);
+    });
+
+    test("should reject global installs when the cache root has a symlinked parent directory", () => {
+      const { globalPackageDir, outsideCacheRoot } =
+        createSymlinkedCacheRoot("cache-parent-global-install");
+      const packageDir = path.join(tempDir, "cache-parent-global-source");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-parent-global",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() =>
+        localPM.install(tarballPath, { global: true, verbose: false }),
+      ).toThrow(/Global package directory parent path is a symbolic link/);
+      expect(
+        fs.existsSync(path.join(outsideCacheRoot, "cache-parent-global")),
+      ).toBe(false);
+      expect(
+        fs.existsSync(
+          path.join(outsideCacheRoot, "cache-parent-global-1.0.0.tgz"),
+        ),
+      ).toBe(false);
     });
 
     test("should clean malformed package cache provenance directories", () => {

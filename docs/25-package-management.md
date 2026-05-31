@@ -208,13 +208,16 @@ Use this when a cache-backed selector such as `^1.2.0` should pick up a newer
 matching cached archive. Without `--update`, `bpl install` restores the exact
 archives already recorded in `bpl.lock`.
 Package-name, version selector, and exact cached archive lookup validate the
-global package cache directory itself before probing tarballs. If the cache root
-is a symlink, lookup is rejected; if it is missing, install reports the package
-as unavailable instead of surfacing a raw filesystem error.
+global package cache directory itself and its parent path components before
+probing tarballs. If the cache root or one of its parents is a symlink, lookup
+is rejected; if the cache root is missing, install reports the package as
+unavailable instead of surfacing a raw filesystem error.
 Direct archive installs perform the same `lstat`-based package-root validation
-before writes to local `bpl_modules/` or the global package directory, so
-post-construction symlink swaps cannot redirect package installation or global
-cache writes outside the selected package root.
+before writes to local `bpl_modules/` or the global package directory.
+Existing package-manager roots and newly created package-manager roots also
+reject symlinked parent directories, so post-construction symlink swaps or
+symlinked cache parents cannot redirect package installation or global cache
+writes outside the selected package root.
 
 To repair the lockfile from packages already installed in `bpl_modules/`, run:
 
@@ -239,8 +242,9 @@ Use the JSON forms for CI and tooling. `bpl list --json` uses a stable
 top-level contract with `schemaVersion: 1`, `check: "package-list"`,
 `success`, and installed package names, versions, paths, and content hashes.
 Package listing revalidates the local or global package directory with
-`lstat` before scanning, so a symlinked `bpl_modules` or global package cache
-directory is rejected instead of followed.
+`lstat` before scanning, including parent path components, so a symlinked
+`bpl_modules`, global package cache directory, or parent directory is rejected
+instead of followed.
 `bpl list --tree --json` uses `check: "package-list-tree"` with the same
 `schemaVersion` and `success` fields, plus the dependency tree data used by the
 human tree output. Tree generation validates an existing local `bpl.lock`
@@ -253,9 +257,10 @@ problems instead of being followed.
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured
 issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
-When the local package directory or global package cache directory is unsafe to
-read, doctor reports an `unsafe-package-directory` issue and leaves the affected
-package lists empty instead of following the directory.
+When the local package directory, global package cache directory, or one of its
+parent directories is unsafe to read, doctor reports an
+`unsafe-package-directory` issue and leaves the affected package lists empty
+instead of following the directory.
 
 Example output:
 
@@ -413,7 +418,10 @@ bpl package-cache clean math-core --package-version 1.0.0 --json
 `check: "package-cache-list"`, `success`, and the existing cache entry payload
 under `entries`. Package-name and semver cache resolution use the same
 `lstat`-based archive filtering as list and verify, so symlinked cache archives
-cannot shadow real cached versions.
+cannot shadow real cached versions. Package-cache listing, verification,
+repair, and clean also validate the global cache root and its parent path
+components before touching archives or provenance sidecars, so a symlinked cache
+parent is rejected instead of followed.
 
 `package-cache verify` checks every matching cached archive. It verifies the
 sidecar schema, the archive hash, the archive file name, the manifest identity,
@@ -444,7 +452,9 @@ cached archive has a provenance sidecar, `package-cache clean` removes both
 files together, including malformed sidecar directories and symlink sidecars
 whose targets may already be missing. Use `--json` to return `schemaVersion: 1`,
 `check: "package-cache-clean"`, `success`, the removed archive list, and dry-run
-state in machine-readable form.
+state in machine-readable form. Clean refuses to run through symlinked cache
+parents, so it cannot delete archives or sidecars from an unintended target
+directory.
 
 Installing by an exact cached archive name such as `my-package-1.0.0.tgz` uses
 the same archive path validation as a direct file path. Symlinked or broken
