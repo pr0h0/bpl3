@@ -34,6 +34,13 @@ interface DoctorReport {
   checks: Array<{ name: string; ok: boolean; detail: string }>;
 }
 
+interface DoctorFailureReport {
+  schemaVersion: 1;
+  check: "doctor";
+  success: boolean;
+  error: string;
+}
+
 interface PackageDoctorReport {
   schemaVersion: 1;
   check: "packages";
@@ -302,6 +309,7 @@ function runPackedPackageSmoke(): void {
       throw new Error(`Packed npm CLI doctor reported failures:\n${failures}`);
     }
 
+    runPackedDoctorFailureJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
@@ -388,6 +396,57 @@ function runCompletionSmoke(installedBpl: string, installDir: string): void {
     "--template",
     "wasm32-unknown-unknown",
   ]);
+}
+
+function runPackedDoctorFailureJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  console.log("release smoke: check packed npm CLI doctor failure JSON");
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    BPL_HOME: undefined,
+    NO_COLOR: "1",
+  };
+  const result = spawnSync(
+    installedBpl,
+    ["doctor", "unknown-scope", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 1) {
+    throw new Error(
+      [
+        "Packed npm CLI doctor failure smoke did not fail as expected.",
+        `exit: ${result.status ?? "unknown"}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (result.stderr !== "") {
+    throw new Error(
+      `Packed npm CLI doctor JSON failure wrote stderr:\n${result.stderr}`,
+    );
+  }
+
+  const report = parseDoctorFailureReport(result.stdout);
+  if (
+    report.success ||
+    !report.error.includes("Unknown doctor scope 'unknown-scope'")
+  ) {
+    throw new Error(
+      `Packed npm CLI doctor failure JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+    );
+  }
 }
 
 function runLibraryTemplateSmoke(
@@ -1154,6 +1213,25 @@ function parseDoctorReport(stdout: string): DoctorReport {
     throw new Error(
       [
         "Standalone doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseDoctorFailureReport(stdout: string): DoctorFailureReport {
+  try {
+    const report = JSON.parse(stdout) as DoctorFailureReport;
+    assertJsonReportContract(report, "doctor", "doctor failure");
+    if (typeof report.error !== "string") {
+      throw new Error("doctor failure error is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Doctor failure did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

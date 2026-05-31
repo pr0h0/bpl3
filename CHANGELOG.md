@@ -65,6 +65,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release Smoke Doctor JSON Coverage** - Release smoke now validates packed
   `bpl doctor --json` and `bpl doctor packages --json` schema contracts,
   including isolated package-cache verification for the package doctor path.
+- **Release Smoke Doctor Failure Coverage** - Release smoke now validates packed
+  `bpl doctor <unknown> --json` failure metadata, including stdout-only
+  `schemaVersion`, `check: "doctor"`, `success: false`, and `error` output.
 - **Release Smoke Package Cache JSON Coverage** - Release smoke now validates
   packed `bpl package-cache list --json` output with an isolated cache home.
 - **Release Smoke Package Cache Verify Coverage** - Release smoke now validates
