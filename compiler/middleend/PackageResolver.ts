@@ -290,7 +290,6 @@ function getPackageRootCandidates(
   const versioned = fs
     .readdirSync(baseDir, { withFileTypes: true })
     .map((entry) => {
-      if (!entry.isDirectory()) return null;
       const version = parseVersionedPackageDirectory(packageName, entry.name);
       if (!version) return null;
       return {

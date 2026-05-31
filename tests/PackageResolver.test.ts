@@ -44,6 +44,66 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("does not ignore symlinked global versioned package roots", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const outsidePackageDir = path.join(tempDir, "outside-math");
+    const lowerPackageDir = path.join(globalPackageDir, "math-1.0.0");
+    const linkedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(globalPackageDir);
+    fs.mkdirSync(outsidePackageDir);
+    fs.mkdirSync(lowerPackageDir);
+
+    for (const [packageDir, version] of [
+      [outsidePackageDir, "9.0.0"],
+      [lowerPackageDir, "1.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }, null, 2),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+    fs.symlinkSync(outsidePackageDir, linkedPackageDir, "dir");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain("symbolic link");
+    expect(details.trace.failureMessage).toContain(linkedPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(lowerPackageDir);
+  });
+
+  test("does not ignore non-directory global versioned package roots", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const lowerPackageDir = path.join(globalPackageDir, "math-1.0.0");
+    const filePackageRoot = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(globalPackageDir);
+    fs.mkdirSync(lowerPackageDir);
+    fs.writeFileSync(filePackageRoot, "not a package directory");
+    fs.writeFileSync(
+      path.join(lowerPackageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(lowerPackageDir, "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain("not a directory");
+    expect(details.trace.failureMessage).toContain(filePackageRoot);
+    expect(details.trace.searchedPaths).not.toContain(lowerPackageDir);
+  });
+
   test("does not throw when the global package directory path is a file", () => {
     const appDir = path.join(tempDir, "app");
     const globalPackageDir = path.join(tempDir, "global-packages");
