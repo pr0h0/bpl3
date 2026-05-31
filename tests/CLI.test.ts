@@ -1157,6 +1157,111 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report documentation generation success and validation failures as JSON", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-docs-json-"));
+    const mainFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "docs.md");
+    fs.writeFileSync(
+      mainFile,
+      [
+        "frame main() ret int {",
+        "  return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const success = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", "--json", mainFile, "-o", outputFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const successReport = expectJsonStdoutReport<{
+        check: "docs";
+        success: boolean;
+        file: string;
+        outputPath: string;
+        generatedBytes: number;
+      }>(success, {
+        status: 0,
+        check: "docs",
+        success: true,
+      });
+      expect(successReport).toMatchObject({
+        file: mainFile,
+        outputPath: outputFile,
+      });
+      expect(successReport.generatedBytes).toBeGreaterThan(0);
+      expect(fs.readFileSync(outputFile, "utf8")).toContain(
+        "# Module: main.bpl",
+      );
+
+      const directoryInput = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", "--json", tempDir, "-o", outputFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const directoryReport = expectJsonStdoutReport<{
+        check: "docs";
+        success: boolean;
+        file: string;
+        outputPath: string;
+        error: string;
+        errorCode: string;
+      }>(directoryInput, {
+        status: 1,
+        check: "docs",
+        success: false,
+      });
+      expect(directoryReport).toMatchObject({
+        file: tempDir,
+        outputPath: outputFile,
+        errorCode: "BPL_DOCS_INPUT_NOT_FILE",
+      });
+      expect(directoryReport.error).toContain(
+        "Documentation input is not a file",
+      );
+
+      const outputDirectory = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", "--json", mainFile, "-o", tempDir],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const outputReport = expectJsonStdoutReport<{
+        check: "docs";
+        success: boolean;
+        file: string;
+        outputPath: string;
+        error: string;
+        errorCode: string;
+      }>(outputDirectory, {
+        status: 1,
+        check: "docs",
+        success: false,
+      });
+      expect(outputReport).toMatchObject({
+        file: mainFile,
+        outputPath: tempDir,
+        errorCode: "BPL_DOCS_OUTPUT_DIRECTORY",
+      });
+      expect(outputReport.error).toContain("Output path is a directory");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should format files", () => {
     // Create a temporary unformatted file
     const tempFile = path.join(process.cwd(), "tests/temp_format.bpl");
