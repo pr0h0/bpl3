@@ -73,10 +73,13 @@ my-package/
 intentional so editor tooling, package consumers, and cache invalidation all see
 a stable API surface. `bpl pack` does not follow symlinked source files and
 rejects symlinked `bin` entries, including broken symlinks, so package archives
-contain only regular files from inside the package root. When installing package
-binaries, BPL only creates or replaces symlink entries in `bpl_modules/.bin` or
-the global BPL bin directory; an existing regular file or directory with the
-same command name is rejected and left untouched.
+contain only regular files from inside the package root. Package archive install
+paths reject both final symlinks and symlinked parent directories before
+extraction, so a path such as `deps-link/math-core-1.0.0.tgz` cannot redirect an
+install through a linked directory. When installing package binaries, BPL only
+creates or replaces symlink entries in `bpl_modules/.bin` or the global BPL bin
+directory; an existing regular file or directory with the same command name is
+rejected and left untouched.
 
 To create a package manually:
 
@@ -186,13 +189,14 @@ bpl install --locked
 `--locked` fails if a package is missing, if `bpl_modules` or
 `bpl_modules/<package>` is a symlink or non-directory, if the installed manifest
 declares a different name or version than the lock entry, if the recorded source
-archive is missing or a symlink, or if its source hash no longer matches the
-lockfile. Missing `bpl_modules` roots still report package-missing issues for
-locked entries; symlinked roots are rejected before any locked package manifest
-or file content is read through the link. It also checks installed package
-manifests for missing or malformed transitive dependency roots and lock entries,
-so deleting `bpl_modules/math-core` or removing `math-core` from `bpl.lock` will
-be reported even when only `math-extra` imports it.
+archive is missing, a symlink, or reachable only through a symlinked parent
+directory, or if its source hash no longer matches the lockfile. Missing
+`bpl_modules` roots still report package-missing issues for locked entries;
+symlinked roots are rejected before any locked package manifest or file content
+is read through the link. It also checks installed package manifests for missing
+or malformed transitive dependency roots and lock entries, so deleting
+`bpl_modules/math-core` or removing `math-core` from `bpl.lock` will be reported
+even when only `math-extra` imports it.
 
 To re-resolve `bpl.json` dependency selectors and rewrite `bpl.lock`, run:
 
@@ -364,7 +368,9 @@ For transitive `file:` dependencies, the path belongs to the package that
 declares it. If `packages/math-extra/math-extra-1.0.0.tgz` declares
 `"math-core": "file:../math-core/math-core-1.0.0.tgz"`, BPL resolves that path
 relative to `packages/math-extra/`, not relative to the app installing
-`math-extra`.
+`math-extra`. The resolved archive path must not traverse symlinked parent
+directories; BPL rejects it before extraction rather than installing package
+contents from outside the declared archive path.
 
 ## Package Cache
 

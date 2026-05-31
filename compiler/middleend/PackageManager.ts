@@ -1318,6 +1318,7 @@ export class PackageManager {
   }
 
   private isReachableLockSource(candidate: string): boolean {
+    if (this.findSymlinkedParentPath(candidate)) return false;
     const stats = this.tryLstat(candidate);
     return Boolean(stats && !stats.isSymbolicLink() && stats.isFile());
   }
@@ -2585,6 +2586,21 @@ export class PackageManager {
       );
     }
 
+    const symlinkedParent = this.findSymlinkedParentPath(archivePath);
+    if (symlinkedParent) {
+      throw new CompilerError(
+        `Package archive parent path is a symbolic link: ${symlinkedParent}`,
+        "Install from a real directory path, not through a symbolic-link parent.",
+        {
+          file: archivePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
     if (!archiveStats?.isFile()) {
       throw new CompilerError(
         `Package archive path is not a file: ${archivePath}`,
@@ -2598,6 +2614,25 @@ export class PackageManager {
         },
       );
     }
+  }
+
+  private findSymlinkedParentPath(filePath: string): string | undefined {
+    const absolutePath = path.resolve(filePath);
+    const rootPath = path.parse(absolutePath).root;
+    const parts = path
+      .relative(rootPath, path.dirname(absolutePath))
+      .split(path.sep)
+      .filter((part) => part.length > 0);
+
+    let currentPath = rootPath;
+    for (const part of parts) {
+      currentPath = path.join(currentPath, part);
+      const stats = this.tryLstat(currentPath);
+      if (stats?.isSymbolicLink()) return currentPath;
+      if (stats && !stats.isDirectory()) return undefined;
+    }
+
+    return undefined;
   }
 
   private installPackageDependencies(

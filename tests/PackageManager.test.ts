@@ -1772,6 +1772,47 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should reject package archive paths through symlinked parent directories", () => {
+      const packageDir = path.join(tempDir, "archive-parent-link-pkg-src");
+      const outsideArchiveDir = path.join(tempDir, "outside-archive-parent");
+      const archiveParentLink = path.join(tempDir, "archive-parent-link");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(outsideArchiveDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "archive-parent-link-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const linkedParentArchivePath = path.join(
+        archiveParentLink,
+        path.basename(tarballPath),
+      );
+      fs.copyFileSync(
+        tarballPath,
+        path.join(outsideArchiveDir, path.basename(tarballPath)),
+      );
+      fs.symlinkSync(outsideArchiveDir, archiveParentLink, "dir");
+
+      expect(() => packageManager.install(linkedParentArchivePath)).toThrow(
+        /Package archive parent path is a symbolic link/,
+      );
+      expect(
+        fs.existsSync(
+          path.join(tempDir, "bpl_modules", "archive-parent-link-pkg"),
+        ),
+      ).toBe(false);
+    });
+
     test("should reject broken package archive symlinks before package resolution", () => {
       const linkedArchivePath = path.join(tempDir, "broken-archive-link.tgz");
       fs.symlinkSync(path.join(tempDir, "missing-archive.tgz"), linkedArchivePath);
@@ -2421,6 +2462,78 @@ describe("PackageManager", () => {
       ).toThrow(/lock source is not reachable/);
     });
 
+    test("should reject lockfile sources through symlinked parent directories during locked verification", () => {
+      const appDir = path.join(tempDir, "symlink-parent-source-lock-app");
+      const installedDir = path.join(
+        appDir,
+        "bpl_modules",
+        "symlink-parent-source-lock-test",
+      );
+      const outsideSourceDir = path.join(tempDir, "outside-lock-source-parent");
+      const sourceParentLink = path.join(appDir, "deps");
+      fs.mkdirSync(installedDir, { recursive: true });
+      fs.mkdirSync(outsideSourceDir);
+      fs.writeFileSync(
+        path.join(outsideSourceDir, "source.tgz"),
+        "archive placeholder",
+      );
+      fs.symlinkSync(outsideSourceDir, sourceParentLink, "dir");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "symlink-parent-source-lock-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(installedDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-parent-source-lock-test",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(installedDir, "index.bpl"), "export stable;");
+
+      const localPM = new PackageManager(appDir);
+      const hash = localPM["calculatePackageHash"](installedDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "symlink-parent-source-lock-test": {
+                version: "1.0.0",
+                source: "file:deps/source.tgz",
+                hash,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "symlink-parent-source-lock-test",
+          kind: "unreachable-source",
+          source: "file:deps/source.tgz",
+        }),
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/lock source is not reachable/);
+    });
+
     test("should install the highest exact semver match from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "global-packages");
       const appDir = path.join(tempDir, "semver-app");
@@ -2571,6 +2684,64 @@ describe("PackageManager", () => {
       ).toThrow(/Package archive path is a symbolic link/);
       expect(
         fs.existsSync(path.join(appDir, "bpl_modules", "broken-file-dep")),
+      ).toBe(false);
+    });
+
+    test("should reject file dependency archives through symlinked parent directories", () => {
+      const appDir = path.join(tempDir, "symlink-parent-file-dependency-app");
+      const sourceDir = path.join(tempDir, "symlink-parent-file-dep-src");
+      const outsideDepsDir = path.join(tempDir, "outside-file-deps");
+      const depsLink = path.join(appDir, "deps");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(sourceDir);
+      fs.mkdirSync(outsideDepsDir);
+      fs.writeFileSync(
+        path.join(sourceDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-parent-file-dep",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "export test;");
+
+      const tarballPath = new PackageManager(sourceDir).pack(sourceDir);
+      const linkedParentArchivePath = path.join(
+        outsideDepsDir,
+        path.basename(tarballPath),
+      );
+      fs.copyFileSync(tarballPath, linkedParentArchivePath);
+      fs.symlinkSync(outsideDepsDir, depsLink, "dir");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-parent-file-dependency-app",
+            version: "1.0.0",
+            dependencies: {
+              "symlink-parent-file-dep": `file:deps/${path.basename(
+                tarballPath,
+              )}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false }),
+      ).toThrow(/Package archive parent path is a symbolic link/);
+      expect(
+        fs.existsSync(
+          path.join(appDir, "bpl_modules", "symlink-parent-file-dep"),
+        ),
       ).toBe(false);
     });
 
