@@ -155,6 +155,14 @@ readiness. Missing core runtime files are failures; missing optional
 wasm/linker/object-symbol/archive/verifier tools are reported as warnings unless
 the current workflow explicitly requires them.
 
+`bpl doctor` also validates path safety for `BPL_HOME` and bundled runtime
+resources. The BPL home path and runtime files such as `lib/runtime.ll`,
+`lib/runtime_support.o`, `lib/runtime_wasm.ll`, and
+`lib/runtime_wasm_host.ll` must not be reached through symlinked parent path
+components. Final broken symlinks, directories, and missing files keep their
+specific diagnostics, while parent symlink failures point to the offending path
+component.
+
 `bpl doctor packages` checks the current package project: manifest validity,
 lockfile verification, missing transitive dependencies, unreachable lockfile
 sources, duplicate installed package names, package cache provenance warnings,
@@ -249,6 +257,9 @@ symbolic links at the destination path, the immediate parent, or any parent path
 component before creating atomic temporary files.
 Native linker executable outputs apply the same parent-component rule before
 temporary executable creation and final rename.
+On macOS, the trusted system temp roots `/var -> /private/var` and
+`/tmp -> /private/tmp` are allowed so `os.tmpdir()`-based builds and wasm tests
+work normally; user-controlled nested symlink ancestors are still rejected.
 
 ### Machine-readable JSON contracts
 
@@ -267,7 +278,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl package-cache list [package] --json` | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`. |
 | `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`. |
 | `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check: "package-cache-clean"` or `check: "package-cache-repair"`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads. |
-| `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures return the same `schemaVersion`/`check` with `success: false` and `error` on stdout. Named-script validation failures use `check: "run-script"`. |
+| `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures, including final `bpl.json` symlinks and symlinked manifest parents, return the same `schemaVersion`/`check` with `success: false` and `error` on stdout. Named-script validation failures use `check: "run-script"`. |
 | `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. Clean validation failures, including symlinked working-directory paths, return `success: false`, `dryRun`, `count: 0`, `entries: []`, and `error` on stdout. |
 | `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data. |
 

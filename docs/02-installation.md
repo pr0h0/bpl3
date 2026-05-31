@@ -266,6 +266,11 @@ If you installed via `./init.sh`, it should have added `BPL_HOME` to your `~/.ba
 source ~/.bashrc
 ```
 
+`BPL_HOME` should point at the real BPL installation directory. The compiler,
+runtime linker, and `bpl doctor` reject BPL homes reached through symlinked
+parent path components so grammar, standard library, and runtime files are not
+loaded through redirected roots.
+
 ### "clang: command not found"
 
 **Solution**: Clang is not installed or not in PATH.

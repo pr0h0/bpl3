@@ -511,6 +511,12 @@ JSON with the same `schemaVersion` and `check`, plus `success: false` and
 use `check: "run-script"` with the same error shape, so CI and editor
 integrations do not need to parse logger text.
 
+Run-script manifest loading uses the same filesystem safety posture as the
+package manager: `bpl.json` must be a real file, not a symlink, and its parent
+path components must not be symlinks. This check happens before parsing,
+listing, or executing scripts, so launchers that preserve a symlink-spelled
+working directory should run `bpl run-script` from the real project path.
+
 ```bash
 bpl run-script --list
 bpl run-script --list --json
