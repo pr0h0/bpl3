@@ -323,8 +323,12 @@ describe("CLI JSON parseability", () => {
     const unsafeStdOutput = path.join(tempDir, "unsafe-std-app");
     const packageFile = path.join(tempDir, "package_import.bpl");
     const packageOutput = path.join(tempDir, "package-app");
+    const packageVersionFile = path.join(tempDir, "package_version_import.bpl");
+    const packageVersionOutput = path.join(tempDir, "package-version-app");
     const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
+    const packageVersionDir = path.join(tempDir, "bpl_modules", "badversion");
     fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(packageVersionDir, { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),
       JSON.stringify(
@@ -338,7 +342,25 @@ describe("CLI JSON parseability", () => {
       ),
     );
     fs.writeFileSync(
+      path.join(packageVersionDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "badversion",
+          version: "latest",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
       path.join(packageDir, "index.bpl"),
+      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      path.join(packageVersionDir, "index.bpl"),
       ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
         "\n",
       ),
@@ -356,6 +378,15 @@ describe("CLI JSON parseability", () => {
       packageFile,
       [
         'import value from "badpkg";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      packageVersionFile,
+      [
+        'import value from "badversion";',
         "frame main() ret int {",
         "    return 0;",
         "}",
@@ -450,6 +481,51 @@ describe("CLI JSON parseability", () => {
     expect(packageReport.diagnostics[0]?.hint).toContain("Searched paths:");
     expect(fs.existsSync(`${packageOutput}.ll`)).toBe(false);
     expect(fs.existsSync(packageOutput)).toBe(false);
+
+    const packageVersionResult = runCli([
+      "build",
+      packageVersionFile,
+      "--json",
+      "-o",
+      packageVersionOutput,
+    ]);
+    expect(packageVersionResult.status).toBe(1);
+    const packageVersionReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(packageVersionResult);
+    expect(packageVersionReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: packageVersionFile,
+      diagnostics: [
+        {
+          location: {
+            file: packageVersionFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(packageVersionReport.diagnostics[0]?.message).toContain(
+      "manifest version must use X.Y.Z semantic version format",
+    );
+    expect(packageVersionReport.diagnostics[0]?.hint).toContain(
+      "manifest version must use X.Y.Z semantic version format",
+    );
+    expect(fs.existsSync(`${packageVersionOutput}.ll`)).toBe(false);
+    expect(fs.existsSync(packageVersionOutput)).toBe(false);
   });
 
   test("reports virtual source diagnostics in JSON-mode build failures", () => {

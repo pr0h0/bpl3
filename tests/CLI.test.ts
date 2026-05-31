@@ -523,6 +523,51 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should preserve invalid package import name diagnostics across CLI modes", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-package-name-diagnostic-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "badpkg-name-app");
+    const llvmFile = `${outputFile}.ll`;
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "Bad_Name";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const expectPackageNameDiagnostic = (stderr: string) => {
+        expect(stderr).toContain("Module not found: Bad_Name");
+        expect(stderr).toContain(
+          "Package import names must use lowercase letters, digits, and hyphens only.",
+        );
+      };
+
+      const checkResult = runCLI(["check", sourceFile]);
+      expect(checkResult.status).toBe(1);
+      expectPackageNameDiagnostic(checkResult.stderr);
+
+      const buildResult = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+      expect(buildResult.status).toBe(1);
+      expectPackageNameDiagnostic(buildResult.stderr);
+      expect(fs.existsSync(llvmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
