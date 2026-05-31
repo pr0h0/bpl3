@@ -149,6 +149,19 @@ const CLEAN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "run-script JSON validation failures",
+    "BPL_RUN_SCRIPT_",
+    "run-script --json",
+    "run-script-list",
+    "bpl\\.json parent path contains a symbolic link",
+    "Script .* not found in bpl\\.json",
+    "'scripts' in bpl\\.json",
+    "Script .* in bpl\\.json must be a non-empty string",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   [
     "package source-safety",
@@ -341,6 +354,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "clean"',
   ],
   [CLEAN_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "run-script JSON validation failures"',
+  ],
+  [
+    RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "run-script"',
+  ],
+  [RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',

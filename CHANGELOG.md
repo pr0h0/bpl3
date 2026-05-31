@@ -87,6 +87,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   failures now include stable `BPL_RUN_SCRIPT_*` `errorCode` values for
   manifest lookup and parsing, script-table validation, and missing named
   scripts while preserving the human-readable `error` text.
+- **CI Triage Run-Script Validation Repros** - `bun run ci:triage` now maps
+  `BPL_RUN_SCRIPT_*` and run-script validation failure logs to focused
+  run-script JSON contract repro commands.
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.
