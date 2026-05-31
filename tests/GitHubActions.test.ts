@@ -265,11 +265,17 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["test:ci"]).not.toContain(
       "! -name 'PackageHelperJsonContracts.test.ts'",
     );
+    expect(packageJson.scripts["test:ci"]).not.toContain(
+      "! -name 'PackageJsonFailureContracts.test.ts'",
+    );
     expect(
       existsSync(join(import.meta.dir, "ReleaseHelperSmoke.test.ts")),
     ).toBe(true);
     expect(
       existsSync(join(import.meta.dir, "PackageHelperJsonContracts.test.ts")),
+    ).toBe(true);
+    expect(
+      existsSync(join(import.meta.dir, "PackageJsonFailureContracts.test.ts")),
     ).toBe(true);
     expect(packageJson.scripts["release:smoke"]).toBe(
       "bun tools/release_smoke.ts",
