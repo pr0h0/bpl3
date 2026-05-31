@@ -18,6 +18,39 @@ export const CLI_JSON_CHECKS = {
   toolchain: "toolchain",
 } as const;
 
+export const CLI_JSON_CONTRACTS = [
+  { command: "bpl build --json", check: CLI_JSON_CHECKS.build },
+  { command: "bpl check --json", check: CLI_JSON_CHECKS.check },
+  { command: "bpl lint --json", check: CLI_JSON_CHECKS.lint },
+  { command: "bpl doctor --json", check: CLI_JSON_CHECKS.toolchain },
+  { command: "bpl doctor <unknown> --json", check: CLI_JSON_CHECKS.doctor },
+  { command: "bpl doctor packages --json", check: CLI_JSON_CHECKS.packages },
+  {
+    command: "bpl package-cache list [package] --json",
+    check: CLI_JSON_CHECKS.packageCacheList,
+  },
+  {
+    command: "bpl package-cache verify [package] --json",
+    check: CLI_JSON_CHECKS.packageCacheVerify,
+  },
+  {
+    command: "bpl package-cache clean [package] --json",
+    check: CLI_JSON_CHECKS.packageCacheClean,
+  },
+  {
+    command: "bpl package-cache repair [package] --json",
+    check: CLI_JSON_CHECKS.packageCacheRepair,
+  },
+  {
+    command: "bpl run-script --list --json",
+    check: CLI_JSON_CHECKS.runScriptList,
+  },
+  { command: "bpl run-script <name> --json", check: CLI_JSON_CHECKS.runScript },
+  { command: "bpl clean --dry-run --json", check: CLI_JSON_CHECKS.clean },
+  { command: "bpl list --json", check: CLI_JSON_CHECKS.packageList },
+  { command: "bpl list --tree --json", check: CLI_JSON_CHECKS.packageListTree },
+] as const;
+
 export function createJsonReport<
   Check extends string,
   Payload extends Record<string, unknown>,
