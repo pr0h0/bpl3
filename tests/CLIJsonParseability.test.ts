@@ -939,6 +939,45 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports package subpath file symlink failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const featureDir = path.join(packageDir, "features");
+    const linkedFeature = path.join(featureDir, "add.bpl");
+    const fallbackFeature = path.join(featureDir, "add.x");
+    const outsideFeature = path.join(tempDir, "outside-add.bpl");
+    const sourceFile = path.join(sourceDir, "subpath_file_symlink_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    writePackageFixture(packageDir, { entrySource: "export root;" });
+    fs.mkdirSync(featureDir);
+    fs.writeFileSync(outsideFeature, "export value;");
+    fs.symlinkSync(outsideFeature, linkedFeature, "file");
+    fs.writeFileSync(fallbackFeature, "export legacy;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math/features/add";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic?.message).toContain(
+      "subpath 'features/add' resolves to a symbolic link candidate",
+    );
+    expect(diagnostic?.message).toContain(linkedFeature);
+    expect(diagnostic?.message).not.toContain(outsideFeature);
+    expect(diagnostic?.hint).toContain("Searched paths:");
+    expect(diagnostic?.hint).toContain(linkedFeature);
+    expect(diagnostic?.hint).not.toContain(fallbackFeature);
+    expect(diagnostic?.hint).not.toContain(outsideFeature);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
