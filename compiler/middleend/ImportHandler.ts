@@ -15,6 +15,7 @@ import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import { initializeBuiltinsInScope } from "./BuiltinTypes";
 import { getLibPath } from "../common/PathResolver";
 import {
+  IMPORT_STD_PATH_UNSAFE_CODE,
   isSafeStandardLibraryImportPath,
   ModuleResolver,
 } from "./ModuleResolver";
@@ -174,6 +175,7 @@ export class ImportHandler {
             `Unsafe standard library import: ${stmt.source}`,
             "Use std/<path> without empty, '.', or '..' path segments.",
             stmt.location,
+            IMPORT_STD_PATH_UNSAFE_CODE,
           );
         }
         importPath = path.join(stdLibPath, relativePath);

@@ -219,9 +219,11 @@ describe("ModuleResolver", () => {
 
     const resolver = new ModuleResolver();
 
-    expect(() => {
+    const error = captureCompilerError(() => {
       resolver.resolveModules(mainPath);
-    }).toThrow();
+    });
+    expect(error.message).toContain("Module not found");
+    expect(error.code).toBe("BPL_MODULE_NOT_FOUND");
   });
 
   it("should reject missing and directory entry module paths with compiler errors", () => {
@@ -234,24 +236,31 @@ describe("ModuleResolver", () => {
       resolver.resolveModules(missingEntry);
     });
     expect(missingError.message).toContain("Module file not found");
+    expect(missingError.code).toBe("BPL_MODULE_FILE_NOT_FOUND");
 
     const directoryError = captureCompilerError(() => {
       resolver.resolveModules(directoryEntry);
     });
     expect(directoryError.message).toContain("Module path is not a file");
+    expect(directoryError.code).toBe("BPL_MODULE_PATH_NOT_FILE");
   });
 
   it("should reject broken symlink entry module paths as symlinks", () => {
     const sourceDir = path.join(tempDir, "broken-symlink-entry");
     fs.mkdirSync(sourceDir, { recursive: true });
     const brokenEntry = path.join(sourceDir, "linked-main.bpl");
-    fs.symlinkSync(path.join(sourceDir, "missing-main.bpl"), brokenEntry, "file");
+    fs.symlinkSync(
+      path.join(sourceDir, "missing-main.bpl"),
+      brokenEntry,
+      "file",
+    );
 
     const error = captureCompilerError(() => {
       new ModuleResolver({ stdLibPath: tempDir }).resolveModules(brokenEntry);
     });
 
     expect(error.message).toContain("Module path is a symbolic link");
+    expect(error.code).toBe("BPL_MODULE_PATH_SYMLINK");
   });
 
   it("should normalize symlinked entry module identities", () => {
@@ -298,6 +307,7 @@ describe("ModuleResolver", () => {
 
     expect(error.message).toContain("Module path is a symbolic link");
     expect(error.message).toContain(brokenBplCandidate);
+    expect(error.code).toBe("BPL_MODULE_PATH_SYMLINK");
   });
 
   it("should normalize symlinked import module identities", () => {
@@ -386,9 +396,9 @@ describe("ModuleResolver", () => {
 
     const resolver = new ModuleResolver({ stdLibPath: stdLibDir });
 
-    expect(resolver.resolveModulePath("std/collections/array.bpl", mainPath)).toBe(
-      stdModule,
-    );
+    expect(
+      resolver.resolveModulePath("std/collections/array.bpl", mainPath),
+    ).toBe(stdModule);
   });
 
   it("should reject unsafe explicit std import path segments", () => {
@@ -414,6 +424,7 @@ describe("ModuleResolver", () => {
       expect(error.message).toContain("Unsafe standard library import");
       expect(error.message).toContain(importSource);
       expect(error.hint).toContain("empty, '.', or '..'");
+      expect(error.code).toBe("BPL_IMPORT_STD_PATH_UNSAFE");
     }
   });
 
@@ -501,7 +512,11 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(cwdPackageDir, { recursive: true });
     fs.writeFileSync(
       path.join(appDir, "bpl.json"),
-      JSON.stringify({ name: "malformed-package-app", version: "1.0.0" }, null, 2),
+      JSON.stringify(
+        { name: "malformed-package-app", version: "1.0.0" },
+        null,
+        2,
+      ),
     );
     fs.writeFileSync(
       path.join(projectPackageDir, "bpl.json"),
@@ -515,7 +530,10 @@ describe("ModuleResolver", () => {
         2,
       ),
     );
-    fs.writeFileSync(path.join(projectPackageDir, "index.bpl"), "export wrong;");
+    fs.writeFileSync(
+      path.join(projectPackageDir, "index.bpl"),
+      "export wrong;",
+    );
     fs.writeFileSync(
       path.join(cwdPackageDir, "bpl.json"),
       JSON.stringify(
@@ -592,7 +610,11 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(appDir, { recursive: true });
     fs.writeFileSync(
       path.join(appDir, "bpl.json"),
-      JSON.stringify({ name: "invalid-subpath-app", version: "1.0.0" }, null, 2),
+      JSON.stringify(
+        { name: "invalid-subpath-app", version: "1.0.0" },
+        null,
+        2,
+      ),
     );
 
     const mainPath = path.join(appDir, "main.bpl");
@@ -700,7 +722,11 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
       path.join(appDir, "bpl.json"),
-      JSON.stringify({ name: "manifest-mismatch-app", version: "1.0.0" }, null, 2),
+      JSON.stringify(
+        { name: "manifest-mismatch-app", version: "1.0.0" },
+        null,
+        2,
+      ),
     );
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),
@@ -743,7 +769,11 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
       path.join(appDir, "bpl.json"),
-      JSON.stringify({ name: "manifest-version-app", version: "1.0.0" }, null, 2),
+      JSON.stringify(
+        { name: "manifest-version-app", version: "1.0.0" },
+        null,
+        2,
+      ),
     );
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),
@@ -790,7 +820,11 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
       path.join(appDir, "bpl.json"),
-      JSON.stringify({ name: "unsafe-entrypoint-app", version: "1.0.0" }, null, 2),
+      JSON.stringify(
+        { name: "unsafe-entrypoint-app", version: "1.0.0" },
+        null,
+        2,
+      ),
     );
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),

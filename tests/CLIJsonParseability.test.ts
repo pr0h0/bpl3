@@ -116,10 +116,7 @@ function writePackageFixture(
   if (options.entrySource === null) return;
 
   const relativeEntryPath = options.entryPath ?? main;
-  const entryPath = path.join(
-    packageDir,
-    ...relativeEntryPath.split(/[\\/]/),
-  );
+  const entryPath = path.join(packageDir, ...relativeEntryPath.split(/[\\/]/));
   fs.mkdirSync(path.dirname(entryPath), { recursive: true });
   fs.writeFileSync(entryPath, options.entrySource ?? "export value;");
 }
@@ -214,11 +211,13 @@ describe("CLI JSON parseability", () => {
 
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {
     const result = runCli(["doctor", "unknown-scope", "--json"]);
-    expect(expectJsonStdoutReport(result, {
-      status: 1,
-      check: "doctor",
-      success: false,
-    })).toMatchObject({
+    expect(
+      expectJsonStdoutReport(result, {
+        status: 1,
+        check: "doctor",
+        success: false,
+      }),
+    ).toMatchObject({
       error: expect.stringContaining("Unknown doctor scope 'unknown-scope'"),
     });
   });
@@ -535,10 +534,7 @@ describe("CLI JSON parseability", () => {
 
     const packResult = runCli(["pack"], { cwd: packageDir });
     expect(packResult.status).toBe(0);
-    const tarballPath = path.join(
-      packageDir,
-      "install-json-package-1.0.0.tgz",
-    );
+    const tarballPath = path.join(packageDir, "install-json-package-1.0.0.tgz");
 
     const directProject = path.join(tempDir, "direct-project");
     fs.mkdirSync(directProject);
@@ -546,11 +542,13 @@ describe("CLI JSON parseability", () => {
       cwd: directProject,
       env: { HOME: homeDir },
     });
-    expect(expectJsonStdoutReport(directInstall, {
-      status: 0,
-      check: "package-install",
-      success: true,
-    })).toMatchObject({
+    expect(
+      expectJsonStdoutReport(directInstall, {
+        status: 0,
+        check: "package-install",
+        success: true,
+      }),
+    ).toMatchObject({
       mode: "package",
       target: tarballPath,
       global: false,
@@ -561,15 +559,20 @@ describe("CLI JSON parseability", () => {
 
     const globalInstallCwd = path.join(tempDir, "global-install-cwd");
     fs.mkdirSync(globalInstallCwd);
-    const globalInstall = runCli(["install", tarballPath, "--global", "--json"], {
-      cwd: globalInstallCwd,
-      env: { HOME: homeDir },
-    });
-    expect(expectJsonStdoutReport(globalInstall, {
-      status: 0,
-      check: "package-install",
-      success: true,
-    })).toMatchObject({
+    const globalInstall = runCli(
+      ["install", tarballPath, "--global", "--json"],
+      {
+        cwd: globalInstallCwd,
+        env: { HOME: homeDir },
+      },
+    );
+    expect(
+      expectJsonStdoutReport(globalInstall, {
+        status: 0,
+        check: "package-install",
+        success: true,
+      }),
+    ).toMatchObject({
       mode: "package",
       target: tarballPath,
       global: true,
@@ -587,11 +590,13 @@ describe("CLI JSON parseability", () => {
         env: { HOME: homeDir },
       },
     );
-    expect(expectJsonStdoutReport(cachedInstall, {
-      status: 0,
-      check: "package-install",
-      success: true,
-    })).toMatchObject({
+    expect(
+      expectJsonStdoutReport(cachedInstall, {
+        status: 0,
+        check: "package-install",
+        success: true,
+      }),
+    ).toMatchObject({
       mode: "package",
       target: "install-json-package",
       global: false,
@@ -689,13 +694,10 @@ describe("CLI JSON parseability", () => {
     const homeDir = path.join(tempDir, "cache-maintenance-home");
     fs.mkdirSync(homeDir);
 
-    const clean = runCli(
-      ["package-cache", "clean", "--dry-run", "--json"],
-      {
-        cwd: tempDir,
-        env: { HOME: homeDir },
-      },
-    );
+    const clean = runCli(["package-cache", "clean", "--dry-run", "--json"], {
+      cwd: tempDir,
+      env: { HOME: homeDir },
+    });
     expect(clean.status).toBe(0);
     expect(parseJsonObjectStdout(clean)).toEqual({
       schemaVersion: 1,
@@ -705,13 +707,10 @@ describe("CLI JSON parseability", () => {
       dryRun: true,
     });
 
-    const repair = runCli(
-      ["package-cache", "repair", "--dry-run", "--json"],
-      {
-        cwd: tempDir,
-        env: { HOME: homeDir },
-      },
-    );
+    const repair = runCli(["package-cache", "repair", "--dry-run", "--json"], {
+      cwd: tempDir,
+      env: { HOME: homeDir },
+    });
     expect(repair.status).toBe(0);
     expect(parseJsonObjectStdout(repair)).toEqual({
       schemaVersion: 1,
@@ -1043,6 +1042,7 @@ describe("CLI JSON parseability", () => {
       diagnostics: Array<{
         message: string;
         hint: string;
+        code?: string;
         location: {
           file: string;
           start: { line: number; column: number };
@@ -1065,6 +1065,9 @@ describe("CLI JSON parseability", () => {
     });
     expect(unsafeStdReport.diagnostics[0]?.message).toContain(
       "Unsafe standard library import: std/../outside-std-lib.bpl",
+    );
+    expect(unsafeStdReport.diagnostics[0]?.code).toBe(
+      "BPL_IMPORT_STD_PATH_UNSAFE",
     );
     expect(unsafeStdReport.diagnostics[0]?.hint).toContain(
       "Use std/<path> without empty, '.', or '..' path segments.",
@@ -1186,7 +1189,9 @@ describe("CLI JSON parseability", () => {
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_ROOT_NOT_DIRECTORY");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain("invalid package root");
     expect(diagnostic?.message).toContain("not a directory");
     expect(diagnostic?.message).toContain(unsafePackageRoot);
@@ -1235,7 +1240,9 @@ describe("CLI JSON parseability", () => {
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain("invalid package search directory");
     expect(diagnostic?.message).toContain("symbolic link");
     expect(diagnostic?.message).toContain(linkedModulesDir);
@@ -1283,7 +1290,9 @@ describe("CLI JSON parseability", () => {
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain("invalid package search directory");
     expect(diagnostic?.message).toContain("symbolic link");
     expect(diagnostic?.message).toContain(linkedWorkspaceDir);
@@ -1325,7 +1334,9 @@ describe("CLI JSON parseability", () => {
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain(
       "Global package directory path is a symbolic link",
     );
@@ -1362,7 +1373,9 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_ENTRYPOINT_SYMLINK");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain(
       "entrypoint resolves to a symbolic link candidate",
     );
@@ -1380,7 +1393,10 @@ describe("CLI JSON parseability", () => {
     const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
     const outsideFeatureDir = path.join(tempDir, "outside-feature");
     const linkedFeatureDir = path.join(packageDir, "features");
-    const sourceFile = path.join(sourceDir, "subpath_symlink_parent_import.bpl");
+    const sourceFile = path.join(
+      sourceDir,
+      "subpath_symlink_parent_import.bpl",
+    );
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(outsideFeatureDir);
     writePackageFixture(packageDir, { entrySource: "export root;" });
@@ -1438,7 +1454,9 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_ENTRYPOINT_UNSAFE");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain("unsafe entrypoint '../outside.bpl'");
     expect(diagnostic?.message).toContain("bpl.json");
     expect(diagnostic?.message).not.toContain(outsideEntrypoint);
@@ -1479,7 +1497,9 @@ describe("CLI JSON parseability", () => {
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_MANIFEST_INVALID");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain("invalid bpl.json");
     expect(diagnostic?.message).toContain(linkedManifest);
     expect(diagnostic?.message).not.toContain(outsideManifest);
@@ -1519,7 +1539,9 @@ describe("CLI JSON parseability", () => {
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
     expect(diagnostic.code).toBe("BPL_PACKAGE_MANIFEST_MISSING");
-    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
     expect(diagnostic?.message).toContain("missing bpl.json");
     expect(diagnostic?.message).toContain(localManifest);
     expect(diagnostic?.hint).toContain("missing bpl.json");

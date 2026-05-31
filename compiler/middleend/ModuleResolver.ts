@@ -29,6 +29,13 @@ import {
 import { SymbolTable } from "./SymbolTable";
 
 import type * as AST from "../common/AST";
+
+export const MODULE_NOT_FOUND_CODE = "BPL_MODULE_NOT_FOUND";
+export const MODULE_FILE_NOT_FOUND_CODE = "BPL_MODULE_FILE_NOT_FOUND";
+export const MODULE_PATH_NOT_FILE_CODE = "BPL_MODULE_PATH_NOT_FILE";
+export const MODULE_PATH_SYMLINK_CODE = "BPL_MODULE_PATH_SYMLINK";
+export const IMPORT_STD_PATH_UNSAFE_CODE = "BPL_IMPORT_STD_PATH_UNSAFE";
+
 export interface ModuleInfo {
   /** Absolute path to the module file */
   path: string;
@@ -138,6 +145,7 @@ export class ModuleResolver {
             endLine: 0,
             endColumn: 0,
           },
+          MODULE_PATH_SYMLINK_CODE,
         );
       }
 
@@ -198,6 +206,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        MODULE_NOT_FOUND_CODE,
       );
     }
 
@@ -221,6 +230,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        MODULE_NOT_FOUND_CODE,
       );
     }
 
@@ -254,6 +264,7 @@ export class ModuleResolver {
             endLine: 0,
             endColumn: 0,
           },
+          IMPORT_STD_PATH_UNSAFE_CODE,
         );
       }
 
@@ -334,7 +345,7 @@ export class ModuleResolver {
         endLine: 0,
         endColumn: 0,
       },
-      packageFailureCode,
+      packageFailureCode ?? MODULE_NOT_FOUND_CODE,
     );
   }
 
@@ -427,6 +438,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        MODULE_FILE_NOT_FOUND_CODE,
       );
     }
 
@@ -441,6 +453,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        MODULE_PATH_SYMLINK_CODE,
       );
     }
 
@@ -455,6 +468,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        MODULE_PATH_NOT_FILE_CODE,
       );
     }
   }
