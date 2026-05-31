@@ -785,6 +785,26 @@ describe("PackageManager", () => {
   });
 
   describe("Package Installation", () => {
+    function createInstallArchive(packageName: string): string {
+      const packageDir = path.join(tempDir, `${packageName}-source`);
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: packageName,
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      return new PackageManager(packageDir).pack(packageDir);
+    }
+
     test("should install package locally", () => {
       // Create a package
       const manifest = {
@@ -956,6 +976,87 @@ describe("PackageManager", () => {
       ).toThrow(/Cannot install package 'symlink-target-package'/);
       expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
       expect(fs.existsSync(path.join(outsideTarget, "bpl.json"))).toBe(false);
+    });
+
+    test("should reject swapped local package roots that become symlinks before install", () => {
+      const tarballPath = createInstallArchive("swapped-local-root");
+      const installDir = path.join(tempDir, "swapped-local-root-install");
+      const outsidePackageRoot = path.join(tempDir, "outside-local-root");
+      fs.mkdirSync(installDir);
+      fs.mkdirSync(outsidePackageRoot);
+
+      const localPM = new PackageManager(installDir);
+      const localPackageDir = path.join(installDir, "bpl_modules");
+      fs.rmSync(localPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
+
+      expect(() =>
+        localPM.install(tarballPath, { global: false, verbose: false }),
+      ).toThrow(/Local package directory path is a symbolic link/);
+      expect(fs.lstatSync(localPackageDir).isSymbolicLink()).toBe(true);
+      expect(
+        fs.existsSync(path.join(outsidePackageRoot, "swapped-local-root")),
+      ).toBe(false);
+    });
+
+    test("should reject swapped global package roots that become symlinks before install", () => {
+      const tarballPath = createInstallArchive("swapped-global-root");
+      const installDir = path.join(tempDir, "swapped-global-root-install");
+      const globalPackageDir = path.join(tempDir, "swapped-global-packages");
+      const outsidePackageRoot = path.join(tempDir, "outside-global-root");
+      fs.mkdirSync(installDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(outsidePackageRoot);
+
+      const localPM = new PackageManager(installDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      fs.rmSync(globalPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsidePackageRoot, globalPackageDir, "dir");
+
+      expect(() =>
+        localPM.install(tarballPath, { global: true, verbose: false }),
+      ).toThrow(/Global package directory path is a symbolic link/);
+      expect(fs.lstatSync(globalPackageDir).isSymbolicLink()).toBe(true);
+      expect(
+        fs.existsSync(path.join(outsidePackageRoot, "swapped-global-root")),
+      ).toBe(false);
+      expect(
+        fs.existsSync(
+          path.join(outsidePackageRoot, "swapped-global-root-1.0.0.tgz"),
+        ),
+      ).toBe(false);
+    });
+
+    test("should recreate missing package roots before direct archive installs", () => {
+      const localTarballPath = createInstallArchive("missing-local-root");
+      const globalTarballPath = createInstallArchive("missing-global-root");
+      const installDir = path.join(tempDir, "missing-root-install");
+      const globalPackageDir = path.join(tempDir, "missing-root-global");
+      fs.mkdirSync(installDir);
+
+      const localPM = new PackageManager(installDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      fs.rmSync(path.join(installDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+
+      localPM.install(localTarballPath, { global: false, verbose: false });
+      expect(
+        fs.existsSync(
+          path.join(installDir, "bpl_modules", "missing-local-root"),
+        ),
+      ).toBe(true);
+
+      localPM.install(globalTarballPath, { global: true, verbose: false });
+      expect(
+        fs.existsSync(path.join(globalPackageDir, "missing-global-root")),
+      ).toBe(true);
+      expect(
+        fs.existsSync(
+          path.join(globalPackageDir, "missing-global-root-1.0.0.tgz"),
+        ),
+      ).toBe(true);
     });
 
     test("should isolate package extraction from stale temp directories", () => {

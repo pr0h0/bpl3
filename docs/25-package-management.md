@@ -108,6 +108,11 @@ version, source archive, and content hash.
 If `bpl_modules/<package-name>` already exists, BPL only treats a real
 directory as an upgrade target. Existing regular files or symlinks at the
 package install path are rejected and left untouched.
+Direct archive installs also revalidate the selected package root immediately
+before writing. If `bpl_modules/` or the configured global package directory is
+replaced with a symlink after the package manager starts, install fails instead
+of writing package files through the link. Missing real install roots are
+recreated.
 
 Project manifests can also declare dependencies directly:
 
@@ -200,6 +205,10 @@ Package-name, version selector, and exact cached archive lookup validate the
 global package cache directory itself before probing tarballs. If the cache root
 is a symlink, lookup is rejected; if it is missing, install reports the package
 as unavailable instead of surfacing a raw filesystem error.
+Direct archive installs perform the same `lstat`-based package-root validation
+before writes to local `bpl_modules/` or the global package directory, so
+post-construction symlink swaps cannot redirect package installation or global
+cache writes outside the selected package root.
 
 To repair the lockfile from packages already installed in `bpl_modules/`, run:
 

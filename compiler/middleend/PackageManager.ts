@@ -2240,6 +2240,9 @@ export class PackageManager {
     const targetDir = options.global
       ? this.globalPackageDir
       : this.localPackageDir;
+    const targetDirLabel = options.global
+      ? "Global package directory"
+      : "Local package directory";
 
     let tarballPath: string;
     let lockSource = sourceContext.lockSource ?? packageSource;
@@ -2352,9 +2355,9 @@ export class PackageManager {
         );
       }
 
+      this.ensurePackageManagerDirectory(targetDir, targetDirLabel);
       const localLock = options.global ? undefined : this.loadLockFile();
       if (options.global) {
-        fs.mkdirSync(this.globalPackageDir, { recursive: true });
         this.ensurePackageArchiveOutputFile(
           cachedArchivePath,
           extractedManifestPath,
