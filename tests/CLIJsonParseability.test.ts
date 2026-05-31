@@ -2082,17 +2082,89 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
-    expect(diagnostic.code).toBe("BPL_PACKAGE_MANIFEST_INVALID");
+    expect(diagnostic.code).toBe("BPL_PACKAGE_MANIFEST_SYMLINK");
     expect(diagnostic.source?.preview).toContain(
       'import value from "pkg-math";',
     );
     expect(diagnostic?.message).toContain("invalid bpl.json");
+    expect(diagnostic?.message).toContain("manifest path is a symbolic link");
     expect(diagnostic?.message).toContain(linkedManifest);
     expect(diagnostic?.message).not.toContain(outsideManifest);
     expect(diagnostic?.hint).toContain("invalid bpl.json");
+    expect(diagnostic?.hint).toContain("manifest path is a symbolic link");
     expect(diagnostic?.hint).toContain(linkedManifest);
     expect(diagnostic?.hint).not.toContain(outsideManifest);
     expect(result.stderr).toBe("");
+  });
+
+  test("reports malformed package manifests in JSON-mode check and build diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const manifestPath = path.join(packageDir, "bpl.json");
+    const sourceFile = path.join(sourceDir, "malformed_manifest_import.bpl");
+    const buildOutput = path.join(tempDir, "malformed-manifest-app");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(manifestPath, "{not-json");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+      runCli(["check", "--json", sourceFile]),
+      sourceFile,
+    );
+    expect(checkDiagnostic.code).toBe("BPL_PACKAGE_MANIFEST_PARSE_ERROR");
+    expect(checkDiagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
+    expect(checkDiagnostic.message).toContain("invalid bpl.json");
+    expect(checkDiagnostic.message).toContain("manifest is not valid JSON");
+    expect(checkDiagnostic.message).toContain(manifestPath);
+    expect(checkDiagnostic.hint).toContain("manifest is not valid JSON");
+    expect(checkDiagnostic.hint).toContain(manifestPath);
+
+    const build = runCli(["build", sourceFile, "--json", "-o", buildOutput]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [
+        {
+          code: "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+        },
+      ],
+    });
+    const buildDiagnostic = buildReport.diagnostics[0];
+    expect(buildDiagnostic).toBeDefined();
+    expect(buildDiagnostic?.message).toContain("manifest is not valid JSON");
+    expect(buildDiagnostic?.message).toContain(manifestPath);
+    expect(buildDiagnostic?.hint).toContain("manifest is not valid JSON");
+    expect(buildDiagnostic?.hint).toContain(manifestPath);
+    expect(fs.existsSync(`${buildOutput}.ll`)).toBe(false);
+    expect(fs.existsSync(buildOutput)).toBe(false);
   });
 
   test("reports missing package manifests in JSON-mode check diagnostics", () => {

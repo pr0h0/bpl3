@@ -3,7 +3,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { resolvePackageImport } from "../compiler/middleend/PackageResolver";
+import {
+  getPackageResolutionFailureCode,
+  resolvePackageImport,
+} from "../compiler/middleend/PackageResolver";
 
 describe("PackageResolver", () => {
   let tempDir: string;
@@ -563,6 +566,50 @@ describe("PackageResolver", () => {
 
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "manifest path is a symbolic link",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(packageDir, "bpl.json"),
+    );
+    expect(details.trace.failureMessage).not.toContain(outsideManifest);
+    expect(getPackageResolutionFailureCode(details.trace)).toBe(
+      "BPL_PACKAGE_MANIFEST_SYMLINK",
+    );
+  });
+
+  test("reports stable failure codes for unreadable package manifest shapes", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const manifestPath = path.join(packageDir, "bpl.json");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    for (const [manifestFixture, expectedMessage, expectedCode] of [
+      [
+        "{not-json",
+        "manifest is not valid JSON",
+        "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+      ],
+      [
+        "[]",
+        "manifest must contain a JSON object",
+        "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
+      ],
+    ] as const) {
+      fs.rmSync(manifestPath, { recursive: true, force: true });
+      fs.writeFileSync(manifestPath, manifestFixture);
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result).toBeNull();
+      expect(details.trace.failureReason).toBe("manifest-invalid");
+      expect(details.trace.failureMessage).toContain(expectedMessage);
+      expect(details.trace.failureMessage).toContain(manifestPath);
+      expect(getPackageResolutionFailureCode(details.trace)).toBe(
+        expectedCode,
+      );
+    }
   });
 
   test("does not resolve symlinked package subpath files", () => {

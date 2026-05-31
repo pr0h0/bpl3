@@ -60,6 +60,10 @@ type PackageRootCandidateClassification =
   | { status: "non-directory"; rootPath: string }
   | { status: "directory"; rootPath: string };
 
+type PackageManifestReadResult =
+  | { ok: true; manifest: Record<string, unknown> }
+  | { ok: false; message: string };
+
 export function resolvePackageImport(
   importPath: string,
   startDir: string,
@@ -217,6 +221,18 @@ export function getPackageResolutionFailureCode(
       if (message.includes("missing bpl.json")) {
         return "BPL_PACKAGE_MANIFEST_MISSING";
       }
+      if (message.includes("manifest path is a symbolic link")) {
+        return "BPL_PACKAGE_MANIFEST_SYMLINK";
+      }
+      if (message.includes("manifest path is not a file")) {
+        return "BPL_PACKAGE_MANIFEST_NOT_FILE";
+      }
+      if (message.includes("manifest is not valid JSON")) {
+        return "BPL_PACKAGE_MANIFEST_PARSE_ERROR";
+      }
+      if (message.includes("manifest must contain a JSON object")) {
+        return "BPL_PACKAGE_MANIFEST_NOT_OBJECT";
+      }
       if (message.includes("unsafe entrypoint")) {
         return "BPL_PACKAGE_ENTRYPOINT_UNSAFE";
       }
@@ -291,12 +307,13 @@ function resolvePackageFromBaseDir(
 
     trace.foundPackageRoot = packageRootPath;
 
-    const manifest = readPackageManifest(manifestPath);
-    if (manifest === null) {
+    const manifestRead = readPackageManifest(manifestPath);
+    if (!manifestRead.ok) {
       trace.failureReason = "manifest-invalid";
-      trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}.`;
+      trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: ${manifestRead.message}.`;
       return null;
     }
+    const manifest = manifestRead.manifest;
     if (!validatePackageManifestMatchesImport(packageRootPath, manifest, trace)) {
       return null;
     }
@@ -420,18 +437,37 @@ function compareSemverDesc(
 
 function readPackageManifest(
   manifestPath: string,
-): Record<string, unknown> | null {
-  try {
-    const manifestStats = tryLstat(manifestPath);
-    if (!manifestStats?.isFile()) return null;
-
-    const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
+): PackageManifestReadResult {
+  const manifestStats = tryLstat(manifestPath);
+  if (!manifestStats) {
+    return { ok: false, message: "missing bpl.json" };
   }
+  if (manifestStats.isSymbolicLink()) {
+    return { ok: false, message: "manifest path is a symbolic link" };
+  }
+  if (!manifestStats.isFile()) {
+    return { ok: false, message: "manifest path is not a file" };
+  }
+
+  let source: string;
+  try {
+    source = fs.readFileSync(manifestPath, "utf-8");
+  } catch {
+    return { ok: false, message: "manifest could not be read" };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    return { ok: false, message: "manifest is not valid JSON" };
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, message: "manifest must contain a JSON object" };
+  }
+
+  return { ok: true, manifest: parsed as Record<string, unknown> };
 }
 
 function validatePackageManifestMatchesImport(
