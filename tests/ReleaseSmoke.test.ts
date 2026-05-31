@@ -150,6 +150,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package init JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI bpl new JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package uninstall JSON",
       );
       expect(result.stdout).toContain(

@@ -553,6 +553,22 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["init", "Bad_Name", "--json"]');
   });
 
+  test("release smoke validates packed bpl new JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain("check packed npm CLI bpl new JSON");
+    expect(releaseSmokeSource).toContain("runPackedProjectNewJsonSmoke");
+    expect(releaseSmokeSource).toContain("parseProjectNewReport");
+    expect(releaseSmokeSource).toContain('check: "project-new"');
+    expect(releaseSmokeSource).toContain("BPL_NEW_TEMPLATE_INVALID");
+    expect(releaseSmokeSource).toContain("BPL_NEW_PATH_EXISTS_DIRECTORY");
+    expect(releaseSmokeSource).toContain("release-smoke-new-json");
+    expect(releaseSmokeSource).toContain("--no-git");
+  });
+
   test("release smoke validates packed package uninstall JSON output", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

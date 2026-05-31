@@ -109,6 +109,20 @@ interface PackageInitReport {
   errorCode?: string;
 }
 
+interface ProjectNewReport {
+  schemaVersion: 1;
+  check: "project-new";
+  success: boolean;
+  name: string;
+  template: string;
+  projectPath: string | null;
+  manifestPath?: string;
+  entrypoint?: string;
+  gitInitialized?: boolean;
+  error?: string;
+  errorCode?: string;
+}
+
 interface PackageUninstallReport {
   schemaVersion: 1;
   check: "package-uninstall";
@@ -509,6 +523,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageInstallJsonSmoke(installedBpl);
     runPackedPackagePackJsonSmoke(installedBpl);
     runPackedPackageInitJsonSmoke(installedBpl);
+    runPackedProjectNewJsonSmoke(installedBpl);
     runPackedPackageUninstallJsonSmoke(installedBpl);
     runPackedPackageManifestValidationJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
@@ -1136,6 +1151,130 @@ function runPackedPackageInitJsonSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI package init existing-manifest JSON reported unexpected payload:\n${JSON.stringify(existingReport, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedProjectNewJsonSmoke(installedBpl: string): void {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-new-json-"));
+  const projectDir = join(workspaceDir, "release-smoke-new-json");
+  const existingDir = join(workspaceDir, "taken-new-json");
+
+  try {
+    mkdirSync(existingDir, { recursive: true });
+
+    const scaffold = runStep(
+      "check packed npm CLI bpl new JSON",
+      installedBpl,
+      [
+        "new",
+        "release-smoke-new-json",
+        "--template",
+        "library",
+        "--no-git",
+        "--json",
+      ],
+      {
+        cwd: workspaceDir,
+        bplHome: null,
+      },
+    );
+    const report = parseProjectNewReport(scaffold.stdout);
+
+    if (
+      !report.success ||
+      report.name !== "release-smoke-new-json" ||
+      report.template !== "library" ||
+      report.projectPath !== projectDir ||
+      report.manifestPath !== join(projectDir, "bpl.json") ||
+      report.entrypoint !== "src/index.bpl" ||
+      report.gitInitialized !== false ||
+      !existsSync(join(projectDir, "src", "index.bpl")) ||
+      !existsSync(join(projectDir, "examples", "usage.bpl"))
+    ) {
+      throw new Error(
+        `Packed npm CLI bpl new JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+
+    const badTemplate = spawnSync(
+      installedBpl,
+      ["new", "bad-new-template", "--template", "bad", "--json"],
+      {
+        cwd: workspaceDir,
+        encoding: "utf-8",
+        env: buildStepEnv({ bplHome: null }),
+        timeout: smokeTimeoutMs,
+      },
+    );
+    if (badTemplate.error) throw badTemplate.error;
+    if (badTemplate.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI bpl new invalid-template JSON did not fail as expected.",
+          `exit: ${badTemplate.status ?? "unknown"}`,
+          `stdout:\n${badTemplate.stdout}`,
+          `stderr:\n${badTemplate.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (badTemplate.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI bpl new invalid-template JSON wrote stderr:\n${badTemplate.stderr}`,
+      );
+    }
+
+    const badTemplateReport = parseProjectNewReport(badTemplate.stdout);
+    if (
+      badTemplateReport.success ||
+      badTemplateReport.name !== "bad-new-template" ||
+      badTemplateReport.template !== "bad" ||
+      badTemplateReport.projectPath !== join(workspaceDir, "bad-new-template") ||
+      badTemplateReport.errorCode !== "BPL_NEW_TEMPLATE_INVALID" ||
+      typeof badTemplateReport.error !== "string"
+    ) {
+      throw new Error(
+        `Packed npm CLI bpl new invalid-template JSON reported unexpected payload:\n${JSON.stringify(badTemplateReport, null, 2)}`,
+      );
+    }
+
+    const existing = spawnSync(installedBpl, ["new", "taken-new-json", "--json"], {
+      cwd: workspaceDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null }),
+      timeout: smokeTimeoutMs,
+    });
+    if (existing.error) throw existing.error;
+    if (existing.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI bpl new existing-directory JSON did not fail as expected.",
+          `exit: ${existing.status ?? "unknown"}`,
+          `stdout:\n${existing.stdout}`,
+          `stderr:\n${existing.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (existing.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI bpl new existing-directory JSON wrote stderr:\n${existing.stderr}`,
+      );
+    }
+
+    const existingReport = parseProjectNewReport(existing.stdout);
+    if (
+      existingReport.success ||
+      existingReport.name !== "taken-new-json" ||
+      existingReport.template !== "app" ||
+      existingReport.projectPath !== existingDir ||
+      existingReport.errorCode !== "BPL_NEW_PATH_EXISTS_DIRECTORY" ||
+      typeof existingReport.error !== "string"
+    ) {
+      throw new Error(
+        `Packed npm CLI bpl new existing-directory JSON reported unexpected payload:\n${JSON.stringify(existingReport, null, 2)}`,
       );
     }
   } finally {
@@ -3134,6 +3273,22 @@ function parsePackageInitReport(stdout: string): PackageInitReport {
     throw new Error(
       [
         "Package init did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseProjectNewReport(stdout: string): ProjectNewReport {
+  try {
+    const report = JSON.parse(stdout) as ProjectNewReport;
+    assertJsonReportContract(report, "project-new", "project new");
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Project new did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
