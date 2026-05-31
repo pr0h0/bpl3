@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "fs";
+import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
 const WORKFLOW_DIR = join(import.meta.dir, "../.github/workflows");
@@ -258,6 +258,18 @@ describe("GitHub Actions workflows", () => {
     );
     expect(packageJson.scripts["test:ci"]).toContain(
       "! -name 'ReleaseSmoke.test.ts'",
+    );
+    expect(packageJson.scripts["test:ci"]).not.toContain(
+      "! -name 'ReleaseHelperSmoke.test.ts'",
+    );
+    expect(
+      existsSync(join(import.meta.dir, "ReleaseHelperSmoke.test.ts")),
+    ).toBe(true);
+    expect(packageJson.scripts["release:smoke"]).toBe(
+      "bun tools/release_smoke.ts",
+    );
+    expect(packageJson.scripts["release:check"]).toContain(
+      "bun run release:smoke",
     );
 
     expect(workflow).toContain("Run CI-safe test suite");
