@@ -115,6 +115,25 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps import resolver failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/ModuleResolver.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "import diagnostics|JSON-mode build failures"',
+    ];
+
+    expect(localCommandsForStep("ModuleResolver.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "reports import diagnostics in JSON-mode build failures",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("should explain invalid package import subpaths"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package source-safety JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
@@ -577,6 +596,42 @@ describe("CI triage helper", () => {
               ],
             },
             {
+              id: 53,
+              name: "Package resolver",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/53",
+              steps: [
+                {
+                  name: "Run focused tests",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 54,
+              name: "Module resolver",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/54",
+              steps: [
+                {
+                  name: "Run focused tests",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 55,
+              name: "Package source safety",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/55",
+              steps: [
+                {
+                  name: "Run focused tests",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
               id: 52,
               name: "Wasm runtime",
               conclusion: "failure",
@@ -627,6 +682,31 @@ describe("CI triage helper", () => {
         'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
         "bun test tests/PackageJsonFailureContracts.test.ts",
         'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
+      ]);
+
+      const packageResolverJob = report.summary.failedJobs.find(
+        (job) => job.name === "Package resolver",
+      );
+      expect(packageResolverJob?.localCommands).toEqual([
+        "bun test tests/PackageResolver.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "package search directory"',
+        'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
+      ]);
+
+      const moduleResolverJob = report.summary.failedJobs.find(
+        (job) => job.name === "Module resolver",
+      );
+      expect(moduleResolverJob?.localCommands).toEqual([
+        "bun test tests/ModuleResolver.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "import diagnostics|JSON-mode build failures"',
+      ]);
+
+      const sourceSafetyJob = report.summary.failedJobs.find(
+        (job) => job.name === "Package source safety",
+      );
+      expect(sourceSafetyJob?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
+        "bun test tests/PackageResolver.test.ts",
       ]);
 
       const wasmJob = report.summary.failedJobs.find(

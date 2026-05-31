@@ -95,6 +95,8 @@ const RELEASE_SMOKE_STEP_PATTERN =
 const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "PackageResolver\\.test",
+    "Package resolver",
+    "package/import resolver",
     "CLIJsonParseability\\.test",
     "package resolver",
     "package search directory",
@@ -102,9 +104,29 @@ const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
+  [
+    "ModuleResolver\\.test",
+    "Module resolver",
+    "import resolver",
+    "import diagnostics",
+    "JSON-mode build failures",
+    "Module path is a symbolic link",
+    "invalid package import subpaths",
+    "invalid package import names",
+    "unresolved package imports",
+    "package manifest name mismatches",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   [
     "package source-safety",
+    "package source safety",
+    "package import safety",
+    "package entrypoint symlink failures",
+    "package subpath symlink-parent failures",
+    "package subpath file symlink failures",
     "entrypoint resolves to a symbolic link candidate",
     "subpath .* resolves to a symbolic link candidate",
     "unsafe entrypoint",
@@ -118,6 +140,7 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
   [
     "PackageJsonFailureContracts\\.test",
     "PackageHelperJsonContracts\\.test",
+    "Package JSON contracts",
     "package-install",
     "package install JSON",
     "BPL_LOCKFILE_",
@@ -261,6 +284,11 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_RESOLVER_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
   ],
+  [IMPORT_RESOLVER_STEP_PATTERN, "bun test tests/ModuleResolver.test.ts"],
+  [
+    IMPORT_RESOLVER_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "import diagnostics|JSON-mode build failures"',
+  ],
   [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
@@ -403,7 +431,10 @@ export function summarizeWorkflowJobs(
         (step) => step.conclusion === "failure",
       );
       const localCommands = uniqueStrings(
-        failedSteps.flatMap((step) => localCommandsForStep(step.name)),
+        [
+          localCommandsForStep(job.name),
+          failedSteps.flatMap((step) => localCommandsForStep(step.name)),
+        ].flat(),
       );
 
       return {
