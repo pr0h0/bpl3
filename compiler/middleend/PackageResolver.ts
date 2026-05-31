@@ -201,7 +201,13 @@ function resolvePackageFromBaseDir(
     trace.searchedPaths.push(packageRoot);
 
     const packageRootStats = tryLstat(packageRoot);
-    if (!packageRootStats?.isDirectory()) continue;
+    if (!packageRootStats) continue;
+    if (packageRootStats.isSymbolicLink()) {
+      trace.foundPackageRoot = packageRoot;
+      failOnSymlinkedPackageRoot(packageRoot, trace);
+      return null;
+    }
+    if (!packageRootStats.isDirectory()) continue;
     const manifestPath = path.join(packageRoot, "bpl.json");
     if (!tryLstat(manifestPath)) continue;
 
@@ -372,6 +378,14 @@ function validatePackageManifestMatchesImport(
   }
 
   return true;
+}
+
+function failOnSymlinkedPackageRoot(
+  packageRoot: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: package root is a symbolic link.`;
 }
 
 function isValidPackageName(name: string): boolean {

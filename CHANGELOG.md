@@ -436,6 +436,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Directory Index Symlink Fallback Blocking (BUG-174)** - Package
   directory entrypoint and subpath resolution now also stop on symlinked
   `index.bpl` candidates before considering `index.x`.
+- **Package Root Symlink Fallback Blocking (BUG-175)** - Package resolution now
+  treats symlinked package roots as terminal metadata failures instead of
+  falling through to workspace or global packages with the same import name.
 - **Package Import Manifest Validation**: Package resolution now rejects invalid package import names before searching, rejects malformed package roots whose `bpl.json` `name` or `version` does not satisfy package manifest rules, and rejects versioned global package directories whose manifest `version` does not match the directory version.
 - **WebAssembly Linker Selection**: Treat explicit `WASM_LD` settings as authoritative instead of falling back to other linker names on `PATH`, making CI and local wasm linker failure tests deterministic.
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.
