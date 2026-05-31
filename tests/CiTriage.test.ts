@@ -317,6 +317,94 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("prints package and wasm repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-focused-json-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 51,
+              name: "Package JSON contracts",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/51",
+              steps: [
+                {
+                  name: "PackageJsonFailureContracts.test package-install JSON failure",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 52,
+              name: "Wasm runtime",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/52",
+              steps: [
+                {
+                  name: "WasmRuntime.test WebAssembly runtime execution",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const packageJob = report.summary.failedJobs.find(
+        (job) => job.name === "Package JSON contracts",
+      );
+      expect(packageJob?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
+        "bun test tests/PackageJsonFailureContracts.test.ts",
+        'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
+      ]);
+
+      const wasmJob = report.summary.failedJobs.find(
+        (job) => job.name === "Wasm runtime",
+      );
+      expect(wasmJob?.localCommands).toEqual([
+        "bun test tests/WasmRuntime.test.ts",
+        "bun run test:wasm",
+        "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+        "bun index.ts doctor --json",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prints missing requested job JSON from an offline jobs fixture", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-missing-job-"));
     const jobsPath = join(tempDir, "jobs.json");
