@@ -581,6 +581,35 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document docs JSON contract", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Documentation JSON reports",
+      'check: "docs"',
+      "BPL_DOCS_INPUT_NOT_FOUND",
+      "BPL_DOCS_INPUT_SYMLINK",
+      "BPL_DOCS_INPUT_NOT_FILE",
+      "BPL_DOCS_INPUT_PARENT_SYMLINK",
+      "BPL_DOCS_OUTPUT_SYMLINK",
+      "BPL_DOCS_OUTPUT_DIRECTORY",
+      "BPL_DOCS_OUTPUT_NOT_FILE",
+      "BPL_DOCS_OUTPUT_PARENT_NOT_FOUND",
+      "BPL_DOCS_OUTPUT_PARENT_SYMLINK",
+      "BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY",
+      "BPL_DOCS_FAILED",
+      "bun test tests/CLI.test.ts -t \"documentation generation success and validation failures as JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

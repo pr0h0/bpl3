@@ -108,9 +108,27 @@ bpl docs main.bpl --json
 
 Documentation JSON reports are available with `bpl docs <file> --json`.
 Successful reports emit `schemaVersion: 1`, `check: "docs"`, `success: true`,
-`file`, `outputPath`, and `generatedBytes`. JSON-mode validation failures stay
-on stdout with `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode`
-values.
+`file`, `outputPath`, and `generatedBytes`. `bpl docs` always writes Markdown to
+the selected output file, defaulting to `docs.md`; JSON mode reports that path
+instead of printing the generated Markdown to stdout.
+
+JSON-mode validation failures stay on stdout with `success: false`, `file`,
+`outputPath`, `error`, and stable `BPL_DOCS_*` `errorCode` values:
+
+- `BPL_DOCS_INPUT_NOT_FOUND`
+- `BPL_DOCS_INPUT_SYMLINK`
+- `BPL_DOCS_INPUT_NOT_FILE`
+- `BPL_DOCS_INPUT_PARENT_SYMLINK`
+- `BPL_DOCS_OUTPUT_SYMLINK`
+- `BPL_DOCS_OUTPUT_DIRECTORY`
+- `BPL_DOCS_OUTPUT_NOT_FILE`
+- `BPL_DOCS_OUTPUT_PARENT_NOT_FOUND`
+- `BPL_DOCS_OUTPUT_PARENT_SYMLINK`
+- `BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY`
+- `BPL_DOCS_FAILED`
+
+Reproduce the focused JSON contract with
+`bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"`.
 
 ### `bpl new <name>`
 
@@ -327,7 +345,7 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
 - `--json`: Output in JSON format where supported, including `bpl check`,
-  `bpl format --check`, `bpl lint`, and `bpl doctor`
+  `bpl docs`, `bpl format --check`, `bpl lint`, and `bpl doctor`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 
@@ -353,7 +371,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl bindgen <header> --json` | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures. |
 | `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
-| `bpl docs <file> --json` | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. |
+| `bpl docs <file> --json` | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. The command always writes Markdown to `outputPath`, defaulting to `docs.md`. |
 | `bpl format --check --json` | Format-check report with `schemaVersion`, `check: "format"`, `success`, `mode: "check"`, `totalFiles`, `formattedFiles`, `unformattedFiles`, `errorCount`, and per-file results. Files that need formatting use `BPL_FORMAT_NOT_FORMATTED`; missing and non-file inputs use stable `BPL_FORMAT_INPUT_*` codes. |
 | `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
 | `bpl doctor --json` / `bpl doctor sanitizer --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands when compiler-rt/libclang_rt probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, `error`, and `errorCode: "BPL_DOCTOR_SCOPE_UNKNOWN"`. |

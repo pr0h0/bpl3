@@ -113,6 +113,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_FORMAT_INPUT_NOT_FILE`, `BPL_FORMAT_NOT_FORMATTED`, and
   `BPL_FORMAT_PROCESSING_ERROR`. Focused repro:
   `bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"`.
+- **Documentation JSON Contract** - `bpl docs <file> --json` now emits `docs`
+  reports with output-file metadata on success and stable `BPL_DOCS_*`
+  `errorCode` values, including `BPL_DOCS_INPUT_NOT_FOUND`,
+  `BPL_DOCS_INPUT_SYMLINK`, `BPL_DOCS_INPUT_NOT_FILE`,
+  `BPL_DOCS_INPUT_PARENT_SYMLINK`, `BPL_DOCS_OUTPUT_SYMLINK`,
+  `BPL_DOCS_OUTPUT_DIRECTORY`, `BPL_DOCS_OUTPUT_NOT_FILE`,
+  `BPL_DOCS_OUTPUT_PARENT_NOT_FOUND`, `BPL_DOCS_OUTPUT_PARENT_SYMLINK`,
+  `BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_DOCS_FAILED`.
+  Focused repro:
+  `bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"`.
 - **Bindgen JSON Contract** - `bpl bindgen <header> --json` now emits
   `bindgen` reports with generated binding text or output-file metadata on
   success and stable `BPL_BINDGEN_*` `errorCode` values, including
