@@ -44,6 +44,7 @@ export const NUMERIC_TYPES = [
   "float",
   "double",
   "bool",
+  "i1",
   "char",
   "uchar",
   "short",
@@ -107,7 +108,11 @@ export class TypeUtils {
   static isNumericType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
     if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;
-    return NUMERIC_TYPES.includes(type.name);
+    const canonicalName = TYPE_ALIASES[type.name] || type.name;
+    return (
+      NUMERIC_TYPES.includes(type.name) ||
+      NUMERIC_TYPES.includes(canonicalName)
+    );
   }
 
   /**

@@ -13,6 +13,32 @@ import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
 
+function isGenericParameterType(
+  context: CheckerContext,
+  type: AST.TypeNode,
+): boolean {
+  if (type.kind !== "BasicType") return false;
+  if (
+    type.pointerDepth > 0 ||
+    type.arrayDimensions.length > 0 ||
+    type.genericArgs.length > 0
+  ) {
+    return false;
+  }
+
+  const declaration =
+    (type.resolvedDeclaration as any) ??
+    context.currentScope.resolve(type.name)?.declaration;
+  return declaration?.kind === "GenericParam";
+}
+
+function isArithmeticOperandType(
+  context: CheckerContext,
+  type: AST.TypeNode,
+): boolean {
+  return TypeUtils.isNumericType(type) || isGenericParameterType(context, type);
+}
+
 /**
  * Check a literal expression and return its type
  */
@@ -674,8 +700,8 @@ export function checkBinary(
     )
   ) {
     if (
-      !TypeUtils.isNumericType(leftType) ||
-      !TypeUtils.isNumericType(rightType)
+      !isArithmeticOperandType(this, leftType) ||
+      !isArithmeticOperandType(this, rightType)
     ) {
       throw new CompilerError(
         `Operator '${expr.operator.lexeme}' cannot be applied to types '${this.typeToString(

@@ -2063,3 +2063,42 @@ frame bad() ret Box {
 **Resolution**: Arithmetic operator validation now includes `+` alongside `-`,
 `*`, and `/`, while preserving pointer arithmetic and explicit operator
 overload handling.
+
+---
+
+### BUG-149: Aggregate Arithmetic Guard Rejects Generic and Bool Arithmetic
+
+**Status**: Fixed
+
+**Category**: TypeChecker/Generics
+
+**Description**: The BUG-148 aggregate arithmetic guard correctly rejected
+non-overloaded struct and tuple `+`, but it also rejected unresolved generic
+parameter arithmetic and canonical `bool` values that had resolved to `i1`.
+This broke generic helper bodies and examples that intentionally use `bool` in
+integer expressions.
+
+**Reproduction**:
+
+```bpl
+frame add<T>(a: T, b: T) ret T {
+    return a + b;
+}
+
+frame main() ret int {
+    local lhs: bool = true;
+    local rhs: bool = false;
+    return add<int>(10, 20) + lhs + rhs;
+}
+```
+
+**Expected**: Generic arithmetic bodies remain valid for later instantiation,
+and `bool`/`i1` operands continue to participate in numeric arithmetic.
+
+**Actual**: Type checking failed with `Operator '+' cannot be applied to types
+'T' and 'T'` or `Operator '+' cannot be applied to types 'i1' and 'i1'`.
+
+**Resolution**: Numeric type detection now recognizes canonical aliases such as
+`i1`, and the aggregate arithmetic guard allows unresolved generic parameters
+while still rejecting aggregate operands that do not define an operator
+overload.

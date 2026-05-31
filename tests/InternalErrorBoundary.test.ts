@@ -24,6 +24,17 @@ function compileInvalid(source: string) {
   return messages.join("\n");
 }
 
+function compileValid(source: string) {
+  const result = new Compiler({
+    filePath: "internal-boundary.bpl",
+    requireEntryPoint: false,
+  }).compile(source);
+
+  expect(result.success).toBe(true);
+  expect(result.errors ?? []).toHaveLength(0);
+  return result;
+}
+
 describe("Internal compiler error boundaries", () => {
   test("rejects aggregate binary arithmetic before LLVM code generation", () => {
     const structErrors = compileInvalid(`
@@ -68,5 +79,27 @@ describe("Internal compiler error boundaries", () => {
     expect(errors).toContain(
       "Unary operator '-' cannot be applied to type 'Box'",
     );
+  });
+
+  test("allows generic arithmetic bodies through aggregate arithmetic guard", () => {
+    compileValid(`
+      frame add<T>(a: T, b: T) ret T {
+        return a + b;
+      }
+
+      frame main() ret int {
+        return add<int>(10, 20);
+      }
+    `);
+  });
+
+  test("allows canonical bool arithmetic through aggregate arithmetic guard", () => {
+    compileValid(`
+      frame main() ret int {
+        local lhs: bool = true;
+        local rhs: bool = false;
+        return lhs + rhs;
+      }
+    `);
   });
 });
