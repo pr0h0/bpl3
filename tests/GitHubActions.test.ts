@@ -315,8 +315,14 @@ describe("GitHub Actions workflows", () => {
       join(import.meta.dir, "CompilerSanitizerRuntime.test.ts"),
       "utf8",
     );
+    const timeoutEnv = readFileSync(
+      join(import.meta.dir, "../compiler/common/Env.ts"),
+      "utf8",
+    );
 
     expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS");
-    expect(sanitizerTest).toContain("30 * 1000");
+    expect(sanitizerTest).toContain("getSanitizerRuntimeTestTimeoutMs");
+    expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS,\n  );");
+    expect(timeoutEnv).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS: 30000");
   });
 });
