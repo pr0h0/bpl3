@@ -885,8 +885,16 @@ export class PackageManager {
       issues.push(issue);
     };
     let packagesChecked = 0;
+    const lockEntries = Object.entries(lock.packages);
 
-    for (const [packageName, entry] of Object.entries(lock.packages)) {
+    if (lockEntries.length > 0) {
+      this.readPackageManagerDirectoryStats(
+        this.localPackageDir,
+        "Local package directory",
+      );
+    }
+
+    for (const [packageName, entry] of lockEntries) {
       packagesChecked++;
       const installPath = path.join(this.localPackageDir, packageName);
 

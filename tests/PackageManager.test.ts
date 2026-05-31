@@ -2181,6 +2181,112 @@ describe("PackageManager", () => {
       ).toThrow(/installed package root is a symbolic link/);
     });
 
+    test("should reject swapped local package directories during lock verification", () => {
+      const appDir = path.join(tempDir, "swapped-lock-root-app");
+      const outsidePackageRoot = path.join(tempDir, "outside-lock-root");
+      const outsidePackageDir = path.join(
+        outsidePackageRoot,
+        "swapped-lock-root-pkg",
+      );
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const localPackageDir = path.join(appDir, "bpl_modules");
+
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsidePackageDir, { recursive: true });
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "swapped-lock-root-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "swapped-lock-root-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "index.bpl"),
+        "export stable;",
+      );
+
+      const localPM = new PackageManager(appDir);
+      const hash = localPM["calculatePackageHash"](outsidePackageDir);
+      fs.rmSync(localPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "swapped-lock-root-pkg": {
+                version: "1.0.0",
+                source: "file:source.tgz",
+                hash,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      expect(() => localPM.verifyLockFile()).toThrow(
+        /Local package directory path is a symbolic link/,
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/Local package directory path is a symbolic link/);
+      expect(fs.lstatSync(localPackageDir).isSymbolicLink()).toBe(true);
+    });
+
+    test("should report missing locked packages when the local package directory is absent", () => {
+      const appDir = path.join(tempDir, "missing-lock-root-app");
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const localPackageDir = path.join(appDir, "bpl_modules");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "missing-lock-root-app", version: "1.0.0" }),
+      );
+
+      const localPM = new PackageManager(appDir);
+      fs.rmSync(localPackageDir, { recursive: true, force: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "missing-lock-root-pkg": {
+                version: "1.0.0",
+                source: "file:source.tgz",
+                hash: "missing-hash",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "missing-lock-root-pkg",
+          kind: "missing-package",
+        }),
+      );
+    });
+
     test("should verify installed package binaries against bpl.lock", () => {
       const manifest = {
         name: "bin-lock-test",
