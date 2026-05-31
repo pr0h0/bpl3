@@ -276,6 +276,113 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package install JSON validation failures parseable", () => {
+    const cases: Array<{
+      name: string;
+      args: string[];
+      expected: Record<string, unknown>;
+    }> = [
+      {
+        name: "missing manifest",
+        args: ["install", "--json"],
+        expected: {
+          target: null,
+          global: false,
+          locked: false,
+          update: false,
+          repairLock: false,
+          error: expect.stringContaining("No bpl.json found"),
+        },
+      },
+      {
+        name: "locked update conflict",
+        args: ["install", "--locked", "--update", "--json"],
+        expected: {
+          target: null,
+          locked: true,
+          update: true,
+          repairLock: false,
+          error: expect.stringContaining("Cannot use --locked with --update"),
+        },
+      },
+      {
+        name: "locked repair conflict",
+        args: ["install", "--locked", "--repair-lock", "--json"],
+        expected: {
+          target: null,
+          locked: true,
+          update: false,
+          repairLock: true,
+          error: expect.stringContaining(
+            "Cannot use --locked with --repair-lock",
+          ),
+        },
+      },
+      {
+        name: "update repair conflict",
+        args: ["install", "--update", "--repair-lock", "--json"],
+        expected: {
+          target: null,
+          locked: false,
+          update: true,
+          repairLock: true,
+          error: expect.stringContaining(
+            "Cannot use --update with --repair-lock",
+          ),
+        },
+      },
+      {
+        name: "package argument with update mode",
+        args: ["install", "missing-package", "--update", "--json"],
+        expected: {
+          target: "missing-package",
+          locked: false,
+          update: true,
+          repairLock: false,
+          error: expect.stringContaining(
+            "--update and --repair-lock are project install options",
+          ),
+        },
+      },
+    ];
+
+    for (const testCase of cases) {
+      const cwd = path.join(tempDir, `install-json-${testCase.name}`);
+      fs.mkdirSync(cwd, { recursive: true });
+
+      const result = runCli(testCase.args, { cwd });
+      expect(result.status).toBe(1);
+      expect(parseJsonObjectStdout(result)).toMatchObject({
+        schemaVersion: 1,
+        check: "package-install",
+        success: false,
+        global: false,
+        ...testCase.expected,
+      });
+    }
+  });
+
+  test("keeps package install JSON success stdout parseable", () => {
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({ name: "install-json-success", version: "1.0.0" }),
+    );
+
+    const result = runCli(["install", "--json"], { cwd: tempDir });
+    expect(result.status).toBe(0);
+    expect(parseJsonObjectStdout(result)).toEqual({
+      schemaVersion: 1,
+      check: "package-install",
+      success: true,
+      mode: "project",
+      target: null,
+      global: false,
+      locked: false,
+      update: false,
+      repairLock: false,
+    });
+  });
+
   test("keeps package-cache JSON stdout parseable for unsafe cache roots", () => {
     const homeDir = path.join(tempDir, "unsafe-cache-home");
     const bplHomeDir = path.join(homeDir, ".bpl");

@@ -135,6 +135,7 @@ _bpl() {
                         '--locked[Verify bpl.lock without changing installed packages]' \
                         '--update[Re-resolve bpl.json dependencies and rewrite bpl.lock]' \
                         '--repair-lock[Rewrite bpl.lock from currently installed packages]' \
+                        '--json[Output machine-readable install result]' \
                         '1:package:_files'
                     ;;
                 list)

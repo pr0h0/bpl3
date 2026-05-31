@@ -24,6 +24,22 @@ describe("Package JSON failure contracts", () => {
         expected: Record<string, unknown>;
       }> = [
         {
+          name: "install",
+          args: ["install", "--json"],
+          context: () => cleanPackageRoot(tempDir, "install"),
+          expected: {
+            schemaVersion: 1,
+            check: "package-install",
+            success: false,
+            mode: "project",
+            target: null,
+            global: false,
+            locked: false,
+            update: false,
+            repairLock: false,
+          },
+        },
+        {
           name: "list",
           args: ["list", "--json"],
           context: () => unsafeLocalPackageRoot(tempDir, "list"),

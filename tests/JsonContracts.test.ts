@@ -30,6 +30,7 @@ describe("JSON contract constants", () => {
         command: "bpl package-cache repair [package] --json",
         check: "package-cache-repair",
       },
+      { command: "bpl install [package] --json", check: "package-install" },
       { command: "bpl run-script --list --json", check: "run-script-list" },
       { command: "bpl run-script <name> --json", check: "run-script" },
       { command: "bpl clean --dry-run --json", check: "clean" },
@@ -73,6 +74,7 @@ describe("JSON contract constants", () => {
   test("centralizes package-manager report check names", () => {
     expect(CLI_JSON_CHECKS).toMatchObject({
       packageCacheClean: "package-cache-clean",
+      packageInstall: "package-install",
       packageCacheRepair: "package-cache-repair",
       packageCacheVerify: "package-cache-verify",
       packages: "packages",
@@ -84,6 +86,7 @@ describe("JSON contract constants", () => {
     );
     for (const check of [
       "package-cache-clean",
+      "package-install",
       "package-cache-repair",
       "package-cache-verify",
       "packages",

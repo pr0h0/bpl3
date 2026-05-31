@@ -24,7 +24,12 @@ import type {
   PackageOptionsVerbose,
 } from "../types";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
-import { Logger } from "../../compiler/common/Logger";
+import {
+  Logger,
+  LogLevel,
+  resetLogLevel,
+  setLogLevel,
+} from "../../compiler/common/Logger";
 import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
 import {
   CLI_JSON_CHECKS,
@@ -118,34 +123,75 @@ export function registerPackageCommands(program: Command): void {
       "--repair-lock",
       "rewrite bpl.lock from currently installed packages",
     )
-    .action((pkg: string | undefined, options: PackageOptionsVerbose) => {
-      try {
-        const pm = new PackageManager();
-
-        if (pkg && (options.update || options.repairLock)) {
-          throw new CompilerError(
-            "--update and --repair-lock are project install options",
-            "Run 'bpl install --update' or 'bpl install --repair-lock' without a package argument.",
-            {
-              file: process.cwd(),
-              startLine: 1,
-              startColumn: 1,
-              endLine: 1,
-              endColumn: 1,
-            },
-          );
+    .option("--json", "output machine-readable install result")
+    .action(
+      (
+        pkg: string | undefined,
+        options: PackageOptionsVerbose,
+        command: Command,
+      ) => {
+        const globalOpts = command.parent?.opts() || {};
+        const outputJson = Boolean(options.json || globalOpts.json);
+        if (outputJson) {
+          setLogLevel(LogLevel.SILENT);
         }
+        try {
+          const pm = new PackageManager();
 
-        if (!pkg) {
-          pm.installProject(options);
-        } else {
-          pm.install(pkg, options);
+          if (pkg && (options.update || options.repairLock)) {
+            throw new CompilerError(
+              "--update and --repair-lock are project install options",
+              "Run 'bpl install --update' or 'bpl install --repair-lock' without a package argument.",
+              {
+                file: process.cwd(),
+                startLine: 1,
+                startColumn: 1,
+                endLine: 1,
+                endColumn: 1,
+              },
+            );
+          }
+
+          if (!pkg) {
+            pm.installProject(options);
+          } else {
+            pm.install(pkg, options);
+          }
+
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageInstall, true, {
+                  ...formatPackageInstallJsonPayload(pkg, options),
+                }),
+                null,
+                2,
+              ),
+            );
+          }
+        } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageInstall, false, {
+                  ...formatPackageInstallJsonPayload(pkg, options),
+                  error: formatPackageCommandError(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        } finally {
+          if (outputJson) {
+            resetLogLevel();
+          }
         }
-      } catch (e) {
-        log.error(formatPackageCommandError(e));
-        process.exit(1);
-      }
-    });
+      },
+    );
 
   // List command
   program
@@ -526,6 +572,27 @@ function formatPackageCommandError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatPackageInstallJsonPayload(
+  pkg: string | undefined,
+  options: PackageOptionsVerbose,
+): {
+  mode: "package" | "project";
+  target: string | null;
+  global: boolean;
+  locked: boolean;
+  update: boolean;
+  repairLock: boolean;
+} {
+  return {
+    mode: pkg ? "package" : "project",
+    target: pkg ?? null,
+    global: Boolean(options.global),
+    locked: Boolean(options.locked),
+    update: Boolean(options.update),
+    repairLock: Boolean(options.repairLock),
+  };
 }
 
 function verifyPackageLLVMIR(llvmIR: string): void {

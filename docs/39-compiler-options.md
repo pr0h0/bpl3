@@ -127,12 +127,14 @@ bpl install
 bpl install --locked
 bpl install --update
 bpl install --repair-lock
+bpl install --json
 ```
 
 `--locked` verifies the lockfile without mutating `bpl_modules/`. `--update`
 re-resolves manifest dependency selectors such as `^1.2.0` against the package
 cache and rewrites `bpl.lock`. `--repair-lock` rewrites lockfile versions and
-hashes from currently installed packages and removes stale entries.
+hashes from currently installed packages and removes stale entries. `--json`
+prints a machine-readable `package-install` report for install automation.
 
 ### `bpl doctor`
 
@@ -275,6 +277,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. |
 | `bpl doctor --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, and `error`. |
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. |
+| `bpl install [package] --json` | Install report with `schemaVersion`, `check: "package-install"`, `success`, `mode`, `target`, `global`, `locked`, `update`, and `repairLock`; validation failures such as missing manifests, incompatible lock flags, locked verification failures, and package arguments with project-only modes return `success: false` and `error` on stdout without logger text on stderr. |
 | `bpl package-cache list [package] --json` | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`; unsafe cache-root validation failures return `success: false`, `entries: []`, and `error`. |
 | `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`; malformed sidecars and symlinked provenance paths use `invalid-provenance` with `provenancePath`, and unsafe cache-root validation failures return `success: false`, `ok: false`, `entriesChecked: 0`, `issues: []`, and `error`. |
 | `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check: "package-cache-clean"` or `check: "package-cache-repair"`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads; validation failures return `success: false`, the requested `dryRun`, empty collection fields such as `removed: []` or `repaired: []`, and `error`. |

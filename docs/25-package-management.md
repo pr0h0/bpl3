@@ -227,6 +227,9 @@ bpl install --repair-lock
 
 This updates recorded versions and hashes for installed packages and removes
 lock entries for packages that are no longer installed.
+Add `--json` to emit a `package-install` report for automation; JSON-mode
+validation failures stay parseable on stdout with `success: false` and an
+`error` field.
 
 To inspect why packages are installed and which dependencies are missing, use:
 

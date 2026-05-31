@@ -2943,8 +2943,13 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain("1:subcommand:(list verify repair clean)");
     expect(bash.stdout).toContain("packages --json");
     expect(zsh.stdout).toContain("1:scope:(packages)");
-    expect(bash.stdout).toContain("--repair-lock");
+    expect(bash.stdout).toContain(
+      'install_opts="-v --verbose --locked --update --repair-lock --json"',
+    );
     expect(zsh.stdout).toContain("--update[Re-resolve bpl.json dependencies");
+    expect(zsh.stdout).toContain(
+      "--json[Output machine-readable install result]",
+    );
     expect(bash.stdout).toContain('list_opts="-v --verbose --tree --json"');
     expect(zsh.stdout).toContain(
       "--json[Output machine-readable installed package data]",
