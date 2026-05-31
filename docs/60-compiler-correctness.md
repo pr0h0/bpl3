@@ -52,7 +52,8 @@ To reproduce the Windows-safe lane locally:
 bun run test:codegen-cross-platform
 ```
 
-To reproduce just the wasm runtime and compatibility coverage:
+To reproduce just the wasm toolchain, runtime, playground linker, and
+compatibility coverage:
 
 ```bash
 bun run test:wasm

@@ -82,6 +82,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Playground Wasm Toolchain Alignment** - The playground backend now uses the
   shared wasm linker discovery/error helper instead of a separate hardcoded
   probe, keeping browser wasm diagnostics aligned with CLI builds.
+- **Wasm Focused Test Script Coverage** - `bun run test:wasm` now includes the
+  shared wasm toolchain and playground linker contract tests in addition to
+  runtime execution and compatibility sweep coverage.
 - **Workflow Action Contract Coverage** - GitHub Actions tests now scan compiler
   workflows for maintained action major versions, Node 24 JavaScript action
   opt-in, and scheduled fuzz workflow contract-test coverage before long fuzz
