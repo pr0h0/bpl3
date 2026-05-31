@@ -527,6 +527,31 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document format JSON contract", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Format JSON reports",
+      'check: "format"',
+      "BPL_FORMAT_JSON_REQUIRES_CHECK",
+      "BPL_FORMAT_NO_INPUTS",
+      "BPL_FORMAT_WRITE_CHECK_CONFLICT",
+      "BPL_FORMAT_INPUT_NOT_FOUND",
+      "BPL_FORMAT_INPUT_NOT_FILE",
+      "BPL_FORMAT_NOT_FORMATTED",
+      "BPL_FORMAT_PROCESSING_ERROR",
+      "bun test tests/CLI.test.ts -t \"format check results and validation failures as JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

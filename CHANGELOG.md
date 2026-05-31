@@ -105,6 +105,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `project-new` reports with scaffold paths on success and stable
   `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, and
   `BPL_NEW_PATH_EXISTS_DIRECTORY` `errorCode` values for validation failures.
+- **Format JSON Contract** - `bpl format --check --json` now emits `format`
+  reports with per-file formatted/changed status and stable
+  `BPL_FORMAT_*` `errorCode` values including
+  `BPL_FORMAT_JSON_REQUIRES_CHECK`, `BPL_FORMAT_NO_INPUTS`,
+  `BPL_FORMAT_WRITE_CHECK_CONFLICT`, `BPL_FORMAT_INPUT_NOT_FOUND`,
+  `BPL_FORMAT_INPUT_NOT_FILE`, `BPL_FORMAT_NOT_FORMATTED`, and
+  `BPL_FORMAT_PROCESSING_ERROR`. Focused repro:
+  `bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"`.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing

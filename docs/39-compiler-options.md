@@ -231,6 +231,7 @@ Format BPL source files.
 
 - `-w, --write`: Write formatted output back to files
 - `--check`: Verify formatting without rewriting files
+- `--json`: Output a machine-readable format-check report with `--check`
 
 **Examples:**
 
@@ -238,9 +239,18 @@ Format BPL source files.
 bpl format main.bpl
 bpl format -w main.bpl
 bpl format --check src/*.bpl
+bpl format --check --json src/*.bpl
 ```
 
 Use `--check` in CI. It exits non-zero when any input would be changed.
+Format JSON reports are available with `bpl format --check --json`. Successful
+checks emit `schemaVersion: 1`, `check: "format"`, `success: true`,
+`mode: "check"`, aggregate `totalFiles`, `formattedFiles`,
+`unformattedFiles`, and `errorCount` fields, plus per-file `formatted` and
+`changed` results. JSON-mode validation failures stay on stdout with
+`success: false` and stable `BPL_FORMAT_*` codes. Reproduce the focused JSON
+contract with `bun test tests/CLI.test.ts -t "format check results and
+validation failures as JSON"`.
 
 ### `bpl lint [files...]`
 
@@ -271,7 +281,8 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
-- `--json`: Output in JSON format where supported, especially `bpl check`, `bpl lint`, and `bpl doctor`
+- `--json`: Output in JSON format where supported, including `bpl check`,
+  `bpl format --check`, `bpl lint`, and `bpl doctor`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 
@@ -332,6 +343,16 @@ git repositories use `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`. These codes are
 additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text while keeping `count: 0` and `entries: []` so
 automation can confirm no cleanup happened.
+
+Format JSON reports are stable for `bpl format --check --json`. `--json`
+without `--check` uses `BPL_FORMAT_JSON_REQUIRES_CHECK`, missing file lists use
+`BPL_FORMAT_NO_INPUTS`, and conflicting `--write --check` flags use
+`BPL_FORMAT_WRITE_CHECK_CONFLICT`. Per-file input validation uses
+`BPL_FORMAT_INPUT_NOT_FOUND` and `BPL_FORMAT_INPUT_NOT_FILE`. Files that parse
+successfully but would be rewritten use `BPL_FORMAT_NOT_FORMATTED`, and parser
+or formatter failures use `BPL_FORMAT_PROCESSING_ERROR`. These codes are
+additive fields on top-level or per-file JSON failure entries; JSON mode
+suppresses human logger text so stdout remains parseable.
 
 Run-script validation `errorCode` values are stable when `bpl run-script
 --json` or `bpl run-script --list --json` can classify the validation failure.
