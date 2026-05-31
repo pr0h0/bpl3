@@ -74,6 +74,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Build JSON Stability** - `bpl build --json` now emits a stable
   `schemaVersion: 1`, `check: "build"`, `success`, artifact output, and error
   shape on stdout for tooling.
+- **CLI JSON Test Helper** - Added a shared test helper for JSON stdout
+  parseability assertions used by CLI JSON contract tests.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

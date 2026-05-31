@@ -3,6 +3,7 @@ import { spawnSync, type SpawnSyncReturns } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { parseJsonObjectStdout } from "./helpers/cliJson";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 
@@ -15,15 +16,6 @@ function runCli(
     encoding: "utf-8",
     env: { ...process.env, NO_COLOR: "1", ...options.env },
   });
-}
-
-function parseJsonStdout(result: SpawnSyncReturns<string>): Record<string, unknown> {
-  expect(result.stdout.trim()).not.toBe("");
-  expect(result.stderr).toBe("");
-
-  const parsed: unknown = JSON.parse(result.stdout);
-  expect(parsed).toBeObject();
-  return parsed as Record<string, unknown>;
 }
 
 describe("CLI JSON parseability", () => {
@@ -47,7 +39,7 @@ describe("CLI JSON parseability", () => {
 
     const doctor = runCli(["doctor", "--json"]);
     expect(doctor.status).toBe(0);
-    expect(parseJsonStdout(doctor)).toMatchObject({
+    expect(parseJsonObjectStdout(doctor)).toMatchObject({
       schemaVersion: 1,
       check: "toolchain",
       success: true,
@@ -55,14 +47,14 @@ describe("CLI JSON parseability", () => {
 
     const clean = runCli(["clean", "--dry-run", "--json"], { cwd: tempDir });
     expect(clean.status).toBe(0);
-    expect(parseJsonStdout(clean)).toMatchObject({
+    expect(parseJsonObjectStdout(clean)).toMatchObject({
       dryRun: true,
       count: 1,
     });
 
     const build = runCli(["build", buildSource, "-o", buildOutput, "--json"]);
     expect(build.status).toBe(0);
-    expect(parseJsonStdout(build)).toMatchObject({
+    expect(parseJsonObjectStdout(build)).toMatchObject({
       schemaVersion: 1,
       check: "build",
       success: true,
@@ -78,7 +70,7 @@ describe("CLI JSON parseability", () => {
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {
     const result = runCli(["doctor", "unknown-scope", "--json"]);
     expect(result.status).toBe(1);
-    expect(parseJsonStdout(result)).toMatchObject({
+    expect(parseJsonObjectStdout(result)).toMatchObject({
       success: false,
       error: expect.stringContaining("Unknown doctor scope 'unknown-scope'"),
     });
@@ -93,7 +85,7 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["build", badSource, "--json"]);
     expect(result.status).toBe(1);
-    expect(parseJsonStdout(result)).toMatchObject({
+    expect(parseJsonObjectStdout(result)).toMatchObject({
       schemaVersion: 1,
       check: "build",
       success: false,

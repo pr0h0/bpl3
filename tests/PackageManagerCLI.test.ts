@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { parseJsonObjectStdout } from "./helpers/cliJson";
 
 describe("Package Manager CLI", () => {
   let tempDir: string;
@@ -555,12 +556,20 @@ describe("Package Manager CLI", () => {
         },
       );
       expect(listTreeJson.status).toBe(0);
-      const treeReport = JSON.parse(listTreeJson.stdout);
+      const treeReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        scope: string;
+        tree: Array<{ name: string }>;
+      }>(listTreeJson);
       expect(treeReport.schemaVersion).toBe(1);
       expect(treeReport.check).toBe("package-list-tree");
       expect(treeReport.success).toBe(true);
       expect(treeReport.scope).toBe("local");
-      expect(treeReport.tree[0].name).toBe("cli-graph-a");
+      expect(treeReport.tree).toHaveLength(1);
+      const rootDependency = treeReport.tree[0];
+      expect(rootDependency?.name).toBe("cli-graph-a");
       expect(JSON.stringify(treeReport.tree)).toContain("cli-graph-b");
 
       fs.rmSync(path.join(appDir, "bpl_modules", "cli-graph-b"), {
@@ -681,19 +690,32 @@ describe("Package Manager CLI", () => {
         encoding: "utf-8",
       });
       expect(listJson.status).toBe(0);
-      const report = JSON.parse(listJson.stdout);
+      const report = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        scope: string;
+        packages: Array<{
+          name: string;
+          version: string;
+          description?: string;
+          path?: string;
+          hash?: string;
+        }>;
+      }>(listJson);
       expect(report.schemaVersion).toBe(1);
       expect(report.check).toBe("package-list");
       expect(report.success).toBe(true);
       expect(report.scope).toBe("local");
       expect(report.packages).toHaveLength(1);
-      expect(report.packages[0]).toMatchObject({
+      const listedPackage = report.packages[0];
+      expect(listedPackage).toMatchObject({
         name: "list-cli-test",
         version: "1.5.0",
         description: "Test package for listing",
       });
-      expect(report.packages[0].path).toContain("bpl_modules");
-      expect(typeof report.packages[0].hash).toBe("string");
+      expect(listedPackage?.path).toContain("bpl_modules");
+      expect(typeof listedPackage?.hash).toBe("string");
     });
 
     test("should show message when no packages installed", () => {
