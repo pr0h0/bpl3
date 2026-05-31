@@ -157,6 +157,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-144 | Pointers            | Pointer subtraction across incompatible pointee types is accepted.                                                         | Fixed    | Pointer subtraction now requires compatible pointer operands before lowering to an integer difference. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                                                        |
 | BUG-145 | Inheritance/VTable  | Method overrides with incompatible return types are accepted and can dispatch through the wrong signature.                 | Fixed    | Struct body checking now validates inherited method overrides with matching non-`this` parameters and rejects incompatible return types before vtable dispatch can use mismatched signatures. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                  |
 | BUG-148 | TypeChecker/Codegen | Aggregate `+` expressions on structs or tuples compile to invalid LLVM `add` instructions.                                | Fixed    | Arithmetic validation now includes `+`, so aggregate addition without an overload is rejected before code generation. Regression: `tests/InternalErrorBoundary.test.ts`.                                                                                                                   |
+| BUG-151 | Package Manager     | Package installs can replace regular files or symlinks at `bpl_modules/<package>`.                                        | Fixed    | Package install targets are now preflighted before staging replacement; only absent paths or real directories are replaceable. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
 
 ## Details
 
@@ -2141,3 +2142,37 @@ symlink.
 **Resolution**: Package binary link preflight and the atomic link path now only
 allow absent targets or existing symlinks. Existing regular files and
 directories produce a `CompilerError` and remain untouched.
+
+---
+
+### BUG-151: Package Install Can Replace Existing Files Or Symlinks
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Installing a package moved any existing
+`bpl_modules/<package>` path into a temporary backup before replacing it with
+the new package directory. If that path was a regular file or symlink, install
+could silently remove a user-owned filesystem entry instead of reporting that
+the package target was unsafe.
+
+**Reproduction**:
+
+```bash
+mkdir -p app/bpl_modules
+printf 'user-owned\n' > app/bpl_modules/tool-package
+bpl install ../tool-package-1.0.0.tgz
+```
+
+The same issue applied when `app/bpl_modules/tool-package` was a symlink.
+
+**Expected**: Installation fails before replacing the target and leaves the
+existing file or symlink untouched.
+
+**Actual**: Installation succeeded, replaced the target with a package
+directory, and removed the temporary backup.
+
+**Resolution**: Package install target preflight now only allows absent paths
+or real directories. Regular files and symlinks produce a `CompilerError`
+before staging replacement begins.

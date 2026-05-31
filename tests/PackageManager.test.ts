@@ -855,6 +855,82 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should reject package install targets that are regular files", () => {
+      const packageDir = path.join(tempDir, "file-target-package");
+      const installDir = path.join(tempDir, "file-target-install");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "file-target-package",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const targetPath = path.join(
+        installDir,
+        "bpl_modules",
+        "file-target-package",
+      );
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.writeFileSync(targetPath, "user-owned file\n");
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Cannot install package 'file-target-package'/);
+      expect(fs.lstatSync(targetPath).isFile()).toBe(true);
+      expect(fs.readFileSync(targetPath, "utf-8")).toBe("user-owned file\n");
+    });
+
+    test("should reject package install targets that are symlinks", () => {
+      const packageDir = path.join(tempDir, "symlink-target-package");
+      const installDir = path.join(tempDir, "symlink-target-install");
+      const outsideTarget = path.join(tempDir, "outside-install-target");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(outsideTarget);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-target-package",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const targetPath = path.join(
+        installDir,
+        "bpl_modules",
+        "symlink-target-package",
+      );
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.symlinkSync(outsideTarget, targetPath, "dir");
+
+      expect(() =>
+        new PackageManager(installDir).install(tarballPath, {
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/Cannot install package 'symlink-target-package'/);
+      expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
+      expect(fs.existsSync(path.join(outsideTarget, "bpl.json"))).toBe(false);
+    });
+
     test("should isolate package extraction from stale temp directories", () => {
       const manifest = {
         name: "stale-temp-pkg",

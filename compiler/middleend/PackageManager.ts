@@ -2327,6 +2327,7 @@ export class PackageManager {
     manifestPath: string,
   ): void {
     fs.mkdirSync(path.dirname(installPath), { recursive: true });
+    this.assertPackageInstallTargetReplaceable(installPath, manifestPath);
     const stagingPath = this.createTemporaryInstallPath(
       installPath,
       manifestPath,
@@ -2436,6 +2437,32 @@ export class PackageManager {
     } catch {
       // Best-effort cleanup only.
     }
+  }
+
+  private assertPackageInstallTargetReplaceable(
+    installPath: string,
+    manifestPath: string,
+  ): void {
+    const existingTarget = this.tryLstat(installPath);
+    if (!existingTarget || existingTarget.isDirectory()) {
+      return;
+    }
+
+    const packageName = path.basename(installPath);
+    const existingKind = existingTarget.isSymbolicLink()
+      ? "A symbolic link"
+      : "A non-directory file";
+    throw new CompilerError(
+      `Cannot install package '${packageName}'`,
+      `${existingKind} already exists at ${installPath}. Move it out of the way and try again.`,
+      {
+        file: manifestPath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    );
   }
 
   private ensurePackageArchiveFile(archivePath: string): void {

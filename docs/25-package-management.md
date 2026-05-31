@@ -105,6 +105,9 @@ bpl install ../path/to/my-package-0.1.0.tgz
 This extracts the package into the `bpl_modules/` directory of your project.
 For local installs, BPL also writes `bpl.lock` with the exact installed package
 version, source archive, and content hash.
+If `bpl_modules/<package-name>` already exists, BPL only treats a real
+directory as an upgrade target. Existing regular files or symlinks at the
+package install path are rejected and left untouched.
 
 Project manifests can also declare dependencies directly:
 
