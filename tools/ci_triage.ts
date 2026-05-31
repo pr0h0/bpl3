@@ -63,12 +63,25 @@ const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
+  [
+    "Run WebAssembly runtime tests",
+    "BPL_REQUIRE_WASM_LD=1 requires a wasm linker",
+    "wasm-ld is required",
+    "wasm linker",
+    "WASM_LD",
+    "WebAssembly toolchain",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
   [/^Lint$/i, "bun run lint"],
   [/Run Windows-safe codegen tests/i, "bun run test:codegen-cross-platform"],
-  [/Run WebAssembly runtime tests/i, "bun run test:wasm"],
+  [WASM_TOOLCHAIN_STEP_PATTERN, "bun run test:wasm"],
+  [WASM_TOOLCHAIN_STEP_PATTERN, "BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
+  [WASM_TOOLCHAIN_STEP_PATTERN, "bun index.ts doctor --json"],
   [/Run CI-safe test suite/i, "bun run test:ci"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun run release:smoke"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseSmoke.test.ts"],

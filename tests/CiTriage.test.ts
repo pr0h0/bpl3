@@ -34,12 +34,35 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("Run CI-safe test suite")).toEqual([
       "bun run test:ci",
     ]);
+    expect(localCommandsForStep("Run WebAssembly runtime tests")).toEqual([
+      "bun run test:wasm",
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "bun index.ts doctor --json",
+    ]);
     expect(localCommandsForStep("Run compiler correctness tests")).toEqual([
       "bun run test:correctness",
     ]);
     expect(
       localCommandsForStep("Run deterministic differential compiler fuzz"),
     ).toEqual(["bun run fuzz:differential"]);
+  });
+
+  test("maps wasm linker failure text to focused repro commands", () => {
+    const expectedCommands = [
+      "bun run test:wasm",
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "bun index.ts doctor --json",
+    ];
+
+    expect(
+      localCommandsForStep("BPL_REQUIRE_WASM_LD=1 requires a wasm linker"),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("wasm-ld is required for compiler correctness CI")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("WASM_LD selected linker failed")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps release smoke failures to packed helper reproduction commands", () => {
