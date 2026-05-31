@@ -300,6 +300,24 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("--emit");
   });
 
+  test("release smoke validates packed clean validation error codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI clean validation JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedCleanValidationJsonSmoke");
+    expect(releaseSmokeSource).toContain(
+      "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE",
+    );
+    expect(releaseSmokeSource).toContain("parseCleanFailureReport");
+    expect(releaseSmokeSource).toContain('["clean", "--json"]');
+    expect(releaseSmokeSource).toContain("fatal: simulated git failure");
+  });
+
   test("release smoke guards packed sanitizer doctor JSON contract", async () => {
     const releaseSmoke = (await import("../tools/release_smoke")) as {
       assertSanitizerDoctorContract?: (report: unknown) => void;

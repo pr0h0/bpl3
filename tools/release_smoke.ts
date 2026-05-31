@@ -1,5 +1,6 @@
 import { spawnSync } from "child_process";
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -13,7 +14,7 @@ import {
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join, resolve } from "path";
+import { delimiter, join, resolve } from "path";
 import {
   discoverPackageHelperDependencyFiles,
   discoverPackageScriptHelperFiles,
@@ -176,6 +177,17 @@ interface BuildFailureReport {
   check: "build";
   success: boolean;
   file?: string;
+  error: string;
+  errorCode?: string;
+}
+
+interface CleanFailureReport {
+  schemaVersion: 1;
+  check: "clean";
+  success: boolean;
+  dryRun: boolean;
+  count: number;
+  entries: unknown[];
   error: string;
   errorCode?: string;
 }
@@ -438,6 +450,7 @@ function runPackedPackageSmoke(): void {
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
     runPackedBuildJsonSmoke(installedBpl);
     runPackedBuildValidationJsonSmoke(installedBpl);
+    runPackedCleanValidationJsonSmoke(installedBpl);
     runPackedWasmSmoke(installedBpl);
     runPackedCacheStatsSmoke(installedBpl);
     runPackedHelperScriptSmoke(installDir);
@@ -1340,6 +1353,74 @@ function runPackedBuildValidationJsonSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI build validation JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedCleanValidationJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(
+    join(tmpdir(), "bpl-release-clean-validation-json-"),
+  );
+  const fakeBin = join(tempDir, "bin");
+  const artifactPath = join(tempDir, "main.ll");
+
+  try {
+    mkdirSync(join(tempDir, ".git"));
+    mkdirSync(fakeBin);
+    writeFileSync(artifactPath, "; keep clean artifact");
+    writeNodeCommandShim(join(fakeBin, "git"), [
+      'console.error("fatal: simulated git failure");',
+      "process.exit(1);",
+    ]);
+
+    console.log("release smoke: check packed npm CLI clean validation JSON");
+    const result = spawnSync(installedBpl, ["clean", "--json"], {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_HOME: undefined,
+        NO_COLOR: "1",
+        PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ""}`,
+      },
+      timeout: smokeTimeoutMs,
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI clean validation smoke did not fail as expected.",
+          `exit: ${result.status ?? "unknown"}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (result.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI clean validation smoke wrote stderr:\n${result.stderr}`,
+      );
+    }
+
+    const report = parseCleanFailureReport(result.stdout);
+    if (
+      report.success ||
+      report.dryRun ||
+      report.count !== 0 ||
+      report.entries.length !== 0 ||
+      report.errorCode !== "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE" ||
+      report.error !==
+        "Could not determine git-tracked files; refusing to clean in a git repository." ||
+      !existsSync(artifactPath)
+    ) {
+      throw new Error(
+        `Packed npm CLI clean validation JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
       );
     }
   } finally {
@@ -2341,6 +2422,28 @@ function parseBuildFailureReport(stdout: string): BuildFailureReport {
   }
 }
 
+function parseCleanFailureReport(stdout: string): CleanFailureReport {
+  try {
+    const report = JSON.parse(stdout) as CleanFailureReport;
+    assertJsonReportContract(report, "clean", "clean failure");
+    if (typeof report.error !== "string") {
+      throw new Error("clean failure error is not a string");
+    }
+    if (!Array.isArray(report.entries)) {
+      throw new Error("clean failure entries is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Clean failure did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
 function parseFuzzArtifactReproPlan(stdout: string): FuzzArtifactReproPlan {
   try {
     const report = JSON.parse(stdout) as FuzzArtifactReproPlan;
@@ -2540,6 +2643,23 @@ function buildStepEnv(options: RunStepOptions): NodeJS.ProcessEnv {
   Object.assign(env, options.env);
 
   return env;
+}
+
+function writeNodeCommandShim(basePath: string, sourceLines: string[]): string {
+  if (process.platform === "win32") {
+    const scriptPath = `${basePath}.js`;
+    const commandPath = `${basePath}.cmd`;
+    writeFileSync(scriptPath, sourceLines.join("\n"));
+    writeFileSync(
+      commandPath,
+      `@echo off\r\n"${process.execPath}" "${scriptPath}" %*\r\n`,
+    );
+    return commandPath;
+  }
+
+  writeFileSync(basePath, ["#!/usr/bin/env node", ...sourceLines].join("\n"));
+  chmodSync(basePath, 0o755);
+  return basePath;
 }
 
 if (import.meta.main) {

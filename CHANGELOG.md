@@ -102,6 +102,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Clean Validation Repros** - `bun run ci:triage` now maps
   `BPL_CLEAN_*` and clean validation failure logs to focused clean JSON repro
   commands.
+- **Packed Clean Validation Smoke** - Release smoke now checks that the packed
+  npm CLI preserves `bpl clean --json` validation `errorCode` output such as
+  `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`.
 - **Package Import Diagnostic Coverage** - CLI and ModuleResolver regression
   tests now cover invalid package import names and malformed imported package
   manifest versions in human-readable, `check --json`, `build --json`, and
