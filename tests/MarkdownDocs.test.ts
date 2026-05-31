@@ -178,6 +178,7 @@ describe("Markdown documentation", () => {
       'check: "lint"',
       "bpl doctor --json",
       "The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands",
+      "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
       "bpl doctor packages --json",
       "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, or `BPL_PACKAGE_ARCHIVE_*`",
       "bpl package-cache list [package] --json",

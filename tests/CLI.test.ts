@@ -3445,6 +3445,9 @@ describe("CLI Tests", () => {
       );
       expect(linkerCheck?.hint).toContain("WASM_LD");
       expect(linkerCheck?.hint).toContain("BPL_REQUIRE_WASM_LD=1");
+      expect(linkerCheck?.hint).toContain(
+        "not a successful wasm execution",
+      );
 
       const textResult = spawnSync(process.execPath, [BPL_CLI, "doctor"], {
         encoding: "utf-8",
@@ -3454,6 +3457,7 @@ describe("CLI Tests", () => {
       expect(textResult.stdout).toContain("WARN wasm linker");
       expect(textResult.stdout).toContain("WASM_LD");
       expect(textResult.stdout).toContain("BPL_REQUIRE_WASM_LD=1");
+      expect(textResult.stdout).toContain("not a successful wasm execution");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

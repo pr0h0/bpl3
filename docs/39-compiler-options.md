@@ -158,7 +158,9 @@ wasm/linker/object-symbol/archive/verifier tools are reported as warnings unless
 the current workflow explicitly requires them. When no standalone wasm linker is
 usable, the `wasm linker` check includes `code: "BPL_WASM_LINKER_UNAVAILABLE"`,
 the checked `candidates`, relevant `environment` values, and
-`recommendedCommands` for strict local repro.
+`recommendedCommands` for strict local repro. The doctor hint makes clear that
+missing wasm linker support is an optional prerequisite skip, not a successful
+wasm execution, until `BPL_REQUIRE_WASM_LD=1` makes the linker mandatory.
 
 `bpl doctor` also validates path safety for `BPL_HOME` and bundled runtime
 resources. The BPL home path and runtime files such as `lib/runtime.ll`,
