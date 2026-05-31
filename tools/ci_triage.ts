@@ -271,9 +271,20 @@ const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
     "entrypoint resolves to a symbolic link candidate",
     "subpath .* resolves to a symbolic link candidate",
     "unsafe entrypoint",
-    "missing bpl\\.json",
-    "invalid bpl\\.json",
-    "package manifest symlink",
+  ].join("|"),
+  "i",
+);
+const PACKAGE_IMPORT_MANIFEST_STEP_PATTERN = new RegExp(
+  [
+    "package import manifest",
+    "malformed package manifests",
+    "package manifest symlink failures",
+    "missing package manifests",
+    "BPL_PACKAGE_MANIFEST_(MISSING|SYMLINK|NOT_FILE|PARSE_ERROR|NOT_OBJECT).*(JSON-mode|import|check|build)",
+    "manifest path is a symbolic link",
+    "manifest path is not a file",
+    "manifest is not valid JSON",
+    "manifest must contain a JSON object",
   ].join("|"),
   "i",
 );
@@ -290,7 +301,7 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
 );
 const PACKAGE_MANIFEST_JSON_STEP_PATTERN = new RegExp(
   [
-    "^(?!.*package-pack).*BPL_PACKAGE_MANIFEST_",
+    "^(?!.*(?:package-pack|JSON-mode|package import|import diagnostics)).*BPL_PACKAGE_MANIFEST_",
     "PackageManager manifest-loading",
     "package manifest error codes",
     "package manifest JSON codes",
@@ -609,6 +620,19 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     "bun test tests/PackageResolver.test.ts",
   ],
+  [
+    PACKAGE_IMPORT_MANIFEST_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "malformed package manifests|package manifest symlink|missing package manifests"',
+  ],
+  [
+    PACKAGE_IMPORT_MANIFEST_STEP_PATTERN,
+    'bun test tests/PackageResolver.test.ts -t "manifest"',
+  ],
+  [
+    PACKAGE_IMPORT_MANIFEST_STEP_PATTERN,
+    'bun test tests/ModuleResolver.test.ts -t "manifest"',
+  ],
+  [PACKAGE_IMPORT_MANIFEST_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_JSON_CONTRACT_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',

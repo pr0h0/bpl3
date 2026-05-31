@@ -408,12 +408,37 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("unsafe entrypoint '../outside.bpl'")).toEqual(
       expectedCommands,
     );
-    expect(localCommandsForStep("missing bpl.json")).toEqual(expectedCommands);
     expect(
       localCommandsForStep(
         "subpath 'features/add' resolves to a symbolic link candidate",
       ),
     ).toEqual(expectedCommands);
+  });
+
+  test("maps package import manifest failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "malformed package manifests|package manifest symlink|missing package manifests"',
+      'bun test tests/PackageResolver.test.ts -t "manifest"',
+      'bun test tests/ModuleResolver.test.ts -t "manifest"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep(
+        "BPL_PACKAGE_MANIFEST_PARSE_ERROR in JSON-mode build diagnostics",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "reports malformed package manifests in JSON-mode check and build diagnostics",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("manifest path is a symbolic link"),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("missing package manifests")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps package install JSON contract failures to focused reproduction commands", () => {
@@ -1239,6 +1264,72 @@ describe("CI triage helper", () => {
       expect(releaseJob?.localCommands).toContain(
         'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package import manifest repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-package-import-manifest-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 64,
+              name: "Package import manifest diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_MANIFEST_PARSE_ERROR in JSON-mode build diagnostics",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "malformed package manifests|package manifest symlink|missing package manifests"',
+        'bun test tests/PackageResolver.test.ts -t "manifest"',
+        'bun test tests/ModuleResolver.test.ts -t "manifest"',
+        "bun run check",
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
