@@ -85,6 +85,17 @@ interface PackageInstallReport {
   errorCode?: string;
 }
 
+interface PackageUninstallReport {
+  schemaVersion: 1;
+  check: "package-uninstall";
+  success: boolean;
+  package: string;
+  version?: string;
+  global: boolean;
+  error?: string;
+  errorCode?: string;
+}
+
 interface PackageListReport {
   schemaVersion: 1;
   check: "package-list";
@@ -472,6 +483,7 @@ function runPackedPackageSmoke(): void {
     runPackedDoctorSanitizerJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageInstallJsonSmoke(installedBpl);
+    runPackedPackageUninstallJsonSmoke(installedBpl);
     runPackedPackageManifestValidationJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
@@ -901,6 +913,130 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
     if (!existsSync(installedManifest)) {
       throw new Error(
         "Packed npm CLI package install JSON did not install package.",
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedPackageUninstallJsonSmoke(installedBpl: string): void {
+  const workspaceDir = mkdtempSync(
+    join(tmpdir(), "bpl-release-uninstall-json-"),
+  );
+  const packageDir = join(workspaceDir, "uninstall-json-pkg");
+  const appDir = join(workspaceDir, "uninstall-json-app");
+  const homeDir = join(workspaceDir, "home");
+
+  try {
+    mkdirSync(packageDir, { recursive: true });
+    mkdirSync(appDir, { recursive: true });
+    mkdirSync(homeDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "release-smoke-uninstall-json",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+
+    runStep("pack package uninstall JSON fixture", installedBpl, ["pack"], {
+      cwd: packageDir,
+      bplHome: null,
+    });
+    const archivePath = join(
+      packageDir,
+      "release-smoke-uninstall-json-1.0.0.tgz",
+    );
+    runStep(
+      "install packed npm CLI package uninstall fixture",
+      installedBpl,
+      ["install", archivePath],
+      {
+        cwd: appDir,
+        bplHome: null,
+        env: { HOME: homeDir },
+      },
+    );
+
+    const uninstall = runStep(
+      "check packed npm CLI package uninstall JSON",
+      installedBpl,
+      ["uninstall", "release-smoke-uninstall-json", "--json"],
+      {
+        cwd: appDir,
+        bplHome: null,
+        env: { HOME: homeDir },
+      },
+    );
+    const report = parsePackageUninstallReport(uninstall.stdout);
+
+    if (
+      !report.success ||
+      report.package !== "release-smoke-uninstall-json" ||
+      report.version !== "1.0.0" ||
+      report.global
+    ) {
+      throw new Error(
+        `Packed npm CLI package uninstall JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+
+    const installedManifest = join(
+      appDir,
+      "bpl_modules",
+      "release-smoke-uninstall-json",
+      "bpl.json",
+    );
+    if (existsSync(installedManifest)) {
+      throw new Error(
+        "Packed npm CLI package uninstall JSON did not remove package.",
+      );
+    }
+
+    const missing = spawnSync(
+      installedBpl,
+      ["remove", "missing-release-smoke-uninstall", "--json"],
+      {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: buildStepEnv({ bplHome: null, env: { HOME: homeDir } }),
+        timeout: smokeTimeoutMs,
+      },
+    );
+    if (missing.error) throw missing.error;
+    if (missing.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI package uninstall JSON failure did not fail as expected.",
+          `exit: ${missing.status ?? "unknown"}`,
+          `stdout:\n${missing.stdout}`,
+          `stderr:\n${missing.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (missing.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI package uninstall JSON failure wrote stderr:\n${missing.stderr}`,
+      );
+    }
+
+    const missingReport = parsePackageUninstallReport(missing.stdout);
+    if (
+      missingReport.success ||
+      missingReport.package !== "missing-release-smoke-uninstall" ||
+      missingReport.global ||
+      missingReport.errorCode !== "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED" ||
+      typeof missingReport.error !== "string"
+    ) {
+      throw new Error(
+        `Packed npm CLI package uninstall failure JSON reported unexpected payload:\n${JSON.stringify(missingReport, null, 2)}`,
       );
     }
   } finally {
@@ -2743,6 +2879,26 @@ function parsePackageInstallReport(stdout: string): PackageInstallReport {
     throw new Error(
       [
         "Package install did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageUninstallReport(stdout: string): PackageUninstallReport {
+  try {
+    const report = JSON.parse(stdout) as PackageUninstallReport;
+    assertJsonReportContract(
+      report,
+      "package-uninstall",
+      "package uninstall",
+    );
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package uninstall did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

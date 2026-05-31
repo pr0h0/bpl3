@@ -520,6 +520,26 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('check: "package-install"');
   });
 
+  test("release smoke validates packed package uninstall JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package uninstall JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedPackageUninstallJsonSmoke",
+    );
+    expect(releaseSmokeSource).toContain("parsePackageUninstallReport");
+    expect(releaseSmokeSource).toContain('check: "package-uninstall"');
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_UNINSTALL_NOT_INSTALLED");
+    expect(releaseSmokeSource).toContain(
+      '["remove", "missing-release-smoke-uninstall", "--json"]',
+    );
+  });
+
   test("release smoke validates packed package manifest validation error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
