@@ -37,6 +37,7 @@ describe("Release metadata", () => {
         "bpl",
         "bpl-wrapper.sh",
         "completions",
+        "compiler/common/PathSafety.ts",
         "docs",
         "examples",
         "grammar",
@@ -81,6 +82,10 @@ describe("Release metadata", () => {
     ]);
 
     expect(packageJson.files).toContain("tools");
+    expect(packageJson.files).toContain("compiler/common/PathSafety.ts");
+    expect(
+      existsSync(join(repoRoot, "compiler/common/PathSafety.ts")),
+    ).toBe(true);
     for (const [scriptName, helperPath] of helperScripts) {
       expect(packageJson.scripts[scriptName]).toContain(helperPath);
       expect(existsSync(join(repoRoot, helperPath))).toBe(true);

@@ -557,6 +557,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `fuzz:replay --minimize --out` now rejects final output symlinks,
   non-directory output parents, and symlinked output parent components before
   writing minimized repro files.
+- **Packed Helper Path Safety Dependency** - The npm package now ships the
+  shared path-safety helper required by packed `fuzz:repro` and release helper
+  scripts, keeping offline helper usage such as `npm run fuzz:repro -- --help`
+  working in installed packages.
 - **Trusted macOS Temp Root Symlinks (BUG-210)** - Shared path-safety checks now
   allow trusted macOS root temp symlinks such as `/var -> /private/var` and
   `/tmp -> /private/tmp`, fixing wasm runtime CI outputs under `os.tmpdir()`

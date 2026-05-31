@@ -28,6 +28,7 @@ const bplBinary = join(
 );
 const smokeTimeoutMs = 60 * 1000;
 const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
+const PACKED_HELPER_DEPENDENCY_FILES = ["compiler/common/PathSafety.ts"];
 
 interface DoctorReport {
   schemaVersion: 1;
@@ -278,11 +279,15 @@ function runPackedPackageSmoke(): void {
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
       ...packageHelperFiles,
+      ...PACKED_HELPER_DEPENDENCY_FILES,
     ]);
     assertSourceOnlyFiles(packEntry, [
       "playground/examples/70-browser-wasm-showcase.json",
     ]);
-    assertPackedFileAllowlist(packEntry, packageHelperFiles);
+    assertPackedFileAllowlist(packEntry, [
+      ...packageHelperFiles,
+      ...PACKED_HELPER_DEPENDENCY_FILES,
+    ]);
 
     const tarballPath = join(tempDir, packEntry.filename);
     if (!existsSync(tarballPath)) {
@@ -1391,8 +1396,10 @@ function assertPackedFileAllowlist(
   ];
 
   const packedPaths = packEntry.files?.map((file) => file.path) ?? [];
-  const forbidden = packedPaths.filter((filePath) =>
-    forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix)),
+  const forbidden = packedPaths.filter(
+    (filePath) =>
+      !allowedPaths.includes(filePath) &&
+      forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix)),
   );
   if (forbidden.length > 0) {
     throw new Error(

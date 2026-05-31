@@ -9,6 +9,7 @@
     "bpl",
     "bpl-wrapper.sh",
     "completions",
+    "compiler/common/PathSafety.ts",
     "docs",
     "examples",
     "grammar",
