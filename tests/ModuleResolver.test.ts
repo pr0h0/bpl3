@@ -543,6 +543,42 @@ describe("ModuleResolver", () => {
     expect(error.hint).toContain("Package imports cannot contain");
   });
 
+  it("should explain invalid package import names", () => {
+    const appDir = path.join(tempDir, "invalid-package-name-app");
+    fs.mkdirSync(appDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify(
+        { name: "invalid-package-name-app", version: "1.0.0" },
+        null,
+        2,
+      ),
+    );
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "Bad_Name";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("Module not found: Bad_Name");
+    expect(error.message).toContain(
+      "Package import names must use lowercase letters, digits, and hyphens only.",
+    );
+    expect(error.hint).toContain(
+      "Package import names must use lowercase letters, digits, and hyphens only.",
+    );
+  });
+
   it("should explain packages with missing entrypoints", () => {
     const appDir = path.join(tempDir, "missing-entrypoint-app");
     const packageDir = path.join(appDir, "bpl_modules", "broken-package");
@@ -626,6 +662,53 @@ describe("ModuleResolver", () => {
 
     expect(error.message).toContain("manifest name 'other-package'");
     expect(error.hint).toContain("manifest name 'other-package'");
+    expect(error.hint).toContain(path.join(packageDir, "bpl.json"));
+    expect(error.hint).toContain("Searched paths:");
+  });
+
+  it("should explain package manifest version metadata errors", () => {
+    const appDir = path.join(tempDir, "manifest-version-app");
+    const packageDir = path.join(appDir, "bpl_modules", "broken-package");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify({ name: "manifest-version-app", version: "1.0.0" }, null, 2),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "broken-package",
+          version: "latest",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "broken-package";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain(
+      "manifest version must use X.Y.Z semantic version format",
+    );
+    expect(error.hint).toContain(
+      "manifest version must use X.Y.Z semantic version format",
+    );
     expect(error.hint).toContain(path.join(packageDir, "bpl.json"));
     expect(error.hint).toContain("Searched paths:");
   });
