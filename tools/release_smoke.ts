@@ -56,6 +56,18 @@ interface PackageDoctorReport {
   issues: unknown[];
 }
 
+interface PackageInstallReport {
+  schemaVersion: 1;
+  check: "package-install";
+  success: boolean;
+  mode: "package" | "project";
+  target: string | null;
+  global: boolean;
+  locked: boolean;
+  update: boolean;
+  repairLock: boolean;
+}
+
 interface PackageListReport {
   schemaVersion: 1;
   check: "package-list";
@@ -363,6 +375,7 @@ function runPackedPackageSmoke(): void {
 
     runPackedDoctorFailureJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
+    runPackedPackageInstallJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
@@ -695,6 +708,80 @@ function runPackedPackageDoctorSmoke(installedBpl: string, installDir: string): 
     throw new Error(
       `Packed npm CLI package doctor cache verification was not isolated:\n${JSON.stringify(report.cacheVerification, null, 2)}`,
     );
+  }
+}
+
+function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-install-json-"));
+  const packageDir = join(workspaceDir, "install-json-pkg");
+  const appDir = join(workspaceDir, "install-json-app");
+  const homeDir = join(workspaceDir, "home");
+
+  try {
+    mkdirSync(packageDir, { recursive: true });
+    mkdirSync(appDir, { recursive: true });
+    mkdirSync(homeDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "release-smoke-install-json",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+
+    runStep("pack package install JSON fixture", installedBpl, ["pack"], {
+      cwd: packageDir,
+      bplHome: null,
+    });
+    const archivePath = join(
+      packageDir,
+      "release-smoke-install-json-1.0.0.tgz",
+    );
+    const install = runStep(
+      "check packed npm CLI package install JSON",
+      installedBpl,
+      ["install", archivePath, "--json"],
+      {
+        cwd: appDir,
+        bplHome: null,
+        env: { HOME: homeDir },
+      },
+    );
+    const report = parsePackageInstallReport(install.stdout);
+
+    if (
+      !report.success ||
+      report.mode !== "package" ||
+      report.target !== archivePath ||
+      report.global ||
+      report.locked ||
+      report.update ||
+      report.repairLock
+    ) {
+      throw new Error(
+        `Packed npm CLI package install JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+
+    const installedManifest = join(
+      appDir,
+      "bpl_modules",
+      "release-smoke-install-json",
+      "bpl.json",
+    );
+    if (!existsSync(installedManifest)) {
+      throw new Error(
+        "Packed npm CLI package install JSON did not install package.",
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
   }
 }
 
@@ -1573,6 +1660,22 @@ function parsePackageDoctorReport(stdout: string): PackageDoctorReport {
     throw new Error(
       [
         "Package doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageInstallReport(stdout: string): PackageInstallReport {
+  try {
+    const report = JSON.parse(stdout) as PackageInstallReport;
+    assertJsonReportContract(report, "package-install", "package install");
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package install did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

@@ -212,6 +212,19 @@ describe("Release metadata", () => {
     );
   });
 
+  test("release smoke validates packed package install JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package install JSON",
+    );
+    expect(releaseSmokeSource).toContain("parsePackageInstallReport");
+    expect(releaseSmokeSource).toContain('check: "package-install"');
+  });
+
   test("release manifest records checksums for shipped artifacts", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 
