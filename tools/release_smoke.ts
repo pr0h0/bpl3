@@ -171,6 +171,15 @@ interface BuildReport {
   };
 }
 
+interface BuildFailureReport {
+  schemaVersion: 1;
+  check: "build";
+  success: boolean;
+  file?: string;
+  error: string;
+  errorCode?: string;
+}
+
 interface FuzzArtifactReproPlan {
   schemaVersion: 1;
   inputPath: string;
@@ -428,6 +437,7 @@ function runPackedPackageSmoke(): void {
     runPackedRunScriptFailureJsonSmoke(installedBpl);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
     runPackedBuildJsonSmoke(installedBpl);
+    runPackedBuildValidationJsonSmoke(installedBpl);
     runPackedWasmSmoke(installedBpl);
     runPackedCacheStatsSmoke(installedBpl);
     runPackedHelperScriptSmoke(installDir);
@@ -1266,6 +1276,71 @@ function runPackedBuildJsonSmoke(installedBpl: string): void {
     }
     if (!existsSync(llvmPath) || !existsSync(outputPath)) {
       throw new Error("Packed npm CLI build JSON did not create artifacts.");
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedBuildValidationJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(
+    join(tmpdir(), "bpl-release-build-validation-json-"),
+  );
+  const outputPath = join(tempDir, "missing", "build-validation-smoke");
+  const llvmPath = `${outputPath}.ll`;
+
+  try {
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      "frame main() ret int { return 0; }\n",
+    );
+
+    console.log("release smoke: check packed npm CLI build validation JSON");
+    const result = spawnSync(
+      installedBpl,
+      ["build", "main.bpl", "--json", "--emit", "llvm", "-o", outputPath],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_HOME: undefined,
+          NO_COLOR: "1",
+        },
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI build validation smoke did not fail as expected.",
+          `exit: ${result.status ?? "unknown"}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (result.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI build validation smoke wrote stderr:\n${result.stderr}`,
+      );
+    }
+
+    const report = parseBuildFailureReport(result.stdout);
+    if (
+      report.success ||
+      report.file !== "main.bpl" ||
+      report.errorCode !== "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND" ||
+      !report.error.includes("Output directory not found") ||
+      existsSync(llvmPath)
+    ) {
+      throw new Error(
+        `Packed npm CLI build validation JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -2240,6 +2315,25 @@ function parseBuildReport(stdout: string): BuildReport {
     throw new Error(
       [
         "Build command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseBuildFailureReport(stdout: string): BuildFailureReport {
+  try {
+    const report = JSON.parse(stdout) as BuildFailureReport;
+    assertJsonReportContract(report, "build", "build failure");
+    if (typeof report.error !== "string") {
+      throw new Error("build failure error is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Build failure did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

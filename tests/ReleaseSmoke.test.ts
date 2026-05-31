@@ -192,6 +192,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI build JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI build validation JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: build packed npm CLI wasm artifact",
       );
       expect(result.stdout).toContain(

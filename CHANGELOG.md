@@ -93,6 +93,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Build Validation Repros** - `bun run ci:triage` now maps
   `BPL_BUILD_*` and build validation failure logs to focused `bpl build --json`
   JSON contract repro commands.
+- **Packed Build Validation Smoke** - Release smoke now checks that the packed
+  npm CLI preserves `bpl build --json` validation `errorCode` output such as
+  `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`.
 - **Package Import Diagnostic Coverage** - CLI and ModuleResolver regression
   tests now cover invalid package import names and malformed imported package
   manifest versions in human-readable, `check --json`, `build --json`, and
