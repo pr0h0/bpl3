@@ -80,6 +80,16 @@ const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
+  [
+    "PackageJsonFailureContracts\\.test",
+    "PackageHelperJsonContracts\\.test",
+    "package-install",
+    "package install JSON",
+    "BPL_LOCKFILE_",
+  ].join("|"),
+  "i",
+);
 const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
   [
     "Run WebAssembly runtime tests",
@@ -88,6 +98,17 @@ const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
     "wasm linker",
     "WASM_LD",
     "WebAssembly toolchain",
+  ].join("|"),
+  "i",
+);
+const WASM_RUNTIME_FAILURE_STEP_PATTERN = new RegExp(
+  [
+    "WasmRuntime\\.test",
+    "WebAssembly runtime execution",
+    "hosted wasm",
+    "wasm stdout",
+    "wasm stderr",
+    "wasm args",
   ].join("|"),
   "i",
 );
@@ -144,6 +165,25 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     "bun test tests/PackageResolver.test.ts",
   ],
+  [
+    PACKAGE_JSON_CONTRACT_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
+  ],
+  [
+    PACKAGE_JSON_CONTRACT_STEP_PATTERN,
+    "bun test tests/PackageJsonFailureContracts.test.ts",
+  ],
+  [
+    PACKAGE_JSON_CONTRACT_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
+  ],
+  [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun test tests/WasmRuntime.test.ts"],
+  [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun run test:wasm"],
+  [
+    WASM_RUNTIME_FAILURE_STEP_PATTERN,
+    "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+  ],
+  [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun index.ts doctor --json"],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],
   [/Run sanitizer-backed runtime tests/i, "bun run test:sanitizers"],

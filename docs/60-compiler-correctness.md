@@ -78,12 +78,23 @@ bun run ci:triage -- --json --jobs-json jobs.json <run-id>
 ```
 
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
-suite, the CI-required linker mode, and the local doctor report command:
+suite, the CI-required linker mode, and the local doctor report command. Direct
+`WasmRuntime.test` failures also include the focused runtime test file:
 
 ```bash
+bun test tests/WasmRuntime.test.ts
 bun run test:wasm
 BPL_REQUIRE_WASM_LD=1 bun run test:wasm
 bun index.ts doctor --json
+```
+
+When package JSON contract, install JSON, or `BPL_LOCKFILE_*` diagnostics fail,
+the triage helper points at the focused package automation checks:
+
+```bash
+bun test tests/CLIJsonParseability.test.ts -t "package install JSON"
+bun test tests/PackageJsonFailureContracts.test.ts
+bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"
 ```
 
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.

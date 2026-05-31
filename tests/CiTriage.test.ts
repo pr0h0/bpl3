@@ -123,6 +123,41 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package install JSON contract failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
+      "bun test tests/PackageJsonFailureContracts.test.ts",
+      'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
+    ];
+
+    expect(localCommandsForStep("PackageJsonFailureContracts.test")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("package-install JSON failure")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("BPL_LOCKFILE_UNSUPPORTED_VERSION in packages JSON"),
+    ).toEqual(expectedCommands);
+  });
+
+  test("maps wasm runtime execution failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/WasmRuntime.test.ts",
+      "bun run test:wasm",
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "bun index.ts doctor --json",
+    ];
+
+    expect(localCommandsForStep("WasmRuntime.test")).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("WebAssembly runtime execution should trap"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("routes hosted wasm stdout through host imports"),
+    ).toEqual(expectedCommands);
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {

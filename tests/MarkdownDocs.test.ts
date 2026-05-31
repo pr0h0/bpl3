@@ -401,8 +401,11 @@ describe("Markdown documentation", () => {
       "bun run ci:triage -- --json --jobs-json jobs.json <run-id>",
       'check: "ci-triage"',
       "When a wasm/toolchain step fails, the triage helper prints",
+      "bun test tests/WasmRuntime.test.ts",
       "bun index.ts doctor --json",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
+      "bun test tests/PackageJsonFailureContracts.test.ts",
       "When the scheduled `Compiler Fuzz` workflow fails",
       "bun run fuzz:repro -- fuzz/crashes",
     ];
