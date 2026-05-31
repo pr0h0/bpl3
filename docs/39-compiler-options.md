@@ -268,6 +268,33 @@ bpl lint src/*.bpl
 bpl lint --json src/*.bpl
 ```
 
+### `bpl bindgen <header>`
+
+Generate conservative BPL extern declarations from a C header.
+
+**Options:**
+
+- `-o, --output <file>`: Write generated bindings to a file
+- `--json`: Output a machine-readable bindgen report
+
+**Examples:**
+
+```bash
+bpl bindgen include/library.h
+bpl bindgen include/library.h -o src/library_bindings.bpl
+bpl bindgen include/library.h --json
+```
+
+Bindgen JSON reports are available with `bpl bindgen <header> --json`.
+Successful stdout-mode reports emit `schemaVersion: 1`, `check: "bindgen"`,
+`success: true`, `header`, `outputPath: null`, `generatedBytes`, and the
+generated `bindings` string. With `-o`, bindgen writes the file and reports the
+same success metadata with `outputPath` set to the destination. JSON-mode
+validation failures stay on stdout with `success: false`, `header`,
+`outputPath`, `error`, and stable `BPL_BINDGEN_*` codes. Reproduce the focused
+JSON contract with `bun test tests/CLI.test.ts -t "bindgen success and
+validation failures as JSON"`.
+
 ## Common Flags
 
 Flag availability depends on the command; run `bpl <command> --help` for the exact set.
@@ -354,6 +381,18 @@ successfully but would be rewritten use `BPL_FORMAT_NOT_FORMATTED`, and parser
 or formatter failures use `BPL_FORMAT_PROCESSING_ERROR`. These codes are
 additive fields on top-level or per-file JSON failure entries; JSON mode
 suppresses human logger text so stdout remains parseable.
+
+Bindgen JSON reports are stable for `bpl bindgen <header> --json`. Header
+validation uses `BPL_BINDGEN_HEADER_NOT_FOUND`,
+`BPL_BINDGEN_HEADER_SYMLINK`, `BPL_BINDGEN_HEADER_NOT_FILE`, and
+`BPL_BINDGEN_HEADER_PARENT_SYMLINK`. Output artifact validation uses
+`BPL_BINDGEN_OUTPUT_SYMLINK`, `BPL_BINDGEN_OUTPUT_DIRECTORY`,
+`BPL_BINDGEN_OUTPUT_NOT_FILE`, `BPL_BINDGEN_OUTPUT_PARENT_NOT_FOUND`,
+`BPL_BINDGEN_OUTPUT_PARENT_SYMLINK`, and
+`BPL_BINDGEN_OUTPUT_PARENT_NOT_DIRECTORY`. Unexpected generation failures use
+`BPL_BINDGEN_FAILED`. These codes are additive fields on stdout JSON failure
+reports, preserving the human-readable `error` text while suppressing logger
+text in JSON mode.
 
 Run-script validation `errorCode` values are stable when `bpl run-script
 --json` or `bpl run-script --list --json` can classify the validation failure.

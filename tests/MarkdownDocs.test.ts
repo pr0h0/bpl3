@@ -552,6 +552,35 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document bindgen JSON contract", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Bindgen JSON reports",
+      'check: "bindgen"',
+      "BPL_BINDGEN_HEADER_NOT_FOUND",
+      "BPL_BINDGEN_HEADER_SYMLINK",
+      "BPL_BINDGEN_HEADER_NOT_FILE",
+      "BPL_BINDGEN_HEADER_PARENT_SYMLINK",
+      "BPL_BINDGEN_OUTPUT_SYMLINK",
+      "BPL_BINDGEN_OUTPUT_DIRECTORY",
+      "BPL_BINDGEN_OUTPUT_NOT_FILE",
+      "BPL_BINDGEN_OUTPUT_PARENT_NOT_FOUND",
+      "BPL_BINDGEN_OUTPUT_PARENT_SYMLINK",
+      "BPL_BINDGEN_OUTPUT_PARENT_NOT_DIRECTORY",
+      "BPL_BINDGEN_FAILED",
+      "bun test tests/CLI.test.ts -t \"bindgen success and validation failures as JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

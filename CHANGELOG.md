@@ -113,6 +113,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_FORMAT_INPUT_NOT_FILE`, `BPL_FORMAT_NOT_FORMATTED`, and
   `BPL_FORMAT_PROCESSING_ERROR`. Focused repro:
   `bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"`.
+- **Bindgen JSON Contract** - `bpl bindgen <header> --json` now emits
+  `bindgen` reports with generated binding text or output-file metadata on
+  success and stable `BPL_BINDGEN_*` `errorCode` values, including
+  `BPL_BINDGEN_HEADER_NOT_FOUND`, `BPL_BINDGEN_HEADER_SYMLINK`,
+  `BPL_BINDGEN_HEADER_NOT_FILE`, `BPL_BINDGEN_HEADER_PARENT_SYMLINK`,
+  `BPL_BINDGEN_OUTPUT_SYMLINK`, `BPL_BINDGEN_OUTPUT_DIRECTORY`,
+  `BPL_BINDGEN_OUTPUT_NOT_FILE`, `BPL_BINDGEN_OUTPUT_PARENT_NOT_FOUND`,
+  `BPL_BINDGEN_OUTPUT_PARENT_SYMLINK`,
+  `BPL_BINDGEN_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_BINDGEN_FAILED`.
+  Focused repro:
+  `bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"`.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
