@@ -856,6 +856,66 @@ describe("Package Manager CLI", () => {
   });
 
   describe("package-cache command", () => {
+    test("should report empty cache list and verification JSON shapes", () => {
+      const homeDir = path.join(tempDir, "empty-cache-home");
+      const env = {
+        ...process.env,
+        HOME: homeDir,
+      };
+
+      const listResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "list", "--json"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(listResult.status).toBe(0);
+      expect(
+        parseJsonObjectStdout<{
+          schemaVersion: number;
+          check: string;
+          success: boolean;
+          entries: unknown[];
+        }>(listResult),
+      ).toMatchObject({
+        schemaVersion: 1,
+        check: "package-cache-list",
+        success: true,
+        entries: [],
+      });
+
+      const verifyResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "verify", "--json"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(verifyResult.status).toBe(0);
+      expect(
+        parseJsonObjectStdout<{
+          schemaVersion: number;
+          check: string;
+          success: boolean;
+          ok: boolean;
+          entriesChecked: number;
+          issues: unknown[];
+        }>(verifyResult),
+      ).toMatchObject({
+        schemaVersion: 1,
+        check: "package-cache-verify",
+        success: true,
+        ok: true,
+        entriesChecked: 0,
+        issues: [],
+      });
+    });
+
     test("should list and clean cached package archives", () => {
       const homeDir = path.join(tempDir, "cache-home");
       const cacheDir = path.join(homeDir, ".bpl", "packages");
