@@ -761,6 +761,129 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("promote CLI rejects symlinked metadata paths before updating crash metadata", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-fuzz-promote-metadata-link-"),
+    );
+
+    try {
+      const sourcePath = join(tempRoot, "source.bpl");
+      const corpusDir = join(tempRoot, "corpus");
+      const targetMetadataPath = join(tempRoot, "outside-metadata.json");
+      const metadataPath = join(tempRoot, "crash.json");
+      writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+      mkdirSync(corpusDir);
+      writeFileSync(
+        targetMetadataPath,
+        JSON.stringify(
+          {
+            seed: 0xbeef,
+            iteration: 3,
+            kind: "tokens",
+            sourcePath,
+            stage: "codegen",
+          },
+          null,
+          2,
+        ),
+      );
+      symlinkSync(targetMetadataPath, metadataPath, "file");
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--metadata",
+          metadataPath,
+          "--name",
+          "metadata link",
+          "--corpus-dir",
+          corpusDir,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Fuzz crash metadata path is a symbolic link",
+      );
+      expect(
+        JSON.parse(readFileSync(targetMetadataPath, "utf8")),
+      ).not.toHaveProperty("promotedTo");
+      expect(readdirSync(corpusDir)).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("promote CLI rejects metadata paths through symlinked ancestors", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-fuzz-promote-metadata-parent-link-"),
+    );
+
+    try {
+      const sourcePath = join(tempRoot, "source.bpl");
+      const corpusDir = join(tempRoot, "corpus");
+      const realRoot = join(tempRoot, "real-root");
+      const linkedRoot = join(tempRoot, "linked-root");
+      const targetMetadataPath = join(realRoot, "crash.json");
+      const metadataPath = join(linkedRoot, "crash.json");
+      writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+      mkdirSync(corpusDir);
+      mkdirSync(realRoot);
+      writeFileSync(
+        targetMetadataPath,
+        JSON.stringify(
+          {
+            seed: 0xcafe,
+            iteration: 4,
+            kind: "tokens",
+            sourcePath,
+            stage: "codegen",
+          },
+          null,
+          2,
+        ),
+      );
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--metadata",
+          metadataPath,
+          "--name",
+          "metadata parent link",
+          "--corpus-dir",
+          corpusDir,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Fuzz crash metadata parent contains a symbolic link",
+      );
+      expect(
+        JSON.parse(readFileSync(targetMetadataPath, "utf8")),
+      ).not.toHaveProperty("promotedTo");
+      expect(readdirSync(corpusDir)).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("refuses to overwrite promoted fuzz regression names without force", () => {
     const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-corpus-"));
     const sourcePath = join(corpusDir, "source.bpl");

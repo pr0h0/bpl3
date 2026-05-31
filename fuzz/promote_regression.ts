@@ -272,6 +272,7 @@ function resolveSourcePath(options: CliOptions): string {
 }
 
 function readCrashMetadata(metadataPath: string): CrashMetadata {
+  assertCrashMetadataPath(metadataPath);
   return JSON.parse(readFileSync(metadataPath, "utf8")) as CrashMetadata;
 }
 
@@ -291,12 +292,48 @@ function tryLstat(filePath: string): Stats | null {
   }
 }
 
+function assertCrashMetadataPath(metadataPath: string): void {
+  const absoluteMetadataPath = resolve(metadataPath);
+
+  for (const componentPath of pathComponents(absoluteMetadataPath)) {
+    const componentStats = tryLstat(componentPath);
+    if (!componentStats) {
+      continue;
+    }
+
+    if (componentStats.isSymbolicLink()) {
+      if (componentPath === absoluteMetadataPath) {
+        throw new Error(
+          `Fuzz crash metadata path is a symbolic link: ${componentPath}`,
+        );
+      }
+
+      throw new Error(
+        `Fuzz crash metadata parent contains a symbolic link: ${componentPath}`,
+      );
+    }
+
+    if (componentPath === absoluteMetadataPath) {
+      if (!componentStats.isFile()) {
+        throw new Error(
+          `Fuzz crash metadata path is not a file: ${componentPath}`,
+        );
+      }
+    } else if (!componentStats.isDirectory()) {
+      throw new Error(
+        `Fuzz crash metadata parent is not a directory: ${componentPath}`,
+      );
+    }
+  }
+}
+
 function markMetadataPromoted(
   metadataPath: string,
   destinationPath: string,
 ): void {
   const metadata = readCrashMetadata(metadataPath);
   metadata.promotedTo = destinationPath;
+  assertCrashMetadataPath(metadataPath);
   writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 }
 
