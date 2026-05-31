@@ -57,6 +57,15 @@ accepts package-safe names only: lowercase letters, numbers, and hyphens.
 `bpl init [name]` follows the same rule for explicit names. Without a name, it
 derives a package-safe default from the current directory by lowercasing it and
 replacing unsupported characters with hyphens.
+Package init JSON reports are available with `bpl init [name] --json`.
+Successful init runs emit `schemaVersion: 1`, `check: "package-init"`,
+`success: true`, `package`, `version`, and `manifestPath`. JSON-mode validation
+failures stay on stdout with `success: false`, `package`, `manifestPath`,
+`error`, and stable `errorCode` values including
+`BPL_PACKAGE_INIT_NAME_INVALID` for invalid explicit names and
+`BPL_PACKAGE_INIT_MANIFEST_EXISTS` when `bpl.json` is already present.
+Reproduce the focused JSON contract with
+`bun test tests/PackageManagerCLI.test.ts -t "init success and failures as JSON"`.
 
 This creates:
 

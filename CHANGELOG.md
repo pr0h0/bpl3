@@ -97,6 +97,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `package-pack` reports with archive paths on success and PackageManager
   `errorCode` values such as `BPL_PACKAGE_MANIFEST_MISSING` on validation
   failures.
+- **Package Init JSON Contract** - `bpl init [name] --json` now emits
+  `package-init` reports with manifest paths on success and stable
+  `BPL_PACKAGE_INIT_NAME_INVALID` and `BPL_PACKAGE_INIT_MANIFEST_EXISTS`
+  `errorCode` values for validation failures.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
