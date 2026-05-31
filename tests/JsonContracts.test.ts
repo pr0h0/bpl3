@@ -32,6 +32,10 @@ describe("JSON contract constants", () => {
         check: "package-cache-repair",
       },
       { command: "bpl install [package] --json", check: "package-install" },
+      {
+        command: "bpl uninstall <package> --json",
+        check: "package-uninstall",
+      },
       { command: "bpl run-script --list --json", check: "run-script-list" },
       { command: "bpl run-script <name> --json", check: "run-script" },
       { command: "bpl clean --dry-run --json", check: "clean" },

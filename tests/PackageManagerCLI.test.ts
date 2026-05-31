@@ -1721,6 +1721,103 @@ describe("Package Manager CLI", () => {
       expect(listResult.stdout).toContain("No packages installed");
     });
 
+    test("should report uninstall success and failures as JSON", () => {
+      const manifest = {
+        name: "uninstall-json-test",
+        version: "1.0.0",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export test;");
+
+      spawnSync("bun", [bplPath, "pack"], { cwd: tempDir });
+      spawnSync("bun", [bplPath, "install", "uninstall-json-test-1.0.0.tgz"], {
+        cwd: tempDir,
+      });
+
+      const uninstallResult = spawnSync(
+        "bun",
+        [bplPath, "uninstall", "uninstall-json-test", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const uninstallReport = expectJsonStdoutReport<{
+        check: "package-uninstall";
+        success: boolean;
+        package: string;
+        version: string;
+        global: boolean;
+      }>(uninstallResult, {
+        status: 0,
+        check: "package-uninstall",
+        success: true,
+      });
+      expect(uninstallReport).toMatchObject({
+        package: "uninstall-json-test",
+        version: "1.0.0",
+        global: false,
+      });
+
+      const missingResult = spawnSync(
+        "bun",
+        [bplPath, "remove", "missing-json-package", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const missingReport = expectJsonStdoutReport<{
+        check: "package-uninstall";
+        success: boolean;
+        package: string;
+        global: boolean;
+        error: string;
+        errorCode: string;
+      }>(missingResult, {
+        status: 1,
+        check: "package-uninstall",
+        success: false,
+      });
+      expect(missingReport).toMatchObject({
+        package: "missing-json-package",
+        global: false,
+        error: expect.stringContaining("not installed"),
+        errorCode: "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
+      });
+
+      const invalidResult = spawnSync(
+        "bun",
+        [bplPath, "uninstall", "Bad_Name", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const invalidReport = expectJsonStdoutReport<{
+        check: "package-uninstall";
+        success: boolean;
+        package: string;
+        global: boolean;
+        error: string;
+        errorCode: string;
+      }>(invalidResult, {
+        status: 1,
+        check: "package-uninstall",
+        success: false,
+      });
+      expect(invalidReport).toMatchObject({
+        package: "Bad_Name",
+        global: false,
+        error: expect.stringContaining("Invalid package name"),
+        errorCode: "BPL_PACKAGE_UNINSTALL_NAME_INVALID",
+      });
+    });
+
     test("should support remove alias", () => {
       // Create and install a package
       const manifest = {

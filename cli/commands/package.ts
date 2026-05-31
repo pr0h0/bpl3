@@ -332,14 +332,53 @@ export function registerPackageCommands(program: Command): void {
     .alias("remove")
     .description("Uninstall a package")
     .option("-g, --global", "uninstall global package")
-    .action((pkg: string, options: PackageOptionsGlobal) => {
+    .option("--json", "output machine-readable uninstall result")
+    .action((pkg: string, options: PackageOptionsGlobal, command: Command) => {
+      const globalOpts = command.parent?.opts() || {};
+      const outputJson = Boolean(options.json || globalOpts.json);
+      if (outputJson) {
+        setLogLevel(LogLevel.SILENT);
+      }
       try {
         const pm = new PackageManager();
-        pm.uninstall(pkg, options);
+        const result = pm.uninstall(pkg, options);
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.packageUninstall, true, {
+                package: result.name,
+                version: result.version,
+                global: result.global,
+              }),
+              null,
+              2,
+            ),
+          );
+          return;
+        }
         log.info(`Uninstalled ${pkg}`);
       } catch (e) {
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.packageUninstall, false, {
+                package: pkg,
+                global: Boolean(options.global),
+                error: formatPackageCommandJsonError(e),
+                ...formatPackageCommandErrorCode(e),
+              }),
+              null,
+              2,
+            ),
+          );
+          process.exit(1);
+        }
         log.error(formatPackageCommandError(e));
         process.exit(1);
+      } finally {
+        if (outputJson) {
+          resetLogLevel();
+        }
       }
     });
 

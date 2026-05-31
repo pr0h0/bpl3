@@ -68,6 +68,12 @@ export interface PackageInfo {
   hash: string;
 }
 
+export interface PackageUninstallResult {
+  name: string;
+  version: string;
+  global: boolean;
+}
+
 export interface PackageArchiveProvenance {
   schemaVersion: 1;
   name: string;
@@ -3279,7 +3285,7 @@ export class PackageManager {
   uninstall(
     packageName: string,
     options: PackageOptionsGlobal = { global: false },
-  ): void {
+  ): PackageUninstallResult {
     const location: SourceLocation = {
       file: packageName,
       startLine: 1,
@@ -3287,7 +3293,11 @@ export class PackageManager {
       endLine: 1,
       endColumn: 1,
     };
-    validatePackageName(packageName, location);
+    validatePackageName(
+      packageName,
+      location,
+      "BPL_PACKAGE_UNINSTALL_NAME_INVALID",
+    );
 
     const targetDir = options.global
       ? this.globalPackageDir
@@ -3308,6 +3318,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
       );
     }
 
@@ -3323,6 +3334,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
       );
     }
 
@@ -3458,6 +3470,11 @@ export class PackageManager {
     }
 
     compilerLog.info(`✓ Uninstalled ${manifest.name}@${manifest.version}`);
+    return {
+      name: manifest.name,
+      version: manifest.version,
+      global: Boolean(options.global),
+    };
   }
 
   /**
