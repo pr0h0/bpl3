@@ -189,6 +189,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package-cache verify JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package-cache maintenance JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package-cache validation JSON",
       );
       expect(result.stdout).toContain(

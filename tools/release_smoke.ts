@@ -596,6 +596,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
+    runPackedPackageCacheMaintenanceJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheValidationJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheNameValidationJsonSmoke(installedBpl, installDir);
     runPackedLockedInstallSafetySmoke(installedBpl);
@@ -1966,6 +1967,62 @@ function runPackedPackageCacheVerifyJsonSmoke(
   ) {
     throw new Error(
       `Packed npm CLI package-cache verify JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
+    );
+  }
+}
+
+function runPackedPackageCacheMaintenanceJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const homeDir = join(installDir, "package-cache-maintenance-home");
+  mkdirSync(homeDir, { recursive: true });
+
+  console.log("release smoke: check packed npm CLI package-cache maintenance JSON");
+  const clean = runStep(
+    "check packed npm CLI package-cache clean JSON",
+    installedBpl,
+    ["package-cache", "clean", "--dry-run", "--json"],
+    {
+      cwd: installDir,
+      bplHome: null,
+      env: { HOME: homeDir },
+    },
+  );
+  const cleanReport = parsePackageCacheCleanReport(clean.stdout);
+
+  const repair = runStep(
+    "check packed npm CLI package-cache repair JSON",
+    installedBpl,
+    ["package-cache", "repair", "--dry-run", "--json"],
+    {
+      cwd: installDir,
+      bplHome: null,
+      env: { HOME: homeDir },
+    },
+  );
+  const repairReport = parsePackageCacheRepairReport(repair.stdout);
+
+  if (
+    !cleanReport.success ||
+    !cleanReport.dryRun ||
+    cleanReport.removed.length !== 0 ||
+    cleanReport.error !== undefined ||
+    cleanReport.errorCode !== undefined ||
+    !repairReport.success ||
+    !repairReport.dryRun ||
+    repairReport.repaired.length !== 0 ||
+    repairReport.unchanged.length !== 0 ||
+    repairReport.issues.length !== 0 ||
+    repairReport.error !== undefined ||
+    repairReport.errorCode !== undefined
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache maintenance JSON reported unexpected payload.",
+        `clean:\n${JSON.stringify(cleanReport, null, 2)}`,
+        `repair:\n${JSON.stringify(repairReport, null, 2)}`,
+      ].join("\n"),
     );
   }
 }

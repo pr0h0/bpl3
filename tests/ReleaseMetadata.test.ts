@@ -771,6 +771,12 @@ describe("Release metadata", () => {
       "check packed npm CLI package-cache validation JSON",
     );
     expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package-cache maintenance JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedPackageCacheMaintenanceJsonSmoke",
+    );
+    expect(releaseSmokeSource).toContain(
       "runPackedPackageCacheValidationJsonSmoke",
     );
     expect(releaseSmokeSource).toContain(
@@ -789,6 +795,12 @@ describe("Release metadata", () => {
     );
     expect(releaseSmokeSource).toContain(
       '["package-cache", "repair", "Bad_Name", "--dry-run", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "clean", "--dry-run", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "repair", "--dry-run", "--json"]',
     );
     expect(releaseSmokeSource).toContain(
       '["package-cache", "clean", "pkg", "--package-version", "^1.0.0", "--dry-run", "--json"]',
