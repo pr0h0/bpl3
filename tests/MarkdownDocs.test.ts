@@ -35,6 +35,16 @@ import {
   CLEAN_WORKDIR_SYMLINK_CODE,
 } from "../cli/commands/clean";
 import {
+  CHECK_INPUT_NOT_FILE_CODE,
+  CHECK_INPUT_NOT_FOUND_CODE,
+  CHECK_INPUT_SYMLINK_CODE,
+} from "../cli/commands/check";
+import {
+  LINT_INPUT_NOT_FILE_CODE,
+  LINT_INPUT_NOT_FOUND_CODE,
+  LINT_INPUT_SYMLINK_CODE,
+} from "../cli/commands/lint";
+import {
   RUN_SCRIPT_COMMAND_EMPTY_CODE,
   RUN_SCRIPT_COMMAND_NOT_STRING_CODE,
   RUN_SCRIPT_MANIFEST_INVALID_JSON_CODE,
@@ -571,6 +581,29 @@ describe("Markdown documentation", () => {
     }
     expect(docs).toContain("Run-script validation `errorCode` values");
     expect(docs).toContain("preserving the human-readable `error` text");
+  });
+
+  test("docs document check and lint input validation error codes from command constants", () => {
+    const docs = [
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("CHANGELOG.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const expectedCodes = [
+      CHECK_INPUT_NOT_FOUND_CODE,
+      CHECK_INPUT_SYMLINK_CODE,
+      CHECK_INPUT_NOT_FILE_CODE,
+      LINT_INPUT_NOT_FOUND_CODE,
+      LINT_INPUT_SYMLINK_CODE,
+      LINT_INPUT_NOT_FILE_CODE,
+    ];
+
+    for (const code of expectedCodes) {
+      expect(docs).toContain(code);
+    }
+    expect(docs).toContain("Check and lint input validation `errorCode` values");
+    expect(docs).toContain("per-file JSON failure entries");
   });
 
   test("imports docs document std path safety rules", () => {

@@ -286,8 +286,8 @@ part of a command's validation path use stdout with `success: false` or
 | Command | Stable stdout shape |
 | --- | --- |
 | `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. |
-| `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. |
-| `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. |
+| `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
+| `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
 | `bpl doctor --json` / `bpl doctor sanitizer --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands when compiler-rt/libclang_rt probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, and `error`. |
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. Invalid lockfile issues use `kind: "invalid-lockfile"` plus stable `BPL_LOCKFILE_*` codes for malformed JSON, unsupported versions, bad package maps or entries, non-file paths, and symlinked lockfiles. |
 | `bpl install [package] --json` | Install report with `schemaVersion`, `check: "package-install"`, `success`, `mode`, `target`, `global`, `locked`, `update`, and `repairLock`; validation failures such as missing manifests, incompatible lock flags, locked verification failures, direct archive path failures, and package arguments with project-only modes return `success: false` and `error` on stdout without logger text on stderr. When a package failure has a stable compiler code, the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, or `BPL_PACKAGE_ARCHIVE_*`. |
@@ -331,6 +331,15 @@ Manifest validation uses `BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND`,
 Named-script lookup failures use `BPL_RUN_SCRIPT_NOT_FOUND`. These codes are
 additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text for older consumers and logs.
+
+Check and lint input validation `errorCode` values are stable when `bpl check
+--json` or `bpl lint --json` can classify a source input before parsing. Check
+uses `BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
+`BPL_CHECK_INPUT_NOT_FILE`. Lint uses `BPL_LINT_INPUT_NOT_FOUND`,
+`BPL_LINT_INPUT_SYMLINK`, and `BPL_LINT_INPUT_NOT_FILE`. These codes are
+additive fields on per-file JSON failure entries, preserving the
+human-readable `error` text while keeping `totalFiles` and `errorCount`
+accurate.
 
 Import-resolution failures use the same diagnostic objects as type errors.
 `bpl check --json` reports missing modules, unsafe `std/` paths, and package

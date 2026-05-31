@@ -93,6 +93,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed Run-Script Validation Smoke** - Release smoke now checks that the
   packed npm CLI preserves `bpl run-script --json` validation `errorCode`
   output such as `BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND`.
+- **Check/Lint JSON Input Validation Codes** - `bpl check --json` and
+  `bpl lint --json` per-file input validation failures now include stable
+  `BPL_CHECK_INPUT_*` and `BPL_LINT_INPUT_*` `errorCode` values for missing,
+  symlinked, and non-file source inputs.
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.
