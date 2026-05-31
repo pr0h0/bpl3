@@ -73,6 +73,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Shared Wasm Toolchain Discovery** - CLI wasm builds, `bpl doctor`, and wasm
   runtime tests now share wasm linker candidate/probe logic, and
   `BPL_REQUIRE_WASM_LD=1` failures list the checked candidates.
+- **Workflow Action Contract Coverage** - GitHub Actions tests now scan compiler
+  workflows for maintained action major versions, Node 24 JavaScript action
+  opt-in, and scheduled fuzz workflow contract-test coverage before long fuzz
+  runs.
 - **Check JSON Stability** - `bpl check --json` now includes stable
   `schemaVersion: 1` and `check: "check"` metadata alongside the existing
   aggregate totals, timing, per-file diagnostics, and validation errors.

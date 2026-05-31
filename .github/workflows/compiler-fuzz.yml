@@ -57,6 +57,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Run workflow contract tests
+        run: bun test tests/GitHubActions.test.ts
+
       - name: Prepare crash artifact directory
         run: |
           rm -rf "$FUZZ_CRASH_DIR"

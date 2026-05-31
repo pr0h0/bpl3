@@ -1,14 +1,55 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
+const WORKFLOW_DIR = join(import.meta.dir, "../.github/workflows");
+const MAINTAINED_ACTION_MAJOR_VERSIONS: Record<string, number> = {
+  "actions/checkout": 6,
+  "actions/upload-artifact": 4,
+  "oven-sh/setup-bun": 2,
+};
+
+function readWorkflow(name: string): string {
+  return readFileSync(join(WORKFLOW_DIR, name), "utf8");
+}
+
+function listWorkflowNames(): string[] {
+  return readdirSync(WORKFLOW_DIR)
+    .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
+    .sort();
+}
+
+function extractActionUses(workflow: string): Array<{
+  action: string;
+  version: string;
+}> {
+  return [...workflow.matchAll(/^\s*uses:\s*([^@\s]+)@([^\s#]+)/gm)].map(
+    (match) => ({
+      action: match[1]!,
+      version: match[2]!,
+    }),
+  );
+}
+
 describe("GitHub Actions workflows", () => {
+  test("compiler workflows keep JavaScript actions on maintained Node 24-compatible versions", () => {
+    for (const workflowName of listWorkflowNames()) {
+      const workflow = readWorkflow(workflowName);
+
+      expect(workflow).toContain("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true");
+
+      for (const { action, version } of extractActionUses(workflow)) {
+        expect(MAINTAINED_ACTION_MAJOR_VERSIONS[action]).toBeDefined();
+        expect(version).toMatch(/^v\d+$/);
+        expect(Number(version.slice(1))).toBeGreaterThanOrEqual(
+          MAINTAINED_ACTION_MAJOR_VERSIONS[action]!,
+        );
+      }
+    }
+  });
+
   test("nightly compiler fuzz workflow runs long fuzz and uploads crash artifacts", () => {
-    const workflowPath = join(
-      import.meta.dir,
-      "../.github/workflows/compiler-fuzz.yml",
-    );
-    const workflow = readFileSync(workflowPath, "utf8");
+    const workflow = readWorkflow("compiler-fuzz.yml");
     const packageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
     );
@@ -23,6 +64,8 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("bun run build:runtime");
     expect(workflow).toContain("bun run check");
     expect(workflow).toContain("bun run lint");
+    expect(workflow).toContain("Run workflow contract tests");
+    expect(workflow).toContain("bun test tests/GitHubActions.test.ts");
     expect(workflow).toContain("bun run fuzz:long");
     expect(workflow).toContain("bun run fuzz:differential");
     expect(workflow).toContain("FUZZ_SEEDS");
@@ -50,6 +93,10 @@ describe("GitHub Actions workflows", () => {
 
     const buildRuntimeIndex = workflow.indexOf("Build runtime support");
     const typeCheckIndex = workflow.indexOf("Type check");
+    const lintIndex = workflow.indexOf("Lint");
+    const workflowContractIndex = workflow.indexOf(
+      "Run workflow contract tests",
+    );
     const runFuzzIndex = workflow.indexOf("Run deterministic compiler fuzz");
     const differentialIndex = workflow.indexOf(
       "Run deterministic differential compiler fuzz",
@@ -58,6 +105,9 @@ describe("GitHub Actions workflows", () => {
     const uploadIndex = workflow.indexOf("Upload fuzz crash artifacts");
 
     expect(typeCheckIndex).toBeGreaterThan(buildRuntimeIndex);
+    expect(lintIndex).toBeGreaterThan(typeCheckIndex);
+    expect(workflowContractIndex).toBeGreaterThan(lintIndex);
+    expect(runFuzzIndex).toBeGreaterThan(workflowContractIndex);
     expect(runFuzzIndex).toBeGreaterThan(buildRuntimeIndex);
     expect(differentialIndex).toBeGreaterThan(runFuzzIndex);
     expect(minimizeIndex).toBeGreaterThan(differentialIndex);
@@ -72,11 +122,7 @@ describe("GitHub Actions workflows", () => {
   });
 
   test("compiler correctness workflow runs cross-platform toolchain matrix coverage", () => {
-    const workflowPath = join(
-      import.meta.dir,
-      "../.github/workflows/compiler-correctness.yml",
-    );
-    const workflow = readFileSync(workflowPath, "utf8");
+    const workflow = readWorkflow("compiler-correctness.yml");
     const packageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
     );
@@ -180,11 +226,7 @@ describe("GitHub Actions workflows", () => {
   });
 
   test("compiler correctness workflow runs a broad CI-safe test suite before correctness", () => {
-    const workflowPath = join(
-      import.meta.dir,
-      "../.github/workflows/compiler-correctness.yml",
-    );
-    const workflow = readFileSync(workflowPath, "utf8");
+    const workflow = readWorkflow("compiler-correctness.yml");
     const packageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
     );
