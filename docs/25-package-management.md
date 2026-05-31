@@ -244,7 +244,9 @@ top-level contract with `schemaVersion: 1`, `check: "package-list"`,
 Package listing revalidates the local or global package directory with
 `lstat` before scanning, including parent path components, so a symlinked
 `bpl_modules`, global package cache directory, or parent directory is rejected
-instead of followed.
+instead of followed. In JSON mode, unsafe package-root failures return
+`success: false`, the requested `scope`, an empty `packages: []` payload, and
+`error`.
 `bpl list --tree --json` uses `check: "package-list-tree"` with the same
 `schemaVersion` and `success` fields, plus the dependency tree data used by the
 human tree output. Tree generation validates an existing local `bpl.lock`
@@ -252,7 +254,8 @@ before choosing lockfile roots; symlinked, broken-symlink, malformed, or
 non-file lockfile paths are rejected instead of being treated as absent. Tree
 roots and nodes also classify `bpl_modules` and `bpl_modules/<package>` paths
 with `lstat`, so symlinked or non-directory package roots are reported as
-problems instead of being followed.
+problems instead of being followed. Tree JSON validation failures return the
+requested `scope`, `tree: []`, and `error`.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured

@@ -155,11 +155,11 @@ export function registerPackageCommands(program: Command): void {
     .option("--tree", "show dependency tree")
     .option("--json", "output machine-readable installed package data")
     .action((options: PackageOptionsGlobal, command: Command) => {
+      const globalOpts = command.parent?.opts() || {};
+      const outputJson = options.json || globalOpts.json;
+      const scope = options.global ? "global" : "local";
       try {
         const pm = new PackageManager();
-        const globalOpts = command.parent?.opts() || {};
-        const outputJson = options.json || globalOpts.json;
-        const scope = options.global ? "global" : "local";
 
         if (options.tree) {
           const tree = pm.getDependencyTree(options);
@@ -228,6 +228,27 @@ export function registerPackageCommands(program: Command): void {
           }
         }
       } catch (e) {
+        if (outputJson) {
+          const error = formatPackageCommandError(e);
+          console.log(
+            JSON.stringify(
+              options.tree
+                ? createJsonReport(CLI_JSON_CHECKS.packageListTree, false, {
+                    scope,
+                    tree: [],
+                    error,
+                  })
+                : createJsonReport(CLI_JSON_CHECKS.packageList, false, {
+                    scope,
+                    packages: [],
+                    error,
+                  }),
+              null,
+              2,
+            ),
+          );
+          process.exit(1);
+        }
         log.error(formatPackageCommandError(e));
         process.exit(1);
       }

@@ -316,6 +316,46 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package list JSON stdout parseable for unsafe package roots", () => {
+    const projectDir = path.join(tempDir, "unsafe-list-project");
+    const homeDir = path.join(tempDir, "unsafe-list-home");
+    fs.mkdirSync(projectDir);
+    fs.mkdirSync(homeDir);
+    fs.writeFileSync(path.join(projectDir, "bpl_modules"), "not a directory");
+
+    const list = runCli(["list", "--json"], {
+      cwd: projectDir,
+      env: { HOME: homeDir },
+    });
+    expect(list.status).toBe(1);
+    expect(parseJsonObjectStdout(list)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-list",
+      success: false,
+      scope: "local",
+      packages: [],
+      error: expect.stringContaining(
+        "Local package directory path is not a directory",
+      ),
+    });
+
+    const listTree = runCli(["list", "--tree", "--json"], {
+      cwd: projectDir,
+      env: { HOME: homeDir },
+    });
+    expect(listTree.status).toBe(1);
+    expect(parseJsonObjectStdout(listTree)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-list-tree",
+      success: false,
+      scope: "local",
+      tree: [],
+      error: expect.stringContaining(
+        "Local package directory path is not a directory",
+      ),
+    });
+  });
+
   test("keeps package-cache maintenance JSON stdout parseable", () => {
     const homeDir = path.join(tempDir, "cache-maintenance-home");
     fs.mkdirSync(homeDir);
