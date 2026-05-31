@@ -114,6 +114,28 @@ describe("CodeGenerator", () => {
     }
   });
 
+  it("does not write debug IR through symlinked ancestor directories", () => {
+    const cwd = process.cwd();
+    const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));
+    const realRoot = join(dir, "real-root");
+    const linkedRoot = join(dir, "linked-root");
+    const realNested = join(realRoot, "nested");
+    const debugIrPath = join(linkedRoot, "nested", "debug.ll");
+
+    try {
+      process.chdir(dir);
+      mkdirSync(realNested, { recursive: true });
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      compile("frame main() { return; }", { debugIrPath });
+
+      expect(existsSync(join(realNested, "debug.ll"))).toBe(false);
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("uses the selected compiler driver for DWARF producer metadata", () => {
     const previousBplCc = process.env.BPL_CC;
     process.env.BPL_CC = join(

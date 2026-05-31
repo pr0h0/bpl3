@@ -502,6 +502,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   validation now rejects symlinked parent path components before selecting
   temporary executable paths, revalidates temp outputs before final rename, and
   skips best-effort cleanup through symlinked ancestors.
+- **Debug IR Ancestor Symlink Blocking (BUG-194)** - Code generation debug IR
+  emission now rejects symlinked parent path components before writing
+  diagnostic `.ll` output, preserving existing final-path and immediate-parent
+  protections.
 - **Package Import Manifest Validation**: Package resolution now rejects invalid package import names before searching, rejects malformed package roots whose `bpl.json` `name` or `version` does not satisfy package manifest rules, and rejects versioned global package directories whose manifest `version` does not match the directory version.
 - **WebAssembly Linker Selection**: Treat explicit `WASM_LD` settings as authoritative instead of falling back to other linker names on `PATH`, making CI and local wasm linker failure tests deterministic.
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.

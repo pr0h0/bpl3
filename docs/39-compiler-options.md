@@ -449,6 +449,10 @@ Generate DWARF debug information for debugging with gdb/lldb:
 bpl build main.bpl --debug
 ```
 
+Diagnostic debug IR output uses the same symlink safety policy as other compiler
+outputs: the destination, immediate parent, and parent path components must be
+real filesystem entries before a `.ll` file is written.
+
 ## Cross-Compilation
 
 Compile for different target platforms:

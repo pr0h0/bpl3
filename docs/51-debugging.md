@@ -43,6 +43,9 @@ This command does two things:
 1.  Generates LLVM IR with `!dbg` metadata nodes.
 2.  Ensures that the resulting object file contains DWARF sections.
 
+When the compiler writes diagnostic debug IR, it refuses destinations whose
+path, immediate parent, or parent path components are symbolic links.
+
 ## Using LLDB
 
 [LLDB](https://lldb.llvm.org/) is the recommended debugger for LLVM-based languages.
