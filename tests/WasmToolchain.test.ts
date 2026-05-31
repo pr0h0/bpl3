@@ -31,19 +31,18 @@ describe("Wasm toolchain helpers", () => {
     }
   });
 
-  test("uses WASM_LD before default wasm linker candidates", () => {
+  test("uses WASM_LD as an explicit wasm linker override", () => {
     process.env.WASM_LD = "/opt/llvm/bin/wasm-ld-custom";
 
     expect(getWasmLinkerCandidates()).toEqual([
       "/opt/llvm/bin/wasm-ld-custom",
-      ...DEFAULT_WASM_LINKER_CANDIDATES,
     ]);
   });
 
-  test("does not duplicate WASM_LD when it matches a default candidate", () => {
+  test("keeps explicit WASM_LD as the only candidate when it matches a default", () => {
     process.env.WASM_LD = "wasm-ld";
 
-    expect(getWasmLinkerCandidates()).toEqual(DEFAULT_WASM_LINKER_CANDIDATES);
+    expect(getWasmLinkerCandidates()).toEqual(["wasm-ld"]);
   });
 
   test("parses wasm linker probe timeout from the environment", () => {

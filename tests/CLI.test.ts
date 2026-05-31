@@ -3440,9 +3440,7 @@ describe("CLI Tests", () => {
         },
         recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
       });
-      expect(linkerCheck?.candidates).toEqual(
-        expect.arrayContaining([missingWasmLd, "wasm-ld"]),
-      );
+      expect(linkerCheck?.candidates).toEqual([missingWasmLd]);
       expect(linkerCheck?.hint).toContain("WASM_LD");
       expect(linkerCheck?.hint).toContain("BPL_REQUIRE_WASM_LD=1");
       expect(linkerCheck?.hint).toContain(

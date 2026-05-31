@@ -13,14 +13,13 @@ const DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS = 5000;
 export function getWasmLinkerCandidates(
   env: NodeJS.ProcessEnv = process.env,
 ): string[] {
-  const candidates = [...DEFAULT_WASM_LINKER_CANDIDATES];
   const envCandidate = env.WASM_LD;
 
-  if (envCandidate && !candidates.includes(envCandidate)) {
-    candidates.unshift(envCandidate);
+  if (envCandidate) {
+    return [envCandidate];
   }
 
-  return candidates;
+  return [...DEFAULT_WASM_LINKER_CANDIDATES];
 }
 
 export function getWasmLinkerProbeTimeoutMs(
