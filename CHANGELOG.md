@@ -58,6 +58,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   including isolated package-cache verification for the package doctor path.
 - **Release Smoke Package Cache JSON Coverage** - Release smoke now validates
   packed `bpl package-cache list --json` output with an isolated cache home.
+- **Release Smoke Package Cache Verify Coverage** - Release smoke now validates
+  packed `bpl package-cache verify --json` output with an isolated cache home.
 - **CLI JSON Compatibility Policy** - Documented the versioning policy for
   machine-readable CLI JSON, including additive fields, unknown-field handling,
   and `schemaVersion` bumps for breaking shape changes.

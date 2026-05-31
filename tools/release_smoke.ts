@@ -39,14 +39,7 @@ interface PackageDoctorReport {
   check: "packages";
   success: boolean;
   ok: boolean;
-  cacheVerification: {
-    schemaVersion: 1;
-    check: "package-cache-verify";
-    success: boolean;
-    ok: boolean;
-    entriesChecked: number;
-    issues: unknown[];
-  };
+  cacheVerification: PackageCacheVerifyReport;
   issues: unknown[];
 }
 
@@ -55,6 +48,15 @@ interface PackageCacheListReport {
   check: "package-cache-list";
   success: boolean;
   entries: unknown[];
+}
+
+interface PackageCacheVerifyReport {
+  schemaVersion: 1;
+  check: "package-cache-verify";
+  success: boolean;
+  ok: boolean;
+  entriesChecked: number;
+  issues: unknown[];
 }
 
 interface BuildReport {
@@ -260,6 +262,7 @@ function runPackedPackageSmoke(): void {
 
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
+    runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
@@ -450,6 +453,37 @@ function runPackedPackageCacheListJsonSmoke(
   if (!report.success || report.entries.length !== 0) {
     throw new Error(
       `Packed npm CLI package-cache list JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
+    );
+  }
+}
+
+function runPackedPackageCacheVerifyJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const homeDir = join(installDir, "package-cache-verify-home");
+  mkdirSync(homeDir, { recursive: true });
+
+  const result = runStep(
+    "check packed npm CLI package-cache verify JSON",
+    installedBpl,
+    ["package-cache", "verify", "--json"],
+    {
+      cwd: installDir,
+      bplHome: null,
+      env: { HOME: homeDir },
+    },
+  );
+  const report = parsePackageCacheVerifyReport(result.stdout);
+
+  if (
+    !report.success ||
+    !report.ok ||
+    report.entriesChecked !== 0 ||
+    report.issues.length !== 0
+  ) {
+    throw new Error(
+      `Packed npm CLI package-cache verify JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
     );
   }
 }
@@ -907,6 +941,29 @@ function parsePackageCacheListReport(stdout: string): PackageCacheListReport {
     throw new Error(
       [
         "Package-cache list did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageCacheVerifyReport(stdout: string): PackageCacheVerifyReport {
+  try {
+    const report = JSON.parse(stdout) as PackageCacheVerifyReport;
+    assertJsonReportContract(
+      report,
+      "package-cache-verify",
+      "package-cache verify",
+    );
+    if (!Array.isArray(report.issues)) {
+      throw new Error("package-cache verify issues is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package-cache verify did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
