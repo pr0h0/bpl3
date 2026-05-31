@@ -520,6 +520,22 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('check: "package-install"');
   });
 
+  test("release smoke validates packed package pack JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package pack JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedPackagePackJsonSmoke");
+    expect(releaseSmokeSource).toContain("parsePackagePackReport");
+    expect(releaseSmokeSource).toContain('check: "package-pack"');
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
+    expect(releaseSmokeSource).toContain('["pack", missingManifestDir, "--json"]');
+  });
+
   test("release smoke validates packed package uninstall JSON output", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

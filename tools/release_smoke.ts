@@ -85,6 +85,19 @@ interface PackageInstallReport {
   errorCode?: string;
 }
 
+interface PackagePackReport {
+  schemaVersion: 1;
+  check: "package-pack";
+  success: boolean;
+  package?: string;
+  version?: string;
+  packageDir: string;
+  outputDir: string;
+  archivePath?: string;
+  error?: string;
+  errorCode?: string;
+}
+
 interface PackageUninstallReport {
   schemaVersion: 1;
   check: "package-uninstall";
@@ -483,6 +496,7 @@ function runPackedPackageSmoke(): void {
     runPackedDoctorSanitizerJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageInstallJsonSmoke(installedBpl);
+    runPackedPackagePackJsonSmoke(installedBpl);
     runPackedPackageUninstallJsonSmoke(installedBpl);
     runPackedPackageManifestValidationJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
@@ -913,6 +927,94 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
     if (!existsSync(installedManifest)) {
       throw new Error(
         "Packed npm CLI package install JSON did not install package.",
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedPackagePackJsonSmoke(installedBpl: string): void {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-pack-json-"));
+  const packageDir = join(workspaceDir, "pack-json-pkg");
+  const missingManifestDir = join(workspaceDir, "missing-manifest");
+  const outputDir = join(workspaceDir, "dist");
+
+  try {
+    mkdirSync(packageDir, { recursive: true });
+    mkdirSync(missingManifestDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "release-smoke-pack-json",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+
+    const pack = runStep(
+      "check packed npm CLI package pack JSON",
+      installedBpl,
+      ["pack", packageDir, "--output", outputDir, "--json"],
+      {
+        cwd: workspaceDir,
+        bplHome: null,
+      },
+    );
+    const report = parsePackagePackReport(pack.stdout);
+
+    if (
+      !report.success ||
+      report.package !== "release-smoke-pack-json" ||
+      report.version !== "1.0.0" ||
+      report.packageDir !== packageDir ||
+      report.outputDir !== outputDir ||
+      !report.archivePath?.endsWith("release-smoke-pack-json-1.0.0.tgz") ||
+      !existsSync(report.archivePath)
+    ) {
+      throw new Error(
+        `Packed npm CLI package pack JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+
+    const missing = spawnSync(installedBpl, ["pack", missingManifestDir, "--json"], {
+      cwd: workspaceDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null }),
+      timeout: smokeTimeoutMs,
+    });
+    if (missing.error) throw missing.error;
+    if (missing.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI package pack JSON failure did not fail as expected.",
+          `exit: ${missing.status ?? "unknown"}`,
+          `stdout:\n${missing.stdout}`,
+          `stderr:\n${missing.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (missing.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI package pack JSON failure wrote stderr:\n${missing.stderr}`,
+      );
+    }
+
+    const missingReport = parsePackagePackReport(missing.stdout);
+    if (
+      missingReport.success ||
+      missingReport.packageDir !== missingManifestDir ||
+      missingReport.outputDir !== missingManifestDir ||
+      missingReport.errorCode !== "BPL_PACKAGE_MANIFEST_MISSING" ||
+      typeof missingReport.error !== "string"
+    ) {
+      throw new Error(
+        `Packed npm CLI package pack failure JSON reported unexpected payload:\n${JSON.stringify(missingReport, null, 2)}`,
       );
     }
   } finally {
@@ -2879,6 +2981,22 @@ function parsePackageInstallReport(stdout: string): PackageInstallReport {
     throw new Error(
       [
         "Package install did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackagePackReport(stdout: string): PackagePackReport {
+  try {
+    const report = JSON.parse(stdout) as PackagePackReport;
+    assertJsonReportContract(report, "package-pack", "package pack");
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package pack did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
