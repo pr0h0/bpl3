@@ -522,6 +522,11 @@ come from an invalid `--package-version` value also include
 `errorCode: "BPL_PACKAGE_CACHE_VERSION_INVALID"`. Reproduce the focused
 contract with
 `bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache version filter"`.
+The package-cache package filters must use the same lowercase package-name format as
+package manifests. Invalid package filters in `package-cache list`, `verify`,
+`clean`, and `repair` fail with `BPL_PACKAGE_CACHE_NAME_INVALID`; reproduce that
+contract with
+`bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"`.
 
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a

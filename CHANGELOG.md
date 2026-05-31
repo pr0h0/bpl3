@@ -83,6 +83,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"`.
 - **Packed Doctor Scope JSON Smoke** - Release smoke now checks packed
   `bpl doctor unknown-scope --json` preserves `BPL_DOCTOR_SCOPE_UNKNOWN`.
+- **Package-cache Name Filter JSON Code** - Invalid package filters in
+  `bpl package-cache list`, `verify`, `clean`, and `repair` JSON mode now fail
+  with `BPL_PACKAGE_CACHE_NAME_INVALID` instead of reporting empty successes.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
