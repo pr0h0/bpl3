@@ -999,6 +999,138 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps run-script JSON validation failures parseable with error codes", () => {
+    const assertRunScriptFailure = (
+      result: SpawnSyncReturns<string>,
+      expected: {
+        check: "run-script" | "run-script-list";
+        error: string;
+        errorCode: string;
+      },
+    ) => {
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(parseJsonObjectStdout(result)).toMatchObject({
+        schemaVersion: 1,
+        check: expected.check,
+        success: false,
+        error: expect.stringContaining(expected.error),
+        errorCode: expected.errorCode,
+      });
+    };
+
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "No bpl.json found",
+      errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",
+    });
+
+    fs.mkdirSync(path.join(tempDir, "bpl.json"));
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "bpl.json is not a file",
+      errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_FILE",
+    });
+
+    fs.rmSync(path.join(tempDir, "bpl.json"), {
+      recursive: true,
+      force: true,
+    });
+    fs.writeFileSync(path.join(tempDir, "bpl.json"), "{not-json");
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "Failed to parse bpl.json",
+      errorCode: "BPL_RUN_SCRIPT_MANIFEST_INVALID_JSON",
+    });
+
+    fs.writeFileSync(path.join(tempDir, "bpl.json"), "[]");
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "bpl.json must contain a JSON object",
+      errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_OBJECT",
+    });
+
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({ scripts: [] }),
+    );
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "'scripts' in bpl.json must be an object",
+      errorCode: "BPL_RUN_SCRIPT_SCRIPTS_NOT_OBJECT",
+    });
+
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({ scripts: { "": "echo bad" } }),
+    );
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "'scripts' entries must use non-empty script names",
+      errorCode: "BPL_RUN_SCRIPT_NAME_EMPTY",
+    });
+
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({ scripts: { bad: ["echo", "bad"] } }),
+    );
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "Script 'bad' in bpl.json must be a non-empty string",
+      errorCode: "BPL_RUN_SCRIPT_COMMAND_NOT_STRING",
+    });
+
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({ scripts: { empty: "   " } }),
+    );
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "Script 'empty' in bpl.json must be a non-empty string",
+      errorCode: "BPL_RUN_SCRIPT_COMMAND_EMPTY",
+    });
+
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify({ scripts: { build: "echo build" } }),
+    );
+    assertRunScriptFailure(runCli(["run-script", "missing", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script",
+      error: "Script 'missing' not found in bpl.json",
+      errorCode: "BPL_RUN_SCRIPT_NOT_FOUND",
+    });
+
+    fs.unlinkSync(path.join(tempDir, "bpl.json"));
+    const targetManifest = path.join(tempDir, "linked-manifest.json");
+    fs.writeFileSync(targetManifest, JSON.stringify({ scripts: {} }));
+    fs.symlinkSync(targetManifest, path.join(tempDir, "bpl.json"), "file");
+    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    }), {
+      check: "run-script-list",
+      error: "bpl.json is a symbolic link",
+      errorCode: "BPL_RUN_SCRIPT_MANIFEST_SYMLINK",
+    });
+  });
+
   test("keeps JSON-mode build failures parseable on stdout", () => {
     const badSource = path.join(tempDir, "bad.bpl");
     fs.writeFileSync(

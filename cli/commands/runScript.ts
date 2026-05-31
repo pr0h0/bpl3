@@ -17,6 +17,27 @@ import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
 
 const log = new Logger("RunScript");
 
+export const RUN_SCRIPT_MANIFEST_NOT_FOUND_CODE =
+  "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND";
+export const RUN_SCRIPT_MANIFEST_SYMLINK_CODE =
+  "BPL_RUN_SCRIPT_MANIFEST_SYMLINK";
+export const RUN_SCRIPT_MANIFEST_NOT_FILE_CODE =
+  "BPL_RUN_SCRIPT_MANIFEST_NOT_FILE";
+export const RUN_SCRIPT_MANIFEST_PARENT_SYMLINK_CODE =
+  "BPL_RUN_SCRIPT_MANIFEST_PARENT_SYMLINK";
+export const RUN_SCRIPT_MANIFEST_INVALID_JSON_CODE =
+  "BPL_RUN_SCRIPT_MANIFEST_INVALID_JSON";
+export const RUN_SCRIPT_MANIFEST_NOT_OBJECT_CODE =
+  "BPL_RUN_SCRIPT_MANIFEST_NOT_OBJECT";
+export const RUN_SCRIPT_SCRIPTS_NOT_OBJECT_CODE =
+  "BPL_RUN_SCRIPT_SCRIPTS_NOT_OBJECT";
+export const RUN_SCRIPT_NAME_EMPTY_CODE = "BPL_RUN_SCRIPT_NAME_EMPTY";
+export const RUN_SCRIPT_COMMAND_NOT_STRING_CODE =
+  "BPL_RUN_SCRIPT_COMMAND_NOT_STRING";
+export const RUN_SCRIPT_COMMAND_EMPTY_CODE =
+  "BPL_RUN_SCRIPT_COMMAND_EMPTY";
+export const RUN_SCRIPT_NOT_FOUND_CODE = "BPL_RUN_SCRIPT_NOT_FOUND";
+
 interface PackageScript {
   name: string;
   command: string;
@@ -58,16 +79,30 @@ export function registerRunScriptCommand(program: Command): void {
             ? CLI_JSON_CHECKS.runScriptList
             : CLI_JSON_CHECKS.runScript;
         const manifestPath = path.join(process.cwd(), "bpl.json");
-        const fail = (message: string): never =>
-          failRunScript(message, Boolean(options.json), jsonFailureCheck);
+        const fail = (message: string, errorCode: string): never =>
+          failRunScript(
+            message,
+            Boolean(options.json),
+            jsonFailureCheck,
+            errorCode,
+          );
 
         const manifestStat = tryLstat(manifestPath);
         if (!manifestStat) {
-          fail("No bpl.json found in current directory.");
+          fail(
+            "No bpl.json found in current directory.",
+            RUN_SCRIPT_MANIFEST_NOT_FOUND_CODE,
+          );
         } else if (manifestStat.isSymbolicLink()) {
-          fail("bpl.json is a symbolic link.");
+          fail(
+            "bpl.json is a symbolic link.",
+            RUN_SCRIPT_MANIFEST_SYMLINK_CODE,
+          );
         } else if (!manifestStat.isFile()) {
-          fail("bpl.json is not a file.");
+          fail(
+            "bpl.json is not a file.",
+            RUN_SCRIPT_MANIFEST_NOT_FILE_CODE,
+          );
         }
 
         const symlinkedManifestParent =
@@ -75,6 +110,7 @@ export function registerRunScriptCommand(program: Command): void {
         if (symlinkedManifestParent) {
           fail(
             `bpl.json parent path contains a symbolic link: ${symlinkedManifestParent}.`,
+            RUN_SCRIPT_MANIFEST_PARENT_SYMLINK_CODE,
           );
         }
 
@@ -82,14 +118,20 @@ export function registerRunScriptCommand(program: Command): void {
         try {
           manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
         } catch (_e) {
-          fail("Failed to parse bpl.json");
+          fail(
+            "Failed to parse bpl.json",
+            RUN_SCRIPT_MANIFEST_INVALID_JSON_CODE,
+          );
         }
         if (
           !manifest ||
           typeof manifest !== "object" ||
           Array.isArray(manifest)
         ) {
-          fail("bpl.json must contain a JSON object.");
+          fail(
+            "bpl.json must contain a JSON object.",
+            RUN_SCRIPT_MANIFEST_NOT_OBJECT_CODE,
+          );
         }
 
         const scripts = getPackageScripts(manifest, fail);
@@ -104,7 +146,7 @@ export function registerRunScriptCommand(program: Command): void {
         if (!script) {
           const message = `Script '${scriptName}' not found in bpl.json`;
           if (options.json) {
-            fail(message);
+            fail(message, RUN_SCRIPT_NOT_FOUND_CODE);
           }
 
           log.error(message);
@@ -154,12 +196,14 @@ function failRunScript(
   message: string,
   outputJson: boolean,
   check: string,
+  errorCode: string,
 ): never {
   if (outputJson) {
     console.log(
       JSON.stringify(
         createJsonReport(check, false, {
           error: message,
+          errorCode,
         }),
         null,
         2,
@@ -186,23 +230,39 @@ function quoteShellArg(arg: string): string {
 
 function getPackageScripts(
   manifest: any,
-  fail: (message: string) => never,
+  fail: (message: string, errorCode: string) => never,
 ): PackageScript[] {
   if (!manifest.scripts) {
     return [];
   }
 
   if (typeof manifest.scripts !== "object" || Array.isArray(manifest.scripts)) {
-    fail("'scripts' in bpl.json must be an object");
+    fail(
+      "'scripts' in bpl.json must be an object",
+      RUN_SCRIPT_SCRIPTS_NOT_OBJECT_CODE,
+    );
   }
 
   return Object.entries(manifest.scripts).map(([name, command]) => {
     if (name.length === 0) {
-      fail("'scripts' entries must use non-empty script names");
+      fail(
+        "'scripts' entries must use non-empty script names",
+        RUN_SCRIPT_NAME_EMPTY_CODE,
+      );
     }
 
-    if (typeof command !== "string" || command.trim().length === 0) {
-      fail(`Script '${name}' in bpl.json must be a non-empty string`);
+    if (typeof command !== "string") {
+      fail(
+        `Script '${name}' in bpl.json must be a non-empty string`,
+        RUN_SCRIPT_COMMAND_NOT_STRING_CODE,
+      );
+    }
+
+    if (command.trim().length === 0) {
+      fail(
+        `Script '${name}' in bpl.json must be a non-empty string`,
+        RUN_SCRIPT_COMMAND_EMPTY_CODE,
+      );
     }
 
     return { name, command };

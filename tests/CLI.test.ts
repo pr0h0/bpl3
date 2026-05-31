@@ -1843,6 +1843,7 @@ describe("CLI Tests", () => {
         check: "run-script",
         success: false,
         error: "Script 'missing' not found in bpl.json",
+        errorCode: "BPL_RUN_SCRIPT_NOT_FOUND",
       });
 
       const humanResult = spawnSync(
@@ -2025,6 +2026,7 @@ describe("CLI Tests", () => {
         check: "run-script-list",
         success: false,
         error: `bpl.json parent path contains a symbolic link: ${linkedRoot}.`,
+        errorCode: "BPL_RUN_SCRIPT_MANIFEST_PARENT_SYMLINK",
       });
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -2045,6 +2047,7 @@ describe("CLI Tests", () => {
     function expectJsonError(
       result: ReturnType<typeof runJsonList>,
       error: string,
+      errorCode: string,
     ) {
       expect(result.status).toBe(1);
       expect(result.stderr).toBe("");
@@ -2053,6 +2056,7 @@ describe("CLI Tests", () => {
         check: "run-script-list",
         success: false,
         error,
+        errorCode,
       });
     }
 
@@ -2060,29 +2064,43 @@ describe("CLI Tests", () => {
       expectJsonError(
         runJsonList(),
         "No bpl.json found in current directory.",
+        "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",
       );
 
       fs.mkdirSync(path.join(tempDir, "bpl.json"));
-      expectJsonError(runJsonList(), "bpl.json is not a file.");
+      expectJsonError(
+        runJsonList(),
+        "bpl.json is not a file.",
+        "BPL_RUN_SCRIPT_MANIFEST_NOT_FILE",
+      );
 
       fs.rmSync(path.join(tempDir, "bpl.json"), {
         recursive: true,
         force: true,
       });
       fs.writeFileSync(path.join(tempDir, "bpl.json"), "{not-json");
-      expectJsonError(runJsonList(), "Failed to parse bpl.json");
+      expectJsonError(
+        runJsonList(),
+        "Failed to parse bpl.json",
+        "BPL_RUN_SCRIPT_MANIFEST_INVALID_JSON",
+      );
 
       fs.writeFileSync(path.join(tempDir, "bpl.json"), "[]");
       expectJsonError(
         runJsonList(),
         "bpl.json must contain a JSON object.",
+        "BPL_RUN_SCRIPT_MANIFEST_NOT_OBJECT",
       );
 
       fs.unlinkSync(path.join(tempDir, "bpl.json"));
       const targetManifest = path.join(tempDir, "linked-manifest.json");
       fs.writeFileSync(targetManifest, JSON.stringify({ scripts: {} }));
       fs.symlinkSync(targetManifest, path.join(tempDir, "bpl.json"), "file");
-      expectJsonError(runJsonList(), "bpl.json is a symbolic link.");
+      expectJsonError(
+        runJsonList(),
+        "bpl.json is a symbolic link.",
+        "BPL_RUN_SCRIPT_MANIFEST_SYMLINK",
+      );
 
       fs.unlinkSync(path.join(tempDir, "bpl.json"));
       fs.writeFileSync(
@@ -2096,6 +2114,7 @@ describe("CLI Tests", () => {
       expectJsonError(
         runJsonList(),
         "Script 'bad' in bpl.json must be a non-empty string",
+        "BPL_RUN_SCRIPT_COMMAND_NOT_STRING",
       );
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
