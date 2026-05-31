@@ -298,6 +298,50 @@ describe("PackageManager", () => {
       expect(provenance.packageHash).toMatch(/^[a-f0-9]{64}$/);
     });
 
+    test("should preserve existing package provenance permissions when rewriting", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const manifest = {
+        name: "provenance-mode-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export first;");
+
+      const tarballPath = packageManager.pack(tempDir);
+      const provenancePath = `${tarballPath}.bplmeta.json`;
+      const firstProvenance = JSON.parse(
+        fs.readFileSync(provenancePath, "utf-8"),
+      );
+      fs.chmodSync(provenancePath, 0o640);
+
+      fs.writeFileSync("index.bpl", "export second;");
+      expect(packageManager.pack(tempDir)).toBe(tarballPath);
+
+      expect(fs.statSync(provenancePath).mode & 0o777).toBe(0o640);
+      const secondProvenance = JSON.parse(
+        fs.readFileSync(provenancePath, "utf-8"),
+      );
+      expect(secondProvenance.name).toBe("provenance-mode-pkg");
+      expect(secondProvenance.packageHash).not.toBe(
+        firstProvenance.packageHash,
+      );
+      expect(secondProvenance.archiveSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (file) =>
+              file.startsWith(".provenance-mode-pkg-1.0.0.tgz.bplmeta.json.") &&
+              file.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    });
+
     test("should report tar spawn failures while creating package archives", () => {
       const manifest = {
         name: "missing-tar-pkg",
