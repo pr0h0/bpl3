@@ -253,6 +253,18 @@ interface FormatReport {
   }>;
 }
 
+interface BindgenReport {
+  schemaVersion: 1;
+  check: "bindgen";
+  success: boolean;
+  header: string;
+  outputPath: string | null;
+  generatedBytes?: number;
+  bindings?: string;
+  error?: string;
+  errorCode?: string;
+}
+
 interface RunScriptListReport {
   schemaVersion: 1;
   check: "run-script-list";
@@ -557,6 +569,7 @@ function runPackedPackageSmoke(): void {
     runPackedCheckJsonSmoke(installedBpl);
     runPackedLintJsonSmoke(installedBpl);
     runPackedFormatJsonSmoke(installedBpl);
+    runPackedBindgenJsonSmoke(installedBpl);
     runPackedSourceAnalysisValidationJsonSmoke(installedBpl);
     runPackedSourceAnalysisNoInputJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
@@ -2203,6 +2216,97 @@ function runPackedFormatJsonSmoke(installedBpl: string): void {
   }
 }
 
+function runPackedBindgenJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-bindgen-json-"));
+  const headerPath = join(tempDir, "input.h");
+
+  try {
+    writeFileSync(headerPath, "int puts(const char *s);\n");
+
+    console.log("release smoke: check packed npm CLI bindgen JSON");
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const successResult = spawnSync(
+      installedBpl,
+      ["bindgen", "--json", headerPath],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+    const failureResult = spawnSync(
+      installedBpl,
+      ["bindgen", "--json", headerPath, "-o", tempDir],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (successResult.error) throw successResult.error;
+    if (failureResult.error) throw failureResult.error;
+    if (successResult.status !== 0 || failureResult.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI bindgen JSON smoke returned unexpected exits.",
+          `success exit: ${successResult.status ?? "unknown"}`,
+          `success stdout:\n${successResult.stdout}`,
+          `success stderr:\n${successResult.stderr}`,
+          `failure exit: ${failureResult.status ?? "unknown"}`,
+          `failure stdout:\n${failureResult.stdout}`,
+          `failure stderr:\n${failureResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (successResult.stderr !== "" || failureResult.stderr !== "") {
+      throw new Error(
+        [
+          "Packed npm CLI bindgen JSON wrote stderr.",
+          `success stderr:\n${successResult.stderr}`,
+          `failure stderr:\n${failureResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    const successReport = parseBindgenReport(successResult.stdout);
+    const failureReport = parseBindgenReport(failureResult.stdout);
+    if (
+      !successReport.success ||
+      successReport.header !== headerPath ||
+      successReport.outputPath !== null ||
+      typeof successReport.generatedBytes !== "number" ||
+      successReport.generatedBytes <= 0 ||
+      typeof successReport.bindings !== "string" ||
+      !successReport.bindings.includes("extern puts(s: string) ret int;")
+    ) {
+      throw new Error(
+        `Packed npm CLI bindgen JSON success reported unexpected payload:\n${JSON.stringify(successReport, null, 2)}`,
+      );
+    }
+    if (
+      failureReport.success ||
+      failureReport.header !== headerPath ||
+      failureReport.outputPath !== tempDir ||
+      failureReport.errorCode !== "BPL_BINDGEN_OUTPUT_DIRECTORY" ||
+      typeof failureReport.error !== "string" ||
+      !failureReport.error.includes("Output path is a directory")
+    ) {
+      throw new Error(
+        `Packed npm CLI bindgen JSON failure reported unexpected payload:\n${JSON.stringify(failureReport, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void {
   const tempDir = mkdtempSync(
     join(tmpdir(), "bpl-release-source-validation-"),
@@ -3640,6 +3744,25 @@ function parseFormatReport(stdout: string): FormatReport {
     throw new Error(
       [
         "Format command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseBindgenReport(stdout: string): BindgenReport {
+  try {
+    const report = JSON.parse(stdout) as BindgenReport;
+    assertJsonReportContract(report, "bindgen", "bindgen");
+    if (typeof report.header !== "string") {
+      throw new Error("bindgen header is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Bindgen command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
