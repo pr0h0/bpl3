@@ -50,6 +50,16 @@ interface PackageDoctorReport {
   issues: unknown[];
 }
 
+interface BuildReport {
+  schemaVersion: 1;
+  check: "build";
+  success: boolean;
+  output?: {
+    llvm?: string;
+    executable?: string;
+  };
+}
+
 interface NpmPackEntry {
   filename: string;
   name?: string;
@@ -245,6 +255,7 @@ function runPackedPackageSmoke(): void {
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
+    runPackedBuildJsonSmoke(installedBpl);
     runPackedWasmSmoke(installedBpl);
     runPackedCacheStatsSmoke(installedBpl);
     runPackedHelperScriptSmoke(installDir);
@@ -435,6 +446,43 @@ function runPackedWasmSmoke(installedBpl: string): void {
 
     if (readFileSync(wasmPath).subarray(0, 4).toString("binary") !== "\0asm") {
       throw new Error(`Packed npm CLI did not emit a valid wasm artifact.`);
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedBuildJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-build-json-"));
+  const outputPath = join(tempDir, "build-json-smoke");
+  const llvmPath = `${outputPath}.ll`;
+
+  try {
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      "frame main() ret int { return 0; }\n",
+    );
+
+    const result = runStep(
+      "check packed npm CLI build JSON",
+      installedBpl,
+      ["build", "main.bpl", "--json", "-o", outputPath],
+      { cwd: tempDir, bplHome: null },
+    );
+    const report = parseBuildReport(result.stdout);
+    if (!report.success) {
+      throw new Error(
+        `Packed npm CLI build JSON reported failure:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+    const output = report.output;
+    if (!output || output.llvm !== llvmPath || output.executable !== outputPath) {
+      throw new Error(
+        `Packed npm CLI build JSON reported unexpected artifacts:\n${JSON.stringify(output, null, 2)}`,
+      );
+    }
+    if (!existsSync(llvmPath) || !existsSync(outputPath)) {
+      throw new Error("Packed npm CLI build JSON did not create artifacts.");
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -802,6 +850,22 @@ function parsePackageDoctorReport(stdout: string): PackageDoctorReport {
     throw new Error(
       [
         "Package doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseBuildReport(stdout: string): BuildReport {
+  try {
+    const report = JSON.parse(stdout) as BuildReport;
+    assertJsonReportContract(report, "build", "build");
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Build command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

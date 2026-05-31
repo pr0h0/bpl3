@@ -51,6 +51,9 @@ describe("Release smoke", () => {
         "release smoke: compile tiny program with packed npm CLI",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI build JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: build packed npm CLI wasm artifact",
       );
       expect(result.stdout).toContain(
