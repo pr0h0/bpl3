@@ -134,4 +134,40 @@ describe("CLI JSON parseability", () => {
       error: expect.stringContaining("Type mismatch"),
     });
   });
+
+  test("keeps JSON-mode build validation failures parseable on stdout", () => {
+    const sourceDir = path.join(tempDir, "source-dir");
+    fs.mkdirSync(sourceDir);
+
+    const inputFailure = runCli(["build", sourceDir, "--json"]);
+    expect(inputFailure.status).toBe(1);
+    expect(parseJsonObjectStdout(inputFailure)).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceDir,
+      error: expect.stringContaining("Input path is not a file"),
+    });
+
+    const validSource = path.join(tempDir, "valid.bpl");
+    const missingParentOutput = path.join(tempDir, "missing", "app");
+    fs.writeFileSync(validSource, "frame main() ret int { return 0; }\n");
+
+    const outputFailure = runCli([
+      "build",
+      validSource,
+      "--json",
+      "-o",
+      missingParentOutput,
+    ]);
+    expect(outputFailure.status).toBe(1);
+    expect(parseJsonObjectStdout(outputFailure)).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: validSource,
+      error: expect.stringContaining("Output directory not found"),
+    });
+    expect(fs.existsSync(`${missingParentOutput}.ll`)).toBe(false);
+  });
 });
