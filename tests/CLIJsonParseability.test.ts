@@ -709,6 +709,101 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports workspace package search directory failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const linkedWorkspaceDir = path.join(appDir, "packages");
+    const realWorkspaceDir = path.join(tempDir, "outside-workspace-packages");
+    const realPackageDir = path.join(realWorkspaceDir, "pkg-math");
+    const homeDir = path.join(tempDir, "home");
+    const globalPackageDir = path.join(homeDir, ".bpl", "packages");
+    const globalPackageRoot = path.join(globalPackageDir, "pkg-math-9.0.0");
+    const sourceFile = path.join(sourceDir, "workspace_search_dir_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(realPackageDir, { recursive: true });
+    fs.mkdirSync(globalPackageRoot, { recursive: true });
+
+    for (const [packageDir, version] of [
+      [realPackageDir, "1.0.0"],
+      [globalPackageRoot, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({
+          name: "pkg-math",
+          version,
+          main: "index.bpl",
+        }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    }
+    fs.symlinkSync(realWorkspaceDir, linkedWorkspaceDir, "dir");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile], {
+      env: { HOME: homeDir, USERPROFILE: homeDir },
+    });
+    expect(result.status).toBe(1);
+    const report = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      totalFiles: number;
+      errorCount: number;
+      files: Array<{
+        file: string;
+        success: boolean;
+        diagnostics: Array<{
+          message: string;
+          hint: string;
+          location: {
+            file: string;
+            start: { line: number; column: number };
+          };
+        }>;
+      }>;
+    }>(result);
+
+    expect(report).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: false,
+      totalFiles: 1,
+      errorCount: 1,
+      files: [
+        {
+          file: sourceFile,
+          success: false,
+          diagnostics: [
+            {
+              location: {
+                file: sourceFile,
+                start: { line: 1, column: 1 },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const diagnostic = report.files[0]?.diagnostics[0];
+    expect(diagnostic?.message).toContain("invalid package search directory");
+    expect(diagnostic?.message).toContain("symbolic link");
+    expect(diagnostic?.message).toContain(linkedWorkspaceDir);
+    expect(diagnostic?.hint).toContain("Searched paths:");
+    expect(diagnostic?.hint).toContain(linkedWorkspaceDir);
+    expect(diagnostic?.hint).not.toContain(realPackageDir);
+    expect(diagnostic?.hint).not.toContain(globalPackageRoot);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
