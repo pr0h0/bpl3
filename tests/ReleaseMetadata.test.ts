@@ -218,6 +218,50 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("checkout.status");
   });
 
+  test("release smoke guards packed wasm doctor JSON contract", async () => {
+    const releaseSmoke = (await import("../tools/release_smoke")) as {
+      assertWasmDoctorUnavailableContract?: (report: unknown) => void;
+    };
+    const assertWasmDoctorUnavailableContract =
+      releaseSmoke.assertWasmDoctorUnavailableContract;
+
+    expect(typeof assertWasmDoctorUnavailableContract).toBe("function");
+    if (typeof assertWasmDoctorUnavailableContract !== "function") {
+      return;
+    }
+
+    const report = {
+      schemaVersion: 1,
+      check: "toolchain",
+      success: true,
+      checks: [
+        {
+          name: "wasm linker",
+          ok: false,
+          detail: "missing-wasm-ld: command not found",
+          required: false,
+          code: "BPL_WASM_LINKER_UNAVAILABLE",
+          candidates: ["/tmp/missing-wasm-ld", "wasm-ld"],
+          environment: {
+            WASM_LD: "/tmp/missing-wasm-ld",
+            BPL_REQUIRE_WASM_LD: null,
+          },
+          recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
+          hint:
+            "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
+        },
+      ],
+    };
+
+    expect(() => assertWasmDoctorUnavailableContract(report)).not.toThrow();
+    expect(() =>
+      assertWasmDoctorUnavailableContract({
+        ...report,
+        checks: [{ ...report.checks[0], candidates: [] }],
+      }),
+    ).toThrow("wasm linker check missing checked candidates");
+  });
+
   test("release smoke validates packed package install JSON output", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

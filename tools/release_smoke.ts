@@ -37,7 +37,19 @@ interface DoctorReport {
   schemaVersion: 1;
   check: "toolchain";
   success: boolean;
-  checks: Array<{ name: string; ok: boolean; detail: string }>;
+  checks: DoctorToolchainCheck[];
+}
+
+interface DoctorToolchainCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+  hint?: string;
+  required?: boolean;
+  code?: string;
+  candidates?: string[];
+  environment?: Record<string, string | null>;
+  recommendedCommands?: string[];
 }
 
 interface DoctorFailureReport {
@@ -392,6 +404,7 @@ function runPackedPackageSmoke(): void {
     }
 
     runPackedDoctorFailureJsonSmoke(installedBpl, installDir);
+    assertWasmDoctorUnavailableContract(report);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageInstallJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
@@ -1703,6 +1716,57 @@ function parseDoctorReport(stdout: string): DoctorReport {
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
     );
+  }
+}
+
+export function assertWasmDoctorUnavailableContract(report: unknown): void {
+  const checks = (report as { checks?: unknown }).checks;
+  if (!Array.isArray(checks)) {
+    throw new Error("doctor report checks is not an array");
+  }
+
+  const wasmLinkerCheck = checks.find(
+    (check): check is DoctorToolchainCheck =>
+      typeof check === "object" &&
+      check !== null &&
+      (check as { name?: unknown }).name === "wasm linker",
+  );
+  if (!wasmLinkerCheck) {
+    throw new Error("doctor report missing wasm linker check");
+  }
+  if (wasmLinkerCheck.ok) {
+    return;
+  }
+
+  if (wasmLinkerCheck.code !== "BPL_WASM_LINKER_UNAVAILABLE") {
+    throw new Error("wasm linker check missing BPL_WASM_LINKER_UNAVAILABLE code");
+  }
+  if (
+    !Array.isArray(wasmLinkerCheck.candidates) ||
+    wasmLinkerCheck.candidates.length === 0
+  ) {
+    throw new Error("wasm linker check missing checked candidates");
+  }
+  if (
+    !wasmLinkerCheck.environment ||
+    !("WASM_LD" in wasmLinkerCheck.environment) ||
+    !("BPL_REQUIRE_WASM_LD" in wasmLinkerCheck.environment)
+  ) {
+    throw new Error("wasm linker check missing environment values");
+  }
+  if (
+    !Array.isArray(wasmLinkerCheck.recommendedCommands) ||
+    !wasmLinkerCheck.recommendedCommands.includes(
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+    )
+  ) {
+    throw new Error("wasm linker check missing required-linker repro command");
+  }
+  if (
+    typeof wasmLinkerCheck.hint !== "string" ||
+    !wasmLinkerCheck.hint.includes("not a successful wasm execution")
+  ) {
+    throw new Error("wasm linker check missing non-execution hint");
   }
 }
 
