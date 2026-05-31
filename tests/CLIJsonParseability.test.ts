@@ -23,12 +23,21 @@ function runCli(
 }
 
 type CheckJsonDiagnostic = {
+  severity: string;
+  severityLabel: string;
   message: string;
   hint: string;
+  code?: string;
   location: {
     file: string;
     start: { line: number; column: number };
   };
+  source?: {
+    line: string;
+    preview: string;
+    pointer: string;
+  };
+  relatedLocations: unknown[];
 };
 
 type CheckJsonFailureReport = {
@@ -76,6 +85,12 @@ function expectSingleCheckJsonDiagnostic(
 
   const diagnostic = report.files[0]?.diagnostics[0];
   expect(diagnostic).toBeDefined();
+  expect(diagnostic).toMatchObject({
+    severity: "error",
+    severityLabel: "error",
+    relatedLocations: [],
+  });
+  expect(diagnostic?.source?.pointer).toContain("^");
   return diagnostic as CheckJsonDiagnostic;
 }
 
@@ -1161,6 +1176,8 @@ describe("CLI JSON parseability", () => {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_ROOT_NOT_DIRECTORY");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain("invalid package root");
     expect(diagnostic?.message).toContain("not a directory");
     expect(diagnostic?.message).toContain(unsafePackageRoot);
@@ -1208,6 +1225,8 @@ describe("CLI JSON parseability", () => {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain("invalid package search directory");
     expect(diagnostic?.message).toContain("symbolic link");
     expect(diagnostic?.message).toContain(linkedModulesDir);
@@ -1254,6 +1273,8 @@ describe("CLI JSON parseability", () => {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain("invalid package search directory");
     expect(diagnostic?.message).toContain("symbolic link");
     expect(diagnostic?.message).toContain(linkedWorkspaceDir);
@@ -1294,6 +1315,8 @@ describe("CLI JSON parseability", () => {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain(
       "Global package directory path is a symbolic link",
     );
@@ -1329,6 +1352,8 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_ENTRYPOINT_SYMLINK");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain(
       "entrypoint resolves to a symbolic link candidate",
     );
@@ -1364,6 +1389,10 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_SUBPATH_SYMLINK");
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math/features/add";',
+    );
     expect(diagnostic?.message).toContain(
       "subpath 'features/add' resolves to a symbolic link candidate",
     );
@@ -1399,6 +1428,8 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_ENTRYPOINT_UNSAFE");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain("unsafe entrypoint '../outside.bpl'");
     expect(diagnostic?.message).toContain("bpl.json");
     expect(diagnostic?.message).not.toContain(outsideEntrypoint);
@@ -1438,6 +1469,8 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_MANIFEST_INVALID");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain("invalid bpl.json");
     expect(diagnostic?.message).toContain(linkedManifest);
     expect(diagnostic?.message).not.toContain(outsideManifest);
@@ -1476,6 +1509,8 @@ describe("CLI JSON parseability", () => {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_MANIFEST_MISSING");
+    expect(diagnostic.source?.preview).toContain('import value from "pkg-math";');
     expect(diagnostic?.message).toContain("missing bpl.json");
     expect(diagnostic?.message).toContain(localManifest);
     expect(diagnostic?.hint).toContain("missing bpl.json");
@@ -1512,6 +1547,10 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["check", "--json", sourceFile]);
     const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_SUBPATH_SYMLINK");
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math/features/add";',
+    );
     expect(diagnostic?.message).toContain(
       "subpath 'features/add' resolves to a symbolic link candidate",
     );

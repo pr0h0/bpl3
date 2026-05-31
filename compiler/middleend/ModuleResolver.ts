@@ -23,6 +23,7 @@ import { Parser } from "../frontend/Parser";
 import { PackageManager } from "./PackageManager";
 import {
   formatPackageResolutionHint,
+  getPackageResolutionFailureCode,
   type PackageResolutionTrace,
 } from "./PackageResolver";
 import { SymbolTable } from "./SymbolTable";
@@ -317,6 +318,9 @@ export class ModuleResolver {
       (trace) =>
         trace.failureMessage && trace.failureReason !== "package-not-found",
     );
+    const packageFailureCode = specificPackageFailure
+      ? getPackageResolutionFailureCode(specificPackageFailure)
+      : undefined;
 
     throw new CompilerError(
       specificPackageFailure?.failureMessage
@@ -330,6 +334,7 @@ export class ModuleResolver {
         endLine: 0,
         endColumn: 0,
       },
+      packageFailureCode,
     );
   }
 

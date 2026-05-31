@@ -185,6 +185,45 @@ export function formatPackageResolutionHint(
   return lines.join("\n");
 }
 
+export function getPackageResolutionFailureCode(
+  trace: PackageResolutionTrace,
+): string | undefined {
+  if (!trace.failureReason) return undefined;
+
+  const message = trace.failureMessage ?? "";
+  switch (trace.failureReason) {
+    case "invalid-import":
+      return "BPL_PACKAGE_IMPORT_INVALID";
+    case "package-not-found":
+      return "BPL_PACKAGE_NOT_FOUND";
+    case "entrypoint-not-found":
+      return message.includes("symbolic link candidate")
+        ? "BPL_PACKAGE_ENTRYPOINT_SYMLINK"
+        : "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND";
+    case "subpath-not-found":
+      return message.includes("symbolic link candidate")
+        ? "BPL_PACKAGE_SUBPATH_SYMLINK"
+        : "BPL_PACKAGE_SUBPATH_NOT_FOUND";
+    case "manifest-invalid":
+      if (message.includes("package search directory is a symbolic link")) {
+        return "BPL_PACKAGE_SEARCH_DIR_SYMLINK";
+      }
+      if (message.includes("package root is a symbolic link")) {
+        return "BPL_PACKAGE_ROOT_SYMLINK";
+      }
+      if (message.includes("package root is not a directory")) {
+        return "BPL_PACKAGE_ROOT_NOT_DIRECTORY";
+      }
+      if (message.includes("missing bpl.json")) {
+        return "BPL_PACKAGE_MANIFEST_MISSING";
+      }
+      if (message.includes("unsafe entrypoint")) {
+        return "BPL_PACKAGE_ENTRYPOINT_UNSAFE";
+      }
+      return "BPL_PACKAGE_MANIFEST_INVALID";
+  }
+}
+
 export function getPackageSearchRoots(startDir: string): string[] {
   const roots: string[] = [];
   let current = path.resolve(startDir || process.cwd());

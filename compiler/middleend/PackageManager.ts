@@ -321,6 +321,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
       );
     }
 
@@ -335,6 +336,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       );
     }
 
@@ -370,6 +372,7 @@ export class PackageManager {
               endLine: 1,
               endColumn: 1,
             },
+            "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
           );
         }
         return;
@@ -394,6 +397,7 @@ export class PackageManager {
         endLine: 1,
         endColumn: 1,
       },
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
     );
   }
 
