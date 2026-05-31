@@ -20,6 +20,11 @@ import {
   type PackageDependencyTreeNode,
   type PackageDoctorReport,
 } from "../../compiler";
+import {
+  CLI_JSON_CHECKS,
+  CLI_JSON_SCHEMA_VERSION,
+  createJsonReport,
+} from "../jsonContracts";
 
 const log = new Logger("Doctor");
 const DOCTOR_COMMAND_TIMEOUT_MS = 2000;
@@ -40,8 +45,8 @@ interface DoctorCheck {
 }
 
 interface DoctorReport {
-  schemaVersion: 1;
-  check: "toolchain";
+  schemaVersion: typeof CLI_JSON_SCHEMA_VERSION;
+  check: typeof CLI_JSON_CHECKS.toolchain;
   success: boolean;
   version: string;
   platform: {
@@ -100,12 +105,9 @@ export function registerDoctorCommand(program: Command, version: string): void {
         if (outputJson) {
           console.log(
             JSON.stringify(
-              {
-                schemaVersion: 1,
-                check: "doctor",
-                success: false,
+              createJsonReport(CLI_JSON_CHECKS.doctor, false, {
                 error: message,
-              },
+              }),
               null,
               2,
             ),
@@ -204,20 +206,21 @@ function createDoctorReport(version: string): DoctorReport {
 
   const bunVersion = getCommandVersion("bun", ["--version"]);
 
-  return {
-    schemaVersion: 1,
-    check: "toolchain",
-    success: checks.every((check) => check.ok || check.required === false),
-    version,
-    platform: {
-      os: os.platform(),
-      arch: os.arch(),
-      node: process.version,
-      ...(bunVersion ? { bun: bunVersion } : {}),
+  return createJsonReport(
+    CLI_JSON_CHECKS.toolchain,
+    checks.every((check) => check.ok || check.required === false),
+    {
+      version,
+      platform: {
+        os: os.platform(),
+        arch: os.arch(),
+        node: process.version,
+        ...(bunVersion ? { bun: bunVersion } : {}),
+      },
+      bplHome,
+      checks,
     },
-    bplHome,
-    checks,
-  };
+  );
 }
 
 function checkDirectory(

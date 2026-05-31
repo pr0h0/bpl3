@@ -32,6 +32,7 @@ import {
   writeFileAtomically,
 } from "./utils";
 import type { CompileOptions } from "./types";
+import { CLI_JSON_CHECKS, createJsonReport } from "./jsonContracts";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 
@@ -170,13 +171,10 @@ function handleCompilationError(
   if (shouldEmitBuildJsonReport(options)) {
     console.log(
       JSON.stringify(
-        {
-          schemaVersion: 1,
-          check: "build",
-          success: false,
+        createJsonReport(CLI_JSON_CHECKS.build, false, {
           ...(sourceLabel ? { file: sourceLabel } : {}),
           error: formatCompilationErrorMessage(e),
-        },
+        }),
         null,
         2,
       ),
@@ -824,16 +822,13 @@ function emitBuildJsonSuccess(
   const hostDefaults = getHostDefaults();
   console.log(
     JSON.stringify(
-      {
-        schemaVersion: 1,
-        check: "build",
-        success: true,
+      createJsonReport(CLI_JSON_CHECKS.build, true, {
         file: filePath,
         emit: options.emit ?? "binary",
         target: options.target || hostDefaults.target,
         cache: Boolean(options.cache),
         output,
-      },
+      }),
       null,
       2,
     ),

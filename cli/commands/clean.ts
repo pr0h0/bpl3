@@ -8,6 +8,7 @@ import * as path from "path";
 import { spawnSync } from "child_process";
 import { Command } from "commander";
 import { Logger } from "../../compiler/common/Logger";
+import { CLI_JSON_CHECKS, createJsonReport } from "../jsonContracts";
 
 const log = new Logger("Clean");
 const CLEAN_GIT_TIMEOUT_MS = 5000;
@@ -178,14 +179,15 @@ export function registerCleanCommand(program: Command): void {
             }
           }
 
-          const report: CleanReport = {
-            schemaVersion: 1,
-            check: "clean",
-            success: true,
-            dryRun: Boolean(options.dryRun),
-            count: entriesToDelete.length,
-            entries: entriesToDelete,
-          };
+          const report: CleanReport = createJsonReport(
+            CLI_JSON_CHECKS.clean,
+            true,
+            {
+              dryRun: Boolean(options.dryRun),
+              count: entriesToDelete.length,
+              entries: entriesToDelete,
+            },
+          );
 
           if (outputJson) {
             console.log(JSON.stringify(report, null, 2));

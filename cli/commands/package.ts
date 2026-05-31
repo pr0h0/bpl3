@@ -27,6 +27,7 @@ import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import { Logger } from "../../compiler/common/Logger";
 import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
+import { CLI_JSON_CHECKS, createJsonReport } from "../jsonContracts";
 
 const log = new Logger("Package");
 const PACKAGE_IR_VERIFY_TIMEOUT_MS = 30000;
@@ -163,13 +164,10 @@ export function registerPackageCommands(program: Command): void {
           if (outputJson) {
             console.log(
               JSON.stringify(
-                {
-                  schemaVersion: 1,
-                  check: "package-list-tree",
-                  success: true,
+                createJsonReport(CLI_JSON_CHECKS.packageListTree, true, {
                   scope,
                   tree,
-                },
+                }),
                 null,
                 2,
               ),
@@ -194,10 +192,7 @@ export function registerPackageCommands(program: Command): void {
         if (outputJson) {
           console.log(
             JSON.stringify(
-              {
-                schemaVersion: 1,
-                check: "package-list",
-                success: true,
+              createJsonReport(CLI_JSON_CHECKS.packageList, true, {
                 scope,
                 packages: packages.map((pkg) => ({
                   name: pkg.manifest.name,
@@ -206,7 +201,7 @@ export function registerPackageCommands(program: Command): void {
                   path: pkg.path,
                   hash: pkg.hash,
                 })),
-              },
+              }),
               null,
               2,
             ),
@@ -290,12 +285,9 @@ export function registerPackageCommands(program: Command): void {
           if (outputJson) {
             console.log(
               JSON.stringify(
-                {
-                  schemaVersion: 1,
-                  check: "package-cache-list",
-                  success: true,
+                createJsonReport(CLI_JSON_CHECKS.packageCacheList, true, {
                   entries,
-                },
+                }),
                 null,
                 2,
               ),
