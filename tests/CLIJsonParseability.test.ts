@@ -618,6 +618,7 @@ describe("CLI JSON parseability", () => {
       check: "package-cache-list",
       success: false,
       entries: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       error: expect.stringContaining(
         "Global package directory path is not a directory",
       ),
@@ -635,6 +636,7 @@ describe("CLI JSON parseability", () => {
       ok: false,
       entriesChecked: 0,
       issues: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       error: expect.stringContaining(
         "Global package directory path is not a directory",
       ),
@@ -659,6 +661,7 @@ describe("CLI JSON parseability", () => {
       success: false,
       scope: "local",
       packages: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       error: expect.stringContaining(
         "Local package directory path is not a directory",
       ),
@@ -675,6 +678,7 @@ describe("CLI JSON parseability", () => {
       success: false,
       scope: "local",
       tree: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       error: expect.stringContaining(
         "Local package directory path is not a directory",
       ),
@@ -796,6 +800,7 @@ describe("CLI JSON parseability", () => {
       success: false,
       removed: [],
       dryRun: true,
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       error: expect.stringContaining(
         "Global package directory path is not a directory",
       ),
@@ -817,6 +822,7 @@ describe("CLI JSON parseability", () => {
       repaired: [],
       unchanged: [],
       issues: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
       error: expect.stringContaining(
         "Global package directory path is not a directory",
       ),
@@ -868,7 +874,10 @@ describe("CLI JSON parseability", () => {
         check: testCase.check,
         success: false,
       });
-      expect(report).toMatchObject(testCase.expected);
+      expect(report).toMatchObject({
+        ...testCase.expected,
+        errorCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+      });
       expect(report.error).toContain(
         "Global package directory parent path is a symbolic link",
       );

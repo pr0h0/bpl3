@@ -55,6 +55,7 @@ describe("Package JSON failure contracts", () => {
             success: false,
             scope: "local",
             packages: [],
+            errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
           },
         },
         {
@@ -67,6 +68,7 @@ describe("Package JSON failure contracts", () => {
             success: false,
             scope: "local",
             tree: [],
+            errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
           },
         },
         {
@@ -78,6 +80,7 @@ describe("Package JSON failure contracts", () => {
             check: "package-cache-list",
             success: false,
             entries: [],
+            errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
           },
         },
         {
@@ -91,6 +94,7 @@ describe("Package JSON failure contracts", () => {
             ok: false,
             entriesChecked: 0,
             issues: [],
+            errorCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
           },
         },
         {

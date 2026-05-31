@@ -284,6 +284,7 @@ export function registerPackageCommands(program: Command): void {
       } catch (e) {
         if (outputJson) {
           const error = formatPackageCommandJsonError(e);
+          const errorCode = formatPackageCommandErrorCode(e);
           console.log(
             JSON.stringify(
               options.tree
@@ -291,11 +292,13 @@ export function registerPackageCommands(program: Command): void {
                     scope,
                     tree: [],
                     error,
+                    ...errorCode,
                   })
                 : createJsonReport(CLI_JSON_CHECKS.packageList, false, {
                     scope,
                     packages: [],
                     error,
+                    ...errorCode,
                   }),
               null,
               2,
@@ -389,6 +392,7 @@ export function registerPackageCommands(program: Command): void {
                 createJsonReport(CLI_JSON_CHECKS.packageCacheList, false, {
                   entries: [],
                   error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
                 }),
                 null,
                 2,
@@ -436,6 +440,7 @@ export function registerPackageCommands(program: Command): void {
                   entriesChecked: 0,
                   issues: [],
                   error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
                 }),
                 null,
                 2,
@@ -500,6 +505,7 @@ export function registerPackageCommands(program: Command): void {
                   removed: [],
                   dryRun: Boolean(options.dryRun),
                   error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
                 }),
                 null,
                 2,
@@ -560,6 +566,7 @@ export function registerPackageCommands(program: Command): void {
                   unchanged: [],
                   issues: [],
                   error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
                 }),
                 null,
                 2,
