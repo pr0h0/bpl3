@@ -789,6 +789,48 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports package entrypoint symlink failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const outsideEntrypoint = path.join(tempDir, "outside-index.bpl");
+    const linkedEntrypoint = path.join(packageDir, "index.bpl");
+    const sourceFile = path.join(sourceDir, "entrypoint_symlink_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({
+        name: "pkg-math",
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
+    );
+    fs.writeFileSync(outsideEntrypoint, "export value;");
+    fs.symlinkSync(outsideEntrypoint, linkedEntrypoint, "file");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic?.message).toContain(
+      "entrypoint resolves to a symbolic link candidate",
+    );
+    expect(diagnostic?.message).toContain(linkedEntrypoint);
+    expect(diagnostic?.message).not.toContain(outsideEntrypoint);
+    expect(diagnostic?.hint).toContain("Searched paths:");
+    expect(diagnostic?.hint).toContain(linkedEntrypoint);
+    expect(diagnostic?.hint).not.toContain(outsideEntrypoint);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
