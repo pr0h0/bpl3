@@ -68,6 +68,16 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("WASM_LD selected linker failed")).toEqual(
       expectedCommands,
     );
+    expect(
+      localCommandsForStep(
+        "Skipping wasm runtime execution: no usable standalone wasm linker found.",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "This is an optional prerequisite skip, not a successful wasm execution.",
+      ),
+    ).toEqual(expectedCommands);
   });
 
   test("maps release smoke failures to packed helper reproduction commands", () => {

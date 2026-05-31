@@ -130,6 +130,8 @@ const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
     "BPL_REQUIRE_WASM_LD=1 requires a wasm linker",
     "wasm-ld is required",
     "wasm linker",
+    "Skipping wasm runtime execution",
+    "optional prerequisite skip",
     "WASM_LD",
     "WebAssembly toolchain",
   ].join("|"),
