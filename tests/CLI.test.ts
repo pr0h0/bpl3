@@ -1811,6 +1811,116 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report import diagnostics as JSON", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-import-json-"),
+    );
+    const unsafeStdFile = path.join(tempDir, "unsafe_std.bpl");
+    const packageFile = path.join(tempDir, "package_import.bpl");
+    const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "different-name",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      unsafeStdFile,
+      [
+        'import escaped from "std/../outside-std-lib.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      packageFile,
+      [
+        'import value from "badpkg";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["check", "--json", unsafeStdFile, packageFile]);
+
+      expect(result.status).toBe(1);
+      const report = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        totalFiles: number;
+        errorCount: number;
+        files: Array<{
+          file: string;
+          success: boolean;
+          diagnostics: Array<{
+            severity: string;
+            message: string;
+            hint: string;
+            location: {
+              file: string;
+              start: { line: number; column: number };
+            };
+            source?: { line: string };
+          }>;
+        }>;
+      }>(result);
+      expect(report.schemaVersion).toBe(1);
+      expect(report.check).toBe("check");
+      expect(report.success).toBe(false);
+      expect(report.totalFiles).toBe(2);
+      expect(report.errorCount).toBe(2);
+
+      const reportsByFile = new Map(report.files.map((file) => [file.file, file]));
+      const unsafeStdDiagnostic = reportsByFile.get(
+        unsafeStdFile,
+      )?.diagnostics[0];
+      expect(unsafeStdDiagnostic).toMatchObject({
+        severity: "error",
+        message: "Unsafe standard library import: std/../outside-std-lib.bpl",
+        hint: "Use std/<path> without empty, '.', or '..' path segments.",
+        location: {
+          file: unsafeStdFile,
+          start: { line: 1, column: 1 },
+        },
+        source: {
+          line: 'import escaped from "std/../outside-std-lib.bpl";',
+        },
+      });
+
+      const packageDiagnostic = reportsByFile.get(
+        packageFile,
+      )?.diagnostics[0];
+      expect(packageDiagnostic?.message).toContain("invalid bpl.json");
+      expect(packageDiagnostic?.message).toContain(
+        "manifest name 'different-name'",
+      );
+      expect(packageDiagnostic?.hint).toContain("Searched paths:");
+      expect(packageDiagnostic?.location).toMatchObject({
+        file: packageFile,
+        start: { line: 1, column: 1 },
+      });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should count missing files in check JSON totals", () => {
     const missingFile = path.join(
       process.cwd(),

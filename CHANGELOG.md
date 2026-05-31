@@ -146,6 +146,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Import Diagnostic Build Coverage** - Added regressions proving
   malformed package metadata diagnostics stay intact across `check`,
   `build --emit llvm`, and cached builds without writing failed artifacts.
+- **Import Diagnostics JSON Coverage** - Added `bpl check --json` regressions
+  for unsafe `std/` imports and malformed package metadata, including stable
+  report totals and per-file diagnostic locations.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
