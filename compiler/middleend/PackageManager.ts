@@ -1319,11 +1319,14 @@ export class PackageManager {
     return [...candidates];
   }
 
-  private removeLocalLockEntry(packageName: string): void {
+  private removeLocalLockEntry(
+    packageName: string,
+    existingLock?: PackageLockFile,
+  ): void {
     const lockPath = this.getLockFilePath();
-    if (!fs.existsSync(lockPath)) return;
+    if (!existingLock && !this.tryLstat(lockPath)) return;
 
-    const lock = this.loadLockFile();
+    const lock = existingLock ?? this.loadLockFile();
     delete lock.packages[packageName];
     this.saveLockFile(lock);
   }
@@ -3230,6 +3233,10 @@ export class PackageManager {
     }
 
     const manifest = this.loadManifest(packagePath);
+    const localLock =
+      !options.global && this.tryLstat(this.getLockFilePath())
+        ? this.loadLockFile()
+        : undefined;
 
     // Unlink binaries
     if (manifest.bin) {
@@ -3299,7 +3306,7 @@ export class PackageManager {
     fs.rmSync(packagePath, { recursive: true, force: true });
 
     if (!options.global) {
-      this.removeLocalLockEntry(manifest.name);
+      this.removeLocalLockEntry(manifest.name, localLock);
     }
 
     compilerLog.info(`✓ Uninstalled ${manifest.name}@${manifest.version}`);

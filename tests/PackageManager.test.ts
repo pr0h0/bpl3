@@ -3667,6 +3667,45 @@ describe("PackageManager", () => {
       expect(packages.length).toBe(0);
     });
 
+    test("should reject broken symlink lockfiles before uninstall removes packages", () => {
+      const packageDir = path.join(tempDir, "broken-lock-uninstall-pkg-src");
+      const appDir = path.join(tempDir, "broken-lock-uninstall-app");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "broken-lock-uninstall-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const localPM = new PackageManager(appDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      const packagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "broken-lock-uninstall-pkg",
+      );
+      const lockPath = path.join(appDir, "bpl.lock");
+      fs.unlinkSync(lockPath);
+      fs.symlinkSync(path.join(tempDir, "missing-uninstall-lock.json"), lockPath);
+
+      expect(() =>
+        localPM.uninstall("broken-lock-uninstall-pkg", { global: false }),
+      ).toThrow(/symbolic link/);
+      expect(fs.existsSync(packagePath)).toBe(true);
+      expect(fs.lstatSync(lockPath).isSymbolicLink()).toBe(true);
+    });
+
     test("should throw error when uninstalling non-existent package", () => {
       expect(() => {
         packageManager.uninstall("non-existent-pkg", { global: false });

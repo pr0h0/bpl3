@@ -394,7 +394,10 @@ files together. Use `--json` to return `schemaVersion: 1`,
 state in machine-readable form.
 `bpl uninstall <package>` only removes real installed package directories. If
 `bpl_modules/<package>` is a symlink, uninstall rejects it and leaves both the
-symlink and its target untouched.
+symlink and its target untouched. Local uninstall also validates an existing
+`bpl.lock` before unlinking binaries or removing package files; symlinked,
+broken-symlink, malformed, or non-file lockfile paths are rejected instead of
+leaving package files and lock entries inconsistent.
 
 ## Package Scripts
 

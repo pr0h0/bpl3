@@ -164,6 +164,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-155 | Package Manager     | Lock verification accepts installed transitive dependencies that are missing from `bpl.lock`.                              | Fixed    | `verifyLockFile()` now reports `missing-transitive-lock-entry` when an installed package manifest depends on another installed package that is not recorded in the lockfile. Regression: `tests/PackageManager.test.ts`.                                                                    |
 | BUG-156 | Package Manager     | Broken symlink `bpl.lock` paths are reported as missing lockfiles during locked verification.                              | Fixed    | `verifyLockFile()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before loading the lockfile, so broken and valid-target symlinks are both rejected. Regression: `tests/PackageManager.test.ts`.                                                            |
 | BUG-157 | Package Manager     | Plain project install ignores broken symlink `bpl.lock` paths when no dependencies need installing.                        | Fixed    | `installProject()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before restore or no-op install decisions. Regression: `tests/PackageManager.test.ts`.                                                                                                  |
+| BUG-158 | Package Manager     | Local uninstall removes package files before rejecting a broken symlink `bpl.lock`.                                        | Fixed    | `uninstall()` now preloads and validates an existing local lockfile before unlinking binaries or removing package directories. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
 
 ## Details
 
@@ -2383,3 +2384,35 @@ dependencies to install.
 **Resolution**: `installProject()` now uses `lstat` before restore or no-op
 decisions, matching the stricter lockfile checks used by `loadLockFile()` and
 locked verification.
+
+---
+
+### BUG-158: Local Uninstall Removes Packages Before Lockfile Rejection
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Local `bpl uninstall` removed package binaries and package
+directories before updating `bpl.lock`. The lock removal helper used
+`fs.existsSync()`, so a broken symlink at `bpl.lock` was treated as no lockfile
+and uninstall completed after deleting package files.
+
+**Reproduction**:
+
+```bash
+bpl install ./example-package-1.0.0.tgz
+rm bpl.lock
+ln -s ../missing-lock.json bpl.lock
+bpl uninstall example-package
+```
+
+**Expected**: Local uninstall rejects `bpl.lock` as a symbolic link before
+removing package files or binaries.
+
+**Actual**: Uninstall removed the installed package and skipped the broken
+symlink lockfile.
+
+**Resolution**: `uninstall()` now preloads and validates an existing local
+lockfile before any destructive package or binary removal, then reuses that
+validated lock object when removing the package entry.
