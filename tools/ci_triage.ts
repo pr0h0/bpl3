@@ -195,6 +195,16 @@ const COMPLETION_JSON_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const VERSION_JSON_STEP_PATTERN = new RegExp(
+  [
+    "version JSON",
+    "version JSON contract",
+    "bpl --version --json",
+    "bpl --json --version",
+    'check: "version"',
+  ].join("|"),
+  "i",
+);
 const DOCTOR_SCOPE_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_DOCTOR_SCOPE_UNKNOWN",
@@ -528,6 +538,12 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "shell completions"',
   ],
   [COMPLETION_JSON_STEP_PATTERN, "bun run check"],
+  [
+    VERSION_JSON_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "version JSON"',
+  ],
+  [VERSION_JSON_STEP_PATTERN, "bun test tests/JsonContracts.test.ts"],
+  [VERSION_JSON_STEP_PATTERN, "bun run check"],
   [
     DOCTOR_SCOPE_JSON_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
