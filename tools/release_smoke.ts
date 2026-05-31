@@ -164,6 +164,24 @@ interface FuzzArtifactReproPlan {
   }>;
 }
 
+interface CiTriageReport {
+  schemaVersion: 1;
+  check: "ci-triage";
+  success: boolean;
+  run: {
+    id: number;
+    headSha?: string;
+  };
+  checkout: {
+    status: "current" | "stale" | "unknown";
+    reason?: string;
+  };
+  summary: {
+    missingJobIds: number[];
+    failedJobs: Array<{ localCommands: string[] }>;
+  };
+}
+
 interface NpmPackEntry {
   filename: string;
   name?: string;
@@ -1334,6 +1352,67 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     "run-id-or-actions-url",
   ]);
 
+  const ciTriageJobsPath = join(packageDir, "ci-triage-jobs.json");
+  writeFileSync(
+    ciTriageJobsPath,
+    JSON.stringify(
+      {
+        run: {
+          id: 26695335269,
+          html_url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+          head_branch: "master",
+          head_sha: "1234567890abcdef1234567890abcdef12345678",
+          status: "completed",
+          conclusion: "failure",
+        },
+        jobs: [
+          {
+            id: 42,
+            name: "Ubuntu system clang release",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/42",
+            steps: [
+              { name: "Run CI-safe test suite", conclusion: "failure" },
+            ],
+          },
+        ],
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  const ciTriageJson = runStep(
+    "check packed npm CLI CI triage JSON",
+    "npm",
+    [
+      "run",
+      "--silent",
+      "ci:triage",
+      "--",
+      "--json",
+      "--jobs-json",
+      "ci-triage-jobs.json",
+      "26695335269",
+    ],
+    { cwd: packageDir, bplHome: null },
+  );
+  const ciTriageReport = parseCiTriageReport(ciTriageJson.stdout);
+  if (
+    ciTriageReport.run.headSha !==
+      "1234567890abcdef1234567890abcdef12345678" ||
+    ciTriageReport.checkout.status !== "unknown" ||
+    ciTriageReport.checkout.reason !== "local checkout SHA unavailable" ||
+    ciTriageReport.summary.missingJobIds.length !== 0 ||
+    ciTriageReport.summary.failedJobs[0]?.localCommands[0] !==
+      "bun run test:ci"
+  ) {
+    throw new Error(
+      `Packed npm CLI CI triage JSON reported unexpected payload:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+    );
+  }
+
   runExpectedFailureStep(
     "check packed npm CLI CI triage usage errors",
     "npm",
@@ -1890,6 +1969,41 @@ function parseFuzzArtifactReproPlan(stdout: string): FuzzArtifactReproPlan {
     throw new Error(
       [
         "Fuzz artifact repro did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseCiTriageReport(stdout: string): CiTriageReport {
+  try {
+    const report = JSON.parse(stdout) as CiTriageReport;
+    assertJsonReportContract(report, "ci-triage", "CI triage");
+    if (
+      typeof report.run?.id !== "number" ||
+      typeof report.run.headSha !== "string" ||
+      !["current", "stale", "unknown"].includes(report.checkout?.status) ||
+      !Array.isArray(report.summary?.missingJobIds) ||
+      !Array.isArray(report.summary.failedJobs)
+    ) {
+      throw new Error(
+        `ci:triage JSON contract mismatch: ${JSON.stringify(
+          {
+            run: report.run,
+            checkout: report.checkout,
+            summary: report.summary,
+          },
+          null,
+          2,
+        )}`,
+      );
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "CI triage helper did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

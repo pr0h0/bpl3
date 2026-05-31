@@ -210,6 +210,12 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain(
       "check packed npm CLI CI triage helper",
     );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI CI triage JSON",
+    );
+    expect(releaseSmokeSource).toContain("parseCiTriageReport");
+    expect(releaseSmokeSource).toContain("run.headSha");
+    expect(releaseSmokeSource).toContain("checkout.status");
   });
 
   test("release smoke validates packed package install JSON output", () => {
