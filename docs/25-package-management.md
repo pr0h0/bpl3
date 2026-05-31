@@ -439,6 +439,11 @@ CI should use a specific archive tool. Archive tool invocations are bounded by
 `clang` when available. That verifier is bounded by
 `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` and defaults to 30000 milliseconds so a
 hung compiler driver does not block package creation forever.
+Timeout environment variables must be positive integers; invalid values are
+ignored with a warning that says `expected a positive integer`. For package
+commands, `BPL_PACKAGE_TOOL_TIMEOUT_MS` invalid values fall back to 300000
+milliseconds, and `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` invalid values fall back to
+30000 milliseconds.
 
 ```bash
 bpl package-cache list

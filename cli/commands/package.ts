@@ -24,6 +24,7 @@ import type {
   PackageOptionsVerbose,
 } from "../types";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
+import { getPositiveIntegerEnv } from "../../compiler/common/Env";
 import {
   Logger,
   LogLevel,
@@ -643,18 +644,13 @@ function verifyPackageLLVMIR(llvmIR: string): void {
 }
 
 function getPackageIrVerifyTimeoutMs(): number {
-  const raw = process.env.BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS;
-  if (!raw) return PACKAGE_IR_VERIFY_TIMEOUT_MS;
-
-  const parsed = Number(raw);
-  if (Number.isSafeInteger(parsed) && parsed > 0) {
-    return parsed;
-  }
-
-  log.warn(
-    `Ignoring invalid BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=${raw}; using ${PACKAGE_IR_VERIFY_TIMEOUT_MS}ms`,
+  return getPositiveIntegerEnv(
+    "BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS",
+    PACKAGE_IR_VERIFY_TIMEOUT_MS,
+    {
+      warn: (message) => log.warn(message),
+    },
   );
-  return PACKAGE_IR_VERIFY_TIMEOUT_MS;
 }
 
 function formatSpawnFailure(error: Error, command: string): string {

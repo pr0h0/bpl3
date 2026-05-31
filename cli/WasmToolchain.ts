@@ -1,4 +1,5 @@
 import { spawnSync } from "child_process";
+import { getPositiveIntegerEnv } from "../compiler/common/Env";
 
 export const DEFAULT_WASM_LINKER_CANDIDATES: string[] = [
   "wasm-ld",
@@ -26,18 +27,14 @@ export function getWasmLinkerProbeTimeoutMs(
   env: NodeJS.ProcessEnv = process.env,
   warn?: (message: string) => void,
 ): number {
-  const raw = env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
-  if (!raw) return DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS;
-
-  const parsed = Number(raw);
-  if (Number.isSafeInteger(parsed) && parsed > 0) {
-    return parsed;
-  }
-
-  warn?.(
-    `Ignoring invalid BPL_WASM_LINKER_PROBE_TIMEOUT_MS=${raw}; expected a positive integer; using ${DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS}ms`,
+  return getPositiveIntegerEnv(
+    "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
+    DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS,
+    {
+      env,
+      warn,
+    },
   );
-  return DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS;
 }
 
 export function isUsableWasmLinker(

@@ -186,6 +186,7 @@ untracked build artifacts inside it.
 The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
 to 5000 milliseconds; if the probe fails or times out inside a git repository,
 `bpl clean` refuses to remove files.
+`BPL_CLEAN_GIT_TIMEOUT_MS` invalid values fall back to 5000 milliseconds.
 If the current working directory path contains a symbolic-link component,
 `bpl clean` also refuses before the git probe, artifact scan, or any deletion.
 Run clean from the real project path when using launchers that preserve a
@@ -468,6 +469,7 @@ bpl build main.bpl -O 2 -o myapp
 Set `BPL_RUN_TIMEOUT_MS` to a positive millisecond value when CI or scripts
 need compiled program execution to fail instead of hanging indefinitely. When
 unset, `bpl run` preserves normal unbounded program execution.
+`BPL_RUN_TIMEOUT_MS` invalid values fall back to running without a timeout.
 
 ## Debug Information
 
@@ -512,6 +514,17 @@ LLVM IR verification uses `BPL_OPT`/`OPT`, `BPL_LLVM_AS`/`LLVM_AS`,
 Package IR verification during `bpl pack` uses the selected native compiler
 driver and is bounded by `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS`, defaulting to
 30000 milliseconds.
+
+Timeout environment variables must be positive integers. When a timeout value
+is invalid, BPL ignores it with a warning that says `expected a positive
+integer` and keeps the same fallback it would have used before the invalid
+override:
+
+- `BPL_COMPILE_DRIVER_TIMEOUT_MS` invalid values fall back to 600000 milliseconds.
+- `BPL_CLEAN_GIT_TIMEOUT_MS` invalid values fall back to 5000 milliseconds.
+- `BPL_PACKAGE_TOOL_TIMEOUT_MS` invalid values fall back to 300000 milliseconds.
+- `BPL_OBJECT_SYMBOL_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
+- `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
 
 **Supported Targets:**
 

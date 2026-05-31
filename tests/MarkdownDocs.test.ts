@@ -428,4 +428,26 @@ describe("Markdown documentation", () => {
       expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
     }
   });
+
+  test("docs document timeout environment fallback diagnostics", () => {
+    const combinedDocs = [
+      readFileSync("docs/25-package-management.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Timeout environment variables must be positive integers",
+      "invalid values are ignored with a warning that says `expected a positive integer`",
+      "`BPL_RUN_TIMEOUT_MS` invalid values fall back to running without a timeout",
+      "`BPL_CLEAN_GIT_TIMEOUT_MS` invalid values fall back to 5000 milliseconds",
+      "`BPL_COMPILE_DRIVER_TIMEOUT_MS` invalid values fall back to 600000 milliseconds",
+      "`BPL_PACKAGE_TOOL_TIMEOUT_MS` invalid values fall back to 300000 milliseconds",
+      "`BPL_OBJECT_SYMBOL_TIMEOUT_MS` invalid values fall back to 30000 milliseconds",
+      "`BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` invalid values fall back to 30000 milliseconds",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });

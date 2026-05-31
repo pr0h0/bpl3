@@ -18,6 +18,7 @@ import {
   getCompilerDriverTimeoutMs,
   isWasmTarget as isCompilerDriverWasmTarget,
 } from "../compiler/common/CompilerDriver";
+import { getOptionalPositiveIntegerEnv } from "../compiler/common/Env";
 import { Logger } from "../compiler/common/Logger";
 import { getBplHome } from "../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
@@ -576,16 +577,12 @@ function formatRunSpawnError(error: Error, execPath: string): string {
 }
 
 function getRunTimeoutOption(): { timeout?: number } {
-  const raw = process.env.BPL_RUN_TIMEOUT_MS;
-  if (!raw) return {};
+  const timeout = getOptionalPositiveIntegerEnv("BPL_RUN_TIMEOUT_MS", {
+    warn: (message) => log.warn(message),
+    fallbackAction: "running without timeout",
+  });
 
-  const parsed = Number(raw);
-  if (Number.isSafeInteger(parsed) && parsed > 0) {
-    return { timeout: parsed };
-  }
-
-  log.warn(`Ignoring invalid BPL_RUN_TIMEOUT_MS=${raw}; running without timeout`);
-  return {};
+  return timeout === undefined ? {} : { timeout };
 }
 
 function formatCompileSpawnError(error: Error, command: string): string {

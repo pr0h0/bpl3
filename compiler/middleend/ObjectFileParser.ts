@@ -14,6 +14,7 @@ import * as path from "path";
 import { spawnSync } from "child_process";
 
 import { CompilerError } from "../common/CompilerError";
+import { getPositiveIntegerEnv } from "../common/Env";
 import { compilerLog } from "../common/Logger";
 import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
@@ -123,18 +124,13 @@ export class ObjectFileParser {
   }
 
   private static getObjectSymbolTimeoutMs(): number {
-    const raw = process.env.BPL_OBJECT_SYMBOL_TIMEOUT_MS;
-    if (!raw) return OBJECT_SYMBOL_TIMEOUT_MS;
-
-    const parsed = Number(raw);
-    if (Number.isSafeInteger(parsed) && parsed > 0) {
-      return parsed;
-    }
-
-    compilerLog.warn(
-      `Ignoring invalid BPL_OBJECT_SYMBOL_TIMEOUT_MS=${raw}; using ${OBJECT_SYMBOL_TIMEOUT_MS}ms`,
+    return getPositiveIntegerEnv(
+      "BPL_OBJECT_SYMBOL_TIMEOUT_MS",
+      OBJECT_SYMBOL_TIMEOUT_MS,
+      {
+        warn: (message) => compilerLog.warn(message),
+      },
     );
-    return OBJECT_SYMBOL_TIMEOUT_MS;
   }
 
   static parseNmOutput(output: string): ObjectFileSymbol[] {

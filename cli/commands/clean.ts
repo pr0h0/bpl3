@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawnSync } from "child_process";
 import { Command } from "commander";
+import { getPositiveIntegerEnv } from "../../compiler/common/Env";
 import { Logger } from "../../compiler/common/Logger";
 import {
   CLI_JSON_CHECKS,
@@ -298,15 +299,13 @@ function getGitTrackedPaths(cwd: string): Set<string> | null {
 }
 
 function getCleanGitTimeoutMs(): number {
-  const raw = process.env.BPL_CLEAN_GIT_TIMEOUT_MS;
-  if (!raw) return CLEAN_GIT_TIMEOUT_MS;
-
-  const parsed = Number(raw);
-  if (Number.isSafeInteger(parsed) && parsed > 0) {
-    return parsed;
-  }
-
-  return CLEAN_GIT_TIMEOUT_MS;
+  return getPositiveIntegerEnv(
+    "BPL_CLEAN_GIT_TIMEOUT_MS",
+    CLEAN_GIT_TIMEOUT_MS,
+    {
+      warn: (message) => log.warn(message),
+    },
+  );
 }
 
 function findGitRepositoryMarker(startDir: string): string | null {
