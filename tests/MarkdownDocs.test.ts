@@ -30,6 +30,10 @@ import {
   BUILD_OUTPUT_PARENT_SYMLINK_CODE,
   BUILD_OUTPUT_SYMLINK_CODE,
 } from "../cli/CompilationRunner";
+import {
+  CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
+  CLEAN_WORKDIR_SYMLINK_CODE,
+} from "../cli/commands/clean";
 
 function trackedMarkdownFiles(): string[] {
   const result = spawnSync("git", ["ls-files", "*.md"], {
@@ -506,6 +510,25 @@ describe("Markdown documentation", () => {
       expect(docs).toContain(code);
     }
     expect(docs).toContain("Build validation `errorCode` values");
+    expect(docs).toContain("preserving the human-readable `error` text");
+  });
+
+  test("docs document clean validation error codes from command constants", () => {
+    const docs = [
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("CHANGELOG.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const expectedCodes = [
+      CLEAN_WORKDIR_SYMLINK_CODE,
+      CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
+    ];
+
+    for (const code of expectedCodes) {
+      expect(docs).toContain(code);
+    }
+    expect(docs).toContain("Clean validation `errorCode` values");
     expect(docs).toContain("preserving the human-readable `error` text");
   });
 

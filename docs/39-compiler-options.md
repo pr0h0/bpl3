@@ -311,6 +311,14 @@ validation uses `BPL_BUILD_INPUT_NOT_FOUND`, `BPL_BUILD_INPUT_SYMLINK`, and
 stdout JSON failure report, preserving the human-readable `error` text for
 older consumers and logs.
 
+Clean validation `errorCode` values are stable when `bpl clean --json` can
+classify the validation failure. Symlink-spelled working-directory paths use
+`BPL_CLEAN_WORKDIR_SYMLINK`, and git tracked-file probe failures or timeouts in
+git repositories use `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`. These codes are
+additive fields on the stdout JSON failure report, preserving the
+human-readable `error` text while keeping `count: 0` and `entries: []` so
+automation can confirm no cleanup happened.
+
 Import-resolution failures use the same diagnostic objects as type errors.
 `bpl check --json` reports missing modules, unsafe `std/` paths, and package
 metadata failures under each file's `diagnostics` array while preserving

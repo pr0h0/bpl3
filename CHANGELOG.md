@@ -96,6 +96,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed Build Validation Smoke** - Release smoke now checks that the packed
   npm CLI preserves `bpl build --json` validation `errorCode` output such as
   `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`.
+- **Clean JSON Validation Codes** - `bpl clean --json` validation failures now
+  include stable `BPL_CLEAN_*` `errorCode` values for symlinked working
+  directories and unavailable git tracked-file probes.
 - **Package Import Diagnostic Coverage** - CLI and ModuleResolver regression
   tests now cover invalid package import names and malformed imported package
   manifest versions in human-readable, `check --json`, `build --json`, and
