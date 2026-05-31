@@ -263,6 +263,24 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("package docs document global versioned root validation", () => {
+    const text = readFileSync("docs/25-package-management.md", "utf8").replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Global versioned package directories use the `<package>-X.Y.Z` naming form",
+      "BPL selects the highest semantic version whose directory name matches the requested package",
+      "The selected global versioned package root is still validated with `lstat` before its manifest is read",
+      "a symlink, regular file, or other non-directory named like a higher version blocks fallback to lower versions",
+      "`~/.bpl/packages/math-9.0.0`",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("imports docs document std path safety rules", () => {
     const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
       /\s+/g,

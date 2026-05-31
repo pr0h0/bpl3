@@ -309,6 +309,15 @@ different package. Package import paths cannot contain empty, `.` or `..`
 segments; use relative imports for filesystem traversal inside your own
 project.
 
+Global versioned package directories use the `<package>-X.Y.Z` naming form.
+When resolving a global package import, BPL selects the highest semantic
+version whose directory name matches the requested package, then validates that
+root before reading `bpl.json`. The selected global versioned package root is
+still validated with `lstat` before its manifest is read, so a symlink, regular
+file, or other non-directory named like a higher version blocks fallback to
+lower versions. For example, `~/.bpl/packages/math-9.0.0` as a symlink or file
+blocks fallback to `~/.bpl/packages/math-1.0.0`.
+
 Packages can expose source files below their root through subpath imports:
 
 ```bpl
