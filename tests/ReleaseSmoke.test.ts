@@ -135,6 +135,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI doctor failure JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI doctor sanitizer JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package doctor JSON",
       );
       expect(result.stdout).toContain(

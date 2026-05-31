@@ -246,6 +246,11 @@ describe("Release metadata", () => {
     );
 
     expect(releaseSmokeSource).toContain(
+      "check packed npm CLI doctor sanitizer JSON",
+    );
+    expect(releaseSmokeSource).toContain('["doctor", "sanitizer", "--json"]');
+    expect(releaseSmokeSource).toContain("assertSanitizerDoctorContract");
+    expect(releaseSmokeSource).toContain(
       "check packed npm CLI CI triage sanitizer JSON",
     );
     expect(releaseSmokeSource).toContain("Sanitizer timeout metadata");
@@ -255,6 +260,60 @@ describe("Release metadata", () => {
     );
     expect(releaseSmokeSource).toContain(
       "bun index.ts doctor sanitizer --json",
+    );
+  });
+
+  test("release smoke guards packed sanitizer doctor JSON contract", async () => {
+    const releaseSmoke = (await import("../tools/release_smoke")) as {
+      assertSanitizerDoctorContract?: (report: unknown) => void;
+    };
+    const assertSanitizerDoctorContract =
+      releaseSmoke.assertSanitizerDoctorContract;
+
+    expect(typeof assertSanitizerDoctorContract).toBe("function");
+    if (typeof assertSanitizerDoctorContract !== "function") {
+      return;
+    }
+
+    const report = {
+      schemaVersion: 1,
+      check: "toolchain",
+      success: true,
+      checks: [
+        {
+          id: "sanitizer-runtime-support",
+          name: "sanitizer runtime support",
+          ok: false,
+          detail: "clang: cannot find libclang_rt.asan-x86_64.a",
+          required: false,
+          code: "BPL_SANITIZER_RUNTIME_UNAVAILABLE",
+          environment: {
+            BPL_CC: "/tmp/clang",
+            CC: null,
+          },
+          recommendedCommands: [
+            "bun run test:sanitizers",
+            "bun test tests/CompilerSanitizerRuntime.test.ts",
+          ],
+          hint:
+            "Install compiler-rt runtime support for ASan/UBSan and libclang_rt.",
+        },
+      ],
+    };
+
+    expect(() => assertSanitizerDoctorContract(report)).not.toThrow();
+    expect(() =>
+      assertSanitizerDoctorContract({
+        ...report,
+        checks: [
+          {
+            ...report.checks[0],
+            recommendedCommands: ["bun run test:sanitizers"],
+          },
+        ],
+      }),
+    ).toThrow(
+      "sanitizer check missing repro command: bun test tests/CompilerSanitizerRuntime.test.ts",
     );
   });
 

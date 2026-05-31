@@ -41,6 +41,7 @@ interface DoctorReport {
 }
 
 interface DoctorToolchainCheck {
+  id?: string;
   name: string;
   ok: boolean;
   detail: string;
@@ -405,6 +406,7 @@ function runPackedPackageSmoke(): void {
 
     runPackedDoctorFailureJsonSmoke(installedBpl, installDir);
     assertWasmDoctorUnavailableContract(report);
+    runPackedDoctorSanitizerJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageInstallJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
@@ -696,7 +698,24 @@ function runPackedRunScriptFailureJsonSmoke(installedBpl: string): void {
   }
 }
 
-function runPackedPackageDoctorSmoke(installedBpl: string, installDir: string): void {
+function runPackedDoctorSanitizerJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const doctor = runStep(
+    "check packed npm CLI doctor sanitizer JSON",
+    installedBpl,
+    ["doctor", "sanitizer", "--json"],
+    { cwd: installDir, bplHome: null },
+  );
+  const report = parseDoctorReport(doctor.stdout);
+  assertSanitizerDoctorContract(report);
+}
+
+function runPackedPackageDoctorSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
   const projectDir = join(installDir, "package-doctor-json");
   const homeDir = join(projectDir, "home");
   mkdirSync(projectDir, { recursive: true });
@@ -1847,6 +1866,66 @@ export function assertWasmDoctorUnavailableContract(report: unknown): void {
     !wasmLinkerCheck.hint.includes("not a successful wasm execution")
   ) {
     throw new Error("wasm linker check missing non-execution hint");
+  }
+}
+
+export function assertSanitizerDoctorContract(report: unknown): void {
+  const checks = (report as { checks?: unknown }).checks;
+  if (!Array.isArray(checks)) {
+    throw new Error("doctor sanitizer report checks is not an array");
+  }
+
+  const sanitizerChecks = checks.filter(
+    (check): check is DoctorToolchainCheck =>
+      typeof check === "object" &&
+      check !== null &&
+      (check as { name?: unknown }).name === "sanitizer runtime support",
+  );
+  if (sanitizerChecks.length !== 1) {
+    throw new Error("doctor sanitizer report must contain exactly one check");
+  }
+
+  const sanitizerCheck = sanitizerChecks[0]!;
+  if (sanitizerCheck.id !== "sanitizer-runtime-support") {
+    throw new Error("sanitizer check missing stable id");
+  }
+  if (sanitizerCheck.required !== false) {
+    throw new Error("sanitizer check must remain optional");
+  }
+  if (
+    !sanitizerCheck.environment ||
+    !("BPL_CC" in sanitizerCheck.environment) ||
+    !("CC" in sanitizerCheck.environment)
+  ) {
+    throw new Error("sanitizer check missing compiler environment values");
+  }
+
+  if (sanitizerCheck.ok) {
+    return;
+  }
+
+  if (sanitizerCheck.code !== "BPL_SANITIZER_RUNTIME_UNAVAILABLE") {
+    throw new Error(
+      "sanitizer check missing BPL_SANITIZER_RUNTIME_UNAVAILABLE code",
+    );
+  }
+
+  const recommendedCommands = sanitizerCheck.recommendedCommands ?? [];
+  for (const command of [
+    "bun run test:sanitizers",
+    "bun test tests/CompilerSanitizerRuntime.test.ts",
+  ]) {
+    if (!recommendedCommands.includes(command)) {
+      throw new Error(`sanitizer check missing repro command: ${command}`);
+    }
+  }
+
+  if (
+    typeof sanitizerCheck.hint !== "string" ||
+    !sanitizerCheck.hint.includes("compiler-rt") ||
+    !sanitizerCheck.hint.includes("ASan/UBSan")
+  ) {
+    throw new Error("sanitizer check missing compiler-rt guidance");
   }
 }
 
