@@ -980,6 +980,98 @@ describe("Package Manager CLI", () => {
       );
     });
 
+    test("should report installed package metadata issues as stable JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-installed-cli-app");
+      const homeDir = path.join(tempDir, "doctor-installed-cli-home");
+      const firstPackageDir = path.join(appDir, "bpl_modules", "doctor-one");
+      const secondPackageDir = path.join(appDir, "bpl_modules", "doctor-two");
+      fs.mkdirSync(firstPackageDir, { recursive: true });
+      fs.mkdirSync(secondPackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-installed-cli-app", version: "1.0.0" }),
+      );
+
+      for (const packageDir of [firstPackageDir, secondPackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify({
+            name: "doctor-shared",
+            version: "1.0.0",
+            main: "index.bpl",
+          }),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        installedPackages: Array<{
+          manifest: { name: string };
+          path: string;
+        }>;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          message: string;
+          path: string;
+          hint: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.ok).toBe(false);
+      expect(report.installedPackages.map((pkg) => pkg.manifest.name)).toEqual(
+        ["doctor-shared", "doctor-shared"],
+      );
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "package-name-mismatch",
+          message: "Installed directory 'doctor-one' contains package 'doctor-shared'.",
+          path: path.join(firstPackageDir, "bpl.json"),
+          hint: expect.stringContaining("Reinstall the package"),
+        }),
+      );
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "package-name-mismatch",
+          message: "Installed directory 'doctor-two' contains package 'doctor-shared'.",
+          path: path.join(secondPackageDir, "bpl.json"),
+          hint: expect.stringContaining("Reinstall the package"),
+        }),
+      );
+      const duplicateIssue = report.issues.find(
+        (issue) => issue.kind === "duplicate-installed-package",
+      );
+      expect(duplicateIssue).toMatchObject({
+        severity: "error",
+        kind: "duplicate-installed-package",
+        message: "Multiple installed directories declare package 'doctor-shared'.",
+        hint: "Keep only one installed directory for each package name.",
+      });
+      expect(duplicateIssue?.path).toContain(firstPackageDir);
+      expect(duplicateIssue?.path).toContain(secondPackageDir);
+    });
+
     test("should report malformed lockfile schema with a stable JSON code", () => {
       const appDir = path.join(tempDir, "doctor-lock-code-cli-app");
       fs.mkdirSync(appDir);
