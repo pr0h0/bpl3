@@ -498,6 +498,22 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("keeps root build JSON no-input failures parseable", () => {
+    const report = expectJsonStdoutReport<{
+      error: string;
+      errorCode: string;
+    }>(runCli(["--json"]), {
+      status: 1,
+      check: "build",
+      success: false,
+    });
+
+    expect(report).toMatchObject({
+      error: "No input files specified.",
+      errorCode: "BPL_BUILD_NO_INPUTS",
+    });
+  });
+
   test("keeps build JSON object diagnostics parseable with invalid object timeout environment", () => {
     const buildSource = path.join(tempDir, "object-diagnostic-main.bpl");
     const missingObject = path.join(tempDir, "missing.o");

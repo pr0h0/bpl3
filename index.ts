@@ -38,6 +38,7 @@ const log = new Logger("CLI");
 
 const program = new Command();
 const packageJson = require("./package.json");
+const BUILD_NO_INPUTS_CODE = "BPL_BUILD_NO_INPUTS";
 
 handleJsonVersionRequest(process.argv, packageJson.version);
 
@@ -62,6 +63,20 @@ function handleJsonVersionRequest(argv: string[], version: string): void {
     ),
   );
   process.exit(0);
+}
+
+function emitBuildNoInputsJsonAndExit(): never {
+  console.log(
+    JSON.stringify(
+      createJsonReport(CLI_JSON_CHECKS.build, false, {
+        error: "No input files specified.",
+        errorCode: BUILD_NO_INPUTS_CODE,
+      }),
+      null,
+      2,
+    ),
+  );
+  process.exit(1);
 }
 
 // ============================================================================
@@ -136,6 +151,9 @@ program
     }
 
     if (!files || files.length === 0) {
+      if (options.json) {
+        emitBuildNoInputsJsonAndExit();
+      }
       log.error("No input files specified");
       process.exit(1);
     }

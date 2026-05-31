@@ -233,6 +233,14 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("llvm, ast, tokens, formatted");
   });
 
+  it("should keep default no-input compile errors human-readable without JSON", () => {
+    const result = runCLI([]);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("No input files specified");
+  });
+
   it("should apply explicit color flags to diagnostics", () => {
     const source = 'frame main() { local x: int = "bad"; }';
     const env: Record<string, string | undefined> = { ...process.env };
