@@ -42,6 +42,23 @@ describe("CI triage helper", () => {
     ).toEqual(["bun run fuzz:differential"]);
   });
 
+  test("maps release smoke failures to packed helper reproduction commands", () => {
+    expect(localCommandsForStep("ReleaseSmoke.test")).toEqual([
+      "bun run release:smoke",
+      "bun test tests/ReleaseSmoke.test.ts",
+      "bun test tests/ReleaseHelperSmoke.test.ts",
+      "cd <packed-bpl-v3-package> && npm run fuzz:repro -- --help",
+      "cd <packed-bpl-v3-package> && npm run fuzz:repro -- --input --json",
+      "cd <packed-bpl-v3-package> && npm run fuzz -- --iterations --crash-dir fuzz/crashes",
+      "cd <packed-bpl-v3-package> && npm run fuzz:replay -- --metadata --mode parser",
+      "cd <packed-bpl-v3-package> && npm run fuzz:promote -- --metadata --name bug",
+      "cd <packed-bpl-v3-package> && npm run ci:triage -- --help",
+    ]);
+    expect(localCommandsForStep("Run release smoke")).toContain(
+      "bun run release:smoke",
+    );
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {

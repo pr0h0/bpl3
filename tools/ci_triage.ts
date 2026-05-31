@@ -39,12 +39,42 @@ const DEFAULT_REPO = "pr0h0/bpl3";
 
 class CliUsageError extends Error {}
 
+const RELEASE_SMOKE_STEP_PATTERN =
+  /(?:ReleaseSmoke\.test|release smoke|release:smoke)/i;
+
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
   [/^Lint$/i, "bun run lint"],
   [/Run Windows-safe codegen tests/i, "bun run test:codegen-cross-platform"],
   [/Run WebAssembly runtime tests/i, "bun run test:wasm"],
   [/Run CI-safe test suite/i, "bun run test:ci"],
+  [RELEASE_SMOKE_STEP_PATTERN, "bun run release:smoke"],
+  [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseSmoke.test.ts"],
+  [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseHelperSmoke.test.ts"],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    "cd <packed-bpl-v3-package> && npm run fuzz:repro -- --help",
+  ],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    "cd <packed-bpl-v3-package> && npm run fuzz:repro -- --input --json",
+  ],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    "cd <packed-bpl-v3-package> && npm run fuzz -- --iterations --crash-dir fuzz/crashes",
+  ],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    "cd <packed-bpl-v3-package> && npm run fuzz:replay -- --metadata --mode parser",
+  ],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    "cd <packed-bpl-v3-package> && npm run fuzz:promote -- --metadata --name bug",
+  ],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    "cd <packed-bpl-v3-package> && npm run ci:triage -- --help",
+  ],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],
   [/Run sanitizer-backed runtime tests/i, "bun run test:sanitizers"],
