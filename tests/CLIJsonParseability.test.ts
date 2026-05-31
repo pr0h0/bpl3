@@ -117,6 +117,31 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package command JSON stdout parseable", () => {
+    const list = runCli(["list", "--json"], { cwd: tempDir });
+    expect(list.status).toBe(0);
+    expect(parseJsonObjectStdout(list)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-list",
+      success: true,
+      packages: [],
+    });
+
+    const homeDir = path.join(tempDir, "home");
+    fs.mkdirSync(homeDir);
+    const cacheList = runCli(["package-cache", "list", "--json"], {
+      cwd: tempDir,
+      env: { HOME: homeDir },
+    });
+    expect(cacheList.status).toBe(0);
+    expect(parseJsonObjectStdout(cacheList)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-list",
+      success: true,
+      entries: [],
+    });
+  });
+
   test("keeps JSON-mode build failures parseable on stdout", () => {
     const badSource = path.join(tempDir, "bad.bpl");
     fs.writeFileSync(
