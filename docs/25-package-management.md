@@ -472,7 +472,10 @@ and `issues`. It refuses to repair archive hash mismatches or manifest
 mismatches because those states may indicate a stale or damaged archive; clean
 and repack those entries instead. `--package-version` filters expect one exact
 cached version in `X.Y.Z` form; dependency ranges such as `^1.2.3` belong in
-`bpl.json`, not cache maintenance commands.
+`bpl.json`, not cache maintenance commands. In JSON mode, clean and repair
+validation failures keep stdout parseable: clean reports `removed: []`, repair
+reports `repaired: []`, `unchanged: []`, and `issues: []`, and both include the
+requested `dryRun` value plus `error`.
 
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a

@@ -187,6 +187,8 @@ describe("Markdown documentation", () => {
       "`provenancePath`",
       "bpl package-cache clean [package] --json",
       "bpl package-cache repair [package] --json",
+      "`removed: []`",
+      "`repaired: []`",
       "bpl run-script --list --json",
       "run-script-list",
       "bpl clean --dry-run --json",

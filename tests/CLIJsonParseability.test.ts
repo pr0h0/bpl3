@@ -395,6 +395,109 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package-cache maintenance JSON validation failures parseable", () => {
+    const homeDir = path.join(tempDir, "cache-maintenance-failure-home");
+    fs.mkdirSync(homeDir);
+
+    const cleanInvalidVersion = runCli(
+      [
+        "package-cache",
+        "clean",
+        "cache-cli",
+        "--package-version",
+        "^1.0.0",
+        "--dry-run",
+        "--json",
+      ],
+      {
+        cwd: tempDir,
+        env: { HOME: homeDir },
+      },
+    );
+    expect(cleanInvalidVersion.status).toBe(1);
+    expect(parseJsonObjectStdout(cleanInvalidVersion)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-clean",
+      success: false,
+      removed: [],
+      dryRun: true,
+      error: expect.stringContaining("Invalid package cache version filter"),
+    });
+
+    const repairInvalidVersion = runCli(
+      [
+        "package-cache",
+        "repair",
+        "cache-cli",
+        "--package-version",
+        "latest",
+        "--dry-run",
+        "--json",
+      ],
+      {
+        cwd: tempDir,
+        env: { HOME: homeDir },
+      },
+    );
+    expect(repairInvalidVersion.status).toBe(1);
+    expect(parseJsonObjectStdout(repairInvalidVersion)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-repair",
+      success: false,
+      dryRun: true,
+      repaired: [],
+      unchanged: [],
+      issues: [],
+      error: expect.stringContaining("Invalid package cache version filter"),
+    });
+
+    const unsafeHomeDir = path.join(tempDir, "cache-maintenance-unsafe-home");
+    const unsafeBplHomeDir = path.join(unsafeHomeDir, ".bpl");
+    const unsafeCacheRoot = path.join(unsafeBplHomeDir, "packages");
+    fs.mkdirSync(unsafeBplHomeDir, { recursive: true });
+    fs.writeFileSync(unsafeCacheRoot, "not a directory");
+
+    const cleanUnsafeRoot = runCli(
+      ["package-cache", "clean", "--dry-run", "--json"],
+      {
+        cwd: tempDir,
+        env: { HOME: unsafeHomeDir },
+      },
+    );
+    expect(cleanUnsafeRoot.status).toBe(1);
+    expect(parseJsonObjectStdout(cleanUnsafeRoot)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-clean",
+      success: false,
+      removed: [],
+      dryRun: true,
+      error: expect.stringContaining(
+        "Global package directory path is not a directory",
+      ),
+    });
+
+    const repairUnsafeRoot = runCli(
+      ["package-cache", "repair", "--dry-run", "--json"],
+      {
+        cwd: tempDir,
+        env: { HOME: unsafeHomeDir },
+      },
+    );
+    expect(repairUnsafeRoot.status).toBe(1);
+    expect(parseJsonObjectStdout(repairUnsafeRoot)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-cache-repair",
+      success: false,
+      dryRun: true,
+      repaired: [],
+      unchanged: [],
+      issues: [],
+      error: expect.stringContaining(
+        "Global package directory path is not a directory",
+      ),
+    });
+  });
+
   test("keeps run-script list JSON stdout parseable", () => {
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),

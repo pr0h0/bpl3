@@ -410,6 +410,8 @@ export function registerPackageCommands(program: Command): void {
         options: { packageVersion?: string; dryRun?: boolean; json?: boolean },
         command: Command,
       ) => {
+        const globalOpts = command.parent?.parent?.opts() || {};
+        const outputJson = options.json || globalOpts.json;
         try {
           const pm = new PackageManager();
           const result = pm.cleanPackageCache({
@@ -417,8 +419,6 @@ export function registerPackageCommands(program: Command): void {
             version: options.packageVersion,
             dryRun: options.dryRun,
           });
-          const globalOpts = command.parent?.parent?.opts() || {};
-          const outputJson = options.json || globalOpts.json;
 
           if (outputJson) {
             console.log(JSON.stringify(result, null, 2));
@@ -439,6 +439,20 @@ export function registerPackageCommands(program: Command): void {
             `${result.dryRun ? "Would remove" : "Removed"} ${result.removed.length} cached archive(s)`,
           );
         } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageCacheClean, false, {
+                  removed: [],
+                  dryRun: Boolean(options.dryRun),
+                  error: formatPackageCommandError(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
           log.error(formatPackageCommandError(e));
           process.exit(1);
         }
@@ -464,14 +478,14 @@ export function registerPackageCommands(program: Command): void {
         },
         command: Command,
       ) => {
+        const globalOpts = command.parent?.parent?.opts() || {};
+        const outputJson = options.json || globalOpts.json;
         try {
           const pm = new PackageManager();
           const result = pm.repairPackageCache(packageName, {
             version: options.packageVersion,
             dryRun: options.dryRun,
           });
-          const globalOpts = command.parent?.parent?.opts() || {};
-          const outputJson = options.json || globalOpts.json;
 
           if (outputJson) {
             console.log(JSON.stringify(result, null, 2));
@@ -483,6 +497,22 @@ export function registerPackageCommands(program: Command): void {
             process.exit(1);
           }
         } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageCacheRepair, false, {
+                  dryRun: Boolean(options.dryRun),
+                  repaired: [],
+                  unchanged: [],
+                  issues: [],
+                  error: formatPackageCommandError(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
           log.error(formatPackageCommandError(e));
           process.exit(1);
         }
