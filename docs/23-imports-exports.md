@@ -274,13 +274,16 @@ Package import paths cannot contain empty, `.` or `..` segments. Installed
 package directories must match their manifests: `bpl_modules/my-package/bpl.json`
 must declare `"name": "my-package"`, and global versioned package directories
 must match their manifest `version`. The resolver does not follow symlinked
-package roots, manifests, entry files, or subpath entries; malformed packages
-are treated as package metadata instead of silently importing a different
-package. Existing malformed package roots, including symlinked roots,
-non-directory package paths, and roots missing `bpl.json`, block same-name
-workspace/global fallback. Symlinked package entrypoint and subpath candidates
-also block lower-priority `.x` fallbacks for that package import, including
-package directory `index.bpl` candidates before `index.x`.
+package search directories, package roots, manifests, entry files, or subpath
+entries; malformed packages are treated as package metadata instead of silently
+importing a different package. Symlinked package search directories such as
+`bpl_modules/`, workspace `packages/`, and the global package directory are
+rejected before child package candidates are probed. Existing malformed package
+roots, including symlinked roots, non-directory package paths, and roots missing
+`bpl.json`, block same-name workspace/global fallback. Symlinked package
+entrypoint and subpath candidates also block lower-priority `.x` fallbacks for
+that package import, including package directory `index.bpl` candidates before
+`index.x`.
 
 Entry module paths and import candidates are checked before parsing. Missing
 files, directories, and broken symlink paths produce distinct diagnostics.

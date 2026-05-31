@@ -228,6 +228,111 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain(path.join(packageRoot, "bpl.json"));
   });
 
+  test("does not follow symlinked local package search directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const realModulesDir = path.join(tempDir, "outside-bpl-modules");
+    const realPackageDir = path.join(realModulesDir, "math");
+    const workspacePackageDir = path.join(appDir, "packages", "math");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(realPackageDir, { recursive: true });
+    fs.mkdirSync(workspacePackageDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+
+    for (const [packageDir, version] of [
+      [realPackageDir, "1.0.0"],
+      [workspacePackageDir, "1.0.0"],
+      [globalVersionedPackageDir, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+    fs.symlinkSync(realModulesDir, path.join(appDir, "bpl_modules"), "dir");
+
+    const details = resolvePackageImport("math", sourceDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "package search directory is a symbolic link",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(appDir, "bpl_modules"),
+    );
+    expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
+    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+  });
+
+  test("does not follow symlinked workspace package search directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const realWorkspaceDir = path.join(tempDir, "outside-packages");
+    const realPackageDir = path.join(realWorkspaceDir, "math");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(realPackageDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+
+    for (const [packageDir, version] of [
+      [realPackageDir, "1.0.0"],
+      [globalVersionedPackageDir, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+    fs.symlinkSync(realWorkspaceDir, path.join(appDir, "packages"), "dir");
+
+    const details = resolvePackageImport("math", sourceDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "package search directory is a symbolic link",
+    );
+    expect(details.trace.failureMessage).toContain(path.join(appDir, "packages"));
+    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+  });
+
+  test("does not follow symlinked global package search directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const realGlobalPackageDir = path.join(tempDir, "outside-global-packages");
+    const realPackageDir = path.join(realGlobalPackageDir, "math-9.0.0");
+    const linkedGlobalPackageDir = path.join(tempDir, "global-packages");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(realPackageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(realPackageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "9.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(realPackageDir, "index.bpl"), "export add;");
+    fs.symlinkSync(realGlobalPackageDir, linkedGlobalPackageDir, "dir");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir: linkedGlobalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "package search directory is a symbolic link",
+    );
+    expect(details.trace.failureMessage).toContain(linkedGlobalPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(realPackageDir);
+  });
+
   test("does not resolve symlinked package entry files", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");

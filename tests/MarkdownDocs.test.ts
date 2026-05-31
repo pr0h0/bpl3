@@ -207,7 +207,8 @@ describe("Markdown documentation", () => {
     const combinedDocs = `${packageDocs}\n${importDocs}`.replace(/\s+/g, " ");
     const requiredSnippets = [
       "Package import paths cannot contain empty, `.` or `..` segments",
-      "The resolver does not follow symlinked package roots, manifests, entry files, or subpath entries",
+      "The resolver does not follow symlinked package search directories, package roots, manifests, entry files, or subpath entries",
+      "Symlinked package search directories such as `bpl_modules/`, workspace `packages/`, and the global package directory are rejected before child package candidates are probed",
       "Existing malformed package roots, including symlinked roots, non-directory package paths, and roots missing `bpl.json`, block same-name workspace/global fallback",
       "Symlinked package entrypoint and subpath candidates also block lower-priority `.x` fallbacks",
       "including package directory `index.bpl` candidates before `index.x`",

@@ -288,12 +288,15 @@ For package subpaths, BPL searches for a file or directory entry under the
 package root. The example above resolves to either
 `bpl_modules/math-extra/features/increment.bpl` or
 `bpl_modules/math-extra/features/increment/index.bpl`.
-The resolver does not follow symlinked package roots, manifests, entry files, or
-subpath entries, so package imports cannot escape the installed package root
-through filesystem links. Existing malformed package roots are terminal
-metadata failures, so a blocked local package root cannot fall through to a
-same-name workspace or global package. This includes symlinked package roots,
-non-directory package paths, and package directories missing `bpl.json`.
+The resolver does not follow symlinked package search directories, package
+roots, manifests, entry files, or subpath entries, so package imports cannot
+escape the installed package root through filesystem links. Symlinked package
+search directories such as `bpl_modules/`, workspace `packages/`, and the global
+package directory are rejected before child package candidates are probed.
+Existing malformed package roots are terminal metadata failures, so a blocked
+local package root cannot fall through to a same-name workspace or global
+package. This includes symlinked package roots, non-directory package paths, and
+package directories missing `bpl.json`.
 Symlinked package entrypoint and subpath candidates are also terminal resolution
 failures; the resolver will not fall through from a blocked `.bpl` package
 candidate to a lower-priority `.x` file, including package directory

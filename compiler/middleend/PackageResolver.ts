@@ -193,6 +193,15 @@ function resolvePackageFromBaseDir(
   const packageName = parts[0]!;
   trace.searchedPaths.push(baseDir);
 
+  const baseStats = tryLstat(baseDir);
+  if (baseStats?.isSymbolicLink()) {
+    failOnSymlinkedPackageSearchDirectory(baseDir, trace);
+    return null;
+  }
+  if (baseStats && !baseStats.isDirectory()) {
+    return null;
+  }
+
   for (const packageRoot of getPackageRootCandidates(
     baseDir,
     packageName,
@@ -398,6 +407,14 @@ function failOnSymlinkedPackageRoot(
 ): void {
   trace.failureReason = "manifest-invalid";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: package root is a symbolic link.`;
+}
+
+function failOnSymlinkedPackageSearchDirectory(
+  searchDirectory: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory is a symbolic link.`;
 }
 
 function failOnInvalidPackageRoot(
