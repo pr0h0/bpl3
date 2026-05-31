@@ -161,6 +161,7 @@ describe("Markdown documentation", () => {
     const text = readFileSync("docs/39-compiler-options.md", "utf8");
     const requiredSnippets = [
       "### Machine-readable JSON contracts",
+      "### CLI JSON compatibility policy",
       "bpl build --json",
       "bpl check --json",
       "bpl lint --json",
@@ -177,6 +178,10 @@ describe("Markdown documentation", () => {
       "`schemaVersion`",
       "`success`",
       "stderr",
+      "Backward-compatible additions",
+      "Breaking JSON shape changes",
+      "ignore unknown fields",
+      "bump `schemaVersion`",
     ];
 
     for (const snippet of requiredSnippets) {

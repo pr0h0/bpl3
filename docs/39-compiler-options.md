@@ -260,6 +260,22 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
 | `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data. |
 
+### CLI JSON compatibility policy
+
+Machine-readable CLI JSON is a tooling contract. Consumers should check both
+`schemaVersion` and `check`, handle `success: false` reports on stdout where a
+command documents JSON-mode validation failures, and ignore unknown fields.
+
+Backward-compatible additions may add optional fields, new array/object members,
+or new command-specific reports under the same `schemaVersion` when existing
+field names, types, meanings, and stdout/stderr routing stay intact.
+
+Breaking JSON shape changes must bump `schemaVersion` and update tests and
+documentation. Breaking changes include removing or renaming documented fields,
+changing field types or meanings, changing stable `check` values, moving
+documented JSON-mode failures away from stdout, or replacing an array/object
+payload with an incompatible shape.
+
 ## Direct Code Compilation
 
 For quick testing without files:
