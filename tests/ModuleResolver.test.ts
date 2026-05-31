@@ -241,6 +241,19 @@ describe("ModuleResolver", () => {
     expect(directoryError.message).toContain("Module path is not a file");
   });
 
+  it("should reject broken symlink entry module paths as symlinks", () => {
+    const sourceDir = path.join(tempDir, "broken-symlink-entry");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    const brokenEntry = path.join(sourceDir, "linked-main.bpl");
+    fs.symlinkSync(path.join(sourceDir, "missing-main.bpl"), brokenEntry, "file");
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(brokenEntry);
+    });
+
+    expect(error.message).toContain("Module path is a symbolic link");
+  });
+
   it("should normalize symlinked entry module identities", () => {
     const sourceDir = path.join(tempDir, "symlink-entry");
     fs.mkdirSync(sourceDir, { recursive: true });

@@ -278,6 +278,10 @@ package roots, manifests, entry files, or subpath entries; malformed packages
 are treated as package metadata instead of silently importing a different
 package.
 
+Entry module paths are checked before parsing. Missing files, directories, and
+broken symlink paths produce distinct diagnostics; valid symlink entry paths are
+normalized to their real module path before dependency graph construction.
+
 ## Re-exports
 
 To expose a package-level facade, import from submodules in `index.bpl` and then export the imported names.

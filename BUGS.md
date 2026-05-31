@@ -169,6 +169,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-160 | Package Manager     | Dependency-tree generation follows symlinked package roots in `bpl_modules`.                                               | Fixed    | Dependency-tree node construction now classifies package roots with `lstat` and reports symlinked or non-directory roots as problems without loading manifests through them. Regression: `tests/PackageManager.test.ts`.                                                                    |
 | BUG-161 | Package Manager     | Package-cache clean leaves broken symlink provenance sidecars behind.                                                      | Fixed    | `cleanPackageCache()` now uses `lstat` to remove provenance sidecars, including broken symlinks, before deleting cached archives. Regression: `tests/PackageManager.test.ts`.                                                                                                               |
 | BUG-162 | Package Manager     | Broken symlink package `bin` entries are reported as missing files during pack.                                             | Fixed    | `validatePackageBinFile()` now uses `lstat` before missing-file classification so broken symlink bin entries are rejected as unsupported symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                              |
+| BUG-163 | Module Resolver     | Broken symlink entry modules are reported as missing files.                                                                | Fixed    | `assertReadableModuleFile()` now uses `lstat` before missing-file classification, so broken entry symlinks get symbolic-link diagnostics while valid symlink entries still normalize to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                      |
 
 ## Details
 
@@ -2542,3 +2543,33 @@ bpl pack
 **Resolution**: `validatePackageBinFile()` now uses `lstat` before deciding
 whether a `bin` path is missing, preserving the same symlink rejection for
 valid-target and broken symlink entries.
+
+---
+
+### BUG-163: Broken Symlink Entry Modules Report As Missing
+
+**Status**: Fixed
+
+**Category**: Module Resolver/Diagnostics
+
+**Description**: Module entry paths are normalized before loading. Valid
+symlink entries are normalized to their real file path, but broken symlinks
+cannot be resolved with `realpath`. The readable-file preflight then used
+`fs.existsSync()`, so a broken symlink entry was reported as a missing module
+instead of as a symbolic-link path.
+
+**Reproduction**:
+
+```bash
+ln -s missing-main.bpl linked-main.bpl
+bpl check linked-main.bpl
+```
+
+**Expected**: Module resolution reports that the entry path is a symbolic link.
+
+**Actual**: Module resolution reported that the module file was missing.
+
+**Resolution**: `assertReadableModuleFile()` now uses `lstat` before
+missing-file classification. Valid symlink entries still normalize to their
+real file path before this preflight runs, while broken symlink entries keep the
+original path and get a symbolic-link diagnostic.

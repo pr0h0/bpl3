@@ -358,7 +358,8 @@ export class ModuleResolver {
   }
 
   private assertReadableModuleFile(modulePath: string): void {
-    if (!fs.existsSync(modulePath)) {
+    const stat = this.tryLstat(modulePath);
+    if (!stat) {
       throw new CompilerError(
         `Module file not found: ${modulePath}`,
         "Check that the entry file exists and that imports resolve to files.",
@@ -372,7 +373,20 @@ export class ModuleResolver {
       );
     }
 
-    const stat = fs.statSync(modulePath);
+    if (stat.isSymbolicLink()) {
+      throw new CompilerError(
+        `Module path is a symbolic link: ${modulePath}`,
+        "Use a real .bpl file path for the entry module.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
     if (!stat.isFile()) {
       throw new CompilerError(
         `Module path is not a file: ${modulePath}`,
@@ -385,6 +399,14 @@ export class ModuleResolver {
           endColumn: 0,
         },
       );
+    }
+  }
+
+  private tryLstat(filePath: string): fs.Stats | undefined {
+    try {
+      return fs.lstatSync(filePath);
+    } catch {
+      return undefined;
     }
   }
 
