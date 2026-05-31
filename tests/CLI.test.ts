@@ -1926,6 +1926,53 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject run-script manifests through symlinked working-directory parents", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-run-script-parent-link-"),
+    );
+    const realRoot = path.join(tempDir, "real-root");
+    const linkedRoot = path.join(tempDir, "linked-root");
+    const realProject = path.join(realRoot, "project");
+    const linkedProject = path.join(linkedRoot, "project");
+
+    try {
+      fs.mkdirSync(realProject, { recursive: true });
+      fs.writeFileSync(
+        path.join(realProject, "bpl.json"),
+        JSON.stringify({
+          name: "run-script-parent-link",
+          version: "1.0.0",
+          scripts: {
+            linked: "echo should-not-run",
+          },
+        }),
+      );
+      fs.symlinkSync(realRoot, linkedRoot, "dir");
+
+      const wrapper = [
+        `Object.defineProperty(process, "cwd", { value: () => ${JSON.stringify(linkedProject)} });`,
+        `process.argv = [process.argv[0], "bpl", "run-script", "--list", "--json"];`,
+        `await import(${JSON.stringify(BPL_CLI)});`,
+      ].join("\n");
+      const result = spawnSync("bun", ["-e", wrapper], {
+        cwd: process.cwd(),
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toEqual({
+        schemaVersion: 1,
+        check: "run-script-list",
+        success: false,
+        error: `bpl.json parent path contains a symbolic link: ${linkedRoot}.`,
+      });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should report run-script manifest errors as JSON", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
 

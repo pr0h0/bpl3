@@ -13,6 +13,7 @@ import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
+import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
 
 const log = new Logger("RunScript");
 
@@ -67,6 +68,14 @@ export function registerRunScriptCommand(program: Command): void {
           fail("bpl.json is a symbolic link.");
         } else if (!manifestStat.isFile()) {
           fail("bpl.json is not a file.");
+        }
+
+        const symlinkedManifestParent =
+          findSymlinkedParentPath(manifestPath);
+        if (symlinkedManifestParent) {
+          fail(
+            `bpl.json parent path contains a symbolic link: ${symlinkedManifestParent}.`,
+          );
         }
 
         let manifest: any;
