@@ -9,6 +9,7 @@ import * as path from "path";
 import * as os from "os";
 import { spawnSync } from "child_process";
 import { Logger } from "../../compiler/common/Logger";
+import { CLI_JSON_CHECKS, createJsonReport } from "../jsonContracts";
 
 const log = new Logger("RunScript");
 
@@ -208,7 +209,13 @@ function tryLstat(filePath: string): fs.Stats | null {
 
 function printScriptList(scripts: PackageScript[], outputJson: boolean): void {
   if (outputJson) {
-    console.log(JSON.stringify({ scripts }, null, 2));
+    console.log(
+      JSON.stringify(
+        createJsonReport(CLI_JSON_CHECKS.runScriptList, true, { scripts }),
+        null,
+        2,
+      ),
+    );
     return;
   }
 

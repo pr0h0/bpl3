@@ -383,9 +383,11 @@ List them with `bpl run-script --list` or as JSON with
 forwarded to the script as quoted shell arguments, so values containing spaces
 or shell metacharacters remain single arguments; pass option-looking values
 after `--`, for example `bpl rs build -- --release`. When `--json` is used,
-manifest and script validation failures are emitted as machine-readable
-`{ "success": false, "error": "..." }` JSON so CI and editor integrations do
-not need to parse logger text.
+`bpl run-script --list --json` returns `schemaVersion: 1`,
+`check: "run-script-list"`, `success: true`, and the `scripts` array. Manifest
+and script validation failures are emitted as machine-readable
+`{ "success": false, "error": "..." }` JSON so CI and editor integrations do not
+need to parse logger text.
 
 ```bash
 bpl run-script --list

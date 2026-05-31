@@ -142,6 +142,34 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps run-script list JSON stdout parseable", () => {
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "cli-json-run-script",
+          version: "1.0.0",
+          scripts: {
+            check: "bpl check src/main.bpl",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    const result = runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    });
+    expect(result.status).toBe(0);
+    expect(parseJsonObjectStdout(result)).toEqual({
+      schemaVersion: 1,
+      check: "run-script-list",
+      success: true,
+      scripts: [{ name: "check", command: "bpl check src/main.bpl" }],
+    });
+  });
+
   test("keeps JSON-mode build failures parseable on stdout", () => {
     const badSource = path.join(tempDir, "bad.bpl");
     fs.writeFileSync(

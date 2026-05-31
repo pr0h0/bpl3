@@ -1378,7 +1378,10 @@ describe("CLI Tests", () => {
       );
 
       expect(result.status).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({
+      expect(parseJsonObjectStdout(result)).toEqual({
+        schemaVersion: 1,
+        check: "run-script-list",
+        success: true,
         scripts: [
           { name: "build", command: "bpl build src/main.bpl -o app" },
           {
