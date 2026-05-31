@@ -304,6 +304,48 @@ describe("ModuleResolver", () => {
     );
   });
 
+  it("should resolve safe explicit std submodule imports", () => {
+    const stdLibDir = path.join(tempDir, "safe-std-lib");
+    const nestedDir = path.join(stdLibDir, "collections");
+    fs.mkdirSync(nestedDir, { recursive: true });
+    const stdModule = path.join(nestedDir, "array.bpl");
+    const mainPath = path.join(tempDir, "std-safe-main.bpl");
+    fs.writeFileSync(stdModule, "export Array;");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+
+    const resolver = new ModuleResolver({ stdLibPath: stdLibDir });
+
+    expect(resolver.resolveModulePath("std/collections/array.bpl", mainPath)).toBe(
+      stdModule,
+    );
+  });
+
+  it("should reject unsafe explicit std import path segments", () => {
+    const stdLibDir = path.join(tempDir, "unsafe-std-lib");
+    const outsideStdLib = path.join(tempDir, "outside-std-lib.bpl");
+    const mainPath = path.join(tempDir, "std-unsafe-main.bpl");
+    fs.mkdirSync(stdLibDir, { recursive: true });
+    fs.writeFileSync(outsideStdLib, "export escaped;");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+
+    const resolver = new ModuleResolver({ stdLibPath: stdLibDir });
+
+    for (const importSource of [
+      "std/../outside-std-lib.bpl",
+      "std//array.bpl",
+      "std/./array.bpl",
+      "std/",
+    ]) {
+      const error = captureCompilerError(() => {
+        resolver.resolveModulePath(importSource, mainPath);
+      });
+
+      expect(error.message).toContain("Unsafe standard library import");
+      expect(error.message).toContain(importSource);
+      expect(error.hint).toContain("empty, '.', or '..'");
+    }
+  });
+
   it("should resolve installed package imports from nested source files independent of cwd", () => {
     const appDir = path.join(tempDir, "package-app");
     const sourceDir = path.join(appDir, "src");

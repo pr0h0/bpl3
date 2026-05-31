@@ -131,6 +131,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   search-path packages with the same import name.
 - **Strict Manifest Path Docs** - Documented strict package-relative `main`,
   `exports`, and `bin` path rules for package manifests.
+- **Standard Library Import Safety** - Explicit `std/` imports now reject empty,
+  `.`, and `..` path segments before resolving against the standard library
+  root.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

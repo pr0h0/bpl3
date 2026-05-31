@@ -190,6 +190,20 @@ export class ModuleResolver {
     // Handle explicit std/ prefix
     if (importSource.startsWith("std/")) {
       const relativePath = importSource.substring(4); // Remove "std/"
+      if (!isSafeStandardLibraryImportPath(relativePath)) {
+        throw new CompilerError(
+          `Unsafe standard library import: ${importSource}`,
+          "Use std/<path> without empty, '.', or '..' path segments.",
+          {
+            file: fromFile,
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        );
+      }
+
       const stdPath = path.join(this.stdLibPath, relativePath);
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
@@ -540,4 +554,15 @@ function isTerminalPackageResolutionFailure(
   return Boolean(
     trace.failureReason && trace.failureReason !== "package-not-found",
   );
+}
+
+function isSafeStandardLibraryImportPath(relativePath: string): boolean {
+  if (relativePath.length === 0) return false;
+  if (path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  return relativePath
+    .split(/[\\/]/)
+    .every((part) => part.length > 0 && part !== "." && part !== "..");
 }
