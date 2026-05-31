@@ -170,6 +170,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps root build no-input JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',
+      'bun test tests/CLI.test.ts -t "no-input compile"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_BUILD_NO_INPUTS")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("No input files specified in root build --json"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("keeps root build JSON no-input failures parseable"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps clean JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "clean JSON validation failures"',
@@ -1391,6 +1409,69 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
         "bun test tests/CLIJsonParseability.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints root build no-input repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-build-no-input-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 64,
+              name: "Generic test failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "BPL_BUILD_NO_INPUTS in root build --json",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',
+        'bun test tests/CLI.test.ts -t "no-input compile"',
         "bun run check",
       ]);
     } finally {

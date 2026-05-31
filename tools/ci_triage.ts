@@ -125,7 +125,7 @@ const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
 const BUILD_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   [
     "build validation failures",
-    "BPL_BUILD_",
+    "BPL_BUILD_(?!NO_INPUTS)",
     "Invalid optimization",
     "Invalid emit",
     "Invalid wasm runtime",
@@ -136,6 +136,15 @@ const BUILD_JSON_VALIDATION_STEP_PATTERN = new RegExp(
     "Output path is a directory",
     "Output path is a symbolic link",
     "Output parent path",
+  ].join("|"),
+  "i",
+);
+const BUILD_NO_INPUT_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_BUILD_NO_INPUTS",
+    "root build JSON no-input",
+    "build --json.*No input files specified",
+    "No input files specified.*build --json",
   ].join("|"),
   "i",
 );
@@ -507,6 +516,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     IMPORT_RESOLVER_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|import diagnostics|JSON-mode build failures"',
   ],
+  [
+    BUILD_NO_INPUT_JSON_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',
+  ],
+  [
+    BUILD_NO_INPUT_JSON_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "no-input compile"',
+  ],
+  [BUILD_NO_INPUT_JSON_STEP_PATTERN, "bun run check"],
   [
     BUILD_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
