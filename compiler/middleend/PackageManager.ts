@@ -2616,7 +2616,7 @@ export class PackageManager {
 
   private resolveGlobalPackageSource(packageSource: string): string | null {
     const exactTarballPath = path.join(this.globalPackageDir, packageSource);
-    if (packageSource.endsWith(".tgz") && fs.existsSync(exactTarballPath)) {
+    if (packageSource.endsWith(".tgz") && this.tryLstat(exactTarballPath)) {
       return exactTarballPath;
     }
 

@@ -2273,6 +2273,31 @@ describe("PackageManager", () => {
       expect(lock.packages.math.source).toBe("math-1.10.0.tgz");
     });
 
+    test("should reject broken symlink exact archives from the global package cache", () => {
+      const globalPackageDir = path.join(tempDir, "global-broken-archive-cache");
+      const appDir = path.join(tempDir, "global-broken-archive-app");
+      const cachedArchiveName = "global-broken-archive-1.0.0.tgz";
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+      fs.symlinkSync(
+        path.join(tempDir, "missing-global-archive.tgz"),
+        path.join(globalPackageDir, cachedArchiveName),
+        "file",
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      expect(() =>
+        localPM.install(cachedArchiveName, { global: false, verbose: false }),
+      ).toThrow(/Package archive path is a symbolic link/);
+      expect(
+        fs.existsSync(
+          path.join(appDir, "bpl_modules", "global-broken-archive"),
+        ),
+      ).toBe(false);
+    });
+
     test("should resolve package dependency semver ranges from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "range-cache");
       const appDir = path.join(tempDir, "range-app");
