@@ -390,6 +390,33 @@ describe("Release metadata", () => {
     }
   });
 
+  test("release manifest refuses output paths through symlinked ancestors", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-output-ancestor-link-test-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const realRoot = join(tempRoot, "real-root");
+      const linkedRoot = join(tempRoot, "linked-root");
+      const realNested = join(realRoot, "nested");
+      const outPath = join(linkedRoot, "nested", "release-manifest.json");
+
+      mkdirSync(realNested, { recursive: true });
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      expect(() =>
+        writeReleaseManifest(outPath, {
+          repoRoot: tempRoot,
+          generatedAt: "2026-05-29T00:00:00.000Z",
+        }),
+      ).toThrow(/Release manifest output parent contains a symbolic link/);
+      expect(existsSync(join(realNested, "release-manifest.json"))).toBe(false);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("release manifest rejects output paths below file parents", () => {
     const tempRoot = mkdtempSync(
       join(tmpdir(), "bpl-release-output-parent-file-test-"),

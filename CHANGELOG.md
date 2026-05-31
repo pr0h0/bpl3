@@ -509,6 +509,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Module Cache Linked Output Ancestor Symlink Blocking (BUG-195)** -
   `ModuleCache.linkModules` now rejects symlinked parent path components before
   invoking the compiler driver or finalizing cached linked executables.
+- **Release Manifest Output Ancestor Symlink Blocking (BUG-196)** - Release
+  manifest generation now rejects symlinked output parent path components before
+  writing manifest JSON, preserving existing final-output and immediate-parent
+  protections.
 - **Package Import Manifest Validation**: Package resolution now rejects invalid package import names before searching, rejects malformed package roots whose `bpl.json` `name` or `version` does not satisfy package manifest rules, and rejects versioned global package directories whose manifest `version` does not match the directory version.
 - **WebAssembly Linker Selection**: Treat explicit `WASM_LD` settings as authoritative instead of falling back to other linker names on `PATH`, making CI and local wasm linker failure tests deterministic.
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.
