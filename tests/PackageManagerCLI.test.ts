@@ -513,6 +513,67 @@ describe("Package Manager CLI", () => {
       ).toBe(true);
     });
 
+    test("should preserve existing lockfile permissions when installing through the CLI", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const packageDir = path.join(tempDir, "lock-mode-package");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-lock-mode-test",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const packResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(packResult.status).toBe(0);
+
+      const projectDir = path.join(tempDir, "lock-mode-project");
+      const lockPath = path.join(projectDir, "bpl.lock");
+      fs.mkdirSync(projectDir);
+      fs.writeFileSync(
+        lockPath,
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.chmodSync(lockPath, 0o640);
+
+      const tarballPath = path.join(
+        packageDir,
+        "cli-lock-mode-test-1.0.0.tgz",
+      );
+      const installResult = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
+
+      expect(installResult.status).toBe(0);
+      expect(fs.statSync(lockPath).mode & 0o777).toBe(0o640);
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+      expect(lock.packages["cli-lock-mode-test"]).toMatchObject({
+        version: "1.0.0",
+        source: tarballPath,
+      });
+      expect(
+        fs.existsSync(path.join(projectDir, "bpl_modules", "cli-lock-mode-test")),
+      ).toBe(true);
+    });
+
     test("should enforce --locked package verification", () => {
       const packageDir = path.join(tempDir, "package");
       fs.mkdirSync(packageDir);
