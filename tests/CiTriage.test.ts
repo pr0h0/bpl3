@@ -354,6 +354,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package-cache name JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
+      "bun test tests/PackageJsonFailureContracts.test.ts",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_PACKAGE_CACHE_NAME_INVALID")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("package-cache package filter invalid name"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("invalid package-cache package name JSON"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps wasm runtime execution failures to focused repro commands", () => {
     const expectedCommands = [
       "bun test tests/WasmRuntime.test.ts",
@@ -1151,6 +1169,69 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
         "bun test tests/CLIJsonParseability.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package-cache name repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-cache-name-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 74,
+              name: "Package-cache name JSON codes",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/74",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_CACHE_NAME_INVALID package-cache package filter",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
+        "bun test tests/PackageJsonFailureContracts.test.ts",
         "bun run check",
       ]);
     } finally {

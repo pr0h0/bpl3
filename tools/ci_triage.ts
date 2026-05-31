@@ -238,6 +238,14 @@ const PACKAGE_CACHE_VALIDATION_JSON_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_CACHE_NAME_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_CACHE_NAME_INVALID",
+    "package-cache package filter",
+    "invalid package-cache package name",
+  ].join("|"),
+  "i",
+);
 const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
   [
     "Run WebAssembly runtime tests",
@@ -476,6 +484,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "bun test tests/PackageJsonFailureContracts.test.ts",
   ],
   [PACKAGE_CACHE_VALIDATION_JSON_STEP_PATTERN, "bun run check"],
+  [
+    PACKAGE_CACHE_NAME_JSON_STEP_PATTERN,
+    'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
+  ],
+  [
+    PACKAGE_CACHE_NAME_JSON_STEP_PATTERN,
+    "bun test tests/PackageJsonFailureContracts.test.ts",
+  ],
+  [PACKAGE_CACHE_NAME_JSON_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_TIMEOUT_STEP_PATTERN,
     "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts",
