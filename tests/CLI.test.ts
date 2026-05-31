@@ -356,11 +356,14 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should preserve package resolver diagnostics in import checks", () => {
+  it("should preserve package resolver diagnostics across import build modes", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-package-diagnostic-"),
     );
     const sourceFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "badpkg-app");
+    const llvmFile = `${outputFile}.ll`;
+    const cachedOutputFile = path.join(tempDir, "badpkg-cache-app");
     const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
@@ -395,12 +398,39 @@ describe("CLI Tests", () => {
     );
 
     try {
-      const result = runCLI(["check", sourceFile]);
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("invalid bpl.json");
-      expect(result.stderr).toContain("manifest name 'different-name'");
-      expect(result.stderr).toContain("requested package 'badpkg'");
-      expect(result.stderr).toContain("Searched paths:");
+      const expectPackageDiagnostic = (stderr: string) => {
+        expect(stderr).toContain("invalid bpl.json");
+        expect(stderr).toContain("manifest name 'different-name'");
+        expect(stderr).toContain("requested package 'badpkg'");
+        expect(stderr).toContain("Searched paths:");
+      };
+
+      const checkResult = runCLI(["check", sourceFile]);
+      expect(checkResult.status).toBe(1);
+      expectPackageDiagnostic(checkResult.stderr);
+
+      const buildResult = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+      expect(buildResult.status).toBe(1);
+      expectPackageDiagnostic(buildResult.stderr);
+      expect(fs.existsSync(llvmFile)).toBe(false);
+
+      const cachedResult = runCLI([
+        "build",
+        sourceFile,
+        "--cache",
+        "-o",
+        cachedOutputFile,
+      ]);
+      expect(cachedResult.status).toBe(1);
+      expectPackageDiagnostic(cachedResult.stderr);
+      expect(fs.existsSync(cachedOutputFile)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
