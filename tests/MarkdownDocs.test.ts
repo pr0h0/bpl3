@@ -388,6 +388,8 @@ describe("Markdown documentation", () => {
     const normalizedText = combinedDocs.replace(/\s+/g, " ");
     const requiredSnippets = [
       "bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>",
+      "bun run ci:triage -- --json --jobs-json jobs.json <run-id>",
+      'check: "ci-triage"',
       "When a wasm/toolchain step fails, the triage helper prints",
       "bun index.ts doctor --json",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",

@@ -127,6 +127,7 @@ npm run fuzz -- --help
 npm run fuzz:replay -- --help
 npm run fuzz:promote -- --help
 npm run ci:triage -- --help
+npm run ci:triage -- --json --jobs-json jobs.json <run-id>
 ```
 
 The packed `fuzz`, `fuzz:replay`, and `fuzz:promote` scripts validate usage in
@@ -847,6 +848,8 @@ bun test tests/ReleaseHelperSmoke.test.ts
 
 # Summarize a GitHub Actions run and print local repro commands for failed steps.
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
+# Print versioned JSON from a saved GitHub jobs API response without network.
+bun run ci:triage -- --json --jobs-json jobs.json <run-id>
 # Print CI triage usage without making a GitHub API request.
 bun run ci:triage -- --help
 # Wasm/toolchain failures include required-linker mode and doctor diagnostics.

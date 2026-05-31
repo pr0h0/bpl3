@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 import {
+  formatTriageJsonReport,
   formatTriageSummary,
   localCommandsForStep,
   parseGitHubRunLocator,
@@ -155,6 +158,90 @@ describe("CI triage helper", () => {
     expect(formatted).toContain("bun run test:ci");
   });
 
+  test("formats a versioned JSON report for automation", () => {
+    const locator = { owner: "pr0h0", repo: "bpl3", runId: 26695335269 };
+    const summary = summarizeWorkflowJobs([
+      {
+        id: 99,
+        name: "Compiler correctness",
+        conclusion: "failure",
+        steps: [
+          { name: "Run compiler correctness tests", conclusion: "failure" },
+        ],
+      },
+    ]);
+
+    expect(formatTriageJsonReport(locator, summary)).toEqual({
+      schemaVersion: 1,
+      check: "ci-triage",
+      success: true,
+      locator,
+      summary,
+    });
+  });
+
+  test("prints versioned JSON from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-json-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 42,
+              name: "Ubuntu CI",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/42",
+              steps: [
+                { name: "Run CI-safe test suite", conclusion: "failure" },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("api.github.com");
+
+      const report = JSON.parse(result.stdout);
+      expect(report).toMatchObject({
+        schemaVersion: 1,
+        check: "ci-triage",
+        success: true,
+        locator: {
+          owner: "pr0h0",
+          repo: "bpl3",
+          runId: 26695335269,
+        },
+      });
+      expect(report.summary.failedJobs[0].localCommands).toEqual([
+        "bun run test:ci",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prints offline help without requiring a GitHub API call", () => {
     const result = spawnSync("bun", ["run", "ci:triage", "--", "--help"], {
       cwd: join(import.meta.dir, ".."),
@@ -165,6 +252,7 @@ describe("CI triage helper", () => {
     expect(result.stdout).toContain("Usage: bun tools/ci_triage.ts");
     expect(result.stdout).toContain("--repo owner/repo");
     expect(result.stdout).toContain("--json");
+    expect(result.stdout).toContain("--jobs-json jobs.json");
     expect(result.stdout).toContain("run-id-or-actions-url");
     expect(result.stderr).not.toContain("GitHub API");
     expect(result.stderr).not.toContain("Expected a GitHub Actions run URL");

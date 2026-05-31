@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+
 export interface GitHubRunLocator {
   owner: string;
   repo: string;
@@ -35,7 +37,17 @@ export interface TriageSummary {
   }>;
 }
 
+export interface TriageJsonReport {
+  schemaVersion: typeof CI_TRIAGE_JSON_SCHEMA_VERSION;
+  check: typeof CI_TRIAGE_JSON_CHECK;
+  success: true;
+  locator: GitHubRunLocator;
+  summary: TriageSummary;
+}
+
 const DEFAULT_REPO = "pr0h0/bpl3";
+const CI_TRIAGE_JSON_SCHEMA_VERSION = 1;
+const CI_TRIAGE_JSON_CHECK = "ci-triage";
 
 class CliUsageError extends Error {}
 
@@ -140,14 +152,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
 
 export function formatCiTriageHelp(): string {
   return [
-    "Usage: bun tools/ci_triage.ts [--json] [--repo owner/repo] <run-id-or-actions-url>",
+    "Usage: bun tools/ci_triage.ts [--json] [--repo owner/repo] [--jobs-json jobs.json] <run-id-or-actions-url>",
     "",
     "Summarize failed GitHub Actions jobs and print local BPL reproduction commands.",
     "",
     "Options:",
-    "  --json             Print machine-readable JSON.",
-    "  --repo owner/repo  Default repository for numeric run IDs.",
-    "  -h, --help         Show this help without making a GitHub API request.",
+    "  --json                  Print machine-readable JSON.",
+    "  --repo owner/repo       Default repository for numeric run IDs.",
+    "  --jobs-json jobs.json   Read a saved GitHub jobs API response instead of fetching.",
+    "  -h, --help              Show this help without making a GitHub API request.",
     "",
   ].join("\n");
 }
@@ -261,6 +274,19 @@ export function formatTriageSummary(
   return `${lines.join("\n")}\n`;
 }
 
+export function formatTriageJsonReport(
+  locator: GitHubRunLocator,
+  summary: TriageSummary,
+): TriageJsonReport {
+  return {
+    schemaVersion: CI_TRIAGE_JSON_SCHEMA_VERSION,
+    check: CI_TRIAGE_JSON_CHECK,
+    success: true,
+    locator,
+    summary,
+  };
+}
+
 async function fetchWorkflowJobs(
   locator: GitHubRunLocator,
 ): Promise<GitHubWorkflowJob[]> {
@@ -284,6 +310,19 @@ async function fetchWorkflowJobs(
   return body.jobs;
 }
 
+function readWorkflowJobsFromJson(filePath: string): GitHubWorkflowJob[] {
+  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as
+    | GitHubWorkflowJobsResponse
+    | GitHubWorkflowJob[];
+  const jobs = Array.isArray(parsed) ? parsed : parsed.jobs;
+  if (!Array.isArray(jobs)) {
+    throw new Error(
+      `Expected ${filePath} to contain a GitHub jobs API response with a jobs array.`,
+    );
+  }
+  return jobs;
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const help = takeFlag(args, "--help") || takeFlag(args, "-h");
@@ -294,6 +333,7 @@ async function main(): Promise<void> {
 
   const json = takeFlag(args, "--json");
   const repo = takeOption(args, "--repo") ?? DEFAULT_REPO;
+  const jobsJsonPath = takeOption(args, "--jobs-json");
   const explicitRun = takeOption(args, "--run");
   const unknownOption = args.find((arg) => arg.startsWith("-"));
   if (unknownOption) {
@@ -314,14 +354,18 @@ async function main(): Promise<void> {
   }
 
   const locator = parseGitHubRunLocator(run, repo);
-  const jobs = await fetchWorkflowJobs(locator);
+  const jobs = jobsJsonPath
+    ? readWorkflowJobsFromJson(jobsJsonPath)
+    : await fetchWorkflowJobs(locator);
   const selectedJobs = locator.jobId
     ? jobs.filter((job) => job.id === locator.jobId)
     : jobs;
   const summary = summarizeWorkflowJobs(selectedJobs);
 
   if (json) {
-    console.log(JSON.stringify({ locator, summary }, null, 2));
+    console.log(
+      JSON.stringify(formatTriageJsonReport(locator, summary), null, 2),
+    );
   } else {
     process.stdout.write(formatTriageSummary(locator, summary));
   }

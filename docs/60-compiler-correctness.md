@@ -68,6 +68,15 @@ steps and print focused local commands:
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 ```
 
+Use `--json` for automation. The JSON report is versioned with
+`schemaVersion: 1`, `check: "ci-triage"`, `success`, `locator`, and `summary`.
+For offline triage or tests, pass a saved GitHub jobs API response instead of
+calling the network:
+
+```bash
+bun run ci:triage -- --json --jobs-json jobs.json <run-id>
+```
+
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
 suite, the CI-required linker mode, and the local doctor report command:
 
