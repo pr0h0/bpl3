@@ -92,6 +92,9 @@ describe("Release smoke", () => {
       expect(result.stdout).toContain(
         "release smoke: check packed npm CLI CI triage helper",
       );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI CI triage usage errors",
+      );
       expect(result.stdout).toContain("release smoke passed");
     },
     RELEASE_SMOKE_TIMEOUT_MS + 10 * 1000,

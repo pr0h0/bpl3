@@ -1001,6 +1001,60 @@ function runPackedHelperScriptSmoke(installDir: string): void {
     "--repo owner/repo",
     "run-id-or-actions-url",
   ]);
+
+  console.log("release smoke: check packed npm CLI CI triage usage errors");
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    BPL_HOME: undefined,
+    NO_COLOR: "1",
+  };
+  const usageError = spawnSync(
+    "npm",
+    ["run", "ci:triage", "--", "--repo", "--run", "26695335269"],
+    {
+      cwd: packageDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+
+  if (usageError.error) {
+    throw usageError.error;
+  }
+  if (usageError.status !== 2) {
+    throw new Error(
+      [
+        "Packed npm CLI CI triage usage error smoke did not fail as expected.",
+        `exit: ${usageError.status ?? "unknown"}`,
+        `stdout:\n${usageError.stdout}`,
+        `stderr:\n${usageError.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (!usageError.stderr.includes("Missing value for --repo")) {
+    throw new Error(
+      [
+        "Packed npm CLI CI triage usage error did not report the missing option.",
+        `stdout:\n${usageError.stdout}`,
+        `stderr:\n${usageError.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (
+    usageError.stdout.includes("GitHub API") ||
+    usageError.stderr.includes("GitHub API") ||
+    usageError.stdout.includes("api.github.com") ||
+    usageError.stderr.includes("api.github.com")
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI CI triage usage error attempted a GitHub API request.",
+        `stdout:\n${usageError.stdout}`,
+        `stderr:\n${usageError.stderr}`,
+      ].join("\n"),
+    );
+  }
 }
 
 function assertBuiltBinary(): void {
