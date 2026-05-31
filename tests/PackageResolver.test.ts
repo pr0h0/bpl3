@@ -95,6 +95,64 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("entrypoint-not-found");
   });
 
+  test("does not resolve symlinked package manifests", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const outsideManifest = path.join(tempDir, "outside-bpl.json");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      outsideManifest,
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    fs.symlinkSync(outsideManifest, path.join(packageDir, "bpl.json"), "file");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+  });
+
+  test("does not resolve symlinked package subpath files", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    const outsideFeature = path.join(tempDir, "outside-feature.bpl");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(outsideFeature, "export add;");
+    fs.symlinkSync(outsideFeature, path.join(featureDir, "add.bpl"), "file");
+
+    const details = resolvePackageImport("math/features/add", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("subpath-not-found");
+  });
+
+  test("does not resolve symlinked package subpath directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const outsideFeatureDir = path.join(tempDir, "outside-feature");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(outsideFeatureDir);
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(outsideFeatureDir, "index.bpl"), "export add;");
+    fs.symlinkSync(outsideFeatureDir, path.join(packageDir, "features"), "dir");
+
+    const details = resolvePackageImport("math/features", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("subpath-not-found");
+  });
+
   test("does not resolve package entrypoints outside the package root", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");

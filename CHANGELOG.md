@@ -109,6 +109,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package List Tree JSON Coverage** - Added parseability coverage for
   `bpl list --tree --json` so both package list JSON report variants stay under
   the shared contract guard.
+- **Package Resolver Symlink Coverage** - Added direct resolver regressions that
+  keep symlinked package manifests, subpath files, and subpath directories from
+  satisfying package imports.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
