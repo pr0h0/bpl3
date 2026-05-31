@@ -2805,6 +2805,32 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject bindgen inputs through symlinked parent directories", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-bindgen-input-parent-link-"),
+    );
+    const realRoot = path.join(tempDir, "real-root");
+    const linkedRoot = path.join(tempDir, "linked-root");
+    const realHeader = path.join(realRoot, "input.h");
+    const linkedHeader = path.join(linkedRoot, "input.h");
+    fs.mkdirSync(realRoot);
+    fs.writeFileSync(realHeader, "int puts(const char *s);\n");
+    fs.symlinkSync(realRoot, linkedRoot, "dir");
+
+    try {
+      const result = runCLI(["bindgen", linkedHeader]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Header parent path contains a symbolic link",
+      );
+      expect(result.stderr).toContain(linkedRoot);
+      expect(result.stdout).not.toContain("extern puts");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject bindgen output paths that are directories", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-output-"));
     const tempHeader = path.join(tempDir, "input.h");
