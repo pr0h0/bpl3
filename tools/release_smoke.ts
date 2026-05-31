@@ -80,6 +80,8 @@ interface PackageInstallReport {
   locked: boolean;
   update: boolean;
   repairLock: boolean;
+  error?: string;
+  errorCode?: string;
 }
 
 interface PackageListReport {
@@ -443,6 +445,7 @@ function runPackedPackageSmoke(): void {
     runPackedDoctorSanitizerJsonSmoke(installedBpl, installDir);
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageInstallJsonSmoke(installedBpl);
+    runPackedPackageManifestValidationJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
@@ -868,6 +871,117 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
     if (!existsSync(installedManifest)) {
       throw new Error(
         "Packed npm CLI package install JSON did not install package.",
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedPackageManifestValidationJsonSmoke(
+  installedBpl: string,
+): void {
+  const workspaceDir = mkdtempSync(
+    join(tmpdir(), "bpl-release-package-manifest-json-"),
+  );
+  const missingManifestDir = join(workspaceDir, "missing-manifest");
+  const invalidMainDir = join(workspaceDir, "invalid-main");
+  const homeDir = join(workspaceDir, "home");
+
+  try {
+    mkdirSync(missingManifestDir, { recursive: true });
+    mkdirSync(invalidMainDir, { recursive: true });
+    mkdirSync(homeDir, { recursive: true });
+    writeFileSync(
+      join(invalidMainDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "invalid-main",
+          version: "1.0.0",
+          main: "src//index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    console.log(
+      "release smoke: check packed npm CLI package manifest validation JSON",
+    );
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      HOME: homeDir,
+      NO_COLOR: "1",
+    };
+    const missingResult = spawnSync(installedBpl, ["install", "--json"], {
+      cwd: missingManifestDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
+    const invalidMainResult = spawnSync(installedBpl, ["install", "--json"], {
+      cwd: invalidMainDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
+
+    if (missingResult.error) throw missingResult.error;
+    if (invalidMainResult.error) throw invalidMainResult.error;
+    if (missingResult.status !== 1 || invalidMainResult.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI package manifest validation smoke did not fail as expected.",
+          `missing exit: ${missingResult.status ?? "unknown"}`,
+          `missing stdout:\n${missingResult.stdout}`,
+          `missing stderr:\n${missingResult.stderr}`,
+          `invalid main exit: ${invalidMainResult.status ?? "unknown"}`,
+          `invalid main stdout:\n${invalidMainResult.stdout}`,
+          `invalid main stderr:\n${invalidMainResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (missingResult.stderr !== "" || invalidMainResult.stderr !== "") {
+      throw new Error(
+        [
+          "Packed npm CLI package manifest validation JSON wrote stderr.",
+          `missing stderr:\n${missingResult.stderr}`,
+          `invalid main stderr:\n${invalidMainResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    const missingReport = parsePackageInstallReport(missingResult.stdout);
+    const invalidMainReport = parsePackageInstallReport(
+      invalidMainResult.stdout,
+    );
+    if (
+      missingReport.success ||
+      missingReport.mode !== "project" ||
+      missingReport.target !== null ||
+      missingReport.global ||
+      missingReport.locked ||
+      missingReport.update ||
+      missingReport.repairLock ||
+      missingReport.errorCode !== "BPL_PACKAGE_MANIFEST_MISSING" ||
+      typeof missingReport.error !== "string" ||
+      invalidMainReport.success ||
+      invalidMainReport.mode !== "project" ||
+      invalidMainReport.target !== null ||
+      invalidMainReport.global ||
+      invalidMainReport.locked ||
+      invalidMainReport.update ||
+      invalidMainReport.repairLock ||
+      invalidMainReport.errorCode !== "BPL_PACKAGE_MANIFEST_MAIN_INVALID" ||
+      typeof invalidMainReport.error !== "string"
+    ) {
+      throw new Error(
+        [
+          "Packed npm CLI package manifest validation JSON reported unexpected payload.",
+          `missing:\n${JSON.stringify(missingReport, null, 2)}`,
+          `invalid main:\n${JSON.stringify(invalidMainReport, null, 2)}`,
+        ].join("\n"),
       );
     }
   } finally {

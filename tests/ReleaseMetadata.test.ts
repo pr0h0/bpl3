@@ -506,6 +506,24 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('check: "package-install"');
   });
 
+  test("release smoke validates packed package manifest validation error codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package manifest validation JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedPackageManifestValidationJsonSmoke",
+    );
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MAIN_INVALID");
+    expect(releaseSmokeSource).toContain('["install", "--json"]');
+    expect(releaseSmokeSource).toContain("parsePackageInstallReport");
+  });
+
   test("release manifest records checksums for shipped artifacts", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 

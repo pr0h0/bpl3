@@ -69,6 +69,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   PackageManager manifest-loading `BPL_PACKAGE_MANIFEST_*` `errorCode` values
   for missing, symlinked, non-file, malformed, invalid-shape, and invalid-field
   `bpl.json` failures.
+- **Packed Package Manifest JSON Smoke** - Release smoke now checks that the
+  packed npm CLI preserves PackageManager manifest `errorCode` values such as
+  `BPL_PACKAGE_MANIFEST_MISSING` and `BPL_PACKAGE_MANIFEST_MAIN_INVALID`.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
