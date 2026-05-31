@@ -169,6 +169,18 @@ const FORMAT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const ATOMIC_WRITE_PERMISSION_STEP_PATTERN = new RegExp(
+  [
+    "CLIUtils\\.test",
+    "CLI utils.*preserves file permissions",
+    "writeFileAtomically.*permission",
+    "format files in write mode atomically",
+    "preserve executable permissions",
+    "Expected:\\s*484",
+    "Received:\\s*448",
+  ].join("|"),
+  "i",
+);
 const BINDGEN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   [
     "bindgen JSON validation",
@@ -552,6 +564,11 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "format files|check formatting without rewriting files|reject symlinked files when formatting"',
   ],
   [FORMAT_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [ATOMIC_WRITE_PERMISSION_STEP_PATTERN, "bun test tests/CLIUtils.test.ts"],
+  [
+    ATOMIC_WRITE_PERMISSION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "format files in write mode atomically"',
+  ],
   [
     BINDGEN_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',

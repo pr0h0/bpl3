@@ -234,6 +234,29 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps atomic-write permission failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/CLIUtils.test.ts",
+      'bun test tests/CLI.test.ts -t "format files in write mode atomically"',
+    ];
+
+    expect(
+      localCommandsForStep(
+        "CLI utils > preserves file permissions when replacing existing files",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "expected 484 received 448 in writeFileAtomically permission preservation",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "format files in write mode atomically and preserve executable permissions",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps bindgen JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',
