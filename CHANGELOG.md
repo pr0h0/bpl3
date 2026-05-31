@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Fuzz Repro Usage Errors** - `bun run fuzz:repro` now reports malformed CLI
   usage such as missing option values with a usage-error exit before artifact
   discovery.
+- **Fuzz Repro Unknown Options** - `bun run fuzz:repro` now rejects unknown
+  options instead of accepting and ignoring them.
 - **Hosted Wasm Printf Formatting** - Hosted WebAssembly `printf`, `fprintf`,
   and `dprintf` now format the documented `%s`, `%d`, `%c`, and `%%` subset, with
   a native-compatible `examples/wasm_hosted_printf` regression and explicit

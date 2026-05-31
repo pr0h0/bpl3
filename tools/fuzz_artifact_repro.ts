@@ -45,6 +45,8 @@ interface CliOptions {
 
 const ALL_REPLAY_MODES =
   "parser,typecheck,codegen,runtime,differential,sanitizer";
+const CLI_OPTIONS_WITH_VALUES = new Set(["input", "repo-root"]);
+const CLI_FLAG_OPTIONS = new Set(["json"]);
 
 class CliUsageError extends Error {}
 
@@ -438,7 +440,13 @@ function parseCliOptions(argv: string[]): CliOptions {
       );
     }
 
-    if (rawKey === "json") {
+    if (!CLI_OPTIONS_WITH_VALUES.has(rawKey) && !CLI_FLAG_OPTIONS.has(rawKey)) {
+      throw new CliUsageError(
+        `Unknown option --${rawKey}. Use --help for usage.`,
+      );
+    }
+
+    if (CLI_FLAG_OPTIONS.has(rawKey)) {
       flags.add(rawKey);
       continue;
     }

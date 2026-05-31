@@ -162,4 +162,23 @@ describe("Fuzz artifact repro helper", () => {
       expect(result.stderr).not.toContain("No fuzz artifact metadata found");
     }
   });
+
+  test("rejects unknown CLI options as usage errors", () => {
+    const cases: Array<[string[], string]> = [
+      [["--unknown", "value", "fuzz/crashes"], "Unknown option --unknown"],
+      [["--unknown=value", "fuzz/crashes"], "Unknown option --unknown"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "fuzz:repro", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("Fuzz artifact path does not exist");
+      expect(result.stderr).not.toContain("No fuzz artifact metadata found");
+    }
+  });
 });
