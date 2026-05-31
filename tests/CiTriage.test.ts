@@ -297,6 +297,27 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package manifest JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
+      "bun test tests/PackageJsonFailureContracts.test.ts",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_PACKAGE_MANIFEST_PARSE_ERROR")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_PACKAGE_MANIFEST_NOT_OBJECT")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("PackageManager manifest-loading failure"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("package manifest error codes from install JSON"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps wasm runtime execution failures to focused repro commands", () => {
     const expectedCommands = [
       "bun test tests/WasmRuntime.test.ts",
@@ -757,6 +778,18 @@ describe("CI triage helper", () => {
               ],
             },
             {
+              id: 56,
+              name: "Package manifest JSON codes",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/56",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_MANIFEST_PARSE_ERROR manifest-loading failure",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
               id: 52,
               name: "Wasm runtime",
               conclusion: "failure",
@@ -807,6 +840,15 @@ describe("CI triage helper", () => {
         'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
         "bun test tests/PackageJsonFailureContracts.test.ts",
         'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
+      ]);
+
+      const packageManifestJob = report.summary.failedJobs.find(
+        (job) => job.name === "Package manifest JSON codes",
+      );
+      expect(packageManifestJob?.localCommands).toEqual([
+        'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
+        "bun test tests/PackageJsonFailureContracts.test.ts",
+        "bun run check",
       ]);
 
       const packageResolverJob = report.summary.failedJobs.find(

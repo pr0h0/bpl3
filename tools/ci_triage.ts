@@ -211,6 +211,15 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_MANIFEST_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_MANIFEST_",
+    "PackageManager manifest-loading",
+    "package manifest error codes",
+    "package manifest JSON codes",
+  ].join("|"),
+  "i",
+);
 const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
   [
     "Run WebAssembly runtime tests",
@@ -422,6 +431,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_JSON_CONTRACT_STEP_PATTERN,
     'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
   ],
+  [
+    PACKAGE_MANIFEST_JSON_STEP_PATTERN,
+    'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
+  ],
+  [
+    PACKAGE_MANIFEST_JSON_STEP_PATTERN,
+    "bun test tests/PackageJsonFailureContracts.test.ts",
+  ],
+  [PACKAGE_MANIFEST_JSON_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_TIMEOUT_STEP_PATTERN,
     "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts",
