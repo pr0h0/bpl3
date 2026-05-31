@@ -265,6 +265,17 @@ interface BindgenReport {
   errorCode?: string;
 }
 
+interface DocsReport {
+  schemaVersion: 1;
+  check: "docs";
+  success: boolean;
+  file: string;
+  outputPath: string;
+  generatedBytes?: number;
+  error?: string;
+  errorCode?: string;
+}
+
 interface RunScriptListReport {
   schemaVersion: 1;
   check: "run-script-list";
@@ -570,6 +581,7 @@ function runPackedPackageSmoke(): void {
     runPackedLintJsonSmoke(installedBpl);
     runPackedFormatJsonSmoke(installedBpl);
     runPackedBindgenJsonSmoke(installedBpl);
+    runPackedDocsJsonSmoke(installedBpl);
     runPackedSourceAnalysisValidationJsonSmoke(installedBpl);
     runPackedSourceAnalysisNoInputJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
@@ -2307,6 +2319,105 @@ function runPackedBindgenJsonSmoke(installedBpl: string): void {
   }
 }
 
+function runPackedDocsJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-docs-json-"));
+  const sourcePath = join(tempDir, "main.bpl");
+  const outputPath = join(tempDir, "docs.md");
+
+  try {
+    writeFileSync(
+      sourcePath,
+      [
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    console.log("release smoke: check packed npm CLI docs JSON");
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const successResult = spawnSync(
+      installedBpl,
+      ["docs", "--json", sourcePath, "-o", outputPath],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+    const failureResult = spawnSync(
+      installedBpl,
+      ["docs", "--json", sourcePath, "-o", tempDir],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (successResult.error) throw successResult.error;
+    if (failureResult.error) throw failureResult.error;
+    if (successResult.status !== 0 || failureResult.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI docs JSON smoke returned unexpected exits.",
+          `success exit: ${successResult.status ?? "unknown"}`,
+          `success stdout:\n${successResult.stdout}`,
+          `success stderr:\n${successResult.stderr}`,
+          `failure exit: ${failureResult.status ?? "unknown"}`,
+          `failure stdout:\n${failureResult.stdout}`,
+          `failure stderr:\n${failureResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (successResult.stderr !== "" || failureResult.stderr !== "") {
+      throw new Error(
+        [
+          "Packed npm CLI docs JSON wrote stderr.",
+          `success stderr:\n${successResult.stderr}`,
+          `failure stderr:\n${failureResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    const successReport = parseDocsReport(successResult.stdout);
+    const failureReport = parseDocsReport(failureResult.stdout);
+    if (
+      !successReport.success ||
+      successReport.file !== sourcePath ||
+      successReport.outputPath !== outputPath ||
+      typeof successReport.generatedBytes !== "number" ||
+      successReport.generatedBytes <= 0 ||
+      !readFileSync(outputPath, "utf-8").includes("# Module: main.bpl")
+    ) {
+      throw new Error(
+        `Packed npm CLI docs JSON success reported unexpected payload:\n${JSON.stringify(successReport, null, 2)}`,
+      );
+    }
+    if (
+      failureReport.success ||
+      failureReport.file !== sourcePath ||
+      failureReport.outputPath !== tempDir ||
+      failureReport.errorCode !== "BPL_DOCS_OUTPUT_DIRECTORY" ||
+      typeof failureReport.error !== "string" ||
+      !failureReport.error.includes("Output path is a directory")
+    ) {
+      throw new Error(
+        `Packed npm CLI docs JSON failure reported unexpected payload:\n${JSON.stringify(failureReport, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void {
   const tempDir = mkdtempSync(
     join(tmpdir(), "bpl-release-source-validation-"),
@@ -3763,6 +3874,28 @@ function parseBindgenReport(stdout: string): BindgenReport {
     throw new Error(
       [
         "Bindgen command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseDocsReport(stdout: string): DocsReport {
+  try {
+    const report = JSON.parse(stdout) as DocsReport;
+    assertJsonReportContract(report, "docs", "docs");
+    if (typeof report.file !== "string") {
+      throw new Error("docs file is not a string");
+    }
+    if (typeof report.outputPath !== "string") {
+      throw new Error("docs outputPath is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Docs command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

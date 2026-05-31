@@ -391,6 +391,22 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["bindgen", "--json"');
   });
 
+  test("release smoke validates packed docs JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI docs JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedDocsJsonSmoke");
+    expect(releaseSmokeSource).toContain("parseDocsReport");
+    expect(releaseSmokeSource).toContain('check: "docs"');
+    expect(releaseSmokeSource).toContain("BPL_DOCS_OUTPUT_DIRECTORY");
+    expect(releaseSmokeSource).toContain('["docs", "--json"');
+  });
+
   test("release smoke validates packed check and lint no-input error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
