@@ -3,7 +3,10 @@ import { spawnSync, type SpawnSyncReturns } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseJsonObjectStdout } from "./helpers/cliJson";
+import {
+  expectJsonStdoutReport,
+  parseJsonObjectStdout,
+} from "./helpers/cliJson";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 
@@ -376,6 +379,82 @@ describe("CLI JSON parseability", () => {
       success: true,
       mode: "project",
       target: null,
+      global: false,
+      locked: false,
+      update: false,
+      repairLock: false,
+    });
+  });
+
+  test("keeps package install JSON success stdout parseable across package modes", () => {
+    const packageDir = path.join(tempDir, "package-source");
+    const homeDir = path.join(tempDir, "install-json-home");
+    writePackageFixture(packageDir, {
+      name: "install-json-package",
+      version: "1.0.0",
+    });
+
+    const packResult = runCli(["pack"], { cwd: packageDir });
+    expect(packResult.status).toBe(0);
+    const tarballPath = path.join(
+      packageDir,
+      "install-json-package-1.0.0.tgz",
+    );
+
+    const directProject = path.join(tempDir, "direct-project");
+    fs.mkdirSync(directProject);
+    const directInstall = runCli(["install", tarballPath, "--json"], {
+      cwd: directProject,
+      env: { HOME: homeDir },
+    });
+    expect(expectJsonStdoutReport(directInstall, {
+      status: 0,
+      check: "package-install",
+      success: true,
+    })).toMatchObject({
+      mode: "package",
+      target: tarballPath,
+      global: false,
+      locked: false,
+      update: false,
+      repairLock: false,
+    });
+
+    const globalInstallCwd = path.join(tempDir, "global-install-cwd");
+    fs.mkdirSync(globalInstallCwd);
+    const globalInstall = runCli(["install", tarballPath, "--global", "--json"], {
+      cwd: globalInstallCwd,
+      env: { HOME: homeDir },
+    });
+    expect(expectJsonStdoutReport(globalInstall, {
+      status: 0,
+      check: "package-install",
+      success: true,
+    })).toMatchObject({
+      mode: "package",
+      target: tarballPath,
+      global: true,
+      locked: false,
+      update: false,
+      repairLock: false,
+    });
+
+    const cachedProject = path.join(tempDir, "cached-project");
+    fs.mkdirSync(cachedProject);
+    const cachedInstall = runCli(
+      ["install", "install-json-package", "--json"],
+      {
+        cwd: cachedProject,
+        env: { HOME: homeDir },
+      },
+    );
+    expect(expectJsonStdoutReport(cachedInstall, {
+      status: 0,
+      check: "package-install",
+      success: true,
+    })).toMatchObject({
+      mode: "package",
+      target: "install-json-package",
       global: false,
       locked: false,
       update: false,
