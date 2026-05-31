@@ -108,6 +108,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now return stdout JSON failures with `BPL_CHECK_NO_INPUTS` and
   `BPL_LINT_NO_INPUTS` when no source files are provided, while non-JSON mode
   remains a human-readable stderr failure.
+- **CI Triage Check/Lint No-Input Repros** - `bun run ci:triage` now maps
+  `BPL_CHECK_NO_INPUTS` and `BPL_LINT_NO_INPUTS` logs to focused no-input JSON
+  contract repro commands.
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.

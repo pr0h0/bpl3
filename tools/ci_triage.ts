@@ -162,6 +162,16 @@ const RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN = new RegExp(
+  [
+    "BPL_CHECK_NO_INPUTS",
+    "BPL_LINT_NO_INPUTS",
+    "check --json.*No files specified",
+    "lint --json.*No files specified",
+    "check/lint no-input",
+  ].join("|"),
+  "i",
+);
 const SOURCE_ANALYSIS_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   [
     "check and lint JSON input validation",
@@ -374,6 +384,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "run-script"',
   ],
   [RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "no-input failures"',
+  ],
+  [
+    SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "no-input source analysis"',
+  ],
+  [SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN, "bun run check"],
   [
     SOURCE_ANALYSIS_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "check and lint JSON input validation"',
