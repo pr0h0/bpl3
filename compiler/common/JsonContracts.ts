@@ -10,6 +10,7 @@ export const CLI_JSON_CHECKS = {
   doctor: "doctor",
   format: "format",
   lint: "lint",
+  version: "version",
   packageCacheClean: "package-cache-clean",
   packageCacheList: "package-cache-list",
   packageCacheRepair: "package-cache-repair",
@@ -28,6 +29,7 @@ export const CLI_JSON_CHECKS = {
 } as const;
 
 export const CLI_JSON_CONTRACTS = [
+  { command: "bpl --version --json", check: CLI_JSON_CHECKS.version },
   { command: "bpl bindgen <header> --json", check: CLI_JSON_CHECKS.bindgen },
   { command: "bpl build --json", check: CLI_JSON_CHECKS.build },
   { command: "bpl check --json", check: CLI_JSON_CHECKS.check },

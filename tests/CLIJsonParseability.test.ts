@@ -1161,6 +1161,23 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps version JSON stdout parseable", () => {
+    for (const args of [
+      ["--version", "--json"],
+      ["--json", "--version"],
+    ]) {
+      const result = runCli(args);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(parseJsonObjectStdout(result)).toMatchObject({
+        schemaVersion: 1,
+        check: "version",
+        success: true,
+        version: expect.stringMatching(/^\d+\.\d+\.\d+/),
+      });
+    }
+  });
+
   test("keeps run-script JSON validation failures parseable with error codes", () => {
     const assertRunScriptFailure = (
       result: SpawnSyncReturns<string>,

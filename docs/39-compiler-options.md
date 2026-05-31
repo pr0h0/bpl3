@@ -4,6 +4,19 @@ The BPL compiler (`bpl`) provides a comprehensive command-line interface with va
 
 ## Commands
 
+### `bpl --version`
+
+Print the compiler version.
+
+```bash
+bpl --version
+bpl --version --json
+```
+
+`bpl --version --json` reports `schemaVersion: 1`, `check: "version"`,
+`success: true`, and the package `version` on stdout. Plain `bpl --version`
+keeps the existing human-readable version output.
+
 ### `bpl run <file> [args...]`
 
 Compile and execute a BPL program.
@@ -393,6 +406,7 @@ part of a command's validation path use stdout with `success: false` or
 
 | Command | Stable stdout shape |
 | --- | --- |
+| `bpl --version --json` | Version report with `schemaVersion`, `check: "version"`, `success: true`, and `version`. |
 | `bpl bindgen <header> --json` | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures. |
 | `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |

@@ -8,6 +8,7 @@ import {
 describe("JSON contract constants", () => {
   test("keeps an inventory of documented CLI JSON reports", () => {
     expect(CLI_JSON_CONTRACTS).toEqual([
+      { command: "bpl --version --json", check: "version" },
       { command: "bpl bindgen <header> --json", check: "bindgen" },
       { command: "bpl build --json", check: "build" },
       { command: "bpl check --json", check: "check" },
@@ -63,6 +64,7 @@ describe("JSON contract constants", () => {
 
   test("keeps report emitters on shared check constants", () => {
     const emitterFiles = [
+      "index.ts",
       "cli/CompilationRunner.ts",
       "cli/commands/bindgen.ts",
       "cli/commands/check.ts",

@@ -28,12 +28,41 @@ import {
   registerDoctorCommand,
 } from "./cli";
 import type { CompileOptions } from "./cli/types";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "./compiler/common/JsonContracts";
 import { Logger } from "./compiler/common/Logger";
 
 const log = new Logger("CLI");
 
 const program = new Command();
 const packageJson = require("./package.json");
+
+handleJsonVersionRequest(process.argv, packageJson.version);
+
+function handleJsonVersionRequest(argv: string[], version: string): void {
+  const userArgs = argv.slice(2);
+  const separatorIndex = userArgs.indexOf("--");
+  const commandArgs =
+    separatorIndex >= 0 ? userArgs.slice(0, separatorIndex) : userArgs;
+  const wantsVersion =
+    commandArgs.includes("--version") || commandArgs.includes("-V");
+  const wantsJson = commandArgs.includes("--json");
+
+  if (!wantsVersion || !wantsJson) {
+    return;
+  }
+
+  console.log(
+    JSON.stringify(
+      createJsonReport(CLI_JSON_CHECKS.version, true, { version }),
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
 
 // ============================================================================
 // Program Configuration
