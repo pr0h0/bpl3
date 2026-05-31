@@ -231,6 +231,13 @@ Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field.
 
+`bpl doctor packages --json` reports malformed or unsafe lockfiles as
+`kind: "invalid-lockfile"` issues with stable `BPL_LOCKFILE_*` codes, including
+`BPL_LOCKFILE_INVALID_JSON`, `BPL_LOCKFILE_UNSUPPORTED_VERSION`,
+`BPL_LOCKFILE_INVALID_PACKAGES`, `BPL_LOCKFILE_INVALID_ENTRY_NAME`,
+`BPL_LOCKFILE_INVALID_ENTRY_HASH`, `BPL_LOCKFILE_NOT_FILE`, and
+`BPL_LOCKFILE_SYMLINK`.
+
 To inspect why packages are installed and which dependencies are missing, use:
 
 ```bash

@@ -4357,6 +4357,13 @@ describe("PackageManager", () => {
       expect(report.issues.map((issue) => issue.kind)).toContain(
         "invalid-lockfile",
       );
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          kind: "invalid-lockfile",
+          code: "BPL_LOCKFILE_INVALID_JSON",
+          path: path.join(appDir, "bpl.lock"),
+        }),
+      );
     });
 
     test("should report symlinked package lockfiles without throwing", () => {
@@ -4381,6 +4388,7 @@ describe("PackageManager", () => {
       expect(report.issues).toContainEqual(
         expect.objectContaining({
           kind: "invalid-lockfile",
+          code: "BPL_LOCKFILE_SYMLINK",
           message: expect.stringContaining("symbolic link"),
         }),
       );
@@ -4392,40 +4400,60 @@ describe("PackageManager", () => {
       const lockPath = path.join(appDir, "bpl.lock");
       const invalidLocks = [
         {
-          lockfileVersion: 2,
-          packages: {},
+          code: "BPL_LOCKFILE_UNSUPPORTED_VERSION",
+          lock: {
+            lockfileVersion: 2,
+            packages: {},
+          },
         },
         {
-          lockfileVersion: 1,
-          packages: [],
+          code: "BPL_LOCKFILE_INVALID_PACKAGES",
+          lock: {
+            lockfileVersion: 1,
+            packages: [],
+          },
         },
         {
-          lockfileVersion: 1,
-          packages: {
-            "Bad_Name": {
-              version: "1.0.0",
-              source: "bad-name-1.0.0.tgz",
-              hash: "abc",
+          code: "BPL_LOCKFILE_INVALID_ENTRY_NAME",
+          lock: {
+            lockfileVersion: 1,
+            packages: {
+              "Bad_Name": {
+                version: "1.0.0",
+                source: "bad-name-1.0.0.tgz",
+                hash: "abc",
+              },
             },
           },
         },
         {
-          lockfileVersion: 1,
-          packages: {
-            "missing-hash": {
-              version: "1.0.0",
-              source: "missing-hash-1.0.0.tgz",
+          code: "BPL_LOCKFILE_INVALID_ENTRY_HASH",
+          lock: {
+            lockfileVersion: 1,
+            packages: {
+              "missing-hash": {
+                version: "1.0.0",
+                source: "missing-hash-1.0.0.tgz",
+              },
             },
           },
         },
       ];
 
-      for (const lock of invalidLocks) {
+      for (const { lock, code } of invalidLocks) {
         fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
         expect(() => new PackageManager(appDir).loadLockFile()).toThrow(
           /Invalid bpl\.lock/,
         );
+
+        try {
+          new PackageManager(appDir).loadLockFile();
+          throw new Error("expected lockfile validation to fail");
+        } catch (error) {
+          expect(error).toBeInstanceOf(CompilerError);
+          expect((error as CompilerError).code).toBe(code);
+        }
       }
     });
 
@@ -4437,6 +4465,14 @@ describe("PackageManager", () => {
       expect(() => new PackageManager(appDir).loadLockFile()).toThrow(
         /Invalid bpl\.lock path/,
       );
+
+      try {
+        new PackageManager(appDir).loadLockFile();
+        throw new Error("expected lockfile path validation to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(CompilerError);
+        expect((error as CompilerError).code).toBe("BPL_LOCKFILE_NOT_FILE");
+      }
 
       const symlinkAppDir = path.join(tempDir, "invalid-lock-symlink-app");
       const targetLock = path.join(tempDir, "target-lock.json");
@@ -4454,6 +4490,14 @@ describe("PackageManager", () => {
       expect(() => new PackageManager(symlinkAppDir).loadLockFile()).toThrow(
         /symbolic link/,
       );
+
+      try {
+        new PackageManager(symlinkAppDir).loadLockFile();
+        throw new Error("expected lockfile symlink validation to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(CompilerError);
+        expect((error as CompilerError).code).toBe("BPL_LOCKFILE_SYMLINK");
+      }
       expect(() =>
         new PackageManager(symlinkAppDir)["saveLockFile"]({
           lockfileVersion: 1,

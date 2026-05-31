@@ -921,6 +921,46 @@ describe("Package Manager CLI", () => {
         }),
       );
     });
+
+    test("should report malformed lockfile schema with a stable JSON code", () => {
+      const appDir = path.join(tempDir, "doctor-lock-code-cli-app");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-lock-code-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 2, packages: {} }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-lock-code-cli-home"),
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      const report = JSON.parse(result.stdout);
+      const invalidLockfileIssue = report.issues.find(
+        (issue: { kind: string }) => issue.kind === "invalid-lockfile",
+      );
+      expect(invalidLockfileIssue).toMatchObject({
+        severity: "error",
+        kind: "invalid-lockfile",
+        code: "BPL_LOCKFILE_UNSUPPORTED_VERSION",
+        path: expect.stringContaining("bpl.lock"),
+        hint: expect.stringContaining("bpl install"),
+      });
+    });
   });
 
   describe("package-cache command", () => {

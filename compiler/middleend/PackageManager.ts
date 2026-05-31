@@ -215,6 +215,7 @@ export type PackageDoctorIssueSeverity = "error" | "warning";
 export interface PackageDoctorIssue {
   severity: PackageDoctorIssueSeverity;
   kind: string;
+  code?: string;
   message: string;
   path?: string;
   hint?: string;
@@ -619,6 +620,7 @@ export class PackageManager {
         `Failed to load package lockfile: ${error instanceof Error ? error.message : String(error)}`,
         "Check that bpl.lock is valid JSON or regenerate it with 'bpl install'.",
         location,
+        "BPL_LOCKFILE_INVALID_JSON",
       );
     }
 
@@ -642,6 +644,7 @@ export class PackageManager {
         "Invalid bpl.lock path: symbolic link",
         "bpl.lock must be a regular file, not a symbolic link.",
         location,
+        "BPL_LOCKFILE_SYMLINK",
       );
     }
 
@@ -650,6 +653,7 @@ export class PackageManager {
         "Invalid bpl.lock path",
         "bpl.lock must be a regular file.",
         location,
+        "BPL_LOCKFILE_NOT_FILE",
       );
     }
 
@@ -665,6 +669,7 @@ export class PackageManager {
         "Invalid bpl.lock",
         "bpl.lock must be a JSON object.",
         location,
+        "BPL_LOCKFILE_INVALID_SHAPE",
       );
     }
 
@@ -681,6 +686,7 @@ export class PackageManager {
         "Invalid bpl.lock",
         "Only lockfileVersion 1 is supported.",
         location,
+        "BPL_LOCKFILE_UNSUPPORTED_VERSION",
       );
     }
 
@@ -694,6 +700,7 @@ export class PackageManager {
         "Invalid bpl.lock",
         "'packages' must be an object mapping package names to lock entries.",
         location,
+        "BPL_LOCKFILE_INVALID_PACKAGES",
       );
     }
 
@@ -704,6 +711,7 @@ export class PackageManager {
           `Invalid bpl.lock entry: ${packageName}`,
           "Package lock entry names must use lowercase letters, digits, and hyphens only.",
           location,
+          "BPL_LOCKFILE_INVALID_ENTRY_NAME",
         );
       }
 
@@ -712,6 +720,7 @@ export class PackageManager {
           `Invalid bpl.lock entry for ${packageName}`,
           "Each package lock entry must be an object.",
           location,
+          "BPL_LOCKFILE_INVALID_ENTRY",
         );
       }
 
@@ -729,6 +738,7 @@ export class PackageManager {
           `Invalid bpl.lock version for ${packageName}`,
           "Lock entry versions must use X.Y.Z semantic version format.",
           location,
+          "BPL_LOCKFILE_INVALID_ENTRY_VERSION",
         );
       }
 
@@ -737,6 +747,7 @@ export class PackageManager {
           `Invalid bpl.lock source for ${packageName}`,
           "Lock entry sources must be non-empty strings.",
           location,
+          "BPL_LOCKFILE_INVALID_ENTRY_SOURCE",
         );
       }
 
@@ -745,6 +756,7 @@ export class PackageManager {
           `Invalid bpl.lock hash for ${packageName}`,
           "Lock entry hashes must be non-empty strings.",
           location,
+          "BPL_LOCKFILE_INVALID_ENTRY_HASH",
         );
       }
     }
@@ -764,6 +776,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_LOCKFILE_SYMLINK",
       );
     }
 
@@ -778,6 +791,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_LOCKFILE_NOT_FILE",
       );
     }
 
@@ -3846,9 +3860,12 @@ export class PackageManager {
         lock = this.loadLockFile();
       } catch (error) {
         lockLoadError = error instanceof Error ? error.message : String(error);
+        const code =
+          error instanceof CompilerError ? error.code : undefined;
         issues.push({
           severity: "error",
           kind: "invalid-lockfile",
+          ...(code ? { code } : {}),
           message: `Invalid bpl.lock: ${lockLoadError}`,
           path: lockPath,
           hint: "Fix bpl.lock JSON syntax or regenerate it with 'bpl install'.",
