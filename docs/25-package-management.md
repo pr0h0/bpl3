@@ -336,6 +336,11 @@ links. Symlinked package search directories such as `bpl_modules/`, workspace
 candidates are probed. Nested package source paths such as `src/index.bpl` and
 `features/add.bpl` reject symlinked parent directories before the child file is
 read.
+Symlinked package search directories stop package resolution instead of falling
+through to lower-priority package roots: a symlinked local `bpl_modules/` stops
+resolution before workspace `packages/`, and a symlinked workspace `packages/`
+stops resolution before global packages. A symlinked global package directory
+is rejected before global package candidates are listed.
 Existing malformed package roots are terminal metadata failures, so a blocked
 local package root cannot fall through to a same-name workspace or global
 package. This includes symlinked package roots, non-directory package paths, and

@@ -288,6 +288,11 @@ metadata failures under each file's `diagnostics` array while preserving
 `totalFiles` and `errorCount`. `bpl build --json` reports the first compiler
 diagnostic failure with `success: false`, the formatted `error` string for
 backward compatibility, and a `diagnostics` array with source file locations.
+`bpl check --json` keeps package search-directory safety failures in the
+per-file `diagnostics` array with source locations and `success: false`. Local
+`bpl_modules/` and workspace `packages/` symlink failures report `package search
+directory is a symbolic link`; global package cache symlinks report `Global
+package directory path is a symbolic link`.
 
 ### CLI JSON compatibility policy
 

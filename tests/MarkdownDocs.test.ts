@@ -281,6 +281,27 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document package search directory JSON diagnostics", () => {
+    const combinedDocs = [
+      readFileSync("docs/25-package-management.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Symlinked package search directories stop package resolution instead of falling through to lower-priority package roots",
+      "a symlinked local `bpl_modules/` stops resolution before workspace `packages/`",
+      "a symlinked workspace `packages/` stops resolution before global packages",
+      "`bpl check --json` keeps package search-directory safety failures in the per-file `diagnostics` array",
+      "Local `bpl_modules/` and workspace `packages/` symlink failures report `package search directory is a symbolic link`",
+      "global package cache symlinks report `Global package directory path is a symbolic link`",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("imports docs document std path safety rules", () => {
     const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
       /\s+/g,
