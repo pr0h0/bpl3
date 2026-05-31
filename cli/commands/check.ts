@@ -25,6 +25,7 @@ const log = new Logger("Check");
 export const CHECK_INPUT_NOT_FOUND_CODE = "BPL_CHECK_INPUT_NOT_FOUND";
 export const CHECK_INPUT_SYMLINK_CODE = "BPL_CHECK_INPUT_SYMLINK";
 export const CHECK_INPUT_NOT_FILE_CODE = "BPL_CHECK_INPUT_NOT_FILE";
+export const CHECK_NO_INPUTS_CODE = "BPL_CHECK_NO_INPUTS";
 
 /**
  * Register the check command
@@ -43,7 +44,7 @@ export const CHECK_INPUT_NOT_FILE_CODE = "BPL_CHECK_INPUT_NOT_FILE";
 export function registerCheckCommand(program: Command): void {
   program
     .command("check")
-    .argument("<files...>", "BPL files to type check")
+    .argument("[files...]", "BPL files to type check")
     .description("Type check BPL files without generating code (fast)")
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
@@ -74,6 +75,28 @@ export function registerCheckCommand(program: Command): void {
           features: { colorize: options.color },
         });
         diagnosticFormatter.setConfig({ colorize: options.color });
+      }
+
+      if (!files || files.length === 0) {
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.check, false, {
+                totalFiles: 0,
+                errorCount: 1,
+                timeMs: 0,
+                files: [],
+                error: "No files specified.",
+                errorCode: CHECK_NO_INPUTS_CODE,
+              }),
+              null,
+              2,
+            ),
+          );
+        } else {
+          log.error("No files specified.");
+        }
+        process.exit(1);
       }
 
       const startTime = Date.now();

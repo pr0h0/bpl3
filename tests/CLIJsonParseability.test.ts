@@ -301,6 +301,47 @@ describe("CLI JSON parseability", () => {
     }
   });
 
+  test("keeps check and lint JSON no-input failures parseable with error codes", () => {
+    const cases: Array<{
+      args: string[];
+      check: "check" | "lint";
+      errorCode: string;
+    }> = [
+      {
+        args: ["check", "--json"],
+        check: "check",
+        errorCode: "BPL_CHECK_NO_INPUTS",
+      },
+      {
+        args: ["lint", "--json"],
+        check: "lint",
+        errorCode: "BPL_LINT_NO_INPUTS",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const report = expectJsonStdoutReport<{
+        totalFiles: number;
+        errorCount: number;
+        files: unknown[];
+        error: string;
+        errorCode: string;
+      }>(runCli(testCase.args), {
+        status: 1,
+        check: testCase.check,
+        success: false,
+      });
+
+      expect(report).toMatchObject({
+        totalFiles: 0,
+        errorCount: 1,
+        files: [],
+        error: "No files specified.",
+        errorCode: testCase.errorCode,
+      });
+    }
+  });
+
   test("keeps clean JSON validation failures parseable with error codes", () => {
     const realRoot = path.join(tempDir, "real-root");
     const linkedRoot = path.join(tempDir, "linked-root");

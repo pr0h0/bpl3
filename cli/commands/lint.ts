@@ -20,6 +20,7 @@ const log = new Logger("Lint");
 export const LINT_INPUT_NOT_FOUND_CODE = "BPL_LINT_INPUT_NOT_FOUND";
 export const LINT_INPUT_SYMLINK_CODE = "BPL_LINT_INPUT_SYMLINK";
 export const LINT_INPUT_NOT_FILE_CODE = "BPL_LINT_INPUT_NOT_FILE";
+export const LINT_NO_INPUTS_CODE = "BPL_LINT_NO_INPUTS";
 
 /**
  * Register the lint command
@@ -43,7 +44,23 @@ export function registerLintCommand(program: Command): void {
       };
 
       if (!files || files.length === 0) {
-        log.error("No files specified.");
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.lint, false, {
+                totalFiles: 0,
+                errorCount: 1,
+                files: [],
+                error: "No files specified.",
+                errorCode: LINT_NO_INPUTS_CODE,
+              }),
+              null,
+              2,
+            ),
+          );
+        } else {
+          log.error("No files specified.");
+        }
         process.exit(1);
       }
 

@@ -1055,6 +1055,18 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should keep no-input source analysis failures human-readable without json", () => {
+    const check = runCLI(["check"]);
+    expect(check.status).toBe(1);
+    expect(check.stdout).toBe("");
+    expect(check.stderr).toContain("No files specified.");
+
+    const lint = runCLI(["lint"]);
+    expect(lint.status).toBe(1);
+    expect(lint.stdout).toBe("");
+    expect(lint.stderr).toContain("No files specified.");
+  });
+
   it("should reject invalid documentation inputs without writing output", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-docs-input-"));
     const outputFile = path.join(tempDir, "docs.md");
