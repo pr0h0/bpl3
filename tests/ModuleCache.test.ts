@@ -596,6 +596,60 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects cached link outputs through symlinked ancestors before invoking the compiler", () => {
+    const dir = mkdtempSync(
+      join(tmpdir(), "bpl-module-cache-link-ancestor-"),
+    );
+    const previousBplCc = process.env.BPL_CC;
+    const realRoot = join(dir, "real-root");
+    const linkedRoot = join(dir, "linked-root");
+    const realNested = join(realRoot, "nested");
+    const outputPath = join(linkedRoot, "nested", "app");
+    const realOutput = join(realNested, "app");
+    const objectPath = join(dir, "module.o");
+    const compilerMarker = join(dir, "compiler-invoked");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        `fs.writeFileSync(${JSON.stringify(compilerMarker)}, "yes\\n");`,
+        'fs.writeFileSync(args[outputIndex], "linked executable\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      mkdirSync(realNested, { recursive: true });
+      symlinkSync(realRoot, linkedRoot, "dir");
+      writeFileSync(objectPath, "object\n");
+
+      const cache = new ModuleCache(dir);
+      let thrown: unknown;
+      try {
+        cache.linkModules([objectPath], outputPath);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toContain(
+        "Output parent path contains a symbolic link",
+      );
+      expect(existsSync(compilerMarker)).toBe(false);
+      expect(existsSync(realOutput)).toBe(false);
+      expect(
+        readdirSync(realNested).some((entry) => entry.includes("app")),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects successful cached link drivers that create output directories", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-link-dir-"));
     const previousBplCc = process.env.BPL_CC;

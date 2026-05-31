@@ -1117,6 +1117,7 @@ export class ModuleCache {
     }
 
     try {
+      this.assertWritableLinkOutputPath(tempOutputPath);
       this.assertWritableLinkOutputPath(outputPath);
       fs.renameSync(tempOutputPath, outputPath);
     } catch (error) {
@@ -1217,6 +1218,15 @@ export class ModuleCache {
       throw new CompilerError(
         `Output parent path is not a directory: ${outputDir}`,
         "Choose an output path whose parent is a directory.",
+        location,
+      );
+    }
+
+    const symlinkedParent = this.findSymlinkedParentPath(outputPath);
+    if (symlinkedParent) {
+      throw new CompilerError(
+        `Output parent path contains a symbolic link: ${symlinkedParent}`,
+        "Choose an output path whose parent components are real directories.",
         location,
       );
     }

@@ -587,7 +587,9 @@ ignored automatically. Symlinked, broken-symlink, or symlink-parent
 `.bpl-cache` paths are rejected before cached object writes, manifest writes,
 and cache cleaning. Cached-object lookups and cache stats ignore object files
 that are only reachable through symlinked parents instead of reusing external
-cache files. Use `bpl clean` to clear cache manually.
+cache files. Cached linked executable outputs also reject symlinked parent path
+components before compiler-driver invocation or final rename. Use `bpl clean` to
+clear cache manually.
 The module cache backend can compile independent LLVM module inputs with a
 bounded parallel job pool; the current CLI cache path still emits one combined
 program object until true per-module IR generation is wired into the front end.
