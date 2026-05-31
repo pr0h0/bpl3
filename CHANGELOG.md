@@ -101,6 +101,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `package-init` reports with manifest paths on success and stable
   `BPL_PACKAGE_INIT_NAME_INVALID` and `BPL_PACKAGE_INIT_MANIFEST_EXISTS`
   `errorCode` values for validation failures.
+- **Project Creation JSON Contract** - `bpl new <name> --json` now emits
+  `project-new` reports with scaffold paths on success and stable
+  `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, and
+  `BPL_NEW_PATH_EXISTS_DIRECTORY` `errorCode` values for validation failures.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing

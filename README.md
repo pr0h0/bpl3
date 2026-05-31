@@ -568,6 +568,9 @@ bpl format -w src/**/*.bpl
 # Initialize a new project
 bpl init my-project
 
+# Scaffold a new app project with machine-readable output
+bpl new my-project --no-git --json
+
 # Create a package tarball
 bpl pack
 

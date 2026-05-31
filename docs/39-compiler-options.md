@@ -116,6 +116,15 @@ Templates:
   API, and `examples/usage.bpl`
 
 Use `--no-git` to skip git initialization.
+Project creation JSON reports are available with `bpl new <name> --json`.
+Successful scaffolds emit `schemaVersion: 1`, `check: "project-new"`,
+`success: true`, `name`, `template`, `projectPath`, `manifestPath`,
+`entrypoint`, and whether git was initialized. JSON-mode validation failures
+stay on stdout with `success: false`, `name`, `template`, `projectPath`,
+`error`, and stable `errorCode` values including `BPL_NEW_NAME_INVALID`,
+`BPL_NEW_TEMPLATE_INVALID`, and `BPL_NEW_PATH_EXISTS_DIRECTORY`. Reproduce the
+focused JSON contract with
+`bun test tests/CLI.test.ts -t "new project success and failures as JSON"`.
 
 ### `bpl install`
 

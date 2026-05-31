@@ -505,6 +505,28 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document project creation JSON contract", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const readme = readFileSync("README.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${readme}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Project creation JSON reports",
+      'check: "project-new"',
+      "BPL_NEW_NAME_INVALID",
+      "BPL_NEW_TEMPLATE_INVALID",
+      "BPL_NEW_PATH_EXISTS_DIRECTORY",
+      "bun test tests/CLI.test.ts -t \"new project success and failures as JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,
