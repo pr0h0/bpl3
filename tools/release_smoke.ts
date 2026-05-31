@@ -1085,7 +1085,7 @@ function runPackedCacheStatsSmoke(installedBpl: string): void {
   }
 }
 
-function runPackedHelperScriptSmoke(installDir: string): void {
+export function runPackedHelperScriptSmoke(installDir: string): void {
   const packageDir = join(installDir, "node_modules", "bpl-v3");
   const fuzzRepro = runStep(
     "check packed npm CLI fuzz artifact repro helper",
