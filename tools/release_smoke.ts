@@ -66,6 +66,13 @@ interface RunScriptListReport {
   scripts: Array<{ name: string; command: string }>;
 }
 
+interface RunScriptFailureReport {
+  schemaVersion: 1;
+  check: "run-script-list" | "run-script";
+  success: boolean;
+  error: string;
+}
+
 interface BuildReport {
   schemaVersion: 1;
   check: "build";
@@ -273,6 +280,7 @@ function runPackedPackageSmoke(): void {
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runPackedRunScriptListJsonSmoke(installedBpl);
+    runPackedRunScriptFailureJsonSmoke(installedBpl);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
     runPackedBuildJsonSmoke(installedBpl);
     runPackedWasmSmoke(installedBpl);
@@ -437,6 +445,60 @@ function runPackedRunScriptListJsonSmoke(installedBpl: string): void {
     }
     if (existsSync(markerPath)) {
       throw new Error("Packed npm CLI run-script --list executed a script.");
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedRunScriptFailureJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-run-script-fail-"));
+
+  try {
+    console.log("release smoke: check packed npm CLI run-script failure JSON");
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const result = spawnSync(
+      installedBpl,
+      ["run-script", "--list", "--json"],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI run-script failure smoke did not fail as expected.",
+          `exit: ${result.status ?? "unknown"}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (result.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI run-script JSON failure wrote stderr:\n${result.stderr}`,
+      );
+    }
+
+    const report = parseRunScriptFailureReport(result.stdout);
+    if (
+      report.success ||
+      !report.error.includes("No bpl.json found in current directory")
+    ) {
+      throw new Error(
+        `Packed npm CLI run-script failure JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -1041,6 +1103,25 @@ function parseRunScriptListReport(stdout: string): RunScriptListReport {
     throw new Error(
       [
         "Run-script list did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseRunScriptFailureReport(stdout: string): RunScriptFailureReport {
+  try {
+    const report = JSON.parse(stdout) as RunScriptFailureReport;
+    assertJsonReportContract(report, "run-script-list", "run-script failure");
+    if (typeof report.error !== "string") {
+      throw new Error("run-script failure error is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Run-script failure did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

@@ -63,6 +63,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release Smoke Run-Script JSON Coverage** - Release smoke now validates
   packed `bpl run-script --list --json` output and confirms listing scripts
   does not execute them.
+- **Release Smoke Run-Script Failure Coverage** - Release smoke now validates
+  packed `bpl run-script --list --json` failure output from an empty package
+  directory, including exit status, empty stderr, and JSON error metadata.
 - **CLI JSON Compatibility Policy** - Documented the versioning policy for
   machine-readable CLI JSON, including additive fields, unknown-field handling,
   and `schemaVersion` bumps for breaking shape changes.
