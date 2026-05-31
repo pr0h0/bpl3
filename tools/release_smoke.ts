@@ -190,7 +190,7 @@ interface CiTriageReport {
   };
   summary: {
     missingJobIds: number[];
-    failedJobs: Array<{ localCommands: string[] }>;
+    failedJobs: Array<{ name: string; localCommands: string[] }>;
   };
 }
 
@@ -1389,6 +1389,23 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
               { name: "Run CI-safe test suite", conclusion: "failure" },
             ],
           },
+          {
+            id: 43,
+            name: "Package timeout metadata",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/43",
+            steps: [
+              {
+                name: "tar tool timed out while extracting package",
+                conclusion: "failure",
+              },
+              {
+                name: "object symbol parsing timed out",
+                conclusion: "failure",
+              },
+            ],
+          },
         ],
       },
       null,
@@ -1423,6 +1440,31 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   ) {
     throw new Error(
       `Packed npm CLI CI triage JSON reported unexpected payload:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+    );
+  }
+
+  const ciTriageTimeoutLabel =
+    "check packed npm CLI CI triage timeout JSON";
+  const packageTimeoutCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Package timeout metadata",
+    )?.localCommands ?? [];
+  const expectedPackageTimeoutCommands = [
+    "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
+    'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
+    "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
+  ];
+  const missingPackageTimeoutCommands = expectedPackageTimeoutCommands.filter(
+    (command) => !packageTimeoutCommands.includes(command),
+  );
+  if (missingPackageTimeoutCommands.length > 0) {
+    throw new Error(
+      [
+        `${ciTriageTimeoutLabel} reported unexpected payload:`,
+        "missing timeout commands:",
+        ...missingPackageTimeoutCommands.map((command) => `- ${command}`),
+        `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+      ].join("\n"),
     );
   }
 

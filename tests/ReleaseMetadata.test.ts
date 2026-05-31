@@ -218,6 +218,43 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("checkout.status");
   });
 
+  test("release helper smoke validates packed CI timeout repro contracts", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI CI triage timeout JSON",
+    );
+    expect(releaseSmokeSource).toContain("Package timeout metadata");
+    expect(releaseSmokeSource).toContain(
+      "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
+    );
+    expect(releaseSmokeSource).toContain(
+      'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
+    );
+    expect(releaseSmokeSource).toContain(
+      "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
+    );
+  });
+
+  test("CI-safe tests keep release helper smoke focused", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
+    );
+
+    expect(packageJson.scripts["test:ci"]).toContain(
+      "! -name 'ReleaseSmoke.test.ts'",
+    );
+    expect(packageJson.scripts["test:ci"]).not.toContain(
+      "! -name 'ReleaseHelperSmoke.test.ts'",
+    );
+    expect(packageJson.scripts["release:check"]).toContain(
+      "bun run release:smoke",
+    );
+  });
+
   test("release smoke guards packed wasm doctor JSON contract", async () => {
     const releaseSmoke = (await import("../tools/release_smoke")) as {
       assertWasmDoctorUnavailableContract?: (report: unknown) => void;
