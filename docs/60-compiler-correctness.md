@@ -118,9 +118,19 @@ checked failure paths with `-fsanitize=address,undefined`; the focused file is
 also available when a CI log points at the sanitizer suite directly:
 
 ```bash
+bpl doctor --json
 bun run test:sanitizers
 bun test tests/CompilerSanitizerRuntime.test.ts
 ```
+
+Use this order for sanitizer CI failures: run `bun run ci:triage`, inspect
+`bpl doctor --json`, then reproduce with `bun run test:sanitizers`.
+`BPL_SANITIZER_RUNTIME_UNAVAILABLE` in the doctor report means the local
+compiler could not link ASan/UBSan with compiler-rt/libclang_rt. A BPL runtime
+error under sanitizers is different from missing compiler-rt support: runtime
+errors mean the sanitizer-backed binary ran and exposed a compiler/runtime
+behavior issue, while missing compiler-rt means the local toolchain cannot build
+the sanitizer binary yet.
 
 A Bun test timeout in `CompilerSanitizerRuntime.test` means the sanitizer
 harness exceeded its test budget; it is not fixed by `BPL_RUN_TIMEOUT_MS`.

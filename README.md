@@ -892,6 +892,7 @@ cd playground && bun run start
 # Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
 # safe programs and checked failure paths under ASan/UBSan; local toolchains
 # without sanitizer runtimes are detected.
+bpl doctor --json
 bun run test:sanitizers
 
 # Run a short deterministic O0/O3 differential fuzz campaign. Differential
