@@ -10,6 +10,7 @@ describe("JSON contract constants", () => {
     expect(CLI_JSON_CONTRACTS).toEqual([
       { command: "bpl build --json", check: "build" },
       { command: "bpl check --json", check: "check" },
+      { command: "bpl format --check --json", check: "format" },
       { command: "bpl lint --json", check: "lint" },
       { command: "bpl doctor --json", check: "toolchain" },
       { command: "bpl doctor sanitizer --json", check: "toolchain" },
@@ -63,6 +64,7 @@ describe("JSON contract constants", () => {
       "cli/commands/check.ts",
       "cli/commands/clean.ts",
       "cli/commands/doctor.ts",
+      "cli/commands/format.ts",
       "cli/commands/lint.ts",
       "cli/commands/new.ts",
       "cli/commands/package.ts",

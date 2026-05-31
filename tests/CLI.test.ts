@@ -1225,6 +1225,110 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report format check results and validation failures as JSON", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-format-json-"));
+    const formattedFile = path.join(tempDir, "formatted.bpl");
+    const unformattedFile = path.join(tempDir, "unformatted.bpl");
+    const missingFile = path.join(tempDir, "missing.bpl");
+    const formatted = "frame main() ret int {\n    return 0;\n}\n";
+    const unformatted = "frame  main ( )  ret  int { return 0 ; }";
+
+    try {
+      fs.writeFileSync(formattedFile, formatted);
+      fs.writeFileSync(unformattedFile, unformatted);
+
+      const result = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "format",
+          "--check",
+          "--json",
+          formattedFile,
+          unformattedFile,
+        ],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        check: "format";
+        success: boolean;
+        mode: string;
+        totalFiles: number;
+        formattedFiles: number;
+        unformattedFiles: number;
+        errorCount: number;
+        files: Array<{
+          file: string;
+          success: boolean;
+          formatted: boolean;
+          changed: boolean;
+          error?: string;
+          errorCode?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "format",
+        success: false,
+      });
+      expect(report).toMatchObject({
+        mode: "check",
+        totalFiles: 2,
+        formattedFiles: 1,
+        unformattedFiles: 1,
+        errorCount: 1,
+      });
+      expect(report.files).toEqual([
+        {
+          file: formattedFile,
+          success: true,
+          formatted: true,
+          changed: false,
+        },
+        {
+          file: unformattedFile,
+          success: false,
+          formatted: false,
+          changed: true,
+          error: "File is not formatted",
+          errorCode: "BPL_FORMAT_NOT_FORMATTED",
+        },
+      ]);
+      expect(fs.readFileSync(unformattedFile, "utf-8")).toBe(unformatted);
+
+      const missing = spawnSync(
+        "bun",
+        [BPL_CLI, "format", "--check", "--json", missingFile],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const missingReport = expectJsonStdoutReport<{
+        check: "format";
+        success: boolean;
+        errorCount: number;
+        files: Array<{ file: string; error: string; errorCode: string }>;
+      }>(missing, {
+        status: 1,
+        check: "format",
+        success: false,
+      });
+      expect(missingReport.errorCount).toBe(1);
+      expect(missingReport.files[0]).toMatchObject({
+        file: missingFile,
+        error: "File not found",
+        errorCode: "BPL_FORMAT_INPUT_NOT_FOUND",
+      });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject symlinked files when formatting in write mode", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-format-link-"));
     const targetFile = path.join(tempDir, "target.bpl");

@@ -5,6 +5,7 @@ export const CLI_JSON_CHECKS = {
   check: "check",
   clean: "clean",
   doctor: "doctor",
+  format: "format",
   lint: "lint",
   packageCacheClean: "package-cache-clean",
   packageCacheList: "package-cache-list",
@@ -26,6 +27,7 @@ export const CLI_JSON_CHECKS = {
 export const CLI_JSON_CONTRACTS = [
   { command: "bpl build --json", check: CLI_JSON_CHECKS.build },
   { command: "bpl check --json", check: CLI_JSON_CHECKS.check },
+  { command: "bpl format --check --json", check: CLI_JSON_CHECKS.format },
   { command: "bpl lint --json", check: CLI_JSON_CHECKS.lint },
   { command: "bpl doctor --json", check: CLI_JSON_CHECKS.toolchain },
   { command: "bpl doctor sanitizer --json", check: CLI_JSON_CHECKS.toolchain },

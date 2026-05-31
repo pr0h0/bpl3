@@ -48,6 +48,7 @@ export interface FormatOptions {
   write?: boolean;
   check?: boolean;
   verbose?: boolean;
+  json?: boolean;
 }
 
 /**
