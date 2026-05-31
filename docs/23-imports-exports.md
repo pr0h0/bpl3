@@ -252,6 +252,14 @@ Import from the installed package:
 import add, multiply from "my-math-lib";
 ```
 
+Package import paths cannot contain empty, `.` or `..` segments. Installed
+package directories must match their manifests: `bpl_modules/my-package/bpl.json`
+must declare `"name": "my-package"`, and global versioned package directories
+must match their manifest `version`. The resolver does not follow symlinked
+package roots, manifests, entry files, or subpath entries; malformed packages
+are treated as package metadata instead of silently importing a different
+package.
+
 ## Re-exports
 
 To expose a package-level facade, import from submodules in `index.bpl` and then export the imported names.

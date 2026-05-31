@@ -245,8 +245,11 @@ another working directory.
 During package resolution, the package directory name and manifest must agree:
 `bpl_modules/my-package/bpl.json` must declare `"name": "my-package"`. Global
 versioned directories such as `~/.bpl/packages/my-package-1.2.3/` must also
-declare the same `"version": "1.2.3"` in `bpl.json`. Mismatches are treated as
-malformed package metadata rather than silently importing the wrong package.
+declare the same `"version": "1.2.3"` in `bpl.json`. Global versioned package
+directories must match their manifest `version`. Mismatches are treated as
+malformed package metadata instead of silently importing a different package.
+Package import paths cannot contain empty, `.` or `..` segments; use relative
+imports for filesystem traversal inside your own project.
 
 Packages can expose source files below their root through subpath imports:
 
@@ -258,6 +261,9 @@ For package subpaths, BPL searches for a file or directory entry under the
 package root. The example above resolves to either
 `bpl_modules/math-extra/features/increment.bpl` or
 `bpl_modules/math-extra/features/increment/index.bpl`.
+The resolver does not follow symlinked package roots, manifests, entry files, or
+subpath entries, so package imports cannot escape the installed package root
+through filesystem links.
 
 Workspace packages are supported without installing an archive. If an ancestor
 directory contains `packages/<package-name>/bpl.json`, imports can resolve

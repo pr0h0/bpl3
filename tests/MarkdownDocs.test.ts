@@ -191,4 +191,21 @@ describe("Markdown documentation", () => {
       expect(text).toContain(snippet);
     }
   });
+
+  test("package docs document import safety rules", () => {
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
+    const importDocs = readFileSync("docs/23-imports-exports.md", "utf8");
+    const combinedDocs = `${packageDocs}\n${importDocs}`.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Package import paths cannot contain empty, `.` or `..` segments",
+      "The resolver does not follow symlinked package roots, manifests, entry files, or subpath entries",
+      "`bpl_modules/my-package/bpl.json` must declare `\"name\": \"my-package\"`",
+      "Global versioned package directories must match their manifest `version`",
+      "package metadata instead of silently importing a different package",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });

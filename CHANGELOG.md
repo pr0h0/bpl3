@@ -118,6 +118,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Import Diagnostic Coverage** - Added module resolver regressions so
   package manifest name mismatches and unsafe package entrypoints keep their
   detailed hints after import-resolution error wrapping.
+- **Package Import Safety Docs** - Documented tested package import safety
+  rules for invalid path segments, manifest-name matching, global versioned
+  directories, and symlink rejection.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
