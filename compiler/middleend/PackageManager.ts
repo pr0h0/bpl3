@@ -844,7 +844,7 @@ export class PackageManager {
 
   verifyLockFile(): PackageLockVerification {
     const lockPath = this.getLockFilePath();
-    if (!fs.existsSync(lockPath)) {
+    if (!this.tryLstat(lockPath)) {
       const issues: PackageLockVerificationIssue[] = [
         {
           packageName: path.basename(this.projectRoot) || this.projectRoot,

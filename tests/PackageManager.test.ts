@@ -3493,6 +3493,24 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject broken symlink lockfiles during locked verification", () => {
+      const appDir = path.join(tempDir, "broken-lock-symlink-app");
+      const lockPath = path.join(appDir, "bpl.lock");
+      const missingTarget = path.join(tempDir, "missing-lock-target.json");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "broken-lock-symlink-app", version: "1.0.0" }),
+      );
+      fs.symlinkSync(missingTarget, lockPath, "file");
+
+      const localPM = new PackageManager(appDir);
+      expect(() => localPM.verifyLockFile()).toThrow(/symbolic link/);
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/symbolic link/);
+    });
+
     test("should list installed packages", () => {
       // Create and install a package
       const manifest = {

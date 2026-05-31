@@ -160,7 +160,9 @@ Commit `bpl.lock` for applications so repeated installs resolve the same
 package contents. Libraries may commit it when they need reproducible examples
 or test fixtures. Lockfiles are schema-validated before install, verify, doctor,
 or repair commands use them; malformed entries fail early with an
-`Invalid bpl.lock` diagnostic.
+`Invalid bpl.lock` diagnostic. Symlinked `bpl.lock` paths, including broken
+symlinks, are rejected before verification so package checks never follow a
+lockfile outside the project.
 
 To restore exactly what is recorded in `bpl.lock`, run:
 

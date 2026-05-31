@@ -162,6 +162,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-153 | Package Manager     | Lock verification treats symlinked installed package roots as valid packages.                                              | Fixed    | `bpl install --locked` and lock verification now reject symlinked or non-directory package roots before loading manifests or hashing package contents. Regression: `tests/PackageManager.test.ts`.                                                                                          |
 | BUG-154 | Package Manager     | Lock verification treats symlinked recorded package sources as reachable.                                                  | Fixed    | Lock source reachability now requires a real regular file, so `bpl install --locked` reports symlinked recorded sources as unreachable instead of accepting sources that restore/install would reject. Regression: `tests/PackageManager.test.ts`.                                          |
 | BUG-155 | Package Manager     | Lock verification accepts installed transitive dependencies that are missing from `bpl.lock`.                              | Fixed    | `verifyLockFile()` now reports `missing-transitive-lock-entry` when an installed package manifest depends on another installed package that is not recorded in the lockfile. Regression: `tests/PackageManager.test.ts`.                                                                    |
+| BUG-156 | Package Manager     | Broken symlink `bpl.lock` paths are reported as missing lockfiles during locked verification.                              | Fixed    | `verifyLockFile()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before loading the lockfile, so broken and valid-target symlinks are both rejected. Regression: `tests/PackageManager.test.ts`.                                                            |
 
 ## Details
 
@@ -2317,3 +2318,34 @@ existed.
 **Resolution**: `verifyLockFile()` now emits
 `missing-transitive-lock-entry` when an installed package manifest declares a
 dependency that is present on disk but absent from the lockfile.
+
+---
+
+### BUG-156: Broken Symlink Lockfiles Are Reported As Missing
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: `verifyLockFile()` used `fs.existsSync()` before loading
+`bpl.lock`. Because `existsSync()` follows symlinks, a broken symlink at
+`bpl.lock` was treated as an absent lockfile. That produced a misleading
+`missing-lockfile` verification result and let locked install report the wrong
+remediation.
+
+**Reproduction**:
+
+```bash
+mkdir app
+ln -s ../missing-lock.json app/bpl.lock
+cd app
+bpl install --locked
+```
+
+**Expected**: Locked verification rejects `bpl.lock` as a symbolic link.
+
+**Actual**: Locked verification reported that no `bpl.lock` was found.
+
+**Resolution**: `verifyLockFile()` now uses `lstat` to decide whether the
+lockfile path exists before delegating to `loadLockFile()`, preserving the
+existing symbolic-link rejection for both valid-target and broken symlinks.
