@@ -402,12 +402,16 @@ files together, including malformed sidecar directories and symlink sidecars
 whose targets may already be missing. Use `--json` to return `schemaVersion: 1`,
 `check: "package-cache-clean"`, `success`, the removed archive list, and dry-run
 state in machine-readable form.
+
 `bpl uninstall <package>` only removes real installed package directories. If
 `bpl_modules/<package>` is a symlink, uninstall rejects it and leaves both the
-symlink and its target untouched. Local uninstall also validates an existing
-`bpl.lock` before unlinking binaries or removing package files; symlinked,
-broken-symlink, malformed, or non-file lockfile paths are rejected instead of
-leaving package files and lock entries inconsistent.
+symlink and its target untouched. Package manifests are validated with the same
+`lstat` rules during uninstall, so symlinked or broken-symlink `bpl.json` paths
+are rejected as manifest symlinks instead of being treated as missing manifests.
+Local uninstall also validates an existing `bpl.lock` before unlinking binaries
+or removing package files; symlinked, broken-symlink, malformed, or non-file
+lockfile paths are rejected instead of leaving package files and lock entries
+inconsistent.
 
 ## Package Scripts
 

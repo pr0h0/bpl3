@@ -3218,7 +3218,7 @@ export class PackageManager {
 
     // Verify it's actually a package directory
     const manifestPath = path.join(packagePath, "bpl.json");
-    if (!fs.existsSync(manifestPath)) {
+    if (!this.tryLstat(manifestPath)) {
       throw new CompilerError(
         `Invalid package directory: ${packagePath}`,
         "Directory exists but is not a valid package (missing bpl.json).",

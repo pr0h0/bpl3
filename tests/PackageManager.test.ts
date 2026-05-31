@@ -3892,6 +3892,22 @@ describe("PackageManager", () => {
       }).toThrow(/Invalid package directory/);
     });
 
+    test("should reject broken symlink package manifests during uninstall", () => {
+      const packagePath = path.join(
+        tempDir,
+        "bpl_modules",
+        "broken-manifest-pkg",
+      );
+      const manifestPath = path.join(packagePath, "bpl.json");
+      fs.mkdirSync(packagePath, { recursive: true });
+      fs.symlinkSync(path.join(tempDir, "missing-bpl.json"), manifestPath);
+
+      expect(() => {
+        packageManager.uninstall("broken-manifest-pkg", { global: false });
+      }).toThrow(/Invalid package manifest path: symbolic link/);
+      expect(fs.lstatSync(manifestPath).isSymbolicLink()).toBe(true);
+    });
+
     test("should reject symlinked package roots during uninstall", () => {
       const outsidePackageDir = path.join(tempDir, "outside-uninstall-package");
       const packagePath = path.join(tempDir, "bpl_modules", "linked-pkg");
