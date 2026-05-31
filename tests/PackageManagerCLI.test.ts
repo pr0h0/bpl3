@@ -1072,6 +1072,105 @@ describe("Package Manager CLI", () => {
       expect(duplicateIssue?.path).toContain(secondPackageDir);
     });
 
+    test("should keep packages JSON contract for unsafe package directories", () => {
+      const scenarios = [
+        {
+          name: "local",
+          setup: (appDir: string, _homeDir: string) => {
+            const outsidePackageRoot = path.join(
+              tempDir,
+              "outside-local-packages",
+            );
+            fs.mkdirSync(outsidePackageRoot, { recursive: true });
+            fs.symlinkSync(
+              outsidePackageRoot,
+              path.join(appDir, "bpl_modules"),
+              "dir",
+            );
+            return path.join(appDir, "bpl_modules");
+          },
+        },
+        {
+          name: "global",
+          setup: (_appDir: string, homeDir: string) => {
+            const outsidePackageRoot = path.join(
+              tempDir,
+              "outside-global-packages",
+            );
+            const bplHomeDir = path.join(homeDir, ".bpl");
+            fs.mkdirSync(outsidePackageRoot, { recursive: true });
+            fs.mkdirSync(bplHomeDir, { recursive: true });
+            fs.symlinkSync(
+              outsidePackageRoot,
+              path.join(bplHomeDir, "packages"),
+              "dir",
+            );
+            return path.join(bplHomeDir, "packages");
+          },
+        },
+      ] as const;
+
+      for (const scenario of scenarios) {
+        const appDir = path.join(
+          tempDir,
+          `doctor-unsafe-${scenario.name}-cli-app`,
+        );
+        const homeDir = path.join(
+          tempDir,
+          `doctor-unsafe-${scenario.name}-cli-home`,
+        );
+        fs.mkdirSync(appDir);
+        fs.writeFileSync(
+          path.join(appDir, "bpl.json"),
+          JSON.stringify({
+            name: `doctor-unsafe-${scenario.name}-cli-app`,
+            version: "1.0.0",
+          }),
+        );
+        const unsafePath = scenario.setup(appDir, homeDir);
+
+        const result = spawnSync(
+          "bun",
+          [bplPath, "doctor", "packages", "--json"],
+          {
+            cwd: appDir,
+            env: {
+              ...process.env,
+              HOME: homeDir,
+            },
+            encoding: "utf-8",
+          },
+        );
+
+        expect(result.stderr).toBe("");
+        const report = expectJsonStdoutReport<{
+          ok: boolean;
+          issues: Array<{
+            severity: string;
+            kind: string;
+            code?: string;
+            message: string;
+            path?: string;
+            hint?: string;
+          }>;
+        }>(result, {
+          status: 1,
+          check: "packages",
+          success: false,
+        });
+        expect(report.ok).toBe(false);
+        expect(report.issues).toContainEqual(
+          expect.objectContaining({
+            severity: "error",
+            kind: "unsafe-package-directory",
+            code: "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+            path: unsafePath,
+            hint: expect.stringContaining("bpl doctor packages"),
+          }),
+        );
+      }
+    });
+
     test("should report malformed lockfile schema with a stable JSON code", () => {
       const appDir = path.join(tempDir, "doctor-lock-code-cli-app");
       fs.mkdirSync(appDir);

@@ -92,7 +92,9 @@ export function registerDoctorCommand(program: Command, version: string): void {
 
       try {
         if (scope === "packages") {
-          const report = new PackageManager().doctorPackages();
+          const report = new PackageManager(undefined, {
+            ensureDirectories: false,
+          }).doctorPackages();
           if (outputJson) {
             console.log(JSON.stringify(report, null, 2));
           } else {

@@ -240,6 +240,10 @@ export interface PackageDoctorReport {
   issues: PackageDoctorIssue[];
 }
 
+export interface PackageManagerOptions {
+  ensureDirectories?: boolean;
+}
+
 interface ResolvedDependencySource {
   packageSource: string;
   lockSource: string;
@@ -256,7 +260,7 @@ export class PackageManager {
   private globalBinDir: string;
   private localBinDir: string;
 
-  constructor(projectRoot?: string) {
+  constructor(projectRoot?: string, options: PackageManagerOptions = {}) {
     // Global packages in ~/.bpl/packages
     this.globalPackageDir = path.join(os.homedir(), ".bpl", "packages");
     this.globalBinDir = path.join(os.homedir(), ".bpl", "bin");
@@ -267,7 +271,9 @@ export class PackageManager {
     this.localPackageDir = path.join(root, "bpl_modules");
     this.localBinDir = path.join(this.localPackageDir, ".bin");
 
-    this.ensureDirectories();
+    if (options.ensureDirectories !== false) {
+      this.ensureDirectories();
+    }
   }
 
   /**
@@ -4018,9 +4024,11 @@ export class PackageManager {
     label: string,
   ): PackageDoctorIssue {
     const detail = error instanceof Error ? error.message : String(error);
+    const code = error instanceof CompilerError ? error.code : undefined;
     return {
       severity: "error",
       kind: "unsafe-package-directory",
+      ...(code ? { code } : {}),
       message: `${label} is not safe to read: ${detail}`,
       path: dirPath,
       hint: "Move the unsafe package directory out of the way, then rerun 'bpl doctor packages'.",
