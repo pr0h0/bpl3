@@ -208,4 +208,27 @@ describe("ObjectFileParser", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("rejects object parser inputs through symlinked parent directories", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-object-parser-parent-link-"),
+    );
+    const realRoot = path.join(tempDir, "real-root");
+    const linkedRoot = path.join(tempDir, "linked-root");
+    const linkedObject = path.join(linkedRoot, "module.ll");
+    fs.mkdirSync(realRoot);
+    fs.writeFileSync(
+      path.join(realRoot, "module.ll"),
+      "declare void @external_symbol()\n",
+    );
+    fs.symlinkSync(realRoot, linkedRoot, "dir");
+
+    try {
+      expect(() => ObjectFileParser.parseObjectFile(linkedObject)).toThrow(
+        /Object parent path contains a symbolic link/,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

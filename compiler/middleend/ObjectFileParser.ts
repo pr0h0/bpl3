@@ -241,6 +241,42 @@ export class ObjectFileParser {
         endColumn: 1,
       });
     }
+
+    const symlinkedParent = this.findSymlinkedPathComponent(filePath);
+    if (symlinkedParent) {
+      throw new CompilerError(
+        `Object parent path contains a symbolic link: ${symlinkedParent}`,
+        hint,
+        {
+          file: filePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+  }
+
+  private static findSymlinkedPathComponent(filePath: string): string | null {
+    const absolutePath = path.resolve(filePath);
+    const parsedPath = path.parse(absolutePath);
+    const rootPath = parsedPath.root;
+    const components = path
+      .relative(rootPath, absolutePath)
+      .split(/[\\/]+/)
+      .filter(Boolean);
+    let currentPath = rootPath;
+
+    for (const component of components.slice(0, -1)) {
+      currentPath = path.join(currentPath, component);
+      const stats = this.tryLstat(currentPath);
+      if (stats?.isSymbolicLink()) {
+        return currentPath;
+      }
+    }
+
+    return null;
   }
 
   private static tryLstat(filePath: string): fs.Stats | null {
