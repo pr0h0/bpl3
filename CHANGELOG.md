@@ -44,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Lint JSON Stability** - `bpl lint --json` now includes stable
   `schemaVersion: 1` and `check: "lint"` metadata alongside the existing
   aggregate totals, per-file lint diagnostics, and validation errors.
+- **Doctor JSON Failure Coverage** - JSON parseability tests now assert unknown
+  doctor scopes return stdout-only `schemaVersion: 1`, `check: "doctor"`,
+  `success: false`, and `error` metadata.
 - **Run-Script Argument Forwarding Coverage** - Added regression coverage for
   option-looking, empty, quoted, substituted, piped, redirected, ampersand, and
   multiline arguments forwarded through `bpl run-script`.

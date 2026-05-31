@@ -103,7 +103,10 @@ describe("CLI JSON parseability", () => {
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {
     const result = runCli(["doctor", "unknown-scope", "--json"]);
     expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
     expect(parseJsonObjectStdout(result)).toMatchObject({
+      schemaVersion: 1,
+      check: "doctor",
       success: false,
       error: expect.stringContaining("Unknown doctor scope 'unknown-scope'"),
     });
