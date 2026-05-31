@@ -381,6 +381,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "bun run test:wasm",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "prints the checked linker candidates",
       "tests/helpers/wasmCompatibilityMatrix.ts",
       "`wasm-freestanding`, `wasm-hosted`, `blocked-by-host-api`, or `native-only`",
     ];

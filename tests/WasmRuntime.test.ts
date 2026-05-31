@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 import {
   findWasmLinker,
+  formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
 } from "../cli/WasmToolchain";
@@ -241,6 +242,21 @@ describe("WebAssembly runtime execution", () => {
     if (REQUIRE_WASM_LINKER && !standaloneWasmLinker) {
       throw new Error(formatRequiredWasmLinkerError(getWasmLinkerCandidates()));
     }
+  });
+
+  it("reports optional wasm runtime skip prerequisites", () => {
+    if (standaloneWasmLinker) {
+      expect(standaloneWasmLinker).toBeString();
+      return;
+    }
+
+    const message = formatOptionalWasmRuntimeSkipMessage(
+      getWasmLinkerCandidates(),
+    );
+    console.warn(message);
+    expect(message).toContain("Skipping wasm runtime execution");
+    expect(message).toContain("Checked candidates:");
+    expect(message).toContain("BPL_REQUIRE_WASM_LD=1");
   });
 
   wasmIt("executes exported main from a standalone wasm artifact", async () => {

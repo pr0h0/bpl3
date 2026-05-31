@@ -70,3 +70,14 @@ export function formatRequiredWasmLinkerError(
     "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
   ].join("\n");
 }
+
+export function formatOptionalWasmRuntimeSkipMessage(
+  candidates = getWasmLinkerCandidates(),
+): string {
+  return [
+    "Skipping wasm runtime execution: no usable standalone wasm linker found.",
+    `Checked candidates: ${candidates.join(", ")}`,
+    "Set BPL_REQUIRE_WASM_LD=1 to fail instead of skipping.",
+    "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
+  ].join("\n");
+}

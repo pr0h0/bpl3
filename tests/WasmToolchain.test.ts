@@ -6,6 +6,7 @@ import * as path from "path";
 import {
   DEFAULT_WASM_LINKER_CANDIDATES,
   findWasmLinker,
+  formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
 } from "../cli/WasmToolchain";
@@ -51,6 +52,22 @@ describe("Wasm toolchain helpers", () => {
         "wasm-ld",
       ]),
     ).toContain("Checked candidates: /opt/llvm/bin/wasm-ld-custom, wasm-ld");
+  });
+
+  test("formats optional wasm runtime skip diagnostics with next steps", () => {
+    const message = formatOptionalWasmRuntimeSkipMessage([
+      "/opt/llvm/bin/wasm-ld-custom",
+      "wasm-ld",
+    ]);
+
+    expect(message).toContain(
+      "Skipping wasm runtime execution: no usable standalone wasm linker found.",
+    );
+    expect(message).toContain(
+      "Checked candidates: /opt/llvm/bin/wasm-ld-custom, wasm-ld",
+    );
+    expect(message).toContain("Set BPL_REQUIRE_WASM_LD=1");
+    expect(message).toContain("set WASM_LD");
   });
 
   test("finds the first usable wasm linker and skips missing candidates", () => {
