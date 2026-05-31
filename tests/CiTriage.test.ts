@@ -195,6 +195,27 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps format JSON validation failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"',
+      'bun test tests/CLI.test.ts -t "format files|check formatting without rewriting files|reject symlinked files when formatting"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_FORMAT_NOT_FORMATTED")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_FORMAT_INPUT_NOT_FOUND")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_FORMAT_JSON_REQUIRES_CHECK")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("File is not formatted in format --check --json"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps doctor scope JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
@@ -1624,6 +1645,69 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "clean JSON validation failures"',
         'bun test tests/CLI.test.ts -t "clean"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints format validation repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-format-codes-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 70,
+              name: "Format JSON validation failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/70",
+              steps: [
+                {
+                  name: "BPL_FORMAT_INPUT_NOT_FOUND in format --check --json",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"',
+        'bun test tests/CLI.test.ts -t "format files|check formatting without rewriting files|reject symlinked files when formatting"',
         "bun run check",
       ]);
     } finally {

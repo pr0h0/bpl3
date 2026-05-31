@@ -149,6 +149,17 @@ const CLEAN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const FORMAT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "format JSON validation",
+    "format JSON contract",
+    "BPL_FORMAT_",
+    "format --check --json",
+    "File is not formatted",
+    "No files specified.*format",
+  ].join("|"),
+  "i",
+);
 const DOCTOR_SCOPE_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_DOCTOR_SCOPE_UNKNOWN",
@@ -446,6 +457,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "clean"',
   ],
   [CLEAN_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    FORMAT_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"',
+  ],
+  [
+    FORMAT_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "format files|check formatting without rewriting files|reject symlinked files when formatting"',
+  ],
+  [FORMAT_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     DOCTOR_SCOPE_JSON_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
