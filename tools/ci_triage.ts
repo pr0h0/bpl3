@@ -27,6 +27,29 @@ export interface GitHubWorkflowJobsResponse {
   jobs: GitHubWorkflowJob[];
 }
 
+export interface GitHubWorkflowRun {
+  id: number;
+  html_url?: string;
+  head_branch?: string | null;
+  head_sha?: string | null;
+  status?: string | null;
+  conclusion?: string | null;
+}
+
+export interface GitHubWorkflowData {
+  jobs: GitHubWorkflowJob[];
+  run?: GitHubWorkflowRun;
+}
+
+export interface TriageRunIdentity {
+  id: number;
+  url: string;
+  headBranch?: string;
+  headSha?: string;
+  status?: string;
+  conclusion?: string | null;
+}
+
 export interface TriageSummary {
   failedJobs: Array<{
     id: number;
@@ -47,6 +70,7 @@ export interface TriageJsonReport {
   check: typeof CI_TRIAGE_JSON_CHECK;
   success: true;
   locator: GitHubRunLocator;
+  run: TriageRunIdentity;
   summary: TriageSummary;
 }
 
@@ -293,10 +317,9 @@ export function localCommandsForStep(stepName: string): string[] {
 export function formatTriageSummary(
   locator: GitHubRunLocator,
   summary: TriageSummary,
+  run = runIdentityFromLocator(locator),
 ): string {
-  const lines = [
-    `GitHub Actions triage: ${locator.owner}/${locator.repo} run ${locator.runId}`,
-  ];
+  const lines = [formatRunIdentityLine(locator, run)];
 
   if (summary.missingJobIds.length > 0) {
     lines.push("", "Missing requested jobs:");
@@ -342,20 +365,74 @@ export function formatTriageSummary(
 export function formatTriageJsonReport(
   locator: GitHubRunLocator,
   summary: TriageSummary,
+  run = runIdentityFromLocator(locator),
 ): TriageJsonReport {
   return {
     schemaVersion: CI_TRIAGE_JSON_SCHEMA_VERSION,
     check: CI_TRIAGE_JSON_CHECK,
     success: true,
     locator,
+    run,
     summary,
   };
+}
+
+export function runIdentityFromGitHubRun(
+  locator: GitHubRunLocator,
+  run?: GitHubWorkflowRun,
+): TriageRunIdentity {
+  if (!run) return runIdentityFromLocator(locator);
+
+  const identity: TriageRunIdentity = {
+    id: Number.isSafeInteger(run.id) && run.id > 0 ? run.id : locator.runId,
+    url:
+      typeof run.html_url === "string" && run.html_url.length > 0
+        ? run.html_url
+        : workflowRunUrl(locator),
+  };
+
+  if (typeof run.head_branch === "string" && run.head_branch.length > 0) {
+    identity.headBranch = run.head_branch;
+  }
+  if (typeof run.head_sha === "string" && run.head_sha.length > 0) {
+    identity.headSha = run.head_sha;
+  }
+  if (typeof run.status === "string" && run.status.length > 0) {
+    identity.status = run.status;
+  }
+  if (typeof run.conclusion === "string" && run.conclusion.length > 0) {
+    identity.conclusion = run.conclusion;
+  }
+
+  return identity;
 }
 
 async function fetchWorkflowJobs(
   locator: GitHubRunLocator,
 ): Promise<GitHubWorkflowJob[]> {
   const url = `https://api.github.com/repos/${locator.owner}/${locator.repo}/actions/runs/${locator.runId}/jobs?filter=latest&per_page=100`;
+  const body = await fetchGitHubJson<GitHubWorkflowJobsResponse>(url);
+  return body.jobs;
+}
+
+async function fetchWorkflowRun(
+  locator: GitHubRunLocator,
+): Promise<GitHubWorkflowRun> {
+  const url = `https://api.github.com/repos/${locator.owner}/${locator.repo}/actions/runs/${locator.runId}`;
+  return fetchGitHubJson<GitHubWorkflowRun>(url);
+}
+
+async function fetchWorkflowData(
+  locator: GitHubRunLocator,
+): Promise<GitHubWorkflowData> {
+  const [jobs, run] = await Promise.all([
+    fetchWorkflowJobs(locator),
+    fetchWorkflowRun(locator),
+  ]);
+  return { jobs, run };
+}
+
+async function fetchGitHubJson<T>(url: string): Promise<T> {
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
@@ -371,13 +448,13 @@ async function fetchWorkflowJobs(
     );
   }
 
-  const body = (await response.json()) as GitHubWorkflowJobsResponse;
-  return body.jobs;
+  return (await response.json()) as T;
 }
 
-function readWorkflowJobsFromJson(filePath: string): GitHubWorkflowJob[] {
+function readWorkflowDataFromJson(filePath: string): GitHubWorkflowData {
   const parsed = JSON.parse(readFileSync(filePath, "utf8")) as
     | GitHubWorkflowJobsResponse
+    | GitHubWorkflowData
     | GitHubWorkflowJob[];
   const jobs = Array.isArray(parsed) ? parsed : parsed.jobs;
   if (!Array.isArray(jobs)) {
@@ -385,7 +462,15 @@ function readWorkflowJobsFromJson(filePath: string): GitHubWorkflowJob[] {
       `Expected ${filePath} to contain a GitHub jobs API response with a jobs array.`,
     );
   }
-  return jobs;
+  return {
+    jobs,
+    run:
+      !Array.isArray(parsed) &&
+      "run" in parsed &&
+      isWorkflowRunLike(parsed.run)
+        ? parsed.run
+        : undefined,
+  };
 }
 
 async function main(): Promise<void> {
@@ -419,20 +504,66 @@ async function main(): Promise<void> {
   }
 
   const locator = parseGitHubRunLocator(run, repo);
-  const jobs = jobsJsonPath
-    ? readWorkflowJobsFromJson(jobsJsonPath)
-    : await fetchWorkflowJobs(locator);
-  const summary = summarizeWorkflowJobs(jobs, {
+  const workflowData = jobsJsonPath
+    ? readWorkflowDataFromJson(jobsJsonPath)
+    : await fetchWorkflowData(locator);
+  const runIdentity = runIdentityFromGitHubRun(locator, workflowData.run);
+  const summary = summarizeWorkflowJobs(workflowData.jobs, {
     requestedJobId: locator.jobId,
   });
 
   if (json) {
     console.log(
-      JSON.stringify(formatTriageJsonReport(locator, summary), null, 2),
+      JSON.stringify(
+        formatTriageJsonReport(locator, summary, runIdentity),
+        null,
+        2,
+      ),
     );
   } else {
-    process.stdout.write(formatTriageSummary(locator, summary));
+    process.stdout.write(formatTriageSummary(locator, summary, runIdentity));
   }
+}
+
+function runIdentityFromLocator(locator: GitHubRunLocator): TriageRunIdentity {
+  return {
+    id: locator.runId,
+    url: workflowRunUrl(locator),
+  };
+}
+
+function workflowRunUrl(locator: GitHubRunLocator): string {
+  return `https://github.com/${locator.owner}/${locator.repo}/actions/runs/${locator.runId}`;
+}
+
+function formatRunIdentityLine(
+  locator: GitHubRunLocator,
+  run: TriageRunIdentity,
+): string {
+  const base = `GitHub Actions triage: ${locator.owner}/${locator.repo} run ${run.id}`;
+  const details: string[] = [];
+
+  if (run.headBranch || run.headSha) {
+    const branch = run.headBranch ?? "unknown branch";
+    const sha = run.headSha ? ` @ ${run.headSha.slice(0, 7)}` : "";
+    details.push(`${branch}${sha}`);
+  }
+
+  const state = [run.status, run.conclusion].filter(Boolean).join("/");
+  if (state.length > 0) {
+    details.push(state);
+  }
+
+  return details.length > 0 ? `${base} (${details.join(", ")})` : base;
+}
+
+function isWorkflowRunLike(value: unknown): value is GitHubWorkflowRun {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "number"
+  );
 }
 
 function parseRepo(repo: string): [string, string] {

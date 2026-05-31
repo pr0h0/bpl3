@@ -188,6 +188,17 @@ describe("CI triage helper", () => {
     const formatted = formatTriageSummary(
       { owner: "pr0h0", repo: "bpl3", runId: 1 },
       summary,
+      {
+        id: 1,
+        url: "https://github.com/pr0h0/bpl3/actions/runs/1",
+        headBranch: "master",
+        headSha: "0123456789abcdef0123456789abcdef01234567",
+        status: "completed",
+        conclusion: "failure",
+      },
+    );
+    expect(formatted).toContain(
+      "GitHub Actions triage: pr0h0/bpl3 run 1 (master @ 0123456, completed/failure)",
     );
     expect(formatted).toContain("Ubuntu system clang release");
     expect(formatted).toContain("Run CI-safe test suite");
@@ -238,11 +249,28 @@ describe("CI triage helper", () => {
       },
     ]);
 
-    expect(formatTriageJsonReport(locator, summary)).toEqual({
+    expect(
+      formatTriageJsonReport(locator, summary, {
+        id: 26695335269,
+        url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+        headBranch: "master",
+        headSha: "fedcba9876543210fedcba9876543210fedcba98",
+        status: "completed",
+        conclusion: "failure",
+      }),
+    ).toEqual({
       schemaVersion: 1,
       check: "ci-triage",
       success: true,
       locator,
+      run: {
+        id: 26695335269,
+        url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+        headBranch: "master",
+        headSha: "fedcba9876543210fedcba9876543210fedcba98",
+        status: "completed",
+        conclusion: "failure",
+      },
       summary,
     });
   });
@@ -255,6 +283,14 @@ describe("CI triage helper", () => {
       writeFileSync(
         jobsPath,
         JSON.stringify({
+          run: {
+            id: 26695335269,
+            html_url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+            head_branch: "master",
+            head_sha: "1234567890abcdef1234567890abcdef12345678",
+            status: "completed",
+            conclusion: "failure",
+          },
           jobs: [
             {
               id: 42,
@@ -290,6 +326,14 @@ describe("CI triage helper", () => {
       expect(result.stderr).not.toContain("api.github.com");
 
       const report = expectJsonStdoutReport<{
+        run: {
+          id: number;
+          url: string;
+          headBranch: string;
+          headSha: string;
+          status: string;
+          conclusion: string;
+        };
         summary: {
           failedJobs: Array<{ localCommands: string[] }>;
         };
@@ -307,6 +351,14 @@ describe("CI triage helper", () => {
           owner: "pr0h0",
           repo: "bpl3",
           runId: 26695335269,
+        },
+        run: {
+          id: 26695335269,
+          url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+          headBranch: "master",
+          headSha: "1234567890abcdef1234567890abcdef12345678",
+          status: "completed",
+          conclusion: "failure",
         },
       });
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
