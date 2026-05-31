@@ -112,6 +112,21 @@ BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm
 BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts
 ```
 
+Sanitizer-backed runtime failures are separate from BPL runtime execution
+timeouts. `bun run test:sanitizers` compiles representative safe programs and
+checked failure paths with `-fsanitize=address,undefined`; the focused file is
+also available when a CI log points at the sanitizer suite directly:
+
+```bash
+bun run test:sanitizers
+bun test tests/CompilerSanitizerRuntime.test.ts
+```
+
+A Bun test timeout in `CompilerSanitizerRuntime.test` means the sanitizer
+harness exceeded its test budget; it is not fixed by `BPL_RUN_TIMEOUT_MS`.
+Use `BPL_RUN_TIMEOUT_MS` only for BPL executable runtime timeouts reported by
+`BinaryRunner` or `runExecutable`.
+
 When package JSON contract, install JSON, or `BPL_LOCKFILE_*` diagnostics fail,
 the triage helper points at the focused package automation checks:
 
