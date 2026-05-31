@@ -59,6 +59,24 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps package resolver JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/PackageResolver.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "package search directory"',
+      'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
+    ];
+
+    expect(localCommandsForStep("PackageResolver.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("CLIJsonParseability.test package search directory"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("global package root failures in JSON-mode check"),
+    ).toEqual(expectedCommands);
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {

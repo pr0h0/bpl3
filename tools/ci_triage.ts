@@ -41,6 +41,16 @@ class CliUsageError extends Error {}
 
 const RELEASE_SMOKE_STEP_PATTERN =
   /(?:ReleaseSmoke\.test|release smoke|release:smoke)/i;
+const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
+  [
+    "PackageResolver\\.test",
+    "CLIJsonParseability\\.test",
+    "package resolver",
+    "package search directory",
+    "global package root failures",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
@@ -74,6 +84,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     RELEASE_SMOKE_STEP_PATTERN,
     "cd <packed-bpl-v3-package> && npm run ci:triage -- --help",
+  ],
+  [PACKAGE_RESOLVER_STEP_PATTERN, "bun test tests/PackageResolver.test.ts"],
+  [
+    PACKAGE_RESOLVER_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package search directory"',
+  ],
+  [
+    PACKAGE_RESOLVER_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
   ],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],
