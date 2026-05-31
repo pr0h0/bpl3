@@ -901,6 +901,44 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports missing package manifests in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const localPackageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const localManifest = path.join(localPackageDir, "bpl.json");
+    const workspacePackageDir = path.join(appDir, "packages", "pkg-math");
+    const homeDir = path.join(tempDir, "home");
+    const globalPackageDir = path.join(homeDir, ".bpl", "packages");
+    const globalPackageRoot = path.join(globalPackageDir, "pkg-math-9.0.0");
+    const sourceFile = path.join(sourceDir, "missing_manifest_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(localPackageDir, { recursive: true });
+    fs.writeFileSync(path.join(localPackageDir, "index.bpl"), "export value;");
+    writePackageFixture(workspacePackageDir, { version: "2.0.0" });
+    writePackageFixture(globalPackageRoot, { version: "9.0.0" });
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile], {
+      env: { HOME: homeDir, USERPROFILE: homeDir },
+    });
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic?.message).toContain("missing bpl.json");
+    expect(diagnostic?.message).toContain(localManifest);
+    expect(diagnostic?.hint).toContain("missing bpl.json");
+    expect(diagnostic?.hint).toContain(localManifest);
+    expect(diagnostic?.hint).not.toContain(workspacePackageDir);
+    expect(diagnostic?.hint).not.toContain(globalPackageRoot);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
