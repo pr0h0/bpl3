@@ -123,6 +123,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_DOCS_FAILED`.
   Focused repro:
   `bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"`.
+- **Completion JSON Contract** - `bpl completion [shell] --json` now emits
+  `completion` reports with the generated shell script on success and
+  `BPL_COMPLETION_SHELL_UNSUPPORTED` for unsupported shells. Focused repro:
+  `bun test tests/CLIJsonParseability.test.ts -t "completion JSON"`.
 - **Bindgen JSON Contract** - `bpl bindgen <header> --json` now emits
   `bindgen` reports with generated binding text or output-file metadata on
   success and stable `BPL_BINDGEN_*` `errorCode` values, including

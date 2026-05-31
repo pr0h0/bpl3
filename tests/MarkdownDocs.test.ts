@@ -610,6 +610,25 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document completion JSON contract", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Completion JSON reports",
+      'check: "completion"',
+      "BPL_COMPLETION_SHELL_UNSUPPORTED",
+      "bun test tests/CLIJsonParseability.test.ts -t \"completion JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

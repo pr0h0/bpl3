@@ -331,6 +331,30 @@ validation failures stay on stdout with `success: false`, `header`,
 JSON contract with `bun test tests/CLI.test.ts -t "bindgen success and
 validation failures as JSON"`.
 
+### `bpl completion [shell]`
+
+Generate Bash or Zsh shell completion scripts.
+
+**Options:**
+
+- `--json`: Output a machine-readable completion report
+
+**Examples:**
+
+```bash
+bpl completion bash
+bpl completion zsh
+bpl completion bash --json
+```
+
+Completion JSON reports are available with `bpl completion [shell] --json`.
+Successful reports emit `schemaVersion: 1`, `check: "completion"`,
+`success: true`, the selected `shell`, and the generated `script` text. JSON
+mode keeps unsupported-shell failures parseable on stdout with
+`success: false`, `shell`, `error`, and
+`BPL_COMPLETION_SHELL_UNSUPPORTED`. Reproduce the focused JSON contract with
+`bun test tests/CLIJsonParseability.test.ts -t "completion JSON"`.
+
 ## Common Flags
 
 Flag availability depends on the command; run `bpl <command> --help` for the exact set.
@@ -345,7 +369,8 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
 - `--json`: Output in JSON format where supported, including `bpl check`,
-  `bpl docs`, `bpl format --check`, `bpl lint`, and `bpl doctor`
+  `bpl completion`, `bpl docs`, `bpl format --check`, `bpl lint`, and
+  `bpl doctor`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 
