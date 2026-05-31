@@ -120,6 +120,8 @@ interface CheckReport {
   success: boolean;
   totalFiles: number;
   errorCount: number;
+  error?: string;
+  errorCode?: string;
   files: Array<{
     file: string;
     success: boolean;
@@ -141,6 +143,8 @@ interface LintReport {
   success: boolean;
   totalFiles: number;
   errorCount: number;
+  error?: string;
+  errorCode?: string;
   files: Array<{
     file: string;
     success: boolean;
@@ -447,6 +451,7 @@ function runPackedPackageSmoke(): void {
     runPackedCheckJsonSmoke(installedBpl);
     runPackedLintJsonSmoke(installedBpl);
     runPackedSourceAnalysisValidationJsonSmoke(installedBpl);
+    runPackedSourceAnalysisNoInputJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runPackedRunScriptListJsonSmoke(installedBpl);
@@ -1323,6 +1328,83 @@ function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void 
       throw new Error(
         [
           "Packed npm CLI source-analysis validation JSON reported unexpected payload.",
+          `check:\n${JSON.stringify(checkReport, null, 2)}`,
+          `lint:\n${JSON.stringify(lintReport, null, 2)}`,
+        ].join("\n"),
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedSourceAnalysisNoInputJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-source-no-input-"));
+
+  try {
+    console.log("release smoke: check packed npm CLI check/lint no-input JSON");
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const checkResult = spawnSync(installedBpl, ["check", "--json"], {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
+    const lintResult = spawnSync(installedBpl, ["lint", "--json"], {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
+
+    if (checkResult.error) throw checkResult.error;
+    if (lintResult.error) throw lintResult.error;
+    if (checkResult.status !== 1 || lintResult.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI source-analysis no-input smoke did not fail as expected.",
+          `check exit: ${checkResult.status ?? "unknown"}`,
+          `check stdout:\n${checkResult.stdout}`,
+          `check stderr:\n${checkResult.stderr}`,
+          `lint exit: ${lintResult.status ?? "unknown"}`,
+          `lint stdout:\n${lintResult.stdout}`,
+          `lint stderr:\n${lintResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (checkResult.stderr !== "" || lintResult.stderr !== "") {
+      throw new Error(
+        [
+          "Packed npm CLI source-analysis no-input JSON wrote stderr.",
+          `check stderr:\n${checkResult.stderr}`,
+          `lint stderr:\n${lintResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    const checkReport = parseCheckReport(checkResult.stdout);
+    const lintReport = parseLintReport(lintResult.stdout);
+    if (
+      checkReport.success ||
+      checkReport.totalFiles !== 0 ||
+      checkReport.errorCount !== 1 ||
+      checkReport.files.length !== 0 ||
+      checkReport.error !== "No files specified." ||
+      checkReport.errorCode !== "BPL_CHECK_NO_INPUTS" ||
+      lintReport.success ||
+      lintReport.totalFiles !== 0 ||
+      lintReport.errorCount !== 1 ||
+      lintReport.files.length !== 0 ||
+      lintReport.error !== "No files specified." ||
+      lintReport.errorCode !== "BPL_LINT_NO_INPUTS"
+    ) {
+      throw new Error(
+        [
+          "Packed npm CLI source-analysis no-input JSON reported unexpected payload.",
           `check:\n${JSON.stringify(checkReport, null, 2)}`,
           `lint:\n${JSON.stringify(lintReport, null, 2)}`,
         ].join("\n"),
