@@ -160,6 +160,7 @@ interface RunScriptFailureReport {
   check: "run-script-list" | "run-script";
   success: boolean;
   error: string;
+  errorCode?: string;
 }
 
 interface BuildReport {
@@ -717,7 +718,8 @@ function runPackedRunScriptFailureJsonSmoke(installedBpl: string): void {
     const report = parseRunScriptFailureReport(result.stdout);
     if (
       report.success ||
-      !report.error.includes("No bpl.json found in current directory")
+      !report.error.includes("No bpl.json found in current directory") ||
+      report.errorCode !== "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND"
     ) {
       throw new Error(
         `Packed npm CLI run-script failure JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,

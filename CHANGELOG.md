@@ -90,6 +90,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Run-Script Validation Repros** - `bun run ci:triage` now maps
   `BPL_RUN_SCRIPT_*` and run-script validation failure logs to focused
   run-script JSON contract repro commands.
+- **Packed Run-Script Validation Smoke** - Release smoke now checks that the
+  packed npm CLI preserves `bpl run-script --json` validation `errorCode`
+  output such as `BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND`.
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.

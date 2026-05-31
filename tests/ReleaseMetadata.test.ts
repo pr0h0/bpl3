@@ -318,6 +318,27 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("fatal: simulated git failure");
   });
 
+  test("release smoke validates packed run-script validation error codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI run-script failure JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedRunScriptFailureJsonSmoke",
+    );
+    expect(releaseSmokeSource).toContain(
+      "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",
+    );
+    expect(releaseSmokeSource).toContain("parseRunScriptFailureReport");
+    expect(releaseSmokeSource).toContain(
+      '["run-script", "--list", "--json"]',
+    );
+  });
+
   test("release smoke guards packed sanitizer doctor JSON contract", async () => {
     const releaseSmoke = (await import("../tools/release_smoke")) as {
       assertSanitizerDoctorContract?: (report: unknown) => void;
