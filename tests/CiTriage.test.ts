@@ -318,6 +318,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package-cache validation JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache version filter"',
+      "bun test tests/PackageJsonFailureContracts.test.ts",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_PACKAGE_CACHE_VERSION_INVALID")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("Package-cache validation failures from clean JSON"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("package-cache version filter errorCode regression"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps wasm runtime execution failures to focused repro commands", () => {
     const expectedCommands = [
       "bun test tests/WasmRuntime.test.ts",
@@ -790,6 +808,18 @@ describe("CI triage helper", () => {
               ],
             },
             {
+              id: 57,
+              name: "Package-cache validation JSON codes",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/57",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_CACHE_VERSION_INVALID package-cache validation failure",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
               id: 52,
               name: "Wasm runtime",
               conclusion: "failure",
@@ -847,6 +877,15 @@ describe("CI triage helper", () => {
       );
       expect(packageManifestJob?.localCommands).toEqual([
         'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
+        "bun test tests/PackageJsonFailureContracts.test.ts",
+        "bun run check",
+      ]);
+
+      const packageCacheJob = report.summary.failedJobs.find(
+        (job) => job.name === "Package-cache validation JSON codes",
+      );
+      expect(packageCacheJob?.localCommands).toEqual([
+        'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache version filter"',
         "bun test tests/PackageJsonFailureContracts.test.ts",
         "bun run check",
       ]);
