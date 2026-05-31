@@ -21,6 +21,7 @@ import {
   findStringPosition,
   getPosition,
 } from "./helpers/lsp";
+import { expectJsonValueHasNoAnsi } from "./helpers/cliJson";
 
 describe("Test Helpers", () => {
   describe("compileAndRun helpers", () => {
@@ -155,6 +156,25 @@ describe("Test Helpers", () => {
       const doc = createTestDocument("test");
       const pos = getPosition(doc, 5, 10);
       expect(pos).toEqual({ line: 5, character: 10 });
+    });
+  });
+
+  describe("CLI JSON helpers", () => {
+    test("detect ANSI escapes in nested JSON strings", () => {
+      expect(() =>
+        expectJsonValueHasNoAnsi({
+          success: false,
+          error: "\u001b[31mcolored error\u001b[0m",
+        }),
+      ).toThrow();
+    });
+
+    test("accept clean nested JSON strings", () => {
+      expectJsonValueHasNoAnsi({
+        success: false,
+        error: "plain error",
+        diagnostics: [{ message: "plain diagnostic" }],
+      });
     });
   });
 });
