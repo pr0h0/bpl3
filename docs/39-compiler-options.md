@@ -171,6 +171,10 @@ untracked build artifacts inside it.
 The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
 to 5000 milliseconds; if the probe fails or times out inside a git repository,
 `bpl clean` refuses to remove files.
+If the current working directory path contains a symbolic-link component,
+`bpl clean` also refuses before the git probe, artifact scan, or any deletion.
+Run clean from the real project path when using launchers that preserve a
+symlink-spelled working directory.
 
 **Options:**
 
@@ -257,7 +261,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`. |
 | `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check: "package-cache-clean"` or `check: "package-cache-repair"`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads. |
 | `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures return the same `schemaVersion`/`check` with `success: false` and `error` on stdout. Named-script validation failures use `check: "run-script"`. |
-| `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
+| `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. Clean validation failures, including symlinked working-directory paths, return `success: false`, `dryRun`, `count: 0`, `entries: []`, and `error` on stdout. |
 | `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data. |
 
 Import-resolution failures use the same diagnostic objects as type errors.

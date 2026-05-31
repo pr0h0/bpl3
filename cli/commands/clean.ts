@@ -53,10 +53,12 @@ export function registerCleanCommand(program: Command): void {
         options: { verbose?: boolean; dryRun?: boolean; json?: boolean },
         command: Command,
       ) => {
+        let outputJson = false;
         try {
           const cwd = process.cwd();
           const globalOpts = command.parent?.opts() || {};
-          const outputJson = options.json || globalOpts.json;
+          outputJson = Boolean(options.json || globalOpts.json);
+          assertNoSymlinkedWorkingDirectoryPath(cwd);
           const entriesToDelete: CleanEntry[] = [];
           const trackedPaths = getGitTrackedPaths(cwd);
           if (!trackedPaths) {
@@ -216,11 +218,55 @@ export function registerCleanCommand(program: Command): void {
             }
           }
         } catch (e) {
-          log.error(`${e instanceof Error ? e.message : String(e)}`);
+          const message = e instanceof Error ? e.message : String(e);
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.clean, false, {
+                  dryRun: Boolean(options.dryRun),
+                  count: 0,
+                  entries: [] as CleanEntry[],
+                  error: message,
+                }),
+                null,
+                2,
+              ),
+            );
+          } else {
+            log.error(message);
+          }
           process.exit(1);
         }
       },
     );
+}
+
+function assertNoSymlinkedWorkingDirectoryPath(cwd: string): void {
+  const symlinkedPath = findSymlinkedPathComponent(cwd);
+  if (!symlinkedPath) return;
+
+  throw new Error(
+    `Clean working directory path contains a symbolic link: ${symlinkedPath}. Run bpl clean from the real project path.`,
+  );
+}
+
+function findSymlinkedPathComponent(targetPath: string): string | null {
+  const absolutePath = path.resolve(targetPath);
+  const rootPath = path.parse(absolutePath).root;
+  const parts = path
+    .relative(rootPath, absolutePath)
+    .split(path.sep)
+    .filter((part) => part.length > 0);
+
+  let currentPath = rootPath;
+  for (const part of parts) {
+    currentPath = path.join(currentPath, part);
+    const stats = tryLstat(currentPath);
+    if (stats?.isSymbolicLink()) return currentPath;
+    if (stats && !stats.isDirectory()) return null;
+  }
+
+  return null;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

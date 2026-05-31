@@ -1322,6 +1322,96 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should refuse to clean through symlinked working-tree parents", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-clean-parent-link-"),
+    );
+    const realRoot = path.join(tempDir, "real-root");
+    const linkedRoot = path.join(tempDir, "linked-root");
+    const realProject = path.join(realRoot, "project");
+    const linkedProject = path.join(linkedRoot, "project");
+    const buildDir = path.join(realProject, "build");
+    const artifact = path.join(realProject, "main.ll");
+    const buildArtifact = path.join(buildDir, "generated.o");
+
+    fs.mkdirSync(buildDir, { recursive: true });
+    fs.writeFileSync(artifact, "; keep ir");
+    fs.writeFileSync(buildArtifact, "keep object");
+    fs.symlinkSync(realRoot, linkedRoot, "dir");
+
+    try {
+      const clean = spawnSync("bun", ["--cwd", linkedProject, BPL_CLI, "clean"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(clean.status).toBe(1);
+      expect(clean.stderr).toContain(
+        "Clean working directory path contains a symbolic link",
+      );
+      expect(clean.stderr).toContain(linkedRoot);
+      expect(fs.readFileSync(artifact, "utf-8")).toBe("; keep ir");
+      expect(fs.readFileSync(buildArtifact, "utf-8")).toBe("keep object");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report clean symlinked working-tree parent failures as JSON", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-clean-parent-link-json-"),
+    );
+    const realRoot = path.join(tempDir, "real-root");
+    const linkedRoot = path.join(tempDir, "linked-root");
+    const realProject = path.join(realRoot, "project");
+    const linkedProject = path.join(linkedRoot, "project");
+    const artifact = path.join(realProject, "main.ll");
+
+    fs.mkdirSync(realProject, { recursive: true });
+    fs.writeFileSync(artifact, "; keep ir");
+    fs.symlinkSync(realRoot, linkedRoot, "dir");
+
+    try {
+      const clean = spawnSync(
+        "bun",
+        ["--cwd", linkedProject, BPL_CLI, "clean", "--dry-run", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(clean.status).toBe(1);
+      expect(clean.stderr).toBe("");
+      const report = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        dryRun: boolean;
+        count: number;
+        entries: Array<{ path: string; type: string }>;
+        error: string;
+      }>(clean);
+      expect(report).toMatchObject({
+        schemaVersion: 1,
+        check: "clean",
+        success: false,
+        dryRun: true,
+        count: 0,
+        entries: [],
+      });
+      expect(report.error).toContain(
+        "Clean working directory path contains a symbolic link",
+      );
+      expect(report.error).toContain(linkedRoot);
+      expect(fs.readFileSync(artifact, "utf-8")).toBe("; keep ir");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should not remove git-tracked files during clean", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-clean-tracked-"),
@@ -1408,7 +1498,14 @@ describe("CLI Tests", () => {
       });
 
       expect(clean.status).toBe(1);
-      expect(clean.stderr).toContain("Could not determine git-tracked files");
+      expect(clean.stderr).toBe("");
+      expect(
+        parseJsonObjectStdout<{ success: boolean; error: string }>(clean),
+      ).toMatchObject({
+        success: false,
+        error:
+          "Could not determine git-tracked files; refusing to clean in a git repository.",
+      });
       expect(fs.existsSync(artifact)).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -1442,7 +1539,14 @@ describe("CLI Tests", () => {
       });
 
       expect(clean.status).toBe(1);
-      expect(clean.stderr).toContain("Could not determine git-tracked files");
+      expect(clean.stderr).toBe("");
+      expect(
+        parseJsonObjectStdout<{ success: boolean; error: string }>(clean),
+      ).toMatchObject({
+        success: false,
+        error:
+          "Could not determine git-tracked files; refusing to clean in a git repository.",
+      });
       expect(fs.existsSync(artifact)).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
