@@ -707,6 +707,59 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package-cache JSON parseable for symlinked cache parents", () => {
+    const homeDir = path.join(tempDir, "cache-parent-link-home");
+    const realBplHome = path.join(tempDir, "real-bpl-home");
+    const linkedBplHome = path.join(homeDir, ".bpl");
+    fs.mkdirSync(homeDir);
+    fs.mkdirSync(path.join(realBplHome, "packages"), { recursive: true });
+    fs.symlinkSync(realBplHome, linkedBplHome, "dir");
+
+    const cases: Array<{
+      args: string[];
+      check: string;
+      expected: Record<string, unknown>;
+    }> = [
+      {
+        args: ["package-cache", "list", "--json"],
+        check: "package-cache-list",
+        expected: { entries: [] },
+      },
+      {
+        args: ["package-cache", "verify", "--json"],
+        check: "package-cache-verify",
+        expected: { ok: false, entriesChecked: 0, issues: [] },
+      },
+      {
+        args: ["package-cache", "clean", "--dry-run", "--json"],
+        check: "package-cache-clean",
+        expected: { removed: [], dryRun: true },
+      },
+      {
+        args: ["package-cache", "repair", "--dry-run", "--json"],
+        check: "package-cache-repair",
+        expected: { dryRun: true, repaired: [], unchanged: [], issues: [] },
+      },
+    ];
+
+    for (const testCase of cases) {
+      const result = runCli(testCase.args, {
+        cwd: tempDir,
+        env: { HOME: homeDir },
+      });
+      const report = expectJsonStdoutReport<{ error: string }>(result, {
+        status: 1,
+        check: testCase.check,
+        success: false,
+      });
+      expect(report).toMatchObject(testCase.expected);
+      expect(report.error).toContain(
+        "Global package directory parent path is a symbolic link",
+      );
+      expect(report.error).toContain(linkedBplHome);
+    }
+  });
+
   test("keeps run-script list JSON stdout parseable", () => {
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
