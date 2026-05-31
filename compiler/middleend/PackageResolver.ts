@@ -57,7 +57,7 @@ export function resolvePackageImport(
     nearestPackageRoot: findNearestPackageRoot(normalizedStartDir),
   };
 
-  const parts = importPath.split(/[\\/]+/);
+  const parts = importPath.split(/[\\/]/);
   if (
     parts.length === 0 ||
     parts.some((part) => part.length === 0 || part === "." || part === "..")

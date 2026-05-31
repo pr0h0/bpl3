@@ -58,6 +58,31 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("package-not-found");
   });
 
+  test("rejects invalid package import path segments before searching", () => {
+    const appDir = path.join(tempDir, "app");
+    fs.mkdirSync(path.join(appDir, "bpl_modules", "math"), { recursive: true });
+
+    for (const importPath of [
+      "",
+      "/math",
+      "math/",
+      "math//feature",
+      ".",
+      "..",
+      "math/./feature",
+      "math/../secret",
+    ]) {
+      const details = resolvePackageImport(importPath, appDir);
+
+      expect(details.result).toBeNull();
+      expect(details.trace.failureReason).toBe("invalid-import");
+      expect(details.trace.failureMessage).toContain(
+        "Package imports cannot contain empty, '.' or '..' path segments.",
+      );
+      expect(details.trace.searchedPaths).toEqual([]);
+    }
+  });
+
   test("does not follow symlinked package roots", () => {
     const appDir = path.join(tempDir, "app");
     const modulesDir = path.join(appDir, "bpl_modules");
