@@ -159,12 +159,19 @@ describe("Markdown documentation", () => {
 
   test("compiler options document machine-readable JSON contracts", () => {
     const text = readFileSync("docs/39-compiler-options.md", "utf8");
+    const normalizedText = text.replace(/\s+/g, " ");
     const requiredSnippets = [
       "### Machine-readable JSON contracts",
       "### CLI JSON compatibility policy",
       "bpl build --json",
+      "include `diagnostics` when the failure comes from compiler diagnostics",
       "bpl check --json",
       'check: "check"',
+      "Import-resolution failures use the same diagnostic objects as type errors",
+      "missing modules, unsafe `std/` paths, and package metadata failures",
+      "`totalFiles` and `errorCount`",
+      "the formatted `error` string for backward compatibility",
+      "a `diagnostics` array with source file locations",
       "bpl lint --json",
       'check: "lint"',
       "bpl doctor --json",
@@ -188,7 +195,7 @@ describe("Markdown documentation", () => {
     ];
 
     for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet);
+      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
     }
   });
 

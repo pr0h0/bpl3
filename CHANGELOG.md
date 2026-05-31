@@ -159,6 +159,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Missing Import Diagnostic Coverage** - Added regressions for missing
   relative imports across `check`, `check --json`, and `build --emit llvm`,
   including resolved-path details and no failed artifacts.
+- **JSON Import Diagnostic Docs** - Documented how `bpl check --json` and
+  `bpl build --json` report import-resolution diagnostics, including build's
+  backward-compatible formatted `error` field plus structured `diagnostics`.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

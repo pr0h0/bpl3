@@ -248,7 +248,7 @@ part of a command's validation path use stdout with `success: false` or
 
 | Command | Stable stdout shape |
 | --- | --- |
-| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout. |
+| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. |
 | `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. |
 | `bpl doctor --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, and `error`. |
@@ -259,6 +259,13 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures return the same `schemaVersion`/`check` with `success: false` and `error` on stdout. Named-script validation failures use `check: "run-script"`. |
 | `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
 | `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data. |
+
+Import-resolution failures use the same diagnostic objects as type errors.
+`bpl check --json` reports missing modules, unsafe `std/` paths, and package
+metadata failures under each file's `diagnostics` array while preserving
+`totalFiles` and `errorCount`. `bpl build --json` reports the first compiler
+diagnostic failure with `success: false`, the formatted `error` string for
+backward compatibility, and a `diagnostics` array with source file locations.
 
 ### CLI JSON compatibility policy
 
