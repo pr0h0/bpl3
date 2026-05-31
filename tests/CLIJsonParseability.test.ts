@@ -831,6 +831,50 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports package subpath symlink-parent failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const outsideFeatureDir = path.join(tempDir, "outside-feature");
+    const linkedFeatureDir = path.join(packageDir, "features");
+    const sourceFile = path.join(sourceDir, "subpath_symlink_parent_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(outsideFeatureDir);
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({
+        name: "pkg-math",
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(outsideFeatureDir, "add.bpl"), "export value;");
+    fs.symlinkSync(outsideFeatureDir, linkedFeatureDir, "dir");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math/features/add";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic?.message).toContain(
+      "subpath 'features/add' resolves to a symbolic link candidate",
+    );
+    expect(diagnostic?.message).toContain(linkedFeatureDir);
+    expect(diagnostic?.message).not.toContain(outsideFeatureDir);
+    expect(diagnostic?.hint).toContain("Searched paths:");
+    expect(diagnostic?.hint).toContain(linkedFeatureDir);
+    expect(diagnostic?.hint).not.toContain(outsideFeatureDir);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
