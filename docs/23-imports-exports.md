@@ -153,6 +153,14 @@ package failures keep package metadata details such as invalid `bpl.json`
 fields, manifest-name mismatches, missing entrypoints, and searched package
 paths.
 
+JSON diagnostics include stable `code` values for import-resolution failures
+that tooling can classify without parsing human text. Missing relative,
+absolute, package, or search-path modules use `BPL_MODULE_NOT_FOUND`; missing
+entry files use `BPL_MODULE_FILE_NOT_FOUND`; directory entry paths use
+`BPL_MODULE_PATH_NOT_FILE`; broken symlink module candidates or entry files use
+`BPL_MODULE_PATH_SYMLINK`; and unsafe explicit standard-library paths use
+`BPL_IMPORT_STD_PATH_UNSAFE`.
+
 Frontend-only outputs such as `bpl build --emit tokens`, `bpl build --emit ast`,
 and `bpl build --emit formatted` parse the source without loading imported
 modules. Use `bpl check` or a normal build when you need import resolution

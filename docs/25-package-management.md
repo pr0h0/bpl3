@@ -384,7 +384,10 @@ resolver can classify the failure. Source-safety failures use
 Regular module import candidates use the same filesystem diagnostics: broken
 symlink candidates are reported as symlinks before extension fallback can import
 a lower-priority `.x` file, while valid symlink imports normalize to their real
-module path.
+module path. Non-package import diagnostics use stable JSON `code` values too:
+`BPL_MODULE_NOT_FOUND`, `BPL_MODULE_FILE_NOT_FOUND`,
+`BPL_MODULE_PATH_NOT_FILE`, `BPL_MODULE_PATH_SYMLINK`, and
+`BPL_IMPORT_STD_PATH_UNSAFE`.
 
 Workspace packages are supported without installing an archive. If an ancestor
 directory contains `packages/<package-name>/bpl.json`, imports can resolve

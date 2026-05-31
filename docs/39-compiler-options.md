@@ -319,6 +319,10 @@ package import failure, the diagnostic includes a stable `code` such as
 `BPL_PACKAGE_MANIFEST_MISSING`, `BPL_PACKAGE_MANIFEST_INVALID`,
 `BPL_PACKAGE_ENTRYPOINT_UNSAFE`, `BPL_PACKAGE_ENTRYPOINT_SYMLINK`, or
 `BPL_PACKAGE_SUBPATH_SYMLINK`.
+Non-package module and standard-library import failures also expose stable
+codes in the same diagnostic objects: `BPL_MODULE_NOT_FOUND`,
+`BPL_MODULE_FILE_NOT_FOUND`, `BPL_MODULE_PATH_NOT_FILE`,
+`BPL_MODULE_PATH_SYMLINK`, and `BPL_IMPORT_STD_PATH_UNSAFE`.
 
 ### CLI JSON compatibility policy
 

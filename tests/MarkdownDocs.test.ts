@@ -8,6 +8,13 @@ import {
   type PackageResolutionFailureReason,
   type PackageResolutionTrace,
 } from "../compiler/middleend/PackageResolver";
+import {
+  IMPORT_STD_PATH_UNSAFE_CODE,
+  MODULE_FILE_NOT_FOUND_CODE,
+  MODULE_NOT_FOUND_CODE,
+  MODULE_PATH_NOT_FILE_CODE,
+  MODULE_PATH_SYMLINK_CODE,
+} from "../compiler/middleend/ModuleResolver";
 
 function trackedMarkdownFiles(): string[] {
   const result = spawnSync("git", ["ls-files", "*.md"], {
@@ -193,6 +200,7 @@ describe("Markdown documentation", () => {
       'check: "check"',
       "Import-resolution failures use the same diagnostic objects as type errors",
       "missing modules, unsafe `std/` paths, and package metadata failures",
+      "Non-package module and standard-library import failures also expose stable codes",
       "`totalFiles` and `errorCount`",
       "the formatted `error` string for backward compatibility",
       "a `diagnostics` array with source file locations",
@@ -424,6 +432,33 @@ describe("Markdown documentation", () => {
     }
     expect(combinedDocs).toContain("include a stable `code`");
     expect(combinedDocs).toContain("the normal diagnostic object shape");
+  });
+
+  test("docs document module import diagnostic codes from resolver constants", () => {
+    const combinedDocs = [
+      readFileSync("docs/23-imports-exports.md", "utf8"),
+      readFileSync("docs/25-package-management.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const expectedCodes = [
+      MODULE_NOT_FOUND_CODE,
+      MODULE_FILE_NOT_FOUND_CODE,
+      MODULE_PATH_NOT_FILE_CODE,
+      MODULE_PATH_SYMLINK_CODE,
+      IMPORT_STD_PATH_UNSAFE_CODE,
+    ];
+
+    for (const code of expectedCodes) {
+      expect(combinedDocs).toContain(code);
+    }
+    expect(combinedDocs).toContain(
+      "JSON diagnostics include stable `code` values for import-resolution failures",
+    );
+    expect(combinedDocs).toContain(
+      "unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`",
+    );
   });
 
   test("imports docs document std path safety rules", () => {
