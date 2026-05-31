@@ -74,6 +74,11 @@ export interface PackageUninstallResult {
   global: boolean;
 }
 
+export interface PackageInitResult {
+  manifest: PackageManifest;
+  manifestPath: string;
+}
+
 export interface PackageArchiveProvenance {
   schemaVersion: 1;
   name: string;
@@ -4303,7 +4308,7 @@ export class PackageManager {
   /**
    * Initialize a new BPL project
    */
-  init(dir: string, name?: string): void {
+  init(dir: string, name?: string): PackageInitResult {
     const manifestPath = path.join(dir, "bpl.json");
     const location: SourceLocation = {
       file: manifestPath,
@@ -4318,12 +4323,17 @@ export class PackageManager {
         `bpl.json already exists in ${dir}`,
         "Delete the existing bpl.json if you want to re-initialize.",
         location,
+        "BPL_PACKAGE_INIT_MANIFEST_EXISTS",
       );
     }
 
     const packageName =
       name !== undefined ? name : defaultPackageNameFromDirectory(dir);
-    validatePackageName(packageName, location);
+    validatePackageName(
+      packageName,
+      location,
+      "BPL_PACKAGE_INIT_NAME_INVALID",
+    );
 
     const manifest: PackageManifest = {
       name: packageName,
@@ -4335,6 +4345,7 @@ export class PackageManager {
     };
 
     this.writeFileAtomically(manifestPath, JSON.stringify(manifest, null, 2));
+    return { manifest, manifestPath };
   }
 }
 

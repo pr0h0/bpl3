@@ -10,6 +10,7 @@ export const CLI_JSON_CHECKS = {
   packageCacheList: "package-cache-list",
   packageCacheRepair: "package-cache-repair",
   packageCacheVerify: "package-cache-verify",
+  packageInit: "package-init",
   packageInstall: "package-install",
   packageList: "package-list",
   packageListTree: "package-list-tree",
@@ -48,6 +49,10 @@ export const CLI_JSON_CONTRACTS = [
   {
     command: "bpl install [package] --json",
     check: CLI_JSON_CHECKS.packageInstall,
+  },
+  {
+    command: "bpl init [name] --json",
+    check: CLI_JSON_CHECKS.packageInit,
   },
   {
     command: "bpl pack [dir] --json",

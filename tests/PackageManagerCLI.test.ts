@@ -41,6 +41,97 @@ describe("Package Manager CLI", () => {
       expect(manifest.version).toBe("1.0.0");
     });
 
+    test("should report init success and failures as JSON", () => {
+      const projectDir = path.join(tempDir, "init-json-project");
+      const existingDir = path.join(tempDir, "init-json-existing");
+      fs.mkdirSync(projectDir);
+      fs.mkdirSync(existingDir);
+      fs.writeFileSync(path.join(existingDir, "bpl.json"), "{}");
+
+      const initResult = spawnSync(
+        "bun",
+        [bplPath, "init", "init-json-test", "--json"],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const initReport = expectJsonStdoutReport<{
+        check: "package-init";
+        success: boolean;
+        package: string;
+        version: string;
+        manifestPath: string;
+      }>(initResult, {
+        status: 0,
+        check: "package-init",
+        success: true,
+      });
+      expect(initReport).toMatchObject({
+        package: "init-json-test",
+        version: "1.0.0",
+        manifestPath: path.join(projectDir, "bpl.json"),
+      });
+      expect(fs.existsSync(path.join(projectDir, "bpl.json"))).toBe(true);
+
+      const invalidResult = spawnSync(
+        "bun",
+        [bplPath, "init", "Bad_Name", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const invalidReport = expectJsonStdoutReport<{
+        check: "package-init";
+        success: boolean;
+        package: string;
+        manifestPath: string;
+        error: string;
+        errorCode: string;
+      }>(invalidResult, {
+        status: 1,
+        check: "package-init",
+        success: false,
+      });
+      expect(invalidReport).toMatchObject({
+        package: "Bad_Name",
+        manifestPath: path.join(tempDir, "bpl.json"),
+        error: expect.stringContaining("Invalid package name"),
+        errorCode: "BPL_PACKAGE_INIT_NAME_INVALID",
+      });
+
+      const existingResult = spawnSync(
+        "bun",
+        [bplPath, "init", "--json"],
+        {
+          cwd: existingDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const existingReport = expectJsonStdoutReport<{
+        check: "package-init";
+        success: boolean;
+        package: null;
+        manifestPath: string;
+        error: string;
+        errorCode: string;
+      }>(existingResult, {
+        status: 1,
+        check: "package-init",
+        success: false,
+      });
+      expect(existingReport).toMatchObject({
+        package: null,
+        manifestPath: path.join(existingDir, "bpl.json"),
+        error: expect.stringContaining("already exists"),
+        errorCode: "BPL_PACKAGE_INIT_MANIFEST_EXISTS",
+      });
+    });
+
     test("should fail if bpl.json already exists", () => {
       fs.writeFileSync("bpl.json", "{}");
 

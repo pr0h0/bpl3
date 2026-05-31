@@ -355,16 +355,62 @@ export function registerPackageCommands(program: Command): void {
   program
     .command("init [name]")
     .description("Initialize a new BPL project")
-    .action((name: string | undefined) => {
-      try {
-        const pm = new PackageManager();
-        pm.init(process.cwd(), name);
-        log.info("Initialized new BPL project");
-      } catch (e) {
-        log.error(formatPackageCommandError(e));
-        process.exit(1);
-      }
-    });
+    .option("--json", "output machine-readable init result")
+    .action(
+      (
+        name: string | undefined,
+        options: { json?: boolean },
+        command: Command,
+      ) => {
+        const globalOpts = command.parent?.opts() || {};
+        const outputJson = Boolean(options.json || globalOpts.json);
+        if (outputJson) {
+          setLogLevel(LogLevel.SILENT);
+        }
+        const manifestPath = path.join(process.cwd(), "bpl.json");
+        try {
+          const pm = new PackageManager();
+          const result = pm.init(process.cwd(), name);
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageInit, true, {
+                  package: result.manifest.name,
+                  version: result.manifest.version,
+                  manifestPath: result.manifestPath,
+                }),
+                null,
+                2,
+              ),
+            );
+            return;
+          }
+          log.info("Initialized new BPL project");
+        } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageInit, false, {
+                  package: name ?? null,
+                  manifestPath,
+                  error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        } finally {
+          if (outputJson) {
+            resetLogLevel();
+          }
+        }
+      },
+    );
 
   // Uninstall command
   program
