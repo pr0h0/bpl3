@@ -35,6 +35,11 @@ export interface TriageSummary {
     failedSteps: GitHubWorkflowStep[];
     localCommands: string[];
   }>;
+  missingJobIds: number[];
+}
+
+export interface TriageSummaryOptions {
+  requestedJobId?: number;
 }
 
 export interface TriageJsonReport {
@@ -207,8 +212,17 @@ export function parseGitHubRunLocator(
 
 export function summarizeWorkflowJobs(
   jobs: GitHubWorkflowJob[],
+  options: TriageSummaryOptions = {},
 ): TriageSummary {
-  const failedJobs = jobs
+  const selectedJobs =
+    options.requestedJobId === undefined
+      ? jobs
+      : jobs.filter((job) => job.id === options.requestedJobId);
+  const missingJobIds =
+    options.requestedJobId !== undefined && selectedJobs.length === 0
+      ? [options.requestedJobId]
+      : [];
+  const failedJobs = selectedJobs
     .filter((job) => job.conclusion === "failure")
     .map((job) => {
       const failedSteps = (job.steps ?? []).filter(
@@ -227,7 +241,7 @@ export function summarizeWorkflowJobs(
       };
     });
 
-  return { failedJobs };
+  return { failedJobs, missingJobIds };
 }
 
 export function localCommandsForStep(stepName: string): string[] {
@@ -244,8 +258,19 @@ export function formatTriageSummary(
     `GitHub Actions triage: ${locator.owner}/${locator.repo} run ${locator.runId}`,
   ];
 
+  if (summary.missingJobIds.length > 0) {
+    lines.push("", "Missing requested jobs:");
+    for (const jobId of summary.missingJobIds) {
+      lines.push(
+        `- job ${jobId} was not returned by GitHub for this run. Recheck the job URL or rerun with the workflow run URL.`,
+      );
+    }
+  }
+
   if (summary.failedJobs.length === 0) {
-    lines.push("No failed jobs found.");
+    if (summary.missingJobIds.length === 0) {
+      lines.push("No failed jobs found.");
+    }
     return `${lines.join("\n")}\n`;
   }
 
@@ -357,10 +382,9 @@ async function main(): Promise<void> {
   const jobs = jobsJsonPath
     ? readWorkflowJobsFromJson(jobsJsonPath)
     : await fetchWorkflowJobs(locator);
-  const selectedJobs = locator.jobId
-    ? jobs.filter((job) => job.id === locator.jobId)
-    : jobs;
-  const summary = summarizeWorkflowJobs(selectedJobs);
+  const summary = summarizeWorkflowJobs(jobs, {
+    requestedJobId: locator.jobId,
+  });
 
   if (json) {
     console.log(

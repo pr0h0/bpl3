@@ -158,6 +158,37 @@ describe("CI triage helper", () => {
     expect(formatted).toContain("bun run test:ci");
   });
 
+  test("reports missing requested jobs explicitly", () => {
+    const jobs: GitHubWorkflowJob[] = [
+      {
+        id: 41,
+        name: "Ubuntu CI",
+        conclusion: "success",
+        steps: [],
+      },
+    ];
+
+    const summary = summarizeWorkflowJobs(jobs, { requestedJobId: 42 });
+    expect(summary.failedJobs).toEqual([]);
+    expect(summary.missingJobIds).toEqual([42]);
+
+    const formatted = formatTriageSummary(
+      { owner: "pr0h0", repo: "bpl3", runId: 1, jobId: 42 },
+      summary,
+    );
+    expect(formatted).toContain("Missing requested jobs:");
+    expect(formatted).toContain(
+      "job 42 was not returned by GitHub for this run",
+    );
+
+    expect(
+      formatTriageJsonReport(
+        { owner: "pr0h0", repo: "bpl3", runId: 1, jobId: 42 },
+        summary,
+      ).summary.missingJobIds,
+    ).toEqual([42]);
+  });
+
   test("formats a versioned JSON report for automation", () => {
     const locator = { owner: "pr0h0", repo: "bpl3", runId: 26695335269 };
     const summary = summarizeWorkflowJobs([
@@ -237,6 +268,45 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0].localCommands).toEqual([
         "bun run test:ci",
       ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints missing requested job JSON from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-missing-job-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [{ id: 41, name: "Ubuntu CI", conclusion: "success" }],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/42",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.locator.jobId).toBe(42);
+      expect(report.summary.failedJobs).toEqual([]);
+      expect(report.summary.missingJobIds).toEqual([42]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
