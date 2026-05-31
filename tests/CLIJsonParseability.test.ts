@@ -425,6 +425,7 @@ describe("CLI JSON parseability", () => {
       }),
     ).toMatchObject({
       error: expect.stringContaining("Unknown doctor scope 'unknown-scope'"),
+      errorCode: "BPL_DOCTOR_SCOPE_UNKNOWN",
     });
   });
 

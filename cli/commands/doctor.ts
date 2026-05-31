@@ -51,6 +51,7 @@ const WASM_RUNTIME_HINT =
 const WASM_LINKER_HINT =
   "Install LLVM lld or set WASM_LD to a working wasm-ld binary before building wasm targets. When BPL_REQUIRE_WASM_LD is unset, missing wasm linker support is an optional prerequisite skip, not a successful wasm execution. Set BPL_REQUIRE_WASM_LD=1 when you want missing wasm linker support to fail instead of skipping runtime execution.";
 const WASM_LINKER_UNAVAILABLE_CODE = "BPL_WASM_LINKER_UNAVAILABLE";
+const DOCTOR_SCOPE_UNKNOWN_CODE = "BPL_DOCTOR_SCOPE_UNKNOWN";
 
 interface DoctorCheck {
   id?: string;
@@ -122,9 +123,21 @@ export function registerDoctorCommand(program: Command, version: string): void {
         }
 
         if (scope) {
-          throw new Error(
-            `Unknown doctor scope '${scope}'. Supported scopes: packages, sanitizer.`,
-          );
+          const message = `Unknown doctor scope '${scope}'. Supported scopes: packages, sanitizer.`;
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.doctor, false, {
+                  error: message,
+                  errorCode: DOCTOR_SCOPE_UNKNOWN_CODE,
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
+          throw new Error(message);
         }
 
         const report = createDoctorReport(version);
