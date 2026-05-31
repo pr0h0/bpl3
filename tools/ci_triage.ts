@@ -185,6 +185,16 @@ const DOCS_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const COMPLETION_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_COMPLETION_SHELL_UNSUPPORTED",
+    "completion JSON",
+    "completion JSON contract",
+    "completion --json",
+    "Unsupported shell",
+  ].join("|"),
+  "i",
+);
 const DOCTOR_SCOPE_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_DOCTOR_SCOPE_UNKNOWN",
@@ -509,6 +519,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "documentation"',
   ],
   [DOCS_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    COMPLETION_JSON_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "completion JSON"',
+  ],
+  [
+    COMPLETION_JSON_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "shell completions"',
+  ],
+  [COMPLETION_JSON_STEP_PATTERN, "bun run check"],
   [
     DOCTOR_SCOPE_JSON_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
