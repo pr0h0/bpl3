@@ -478,6 +478,91 @@ describe("ModuleResolver", () => {
     expect(error.message).toContain("entrypoint was not found");
     expect(error.hint).toContain(path.join(packageDir, "missing-entry.bpl"));
   });
+
+  it("should explain package manifest name mismatches", () => {
+    const appDir = path.join(tempDir, "manifest-mismatch-app");
+    const packageDir = path.join(appDir, "bpl_modules", "broken-package");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify({ name: "manifest-mismatch-app", version: "1.0.0" }, null, 2),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "other-package",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "broken-package";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("manifest name 'other-package'");
+    expect(error.hint).toContain("manifest name 'other-package'");
+    expect(error.hint).toContain(path.join(packageDir, "bpl.json"));
+    expect(error.hint).toContain("Searched paths:");
+  });
+
+  it("should explain packages with unsafe entrypoints", () => {
+    const appDir = path.join(tempDir, "unsafe-entrypoint-app");
+    const packageDir = path.join(appDir, "bpl_modules", "broken-package");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify({ name: "unsafe-entrypoint-app", version: "1.0.0" }, null, 2),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "broken-package",
+          version: "1.0.0",
+          main: "../outside.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "broken-package";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+    });
+
+    expect(error.message).toContain("unsafe entrypoint '../outside.bpl'");
+    expect(error.hint).toContain("unsafe entrypoint '../outside.bpl'");
+    expect(error.hint).toContain("Searched paths:");
+    expect(error.hint).toContain(packageDir);
+  });
 });
 
 function captureCompilerError(action: () => void): CompilerError {

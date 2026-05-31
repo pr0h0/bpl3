@@ -115,6 +115,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Resolver Import Segment Coverage** - Added direct resolver
   regressions for empty, `.`, and `..` package import path segments, including
   proof that invalid imports return before filesystem search.
+- **Package Import Diagnostic Coverage** - Added module resolver regressions so
+  package manifest name mismatches and unsafe package entrypoints keep their
+  detailed hints after import-resolution error wrapping.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
