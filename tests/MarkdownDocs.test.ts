@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, normalize } from "path";
 import { spawnSync } from "child_process";
+import { TIMEOUT_ENV_DEFAULTS } from "../compiler/common/Env";
 
 function trackedMarkdownFiles(): string[] {
   const result = spawnSync("git", ["ls-files", "*.md"], {
@@ -477,5 +478,36 @@ describe("Markdown documentation", () => {
     for (const snippet of requiredSnippets) {
       expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
     }
+  });
+
+  test("sanitizer timeout docs match the shared default", () => {
+    const defaultMs = TIMEOUT_ENV_DEFAULTS.SANITIZER_RUNTIME_TEST_TIMEOUT_MS;
+    const readme = readFileSync("README.md", "utf8");
+    const correctnessDocs = readFileSync(
+      "docs/60-compiler-correctness.md",
+      "utf8",
+    );
+    const compilerOptionsDocs = readFileSync(
+      "docs/39-compiler-options.md",
+      "utf8",
+    );
+
+    for (const text of [readme, correctnessDocs]) {
+      expect(text).toContain(
+        `SANITIZER_RUNTIME_TEST_TIMEOUT_MS=${defaultMs} bun test tests/CompilerSanitizerRuntime.test.ts`,
+      );
+      expect(text).toContain("bpl doctor sanitizer --json");
+      expect(text).toContain("bun run test:sanitizers");
+    }
+
+    expect(correctnessDocs).toContain(
+      `the ${defaultMs}ms default is used`,
+    );
+    expect(compilerOptionsDocs).toContain(
+      `SANITIZER_RUNTIME_TEST_TIMEOUT_MS\` invalid values fall back to ${defaultMs} milliseconds`,
+    );
+    expect(compilerOptionsDocs).toContain(
+      "`bpl doctor --json` reports timeout environment configuration in `timeouts`",
+    );
   });
 });
