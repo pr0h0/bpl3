@@ -804,6 +804,102 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports global package search directory failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const homeDir = path.join(tempDir, "home");
+    const bplHomeDir = path.join(homeDir, ".bpl");
+    const linkedGlobalPackageDir = path.join(bplHomeDir, "packages");
+    const realGlobalPackageDir = path.join(tempDir, "outside-global-packages");
+    const realGlobalPackageRoot = path.join(
+      realGlobalPackageDir,
+      "pkg-math-9.0.0",
+    );
+    const sourceFile = path.join(sourceDir, "global_search_dir_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(bplHomeDir, { recursive: true });
+    fs.mkdirSync(realGlobalPackageRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(realGlobalPackageRoot, "bpl.json"),
+      JSON.stringify({
+        name: "pkg-math",
+        version: "9.0.0",
+        main: "index.bpl",
+      }),
+    );
+    fs.writeFileSync(
+      path.join(realGlobalPackageRoot, "index.bpl"),
+      "export value;",
+    );
+    fs.symlinkSync(realGlobalPackageDir, linkedGlobalPackageDir, "dir");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile], {
+      env: { HOME: homeDir, USERPROFILE: homeDir },
+    });
+    expect(result.status).toBe(1);
+    const report = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      totalFiles: number;
+      errorCount: number;
+      files: Array<{
+        file: string;
+        success: boolean;
+        diagnostics: Array<{
+          message: string;
+          hint: string;
+          location: {
+            file: string;
+            start: { line: number; column: number };
+          };
+        }>;
+      }>;
+    }>(result);
+
+    expect(report).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: false,
+      totalFiles: 1,
+      errorCount: 1,
+      files: [
+        {
+          file: sourceFile,
+          success: false,
+          diagnostics: [
+            {
+              location: {
+                file: sourceFile,
+                start: { line: 1, column: 1 },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const diagnostic = report.files[0]?.diagnostics[0];
+    expect(diagnostic?.message).toContain(
+      "Global package directory path is a symbolic link",
+    );
+    expect(diagnostic?.message).toContain("symbolic link");
+    expect(diagnostic?.message).toContain(linkedGlobalPackageDir);
+    expect(diagnostic?.hint).toContain("Move the symlink out of the way");
+    expect(diagnostic?.hint).not.toContain(linkedGlobalPackageDir);
+    expect(diagnostic?.hint).not.toContain(realGlobalPackageRoot);
+    expect(diagnostic?.message).not.toContain(realGlobalPackageRoot);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
