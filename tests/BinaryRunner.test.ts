@@ -454,6 +454,9 @@ describe("BinaryRunner", () => {
       expect(result.error).toContain(
         "BPL_REQUIRE_WASM_LD=1 requires a wasm linker",
       );
+      expect(result.error).toContain(
+        `Checked candidates: ${process.env.WASM_LD}, wasm-ld`,
+      );
       expect(fs.existsSync(argsLogPath)).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

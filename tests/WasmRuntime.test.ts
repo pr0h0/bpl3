@@ -4,19 +4,16 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 import {
+  findWasmLinker,
+  formatRequiredWasmLinkerError,
+  getWasmLinkerCandidates,
+} from "../cli/WasmToolchain";
+import {
   WASM_FREESTANDING_EXAMPLES,
   WASM_HOSTED_EXAMPLES,
 } from "./helpers/wasmCompatibilityMatrix";
 
 const BPL_CLI = resolve(__dirname, "../index.ts");
-const WASM_LINKER_CANDIDATES = [
-  process.env.WASM_LD,
-  "wasm-ld",
-  "wasm-ld-18",
-  "wasm-ld-17",
-  "wasm-ld-16",
-  "ld.lld",
-].filter((candidate): candidate is string => Boolean(candidate));
 
 type MainExport = (argc: number, argv: number) => number;
 type WasmExports = Record<string, unknown>;
@@ -54,14 +51,7 @@ const REQUIRE_WASM_LINKER = /^(1|true)$/i.test(
   process.env.BPL_REQUIRE_WASM_LD ?? "",
 );
 
-function findStandaloneWasmLinker(): string | undefined {
-  return WASM_LINKER_CANDIDATES.find((candidate) => {
-    const result = spawnSync(candidate, ["--version"], { stdio: "ignore" });
-    return result.status === 0;
-  });
-}
-
-const standaloneWasmLinker = findStandaloneWasmLinker();
+const standaloneWasmLinker = findWasmLinker();
 const wasmIt = standaloneWasmLinker ? it : it.skip;
 
 async function compileWasmSource(
@@ -249,13 +239,7 @@ function getMain(exports: WasmExports): MainExport {
 describe("WebAssembly runtime execution", () => {
   it("has a standalone wasm linker when required by CI", () => {
     if (REQUIRE_WASM_LINKER && !standaloneWasmLinker) {
-      throw new Error(
-        [
-          "BPL_REQUIRE_WASM_LD=1 requires a wasm linker.",
-          `Checked candidates: ${WASM_LINKER_CANDIDATES.join(", ")}`,
-          "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
-        ].join("\n"),
-      );
+      throw new Error(formatRequiredWasmLinkerError(getWasmLinkerCandidates()));
     }
   });
 

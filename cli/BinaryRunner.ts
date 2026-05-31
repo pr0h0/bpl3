@@ -24,9 +24,14 @@ import {
   formatCommandSpawnFailure,
   getProcessErrorCode,
 } from "../compiler/common/ProcessErrors";
+import {
+  findWasmLinker,
+  formatRequiredWasmLinkerError,
+  getWasmLinkerCandidates,
+  getWasmLinkerProbeTimeoutMs,
+} from "./WasmToolchain";
 
 const log = new Logger("BinaryRunner");
-const WASM_LINKER_PROBE_TIMEOUT_MS = 5000;
 
 export function isWasmTarget(target?: string): boolean {
   return isCompilerDriverWasmTarget(target);
@@ -64,50 +69,9 @@ export function getWasmRuntimeMode(
   return "freestanding";
 }
 
-function findWasmLinker(): string | undefined {
-  if (process.env.WASM_LD) {
-    return isUsableWasmLinker(process.env.WASM_LD)
-      ? process.env.WASM_LD
-      : undefined;
-  }
-
-  const candidates = [
-    "wasm-ld",
-    "wasm-ld-18",
-    "wasm-ld-17",
-    "wasm-ld-16",
-    "ld.lld",
-  ];
-
-  return candidates.find(isUsableWasmLinker);
-}
-
-function isUsableWasmLinker(candidate: string): boolean {
-  const result = spawnSync(candidate, ["--version"], {
-    stdio: "ignore",
-    timeout: getWasmLinkerProbeTimeoutMs(),
-  });
-  return result.status === 0;
-}
-
 function isEnvFlagEnabled(value: string | undefined): boolean {
   if (!value) return false;
   return !["0", "false", "no", "off"].includes(value.toLowerCase());
-}
-
-function getWasmLinkerProbeTimeoutMs(): number {
-  const raw = process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
-  if (!raw) return WASM_LINKER_PROBE_TIMEOUT_MS;
-
-  const parsed = Number(raw);
-  if (Number.isSafeInteger(parsed) && parsed > 0) {
-    return parsed;
-  }
-
-  log.warn(
-    `Ignoring invalid BPL_WASM_LINKER_PROBE_TIMEOUT_MS=${raw}; using ${WASM_LINKER_PROBE_TIMEOUT_MS}ms`,
-  );
-  return WASM_LINKER_PROBE_TIMEOUT_MS;
 }
 
 /**
@@ -339,7 +303,14 @@ function buildClangArgs(
   const target = options.target ?? hostDefaults.target;
   const wasmTarget = isWasmTarget(target);
   const wasmRuntimeMode = getWasmRuntimeMode(options, target);
-  const wasmLinker = wasmTarget ? findWasmLinker() : undefined;
+  const wasmLinkerCandidates = getWasmLinkerCandidates();
+  const wasmLinkerProbeTimeoutMs = getWasmLinkerProbeTimeoutMs(
+    process.env,
+    (message) => log.warn(message),
+  );
+  const wasmLinker = wasmTarget
+    ? findWasmLinker(wasmLinkerCandidates, wasmLinkerProbeTimeoutMs)
+    : undefined;
   const linkWasm = Boolean(wasmLinker);
 
   if (
@@ -347,9 +318,7 @@ function buildClangArgs(
     !wasmLinker &&
     isEnvFlagEnabled(process.env.BPL_REQUIRE_WASM_LD)
   ) {
-    throw new Error(
-      "BPL_REQUIRE_WASM_LD=1 requires a wasm linker. Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
-    );
+    throw new Error(formatRequiredWasmLinkerError(wasmLinkerCandidates));
   }
 
   // Debug info

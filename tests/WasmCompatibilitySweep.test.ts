@@ -11,6 +11,11 @@ import {
 import { tmpdir } from "os";
 import { join, relative, resolve } from "path";
 import {
+  findWasmLinker,
+  formatRequiredWasmLinkerError,
+  getWasmLinkerCandidates,
+} from "../cli/WasmToolchain";
+import {
   WASM_COMPATIBILITY_MATRIX,
   WASM_FREESTANDING_EXAMPLES,
   WASM_HOSTED_EXAMPLES,
@@ -20,14 +25,6 @@ import {
 
 const BPL_CLI = resolve(__dirname, "../index.ts");
 const EXAMPLES_DIR = resolve(__dirname, "../examples");
-const WASM_LINKER_CANDIDATES = [
-  process.env.WASM_LD,
-  "wasm-ld",
-  "wasm-ld-18",
-  "wasm-ld-17",
-  "wasm-ld-16",
-  "ld.lld",
-].filter((candidate): candidate is string => Boolean(candidate));
 
 const EXPECTED_MODES: WasmCompatibilityMode[] = [
   "wasm-freestanding",
@@ -75,13 +72,6 @@ const HOST_API_IMPORTS = new Set([
   "wait",
   "write",
 ]);
-
-function findStandaloneWasmLinker(): string | undefined {
-  return WASM_LINKER_CANDIDATES.find((candidate) => {
-    const result = spawnSync(candidate, ["--version"], { stdio: "ignore" });
-    return result.status === 0;
-  });
-}
 
 function findExampleEntrypoints(dir = EXAMPLES_DIR): string[] {
   const results: string[] = [];
@@ -198,7 +188,7 @@ function buildWasmExample(
 }
 
 describe("WebAssembly compatibility sweep", () => {
-  const standaloneWasmLinker = findStandaloneWasmLinker();
+  const standaloneWasmLinker = findWasmLinker();
   const wasmIt = standaloneWasmLinker ? it : it.skip;
   const requireWasmLinker = /^(1|true)$/i.test(
     process.env.BPL_REQUIRE_WASM_LD ?? "",
@@ -206,13 +196,7 @@ describe("WebAssembly compatibility sweep", () => {
 
   it("has a standalone wasm linker when required by CI", () => {
     if (requireWasmLinker && !standaloneWasmLinker) {
-      throw new Error(
-        [
-          "BPL_REQUIRE_WASM_LD=1 requires a wasm linker.",
-          `Checked candidates: ${WASM_LINKER_CANDIDATES.join(", ")}`,
-          "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
-        ].join("\n"),
-      );
+      throw new Error(formatRequiredWasmLinkerError(getWasmLinkerCandidates()));
     }
   });
 

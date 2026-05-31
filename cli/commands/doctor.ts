@@ -20,6 +20,7 @@ import {
   type PackageDependencyTreeNode,
   type PackageDoctorReport,
 } from "../../compiler";
+import { getWasmLinkerCandidates } from "../WasmToolchain";
 import {
   CLI_JSON_CHECKS,
   CLI_JSON_SCHEMA_VERSION,
@@ -191,14 +192,10 @@ function createDoctorReport(version: string): DoctorReport {
     ),
     checkAnyCommand(
       "wasm linker",
-      [
-        [process.env.WASM_LD, ["--version"]],
-        ["wasm-ld", ["--version"]],
-        ["wasm-ld-18", ["--version"]],
-        ["wasm-ld-17", ["--version"]],
-        ["wasm-ld-16", ["--version"]],
-        ["ld.lld", ["--version"]],
-      ],
+      getWasmLinkerCandidates().map((candidate) => [
+        candidate,
+        ["--version"],
+      ]),
       "Install LLVM lld or set WASM_LD to a working wasm-ld binary before building wasm targets.",
       false,
     ),
