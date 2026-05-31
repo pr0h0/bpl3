@@ -140,6 +140,18 @@ interface BuildReport {
   };
 }
 
+interface FuzzArtifactReproPlan {
+  schemaVersion: 1;
+  inputPath: string;
+  entries: Array<{
+    metadataPath: string;
+    sourcePath?: string;
+    seedHex?: string;
+    iteration?: number;
+    commands: string[];
+  }>;
+}
+
 interface NpmPackEntry {
   filename: string;
   name?: string;
@@ -1099,6 +1111,63 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     "fuzz/crashes",
   ]);
 
+  const fuzzCrashDir = join(packageDir, "fuzz", "crashes");
+  const metadataName = "crash_seed-1234_iter-2_tokens.json";
+  mkdirSync(fuzzCrashDir, { recursive: true });
+  writeFileSync(
+    join(fuzzCrashDir, "crash_seed-1234_iter-2_tokens.bpl"),
+    "frame main() ret int { return 0; }\n",
+  );
+  writeFileSync(
+    join(fuzzCrashDir, metadataName),
+    JSON.stringify(
+      {
+        seed: 0x1234,
+        iteration: 2,
+        kind: "tokens",
+        failureKind: "crash",
+        stage: "typecheck",
+        message: "packed helper smoke",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  const fuzzReproJson = runStep(
+    "check packed npm CLI fuzz artifact repro JSON",
+    "npm",
+    [
+      "run",
+      "--silent",
+      "fuzz:repro",
+      "--",
+      "--input",
+      "fuzz/crashes",
+      "--repo-root",
+      packageDir,
+      "--json",
+    ],
+    { cwd: packageDir, bplHome: null },
+  );
+  const fuzzReproPlan = parseFuzzArtifactReproPlan(fuzzReproJson.stdout);
+  const fuzzReproEntry = fuzzReproPlan.entries[0];
+  if (
+    fuzzReproPlan.inputPath !== "fuzz/crashes" ||
+    fuzzReproEntry?.metadataPath !== `fuzz/crashes/${metadataName}` ||
+    fuzzReproEntry.sourcePath !==
+      "fuzz/crashes/crash_seed-1234_iter-2_tokens.bpl" ||
+    fuzzReproEntry.seedHex !== "0x1234" ||
+    fuzzReproEntry.iteration !== 2 ||
+    !fuzzReproEntry.commands.includes(
+      "bun run fuzz -- --iterations 3 --seeds 0x1234 --minimize true --minimize-passes 8",
+    )
+  ) {
+    throw new Error(
+      `Packed npm CLI fuzz artifact repro JSON reported unexpected payload:\n${JSON.stringify(fuzzReproPlan, null, 2)}`,
+    );
+  }
+
   runExpectedFailureStep(
     "check packed npm CLI fuzz artifact repro usage errors",
     "npm",
@@ -1684,6 +1753,40 @@ function parseBuildReport(stdout: string): BuildReport {
     throw new Error(
       [
         "Build command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseFuzzArtifactReproPlan(stdout: string): FuzzArtifactReproPlan {
+  try {
+    const report = JSON.parse(stdout) as FuzzArtifactReproPlan;
+    if (
+      report.schemaVersion !== 1 ||
+      typeof report.inputPath !== "string" ||
+      !Array.isArray(report.entries)
+    ) {
+      throw new Error(
+        `fuzz artifact repro JSON contract mismatch: ${JSON.stringify(
+          {
+            schemaVersion: report.schemaVersion,
+            inputPath: report.inputPath,
+            entries: Array.isArray(report.entries)
+              ? report.entries.length
+              : typeof report.entries,
+          },
+          null,
+          2,
+        )}`,
+      );
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Fuzz artifact repro did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

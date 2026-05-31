@@ -194,6 +194,24 @@ describe("Release metadata", () => {
     }
   });
 
+  test("release helper smoke validates packed fuzz repro JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI fuzz artifact repro JSON",
+    );
+    expect(releaseSmokeSource).toContain('["run", "fuzz:repro", "--"');
+    expect(releaseSmokeSource).toContain("--json");
+    expect(releaseSmokeSource).toContain("schemaVersion");
+    expect(releaseSmokeSource).toContain("bun run fuzz -- --iterations");
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI CI triage helper",
+    );
+  });
+
   test("release manifest records checksums for shipped artifacts", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 
