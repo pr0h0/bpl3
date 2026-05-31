@@ -11,11 +11,15 @@ Print the compiler version.
 ```bash
 bpl --version
 bpl --version --json
+bpl --json --version
 ```
 
-`bpl --version --json` reports `schemaVersion: 1`, `check: "version"`,
-`success: true`, and the package `version` on stdout. Plain `bpl --version`
-keeps the existing human-readable version output.
+Version JSON reports are available with `bpl --version --json` or
+`bpl --json --version`. Successful reports emit `schemaVersion: 1`,
+`check: "version"`, `success: true`, and the package `version` on stdout.
+Plain `bpl --version` keeps the existing human-readable version output.
+Reproduce the focused JSON contract with
+`bun test tests/CLIJsonParseability.test.ts -t "version JSON"`.
 
 ### `bpl run <file> [args...]`
 
@@ -381,9 +385,9 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
-- `--json`: Output in JSON format where supported, including `bpl check`,
-  `bpl completion`, `bpl docs`, `bpl format --check`, `bpl lint`, and
-  `bpl doctor`
+- `--json`: Output in JSON format where supported, including `bpl --version`,
+  `bpl check`, `bpl completion`, `bpl docs`, `bpl format --check`,
+  `bpl lint`, and `bpl doctor`
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 

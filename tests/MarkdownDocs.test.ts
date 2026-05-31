@@ -629,6 +629,26 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document version JSON contract", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Version JSON reports",
+      "bpl --version --json",
+      "bpl --json --version",
+      'check: "version"',
+      "bun test tests/CLIJsonParseability.test.ts -t \"version JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

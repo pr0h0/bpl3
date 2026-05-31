@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Version JSON Contract** - `bpl --version --json` and
+  `bpl --json --version` now emit a stable `version` report with
+  `schemaVersion`, `check`, `success`, and `version` fields. Focused repro:
+  `bun test tests/CLIJsonParseability.test.ts -t "version JSON"`.
 - **Hosted Wasm Regression Example** - Added `examples/wasm_hosted_transform`
   to exercise argv, stdout/stderr, stdlib `String`, enum matching, generics, and
   lambda capture through both native integration tests and hosted wasm runtime
