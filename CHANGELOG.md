@@ -63,6 +63,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl clean --dry-run --json` now include stable `schemaVersion: 1`,
   `check: "clean"`, and `success` fields alongside existing `dryRun`, `count`,
   and `entries` fields.
+- **Package Cache Maintenance JSON Stability** - `bpl package-cache clean
+  --json` and `bpl package-cache repair --json` now include stable
+  `schemaVersion: 1`, `check`, and `success` fields alongside existing
+  removed/repaired/unchanged/issues payloads.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

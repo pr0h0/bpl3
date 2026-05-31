@@ -342,7 +342,9 @@ JSON output, package-cache doctor issues use
 repair hint for CI annotations.
 
 `package-cache repair` regenerates missing or malformed provenance sidecars for
-valid cached archives. It refuses to repair archive hash mismatches or manifest
+valid cached archives. Its JSON result uses `schemaVersion: 1`,
+`check: "package-cache-repair"`, `success`, `dryRun`, `repaired`, `unchanged`,
+and `issues`. It refuses to repair archive hash mismatches or manifest
 mismatches because those states may indicate a stale or damaged archive; clean
 and repack those entries instead. `--package-version` filters expect one exact
 cached version in `X.Y.Z` form; dependency ranges such as `^1.2.3` belong in
@@ -351,7 +353,8 @@ cached version in `X.Y.Z` form; dependency ranges such as `^1.2.3` belong in
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a
 cached archive has a provenance sidecar, `package-cache clean` removes both
-files together. Use `--json` to return the same removed archive list and dry-run
+files together. Use `--json` to return `schemaVersion: 1`,
+`check: "package-cache-clean"`, `success`, the removed archive list, and dry-run
 state in machine-readable form.
 
 ## Package Scripts

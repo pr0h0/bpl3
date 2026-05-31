@@ -914,6 +914,9 @@ describe("Package Manager CLI", () => {
       );
       expect(dryRunCleanJson.status).toBe(0);
       const cleanReport = JSON.parse(dryRunCleanJson.stdout);
+      expect(cleanReport.schemaVersion).toBe(1);
+      expect(cleanReport.check).toBe("package-cache-clean");
+      expect(cleanReport.success).toBe(true);
       expect(cleanReport.dryRun).toBe(true);
       expect(
         cleanReport.removed.map((entry: { version: string }) => entry.version),
@@ -989,7 +992,12 @@ describe("Package Manager CLI", () => {
       );
       expect(repairResult.status).toBe(0);
       const repair = JSON.parse(repairResult.stdout);
+      expect(repair.schemaVersion).toBe(1);
+      expect(repair.check).toBe("package-cache-repair");
+      expect(repair.success).toBe(true);
+      expect(repair.dryRun).toBe(false);
       expect(repair.repaired.length).toBe(1);
+      expect(repair.unchanged).toEqual([]);
       expect(repair.issues).toEqual([]);
 
       const verifyResult = spawnSync(

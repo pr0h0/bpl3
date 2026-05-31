@@ -166,6 +166,8 @@ describe("Markdown documentation", () => {
       "bpl doctor --json",
       "bpl doctor packages --json",
       "bpl package-cache verify [package] --json",
+      "bpl package-cache clean [package] --json",
+      "bpl package-cache repair [package] --json",
       "bpl run-script --list --json",
       "bpl clean --dry-run --json",
       "`schemaVersion`",

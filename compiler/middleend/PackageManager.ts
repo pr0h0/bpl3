@@ -150,6 +150,9 @@ export interface PackageCacheEntry {
 }
 
 export interface PackageCacheCleanResult {
+  schemaVersion: 1;
+  check: "package-cache-clean";
+  success: boolean;
   removed: PackageCacheEntry[];
   dryRun: boolean;
 }
@@ -181,6 +184,9 @@ export interface PackageCacheVerificationReport {
 }
 
 export interface PackageCacheRepairResult {
+  schemaVersion: 1;
+  check: "package-cache-repair";
+  success: boolean;
   dryRun: boolean;
   repaired: PackageCacheEntry[];
   unchanged: PackageCacheEntry[];
@@ -3245,6 +3251,9 @@ export class PackageManager {
     }
 
     return {
+      schemaVersion: 1,
+      check: "package-cache-clean",
+      success: true,
       removed,
       dryRun: Boolean(options.dryRun),
     };
@@ -3485,6 +3494,9 @@ export class PackageManager {
     }
 
     return {
+      schemaVersion: 1,
+      check: "package-cache-repair",
+      success: issues.length === 0,
       dryRun: Boolean(options.dryRun),
       repaired,
       unchanged,
