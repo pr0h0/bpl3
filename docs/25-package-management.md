@@ -162,7 +162,8 @@ or test fixtures. Lockfiles are schema-validated before install, verify, doctor,
 or repair commands use them; malformed entries fail early with an
 `Invalid bpl.lock` diagnostic. Symlinked `bpl.lock` paths, including broken
 symlinks, are rejected before verification so package checks never follow a
-lockfile outside the project.
+lockfile outside the project, and before project installs decide whether there
+is anything to restore or install.
 
 To restore exactly what is recorded in `bpl.lock`, run:
 

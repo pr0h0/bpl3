@@ -163,6 +163,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-154 | Package Manager     | Lock verification treats symlinked recorded package sources as reachable.                                                  | Fixed    | Lock source reachability now requires a real regular file, so `bpl install --locked` reports symlinked recorded sources as unreachable instead of accepting sources that restore/install would reject. Regression: `tests/PackageManager.test.ts`.                                          |
 | BUG-155 | Package Manager     | Lock verification accepts installed transitive dependencies that are missing from `bpl.lock`.                              | Fixed    | `verifyLockFile()` now reports `missing-transitive-lock-entry` when an installed package manifest depends on another installed package that is not recorded in the lockfile. Regression: `tests/PackageManager.test.ts`.                                                                    |
 | BUG-156 | Package Manager     | Broken symlink `bpl.lock` paths are reported as missing lockfiles during locked verification.                              | Fixed    | `verifyLockFile()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before loading the lockfile, so broken and valid-target symlinks are both rejected. Regression: `tests/PackageManager.test.ts`.                                                            |
+| BUG-157 | Package Manager     | Plain project install ignores broken symlink `bpl.lock` paths when no dependencies need installing.                        | Fixed    | `installProject()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before restore or no-op install decisions. Regression: `tests/PackageManager.test.ts`.                                                                                                  |
 
 ## Details
 
@@ -2349,3 +2350,36 @@ bpl install --locked
 **Resolution**: `verifyLockFile()` now uses `lstat` to decide whether the
 lockfile path exists before delegating to `loadLockFile()`, preserving the
 existing symbolic-link rejection for both valid-target and broken symlinks.
+
+---
+
+### BUG-157: Project Install Ignores Broken Symlink Lockfiles
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Plain `bpl install` used `fs.existsSync()` to decide whether a
+project lockfile should be restored before resolving `bpl.json` dependencies.
+For a dependency-free project, a broken symlink at `bpl.lock` was treated as no
+lockfile at all, so install returned "No dependencies to install" instead of
+rejecting the unsafe lockfile path.
+
+**Reproduction**:
+
+```bash
+mkdir app
+printf '{"name":"app","version":"1.0.0"}\n' > app/bpl.json
+ln -s ../missing-lock.json app/bpl.lock
+cd app
+bpl install
+```
+
+**Expected**: Project install rejects `bpl.lock` as a symbolic link.
+
+**Actual**: Project install ignored the broken symlink and reported no
+dependencies to install.
+
+**Resolution**: `installProject()` now uses `lstat` before restore or no-op
+decisions, matching the stricter lockfile checks used by `loadLockFile()` and
+locked verification.

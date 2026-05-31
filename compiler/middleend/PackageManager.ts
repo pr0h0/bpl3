@@ -1137,7 +1137,7 @@ export class PackageManager {
     }
 
     const lockPath = this.getLockFilePath();
-    if (fs.existsSync(lockPath) && !options.update) {
+    if (this.tryLstat(lockPath) && !options.update) {
       const lock = this.loadLockFile();
       const entries = Object.entries(lock.packages);
       if (entries.length > 0) {

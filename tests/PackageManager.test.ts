@@ -1777,6 +1777,75 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject broken symlink lockfiles before project install mutates packages", () => {
+      const packageDir = path.join(tempDir, "broken-lock-install-pkg");
+      const appDir = path.join(tempDir, "broken-lock-install-app");
+      const lockPath = path.join(appDir, "bpl.lock");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "broken-lock-install-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "broken-lock-install-app",
+            version: "1.0.0",
+            dependencies: {
+              "broken-lock-install-pkg": `file:${tarballPath}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.symlinkSync(path.join(tempDir, "missing-lock-target.json"), lockPath);
+
+      const localPM = new PackageManager(appDir);
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false }),
+      ).toThrow(/symbolic link/);
+      expect(
+        fs.existsSync(
+          path.join(appDir, "bpl_modules", "broken-lock-install-pkg"),
+        ),
+      ).toBe(false);
+    });
+
+    test("should reject broken symlink lockfiles during project install without dependencies", () => {
+      const appDir = path.join(tempDir, "broken-lock-empty-install-app");
+      const lockPath = path.join(appDir, "bpl.lock");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "broken-lock-empty-install-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.symlinkSync(path.join(tempDir, "missing-empty-lock.json"), lockPath);
+
+      expect(() =>
+        new PackageManager(appDir).installProject({
+          global: false,
+          verbose: false,
+        }),
+      ).toThrow(/symbolic link/);
+    });
+
     test("should verify installed packages against bpl.lock", () => {
       const manifest = {
         name: "verify-test-pkg",
