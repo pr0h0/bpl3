@@ -168,6 +168,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-159 | Package Manager     | Dependency-tree generation ignores broken symlink `bpl.lock` paths and reports packages as unlocked.                       | Fixed    | `getDependencyTree()` now uses `lstat` to detect existing local lockfile paths before loading them, so symlinked and broken symlink lockfiles are rejected consistently. Regression: `tests/PackageManager.test.ts`.                                                                        |
 | BUG-160 | Package Manager     | Dependency-tree generation follows symlinked package roots in `bpl_modules`.                                               | Fixed    | Dependency-tree node construction now classifies package roots with `lstat` and reports symlinked or non-directory roots as problems without loading manifests through them. Regression: `tests/PackageManager.test.ts`.                                                                    |
 | BUG-161 | Package Manager     | Package-cache clean leaves broken symlink provenance sidecars behind.                                                      | Fixed    | `cleanPackageCache()` now uses `lstat` to remove provenance sidecars, including broken symlinks, before deleting cached archives. Regression: `tests/PackageManager.test.ts`.                                                                                                               |
+| BUG-162 | Package Manager     | Broken symlink package `bin` entries are reported as missing files during pack.                                             | Fixed    | `validatePackageBinFile()` now uses `lstat` before missing-file classification so broken symlink bin entries are rejected as unsupported symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                              |
 
 ## Details
 
@@ -2512,3 +2513,32 @@ sidecar.
 **Resolution**: `cleanPackageCache()` now uses `lstat` for provenance sidecar
 removal, so valid-target symlinks, broken symlinks, malformed directories, and
 regular sidecar files are all cleaned without following symlink targets.
+
+---
+
+### BUG-162: Broken Symlink Package Bin Entries Report As Missing
+
+**Status**: Fixed
+
+**Category**: Package Manager/Diagnostics
+
+**Description**: `validatePackageBinFile()` used `fs.existsSync()` before
+calling `lstat` on a package `bin` path. Since `existsSync()` follows symlinks,
+a broken symlink `bin` entry was reported as a missing file even though
+symlinked `bin` entries are unsupported whether their targets exist or not.
+
+**Reproduction**:
+
+```bash
+mkdir -p bin
+ln -s ../missing-tool.sh bin/tool.sh
+bpl pack
+```
+
+**Expected**: Pack rejects `bin/tool.sh` as an unsupported symlink bin entry.
+
+**Actual**: Pack reported `bin/tool.sh` as missing.
+
+**Resolution**: `validatePackageBinFile()` now uses `lstat` before deciding
+whether a `bin` path is missing, preserving the same symlink rejection for
+valid-target and broken symlink entries.

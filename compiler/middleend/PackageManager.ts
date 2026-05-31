@@ -1645,8 +1645,9 @@ export class PackageManager {
       endColumn: 1,
     };
     const fullPath = this.resolvePackageRelativePath(packageDir, relativePath);
+    const binaryStat = this.tryLstat(fullPath);
 
-    if (!fs.existsSync(fullPath)) {
+    if (!binaryStat) {
       throw new CompilerError(
         `Missing package bin entry: ${relativePath}`,
         "Package bin entries must point to regular files included in the package.",
@@ -1654,7 +1655,6 @@ export class PackageManager {
       );
     }
 
-    const binaryStat = fs.lstatSync(fullPath);
     if (binaryStat.isSymbolicLink()) {
       throw new CompilerError(
         `Unsupported package bin entry: ${relativePath}`,

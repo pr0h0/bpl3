@@ -72,11 +72,11 @@ my-package/
 `src/index.bpl` is the public package entry point. Keep exports there small and
 intentional so editor tooling, package consumers, and cache invalidation all see
 a stable API surface. `bpl pack` does not follow symlinked source files and
-rejects symlinked `bin` entries, so package archives contain only regular files
-from inside the package root. When installing package binaries, BPL only creates
-or replaces symlink entries in `bpl_modules/.bin` or the global BPL bin
-directory; an existing regular file or directory with the same command name is
-rejected and left untouched.
+rejects symlinked `bin` entries, including broken symlinks, so package archives
+contain only regular files from inside the package root. When installing package
+binaries, BPL only creates or replaces symlink entries in `bpl_modules/.bin` or
+the global BPL bin directory; an existing regular file or directory with the
+same command name is rejected and left untouched.
 
 To create a package manually:
 

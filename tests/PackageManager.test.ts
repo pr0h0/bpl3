@@ -732,6 +732,33 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should reject broken symlink package bin entries as symlinks", () => {
+      fs.mkdirSync(path.join(tempDir, "bin"));
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          {
+            name: "broken-symlink-bin-package",
+            version: "1.0.0",
+            bin: {
+              tool: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync("index.bpl", "export test;");
+      fs.symlinkSync(
+        path.join(tempDir, "missing-tool.sh"),
+        path.join(tempDir, "bin", "tool.sh"),
+      );
+
+      expect(() => packageManager.pack(tempDir)).toThrow(
+        /Unsupported package bin entry/,
+      );
+    });
+
     test("should reject missing package bin entries", () => {
       const packageDir = path.join(tempDir, "missing-bin-package");
       fs.mkdirSync(packageDir);
