@@ -64,6 +64,9 @@ describe("Wasm toolchain helpers", () => {
       "Skipping wasm runtime execution: no usable standalone wasm linker found.",
     );
     expect(message).toContain(
+      "This is an optional prerequisite skip, not a successful wasm execution.",
+    );
+    expect(message).toContain(
       "Checked candidates: /opt/llvm/bin/wasm-ld-custom, wasm-ld",
     );
     expect(message).toContain("Set BPL_REQUIRE_WASM_LD=1");

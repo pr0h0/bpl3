@@ -82,8 +82,10 @@ bun run ci:triage -- --json --jobs-json jobs.json <run-id>
 ```
 
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
-suite, the CI-required linker mode, and the local doctor report command. Direct
-`WasmRuntime.test` failures also include the focused runtime test file:
+suite, the CI-required linker mode, and the local doctor report command. When
+no linker is installed, optional local runs report an optional prerequisite
+skip, not a successful wasm execution. Direct `WasmRuntime.test` failures also
+include the focused runtime test file:
 
 ```bash
 bun test tests/WasmRuntime.test.ts

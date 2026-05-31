@@ -694,7 +694,8 @@ source of truth for CI. Each tracked example is marked as `wasm-freestanding`,
 `wasm-hosted`, `blocked-by-host-api`, or `native-only`. Run it locally with
 `bun run test:wasm`; this keeps wasm runtime checks skippable when no wasm
 linker is installed and prints the checked linker candidates plus the exact
-`WASM_LD`/`BPL_REQUIRE_WASM_LD` next step. Run
+`WASM_LD`/`BPL_REQUIRE_WASM_LD` next step. The skip is reported as an optional
+prerequisite skip, not a successful wasm execution. Run
 `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` to match CI and fail immediately when
 `wasm-ld` or `WASM_LD` cannot be used.
 

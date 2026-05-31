@@ -76,6 +76,7 @@ export function formatOptionalWasmRuntimeSkipMessage(
 ): string {
   return [
     "Skipping wasm runtime execution: no usable standalone wasm linker found.",
+    "This is an optional prerequisite skip, not a successful wasm execution.",
     `Checked candidates: ${candidates.join(", ")}`,
     "Set BPL_REQUIRE_WASM_LD=1 to fail instead of skipping.",
     "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",

@@ -12,6 +12,7 @@ import { tmpdir } from "os";
 import { join, relative, resolve } from "path";
 import {
   findWasmLinker,
+  formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
 } from "../cli/WasmToolchain";
@@ -201,6 +202,22 @@ describe("WebAssembly compatibility sweep", () => {
     if (requireWasmLinker && !standaloneWasmLinker) {
       throw new Error(formatRequiredWasmLinkerError(getWasmLinkerCandidates()));
     }
+  });
+
+  it("formats optional compatibility skip diagnostics as non-execution", () => {
+    const message = formatOptionalWasmRuntimeSkipMessage([
+      "/opt/llvm/bin/wasm-ld-custom",
+      "wasm-ld",
+    ]);
+
+    expect(message).toContain(
+      "This is an optional prerequisite skip, not a successful wasm execution.",
+    );
+    expect(message).toContain(
+      "Checked candidates: /opt/llvm/bin/wasm-ld-custom, wasm-ld",
+    );
+    expect(message).toContain("Set BPL_REQUIRE_WASM_LD=1");
+    expect(message).toContain("set WASM_LD");
   });
 
   it("discovers all example entrypoints and validates the wasm compatibility matrix", () => {

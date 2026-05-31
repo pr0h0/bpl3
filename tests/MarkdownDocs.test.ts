@@ -384,6 +384,7 @@ describe("Markdown documentation", () => {
       "bun run test:wasm",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
       "prints the checked linker candidates",
+      "optional prerequisite skip, not a successful wasm execution",
       "Start with `bpl doctor --json` to see the same `BPL_WASM_LINKER_UNAVAILABLE` code, candidates, environment, and recommended commands",
       "Use `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` after doctor output to reproduce CI's required-linker behavior locally",
       "tests/helpers/wasmCompatibilityMatrix.ts",
