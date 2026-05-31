@@ -563,6 +563,7 @@ function runPackedPackageSmoke(): void {
         : join(installDir, "node_modules", ".bin", "bpl");
 
     runPackedVersionJsonSmoke(installedBpl, installDir, packEntry.version);
+    runPackedHelpSmoke(installedBpl, installDir);
 
     const doctor = runStep(
       "check packed npm CLI doctor JSON",
@@ -664,6 +665,75 @@ function assertReleaseManifest(
   );
   if (!npmArtifact?.npmIntegrity || !npmArtifact.npmShasum) {
     throw new Error("Release manifest is missing npm package integrity data.");
+  }
+}
+
+function runPackedHelpSmoke(installedBpl: string, installDir: string): void {
+  const cases: Array<{
+    label: string;
+    args: string[];
+    snippets: string[];
+  }> = [
+    {
+      label: "check packed npm CLI help output",
+      args: ["--help"],
+      snippets: [
+        "Usage: bpl [options] [command] [files...]",
+        "-V, --version",
+        "--json",
+        "run-script|rs",
+        "package-cache",
+        "doctor [options] [scope]",
+      ],
+    },
+    {
+      label: "check packed npm CLI build help output",
+      args: ["build", "--help"],
+      snippets: [
+        "Usage: bpl build [options] <file>",
+        "--emit <type>",
+        "--wasm-runtime <mode>",
+        "--cache-stats",
+        "--json",
+      ],
+    },
+    {
+      label: "check packed npm CLI check help output",
+      args: ["check", "--help"],
+      snippets: [
+        "Usage: bpl check [options] [files...]",
+        "--json",
+        "--time",
+        "--no-prelude",
+      ],
+    },
+    {
+      label: "check packed npm CLI package-cache help output",
+      args: ["package-cache", "--help"],
+      snippets: [
+        "Usage: bpl package-cache [options] [command]",
+        "list [options] [package]",
+        "verify [options] [package]",
+        "repair [options] [package]",
+      ],
+    },
+  ];
+
+  for (const helpCase of cases) {
+    const result = runStep(helpCase.label, installedBpl, helpCase.args, {
+      cwd: installDir,
+      bplHome: null,
+    });
+    if (result.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI help wrote stderr for ${helpCase.label}:\n${result.stderr}`,
+      );
+    }
+    assertOutputContains(result.stdout, [
+      "Usage:",
+      "-h, --help",
+      ...helpCase.snippets,
+    ]);
   }
 }
 

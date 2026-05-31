@@ -443,6 +443,20 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["--json", "--version"]');
   });
 
+  test("release smoke validates packed CLI help output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain("check packed npm CLI help output");
+    expect(releaseSmokeSource).toContain("runPackedHelpSmoke");
+    expect(releaseSmokeSource).toContain('["--help"]');
+    expect(releaseSmokeSource).toContain('["build", "--help"]');
+    expect(releaseSmokeSource).toContain('["check", "--help"]');
+    expect(releaseSmokeSource).toContain('["package-cache", "--help"]');
+  });
+
   test("release smoke validates packed check and lint no-input error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
