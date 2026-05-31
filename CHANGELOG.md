@@ -165,6 +165,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Build JSON Type Diagnostic Coverage** - Added regression coverage that
   ordinary `bpl build --json` type-check failures include structured
   diagnostics with source locations and previews while preserving `error`.
+- **Virtual Source JSON Diagnostic Coverage** - Added `--eval` and `--stdin`
+  JSON-mode build failure coverage for stable `<eval>`/`<stdin>` labels and
+  source previews.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

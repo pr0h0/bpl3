@@ -9,12 +9,13 @@ const BPL_CLI = path.join(process.cwd(), "index.ts");
 
 function runCli(
   args: string[],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+  options: { cwd?: string; env?: NodeJS.ProcessEnv; input?: string } = {},
 ): SpawnSyncReturns<string> {
   return spawnSync("bun", [BPL_CLI, ...args], {
     cwd: options.cwd,
     encoding: "utf-8",
     env: { ...process.env, NO_COLOR: "1", ...options.env },
+    input: options.input,
   });
 }
 
@@ -449,6 +450,59 @@ describe("CLI JSON parseability", () => {
     expect(packageReport.diagnostics[0]?.hint).toContain("Searched paths:");
     expect(fs.existsSync(`${packageOutput}.ll`)).toBe(false);
     expect(fs.existsSync(packageOutput)).toBe(false);
+  });
+
+  test("reports virtual source diagnostics in JSON-mode build failures", () => {
+    const source = [
+      "frame main() {",
+      '    local value: int = "not an int";',
+      "}",
+    ].join("\n");
+
+    const expectVirtualDiagnostic = (
+      result: SpawnSyncReturns<string>,
+      file: "<eval>" | "<stdin>",
+    ) => {
+      expect(result.status).toBe(1);
+      const report = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          message: string;
+          location: {
+            file: string;
+            start: { line: number; column: number };
+          };
+          source?: { line: string };
+        }>;
+      }>(result);
+      expect(report).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file,
+        diagnostics: [
+          {
+            location: {
+              file,
+              start: { line: 2, column: 5 },
+            },
+            source: {
+              line: '    local value: int = "not an int";',
+            },
+          },
+        ],
+      });
+      expect(report.diagnostics[0]?.message).toContain("Type mismatch");
+    };
+
+    expectVirtualDiagnostic(runCli(["--eval", source, "--json"]), "<eval>");
+    expectVirtualDiagnostic(
+      runCli(["--stdin", "--json"], { input: source }),
+      "<stdin>",
+    );
   });
 
   test("keeps JSON-mode build validation failures parseable on stdout", () => {
