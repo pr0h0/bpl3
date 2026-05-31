@@ -113,6 +113,7 @@ export class ImportHandler {
     const currentFile = stmt.location.file;
     let importPath: string | undefined;
     let ast: AST.Program | undefined;
+    let resolutionError: unknown;
 
     // Always use ModuleResolver to get the canonical path
     try {
@@ -120,9 +121,10 @@ export class ImportHandler {
         stmt.source,
         currentFile,
       );
-    } catch {
+    } catch (error) {
       // Module resolution may fail for various reasons (missing file, invalid path)
       // This will be handled below when checking for undefined importPath
+      resolutionError = error;
     }
 
     if (this.ctx.skipImportResolution) {
@@ -151,6 +153,15 @@ export class ImportHandler {
         );
       }
     } else if (!importPath) {
+      if (resolutionError instanceof CompilerError) {
+        throw new CompilerError(
+          resolutionError.message,
+          resolutionError.hint,
+          stmt.location,
+          resolutionError.code,
+        );
+      }
+
       // If not skipping, use the resolved path or fallback to simple resolution
       if (stmt.source === "std") {
         const stdLibPath = getLibPath();

@@ -140,6 +140,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Standard Library Import Safety Docs** - Documented that explicit `std/`
   import paths must be normalized subpaths without empty, `.`, or `..`
   segments.
+- **Import Resolver Diagnostic Preservation** - Normal import checking now
+  preserves `ModuleResolver` diagnostics instead of replacing malformed
+  package metadata errors with generic filesystem fallback failures.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

@@ -356,6 +356,56 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should preserve package resolver diagnostics in import checks", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-package-diagnostic-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "different-name",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      [
+        "frame value() ret int {",
+        "    return 1;",
+        "}",
+        "export value;",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "badpkg";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["check", sourceFile]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("invalid bpl.json");
+      expect(result.stderr).toContain("manifest name 'different-name'");
+      expect(result.stderr).toContain("requested package 'badpkg'");
+      expect(result.stderr).toContain("Searched paths:");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
