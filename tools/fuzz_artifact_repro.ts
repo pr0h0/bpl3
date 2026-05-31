@@ -46,6 +46,8 @@ interface CliOptions {
 const ALL_REPLAY_MODES =
   "parser,typecheck,codegen,runtime,differential,sanitizer";
 
+class CliUsageError extends Error {}
+
 export function buildFuzzArtifactReproPlan(
   inputPath: string,
   options: FuzzArtifactReproOptions = {},
@@ -431,7 +433,9 @@ function parseCliOptions(argv: string[]): CliOptions {
 
     const [rawKey, inlineValue] = arg.slice(2).split("=", 2);
     if (!rawKey) {
-      throw new Error(`Missing option name in '${arg}'. Use --help for usage.`);
+      throw new CliUsageError(
+        `Missing option name in '${arg}'. Use --help for usage.`,
+      );
     }
 
     if (rawKey === "json") {
@@ -446,14 +450,18 @@ function parseCliOptions(argv: string[]): CliOptions {
         ? argv[++index]!
         : undefined);
     if (value === undefined) {
-      throw new Error(`--${rawKey} requires a value. Use --help for usage.`);
+      throw new CliUsageError(
+        `--${rawKey} requires a value. Use --help for usage.`,
+      );
     }
 
     values.set(rawKey, value);
   }
 
   if (positionals.length > 1) {
-    throw new Error("Expected at most one artifact path positional argument.");
+    throw new CliUsageError(
+      "Expected at most one artifact path positional argument.",
+    );
   }
 
   return {
@@ -501,6 +509,6 @@ async function main(): Promise<void> {
 if (import.meta.main) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    process.exit(error instanceof CliUsageError ? 2 : 1);
   });
 }

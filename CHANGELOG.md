@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Fuzz Artifact Repro Helper** - Added `bun run fuzz:repro -- <artifact-path>`
   to turn downloaded scheduled fuzz crash artifacts into deterministic local
   replay, minimization, seed rerun, and regression promotion commands.
+- **Fuzz Repro Usage Errors** - `bun run fuzz:repro` now reports malformed CLI
+  usage such as missing option values with a usage-error exit before artifact
+  discovery.
 - **Hosted Wasm Printf Formatting** - Hosted WebAssembly `printf`, `fprintf`,
   and `dprintf` now format the documented `%s`, `%d`, `%c`, and `%%` subset, with
   a native-compatible `examples/wasm_hosted_printf` regression and explicit

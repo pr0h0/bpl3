@@ -143,4 +143,23 @@ describe("Fuzz artifact repro helper", () => {
     expect(result.stdout).toContain("Usage: bun tools/fuzz_artifact_repro.ts");
     expect(result.stdout).toContain("fuzz/crashes");
   });
+
+  test("rejects missing CLI option values as usage errors", () => {
+    const cases: Array<[string[], string]> = [
+      [["--input", "--json"], "--input requires a value"],
+      [["--repo-root", "--json", "fuzz/crashes"], "--repo-root requires a value"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "fuzz:repro", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("Fuzz artifact path does not exist");
+      expect(result.stderr).not.toContain("No fuzz artifact metadata found");
+    }
+  });
 });
