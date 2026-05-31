@@ -3899,7 +3899,7 @@ export class PackageManager {
     options: PackageOptionsGlobal = { global: false },
   ): PackageDependencyTreeNode[] {
     const lock =
-      !options.global && fs.existsSync(this.getLockFilePath())
+      !options.global && this.tryLstat(this.getLockFilePath())
         ? this.loadLockFile()
         : null;
     const rootDependencySpecs = options.global

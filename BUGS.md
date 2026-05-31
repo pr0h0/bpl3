@@ -165,6 +165,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-156 | Package Manager     | Broken symlink `bpl.lock` paths are reported as missing lockfiles during locked verification.                              | Fixed    | `verifyLockFile()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before loading the lockfile, so broken and valid-target symlinks are both rejected. Regression: `tests/PackageManager.test.ts`.                                                            |
 | BUG-157 | Package Manager     | Plain project install ignores broken symlink `bpl.lock` paths when no dependencies need installing.                        | Fixed    | `installProject()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before restore or no-op install decisions. Regression: `tests/PackageManager.test.ts`.                                                                                                  |
 | BUG-158 | Package Manager     | Local uninstall removes package files before rejecting a broken symlink `bpl.lock`.                                        | Fixed    | `uninstall()` now preloads and validates an existing local lockfile before unlinking binaries or removing package directories. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
+| BUG-159 | Package Manager     | Dependency-tree generation ignores broken symlink `bpl.lock` paths and reports packages as unlocked.                       | Fixed    | `getDependencyTree()` now uses `lstat` to detect existing local lockfile paths before loading them, so symlinked and broken symlink lockfiles are rejected consistently. Regression: `tests/PackageManager.test.ts`.                                                                        |
 
 ## Details
 
@@ -2416,3 +2417,35 @@ symlink lockfile.
 **Resolution**: `uninstall()` now preloads and validates an existing local
 lockfile before any destructive package or binary removal, then reuses that
 validated lock object when removing the package entry.
+
+---
+
+### BUG-159: Dependency Trees Ignore Broken Symlink Lockfiles
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: `getDependencyTree()` used `fs.existsSync()` to decide whether
+to load `bpl.lock`. Because `existsSync()` follows symlinks, a broken symlink at
+`bpl.lock` was treated as no lockfile. Tree generation then fell back to
+manifest dependencies or installed package directories and reported packages as
+unlocked instead of rejecting the unsafe lockfile path.
+
+**Reproduction**:
+
+```bash
+bpl install ./example-package-1.0.0.tgz
+rm bpl.lock
+ln -s ../missing-lock.json bpl.lock
+bpl list --tree
+```
+
+**Expected**: Dependency-tree generation rejects `bpl.lock` as a symbolic link.
+
+**Actual**: Dependency-tree generation ignored the broken symlink and produced
+a fallback tree.
+
+**Resolution**: `getDependencyTree()` now uses `lstat` before lockfile loading,
+matching `loadLockFile()`, locked verification, install preflight, and
+uninstall preflight behavior.

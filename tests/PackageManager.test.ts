@@ -2961,6 +2961,46 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject broken symlink lockfiles before building dependency trees", () => {
+      const globalPackageDir = path.join(tempDir, "tree-broken-lock-cache");
+      const appDir = path.join(tempDir, "tree-broken-lock-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "tree-broken-lock-pkg",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "tree-broken-lock-app",
+            version: "1.0.0",
+            dependencies: {
+              "tree-broken-lock-pkg": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const lockPath = path.join(appDir, "bpl.lock");
+      fs.unlinkSync(lockPath);
+      fs.symlinkSync(path.join(tempDir, "missing-tree-lock.json"), lockPath);
+
+      expect(() => localPM.getDependencyTree({ global: false })).toThrow(
+        /symbolic link/,
+      );
+    });
+
     test("should reject cyclic package dependencies with the full chain", () => {
       const globalPackageDir = path.join(tempDir, "cycle-cache");
       const appDir = path.join(tempDir, "cycle-app");

@@ -221,7 +221,9 @@ top-level contract with `schemaVersion: 1`, `check: "package-list"`,
 `success`, and installed package names, versions, paths, and content hashes.
 `bpl list --tree --json` uses `check: "package-list-tree"` with the same
 `schemaVersion` and `success` fields, plus the dependency tree data used by the
-human tree output.
+human tree output. Tree generation validates an existing local `bpl.lock`
+before choosing lockfile roots; symlinked, broken-symlink, malformed, or
+non-file lockfile paths are rejected instead of being treated as absent.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured
