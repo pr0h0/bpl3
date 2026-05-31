@@ -76,6 +76,36 @@ function expectSingleCheckJsonDiagnostic(
   return diagnostic as CheckJsonDiagnostic;
 }
 
+function writePackageFixture(
+  packageDir: string,
+  options: {
+    name?: string;
+    version?: string;
+    main?: string;
+    entryPath?: string;
+    entrySource?: string | null;
+  } = {},
+): void {
+  const name = options.name ?? "pkg-math";
+  const version = options.version ?? "1.0.0";
+  const main = options.main ?? "index.bpl";
+  fs.mkdirSync(packageDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packageDir, "bpl.json"),
+    JSON.stringify({ name, version, main }),
+  );
+
+  if (options.entrySource === null) return;
+
+  const relativeEntryPath = options.entryPath ?? main;
+  const entryPath = path.join(
+    packageDir,
+    ...relativeEntryPath.split(/[\\/]/),
+  );
+  fs.mkdirSync(path.dirname(entryPath), { recursive: true });
+  fs.writeFileSync(entryPath, options.entrySource ?? "export value;");
+}
+
 describe("CLI JSON parseability", () => {
   let tempDir: string;
 
@@ -384,44 +414,21 @@ describe("CLI JSON parseability", () => {
     const packageVersionOutput = path.join(tempDir, "package-version-app");
     const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
     const packageVersionDir = path.join(tempDir, "bpl_modules", "badversion");
-    fs.mkdirSync(packageDir, { recursive: true });
-    fs.mkdirSync(packageVersionDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(packageDir, "bpl.json"),
-      JSON.stringify(
-        {
-          name: "different-name",
-          version: "1.0.0",
-          main: "index.bpl",
-        },
-        null,
-        2,
-      ),
-    );
-    fs.writeFileSync(
-      path.join(packageVersionDir, "bpl.json"),
-      JSON.stringify(
-        {
-          name: "badversion",
-          version: "latest",
-          main: "index.bpl",
-        },
-        null,
-        2,
-      ),
-    );
-    fs.writeFileSync(
-      path.join(packageDir, "index.bpl"),
-      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
-        "\n",
-      ),
-    );
-    fs.writeFileSync(
-      path.join(packageVersionDir, "index.bpl"),
-      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
-        "\n",
-      ),
-    );
+    const packageEntrySource = [
+      "frame value() ret int {",
+      "    return 1;",
+      "}",
+      "export value;",
+    ].join("\n");
+    writePackageFixture(packageDir, {
+      name: "different-name",
+      entrySource: packageEntrySource,
+    });
+    writePackageFixture(packageVersionDir, {
+      name: "badversion",
+      version: "latest",
+      entrySource: packageEntrySource,
+    });
     fs.writeFileSync(
       unsafeStdFile,
       [
@@ -593,15 +600,7 @@ describe("CLI JSON parseability", () => {
     const sourceFile = path.join(tempDir, "global_package_import.bpl");
     fs.mkdirSync(lowerPackageDir, { recursive: true });
     fs.writeFileSync(unsafePackageRoot, "not a package directory");
-    fs.writeFileSync(
-      path.join(lowerPackageDir, "bpl.json"),
-      JSON.stringify({
-        name: "pkg-math",
-        version: "1.0.0",
-        main: "index.bpl",
-      }),
-    );
-    fs.writeFileSync(path.join(lowerPackageDir, "index.bpl"), "export value;");
+    writePackageFixture(lowerPackageDir);
     fs.writeFileSync(
       sourceFile,
       [
@@ -646,15 +645,7 @@ describe("CLI JSON parseability", () => {
       [workspacePackageDir, "2.0.0"],
       [globalPackageRoot, "9.0.0"],
     ] as const) {
-      fs.writeFileSync(
-        path.join(packageDir, "bpl.json"),
-        JSON.stringify({
-          name: "pkg-math",
-          version,
-          main: "index.bpl",
-        }),
-      );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      writePackageFixture(packageDir, { version });
     }
     fs.symlinkSync(realModulesDir, linkedModulesDir, "dir");
     fs.writeFileSync(
@@ -700,15 +691,7 @@ describe("CLI JSON parseability", () => {
       [realPackageDir, "1.0.0"],
       [globalPackageRoot, "9.0.0"],
     ] as const) {
-      fs.writeFileSync(
-        path.join(packageDir, "bpl.json"),
-        JSON.stringify({
-          name: "pkg-math",
-          version,
-          main: "index.bpl",
-        }),
-      );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      writePackageFixture(packageDir, { version });
     }
     fs.symlinkSync(realWorkspaceDir, linkedWorkspaceDir, "dir");
     fs.writeFileSync(
@@ -749,19 +732,7 @@ describe("CLI JSON parseability", () => {
     const sourceFile = path.join(sourceDir, "global_search_dir_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(bplHomeDir, { recursive: true });
-    fs.mkdirSync(realGlobalPackageRoot, { recursive: true });
-    fs.writeFileSync(
-      path.join(realGlobalPackageRoot, "bpl.json"),
-      JSON.stringify({
-        name: "pkg-math",
-        version: "9.0.0",
-        main: "index.bpl",
-      }),
-    );
-    fs.writeFileSync(
-      path.join(realGlobalPackageRoot, "index.bpl"),
-      "export value;",
-    );
+    writePackageFixture(realGlobalPackageRoot, { version: "9.0.0" });
     fs.symlinkSync(realGlobalPackageDir, linkedGlobalPackageDir, "dir");
     fs.writeFileSync(
       sourceFile,
@@ -797,15 +768,7 @@ describe("CLI JSON parseability", () => {
     const linkedEntrypoint = path.join(packageDir, "index.bpl");
     const sourceFile = path.join(sourceDir, "entrypoint_symlink_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
-    fs.mkdirSync(packageDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(packageDir, "bpl.json"),
-      JSON.stringify({
-        name: "pkg-math",
-        version: "1.0.0",
-        main: "index.bpl",
-      }),
-    );
+    writePackageFixture(packageDir, { entrySource: null });
     fs.writeFileSync(outsideEntrypoint, "export value;");
     fs.symlinkSync(outsideEntrypoint, linkedEntrypoint, "file");
     fs.writeFileSync(
@@ -839,17 +802,8 @@ describe("CLI JSON parseability", () => {
     const linkedFeatureDir = path.join(packageDir, "features");
     const sourceFile = path.join(sourceDir, "subpath_symlink_parent_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
-    fs.mkdirSync(packageDir, { recursive: true });
     fs.mkdirSync(outsideFeatureDir);
-    fs.writeFileSync(
-      path.join(packageDir, "bpl.json"),
-      JSON.stringify({
-        name: "pkg-math",
-        version: "1.0.0",
-        main: "index.bpl",
-      }),
-    );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    writePackageFixture(packageDir, { entrySource: "export root;" });
     fs.writeFileSync(path.join(outsideFeatureDir, "add.bpl"), "export value;");
     fs.symlinkSync(outsideFeatureDir, linkedFeatureDir, "dir");
     fs.writeFileSync(
@@ -882,16 +836,11 @@ describe("CLI JSON parseability", () => {
     const outsideEntrypoint = path.join(appDir, "bpl_modules", "outside.bpl");
     const sourceFile = path.join(sourceDir, "unsafe_entrypoint_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
-    fs.mkdirSync(packageDir, { recursive: true });
+    writePackageFixture(packageDir, {
+      main: "../outside.bpl",
+      entrySource: null,
+    });
     fs.writeFileSync(outsideEntrypoint, "export value;");
-    fs.writeFileSync(
-      path.join(packageDir, "bpl.json"),
-      JSON.stringify({
-        name: "pkg-math",
-        version: "1.0.0",
-        main: "../outside.bpl",
-      }),
-    );
     fs.writeFileSync(
       sourceFile,
       [
