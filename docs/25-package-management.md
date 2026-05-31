@@ -517,7 +517,11 @@ cached version in `X.Y.Z` form; dependency ranges such as `^1.2.3` belong in
 `bpl.json`, not cache maintenance commands. In JSON mode, clean and repair
 validation failures keep stdout parseable: clean reports `removed: []`, repair
 reports `repaired: []`, `unchanged: []`, and `issues: []`, and both include the
-requested `dryRun` value plus `error`.
+requested `dryRun` value plus `error`. Package-cache validation failures that
+come from an invalid `--package-version` value also include
+`errorCode: "BPL_PACKAGE_CACHE_VERSION_INVALID"`. Reproduce the focused
+contract with
+`bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache version filter"`.
 
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a

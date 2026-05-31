@@ -390,6 +390,26 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("package docs document package-cache validation JSON error codes", () => {
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Package-cache validation failures",
+      "BPL_PACKAGE_CACHE_VERSION_INVALID",
+      "clean and repair validation failures",
+      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache version filter\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

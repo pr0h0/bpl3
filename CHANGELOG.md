@@ -72,6 +72,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed Package Manifest JSON Smoke** - Release smoke now checks that the
   packed npm CLI preserves PackageManager manifest `errorCode` values such as
   `BPL_PACKAGE_MANIFEST_MISSING` and `BPL_PACKAGE_MANIFEST_MAIN_INVALID`.
+- **Package-cache Validation JSON Codes** - `bpl package-cache clean --json`
+  and `bpl package-cache repair --json` now include
+  `BPL_PACKAGE_CACHE_VERSION_INVALID` for invalid `--package-version` filters.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
