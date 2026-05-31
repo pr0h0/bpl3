@@ -333,13 +333,15 @@ additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text for older consumers and logs.
 
 Check and lint input validation `errorCode` values are stable when `bpl check
---json` or `bpl lint --json` can classify a source input before parsing. Check
-uses `BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
-`BPL_CHECK_INPUT_NOT_FILE`. Lint uses `BPL_LINT_INPUT_NOT_FOUND`,
-`BPL_LINT_INPUT_SYMLINK`, and `BPL_LINT_INPUT_NOT_FILE`. These codes are
-additive fields on per-file JSON failure entries, preserving the
-human-readable `error` text while keeping `totalFiles` and `errorCount`
-accurate.
+--json` or `bpl lint --json` can classify source input before parsing. Missing
+file lists use top-level JSON failures with `BPL_CHECK_NO_INPUTS` or
+`BPL_LINT_NO_INPUTS`, `totalFiles: 0`, `errorCount: 1`, and `files: []`.
+Per-file check validation uses `BPL_CHECK_INPUT_NOT_FOUND`,
+`BPL_CHECK_INPUT_SYMLINK`, and `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
+validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and
+`BPL_LINT_INPUT_NOT_FILE`. These codes are additive fields on top-level or
+per-file JSON failure entries, preserving the human-readable `error` text while
+keeping `totalFiles` and `errorCount` accurate.
 
 Import-resolution failures use the same diagnostic objects as type errors.
 `bpl check --json` reports missing modules, unsafe `std/` paths, and package

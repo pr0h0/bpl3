@@ -38,11 +38,13 @@ import {
   CHECK_INPUT_NOT_FILE_CODE,
   CHECK_INPUT_NOT_FOUND_CODE,
   CHECK_INPUT_SYMLINK_CODE,
+  CHECK_NO_INPUTS_CODE,
 } from "../cli/commands/check";
 import {
   LINT_INPUT_NOT_FILE_CODE,
   LINT_INPUT_NOT_FOUND_CODE,
   LINT_INPUT_SYMLINK_CODE,
+  LINT_NO_INPUTS_CODE,
 } from "../cli/commands/lint";
 import {
   RUN_SCRIPT_COMMAND_EMPTY_CODE,
@@ -594,9 +596,11 @@ describe("Markdown documentation", () => {
       CHECK_INPUT_NOT_FOUND_CODE,
       CHECK_INPUT_SYMLINK_CODE,
       CHECK_INPUT_NOT_FILE_CODE,
+      CHECK_NO_INPUTS_CODE,
       LINT_INPUT_NOT_FOUND_CODE,
       LINT_INPUT_SYMLINK_CODE,
       LINT_INPUT_NOT_FILE_CODE,
+      LINT_NO_INPUTS_CODE,
     ];
 
     for (const code of expectedCodes) {

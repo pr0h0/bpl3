@@ -104,6 +104,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   packed npm CLI preserves `bpl check --json` and `bpl lint --json` input
   validation `errorCode` output such as `BPL_CHECK_INPUT_NOT_FILE` and
   `BPL_LINT_INPUT_SYMLINK`.
+- **Check/Lint No-Input JSON Codes** - `bpl check --json` and `bpl lint --json`
+  now return stdout JSON failures with `BPL_CHECK_NO_INPUTS` and
+  `BPL_LINT_NO_INPUTS` when no source files are provided, while non-JSON mode
+  remains a human-readable stderr failure.
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.
