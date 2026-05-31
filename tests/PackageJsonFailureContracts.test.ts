@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync, type SpawnSyncReturns } from "child_process";
@@ -201,6 +207,131 @@ describe("Package JSON failure contracts", () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("surfaces stable package install option conflict error codes", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-option-codes-"));
+
+    try {
+      const cases: Array<{
+        name: string;
+        args: string[];
+        context: CommandContext;
+        expectedCode: string;
+        expectedError: string;
+      }> = [
+        {
+          name: "package-with-update",
+          args: ["install", "pkg", "--update", "--json"],
+          context: cleanPackageRoot(tempDir, "package-with-update"),
+          expectedCode: "BPL_PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE",
+          expectedError: "--update and --repair-lock are project install options",
+        },
+        {
+          name: "locked-update",
+          args: ["install", "--locked", "--update", "--json"],
+          context: projectManifestRoot(tempDir, "locked-update"),
+          expectedCode: "BPL_PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT",
+          expectedError: "Cannot use --locked with --update",
+        },
+        {
+          name: "global-project-install",
+          args: ["install", "--global", "--json"],
+          context: projectManifestRoot(tempDir, "global-project-install"),
+          expectedCode: "BPL_PACKAGE_INSTALL_GLOBAL_PROJECT_CONFLICT",
+          expectedError: "Project dependency install cannot be global",
+        },
+        {
+          name: "locked-repair",
+          args: ["install", "--locked", "--repair-lock", "--json"],
+          context: projectManifestRoot(tempDir, "locked-repair"),
+          expectedCode: "BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT",
+          expectedError: "Cannot use --locked with --repair-lock",
+        },
+        {
+          name: "update-repair",
+          args: ["install", "--update", "--repair-lock", "--json"],
+          context: projectManifestRoot(tempDir, "update-repair"),
+          expectedCode: "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT",
+          expectedError: "Cannot use --update with --repair-lock",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const report = expectJsonStdoutReport(runCli(testCase.args, testCase.context), {
+          status: 1,
+          check: "package-install",
+          success: false,
+        });
+        expect(report).toMatchObject({
+          error: expect.stringContaining(testCase.expectedError),
+          errorCode: testCase.expectedCode,
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("surfaces stable direct archive path validation error codes", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-archive-codes-"));
+
+    try {
+      const realArchive = join(tempDir, "real-package.tgz");
+      writeFileSync(realArchive, "not a real archive");
+
+      const symlinkArchive = join(tempDir, "linked-package.tgz");
+      symlinkSync(realArchive, symlinkArchive);
+
+      const realParent = join(tempDir, "real-parent");
+      const linkedParent = join(tempDir, "linked-parent");
+      mkdirSync(realParent);
+      writeFileSync(join(realParent, "parent-package.tgz"), "not a real archive");
+      symlinkSync(realParent, linkedParent, "dir");
+
+      const directoryArchive = join(tempDir, "directory-package.tgz");
+      mkdirSync(directoryArchive);
+
+      const cases: Array<{
+        args: string[];
+        expectedCode: string;
+        expectedError: string;
+      }> = [
+        {
+          args: ["install", symlinkArchive, "--json"],
+          expectedCode: "BPL_PACKAGE_ARCHIVE_SYMLINK",
+          expectedError: "Package archive path is a symbolic link",
+        },
+        {
+          args: ["install", join(linkedParent, "parent-package.tgz"), "--json"],
+          expectedCode: "BPL_PACKAGE_ARCHIVE_PARENT_SYMLINK",
+          expectedError: "Package archive parent path is a symbolic link",
+        },
+        {
+          args: ["install", directoryArchive, "--json"],
+          expectedCode: "BPL_PACKAGE_ARCHIVE_NOT_FILE",
+          expectedError: "Package archive path is not a file",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const report = expectJsonStdoutReport(
+          runCli(testCase.args, cleanPackageRoot(tempDir, testCase.expectedCode)),
+          {
+            status: 1,
+            check: "package-install",
+            success: false,
+          },
+        );
+        expect(report).toMatchObject({
+          mode: "package",
+          error: expect.stringContaining(testCase.expectedError),
+          errorCode: testCase.expectedCode,
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function runCli(
@@ -239,4 +370,13 @@ function cleanPackageRoot(root: string, name: string): CommandContext {
   mkdirSync(cwd, { recursive: true });
   mkdirSync(home, { recursive: true });
   return { cwd, env: { HOME: home } };
+}
+
+function projectManifestRoot(root: string, name: string): CommandContext {
+  const context = cleanPackageRoot(root, name);
+  writeFileSync(
+    join(context.cwd, "bpl.json"),
+    JSON.stringify({ name, version: "1.0.0" }),
+  );
+  return context;
 }

@@ -1105,6 +1105,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_INSTALL_GLOBAL_PROJECT_CONFLICT",
       );
     }
 
@@ -1119,6 +1120,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT",
       );
     }
 
@@ -1133,6 +1135,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT",
       );
     }
 
@@ -1147,6 +1150,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT",
       );
     }
 
@@ -2594,6 +2598,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_ARCHIVE_SYMLINK",
       );
     }
 
@@ -2609,6 +2614,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_ARCHIVE_PARENT_SYMLINK",
       );
     }
 
@@ -2623,6 +2629,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
+        "BPL_PACKAGE_ARCHIVE_NOT_FILE",
       );
     }
   }

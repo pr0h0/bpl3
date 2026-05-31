@@ -179,7 +179,7 @@ describe("Markdown documentation", () => {
       "bpl doctor --json",
       "The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands",
       "bpl doctor packages --json",
-      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION` or `BPL_PACKAGE_NOT_FOUND`",
+      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, or `BPL_PACKAGE_ARCHIVE_*`",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",
       "unsafe cache-root validation failures",

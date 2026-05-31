@@ -231,7 +231,10 @@ Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field. When the underlying package error has a stable compiler code, the
 report also includes `errorCode`, such as `BPL_LOCKFILE_UNSUPPORTED_VERSION` for
-malformed lockfiles or `BPL_PACKAGE_NOT_FOUND` for package lookup misses.
+malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
+`BPL_PACKAGE_INSTALL_*_CONFLICT` for project-mode option conflicts, and
+`BPL_PACKAGE_ARCHIVE_*` for direct archive paths that are symlinks, pass through
+symlinked parents, or are not files.
 
 `bpl doctor packages --json` reports malformed or unsafe lockfiles as
 `kind: "invalid-lockfile"` issues with stable `BPL_LOCKFILE_*` codes, including

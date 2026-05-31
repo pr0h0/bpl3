@@ -149,6 +149,7 @@ export function registerPackageCommands(program: Command): void {
                 endLine: 1,
                 endColumn: 1,
               },
+              "BPL_PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE",
             );
           }
 
