@@ -250,18 +250,12 @@ function buildCommands(options: {
 
   if (options.seedHex !== undefined && options.iteration !== undefined) {
     commands.push(
-      [
-        options.failureKind === "mismatch" || options.inputKind === "differential"
-          ? "FUZZ_DIFFERENTIAL=1"
-          : undefined,
-        `FUZZ_ITERATIONS=${options.iteration + 1}`,
-        `FUZZ_SEEDS=${options.seedHex}`,
-        "FUZZ_MINIMIZE=1",
-        "FUZZ_MINIMIZE_PASSES=8",
-        "bun fuzz/run_fuzz.ts",
-      ]
-        .filter((part): part is string => part !== undefined)
-        .join(" "),
+      buildDeterministicFuzzRunCommand({
+        seedHex: options.seedHex,
+        iteration: options.iteration,
+        inputKind: options.inputKind,
+        failureKind: options.failureKind,
+      }),
     );
   }
 
@@ -276,6 +270,26 @@ function buildCommands(options: {
   );
 
   return commands;
+}
+
+function buildDeterministicFuzzRunCommand(options: {
+  seedHex: string;
+  iteration: number;
+  inputKind?: FuzzInputKind;
+  failureKind?: FuzzFailureKind;
+}): string {
+  return [
+    "bun run fuzz --",
+    `--iterations ${options.iteration + 1}`,
+    `--seeds ${shellQuote(options.seedHex)}`,
+    "--minimize true",
+    "--minimize-passes 8",
+    options.failureKind === "mismatch" || options.inputKind === "differential"
+      ? "--differential"
+      : undefined,
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join(" ");
 }
 
 function looksLikeFuzzArtifactMetadata(metadata: CrashMetadata): boolean {

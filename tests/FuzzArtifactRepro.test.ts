@@ -56,7 +56,7 @@ describe("Fuzz artifact repro helper", () => {
         `bun run fuzz:replay -- --metadata ${metadataName}`,
         `bun run fuzz:replay -- --metadata ${metadataName} --mode parser,typecheck,codegen,runtime,differential,sanitizer`,
         `bun run fuzz:replay -- --metadata ${metadataName} --minimize --out mismatch_seed-abcd_iter-7_differential.min.bpl`,
-        `FUZZ_DIFFERENTIAL=1 FUZZ_ITERATIONS=8 FUZZ_SEEDS=0xabcd FUZZ_MINIMIZE=1 FUZZ_MINIMIZE_PASSES=8 bun fuzz/run_fuzz.ts`,
+        `bun run fuzz -- --iterations 8 --seeds 0xabcd --minimize true --minimize-passes 8 --differential`,
         `bun run fuzz:promote -- --metadata ${metadataName} --differential --name mismatch-seed-abcd-iter-7-differential`,
       ]);
 
@@ -108,7 +108,7 @@ describe("Fuzz artifact repro helper", () => {
 
       expect(plan.entries).toHaveLength(1);
       expect(plan.entries[0]?.commands).toContain(
-        `FUZZ_ITERATIONS=3 FUZZ_SEEDS=0x1234 FUZZ_MINIMIZE=1 FUZZ_MINIMIZE_PASSES=8 bun fuzz/run_fuzz.ts`,
+        `bun run fuzz -- --iterations 3 --seeds 0x1234 --minimize true --minimize-passes 8`,
       );
       expect(plan.entries[0]?.commands.at(-1)).toBe(
         `bun run fuzz:promote -- --metadata ${metadataName} --name crash-seed-1234-iter-2-tokens`,
