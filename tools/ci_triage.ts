@@ -139,6 +139,16 @@ const BUILD_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const CLEAN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "clean JSON validation failures",
+    "BPL_CLEAN_",
+    "Clean working directory path contains a symbolic link",
+    "Could not determine git-tracked files",
+    "clean --json",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   [
     "package source-safety",
@@ -322,6 +332,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "bun test tests/CLIJsonParseability.test.ts",
   ],
   [BUILD_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    CLEAN_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "clean JSON validation failures"',
+  ],
+  [
+    CLEAN_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "clean"',
+  ],
+  [CLEAN_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',

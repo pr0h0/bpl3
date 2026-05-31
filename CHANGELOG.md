@@ -99,6 +99,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Clean JSON Validation Codes** - `bpl clean --json` validation failures now
   include stable `BPL_CLEAN_*` `errorCode` values for symlinked working
   directories and unavailable git tracked-file probes.
+- **CI Triage Clean Validation Repros** - `bun run ci:triage` now maps
+  `BPL_CLEAN_*` and clean validation failure logs to focused clean JSON repro
+  commands.
 - **Package Import Diagnostic Coverage** - CLI and ModuleResolver regression
   tests now cover invalid package import names and malformed imported package
   manifest versions in human-readable, `check --json`, `build --json`, and
