@@ -51,6 +51,18 @@ const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
+  [
+    "package source-safety",
+    "entrypoint resolves to a symbolic link candidate",
+    "subpath .* resolves to a symbolic link candidate",
+    "unsafe entrypoint",
+    "missing bpl\\.json",
+    "invalid bpl\\.json",
+    "package manifest symlink",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
@@ -93,6 +105,14 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     PACKAGE_RESOLVER_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
+  ],
+  [
+    PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
+  ],
+  [
+    PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
+    "bun test tests/PackageResolver.test.ts",
   ],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],

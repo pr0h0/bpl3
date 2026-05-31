@@ -77,6 +77,26 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package source-safety JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
+      "bun test tests/PackageResolver.test.ts",
+    ];
+
+    expect(
+      localCommandsForStep("entrypoint resolves to a symbolic link candidate"),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("unsafe entrypoint '../outside.bpl'")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("missing bpl.json")).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "subpath 'features/add' resolves to a symbolic link candidate",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {
