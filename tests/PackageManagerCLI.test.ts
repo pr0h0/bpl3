@@ -931,11 +931,32 @@ describe("Package Manager CLI", () => {
         },
       );
 
-      expect(result.status).toBe(0);
-      const report = JSON.parse(result.stdout);
-      expect(report.schemaVersion).toBe(1);
-      expect(report.check).toBe("packages");
-      expect(report.success).toBe(true);
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        cacheVerification: {
+          ok: boolean;
+          entriesChecked: number;
+          issues: Array<{
+            packageName: string;
+            version: string;
+            kind: string;
+            message: string;
+            path: string;
+            provenancePath: string;
+          }>;
+        };
+        issues: Array<{
+          severity: string;
+          kind: string;
+          message: string;
+          path: string;
+          hint: string;
+        }>;
+      }>(result, {
+        status: 0,
+        check: "packages",
+        success: true,
+      });
       expect(report.ok).toBe(true);
       expect(report.cacheVerification.ok).toBe(false);
       expect(report.cacheVerification.entriesChecked).toBe(1);
@@ -984,11 +1005,21 @@ describe("Package Manager CLI", () => {
         },
       );
 
-      expect(result.status).toBe(1);
-      expect(result.stderr).toBe("");
-      const report = JSON.parse(result.stdout);
+      const report = expectJsonStdoutReport<{
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
       const invalidLockfileIssue = report.issues.find(
-        (issue: { kind: string }) => issue.kind === "invalid-lockfile",
+        (issue) => issue.kind === "invalid-lockfile",
       );
       expect(invalidLockfileIssue).toMatchObject({
         severity: "error",
@@ -1294,16 +1325,11 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(doctorResult.status).toBe(0);
-      const doctor = parseJsonObjectStdout<{
-        schemaVersion: number;
-        check: string;
-        success: boolean;
+      const doctor = expectJsonStdoutReport<{
         cacheVerification: { issues: Array<{ kind: string; path: string }> };
         issues: Array<{ severity: string; kind: string; path: string }>;
-      }>(doctorResult);
-      expect(doctor).toMatchObject({
-        schemaVersion: 1,
+      }>(doctorResult, {
+        status: 0,
         check: "packages",
         success: true,
       });

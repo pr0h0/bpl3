@@ -129,9 +129,8 @@ describe("CLI JSON parseability", () => {
     fs.writeFileSync(buildSource, "frame main() ret int { return 0; }\n");
 
     const doctor = runCli(["doctor", "--json"]);
-    expect(doctor.status).toBe(0);
-    expect(parseJsonObjectStdout(doctor)).toMatchObject({
-      schemaVersion: 1,
+    expectJsonStdoutReport(doctor, {
+      status: 0,
       check: "toolchain",
       success: true,
     });
@@ -193,12 +192,11 @@ describe("CLI JSON parseability", () => {
 
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {
     const result = runCli(["doctor", "unknown-scope", "--json"]);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toBe("");
-    expect(parseJsonObjectStdout(result)).toMatchObject({
-      schemaVersion: 1,
+    expect(expectJsonStdoutReport(result, {
+      status: 1,
       check: "doctor",
       success: false,
+    })).toMatchObject({
       error: expect.stringContaining("Unknown doctor scope 'unknown-scope'"),
     });
   });

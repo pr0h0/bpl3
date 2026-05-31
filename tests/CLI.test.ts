@@ -1,17 +1,52 @@
 import { describe, expect, it } from "bun:test";
-import { spawnSync } from "child_process";
+import { spawnSync, type SpawnSyncReturns } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseJsonObjectStdout } from "./helpers/cliJson";
+import {
+  expectJsonStdoutReport,
+  parseJsonObjectStdout,
+} from "./helpers/cliJson";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
+
+type DoctorCheck = {
+  name: string;
+  ok: boolean;
+  required?: boolean;
+  detail?: string;
+  hint?: string;
+  code?: string;
+  candidates?: string[];
+  environment?: Record<string, string | null>;
+  recommendedCommands?: string[];
+};
+
+type DoctorReport = {
+  version: string;
+  platform: {
+    os: string;
+    arch: string;
+  };
+  checks: DoctorCheck[];
+};
 
 function runCLI(args: string[]) {
   return spawnSync("bun", [BPL_CLI, ...args], {
     encoding: "utf-8",
     env: { ...process.env, NO_COLOR: "1" }, // Disable color for easier assertion
+  });
+}
+
+function expectDoctorJsonReport(
+  result: SpawnSyncReturns<string>,
+  expected: { status: number; success?: boolean },
+): DoctorReport {
+  return expectJsonStdoutReport<DoctorReport>(result, {
+    status: expected.status,
+    check: "toolchain",
+    success: expected.success,
   });
 }
 
@@ -2981,16 +3016,14 @@ describe("CLI Tests", () => {
   it("should report host toolchain diagnostics from doctor as JSON", () => {
     const result = runCLI(["doctor", "--json"]);
 
-    expect(result.status).toBe(0);
-
-    const report = JSON.parse(result.stdout);
-    expect(report.schemaVersion).toBe(1);
-    expect(report.check).toBe("toolchain");
-    expect(report.success).toBe(true);
+    const report = expectDoctorJsonReport(result, {
+      status: 0,
+      success: true,
+    });
     expect(report.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(report.platform.os).toBeTruthy();
     expect(report.platform.arch).toBeTruthy();
-    expect(report.checks.map((check: { name: string }) => check.name)).toEqual(
+    expect(report.checks.map((check) => check.name)).toEqual(
       expect.arrayContaining([
         "BPL home",
         "Temporary directory",
@@ -3008,8 +3041,7 @@ describe("CLI Tests", () => {
     );
     expect(
       report.checks.every(
-        (check: { ok: boolean; required?: boolean }) =>
-          check.ok === true || check.required === false,
+        (check) => check.ok === true || check.required === false,
       ),
     ).toBe(true);
   });
@@ -3029,13 +3061,15 @@ describe("CLI Tests", () => {
         },
       });
 
-      expect(result.status).toBe(1);
-      const report = JSON.parse(result.stdout);
+      const report = expectDoctorJsonReport(result, {
+        status: 1,
+        success: false,
+      });
       const tempCheck = report.checks.find(
-        (check: { name: string }) => check.name === "Temporary directory",
+        (check) => check.name === "Temporary directory",
       );
-      expect(tempCheck.ok).toBe(false);
-      expect(tempCheck.detail).toContain("is not a directory");
+      expect(tempCheck?.ok).toBe(false);
+      expect(tempCheck?.detail).toContain("is not a directory");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -3061,13 +3095,15 @@ describe("CLI Tests", () => {
         },
       });
 
-      expect(fileHomeResult.status).toBe(1);
-      const fileHomeReport = JSON.parse(fileHomeResult.stdout);
+      const fileHomeReport = expectDoctorJsonReport(fileHomeResult, {
+        status: 1,
+        success: false,
+      });
       const homeCheck = fileHomeReport.checks.find(
-        (check: { name: string }) => check.name === "BPL home",
+        (check) => check.name === "BPL home",
       );
-      expect(homeCheck.ok).toBe(false);
-      expect(homeCheck.detail).toContain("is not a directory");
+      expect(homeCheck?.ok).toBe(false);
+      expect(homeCheck?.detail).toContain("is not a directory");
 
       fs.mkdirSync(path.join(runtimeBplHome, "lib"), { recursive: true });
       fs.mkdirSync(path.join(runtimeBplHome, "lib", "runtime.ll"));
@@ -3080,13 +3116,15 @@ describe("CLI Tests", () => {
         },
       });
 
-      expect(runtimeResult.status).toBe(1);
-      const runtimeReport = JSON.parse(runtimeResult.stdout);
+      const runtimeReport = expectDoctorJsonReport(runtimeResult, {
+        status: 1,
+        success: false,
+      });
       const runtimeCheck = runtimeReport.checks.find(
-        (check: { name: string }) => check.name === "Runtime IR",
+        (check) => check.name === "Runtime IR",
       );
-      expect(runtimeCheck.ok).toBe(false);
-      expect(runtimeCheck.detail).toContain("is not a file");
+      expect(runtimeCheck?.ok).toBe(false);
+      expect(runtimeCheck?.detail).toContain("is not a file");
 
       fs.rmSync(path.join(runtimeBplHome, "lib", "runtime.ll"), {
         recursive: true,
@@ -3110,13 +3148,15 @@ describe("CLI Tests", () => {
         },
       );
 
-      expect(brokenRuntimeResult.status).toBe(1);
-      const brokenRuntimeReport = JSON.parse(brokenRuntimeResult.stdout);
+      const brokenRuntimeReport = expectDoctorJsonReport(brokenRuntimeResult, {
+        status: 1,
+        success: false,
+      });
       const brokenRuntimeCheck = brokenRuntimeReport.checks.find(
-        (check: { name: string }) => check.name === "Runtime IR",
+        (check) => check.name === "Runtime IR",
       );
-      expect(brokenRuntimeCheck.ok).toBe(false);
-      expect(brokenRuntimeCheck.detail).toContain("broken symbolic link");
+      expect(brokenRuntimeCheck?.ok).toBe(false);
+      expect(brokenRuntimeCheck?.detail).toContain("broken symbolic link");
     } finally {
       fs.rmSync(wrongHomeRoot, { recursive: true, force: true });
       fs.rmSync(runtimeBplHome, { recursive: true, force: true });
@@ -3158,13 +3198,15 @@ describe("CLI Tests", () => {
         },
       });
 
-      expect(result.status).toBe(1);
-      const report = JSON.parse(result.stdout);
+      const report = expectDoctorJsonReport(result, {
+        status: 1,
+        success: false,
+      });
       const runtimeCheck = report.checks.find(
-        (check: { name: string }) => check.name === "Runtime IR",
+        (check) => check.name === "Runtime IR",
       );
-      expect(runtimeCheck.ok).toBe(false);
-      expect(runtimeCheck.detail).toContain(
+      expect(runtimeCheck?.ok).toBe(false);
+      expect(runtimeCheck?.detail).toContain(
         `parent path contains a symbolic link: ${libLink}`,
       );
     } finally {
@@ -3191,17 +3233,18 @@ describe("CLI Tests", () => {
         },
       });
 
-      expect(result.status).toBe(1);
-      const report = JSON.parse(result.stdout);
+      const report = expectDoctorJsonReport(result, {
+        status: 1,
+        success: false,
+      });
       const hostedRuntimeCheck = report.checks.find(
-        (check: { name: string }) =>
-          check.name === "Hosted WebAssembly runtime IR",
+        (check) => check.name === "Hosted WebAssembly runtime IR",
       );
-      expect(hostedRuntimeCheck.ok).toBe(false);
-      expect(hostedRuntimeCheck.detail).toContain("runtime_wasm_host.ll");
-      expect(hostedRuntimeCheck.detail).toContain("not found");
-      expect(hostedRuntimeCheck.hint).toContain("bpl doctor");
-      expect(hostedRuntimeCheck.hint).toContain("reinstall BPL");
+      expect(hostedRuntimeCheck?.ok).toBe(false);
+      expect(hostedRuntimeCheck?.detail).toContain("runtime_wasm_host.ll");
+      expect(hostedRuntimeCheck?.detail).toContain("not found");
+      expect(hostedRuntimeCheck?.hint).toContain("bpl doctor");
+      expect(hostedRuntimeCheck?.hint).toContain("reinstall BPL");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -3221,15 +3264,17 @@ describe("CLI Tests", () => {
       },
     });
 
-    expect(result.status).toBe(1);
-    const report = JSON.parse(result.stdout);
+    const report = expectDoctorJsonReport(result, {
+      status: 1,
+      success: false,
+    });
     const compilerCheck = report.checks.find(
-      (check: { name: string }) => check.name === "native compiler",
+      (check) => check.name === "native compiler",
     );
-    expect(compilerCheck.ok).toBe(false);
-    expect(compilerCheck.detail).toContain(missingCompiler);
-    expect(compilerCheck.detail).toContain("command not found");
-    expect(compilerCheck.detail).not.toContain("ENOENT");
+    expect(compilerCheck?.ok).toBe(false);
+    expect(compilerCheck?.detail).toContain(missingCompiler);
+    expect(compilerCheck?.detail).toContain("command not found");
+    expect(compilerCheck?.detail).not.toContain("ENOENT");
   });
 
   it("should time out hanging compiler probes in doctor diagnostics", () => {
@@ -3251,15 +3296,17 @@ describe("CLI Tests", () => {
         },
       });
 
-      expect(result.status).toBe(1);
-      const report = JSON.parse(result.stdout);
+      const report = expectDoctorJsonReport(result, {
+        status: 1,
+        success: false,
+      });
       const compilerCheck = report.checks.find(
-        (check: { name: string }) => check.name === "native compiler",
+        (check) => check.name === "native compiler",
       );
-      expect(compilerCheck.ok).toBe(false);
-      expect(compilerCheck.detail).toContain(hangingCompiler);
-      expect(compilerCheck.detail).toContain("timed out");
-      expect(compilerCheck.detail).not.toContain("ETIMEDOUT");
+      expect(compilerCheck?.ok).toBe(false);
+      expect(compilerCheck?.detail).toContain(hangingCompiler);
+      expect(compilerCheck?.detail).toContain("timed out");
+      expect(compilerCheck?.detail).not.toContain("ETIMEDOUT");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -3276,16 +3323,18 @@ describe("CLI Tests", () => {
       },
     });
 
-    expect(result.status).toBe(0);
-    const report = JSON.parse(result.stdout);
+    const report = expectDoctorJsonReport(result, {
+      status: 0,
+      success: true,
+    });
     const symbolToolCheck = report.checks.find(
-      (check: { name: string }) => check.name === "object symbol tool",
+      (check) => check.name === "object symbol tool",
     );
-    expect(symbolToolCheck.ok).toBe(false);
-    expect(symbolToolCheck.required).toBe(false);
-    expect(symbolToolCheck.detail).toContain(missingTool);
-    expect(symbolToolCheck.detail).toContain("command not found");
-    expect(symbolToolCheck.detail).not.toContain("ENOENT");
+    expect(symbolToolCheck?.ok).toBe(false);
+    expect(symbolToolCheck?.required).toBe(false);
+    expect(symbolToolCheck?.detail).toContain(missingTool);
+    expect(symbolToolCheck?.detail).toContain("command not found");
+    expect(symbolToolCheck?.detail).not.toContain("ENOENT");
   });
 
   it("should honor BPL_TAR in doctor diagnostics", () => {
@@ -3299,16 +3348,18 @@ describe("CLI Tests", () => {
       },
     });
 
-    expect(result.status).toBe(0);
-    const report = JSON.parse(result.stdout);
+    const report = expectDoctorJsonReport(result, {
+      status: 0,
+      success: true,
+    });
     const archiveToolCheck = report.checks.find(
-      (check: { name: string }) => check.name === "package archive tool",
+      (check) => check.name === "package archive tool",
     );
-    expect(archiveToolCheck.ok).toBe(false);
-    expect(archiveToolCheck.required).toBe(false);
-    expect(archiveToolCheck.detail).toContain(missingTool);
-    expect(archiveToolCheck.detail).toContain("command not found");
-    expect(archiveToolCheck.detail).not.toContain("ENOENT");
+    expect(archiveToolCheck?.ok).toBe(false);
+    expect(archiveToolCheck?.required).toBe(false);
+    expect(archiveToolCheck?.detail).toContain(missingTool);
+    expect(archiveToolCheck?.detail).toContain("command not found");
+    expect(archiveToolCheck?.detail).not.toContain("ENOENT");
   });
 
   it("should honor BPL_WASM_CC in doctor diagnostics", () => {
@@ -3325,16 +3376,18 @@ describe("CLI Tests", () => {
       },
     });
 
-    expect(result.status).toBe(0);
-    const report = JSON.parse(result.stdout);
+    const report = expectDoctorJsonReport(result, {
+      status: 0,
+      success: true,
+    });
     const compilerCheck = report.checks.find(
-      (check: { name: string }) => check.name === "wasm compiler",
+      (check) => check.name === "wasm compiler",
     );
-    expect(compilerCheck.ok).toBe(false);
-    expect(compilerCheck.required).toBe(false);
-    expect(compilerCheck.detail).toContain(missingCompiler);
-    expect(compilerCheck.detail).toContain("command not found");
-    expect(compilerCheck.detail).not.toContain("ENOENT");
+    expect(compilerCheck?.ok).toBe(false);
+    expect(compilerCheck?.required).toBe(false);
+    expect(compilerCheck?.detail).toContain(missingCompiler);
+    expect(compilerCheck?.detail).toContain("command not found");
+    expect(compilerCheck?.detail).not.toContain("ENOENT");
   });
 
   it("should report wasm linker prerequisite guidance in doctor diagnostics", () => {
@@ -3370,10 +3423,12 @@ describe("CLI Tests", () => {
         env: doctorEnv,
       });
 
-      expect(result.status).toBe(0);
-      const report = JSON.parse(result.stdout);
+      const report = expectDoctorJsonReport(result, {
+        status: 0,
+        success: true,
+      });
       const linkerCheck = report.checks.find(
-        (check: { name: string }) => check.name === "wasm linker",
+        (check) => check.name === "wasm linker",
       );
       expect(linkerCheck).toMatchObject({
         ok: false,
@@ -3385,11 +3440,11 @@ describe("CLI Tests", () => {
         },
         recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
       });
-      expect(linkerCheck.candidates).toEqual(
+      expect(linkerCheck?.candidates).toEqual(
         expect.arrayContaining([missingWasmLd, "wasm-ld"]),
       );
-      expect(linkerCheck.hint).toContain("WASM_LD");
-      expect(linkerCheck.hint).toContain("BPL_REQUIRE_WASM_LD=1");
+      expect(linkerCheck?.hint).toContain("WASM_LD");
+      expect(linkerCheck?.hint).toContain("BPL_REQUIRE_WASM_LD=1");
 
       const textResult = spawnSync(process.execPath, [BPL_CLI, "doctor"], {
         encoding: "utf-8",
