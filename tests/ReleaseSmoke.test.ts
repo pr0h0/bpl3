@@ -135,6 +135,15 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI help output",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI forced-color version JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI forced-color check failure JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI forced-color build failure JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI doctor JSON",
       );
       expect(result.stdout).toContain(

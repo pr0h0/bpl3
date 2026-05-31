@@ -33,6 +33,7 @@ const bplBinary = join(
 );
 const smokeTimeoutMs = 60 * 1000;
 const DEDICATED_WASM_EXAMPLE_FILES = ["main.bpl", "test_config.json"] as const;
+const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/;
 
 interface DoctorReport {
   schemaVersion: 1;
@@ -564,6 +565,7 @@ function runPackedPackageSmoke(): void {
 
     runPackedVersionJsonSmoke(installedBpl, installDir, packEntry.version);
     runPackedHelpSmoke(installedBpl, installDir);
+    runPackedJsonColorPuritySmoke(installedBpl, installDir, packEntry.version);
 
     const doctor = runStep(
       "check packed npm CLI doctor JSON",
@@ -876,6 +878,104 @@ function runPackedCompletionJsonSmoke(
     throw new Error(
       `Packed npm CLI completion JSON failure reported unexpected payload:\n${JSON.stringify(unsupportedReport, null, 2)}`,
     );
+  }
+}
+
+function runPackedJsonColorPuritySmoke(
+  installedBpl: string,
+  installDir: string,
+  expectedVersion: string | undefined,
+): void {
+  if (!expectedVersion) {
+    throw new Error("npm pack metadata did not include a package version.");
+  }
+
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-json-color-"));
+
+  try {
+    writeFileSync(
+      join(tempDir, "good.bpl"),
+      "frame main() ret int { return 0; }\n",
+    );
+    writeFileSync(
+      join(tempDir, "bad.bpl"),
+      'frame main() { local value: int = "not an int"; }\n',
+    );
+
+    const version = runStep(
+      "check packed npm CLI forced-color version JSON",
+      installedBpl,
+      ["--color", "--version", "--json"],
+      { cwd: installDir, bplHome: null },
+    );
+    if (version.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI forced-color version JSON wrote stderr:\n${version.stderr}`,
+      );
+    }
+    const versionReport = parseVersionReport(version.stdout);
+    assertJsonValueHasNoAnsi(versionReport);
+    if (!versionReport.success || versionReport.version !== expectedVersion) {
+      throw new Error(
+        `Packed npm CLI forced-color version JSON reported unexpected payload:\n${JSON.stringify(versionReport, null, 2)}`,
+      );
+    }
+
+    const checkSuccess = runStep(
+      "check packed npm CLI forced-color check JSON",
+      installedBpl,
+      ["check", "good.bpl", "--json", "--color"],
+      { cwd: tempDir, bplHome: null },
+    );
+    if (checkSuccess.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI forced-color check JSON wrote stderr:\n${checkSuccess.stderr}`,
+      );
+    }
+    const checkSuccessReport = parseCheckReport(checkSuccess.stdout);
+    assertJsonValueHasNoAnsi(checkSuccessReport);
+    if (!checkSuccessReport.success || checkSuccessReport.errorCount !== 0) {
+      throw new Error(
+        `Packed npm CLI forced-color check JSON reported unexpected success payload:\n${JSON.stringify(checkSuccessReport, null, 2)}`,
+      );
+    }
+
+    const checkFailure = runJsonFailureStep(
+      "check packed npm CLI forced-color check failure JSON",
+      installedBpl,
+      ["check", "bad.bpl", "--json", "--color"],
+      { cwd: tempDir, bplHome: null, expectedStatus: 1 },
+    );
+    const checkFailureReport = parseCheckReport(checkFailure.stdout);
+    assertJsonValueHasNoAnsi(checkFailureReport);
+    if (
+      checkFailureReport.success ||
+      checkFailureReport.errorCount !== 1 ||
+      !JSON.stringify(checkFailureReport.files).includes("Type mismatch")
+    ) {
+      throw new Error(
+        `Packed npm CLI forced-color check failure JSON reported unexpected payload:\n${JSON.stringify(checkFailureReport, null, 2)}`,
+      );
+    }
+
+    const buildFailure = runJsonFailureStep(
+      "check packed npm CLI forced-color build failure JSON",
+      installedBpl,
+      ["build", "bad.bpl", "--json", "--color"],
+      { cwd: tempDir, bplHome: null, expectedStatus: 1 },
+    );
+    const buildFailureReport = parseBuildFailureReport(buildFailure.stdout);
+    assertJsonValueHasNoAnsi(buildFailureReport);
+    if (
+      buildFailureReport.success ||
+      !buildFailureReport.error.includes("Type mismatch")
+    ) {
+      throw new Error(
+        `Packed npm CLI forced-color build failure JSON reported unexpected payload:\n${JSON.stringify(buildFailureReport, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
@@ -4335,6 +4435,33 @@ function assertJsonReportContract(
   }
 }
 
+function assertJsonValueHasNoAnsi(value: unknown, path = "$"): void {
+  if (typeof value === "string") {
+    const match = ANSI_ESCAPE_PATTERN.exec(value);
+    if (match) {
+      throw new Error(
+        `JSON string at ${path} contains ANSI escape sequence ${JSON.stringify(
+          match[0],
+        )}`,
+      );
+    }
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertJsonValueHasNoAnsi(item, `${path}[${index}]`),
+    );
+    return;
+  }
+
+  if (value && typeof value === "object") {
+    for (const [key, childValue] of Object.entries(value)) {
+      assertJsonValueHasNoAnsi(childValue, `${path}.${key}`);
+    }
+  }
+}
+
 function runStep(
   label: string,
   command: string,
@@ -4361,6 +4488,51 @@ function runStep(
         `command: ${[command, ...args].join(" ")}`,
         `cwd: ${options.cwd ?? repoRoot}`,
         `exit: ${result.status ?? "unknown"}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  return result;
+}
+
+function runJsonFailureStep(
+  label: string,
+  command: string,
+  args: string[],
+  options: RunStepOptions & { expectedStatus: number },
+) {
+  console.log(`release smoke: ${label}`);
+
+  const result = spawnSync(command, args, {
+    cwd: options.cwd ?? repoRoot,
+    encoding: "utf-8",
+    env: buildStepEnv(options),
+    timeout: smokeTimeoutMs,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== options.expectedStatus) {
+    throw new Error(
+      [
+        `Release smoke JSON failure step did not fail as expected: ${label}`,
+        `command: ${[command, ...args].join(" ")}`,
+        `cwd: ${options.cwd ?? repoRoot}`,
+        `exit: ${result.status ?? "unknown"}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  if (result.stderr !== "") {
+    throw new Error(
+      [
+        `Release smoke JSON failure step wrote stderr: ${label}`,
         `stdout:\n${result.stdout}`,
         `stderr:\n${result.stderr}`,
       ].join("\n"),

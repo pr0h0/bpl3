@@ -443,6 +443,31 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["--json", "--version"]');
   });
 
+  test("release smoke validates packed forced-color JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI forced-color version JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI forced-color check failure JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI forced-color build failure JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedJsonColorPuritySmoke");
+    expect(releaseSmokeSource).toContain("assertJsonValueHasNoAnsi");
+    expect(releaseSmokeSource).toContain(
+      '["--color", "--version", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["build", "bad.bpl", "--json", "--color"]',
+    );
+  });
+
   test("release smoke validates packed CLI help output", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
