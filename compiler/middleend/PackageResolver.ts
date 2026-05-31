@@ -249,6 +249,7 @@ function resolvePackageFromBaseDir(
         ? resolvePackageEntryPoint(packageRoot, manifest, trace)
         : resolvePackageSourcePath(
             path.join(packageRoot, ...parts.slice(1)),
+            packageRoot,
             trace,
           );
 
@@ -464,14 +465,23 @@ function resolvePackageEntryPoint(
 
   return resolvePackageSourcePath(
     path.join(packageRoot, ...mainEntry.split(/[\\/]/)),
+    packageRoot,
     trace,
   );
 }
 
 function resolvePackageSourcePath(
   filePath: string,
+  packageRoot: string,
   trace: PackageResolutionTrace,
 ): string | null {
+  const symlinkedParent = findSymlinkedPackageSourceParent(filePath, packageRoot);
+  if (symlinkedParent) {
+    trace.entryCandidates.push(filePath);
+    failOnSymlinkedSourceCandidate(symlinkedParent, trace);
+    return null;
+  }
+
   const directStats = tryLstat(filePath);
   if (directStats) {
     if (directStats.isSymbolicLink()) {
@@ -512,6 +522,36 @@ function resolvePackageSourcePath(
     }
     if (stats?.isFile()) {
       return fullPath;
+    }
+  }
+
+  return null;
+}
+
+function findSymlinkedPackageSourceParent(
+  filePath: string,
+  packageRoot: string,
+): string | null {
+  const relativePath = path.relative(packageRoot, filePath);
+  if (
+    relativePath.length === 0 ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    return null;
+  }
+
+  const parts = relativePath.split(path.sep).filter((part) => part.length > 0);
+  let currentPath = packageRoot;
+  for (const part of parts.slice(0, -1)) {
+    currentPath = path.join(currentPath, part);
+    const stats = tryLstat(currentPath);
+    if (stats?.isSymbolicLink()) {
+      return currentPath;
+    }
+    if (stats && !stats.isDirectory()) {
+      return null;
     }
   }
 

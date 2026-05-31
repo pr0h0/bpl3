@@ -351,6 +351,28 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("entrypoint-not-found");
   });
 
+  test("does not resolve package entrypoints through symlinked parent directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const outsideSourceDir = path.join(tempDir, "outside-src");
+    const linkedSourceDir = path.join(packageDir, "src");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(outsideSourceDir);
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "src/index.bpl" }),
+    );
+    fs.writeFileSync(path.join(outsideSourceDir, "index.bpl"), "export add;");
+    fs.symlinkSync(outsideSourceDir, linkedSourceDir, "dir");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("entrypoint-not-found");
+    expect(details.trace.failureMessage).toContain("symbolic link");
+    expect(details.trace.failureMessage).toContain(linkedSourceDir);
+  });
+
   test("stops package entrypoint fallback after symlinked preferred .bpl candidates", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");
@@ -448,6 +470,29 @@ describe("PackageResolver", () => {
 
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("subpath-not-found");
+  });
+
+  test("does not resolve package subpaths through symlinked parent directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const outsideFeatureDir = path.join(tempDir, "outside-feature");
+    const linkedFeatureDir = path.join(packageDir, "features");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(outsideFeatureDir);
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(outsideFeatureDir, "add.bpl"), "export add;");
+    fs.symlinkSync(outsideFeatureDir, linkedFeatureDir, "dir");
+
+    const details = resolvePackageImport("math/features/add", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("subpath-not-found");
+    expect(details.trace.failureMessage).toContain("symbolic link");
+    expect(details.trace.failureMessage).toContain(linkedFeatureDir);
   });
 
   test("stops package subpath fallback after symlinked preferred .bpl candidates", () => {

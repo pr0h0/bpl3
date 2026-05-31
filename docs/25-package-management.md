@@ -289,10 +289,13 @@ package root. The example above resolves to either
 `bpl_modules/math-extra/features/increment.bpl` or
 `bpl_modules/math-extra/features/increment/index.bpl`.
 The resolver does not follow symlinked package search directories, package
-roots, manifests, entry files, or subpath entries, so package imports cannot
-escape the installed package root through filesystem links. Symlinked package
-search directories such as `bpl_modules/`, workspace `packages/`, and the global
-package directory are rejected before child package candidates are probed.
+roots, manifests, source parent directories, entry files, or subpath entries, so
+package imports cannot escape the installed package root through filesystem
+links. Symlinked package search directories such as `bpl_modules/`, workspace
+`packages/`, and the global package directory are rejected before child package
+candidates are probed. Nested package source paths such as `src/index.bpl` and
+`features/add.bpl` reject symlinked parent directories before the child file is
+read.
 Existing malformed package roots are terminal metadata failures, so a blocked
 local package root cannot fall through to a same-name workspace or global
 package. This includes symlinked package roots, non-directory package paths, and
