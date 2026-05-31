@@ -8,7 +8,10 @@ import * as path from "path";
 import { spawnSync } from "child_process";
 import { Command } from "commander";
 import { Logger } from "../../compiler/common/Logger";
-import { CLI_JSON_CHECKS, createJsonReport } from "../jsonContracts";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../../compiler/common/JsonContracts";
 
 const log = new Logger("Clean");
 const CLEAN_GIT_TIMEOUT_MS = 5000;

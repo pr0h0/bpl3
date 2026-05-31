@@ -4,9 +4,13 @@ export const CLI_JSON_CHECKS = {
   build: "build",
   clean: "clean",
   doctor: "doctor",
+  packageCacheClean: "package-cache-clean",
   packageCacheList: "package-cache-list",
+  packageCacheRepair: "package-cache-repair",
+  packageCacheVerify: "package-cache-verify",
   packageList: "package-list",
   packageListTree: "package-list-tree",
+  packages: "packages",
   runScriptList: "run-script-list",
   toolchain: "toolchain",
 } as const;

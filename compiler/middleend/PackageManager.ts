@@ -11,6 +11,11 @@ import * as os from "os";
 import * as path from "path";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import {
+  CLI_JSON_CHECKS,
+  CLI_JSON_SCHEMA_VERSION,
+  createJsonReport,
+} from "../common/JsonContracts";
 import { compilerLog } from "../common/Logger";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
 import {
@@ -150,8 +155,8 @@ export interface PackageCacheEntry {
 }
 
 export interface PackageCacheCleanResult {
-  schemaVersion: 1;
-  check: "package-cache-clean";
+  schemaVersion: typeof CLI_JSON_SCHEMA_VERSION;
+  check: typeof CLI_JSON_CHECKS.packageCacheClean;
   success: boolean;
   removed: PackageCacheEntry[];
   dryRun: boolean;
@@ -175,8 +180,8 @@ export interface PackageCacheVerificationIssue {
 }
 
 export interface PackageCacheVerificationReport {
-  schemaVersion: 1;
-  check: "package-cache-verify";
+  schemaVersion: typeof CLI_JSON_SCHEMA_VERSION;
+  check: typeof CLI_JSON_CHECKS.packageCacheVerify;
   success: boolean;
   ok: boolean;
   entriesChecked: number;
@@ -184,8 +189,8 @@ export interface PackageCacheVerificationReport {
 }
 
 export interface PackageCacheRepairResult {
-  schemaVersion: 1;
-  check: "package-cache-repair";
+  schemaVersion: typeof CLI_JSON_SCHEMA_VERSION;
+  check: typeof CLI_JSON_CHECKS.packageCacheRepair;
   success: boolean;
   dryRun: boolean;
   repaired: PackageCacheEntry[];
@@ -210,8 +215,8 @@ export interface PackageDoctorIssue {
 }
 
 export interface PackageDoctorReport {
-  schemaVersion: 1;
-  check: "packages";
+  schemaVersion: typeof CLI_JSON_SCHEMA_VERSION;
+  check: typeof CLI_JSON_CHECKS.packages;
   success: boolean;
   ok: boolean;
   projectRoot: string;
@@ -3250,13 +3255,10 @@ export class PackageManager {
       }
     }
 
-    return {
-      schemaVersion: 1,
-      check: "package-cache-clean",
-      success: true,
+    return createJsonReport(CLI_JSON_CHECKS.packageCacheClean, true, {
       removed,
       dryRun: Boolean(options.dryRun),
-    };
+    });
   }
 
   verifyPackageCache(packageName?: string): PackageCacheVerificationReport {
@@ -3374,14 +3376,11 @@ export class PackageManager {
 
     const ok = issues.length === 0;
 
-    return {
-      schemaVersion: 1,
-      check: "package-cache-verify",
-      success: ok,
+    return createJsonReport(CLI_JSON_CHECKS.packageCacheVerify, ok, {
       ok,
       entriesChecked: entries.length,
       issues,
-    };
+    });
   }
 
   repairPackageCache(
@@ -3493,15 +3492,16 @@ export class PackageManager {
       }
     }
 
-    return {
-      schemaVersion: 1,
-      check: "package-cache-repair",
-      success: issues.length === 0,
-      dryRun: Boolean(options.dryRun),
-      repaired,
-      unchanged,
-      issues,
-    };
+    return createJsonReport(
+      CLI_JSON_CHECKS.packageCacheRepair,
+      issues.length === 0,
+      {
+        dryRun: Boolean(options.dryRun),
+        repaired,
+        unchanged,
+        issues,
+      },
+    );
   }
 
   private getUnsafeProvenancePathIssue(provenancePath: string): string | null {
@@ -3664,10 +3664,7 @@ export class PackageManager {
 
     const ok = errorCount === 0;
 
-    return {
-      schemaVersion: 1,
-      check: "packages",
-      success: ok,
+    return createJsonReport(CLI_JSON_CHECKS.packages, ok, {
       ok,
       projectRoot: this.projectRoot,
       localPackageDir: this.localPackageDir,
@@ -3684,7 +3681,7 @@ export class PackageManager {
       cacheVerification,
       dependencyTree,
       issues,
-    };
+    });
   }
 
   private findInstalledPackageNameIssues(): PackageDoctorIssue[] {

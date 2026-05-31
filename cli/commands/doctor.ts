@@ -24,7 +24,7 @@ import {
   CLI_JSON_CHECKS,
   CLI_JSON_SCHEMA_VERSION,
   createJsonReport,
-} from "../jsonContracts";
+} from "../../compiler/common/JsonContracts";
 
 const log = new Logger("Doctor");
 const DOCTOR_COMMAND_TIMEOUT_MS = 2000;

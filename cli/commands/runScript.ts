@@ -9,7 +9,10 @@ import * as path from "path";
 import * as os from "os";
 import { spawnSync } from "child_process";
 import { Logger } from "../../compiler/common/Logger";
-import { CLI_JSON_CHECKS, createJsonReport } from "../jsonContracts";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../../compiler/common/JsonContracts";
 
 const log = new Logger("RunScript");
 

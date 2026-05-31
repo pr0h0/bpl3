@@ -64,6 +64,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Run-Script List JSON Stability** - `bpl run-script --list --json` now
   includes stable `schemaVersion: 1`, `check: "run-script-list"`, and
   `success: true` fields alongside the existing `scripts` array.
+- **Shared CLI JSON Contract Constants** - CLI and package-manager JSON report
+  emitters now share one schema/check helper so package doctor and package-cache
+  maintenance reports cannot drift from the documented contract strings.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

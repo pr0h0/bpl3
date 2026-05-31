@@ -32,7 +32,10 @@ import {
   writeFileAtomically,
 } from "./utils";
 import type { CompileOptions } from "./types";
-import { CLI_JSON_CHECKS, createJsonReport } from "./jsonContracts";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../compiler/common/JsonContracts";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 

@@ -26,8 +26,11 @@ import type {
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import { Logger } from "../../compiler/common/Logger";
 import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../../compiler/common/JsonContracts";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
-import { CLI_JSON_CHECKS, createJsonReport } from "../jsonContracts";
 
 const log = new Logger("Package");
 const PACKAGE_IR_VERIFY_TIMEOUT_MS = 30000;
