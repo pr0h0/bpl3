@@ -377,6 +377,72 @@ describe("ModuleResolver", () => {
     }
   });
 
+  it("should not fall back to cwd packages after malformed project package metadata", () => {
+    const appDir = path.join(tempDir, "malformed-package-app");
+    const sourceDir = path.join(appDir, "src");
+    const projectPackageDir = path.join(appDir, "bpl_modules", "shared-math");
+    const cwdDir = path.join(tempDir, "malformed-package-cwd");
+    const cwdPackageDir = path.join(cwdDir, "bpl_modules", "shared-math");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(projectPackageDir, { recursive: true });
+    fs.mkdirSync(cwdPackageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "bpl.json"),
+      JSON.stringify({ name: "malformed-package-app", version: "1.0.0" }, null, 2),
+    );
+    fs.writeFileSync(
+      path.join(projectPackageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "other-package",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(projectPackageDir, "index.bpl"), "export wrong;");
+    fs.writeFileSync(
+      path.join(cwdPackageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "shared-math",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(cwdPackageDir, "index.bpl"), "export value;");
+
+    const mainPath = path.join(sourceDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "shared-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(cwdDir);
+      const error = captureCompilerError(() => {
+        new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+      });
+
+      expect(error.message).toContain("manifest name 'other-package'");
+      expect(error.hint).toContain(projectPackageDir);
+      expect(error.hint).not.toContain(cwdPackageDir);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it("should report searched package paths for unresolved package imports", () => {
     const appDir = path.join(tempDir, "diagnostic-app");
     const sourceDir = path.join(appDir, "src");

@@ -209,20 +209,26 @@ export class ModuleResolver {
       );
       packageTraces.push(fromFilePackage.trace);
       if (fromFilePackage.result) {
-        const result = this.tryResolveWithExtensions(fromFilePackage.result.filePath);
+        const result = this.tryResolveWithExtensions(
+          fromFilePackage.result.filePath,
+        );
         if (result) return result;
       }
 
-      // Then try from current working directory for REPL/scripts that import
-      // packages without an on-disk project root near the source file.
-      const cwdPackage = packageManager.resolvePackageWithDiagnostics(
-        importSource,
-        process.cwd(),
-      );
-      packageTraces.push(cwdPackage.trace);
-      if (cwdPackage.result) {
-        const result = this.tryResolveWithExtensions(cwdPackage.result.filePath);
-        if (result) return result;
+      if (!isTerminalPackageResolutionFailure(fromFilePackage.trace)) {
+        // Then try from current working directory for REPL/scripts that import
+        // packages without an on-disk project root near the source file.
+        const cwdPackage = packageManager.resolvePackageWithDiagnostics(
+          importSource,
+          process.cwd(),
+        );
+        packageTraces.push(cwdPackage.trace);
+        if (cwdPackage.result) {
+          const result = this.tryResolveWithExtensions(
+            cwdPackage.result.filePath,
+          );
+          if (result) return result;
+        }
       }
     } catch (_e) {
       // Package not found, continue with other search paths
@@ -230,12 +236,14 @@ export class ModuleResolver {
 
     // Search in additional paths
     const extraSearchCandidates: string[] = [];
-    for (const searchPath of this.searchPaths) {
-      const resolved = path.join(searchPath, importSource);
-      extraSearchCandidates.push(resolved);
-      const result = this.tryResolveWithExtensions(resolved);
-      if (result) {
-        return result;
+    if (!packageTraces.some(isTerminalPackageResolutionFailure)) {
+      for (const searchPath of this.searchPaths) {
+        const resolved = path.join(searchPath, importSource);
+        extraSearchCandidates.push(resolved);
+        const result = this.tryResolveWithExtensions(resolved);
+        if (result) {
+          return result;
+        }
       }
     }
 
@@ -524,4 +532,12 @@ export class ModuleResolver {
   getAllModules(): ModuleInfo[] {
     return Array.from(this.modules.values());
   }
+}
+
+function isTerminalPackageResolutionFailure(
+  trace: PackageResolutionTrace,
+): boolean {
+  return Boolean(
+    trace.failureReason && trace.failureReason !== "package-not-found",
+  );
 }

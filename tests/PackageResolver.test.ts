@@ -252,6 +252,51 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("does not fall back to workspace or global packages after malformed local metadata", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const localPackageDir = path.join(appDir, "bpl_modules", "math");
+    const workspacePackageDir = path.join(appDir, "packages", "math");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(localPackageDir, { recursive: true });
+    fs.mkdirSync(workspacePackageDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(localPackageDir, "bpl.json"),
+      JSON.stringify(
+        { name: "not-math", version: "1.0.0", main: "index.bpl" },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(localPackageDir, "index.bpl"), "export bad;");
+
+    for (const [packageDir, version] of [
+      [workspacePackageDir, "1.0.0"],
+      [globalVersionedPackageDir, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }, null, 2),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export good;");
+    }
+
+    const details = resolvePackageImport("math", sourceDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.foundPackageRoot).toBe(localPackageDir);
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain("manifest name 'not-math'");
+    expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
+    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+  });
+
   test("does not resolve versioned global directories whose manifest version does not match the directory", () => {
     const appDir = path.join(tempDir, "app");
     const globalPackageDir = path.join(tempDir, "global-packages");
