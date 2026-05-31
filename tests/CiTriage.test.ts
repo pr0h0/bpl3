@@ -218,6 +218,29 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps check and lint JSON input validation failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "check and lint JSON input validation"',
+      'bun test tests/CLI.test.ts -t "source analysis|missing files in check JSON"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_CHECK_INPUT_NOT_FOUND")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_CHECK_INPUT_SYMLINK")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_LINT_INPUT_NOT_FILE")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "check and lint JSON input validation failures are missing errorCode",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package source-safety JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
@@ -1076,6 +1099,71 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "run-script JSON validation failures"',
         'bun test tests/CLI.test.ts -t "run-script"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints check and lint validation repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-source-analysis-codes-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 66,
+              name: "Generic test failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/66",
+              steps: [
+                {
+                  name: "BPL_LINT_INPUT_SYMLINK in lint --json",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "check and lint JSON input validation"',
+        'bun test tests/CLI.test.ts -t "source analysis|missing files in check JSON"',
         "bun run check",
       ]);
     } finally {

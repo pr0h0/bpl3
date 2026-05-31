@@ -162,6 +162,17 @@ const RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const SOURCE_ANALYSIS_JSON_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "check and lint JSON input validation",
+    "source analysis commands",
+    "BPL_CHECK_INPUT_",
+    "BPL_LINT_INPUT_",
+    "check --json.*Input path",
+    "lint --json.*Input path",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   [
     "package source-safety",
@@ -363,6 +374,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "run-script"',
   ],
   [RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    SOURCE_ANALYSIS_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "check and lint JSON input validation"',
+  ],
+  [
+    SOURCE_ANALYSIS_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "source analysis|missing files in check JSON"',
+  ],
+  [SOURCE_ANALYSIS_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
