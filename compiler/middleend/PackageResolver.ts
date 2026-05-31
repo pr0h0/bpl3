@@ -44,6 +44,22 @@ export interface PackageResolutionOptions {
 const PACKAGE_NAME_PATTERN = /^[a-z0-9-]+$/;
 const PACKAGE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 
+type SemanticVersion = [number, number, number];
+
+interface PackageRootCandidate {
+  rootPath: string;
+}
+
+interface VersionedPackageRootCandidate extends PackageRootCandidate {
+  version: SemanticVersion;
+}
+
+type PackageRootCandidateClassification =
+  | { status: "missing"; rootPath: string }
+  | { status: "symlink"; rootPath: string }
+  | { status: "non-directory"; rootPath: string }
+  | { status: "directory"; rootPath: string };
+
 export function resolvePackageImport(
   importPath: string,
   startDir: string,
@@ -206,33 +222,35 @@ function resolvePackageFromBaseDir(
     baseDir,
     packageName,
     includeVersionedGlobalDirs,
+    Boolean(baseStats?.isDirectory()),
   )) {
-    trace.searchedPaths.push(packageRoot);
+    trace.searchedPaths.push(packageRoot.rootPath);
 
-    const packageRootStats = tryLstat(packageRoot);
-    if (!packageRootStats) continue;
-    if (packageRootStats.isSymbolicLink()) {
-      trace.foundPackageRoot = packageRoot;
-      failOnSymlinkedPackageRoot(packageRoot, trace);
+    const classification = classifyPackageRootCandidate(packageRoot);
+    if (classification.status === "missing") continue;
+    if (classification.status === "symlink") {
+      trace.foundPackageRoot = classification.rootPath;
+      failOnSymlinkedPackageRoot(classification.rootPath, trace);
       return null;
     }
-    if (!packageRootStats.isDirectory()) {
-      trace.foundPackageRoot = packageRoot;
+    if (classification.status === "non-directory") {
+      trace.foundPackageRoot = classification.rootPath;
       failOnInvalidPackageRoot(
-        packageRoot,
+        classification.rootPath,
         "package root is not a directory",
         trace,
       );
       return null;
     }
-    const manifestPath = path.join(packageRoot, "bpl.json");
+    const packageRootPath = classification.rootPath;
+    const manifestPath = path.join(packageRootPath, "bpl.json");
     if (!tryLstat(manifestPath)) {
-      trace.foundPackageRoot = packageRoot;
+      trace.foundPackageRoot = packageRootPath;
       failOnMissingPackageManifest(manifestPath, trace);
       return null;
     }
 
-    trace.foundPackageRoot = packageRoot;
+    trace.foundPackageRoot = packageRootPath;
 
     const manifest = readPackageManifest(manifestPath);
     if (manifest === null) {
@@ -240,16 +258,16 @@ function resolvePackageFromBaseDir(
       trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}.`;
       return null;
     }
-    if (!validatePackageManifestMatchesImport(packageRoot, manifest, trace)) {
+    if (!validatePackageManifestMatchesImport(packageRootPath, manifest, trace)) {
       return null;
     }
 
     const filePath =
       parts.length === 1
-        ? resolvePackageEntryPoint(packageRoot, manifest, trace)
+        ? resolvePackageEntryPoint(packageRootPath, manifest, trace)
         : resolvePackageSourcePath(
-            path.join(packageRoot, ...parts.slice(1)),
-            packageRoot,
+            path.join(packageRootPath, ...parts.slice(1)),
+            packageRootPath,
             trace,
           );
 
@@ -257,7 +275,7 @@ function resolvePackageFromBaseDir(
       return {
         filePath,
         packageName,
-        packageRoot,
+        packageRoot: packageRootPath,
         source,
       };
     }
@@ -266,10 +284,10 @@ function resolvePackageFromBaseDir(
       return null;
     } else if (parts.length === 1) {
       trace.failureReason = "entrypoint-not-found";
-      trace.failureMessage = `Package '${packageName}' exists at ${packageRoot}, but its entrypoint was not found.`;
+      trace.failureMessage = `Package '${packageName}' exists at ${packageRootPath}, but its entrypoint was not found.`;
     } else {
       trace.failureReason = "subpath-not-found";
-      trace.failureMessage = `Package '${packageName}' exists at ${packageRoot}, but subpath '${parts.slice(1).join("/")}' was not found.`;
+      trace.failureMessage = `Package '${packageName}' exists at ${packageRootPath}, but subpath '${parts.slice(1).join("/")}' was not found.`;
     }
   }
 
@@ -280,37 +298,65 @@ function getPackageRootCandidates(
   baseDir: string,
   packageName: string,
   includeVersionedGlobalDirs: boolean,
-): string[] {
-  const candidates = [path.join(baseDir, packageName)];
-  const baseStats = tryLstat(baseDir);
-  if (!includeVersionedGlobalDirs || !baseStats?.isDirectory()) {
+  baseDirIsDirectory: boolean,
+): PackageRootCandidate[] {
+  const candidates = [exactPackageRootCandidate(baseDir, packageName)];
+  if (!includeVersionedGlobalDirs || !baseDirIsDirectory) {
     return candidates;
   }
 
-  const versioned = fs
-    .readdirSync(baseDir, { withFileTypes: true })
+  return [
+    ...candidates,
+    ...getVersionedPackageRootCandidates(baseDir, packageName),
+  ];
+}
+
+function exactPackageRootCandidate(
+  baseDir: string,
+  packageName: string,
+): PackageRootCandidate {
+  return { rootPath: path.join(baseDir, packageName) };
+}
+
+function getVersionedPackageRootCandidates(
+  baseDir: string,
+  packageName: string,
+): VersionedPackageRootCandidate[] {
+  return fs
+    .readdirSync(baseDir)
     .map((entry) => {
-      const version = parseVersionedPackageDirectory(packageName, entry.name);
+      const version = parseVersionedPackageDirectory(packageName, entry);
       if (!version) return null;
       return {
-        path: path.join(baseDir, entry.name),
+        rootPath: path.join(baseDir, entry),
         version,
       };
     })
-    .filter(
-      (entry): entry is { path: string; version: [number, number, number] } =>
-        entry !== null,
-    )
-    .sort((left, right) => compareSemverDesc(left.version, right.version))
-    .map((entry) => entry.path);
+    .filter((entry): entry is VersionedPackageRootCandidate => entry !== null)
+    .sort((left, right) => compareSemverDesc(left.version, right.version));
+}
 
-  return [...candidates, ...versioned];
+function classifyPackageRootCandidate(
+  candidate: PackageRootCandidate,
+): PackageRootCandidateClassification {
+  const packageRootStats = tryLstat(candidate.rootPath);
+  if (!packageRootStats) {
+    return { status: "missing", rootPath: candidate.rootPath };
+  }
+  if (packageRootStats.isSymbolicLink()) {
+    return { status: "symlink", rootPath: candidate.rootPath };
+  }
+  if (!packageRootStats.isDirectory()) {
+    return { status: "non-directory", rootPath: candidate.rootPath };
+  }
+
+  return { status: "directory", rootPath: candidate.rootPath };
 }
 
 function parseVersionedPackageDirectory(
   packageName: string,
   directoryName: string,
-): [number, number, number] | null {
+): SemanticVersion | null {
   const prefix = `${packageName}-`;
   if (!directoryName.startsWith(prefix)) return null;
 
@@ -322,8 +368,8 @@ function parseVersionedPackageDirectory(
 }
 
 function compareSemverDesc(
-  left: [number, number, number],
-  right: [number, number, number],
+  left: SemanticVersion,
+  right: SemanticVersion,
 ): number {
   for (let index = 0; index < 3; index++) {
     const delta = right[index]! - left[index]!;

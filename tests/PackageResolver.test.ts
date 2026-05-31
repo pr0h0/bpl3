@@ -44,6 +44,79 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("resolves local, workspace, global exact, and global versioned candidate roots", () => {
+    type CandidateCase = {
+      name: string;
+      expectedSource: "local" | "workspace" | "global";
+      version: string;
+      getPackageRoot: (context: {
+        appDir: string;
+        globalPackageDir: string;
+      }) => string;
+    };
+    const cases: CandidateCase[] = [
+      {
+        name: "local",
+        expectedSource: "local",
+        version: "1.0.0",
+        getPackageRoot: ({ appDir }) =>
+          path.join(appDir, "bpl_modules", "math"),
+      },
+      {
+        name: "workspace",
+        expectedSource: "workspace",
+        version: "2.0.0",
+        getPackageRoot: ({ appDir }) => path.join(appDir, "packages", "math"),
+      },
+      {
+        name: "global-exact",
+        expectedSource: "global",
+        version: "3.0.0",
+        getPackageRoot: ({ globalPackageDir }) =>
+          path.join(globalPackageDir, "math"),
+      },
+      {
+        name: "global-versioned",
+        expectedSource: "global",
+        version: "4.0.0",
+        getPackageRoot: ({ globalPackageDir }) =>
+          path.join(globalPackageDir, "math-4.0.0"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const caseDir = path.join(tempDir, testCase.name);
+      const appDir = path.join(caseDir, "app");
+      const sourceDir = path.join(appDir, "src");
+      const globalPackageDir = path.join(caseDir, "global-packages");
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(globalPackageDir, { recursive: true });
+
+      const packageRoot = testCase.getPackageRoot({ appDir, globalPackageDir });
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          { name: "math", version: testCase.version, main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export add;");
+
+      const details = resolvePackageImport("math", sourceDir, {
+        globalPackageDir,
+      });
+
+      expect(details.result).toEqual({
+        filePath: path.join(packageRoot, "index.bpl"),
+        packageName: "math",
+        packageRoot,
+        source: testCase.expectedSource,
+      });
+    }
+  });
+
   test("does not ignore symlinked global versioned package roots", () => {
     const appDir = path.join(tempDir, "app");
     const globalPackageDir = path.join(tempDir, "global-packages");
