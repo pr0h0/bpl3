@@ -1548,6 +1548,64 @@ describe("PackageManager", () => {
       ).toThrow(/Package archive path is not a file/);
     });
 
+    test("should preserve existing global cache archive permissions when replacing", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const packageDir = path.join(tempDir, "global-cache-mode-package");
+      const globalPackageDir = path.join(tempDir, "global-cache-mode");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "global-cache-mode",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export old;");
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.install(new PackageManager(packageDir).pack(packageDir), {
+        global: true,
+        verbose: false,
+      });
+
+      const cachedArchivePath = path.join(
+        globalPackageDir,
+        "global-cache-mode-1.0.0.tgz",
+      );
+      fs.chmodSync(cachedArchivePath, 0o640);
+
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export new;");
+      const replacementTarball = new PackageManager(packageDir).pack(packageDir);
+      localPM.install(replacementTarball, { global: true, verbose: false });
+
+      expect(fs.statSync(cachedArchivePath).mode & 0o777).toBe(0o640);
+      expect(
+        fs.readFileSync(
+          path.join(globalPackageDir, "global-cache-mode", "index.bpl"),
+          "utf8",
+        ),
+      ).toBe("export new;");
+      expect(
+        fs
+          .readdirSync(globalPackageDir)
+          .some(
+            (file) =>
+              file.startsWith(".global-cache-mode-1.0.0.tgz.") &&
+              file.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    });
+
     test("should preserve existing global installs when cache provenance is blocked", () => {
       const packageDir = path.join(tempDir, "global-provenance-package");
       const globalPackageDir = path.join(tempDir, "global-provenance-cache");

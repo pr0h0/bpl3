@@ -855,6 +855,12 @@ export class PackageManager {
   }
 
   private copyFileAtomically(sourcePath: string, destinationPath: string): void {
+    const existingFile = this.tryLstat(destinationPath);
+    const mode =
+      existingFile && existingFile.isFile()
+        ? existingFile.mode & 0o777
+        : undefined;
+
     for (let attempt = 0; attempt < 10; attempt++) {
       const tempPath = this.getAtomicWriteTempPath(destinationPath, attempt);
       let createdTemp = false;
@@ -862,6 +868,9 @@ export class PackageManager {
       try {
         fs.copyFileSync(sourcePath, tempPath, fs.constants.COPYFILE_EXCL);
         createdTemp = true;
+        if (mode !== undefined) {
+          fs.chmodSync(tempPath, mode);
+        }
         fs.renameSync(tempPath, destinationPath);
         return;
       } catch (error) {
