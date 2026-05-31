@@ -719,6 +719,48 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("promote CLI refuses corpus directories through symlinked ancestors", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-promote-link-"));
+
+    try {
+      const sourcePath = join(tempRoot, "source.bpl");
+      const realRoot = join(tempRoot, "real-root");
+      const linkedRoot = join(tempRoot, "linked-root");
+      const realCorpusDir = join(realRoot, "corpus");
+      const corpusDir = join(linkedRoot, "corpus");
+      writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+      mkdirSync(realCorpusDir, { recursive: true });
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--source",
+          sourcePath,
+          "--name",
+          "linked corpus",
+          "--corpus-dir",
+          corpusDir,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Fuzz regression corpus directory parent contains a symbolic link",
+      );
+      expect(readdirSync(realCorpusDir)).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("refuses to overwrite promoted fuzz regression names without force", () => {
     const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-corpus-"));
     const sourcePath = join(corpusDir, "source.bpl");
