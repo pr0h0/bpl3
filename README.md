@@ -146,6 +146,13 @@ BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR
 BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts
 ```
 
+Packed `ci:triage` smoke also validates sanitizer runtime repro contracts:
+
+```bash
+bun run test:sanitizers
+bun test tests/CompilerSanitizerRuntime.test.ts
+```
+
 ## 🚀 Quick Start
 
 ### Hello World

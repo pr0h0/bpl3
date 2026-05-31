@@ -256,6 +256,9 @@ describe("Markdown documentation", () => {
       "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
       'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
       "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
+      "Packed `ci:triage` smoke also validates sanitizer runtime repro contracts",
+      "bun run test:sanitizers",
+      "bun test tests/CompilerSanitizerRuntime.test.ts",
     ];
 
     for (const snippet of requiredSnippets) {

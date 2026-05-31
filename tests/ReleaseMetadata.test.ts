@@ -239,6 +239,22 @@ describe("Release metadata", () => {
     );
   });
 
+  test("release helper smoke validates packed CI sanitizer repro contracts", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI CI triage sanitizer JSON",
+    );
+    expect(releaseSmokeSource).toContain("Sanitizer timeout metadata");
+    expect(releaseSmokeSource).toContain("bun run test:sanitizers");
+    expect(releaseSmokeSource).toContain(
+      "bun test tests/CompilerSanitizerRuntime.test.ts",
+    );
+  });
+
   test("CI-safe tests keep release helper smoke focused", () => {
     const packageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),

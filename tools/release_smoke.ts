@@ -1406,6 +1406,19 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
               },
             ],
           },
+          {
+            id: 44,
+            name: "Sanitizer timeout metadata",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/44",
+            steps: [
+              {
+                name: "Compiler sanitizer-backed runtime tests > routes checked runtime failures through BPL errors under ASan and UBSan timed out after 5000ms",
+                conclusion: "failure",
+              },
+            ],
+          },
         ],
       },
       null,
@@ -1463,6 +1476,31 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
         `${ciTriageTimeoutLabel} reported unexpected payload:`,
         "missing timeout commands:",
         ...missingPackageTimeoutCommands.map((command) => `- ${command}`),
+        `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+
+  const ciTriageSanitizerLabel =
+    "check packed npm CLI CI triage sanitizer JSON";
+  const sanitizerCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Sanitizer timeout metadata",
+    )?.localCommands ?? [];
+  const expectedSanitizerCommands = [
+    "bun run test:sanitizers",
+    "bun test tests/CompilerSanitizerRuntime.test.ts",
+    "bun index.ts doctor --json",
+  ];
+  const missingSanitizerCommands = expectedSanitizerCommands.filter(
+    (command) => !sanitizerCommands.includes(command),
+  );
+  if (missingSanitizerCommands.length > 0) {
+    throw new Error(
+      [
+        `${ciTriageSanitizerLabel} reported unexpected payload:`,
+        "missing sanitizer commands:",
+        ...missingSanitizerCommands.map((command) => `- ${command}`),
         `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
       ].join("\n"),
     );

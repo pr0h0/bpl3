@@ -58,6 +58,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Timeout Contracts** - Release helper smoke now checks that
   packed `ci:triage` JSON keeps package tooling, package IR verification, and
   object symbol timeout repro commands available after npm packaging.
+- **Packed CI Triage Sanitizer Contracts** - Release helper smoke now checks
+  that packed `ci:triage` JSON keeps sanitizer runtime repro commands available
+  after npm packaging.
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
 - **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed
