@@ -246,6 +246,15 @@ const PACKAGE_CACHE_NAME_JSON_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_UNINSTALL_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_UNINSTALL_",
+    "package-uninstall",
+    "package uninstall JSON",
+    "uninstall JSON contract",
+  ].join("|"),
+  "i",
+);
 const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
   [
     "Run WebAssembly runtime tests",
@@ -493,6 +502,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "bun test tests/PackageJsonFailureContracts.test.ts",
   ],
   [PACKAGE_CACHE_NAME_JSON_STEP_PATTERN, "bun run check"],
+  [
+    PACKAGE_UNINSTALL_JSON_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"',
+  ],
+  [
+    PACKAGE_UNINSTALL_JSON_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "uninstall command"',
+  ],
+  [PACKAGE_UNINSTALL_JSON_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_TIMEOUT_STEP_PATTERN,
     "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts",

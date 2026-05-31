@@ -372,6 +372,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package uninstall JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"',
+      'bun test tests/PackageManagerCLI.test.ts -t "uninstall command"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep("BPL_PACKAGE_UNINSTALL_NOT_INSTALLED"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("BPL_PACKAGE_UNINSTALL_NAME_INVALID"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("package-uninstall JSON contract failure"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps wasm runtime execution failures to focused repro commands", () => {
     const expectedCommands = [
       "bun test tests/WasmRuntime.test.ts",
@@ -1232,6 +1250,71 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
         "bun test tests/PackageJsonFailureContracts.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package uninstall JSON repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-uninstall-json-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 75,
+              name: "Package uninstall JSON codes",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/75",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED package-uninstall JSON contract",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"',
+        'bun test tests/PackageManagerCLI.test.ts -t "uninstall command"',
         "bun run check",
       ]);
     } finally {
