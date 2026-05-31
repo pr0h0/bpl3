@@ -875,6 +875,43 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports unsafe package entrypoints in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const outsideEntrypoint = path.join(appDir, "bpl_modules", "outside.bpl");
+    const sourceFile = path.join(sourceDir, "unsafe_entrypoint_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(outsideEntrypoint, "export value;");
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({
+        name: "pkg-math",
+        version: "1.0.0",
+        main: "../outside.bpl",
+      }),
+    );
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic?.message).toContain("unsafe entrypoint '../outside.bpl'");
+    expect(diagnostic?.message).toContain("bpl.json");
+    expect(diagnostic?.message).not.toContain(outsideEntrypoint);
+    expect(diagnostic?.hint).toContain("unsafe entrypoint '../outside.bpl'");
+    expect(diagnostic?.hint).not.toContain(outsideEntrypoint);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
