@@ -231,6 +231,74 @@ describe("Package Manager CLI", () => {
       );
       expect(linkResult.stderr).not.toContain("ENOENT");
     });
+
+    test("should reject ambiguous manifest paths before creating archives", () => {
+      const cases = [
+        {
+          directory: "bad-main-path",
+          manifest: {
+            name: "bad-main-path",
+            version: "1.0.0",
+            main: "src//index.bpl",
+          },
+          expectedDiagnostic: "Invalid package manifest 'main' field",
+        },
+        {
+          directory: "bad-exports-path",
+          manifest: {
+            name: "bad-exports-path",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["src/./index.bpl"],
+          },
+          expectedDiagnostic: "Invalid package manifest 'exports' field",
+        },
+        {
+          directory: "bad-bin-path",
+          manifest: {
+            name: "bad-bin-path",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin//tool.bpl" },
+          },
+          expectedDiagnostic: "Invalid 'bin' path",
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        const projectDir = path.join(tempDir, testCase.directory);
+        fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+        fs.mkdirSync(path.join(projectDir, "bin"), { recursive: true });
+        fs.writeFileSync(
+          path.join(projectDir, "bpl.json"),
+          JSON.stringify(testCase.manifest, null, 2),
+        );
+        fs.writeFileSync(path.join(projectDir, "index.bpl"), "export root;");
+        fs.writeFileSync(
+          path.join(projectDir, "src", "index.bpl"),
+          "export nested;",
+        );
+        fs.writeFileSync(path.join(projectDir, "bin", "tool.bpl"), "export tool;");
+
+        const result = spawnSync("bun", [bplPath, "pack"], {
+          cwd: projectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        });
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(testCase.expectedDiagnostic);
+        expect(result.stderr).toContain("without empty, '.', or '..' segments");
+        expect(
+          fs.existsSync(
+            path.join(
+              projectDir,
+              `${testCase.manifest.name}-${testCase.manifest.version}.tgz`,
+            ),
+          ),
+        ).toBe(false);
+      }
+    });
   });
 
   describe("install command", () => {

@@ -124,6 +124,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Strict Package Manifest Paths** - Package `main`, `exports`, and `bin`
   manifest paths now reject empty, `.`, and `..` segments instead of
   normalizing ambiguous package-relative paths.
+- **CLI Pack Manifest Path Coverage** - Added CLI regressions proving
+  `bpl pack` rejects ambiguous package manifest paths before creating archives.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
