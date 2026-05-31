@@ -152,6 +152,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Import Diagnostic Policy Docs** - Documented that normal check/build modes
   preserve resolver-specific import diagnostics while frontend-only emit modes
   parse without loading imports.
+- **Build JSON Import Diagnostics** - `bpl build --json` failures now include
+  structured compiler diagnostics alongside the existing formatted `error`
+  field, with coverage for unsafe `std/` imports and malformed package
+  metadata.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

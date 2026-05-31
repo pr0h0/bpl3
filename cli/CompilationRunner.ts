@@ -48,6 +48,13 @@ type BuildJsonOutput = {
   executable?: string;
 };
 
+class CompilationDiagnosticsError extends Error {
+  constructor(public readonly errors: CompilerError[]) {
+    super(diagnosticFormatter.formatErrors(errors));
+    this.name = "CompilationDiagnosticsError";
+  }
+}
+
 /**
  * Apply CLI options to global configuration
  */
@@ -172,12 +179,17 @@ function handleCompilationError(
   sourceLabel?: string,
 ): never {
   if (shouldEmitBuildJsonReport(options)) {
+    const diagnostics = getCompilationDiagnostics(e);
+    const payload = {
+      ...(sourceLabel ? { file: sourceLabel } : {}),
+      error: formatCompilationErrorMessage(e),
+      ...(diagnostics
+        ? { diagnostics: diagnosticFormatter.formatDiagnosticObjects(diagnostics) }
+        : {}),
+    };
     console.log(
       JSON.stringify(
-        createJsonReport(CLI_JSON_CHECKS.build, false, {
-          ...(sourceLabel ? { file: sourceLabel } : {}),
-          error: formatCompilationErrorMessage(e),
-        }),
+        createJsonReport(CLI_JSON_CHECKS.build, false, payload),
         null,
         2,
       ),
@@ -194,6 +206,16 @@ function handleCompilationError(
     }
   }
   process.exit(1);
+}
+
+function getCompilationDiagnostics(error: unknown): CompilerError[] | undefined {
+  if (error instanceof CompilerError) {
+    return [error];
+  }
+  if (error instanceof CompilationDiagnosticsError) {
+    return error.errors;
+  }
+  return undefined;
 }
 
 function readInputSourceFile(filePath: string): string {
@@ -471,7 +493,7 @@ function compileWithModules(
   if (!result.success) {
     if (result.errors) {
       if (shouldEmitBuildJsonReport(options)) {
-        throw new Error(diagnosticFormatter.formatErrors(result.errors));
+        throw new CompilationDiagnosticsError(result.errors);
       }
       console.error(diagnosticFormatter.formatErrors(result.errors));
     }
@@ -559,7 +581,7 @@ async function compileWithModulesAsync(
   if (!result.success) {
     if (result.errors) {
       if (shouldEmitBuildJsonReport(options)) {
-        throw new Error(diagnosticFormatter.formatErrors(result.errors));
+        throw new CompilationDiagnosticsError(result.errors);
       }
       console.error(diagnosticFormatter.formatErrors(result.errors));
     }
@@ -672,7 +694,7 @@ function compileSingleFile(
   const typeErrors = typeChecker.getErrors();
   if (typeErrors.length > 0) {
     if (shouldEmitBuildJsonReport(options)) {
-      throw new Error(diagnosticFormatter.formatErrors(typeErrors));
+      throw new CompilationDiagnosticsError(typeErrors);
     }
     console.error(diagnosticFormatter.formatErrors(typeErrors));
     if (options.watch) {

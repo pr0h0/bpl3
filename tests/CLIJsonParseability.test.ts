@@ -286,6 +286,140 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("reports import diagnostics in JSON-mode build failures", () => {
+    const unsafeStdFile = path.join(tempDir, "unsafe_std.bpl");
+    const unsafeStdOutput = path.join(tempDir, "unsafe-std-app");
+    const packageFile = path.join(tempDir, "package_import.bpl");
+    const packageOutput = path.join(tempDir, "package-app");
+    const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "different-name",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      unsafeStdFile,
+      [
+        'import escaped from "std/../outside-std-lib.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      packageFile,
+      [
+        'import value from "badpkg";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const unsafeStdResult = runCli([
+      "build",
+      unsafeStdFile,
+      "--json",
+      "-o",
+      unsafeStdOutput,
+    ]);
+    expect(unsafeStdResult.status).toBe(1);
+    const unsafeStdReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(unsafeStdResult);
+    expect(unsafeStdReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: unsafeStdFile,
+      diagnostics: [
+        {
+          location: {
+            file: unsafeStdFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(unsafeStdReport.diagnostics[0]?.message).toContain(
+      "Unsafe standard library import: std/../outside-std-lib.bpl",
+    );
+    expect(unsafeStdReport.diagnostics[0]?.hint).toContain(
+      "Use std/<path> without empty, '.', or '..' path segments.",
+    );
+    expect(fs.existsSync(`${unsafeStdOutput}.ll`)).toBe(false);
+    expect(fs.existsSync(unsafeStdOutput)).toBe(false);
+
+    const packageResult = runCli([
+      "build",
+      packageFile,
+      "--json",
+      "-o",
+      packageOutput,
+    ]);
+    expect(packageResult.status).toBe(1);
+    const packageReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(packageResult);
+    expect(packageReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: packageFile,
+      diagnostics: [
+        {
+          location: {
+            file: packageFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(packageReport.diagnostics[0]?.message).toContain("invalid bpl.json");
+    expect(packageReport.diagnostics[0]?.message).toContain(
+      "manifest name 'different-name'",
+    );
+    expect(packageReport.diagnostics[0]?.hint).toContain("Searched paths:");
+    expect(fs.existsSync(`${packageOutput}.ll`)).toBe(false);
+    expect(fs.existsSync(packageOutput)).toBe(false);
+  });
+
   test("keeps JSON-mode build validation failures parseable on stdout", () => {
     const sourceDir = path.join(tempDir, "source-dir");
     fs.mkdirSync(sourceDir);
