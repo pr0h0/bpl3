@@ -253,7 +253,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads. |
 | `bpl run-script --list --json` | Script list with `success: true` and `scripts`; manifest or script validation failures return `{ "success": false, "error": "..." }` on stdout. |
 | `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. |
-| `bpl list --json` / `bpl list --tree --json` | Installed package summaries or dependency tree data for package tooling. |
+| `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data. |
 
 ## Direct Code Compilation
 

@@ -161,7 +161,19 @@ export function registerPackageCommands(program: Command): void {
           const tree = pm.getDependencyTree(options);
 
           if (outputJson) {
-            console.log(JSON.stringify({ scope, tree }, null, 2));
+            console.log(
+              JSON.stringify(
+                {
+                  schemaVersion: 1,
+                  check: "package-list-tree",
+                  success: true,
+                  scope,
+                  tree,
+                },
+                null,
+                2,
+              ),
+            );
             return;
           }
 
@@ -183,6 +195,9 @@ export function registerPackageCommands(program: Command): void {
           console.log(
             JSON.stringify(
               {
+                schemaVersion: 1,
+                check: "package-list",
+                success: true,
                 scope,
                 packages: packages.map((pkg) => ({
                   name: pkg.manifest.name,

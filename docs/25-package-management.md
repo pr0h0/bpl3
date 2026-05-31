@@ -196,9 +196,12 @@ bpl doctor packages
 bpl doctor packages --json
 ```
 
-Use the JSON forms for CI and tooling. `bpl list --json` reports installed
-package names, versions, paths, and content hashes; `bpl list --tree --json`
-reports the same dependency tree data used by the human tree output.
+Use the JSON forms for CI and tooling. `bpl list --json` uses a stable
+top-level contract with `schemaVersion: 1`, `check: "package-list"`,
+`success`, and installed package names, versions, paths, and content hashes.
+`bpl list --tree --json` uses `check: "package-list-tree"` with the same
+`schemaVersion` and `success` fields, plus the dependency tree data used by the
+human tree output.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured

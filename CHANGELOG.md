@@ -67,6 +67,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   --json` and `bpl package-cache repair --json` now include stable
   `schemaVersion: 1`, `check`, and `success` fields alongside existing
   removed/repaired/unchanged/issues payloads.
+- **Package List JSON Stability** - `bpl list --json` and
+  `bpl list --tree --json` now include stable `schemaVersion: 1`, `check`, and
+  `success` fields while preserving existing package summary and dependency
+  tree payloads.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors

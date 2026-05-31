@@ -556,6 +556,9 @@ describe("Package Manager CLI", () => {
       );
       expect(listTreeJson.status).toBe(0);
       const treeReport = JSON.parse(listTreeJson.stdout);
+      expect(treeReport.schemaVersion).toBe(1);
+      expect(treeReport.check).toBe("package-list-tree");
+      expect(treeReport.success).toBe(true);
       expect(treeReport.scope).toBe("local");
       expect(treeReport.tree[0].name).toBe("cli-graph-a");
       expect(JSON.stringify(treeReport.tree)).toContain("cli-graph-b");
@@ -679,6 +682,9 @@ describe("Package Manager CLI", () => {
       });
       expect(listJson.status).toBe(0);
       const report = JSON.parse(listJson.stdout);
+      expect(report.schemaVersion).toBe(1);
+      expect(report.check).toBe("package-list");
+      expect(report.success).toBe(true);
       expect(report.scope).toBe("local");
       expect(report.packages).toHaveLength(1);
       expect(report.packages[0]).toMatchObject({

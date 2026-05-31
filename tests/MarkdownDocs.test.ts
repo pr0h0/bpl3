@@ -170,6 +170,8 @@ describe("Markdown documentation", () => {
       "bpl package-cache repair [package] --json",
       "bpl run-script --list --json",
       "bpl clean --dry-run --json",
+      "bpl list --json",
+      "package-list-tree",
       "`schemaVersion`",
       "`success`",
       "stderr",
