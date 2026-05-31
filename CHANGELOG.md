@@ -86,6 +86,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.
+- **Build JSON Validation Codes** - `bpl build --json` validation failures now
+  include stable `BPL_BUILD_*` `errorCode` values for invalid options, input
+  path validation, and output artifact validation while preserving the
+  human-readable `error` text.
 - **Package Import Diagnostic Coverage** - CLI and ModuleResolver regression
   tests now cover invalid package import names and malformed imported package
   manifest versions in human-readable, `check --json`, `build --json`, and

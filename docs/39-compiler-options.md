@@ -298,6 +298,19 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. Clean validation failures, including symlinked working-directory paths, return `success: false`, `dryRun`, `count: 0`, `entries: []`, and `error` on stdout. |
 | `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data; unsafe package-root validation failures return `success: false`, `packages: []` or `tree: []`, and `error`. |
 
+Build validation `errorCode` values are stable when `bpl build --json` can
+classify the validation failure. Option parsing uses
+`BPL_BUILD_INVALID_OPTIMIZATION`, `BPL_BUILD_INVALID_EMIT`,
+`BPL_BUILD_INVALID_WASM_RUNTIME`, and `BPL_BUILD_INVALID_JOBS`. Input file
+validation uses `BPL_BUILD_INPUT_NOT_FOUND`, `BPL_BUILD_INPUT_SYMLINK`, and
+`BPL_BUILD_INPUT_NOT_FILE`. Output artifact validation uses
+`BPL_BUILD_OUTPUT_SYMLINK`, `BPL_BUILD_OUTPUT_DIRECTORY`,
+`BPL_BUILD_OUTPUT_NOT_FILE`, `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`,
+`BPL_BUILD_OUTPUT_PARENT_SYMLINK`, and
+`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`. These codes are additive fields on the
+stdout JSON failure report, preserving the human-readable `error` text for
+older consumers and logs.
+
 Import-resolution failures use the same diagnostic objects as type errors.
 `bpl check --json` reports missing modules, unsafe `std/` paths, and package
 metadata failures under each file's `diagnostics` array while preserving

@@ -15,6 +15,21 @@ import {
   MODULE_PATH_NOT_FILE_CODE,
   MODULE_PATH_SYMLINK_CODE,
 } from "../compiler/middleend/ModuleResolver";
+import {
+  BUILD_INPUT_NOT_FILE_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
+  BUILD_INPUT_SYMLINK_CODE,
+  BUILD_INVALID_EMIT_CODE,
+  BUILD_INVALID_JOBS_CODE,
+  BUILD_INVALID_OPTIMIZATION_CODE,
+  BUILD_INVALID_WASM_RUNTIME_CODE,
+  BUILD_OUTPUT_DIRECTORY_CODE,
+  BUILD_OUTPUT_NOT_FILE_CODE,
+  BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
+  BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
+  BUILD_OUTPUT_PARENT_SYMLINK_CODE,
+  BUILD_OUTPUT_SYMLINK_CODE,
+} from "../cli/CompilationRunner";
 
 function trackedMarkdownFiles(): string[] {
   const result = spawnSync("git", ["ls-files", "*.md"], {
@@ -462,6 +477,36 @@ describe("Markdown documentation", () => {
     expect(combinedDocs).toContain(
       "unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`",
     );
+  });
+
+  test("docs document build validation error codes from runner constants", () => {
+    const docs = [
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("CHANGELOG.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const expectedCodes = [
+      BUILD_INVALID_OPTIMIZATION_CODE,
+      BUILD_INVALID_EMIT_CODE,
+      BUILD_INVALID_WASM_RUNTIME_CODE,
+      BUILD_INVALID_JOBS_CODE,
+      BUILD_INPUT_NOT_FOUND_CODE,
+      BUILD_INPUT_SYMLINK_CODE,
+      BUILD_INPUT_NOT_FILE_CODE,
+      BUILD_OUTPUT_SYMLINK_CODE,
+      BUILD_OUTPUT_DIRECTORY_CODE,
+      BUILD_OUTPUT_NOT_FILE_CODE,
+      BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
+      BUILD_OUTPUT_PARENT_SYMLINK_CODE,
+      BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
+    ];
+
+    for (const code of expectedCodes) {
+      expect(docs).toContain(code);
+    }
+    expect(docs).toContain("Build validation `errorCode` values");
+    expect(docs).toContain("preserving the human-readable `error` text");
   });
 
   test("imports docs document std path safety rules", () => {
