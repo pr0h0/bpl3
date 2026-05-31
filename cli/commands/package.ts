@@ -44,6 +44,7 @@ import { diagnosticFormatter } from "../DiagnosticFormatter";
 const log = new Logger("Package");
 const PACKAGE_IR_VERIFY_TIMEOUT_MS =
   TIMEOUT_ENV_DEFAULTS.BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS;
+const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
 /**
  * Register all package management commands
@@ -181,7 +182,7 @@ export function registerPackageCommands(program: Command): void {
               JSON.stringify(
                 createJsonReport(CLI_JSON_CHECKS.packageInstall, false, {
                   ...formatPackageInstallJsonPayload(pkg, options),
-                  error: formatPackageCommandError(e),
+                  error: formatPackageCommandJsonError(e),
                   ...formatPackageCommandErrorCode(e),
                 }),
                 null,
@@ -282,7 +283,7 @@ export function registerPackageCommands(program: Command): void {
         }
       } catch (e) {
         if (outputJson) {
-          const error = formatPackageCommandError(e);
+          const error = formatPackageCommandJsonError(e);
           console.log(
             JSON.stringify(
               options.tree
@@ -387,7 +388,7 @@ export function registerPackageCommands(program: Command): void {
               JSON.stringify(
                 createJsonReport(CLI_JSON_CHECKS.packageCacheList, false, {
                   entries: [],
-                  error: formatPackageCommandError(e),
+                  error: formatPackageCommandJsonError(e),
                 }),
                 null,
                 2,
@@ -434,7 +435,7 @@ export function registerPackageCommands(program: Command): void {
                   ok: false,
                   entriesChecked: 0,
                   issues: [],
-                  error: formatPackageCommandError(e),
+                  error: formatPackageCommandJsonError(e),
                 }),
                 null,
                 2,
@@ -498,7 +499,7 @@ export function registerPackageCommands(program: Command): void {
                 createJsonReport(CLI_JSON_CHECKS.packageCacheClean, false, {
                   removed: [],
                   dryRun: Boolean(options.dryRun),
-                  error: formatPackageCommandError(e),
+                  error: formatPackageCommandJsonError(e),
                 }),
                 null,
                 2,
@@ -558,7 +559,7 @@ export function registerPackageCommands(program: Command): void {
                   repaired: [],
                   unchanged: [],
                   issues: [],
-                  error: formatPackageCommandError(e),
+                  error: formatPackageCommandJsonError(e),
                 }),
                 null,
                 2,
@@ -579,6 +580,10 @@ function formatPackageCommandError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatPackageCommandJsonError(error: unknown): string {
+  return formatPackageCommandError(error).replace(ANSI_ESCAPE_PATTERN, "");
 }
 
 function formatPackageCommandErrorCode(

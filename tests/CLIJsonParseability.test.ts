@@ -9,6 +9,7 @@ import {
 } from "./helpers/cliJson";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
+const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;]*m/;
 
 function runCli(
   args: string[],
@@ -382,6 +383,7 @@ describe("CLI JSON parseability", () => {
     });
     expect(report.target).toBe(tarballPath);
     expect(report.error).toContain("Failed to inspect package archive");
+    expect(report.error).not.toMatch(ANSI_ESCAPE_PATTERN);
     expect(report.error).not.toContain(
       "Ignoring invalid BPL_PACKAGE_TOOL_TIMEOUT_MS",
     );
