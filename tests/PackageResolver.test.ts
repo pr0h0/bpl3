@@ -83,6 +83,30 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects invalid package import names before searching", () => {
+    const appDir = path.join(tempDir, "app");
+    fs.mkdirSync(path.join(appDir, "bpl_modules", "bad_name"), {
+      recursive: true,
+    });
+
+    for (const importPath of [
+      "Bad_Name",
+      "bad_name",
+      "bad.name",
+      "space name",
+      "@scope/pkg",
+    ]) {
+      const details = resolvePackageImport(importPath, appDir);
+
+      expect(details.result).toBeNull();
+      expect(details.trace.failureReason).toBe("invalid-import");
+      expect(details.trace.failureMessage).toContain(
+        "Package import names must use lowercase letters, digits, and hyphens only.",
+      );
+      expect(details.trace.searchedPaths).toEqual([]);
+    }
+  });
+
   test("does not follow symlinked package roots", () => {
     const appDir = path.join(tempDir, "app");
     const modulesDir = path.join(appDir, "bpl_modules");
@@ -250,6 +274,31 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain(
       "manifest name 'not-math' does not match requested package 'math'",
     );
+  });
+
+  test("does not resolve package roots whose manifest identity fields are malformed", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    for (const [manifest, message] of [
+      [{ name: 123, version: "1.0.0", main: "index.bpl" }, "manifest name"],
+      [{ name: "math", version: 1, main: "index.bpl" }, "manifest version"],
+      [{ name: "math", version: "latest", main: "index.bpl" }, "manifest version"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(manifest, null, 2),
+      );
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result).toBeNull();
+      expect(details.trace.failureReason).toBe("manifest-invalid");
+      expect(details.trace.failureMessage).toContain(message);
+      expect(details.trace.failureMessage).toContain("invalid bpl.json");
+    }
   });
 
   test("does not fall back to workspace or global packages after malformed local metadata", () => {

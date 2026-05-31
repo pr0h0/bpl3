@@ -30,7 +30,8 @@ The configuration file defines the package metadata.
 }
 ```
 
-`name` and `version` must be strings, `main` and `exports` must stay inside the
+`name` must use lowercase letters, digits, and hyphens only. `version` must be
+an `X.Y.Z` semantic version string. `main` and `exports` must stay inside the
 package root, and optional metadata such as `keywords` and `repository` is
 validated before packing or installing. Invalid manifests fail while loading
 `bpl.json` instead of later during path handling or archive creation.
@@ -248,14 +249,17 @@ directory and walks upward, so `src/main.bpl` can import packages installed at
 the project root even when `bpl check /path/to/project/src/main.bpl` is run from
 another working directory.
 
-During package resolution, the package directory name and manifest must agree:
-`bpl_modules/my-package/bpl.json` must declare `"name": "my-package"`. Global
-versioned directories such as `~/.bpl/packages/my-package-1.2.3/` must also
-declare the same `"version": "1.2.3"` in `bpl.json`. Global versioned package
-directories must match their manifest `version`. Mismatches are treated as
-malformed package metadata instead of silently importing a different package.
-Package import paths cannot contain empty, `.` or `..` segments; use relative
-imports for filesystem traversal inside your own project.
+During package resolution, the requested package name must use the same
+lowercase package-name format as package manifests. The package directory name
+and manifest must agree: `bpl_modules/my-package/bpl.json` must declare
+`"name": "my-package"` and a valid `X.Y.Z` `"version"`. Global versioned
+directories such as `~/.bpl/packages/my-package-1.2.3/` must also declare the
+same `"version": "1.2.3"` in `bpl.json`. Global versioned package directories
+must match their manifest `version`. Mismatches or malformed identity fields
+are treated as package metadata errors instead of silently importing a
+different package. Package import paths cannot contain empty, `.` or `..`
+segments; use relative imports for filesystem traversal inside your own
+project.
 
 Packages can expose source files below their root through subpath imports:
 

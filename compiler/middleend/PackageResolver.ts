@@ -41,6 +41,9 @@ export interface PackageResolutionOptions {
   globalPackageDir?: string;
 }
 
+const PACKAGE_NAME_PATTERN = /^[a-z0-9-]+$/;
+const PACKAGE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+
 export function resolvePackageImport(
   importPath: string,
   startDir: string,
@@ -68,8 +71,16 @@ export function resolvePackageImport(
     return { result: null, trace };
   }
 
-  trace.packageName = parts[0]!;
+  const packageName = parts[0]!;
+  trace.packageName = packageName;
   trace.subPath = parts.slice(1).join("/");
+
+  if (!isValidPackageName(packageName)) {
+    trace.failureReason = "invalid-import";
+    trace.failureMessage =
+      "Package import names must use lowercase letters, digits, and hyphens only.";
+    return { result: null, trace };
+  }
 
   for (const searchRoot of searchRoots) {
     const result = resolvePackageFromBaseDir(
@@ -318,11 +329,30 @@ function validatePackageManifestMatchesImport(
 ): boolean {
   const manifestPath = path.join(packageRoot, "bpl.json");
   const packageName = trace.packageName!;
+
+  if (
+    typeof manifest.name !== "string" ||
+    !isValidPackageName(manifest.name)
+  ) {
+    trace.failureReason = "manifest-invalid";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest name must use lowercase letters, digits, and hyphens only.`;
+    return false;
+  }
+
   if (manifest.name !== packageName) {
     trace.failureReason = "manifest-invalid";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest name '${String(
       manifest.name,
     )}' does not match requested package '${packageName}'.`;
+    return false;
+  }
+
+  if (
+    typeof manifest.version !== "string" ||
+    !isValidPackageVersion(manifest.version)
+  ) {
+    trace.failureReason = "manifest-invalid";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest version must use X.Y.Z semantic version format.`;
     return false;
   }
 
@@ -342,6 +372,14 @@ function validatePackageManifestMatchesImport(
   }
 
   return true;
+}
+
+function isValidPackageName(name: string): boolean {
+  return PACKAGE_NAME_PATTERN.test(name);
+}
+
+function isValidPackageVersion(version: string): boolean {
+  return PACKAGE_VERSION_PATTERN.test(version);
 }
 
 function resolvePackageEntryPoint(
