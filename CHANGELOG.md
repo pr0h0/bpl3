@@ -75,6 +75,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package-cache Validation JSON Codes** - `bpl package-cache clean --json`
   and `bpl package-cache repair --json` now include
   `BPL_PACKAGE_CACHE_VERSION_INVALID` for invalid `--package-version` filters.
+- **Packed Package-cache Validation JSON Smoke** - Release smoke now checks
+  packed `bpl package-cache clean --json` and `bpl package-cache repair --json`
+  invalid-version failures preserve `BPL_PACKAGE_CACHE_VERSION_INVALID`.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing

@@ -116,6 +116,28 @@ interface PackageCacheVerifyReport {
   issues: unknown[];
 }
 
+interface PackageCacheCleanReport {
+  schemaVersion: 1;
+  check: "package-cache-clean";
+  success: boolean;
+  dryRun: boolean;
+  removed: unknown[];
+  error?: string;
+  errorCode?: string;
+}
+
+interface PackageCacheRepairReport {
+  schemaVersion: 1;
+  check: "package-cache-repair";
+  success: boolean;
+  dryRun: boolean;
+  repaired: unknown[];
+  unchanged: unknown[];
+  issues: unknown[];
+  error?: string;
+  errorCode?: string;
+}
+
 interface CheckReport {
   schemaVersion: 1;
   check: "check";
@@ -449,6 +471,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
+    runPackedPackageCacheValidationJsonSmoke(installedBpl, installDir);
     runPackedLockedInstallSafetySmoke(installedBpl);
     runPackedPackageImportDiagnosticCodeSmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
@@ -1083,6 +1106,79 @@ function runPackedPackageCacheVerifyJsonSmoke(
   ) {
     throw new Error(
       `Packed npm CLI package-cache verify JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
+    );
+  }
+}
+
+function runPackedPackageCacheValidationJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const homeDir = join(installDir, "package-cache-validation-home");
+  mkdirSync(homeDir, { recursive: true });
+
+  console.log("release smoke: check packed npm CLI package-cache validation JSON");
+  const env = buildStepEnv({ bplHome: null, env: { HOME: homeDir } });
+  const cleanResult = spawnSync(installedBpl, ["package-cache", "clean", "pkg", "--package-version", "^1.0.0", "--dry-run", "--json"], {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
+  const repairResult = spawnSync(installedBpl, ["package-cache", "repair", "pkg", "--package-version", "latest", "--dry-run", "--json"], {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
+
+  if (cleanResult.error) throw cleanResult.error;
+  if (repairResult.error) throw repairResult.error;
+  if (cleanResult.status !== 1 || repairResult.status !== 1) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache validation smoke did not fail as expected.",
+        `clean exit: ${cleanResult.status ?? "unknown"}`,
+        `clean stdout:\n${cleanResult.stdout}`,
+        `clean stderr:\n${cleanResult.stderr}`,
+        `repair exit: ${repairResult.status ?? "unknown"}`,
+        `repair stdout:\n${repairResult.stdout}`,
+        `repair stderr:\n${repairResult.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (cleanResult.stderr !== "" || repairResult.stderr !== "") {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache validation JSON wrote stderr.",
+        `clean stderr:\n${cleanResult.stderr}`,
+        `repair stderr:\n${repairResult.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  const cleanReport = parsePackageCacheCleanReport(cleanResult.stdout);
+  const repairReport = parsePackageCacheRepairReport(repairResult.stdout);
+  if (
+    cleanReport.success ||
+    !cleanReport.dryRun ||
+    cleanReport.removed.length !== 0 ||
+    cleanReport.errorCode !== "BPL_PACKAGE_CACHE_VERSION_INVALID" ||
+    typeof cleanReport.error !== "string" ||
+    repairReport.success ||
+    !repairReport.dryRun ||
+    repairReport.repaired.length !== 0 ||
+    repairReport.unchanged.length !== 0 ||
+    repairReport.issues.length !== 0 ||
+    repairReport.errorCode !== "BPL_PACKAGE_CACHE_VERSION_INVALID" ||
+    typeof repairReport.error !== "string"
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache validation JSON reported unexpected payload.",
+        `clean:\n${JSON.stringify(cleanReport, null, 2)}`,
+        `repair:\n${JSON.stringify(repairReport, null, 2)}`,
+      ].join("\n"),
     );
   }
 }
@@ -2607,6 +2703,58 @@ function parsePackageCacheVerifyReport(stdout: string): PackageCacheVerifyReport
     throw new Error(
       [
         "Package-cache verify did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageCacheCleanReport(stdout: string): PackageCacheCleanReport {
+  try {
+    const report = JSON.parse(stdout) as PackageCacheCleanReport;
+    assertJsonReportContract(
+      report,
+      "package-cache-clean",
+      "package-cache clean",
+    );
+    if (!Array.isArray(report.removed)) {
+      throw new Error("package-cache clean removed is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package-cache clean did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageCacheRepairReport(stdout: string): PackageCacheRepairReport {
+  try {
+    const report = JSON.parse(stdout) as PackageCacheRepairReport;
+    assertJsonReportContract(
+      report,
+      "package-cache-repair",
+      "package-cache repair",
+    );
+    if (!Array.isArray(report.repaired)) {
+      throw new Error("package-cache repair repaired is not an array");
+    }
+    if (!Array.isArray(report.unchanged)) {
+      throw new Error("package-cache repair unchanged is not an array");
+    }
+    if (!Array.isArray(report.issues)) {
+      throw new Error("package-cache repair issues is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package-cache repair did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

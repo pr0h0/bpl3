@@ -524,6 +524,29 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("parsePackageInstallReport");
   });
 
+  test("release smoke validates packed package-cache validation error codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package-cache validation JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedPackageCacheValidationJsonSmoke",
+    );
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_CACHE_VERSION_INVALID");
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "clean", "pkg", "--package-version", "^1.0.0", "--dry-run", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "repair", "pkg", "--package-version", "latest", "--dry-run", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain("parsePackageCacheCleanReport");
+    expect(releaseSmokeSource).toContain("parsePackageCacheRepairReport");
+  });
+
   test("release manifest records checksums for shipped artifacts", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-manifest-test-"));
 
