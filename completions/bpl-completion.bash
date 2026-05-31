@@ -33,7 +33,7 @@ _bpl_completion() {
     local new_templates="app library"
 
     # Doctor command options
-    local doctor_opts="packages --json"
+    local doctor_opts="packages sanitizer --json"
 
     # Package cache subcommands and options
     local package_cache_commands="list verify repair clean"

@@ -143,6 +143,8 @@ Check the local BPL installation, runtime artifacts, and host toolchain.
 ```bash
 bpl doctor
 bpl doctor --json
+bpl doctor sanitizer
+bpl doctor sanitizer --json
 bpl doctor packages
 bpl doctor packages --json
 ```
@@ -161,6 +163,11 @@ the checked `candidates`, relevant `environment` values, and
 `recommendedCommands` for strict local repro. The doctor hint makes clear that
 missing wasm linker support is an optional prerequisite skip, not a successful
 wasm execution, until `BPL_REQUIRE_WASM_LD=1` makes the linker mandatory.
+Use `bpl doctor sanitizer --json` when a sanitizer CI failure needs only the
+ASan/UBSan compiler-rt probe. Its single `sanitizer runtime support` check uses
+stable `id: "sanitizer-runtime-support"` and reports
+`BPL_SANITIZER_RUNTIME_UNAVAILABLE` when the configured compiler cannot link the
+`libclang_rt` sanitizer runtime for the host target.
 
 `bpl doctor` also validates path safety for `BPL_HOME` and bundled runtime
 resources. The BPL home path and runtime files such as `lib/runtime.ll`,
@@ -281,7 +288,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. |
 | `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. |
-| `bpl doctor --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, and `error`. |
+| `bpl doctor --json` / `bpl doctor sanitizer --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands when compiler-rt/libclang_rt probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, and `error`. |
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. Invalid lockfile issues use `kind: "invalid-lockfile"` plus stable `BPL_LOCKFILE_*` codes for malformed JSON, unsupported versions, bad package maps or entries, non-file paths, and symlinked lockfiles. |
 | `bpl install [package] --json` | Install report with `schemaVersion`, `check: "package-install"`, `success`, `mode`, `target`, `global`, `locked`, `update`, and `repairLock`; validation failures such as missing manifests, incompatible lock flags, locked verification failures, direct archive path failures, and package arguments with project-only modes return `success: false` and `error` on stdout without logger text on stderr. When a package failure has a stable compiler code, the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, or `BPL_PACKAGE_ARCHIVE_*`. |
 | `bpl package-cache list [package] --json` | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`; unsafe cache-root validation failures return `success: false`, `entries: []`, and `error`. |

@@ -105,9 +105,23 @@ export function registerDoctorCommand(program: Command, version: string): void {
           return;
         }
 
+        if (scope === "sanitizer") {
+          const report = createSanitizerDoctorReport(version);
+          if (outputJson) {
+            console.log(JSON.stringify(report, null, 2));
+          } else {
+            printDoctorReport(report);
+          }
+
+          if (!report.success) {
+            process.exit(1);
+          }
+          return;
+        }
+
         if (scope) {
           throw new Error(
-            `Unknown doctor scope '${scope}'. Supported scopes: packages.`,
+            `Unknown doctor scope '${scope}'. Supported scopes: packages, sanitizer.`,
           );
         }
 
@@ -215,6 +229,29 @@ function createDoctorReport(version: string): DoctorReport {
     checkWasmLinker(),
   ];
 
+  const bunVersion = getCommandVersion("bun", ["--version"]);
+
+  return createJsonReport(
+    CLI_JSON_CHECKS.toolchain,
+    checks.every((check) => check.ok || check.required === false),
+    {
+      version,
+      platform: {
+        os: os.platform(),
+        arch: os.arch(),
+        node: process.version,
+        ...(bunVersion ? { bun: bunVersion } : {}),
+      },
+      bplHome,
+      checks,
+      timeouts: getTimeoutEnvDiagnostics(),
+    },
+  );
+}
+
+function createSanitizerDoctorReport(version: string): DoctorReport {
+  const bplHome = getBplHome();
+  const checks = [checkSanitizerRuntimeSupport()];
   const bunVersion = getCommandVersion("bun", ["--version"]);
 
   return createJsonReport(

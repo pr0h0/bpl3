@@ -24,6 +24,7 @@ export const CLI_JSON_CONTRACTS = [
   { command: "bpl check --json", check: CLI_JSON_CHECKS.check },
   { command: "bpl lint --json", check: CLI_JSON_CHECKS.lint },
   { command: "bpl doctor --json", check: CLI_JSON_CHECKS.toolchain },
+  { command: "bpl doctor sanitizer --json", check: CLI_JSON_CHECKS.toolchain },
   { command: "bpl doctor <unknown> --json", check: CLI_JSON_CHECKS.doctor },
   { command: "bpl doctor packages --json", check: CLI_JSON_CHECKS.packages },
   {

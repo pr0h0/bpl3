@@ -12,6 +12,7 @@ describe("JSON contract constants", () => {
       { command: "bpl check --json", check: "check" },
       { command: "bpl lint --json", check: "lint" },
       { command: "bpl doctor --json", check: "toolchain" },
+      { command: "bpl doctor sanitizer --json", check: "toolchain" },
       { command: "bpl doctor <unknown> --json", check: "doctor" },
       { command: "bpl doctor packages --json", check: "packages" },
       {

@@ -118,13 +118,13 @@ checked failure paths with `-fsanitize=address,undefined`; the focused file is
 also available when a CI log points at the sanitizer suite directly:
 
 ```bash
-bpl doctor --json
+bpl doctor sanitizer --json
 bun run test:sanitizers
 bun test tests/CompilerSanitizerRuntime.test.ts
 ```
 
 Use this order for sanitizer CI failures: run `bun run ci:triage`, inspect
-`bpl doctor --json`, then reproduce with `bun run test:sanitizers`.
+`bpl doctor sanitizer --json`, then reproduce with `bun run test:sanitizers`.
 `BPL_SANITIZER_RUNTIME_UNAVAILABLE` in the doctor report means the local
 compiler could not link ASan/UBSan with compiler-rt/libclang_rt. A BPL runtime
 error under sanitizers is different from missing compiler-rt support: runtime

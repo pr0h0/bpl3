@@ -42,7 +42,7 @@ _bpl_completion() {
     local new_templates="app library"
 
     # Doctor command options
-    local doctor_opts="packages --json"
+    local doctor_opts="packages sanitizer --json"
 
     # Package cache subcommands and options
     local package_cache_commands="list verify repair clean"
@@ -351,7 +351,7 @@ _bpl() {
                 doctor)
                     _arguments \\
                         '--json[Output machine-readable diagnostics]' \\
-                        '1:scope:(packages)'
+                        '1:scope:(packages sanitizer)'
                     ;;
                 package-cache)
                     _arguments \\

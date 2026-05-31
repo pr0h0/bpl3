@@ -1490,7 +1490,7 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   const expectedSanitizerCommands = [
     "bun run test:sanitizers",
     "bun test tests/CompilerSanitizerRuntime.test.ts",
-    "bun index.ts doctor --json",
+    "bun index.ts doctor sanitizer --json",
   ];
   const missingSanitizerCommands = expectedSanitizerCommands.filter(
     (command) => !sanitizerCommands.includes(command),

@@ -135,6 +135,13 @@ describe("CLI JSON parseability", () => {
       success: true,
     });
 
+    const sanitizerDoctor = runCli(["doctor", "sanitizer", "--json"]);
+    expectJsonStdoutReport(sanitizerDoctor, {
+      status: 0,
+      check: "toolchain",
+      success: true,
+    });
+
     const clean = runCli(["clean", "--dry-run", "--json"], { cwd: tempDir });
     expect(clean.status).toBe(0);
     expect(parseJsonObjectStdout(clean)).toMatchObject({

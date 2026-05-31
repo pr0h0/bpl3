@@ -61,9 +61,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Sanitizer Contracts** - Release helper smoke now checks
   that packed `ci:triage` JSON keeps sanitizer runtime repro commands available
   after npm packaging.
-- **Doctor Sanitizer Diagnostics** - `bpl doctor --json` now reports optional
-  sanitizer runtime support with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE`
-  guidance for missing compiler-rt/libclang_rt support.
+- **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
+  `bpl doctor sanitizer --json` now report optional sanitizer runtime support
+  with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
+  compiler-rt/libclang_rt support.
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
 - **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed

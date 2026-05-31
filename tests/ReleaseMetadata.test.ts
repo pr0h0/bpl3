@@ -253,6 +253,9 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain(
       "bun test tests/CompilerSanitizerRuntime.test.ts",
     );
+    expect(releaseSmokeSource).toContain(
+      "bun index.ts doctor sanitizer --json",
+    );
   });
 
   test("CI-safe tests keep release helper smoke focused", () => {

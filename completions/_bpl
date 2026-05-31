@@ -113,7 +113,7 @@ _bpl() {
                 doctor)
                     _arguments \
                         '--json[Output machine-readable diagnostics]' \
-                        '1:scope:(packages)'
+                        '1:scope:(packages sanitizer)'
                     ;;
                 package-cache)
                     _arguments \

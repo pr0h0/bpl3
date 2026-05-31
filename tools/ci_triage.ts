@@ -309,7 +309,7 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     SANITIZER_RUNTIME_STEP_PATTERN,
     "bun test tests/CompilerSanitizerRuntime.test.ts",
   ],
-  [SANITIZER_RUNTIME_STEP_PATTERN, "bun index.ts doctor --json"],
+  [SANITIZER_RUNTIME_STEP_PATTERN, "bun index.ts doctor sanitizer --json"],
   [RUNTIME_TIMEOUT_STEP_PATTERN, "bun test tests/BinaryRunner.test.ts"],
   [
     RUNTIME_TIMEOUT_STEP_PATTERN,

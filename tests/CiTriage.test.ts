@@ -174,7 +174,7 @@ describe("CI triage helper", () => {
     const expectedCommands = [
       "bun run test:sanitizers",
       "bun test tests/CompilerSanitizerRuntime.test.ts",
-      "bun index.ts doctor --json",
+      "bun index.ts doctor sanitizer --json",
     ];
 
     expect(localCommandsForStep("Run sanitizer-backed runtime tests")).toEqual(
@@ -724,7 +724,7 @@ describe("CI triage helper", () => {
       ).toEqual([
         "bun run test:sanitizers",
         "bun test tests/CompilerSanitizerRuntime.test.ts",
-        "bun index.ts doctor --json",
+        "bun index.ts doctor sanitizer --json",
       ]);
 
       const textResult = spawnSync(
@@ -747,6 +747,9 @@ describe("CI triage helper", () => {
       );
       expect(textResult.stdout).toContain(
         "bun test tests/CompilerSanitizerRuntime.test.ts",
+      );
+      expect(textResult.stdout).toContain(
+        "bun index.ts doctor sanitizer --json",
       );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
