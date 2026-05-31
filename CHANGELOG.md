@@ -526,6 +526,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Fuzz Promotion Source Symlink Blocking (BUG-200)** - `fuzz:promote`
   now rejects symlinked source paths and source parent components before reading
   repro source content for corpus promotion.
+- **Fuzz Artifact Repro Metadata Symlink Blocking (BUG-201)** -
+  `fuzz:repro` metadata discovery now rejects symlinked metadata files and
+  symlinked metadata parent components before generating replay or promotion
+  commands.
 - **Package Import Manifest Validation**: Package resolution now rejects invalid package import names before searching, rejects malformed package roots whose `bpl.json` `name` or `version` does not satisfy package manifest rules, and rejects versioned global package directories whose manifest `version` does not match the directory version.
 - **WebAssembly Linker Selection**: Treat explicit `WASM_LD` settings as authoritative instead of falling back to other linker names on `PATH`, making CI and local wasm linker failure tests deterministic.
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.

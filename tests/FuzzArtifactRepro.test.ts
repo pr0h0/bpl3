@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "fs";
 import { spawnSync } from "child_process";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -128,6 +128,68 @@ describe("Fuzz artifact repro helper", () => {
       expect(() => buildFuzzArtifactReproPlan(metadataPath)).toThrow(
         "Failed to parse fuzz artifact metadata",
       );
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects symlinked fuzz artifact metadata files", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-repro-link-"));
+    const targetMetadataPath = join(crashDir, "outside-metadata.json");
+    const metadataPath = join(crashDir, "crash_seed-link_iter-0_tokens.json");
+
+    try {
+      writeFileSync(
+        targetMetadataPath,
+        JSON.stringify(
+          {
+            seed: 0x5151,
+            iteration: 0,
+            kind: "tokens",
+            failureKind: "crash",
+            stage: "codegen",
+          },
+          null,
+          2,
+        ),
+      );
+      symlinkSync(targetMetadataPath, metadataPath, "file");
+
+      expect(() =>
+        buildFuzzArtifactReproPlan(metadataPath, { repoRoot: crashDir }),
+      ).toThrow("Fuzz artifact metadata path is a symbolic link");
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects fuzz artifact metadata through symlinked ancestors", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-repro-parent-link-"));
+
+    try {
+      const realRoot = join(crashDir, "real-root");
+      const linkedRoot = join(crashDir, "linked-root");
+      const metadataPath = join(linkedRoot, "crash_seed-link_iter-0_tokens.json");
+      mkdirSync(realRoot);
+      writeFileSync(
+        join(realRoot, "crash_seed-link_iter-0_tokens.json"),
+        JSON.stringify(
+          {
+            seed: 0x6262,
+            iteration: 0,
+            kind: "tokens",
+            failureKind: "crash",
+            stage: "codegen",
+          },
+          null,
+          2,
+        ),
+      );
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      expect(() =>
+        buildFuzzArtifactReproPlan(metadataPath, { repoRoot: crashDir }),
+      ).toThrow("Fuzz artifact metadata parent contains a symbolic link");
     } finally {
       rmSync(crashDir, { recursive: true, force: true });
     }

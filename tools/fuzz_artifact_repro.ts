@@ -1,8 +1,15 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "fs";
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  type Stats,
+} from "fs";
 import {
   basename,
   isAbsolute,
   join,
+  parse,
   relative,
   resolve,
 } from "path";
@@ -90,11 +97,20 @@ export function buildFuzzArtifactReproPlan(
 
 export function discoverFuzzArtifactMetadataPaths(inputPath: string): string[] {
   const absolutePath = resolve(inputPath);
-  if (!existsSync(absolutePath)) {
+  const stat = tryLstat(absolutePath);
+  if (!stat) {
     throw new Error(`Fuzz artifact path does not exist: ${inputPath}`);
   }
 
-  const stat = statSync(absolutePath);
+  if (stat.isSymbolicLink()) {
+    if (absolutePath.endsWith(".json")) {
+      throw new Error(
+        `Fuzz artifact metadata path is a symbolic link: ${absolutePath}`,
+      );
+    }
+    throw new Error(`Fuzz artifact path is a symbolic link: ${absolutePath}`);
+  }
+
   if (stat.isDirectory()) {
     return listJsonFiles(absolutePath).sort();
   }
@@ -117,6 +133,7 @@ export function readFuzzArtifactMetadata(
   metadataPath: string,
 ): CrashMetadata {
   try {
+    assertFuzzArtifactMetadataPath(metadataPath);
     const parsed = JSON.parse(readFileSync(metadataPath, "utf8")) as unknown;
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error("metadata JSON must be an object");
@@ -276,7 +293,16 @@ function listJsonFiles(dir: string): string[] {
   const results: string[] = [];
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
-    const stat = statSync(path);
+    const stat = lstatSync(path);
+
+    if (stat.isSymbolicLink()) {
+      if (entry.endsWith(".json")) {
+        throw new Error(
+          `Fuzz artifact metadata path is a symbolic link: ${path}`,
+        );
+      }
+      continue;
+    }
 
     if (stat.isDirectory()) {
       results.push(...listJsonFiles(path));
@@ -286,6 +312,74 @@ function listJsonFiles(dir: string): string[] {
   }
 
   return results;
+}
+
+function assertFuzzArtifactMetadataPath(metadataPath: string): void {
+  const absoluteMetadataPath = resolve(metadataPath);
+
+  for (const componentPath of pathComponents(absoluteMetadataPath)) {
+    const componentStats = tryLstat(componentPath);
+    if (!componentStats) {
+      continue;
+    }
+
+    if (componentStats.isSymbolicLink()) {
+      if (componentPath === absoluteMetadataPath) {
+        throw new Error(
+          `Fuzz artifact metadata path is a symbolic link: ${componentPath}`,
+        );
+      }
+
+      throw new Error(
+        `Fuzz artifact metadata parent contains a symbolic link: ${componentPath}`,
+      );
+    }
+
+    if (componentPath === absoluteMetadataPath) {
+      if (!componentStats.isFile()) {
+        throw new Error(
+          `Fuzz artifact metadata path is not a file: ${componentPath}`,
+        );
+      }
+    } else if (!componentStats.isDirectory()) {
+      throw new Error(
+        `Fuzz artifact metadata parent is not a directory: ${componentPath}`,
+      );
+    }
+  }
+}
+
+function pathComponents(absolutePath: string): string[] {
+  const parsedPath = parse(absolutePath);
+  const rootPath = parsedPath.root;
+  const components = relative(rootPath, absolutePath)
+    .split(/[\\/]+/)
+    .filter(Boolean);
+  const paths = [rootPath];
+  let currentPath = rootPath;
+
+  for (const component of components) {
+    currentPath = join(currentPath, component);
+    paths.push(currentPath);
+  }
+
+  return paths;
+}
+
+function tryLstat(filePath: string): Stats | null {
+  try {
+    return lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function findOriginalSourcePath(
