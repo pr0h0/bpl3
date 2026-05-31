@@ -148,6 +148,16 @@ const WASM_RUNTIME_FAILURE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const SANITIZER_RUNTIME_STEP_PATTERN = new RegExp(
+  [
+    "Run sanitizer-backed runtime tests",
+    "CompilerSanitizerRuntime\\.test",
+    "Compiler sanitizer-backed runtime tests",
+    "ASan and UBSan",
+    "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+  ].join("|"),
+  "i",
+);
 const COMPILER_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "compiler driver timed out",
@@ -294,6 +304,12 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
   ],
   [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun index.ts doctor --json"],
+  [SANITIZER_RUNTIME_STEP_PATTERN, "bun run test:sanitizers"],
+  [
+    SANITIZER_RUNTIME_STEP_PATTERN,
+    "bun test tests/CompilerSanitizerRuntime.test.ts",
+  ],
+  [SANITIZER_RUNTIME_STEP_PATTERN, "bun index.ts doctor --json"],
   [RUNTIME_TIMEOUT_STEP_PATTERN, "bun test tests/BinaryRunner.test.ts"],
   [
     RUNTIME_TIMEOUT_STEP_PATTERN,
@@ -302,7 +318,6 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [RUNTIME_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],
-  [/Run sanitizer-backed runtime tests/i, "bun run test:sanitizers"],
   [/Run deterministic differential compiler fuzz/i, "bun run fuzz:differential"],
   [/Run deterministic compiler fuzz/i, "bun run fuzz:long"],
   [

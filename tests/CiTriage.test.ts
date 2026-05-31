@@ -170,6 +170,31 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps sanitizer runtime failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun run test:sanitizers",
+      "bun test tests/CompilerSanitizerRuntime.test.ts",
+      "bun index.ts doctor --json",
+    ];
+
+    expect(localCommandsForStep("Run sanitizer-backed runtime tests")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("CompilerSanitizerRuntime.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "Compiler sanitizer-backed runtime tests > routes checked runtime failures through BPL errors under ASan and UBSan",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "Compiler sanitizer-backed runtime tests timed out after 5000ms",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps timeout failure text to focused repro commands", () => {
     expect(
       localCommandsForStep("compiler driver timed out after 600000ms"),
@@ -643,6 +668,18 @@ describe("CI triage helper", () => {
                 },
               ],
             },
+            {
+              id: 63,
+              name: "Sanitizer timeout",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/63",
+              steps: [
+                {
+                  name: "Compiler sanitizer-backed runtime tests > routes checked runtime failures through BPL errors under ASan and UBSan timed out after 5000ms",
+                  conclusion: "failure",
+                },
+              ],
+            },
           ],
         }),
       );
@@ -681,6 +718,14 @@ describe("CI triage helper", () => {
         "bun run test:ci",
         "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
       ]);
+      expect(
+        report.summary.failedJobs.find((job) => job.name === "Sanitizer timeout")
+          ?.localCommands,
+      ).toEqual([
+        "bun run test:sanitizers",
+        "bun test tests/CompilerSanitizerRuntime.test.ts",
+        "bun index.ts doctor --json",
+      ]);
 
       const textResult = spawnSync(
         "bun",
@@ -693,11 +738,15 @@ describe("CI triage helper", () => {
       expect(textResult.status).toBe(0);
       expect(textResult.stdout).toContain("Compiler timeout");
       expect(textResult.stdout).toContain("Runtime timeout");
+      expect(textResult.stdout).toContain("Sanitizer timeout");
       expect(textResult.stdout).toContain(
         "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
       );
       expect(textResult.stdout).toContain(
         "BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts",
+      );
+      expect(textResult.stdout).toContain(
+        "bun test tests/CompilerSanitizerRuntime.test.ts",
       );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
