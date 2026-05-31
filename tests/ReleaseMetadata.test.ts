@@ -305,6 +305,22 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("--emit");
   });
 
+  test("release smoke validates packed root build no-input error codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI root build no-input JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedBuildNoInputJsonSmoke");
+    expect(releaseSmokeSource).toContain("BPL_BUILD_NO_INPUTS");
+    expect(releaseSmokeSource).toContain("No input files specified.");
+    expect(releaseSmokeSource).toContain('["--json"]');
+    expect(releaseSmokeSource).toContain("parseBuildFailureReport");
+  });
+
   test("release smoke validates packed clean validation error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

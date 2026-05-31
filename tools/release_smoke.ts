@@ -615,6 +615,7 @@ function runPackedPackageSmoke(): void {
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
     runPackedBuildJsonSmoke(installedBpl);
     runPackedBuildValidationJsonSmoke(installedBpl);
+    runPackedBuildNoInputJsonSmoke(installedBpl, installDir);
     runPackedCleanValidationJsonSmoke(installedBpl);
     runPackedWasmSmoke(installedBpl);
     runPackedCacheStatsSmoke(installedBpl);
@@ -3064,6 +3065,29 @@ function runPackedBuildValidationJsonSmoke(installedBpl: string): void {
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedBuildNoInputJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const result = runJsonFailureStep(
+    "check packed npm CLI root build no-input JSON",
+    installedBpl,
+    ["--json"],
+    { cwd: installDir, bplHome: null, expectedStatus: 1 },
+  );
+  const report = parseBuildFailureReport(result.stdout);
+  if (
+    report.success ||
+    report.file !== undefined ||
+    report.errorCode !== "BPL_BUILD_NO_INPUTS" ||
+    report.error !== "No input files specified."
+  ) {
+    throw new Error(
+      `Packed npm CLI root build no-input JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+    );
   }
 }
 
