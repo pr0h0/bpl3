@@ -574,6 +574,84 @@ describe("Package Manager CLI", () => {
       ).toBe(true);
     });
 
+    test("should preserve existing global cache archive permissions when installing through the CLI", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const packageDir = path.join(tempDir, "global-cache-mode-package");
+      const homeDir = path.join(tempDir, "global-cache-mode-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      const env = { ...process.env, HOME: homeDir };
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-global-cache-mode",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export old;");
+
+      const firstPack = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(firstPack.status).toBe(0);
+
+      const tarballPath = path.join(
+        packageDir,
+        "cli-global-cache-mode-1.0.0.tgz",
+      );
+      const firstInstall = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath, "--global"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(firstInstall.status).toBe(0);
+
+      const cachedArchivePath = path.join(
+        cacheDir,
+        "cli-global-cache-mode-1.0.0.tgz",
+      );
+      fs.chmodSync(cachedArchivePath, 0o640);
+
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export new;");
+      const secondPack = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(secondPack.status).toBe(0);
+
+      const secondInstall = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath, "--global"],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(secondInstall.status).toBe(0);
+
+      expect(fs.statSync(cachedArchivePath).mode & 0o777).toBe(0o640);
+      expect(
+        fs.readFileSync(
+          path.join(cacheDir, "cli-global-cache-mode", "index.bpl"),
+          "utf8",
+        ),
+      ).toBe("export new;");
+    });
+
     test("should enforce --locked package verification", () => {
       const packageDir = path.join(tempDir, "package");
       fs.mkdirSync(packageDir);
