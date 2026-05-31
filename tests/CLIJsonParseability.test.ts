@@ -76,6 +76,47 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps cached build JSON stdout parseable", () => {
+    const helperSource = path.join(tempDir, "helper.bpl");
+    const mainSource = path.join(tempDir, "cached-main.bpl");
+    const outputFile = path.join(tempDir, "cached-json-app");
+
+    fs.writeFileSync(
+      helperSource,
+      ["export value;", "frame value() ret int { return 42; }"].join("\n"),
+    );
+    fs.writeFileSync(
+      mainSource,
+      [
+        'import value from "./helper.bpl";',
+        "frame main() ret int {",
+        "    return value();",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli([
+      "build",
+      mainSource,
+      "--cache",
+      "--json",
+      "-o",
+      outputFile,
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(parseJsonObjectStdout(result)).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: true,
+      file: mainSource,
+      cache: true,
+      output: {
+        executable: outputFile,
+      },
+    });
+  });
+
   test("keeps JSON-mode build failures parseable on stdout", () => {
     const badSource = path.join(tempDir, "bad.bpl");
     fs.writeFileSync(
