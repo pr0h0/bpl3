@@ -20,6 +20,7 @@ import { getBplHome } from "../compiler/common/PathResolver";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
+  type CompileBinaryAndRunResult,
   getExecutableOutputPath,
   isWasmTarget,
   runExecutable,
@@ -38,6 +39,10 @@ const log = new Logger("CompilationRunner");
 
 type CliOptimizationLevel = "0" | "1" | "2" | "3";
 type CliEmitType = NonNullable<CompileOptions["emit"]>;
+type BuildJsonOutput = {
+  llvm?: string;
+  executable?: string;
+};
 
 /**
  * Apply CLI options to global configuration
@@ -46,7 +51,9 @@ function applyOptions(options: CompileOptions): void {
   normalizeCompileOptions(options);
 
   // Handle quiet mode
-  if (options.quiet) {
+  if (options.json) {
+    setLogLevel(LogLevel.SILENT);
+  } else if (options.quiet) {
     setLogLevel(LogLevel.SILENT);
   } else if (options.verbose) {
     setLogLevel(LogLevel.DEBUG);
@@ -99,7 +106,7 @@ export function processFile(
       }
       throw e; // Re-throw for watch mode to handle
     }
-    handleCompilationError(e, options);
+    handleCompilationError(e, options, filePath);
   }
 }
 
@@ -128,7 +135,7 @@ export async function processFileAsync(
       }
       throw e;
     }
-    handleCompilationError(e, options);
+    handleCompilationError(e, options, filePath);
   }
 }
 
@@ -148,14 +155,35 @@ export function processCode(
     SourceManager.setSource(sourceLabel, code);
     processCodeInternal(code, sourceLabel, options, programArgs);
   } catch (e) {
-    handleCompilationError(e, options);
+    handleCompilationError(e, options, sourceLabel);
   }
 }
 
 /**
  * Handle compilation errors uniformly
  */
-function handleCompilationError(e: unknown, options: CompileOptions): never {
+function handleCompilationError(
+  e: unknown,
+  options: CompileOptions,
+  sourceLabel?: string,
+): never {
+  if (shouldEmitBuildJsonReport(options)) {
+    console.log(
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          check: "build",
+          success: false,
+          ...(sourceLabel ? { file: sourceLabel } : {}),
+          error: formatCompilationErrorMessage(e),
+        },
+        null,
+        2,
+      ),
+    );
+    process.exit(1);
+  }
+
   if (e instanceof CompilerError) {
     console.error(diagnosticFormatter.formatError(e));
   } else {
@@ -170,18 +198,15 @@ function handleCompilationError(e: unknown, options: CompileOptions): never {
 function readInputSourceFile(filePath: string): string {
   const inputStats = tryLstat(filePath);
   if (!inputStats) {
-    log.error(`File not found: ${filePath}`);
-    process.exit(1);
+    throw new Error(`File not found: ${filePath}`);
   }
 
   if (inputStats.isSymbolicLink()) {
-    log.error(`Input path is a symbolic link: ${filePath}`);
-    process.exit(1);
+    throw new Error(`Input path is a symbolic link: ${filePath}`);
   }
 
   if (!inputStats.isFile()) {
-    log.error(`Input path is not a file: ${filePath}`);
-    process.exit(1);
+    throw new Error(`Input path is not a file: ${filePath}`);
   }
 
   return fs.readFileSync(filePath, "utf-8");
@@ -444,6 +469,9 @@ function compileWithModules(
 
   if (!result.success) {
     if (result.errors) {
+      if (shouldEmitBuildJsonReport(options)) {
+        throw new Error(diagnosticFormatter.formatErrors(result.errors));
+      }
       console.error(diagnosticFormatter.formatErrors(result.errors));
     }
     if (options.watch) {
@@ -471,6 +499,13 @@ function compileWithModules(
 
   // For cached compilation, the executable is already created
   if (options.cache) {
+    if (shouldEmitBuildJsonReport(options)) {
+      emitBuildJsonSuccess(filePath, options, {
+        executable: getCachedExecutablePath(filePath, options),
+      });
+      return;
+    }
+
     if (result.output) {
       console.log(result.output);
     }
@@ -522,6 +557,9 @@ async function compileWithModulesAsync(
 
   if (!result.success) {
     if (result.errors) {
+      if (shouldEmitBuildJsonReport(options)) {
+        throw new Error(diagnosticFormatter.formatErrors(result.errors));
+      }
       console.error(diagnosticFormatter.formatErrors(result.errors));
     }
     if (options.watch) {
@@ -549,6 +587,13 @@ async function compileWithModulesAsync(
 
   // For cached compilation, the executable is already created
   if (options.cache) {
+    if (shouldEmitBuildJsonReport(options)) {
+      emitBuildJsonSuccess(filePath, options, {
+        executable: getCachedExecutablePath(filePath, options),
+      });
+      return;
+    }
+
     if (result.output) {
       console.log(result.output);
     }
@@ -625,6 +670,9 @@ function compileSingleFile(
 
   const typeErrors = typeChecker.getErrors();
   if (typeErrors.length > 0) {
+    if (shouldEmitBuildJsonReport(options)) {
+      throw new Error(diagnosticFormatter.formatErrors(typeErrors));
+    }
     console.error(diagnosticFormatter.formatErrors(typeErrors));
     if (options.watch) {
       throw new Error("Type checking failed");
@@ -711,12 +759,23 @@ function writeLlvmOutputAndMaybeBuild(
 
   writeFileAtomically(outputPath, ir);
 
-  if (options.verbose || (!options.run && options.emit === "llvm")) {
+  if (
+    !shouldEmitBuildJsonReport(options) &&
+    (options.verbose || (!options.run && options.emit === "llvm"))
+  ) {
     log.info(`LLVM IR written to ${outputPath}`);
   }
 
+  let binaryResult: CompileBinaryAndRunResult | undefined;
   if (shouldCompileExecutable(options)) {
-    compileBinaryAndRun(outputPath, options, programArgs);
+    binaryResult = compileBinaryAndRun(outputPath, options, programArgs);
+  }
+
+  if (shouldEmitBuildJsonReport(options)) {
+    emitBuildJsonSuccess(filePath, options, {
+      llvm: outputPath,
+      executable: binaryResult?.compile.executablePath,
+    });
   }
 }
 
@@ -738,6 +797,57 @@ function runCachedExecutable(
     }
     process.exit(runResult.exitCode);
   }
+}
+
+function getCachedExecutablePath(
+  filePath: string,
+  options: CompileOptions,
+): string {
+  const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
+  return path.isAbsolute(execPathBase) ? execPathBase : path.resolve(execPathBase);
+}
+
+function shouldEmitBuildJsonReport(options: CompileOptions): boolean {
+  return (
+    Boolean(options.json) &&
+    options.emit !== "ast" &&
+    options.emit !== "tokens" &&
+    options.emit !== "formatted"
+  );
+}
+
+function emitBuildJsonSuccess(
+  filePath: string,
+  options: CompileOptions,
+  output: BuildJsonOutput,
+): void {
+  const hostDefaults = getHostDefaults();
+  console.log(
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        check: "build",
+        success: true,
+        file: filePath,
+        emit: options.emit ?? "binary",
+        target: options.target || hostDefaults.target,
+        cache: Boolean(options.cache),
+        output,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+function formatCompilationErrorMessage(error: unknown): string {
+  if (error instanceof CompilerError) {
+    return diagnosticFormatter.formatError(error);
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 
 function shouldCompileExecutable(options: CompileOptions): boolean {

@@ -161,6 +161,7 @@ describe("Markdown documentation", () => {
     const text = readFileSync("docs/39-compiler-options.md", "utf8");
     const requiredSnippets = [
       "### Machine-readable JSON contracts",
+      "bpl build --json",
       "bpl check --json",
       "bpl lint --json",
       "bpl doctor --json",

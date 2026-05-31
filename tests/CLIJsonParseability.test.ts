@@ -41,6 +41,9 @@ describe("CLI JSON parseability", () => {
     const buildDir = path.join(tempDir, "build");
     fs.mkdirSync(buildDir);
     fs.writeFileSync(path.join(buildDir, "generated.o"), "object");
+    const buildSource = path.join(tempDir, "main.bpl");
+    const buildOutput = path.join(tempDir, "json-build-app");
+    fs.writeFileSync(buildSource, "frame main() ret int { return 0; }\n");
 
     const doctor = runCli(["doctor", "--json"]);
     expect(doctor.status).toBe(0);
@@ -56,6 +59,20 @@ describe("CLI JSON parseability", () => {
       dryRun: true,
       count: 1,
     });
+
+    const build = runCli(["build", buildSource, "-o", buildOutput, "--json"]);
+    expect(build.status).toBe(0);
+    expect(parseJsonStdout(build)).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: true,
+      file: buildSource,
+      emit: "llvm",
+      output: {
+        llvm: `${buildOutput}.ll`,
+        executable: buildOutput,
+      },
+    });
   });
 
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {
@@ -64,6 +81,24 @@ describe("CLI JSON parseability", () => {
     expect(parseJsonStdout(result)).toMatchObject({
       success: false,
       error: expect.stringContaining("Unknown doctor scope 'unknown-scope'"),
+    });
+  });
+
+  test("keeps JSON-mode build failures parseable on stdout", () => {
+    const badSource = path.join(tempDir, "bad.bpl");
+    fs.writeFileSync(
+      badSource,
+      'frame main() { local value: int = "not an int"; }\n',
+    );
+
+    const result = runCli(["build", badSource, "--json"]);
+    expect(result.status).toBe(1);
+    expect(parseJsonStdout(result)).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: badSource,
+      error: expect.stringContaining("Type mismatch"),
     });
   });
 });

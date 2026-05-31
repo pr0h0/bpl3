@@ -128,6 +128,11 @@ export interface RunResult {
   error?: string;
 }
 
+export interface CompileBinaryAndRunResult {
+  compile: CompileResult;
+  run?: RunResult;
+}
+
 /**
  * Compile LLVM IR to a native executable using an LLVM-capable compiler driver.
  */
@@ -285,28 +290,40 @@ export function compileBinaryAndRun(
   irPath: string,
   options: CompileOptions,
   programArgs?: string[],
-): void {
+): CompileBinaryAndRunResult {
   const compileResult = compileToBinary(irPath, options);
 
   if (!compileResult.success) {
+    if (options.json) {
+      throw new Error(compileResult.error || "Compilation failed");
+    }
     log.error(compileResult.error || "Compilation failed");
     process.exit(1);
   }
 
+  let runResult: RunResult | undefined;
   if (options.run && compileResult.executablePath) {
-    const runResult = runExecutable(
+    runResult = runExecutable(
       compileResult.executablePath,
       programArgs,
       options.verbose,
     );
 
     if (!runResult.success) {
+      if (options.json && runResult.error) {
+        throw new Error(runResult.error);
+      }
       if (runResult.error) {
         log.error(runResult.error);
       }
       process.exit(runResult.exitCode);
     }
   }
+
+  return {
+    compile: compileResult,
+    run: runResult,
+  };
 }
 
 /**

@@ -58,6 +58,9 @@ bpl build hello.bpl -o myprogram
 
 # Build with incremental module cache stats
 bpl build main.bpl --cache --jobs 4 --cache-stats
+
+# Build with a machine-readable result report
+bpl build main.bpl --json
 ```
 
 `--cache-stats` prints the module cache summary for cached builds:
@@ -245,6 +248,7 @@ part of a command's validation path use stdout with `success: false` or
 
 | Command | Stable stdout shape |
 | --- | --- |
+| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout. |
 | `bpl check --json` | Type-check diagnostics with `success`, `errors`, source ranges, previews, and diagnostic codes. |
 | `bpl lint --json` | Lint diagnostics with `success`, rule codes, source ranges, and messages. |
 | `bpl doctor --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. Unknown doctor scopes in JSON mode return `{ "success": false, "error": "..." }`. |

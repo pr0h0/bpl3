@@ -71,6 +71,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl list --tree --json` now include stable `schemaVersion: 1`, `check`, and
   `success` fields while preserving existing package summary and dependency
   tree payloads.
+- **Build JSON Stability** - `bpl build --json` now emits a stable
+  `schemaVersion: 1`, `check: "build"`, `success`, artifact output, and error
+  shape on stdout for tooling.
 - **Enhanced Runtime Library** - Comprehensive runtime error handling with beautiful diagnostics:
   - **Signal Handlers**: Automatic installation of handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, and SIGBUS
   - **Colored Error Boxes**: Formatted error output with ASCII box drawing and ANSI colors
