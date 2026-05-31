@@ -29,6 +29,7 @@ import {
 import {
   assertWritableFileOutputPath,
   assertWritableInputFilePath,
+  getInputFilePathError,
   getHostDefaults,
   writeFileAtomically,
 } from "./utils";
@@ -49,10 +50,39 @@ type BuildJsonOutput = {
   executable?: string;
 };
 
+export const BUILD_INVALID_OPTIMIZATION_CODE =
+  "BPL_BUILD_INVALID_OPTIMIZATION";
+export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
+export const BUILD_INVALID_WASM_RUNTIME_CODE =
+  "BPL_BUILD_INVALID_WASM_RUNTIME";
+export const BUILD_INVALID_JOBS_CODE = "BPL_BUILD_INVALID_JOBS";
+export const BUILD_INPUT_NOT_FOUND_CODE = "BPL_BUILD_INPUT_NOT_FOUND";
+export const BUILD_INPUT_SYMLINK_CODE = "BPL_BUILD_INPUT_SYMLINK";
+export const BUILD_INPUT_NOT_FILE_CODE = "BPL_BUILD_INPUT_NOT_FILE";
+export const BUILD_OUTPUT_SYMLINK_CODE = "BPL_BUILD_OUTPUT_SYMLINK";
+export const BUILD_OUTPUT_DIRECTORY_CODE = "BPL_BUILD_OUTPUT_DIRECTORY";
+export const BUILD_OUTPUT_NOT_FILE_CODE = "BPL_BUILD_OUTPUT_NOT_FILE";
+export const BUILD_OUTPUT_PARENT_NOT_FOUND_CODE =
+  "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND";
+export const BUILD_OUTPUT_PARENT_SYMLINK_CODE =
+  "BPL_BUILD_OUTPUT_PARENT_SYMLINK";
+export const BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE =
+  "BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY";
+
 class CompilationDiagnosticsError extends Error {
   constructor(public readonly errors: CompilerError[]) {
     super(diagnosticFormatter.formatErrors(errors));
     this.name = "CompilationDiagnosticsError";
+  }
+}
+
+class BuildValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message);
+    this.name = "BuildValidationError";
   }
 }
 
@@ -184,6 +214,7 @@ function handleCompilationError(
     const payload = {
       ...(sourceLabel ? { file: sourceLabel } : {}),
       error: formatCompilationErrorMessage(e),
+      ...formatBuildJsonErrorCode(e),
       ...(diagnostics
         ? { diagnostics: diagnosticFormatter.formatDiagnosticObjects(diagnostics) }
         : {}),
@@ -219,18 +250,36 @@ function getCompilationDiagnostics(error: unknown): CompilerError[] | undefined 
   return undefined;
 }
 
+function formatBuildJsonErrorCode(
+  error: unknown,
+): { errorCode: string } | Record<string, never> {
+  if (error instanceof BuildValidationError) {
+    return { errorCode: error.code };
+  }
+
+  return {};
+}
+
+function getBuildInputErrorCode(inputError: string): string {
+  switch (inputError) {
+    case "File not found":
+      return BUILD_INPUT_NOT_FOUND_CODE;
+    case "Input path is a symbolic link":
+      return BUILD_INPUT_SYMLINK_CODE;
+    case "Input path is not a file":
+      return BUILD_INPUT_NOT_FILE_CODE;
+    default:
+      return "BPL_BUILD_INPUT_INVALID";
+  }
+}
+
 function readInputSourceFile(filePath: string): string {
-  const inputStats = tryLstat(filePath);
-  if (!inputStats) {
-    throw new Error(`File not found: ${filePath}`);
-  }
-
-  if (inputStats.isSymbolicLink()) {
-    throw new Error(`Input path is a symbolic link: ${filePath}`);
-  }
-
-  if (!inputStats.isFile()) {
-    throw new Error(`Input path is not a file: ${filePath}`);
+  const inputError = getInputFilePathError(filePath);
+  if (inputError) {
+    throw new BuildValidationError(
+      `${inputError}: ${filePath}`,
+      getBuildInputErrorCode(inputError),
+    );
   }
 
   return fs.readFileSync(filePath, "utf-8");
@@ -260,8 +309,9 @@ function parseOptimizationLevel(
     return raw as CliOptimizationLevel;
   }
 
-  throw new Error(
+  throw new BuildValidationError(
     `Invalid optimization level "${raw}". Use one of: 0, 1, 2, 3.`,
+    BUILD_INVALID_OPTIMIZATION_CODE,
   );
 }
 
@@ -273,8 +323,9 @@ function parseEmitType(value: string): CliEmitType {
     case "formatted":
       return value;
     default:
-      throw new Error(
+      throw new BuildValidationError(
         `Invalid emit type "${value}". Use one of: llvm, ast, tokens, formatted.`,
+        BUILD_INVALID_EMIT_CODE,
       );
   }
 }
@@ -287,8 +338,9 @@ function parseWasmRuntime(
     case "host":
       return value;
     default:
-      throw new Error(
+      throw new BuildValidationError(
         `Invalid wasm runtime mode "${value}". Use one of: freestanding, host.`,
+        BUILD_INVALID_WASM_RUNTIME_CODE,
       );
   }
 }
@@ -296,14 +348,18 @@ function parseWasmRuntime(
 function parseJobs(value: string | number): number {
   const raw = String(value);
   if (!/^[1-9]\d*$/.test(raw)) {
-    throw new Error(
+    throw new BuildValidationError(
       `Invalid jobs count "${raw}". Use a positive integer greater than zero.`,
+      BUILD_INVALID_JOBS_CODE,
     );
   }
 
   const jobs = Number(raw);
   if (!Number.isSafeInteger(jobs)) {
-    throw new Error(`Invalid jobs count "${raw}". Use a safe positive integer.`);
+    throw new BuildValidationError(
+      `Invalid jobs count "${raw}". Use a safe positive integer.`,
+      BUILD_INVALID_JOBS_CODE,
+    );
   }
 
   return jobs;
@@ -775,6 +831,45 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
     : `${options.output}.ll`;
 }
 
+function assertWritableBuildOutputPath(outputPath: string): void {
+  try {
+    assertWritableFileOutputPath(outputPath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = getBuildOutputErrorCode(message);
+    if (code) {
+      throw new BuildValidationError(message, code);
+    }
+    throw error;
+  }
+}
+
+function getBuildOutputErrorCode(message: string): string | undefined {
+  if (message.startsWith("Output path is a symbolic link:")) {
+    return BUILD_OUTPUT_SYMLINK_CODE;
+  }
+  if (message.startsWith("Output path is a directory:")) {
+    return BUILD_OUTPUT_DIRECTORY_CODE;
+  }
+  if (message.startsWith("Output path is not a regular file:")) {
+    return BUILD_OUTPUT_NOT_FILE_CODE;
+  }
+  if (message.startsWith("Output directory not found:")) {
+    return BUILD_OUTPUT_PARENT_NOT_FOUND_CODE;
+  }
+  if (
+    message.startsWith("Output parent path is a symbolic link:") ||
+    message.startsWith("Output parent path contains a symbolic link:")
+  ) {
+    return BUILD_OUTPUT_PARENT_SYMLINK_CODE;
+  }
+  if (message.startsWith("Output parent path is not a directory:")) {
+    return BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE;
+  }
+
+  return undefined;
+}
+
 function writeLlvmOutputAndMaybeBuild(
   filePath: string,
   options: CompileOptions,
@@ -782,10 +877,10 @@ function writeLlvmOutputAndMaybeBuild(
   programArgs?: string[],
 ): void {
   const outputPath = getLlvmOutputPath(filePath, options);
-  assertWritableFileOutputPath(outputPath);
+  assertWritableBuildOutputPath(outputPath);
 
   if (shouldCompileExecutable(options)) {
-    assertWritableFileOutputPath(getExecutableOutputPath(outputPath, options));
+    assertWritableBuildOutputPath(getExecutableOutputPath(outputPath, options));
   }
 
   writeFileAtomically(outputPath, ir);

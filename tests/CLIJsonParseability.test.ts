@@ -1793,6 +1793,7 @@ describe("CLI JSON parseability", () => {
       result: SpawnSyncReturns<string>,
       expectedError: string,
       expectedFile?: string,
+      expectedErrorCode?: string,
     ) => {
       expect(result.status).toBe(1);
       expect(result.stderr).toBe("");
@@ -1802,6 +1803,7 @@ describe("CLI JSON parseability", () => {
         success: false,
         ...(expectedFile ? { file: expectedFile } : {}),
         error: expect.stringContaining(expectedError),
+        ...(expectedErrorCode ? { errorCode: expectedErrorCode } : {}),
       });
     };
 
@@ -1810,24 +1812,51 @@ describe("CLI JSON parseability", () => {
       inputFailure,
       "Input path is not a file",
       sourceDir,
+      "BPL_BUILD_INPUT_NOT_FILE",
     );
 
     const validSource = path.join(tempDir, "valid.bpl");
+    const missingSource = path.join(tempDir, "missing.bpl");
     const missingParentOutput = path.join(tempDir, "missing", "app");
     fs.writeFileSync(validSource, "frame main() ret int { return 0; }\n");
 
-    const validationCases: Array<[string[], string]> = [
-      [["build", validSource, "--json", "-O", "debug"], "Invalid optimization"],
-      [["build", validSource, "--json", "--emit", "bytecode"], "Invalid emit"],
+    assertValidationFailure(
+      runCli(["build", missingSource, "--json"]),
+      "File not found",
+      missingSource,
+      "BPL_BUILD_INPUT_NOT_FOUND",
+    );
+
+    const validationCases: Array<[string[], string, string]> = [
+      [
+        ["build", validSource, "--json", "-O", "debug"],
+        "Invalid optimization",
+        "BPL_BUILD_INVALID_OPTIMIZATION",
+      ],
+      [
+        ["build", validSource, "--json", "--emit", "bytecode"],
+        "Invalid emit",
+        "BPL_BUILD_INVALID_EMIT",
+      ],
       [
         ["build", validSource, "--json", "--wasm-runtime", "wasi"],
         "Invalid wasm runtime",
+        "BPL_BUILD_INVALID_WASM_RUNTIME",
       ],
-      [["build", validSource, "--json", "--jobs", "0"], "Invalid jobs count"],
+      [
+        ["build", validSource, "--json", "--jobs", "0"],
+        "Invalid jobs count",
+        "BPL_BUILD_INVALID_JOBS",
+      ],
     ];
 
-    for (const [args, expectedError] of validationCases) {
-      assertValidationFailure(runCli(args), expectedError, validSource);
+    for (const [args, expectedError, expectedErrorCode] of validationCases) {
+      assertValidationFailure(
+        runCli(args),
+        expectedError,
+        validSource,
+        expectedErrorCode,
+      );
     }
 
     const outputFailure = runCli([
@@ -1841,6 +1870,7 @@ describe("CLI JSON parseability", () => {
       outputFailure,
       "Output directory not found",
       validSource,
+      "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND",
     );
     expect(fs.existsSync(`${missingParentOutput}.ll`)).toBe(false);
 
@@ -1857,6 +1887,7 @@ describe("CLI JSON parseability", () => {
       executablePathFailure,
       "Output path is a directory",
       validSource,
+      "BPL_BUILD_OUTPUT_DIRECTORY",
     );
     expect(fs.existsSync(`${executableDirectoryOutput}.ll`)).toBe(false);
   });
