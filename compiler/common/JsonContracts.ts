@@ -5,6 +5,7 @@ export const CLI_JSON_CHECKS = {
   check: "check",
   clean: "clean",
   doctor: "doctor",
+  lint: "lint",
   packageCacheClean: "package-cache-clean",
   packageCacheList: "package-cache-list",
   packageCacheRepair: "package-cache-repair",

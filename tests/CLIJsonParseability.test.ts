@@ -81,6 +81,23 @@ describe("CLI JSON parseability", () => {
         },
       ],
     });
+
+    const lint = runCli(["lint", "--json", buildSource]);
+    expect(lint.status).toBe(0);
+    expect(parseJsonObjectStdout(lint)).toEqual({
+      schemaVersion: 1,
+      check: "lint",
+      success: true,
+      totalFiles: 1,
+      errorCount: 0,
+      files: [
+        {
+          file: buildSource,
+          success: true,
+          diagnostics: [],
+        },
+      ],
+    });
   });
 
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {

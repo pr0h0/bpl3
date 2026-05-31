@@ -10,6 +10,10 @@ import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { LintOptions } from "../types";
 import { getInputFilePathError } from "../utils";
 import { Logger } from "../../compiler/common/Logger";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../../compiler/common/JsonContracts";
 
 const log = new Logger("Lint");
 
@@ -119,12 +123,11 @@ export function registerLintCommand(program: Command): void {
         );
         console.log(
           JSON.stringify(
-            {
-              success: !hasErrors,
+            createJsonReport(CLI_JSON_CHECKS.lint, !hasErrors, {
               totalFiles: files.length,
               errorCount,
               files: results,
-            },
+            }),
             null,
             2,
           ),

@@ -41,6 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Check JSON Stability** - `bpl check --json` now includes stable
   `schemaVersion: 1` and `check: "check"` metadata alongside the existing
   aggregate totals, timing, per-file diagnostics, and validation errors.
+- **Lint JSON Stability** - `bpl lint --json` now includes stable
+  `schemaVersion: 1` and `check: "lint"` metadata alongside the existing
+  aggregate totals, per-file lint diagnostics, and validation errors.
 - **Run-Script Argument Forwarding Coverage** - Added regression coverage for
   option-looking, empty, quoted, substituted, piped, redirected, ampersand, and
   multiline arguments forwarded through `bpl run-script`.

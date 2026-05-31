@@ -166,6 +166,7 @@ describe("Markdown documentation", () => {
       "bpl check --json",
       'check: "check"',
       "bpl lint --json",
+      'check: "lint"',
       "bpl doctor --json",
       "bpl doctor packages --json",
       "bpl package-cache list [package] --json",
