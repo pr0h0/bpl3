@@ -115,6 +115,79 @@ describe("Package Manager CLI", () => {
       expect(fs.existsSync("cli-test-pkg-1.0.0.tgz")).toBe(true);
     });
 
+    test("should report pack success and failures as JSON", () => {
+      const packageDir = path.join(tempDir, "pack-json-package");
+      const missingDir = path.join(tempDir, "pack-json-missing");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(missingDir);
+
+      const manifest = {
+        name: "pack-json-test",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(manifest, null, 2),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+      const packResult = spawnSync(
+        "bun",
+        [bplPath, "pack", packageDir, "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const packReport = expectJsonStdoutReport<{
+        check: "package-pack";
+        success: boolean;
+        package: string;
+        version: string;
+        archivePath: string;
+      }>(packResult, {
+        status: 0,
+        check: "package-pack",
+        success: true,
+      });
+      expect(packReport).toMatchObject({
+        package: "pack-json-test",
+        version: "1.0.0",
+      });
+      expect(packReport.archivePath).toEndWith("pack-json-test-1.0.0.tgz");
+      expect(fs.existsSync(packReport.archivePath)).toBe(true);
+
+      const missingResult = spawnSync(
+        "bun",
+        [bplPath, "pack", missingDir, "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const missingReport = expectJsonStdoutReport<{
+        check: "package-pack";
+        success: boolean;
+        packageDir: string;
+        outputDir: string;
+        error: string;
+        errorCode: string;
+      }>(missingResult, {
+        status: 1,
+        check: "package-pack",
+        success: false,
+      });
+      expect(missingReport).toMatchObject({
+        packageDir: missingDir,
+        outputDir: missingDir,
+        error: expect.stringContaining("No bpl.json found"),
+        errorCode: "BPL_PACKAGE_MANIFEST_MISSING",
+      });
+    });
+
     test("should honor pack output directories", () => {
       const manifest = {
         name: "cli-output-pkg",

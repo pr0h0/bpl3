@@ -55,11 +55,16 @@ export function registerPackageCommands(program: Command): void {
     .command("pack [dir]")
     .description("Create a distributable package from a BPL project")
     .option("-o, --output <dir>", "output directory for the package")
+    .option("--json", "output machine-readable pack result")
     .action((dir: string | undefined, options: PackageOptionsOutput, command: Command) => {
+      const globalOpts = command.parent?.opts() || {};
+      const outputJson = Boolean(options.json || globalOpts.json);
+      if (outputJson) {
+        setLogLevel(LogLevel.SILENT);
+      }
+      const packageDir = dir ? path.resolve(dir) : process.cwd();
+      const outputDir = options.output || globalOpts.output || packageDir;
       try {
-        const globalOpts = command.parent?.opts() || {};
-        const packageDir = dir ? path.resolve(dir) : process.cwd();
-        const outputDir = options.output || globalOpts.output;
         const pm = new PackageManager();
 
         // Check if code compiles before packing
@@ -110,10 +115,45 @@ export function registerPackageCommands(program: Command): void {
         }
 
         const tarball = pm.pack(packageDir, outputDir);
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.packagePack, true, {
+                package: manifest.name,
+                version: manifest.version,
+                packageDir,
+                outputDir,
+                archivePath: tarball,
+              }),
+              null,
+              2,
+            ),
+          );
+          return;
+        }
         log.info(`Package ready: ${tarball}`);
       } catch (e) {
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.packagePack, false, {
+                packageDir,
+                outputDir,
+                error: formatPackageCommandJsonError(e),
+                ...formatPackageCommandErrorCode(e),
+              }),
+              null,
+              2,
+            ),
+          );
+          process.exit(1);
+        }
         log.error(formatPackageCommandError(e));
         process.exit(1);
+      } finally {
+        if (outputJson) {
+          resetLogLevel();
+        }
       }
     });
 

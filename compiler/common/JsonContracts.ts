@@ -13,6 +13,7 @@ export const CLI_JSON_CHECKS = {
   packageInstall: "package-install",
   packageList: "package-list",
   packageListTree: "package-list-tree",
+  packagePack: "package-pack",
   packageUninstall: "package-uninstall",
   packages: "packages",
   runScript: "run-script",
@@ -47,6 +48,10 @@ export const CLI_JSON_CONTRACTS = [
   {
     command: "bpl install [package] --json",
     check: CLI_JSON_CHECKS.packageInstall,
+  },
+  {
+    command: "bpl pack [dir] --json",
+    check: CLI_JSON_CHECKS.packagePack,
   },
   {
     command: "bpl uninstall <package> --json",
