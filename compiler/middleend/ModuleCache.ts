@@ -135,6 +135,8 @@ export class ModuleCache {
       );
     }
 
+    this.assertNoSymlinkedCacheParent(this.cacheDir, this.cacheDir);
+
     if (!cacheStat) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
     }
@@ -663,6 +665,7 @@ export class ModuleCache {
 
   private removeCacheTempFile(filePath: string): void {
     try {
+      if (this.findSymlinkedParentPath(filePath)) return;
       fs.rmSync(filePath, { force: true, recursive: true });
     } catch {
       // Best-effort cleanup only.
@@ -728,14 +731,23 @@ export class ModuleCache {
   }
 
   private isUsableCacheFile(filePath: string): boolean {
+    return this.getUsableCacheFileStats(filePath) !== null;
+  }
+
+  private getUsableCacheFileStats(filePath: string): fs.Stats | null {
     try {
       if (!this.isPathInsideCacheDir(filePath)) {
-        return false;
+        return null;
       }
 
-      return fs.lstatSync(filePath).isFile();
+      if (this.findSymlinkedParentPath(filePath)) {
+        return null;
+      }
+
+      const stats = fs.lstatSync(filePath);
+      return stats.isFile() ? stats : null;
     } catch {
-      return false;
+      return null;
     }
   }
 
@@ -811,6 +823,8 @@ export class ModuleCache {
         },
       );
     }
+
+    this.assertNoSymlinkedCacheParent(filePath, modulePath);
   }
 
   private assertWritableCacheManifestPath(): void {
@@ -871,6 +885,47 @@ export class ModuleCache {
         },
       );
     }
+
+    this.assertNoSymlinkedCacheParent(this.manifestPath, this.manifestPath);
+  }
+
+  private assertNoSymlinkedCacheParent(
+    filePath: string,
+    diagnosticFile: string,
+  ): void {
+    const symlinkedParent = this.findSymlinkedParentPath(filePath);
+    if (!symlinkedParent) return;
+
+    throw new CompilerError(
+      `Module cache parent path is a symbolic link: ${symlinkedParent}`,
+      "Remove the symlink or run the build from a real project path.",
+      {
+        file: diagnosticFile,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+    );
+  }
+
+  private findSymlinkedParentPath(filePath: string): string | undefined {
+    const absolutePath = path.resolve(filePath);
+    const rootPath = path.parse(absolutePath).root;
+    const parts = path
+      .relative(rootPath, path.dirname(absolutePath))
+      .split(path.sep)
+      .filter((part) => part.length > 0);
+
+    let currentPath = rootPath;
+    for (const part of parts) {
+      currentPath = path.join(currentPath, part);
+      const stats = this.tryLstat(currentPath);
+      if (stats?.isSymbolicLink()) return currentPath;
+      if (stats && !stats.isDirectory()) return undefined;
+    }
+
+    return undefined;
   }
 
   private tryLstat(filePath: string): fs.Stats | undefined {
@@ -1183,7 +1238,37 @@ export class ModuleCache {
    * Clear cache
    */
   clearCache(): void {
-    if (fs.existsSync(this.cacheDir)) {
+    const cacheStat = this.tryLstat(this.cacheDir);
+    if (cacheStat?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Module cache path is a symbolic link: ${this.cacheDir}`,
+        "Remove the symlink or configure a project directory where .bpl-cache can be a real directory.",
+        {
+          file: this.cacheDir,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+    if (cacheStat && !cacheStat.isDirectory()) {
+      throw new CompilerError(
+        `Module cache path is not a directory: ${this.cacheDir}`,
+        "Remove the file or configure a project directory where .bpl-cache can be a directory.",
+        {
+          file: this.cacheDir,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
+    this.assertNoSymlinkedCacheParent(this.cacheDir, this.cacheDir);
+
+    if (cacheStat) {
       fs.rmSync(this.cacheDir, { recursive: true, force: true });
     }
     this.ensureCacheDir();
@@ -1200,8 +1285,8 @@ export class ModuleCache {
   getStats(): ModuleCacheStats {
     let totalSize = 0;
     for (const cached of this.manifest.modules.values()) {
-      if (this.isUsableCacheFile(cached.objectFile)) {
-        const stats = fs.statSync(cached.objectFile);
+      const stats = this.getUsableCacheFileStats(cached.objectFile);
+      if (stats) {
         totalSize += stats.size;
       }
     }

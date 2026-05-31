@@ -568,9 +568,11 @@ bpl build main.bpl --cache
 Cached modules are stored in `.bpl-cache/`. Cache entries include the compiler
 module-cache format version, target, optimization level, compiler driver,
 sysroot, and extra clang flags, so stale manifests from older cache formats are
-ignored automatically. Symlinked or broken-symlink `.bpl-cache` paths are
-rejected before cached object or manifest writes. Use `bpl clean` to clear cache
-manually.
+ignored automatically. Symlinked, broken-symlink, or symlink-parent
+`.bpl-cache` paths are rejected before cached object writes, manifest writes,
+and cache cleaning. Cached-object lookups and cache stats ignore object files
+that are only reachable through symlinked parents instead of reusing external
+cache files. Use `bpl clean` to clear cache manually.
 The module cache backend can compile independent LLVM module inputs with a
 bounded parallel job pool; the current CLI cache path still emits one combined
 program object until true per-module IR generation is wired into the front end.

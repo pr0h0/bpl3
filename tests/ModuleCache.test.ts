@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -773,6 +774,119 @@ describe("ModuleCache", () => {
         ),
       ).toThrow(/Module cache directory is a symbolic link/);
       expect(lstatSync(cacheDir).isSymbolicLink()).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects cache directories through symlinked project parents during construction", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parent-init-"));
+
+    try {
+      const realProjectDir = join(dir, "real-project");
+      const linkedProjectDir = join(dir, "linked-project");
+      mkdirSync(join(realProjectDir, ".bpl-cache"), { recursive: true });
+      symlinkSync(realProjectDir, linkedProjectDir, "dir");
+
+      expect(() => new ModuleCache(linkedProjectDir)).toThrow(
+        /Module cache parent path is a symbolic link/,
+      );
+      expect(existsSync(join(realProjectDir, ".bpl-cache"))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects cache object writes when the project parent becomes a symlink", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parent-write-"));
+
+    try {
+      const projectDir = join(dir, "project");
+      const realProjectDir = join(dir, "project-real");
+      const outsideProjectDir = join(dir, "outside-project");
+      const outsideCacheDir = join(outsideProjectDir, ".bpl-cache");
+      mkdirSync(projectDir);
+      const cache = new ModuleCache(projectDir);
+      renameSync(projectDir, realProjectDir);
+      mkdirSync(outsideCacheDir, { recursive: true });
+      symlinkSync(outsideProjectDir, projectDir, "dir");
+
+      expect(() =>
+        cache.compileModule(
+          join(projectDir, "main.bpl"),
+          "frame main() ret int { return 0; }",
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(/Module cache parent path is a symbolic link/);
+      expect(readdirSync(outsideCacheDir)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not reuse cached objects through symlinked project parents", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parent-read-"));
+
+    try {
+      const projectDir = join(dir, "project");
+      const realProjectDir = join(dir, "project-real");
+      const outsideProjectDir = join(dir, "outside-project");
+      const modulePath = join(projectDir, "main.bpl");
+      const objectPath = join(projectDir, ".bpl-cache", "cached-object.o");
+      mkdirSync(join(projectDir, ".bpl-cache"), { recursive: true });
+      writeFileSync(objectPath, "cached object");
+      writeFileSync(
+        join(projectDir, ".bpl-cache", "manifest.json"),
+        JSON.stringify({
+          version: MODULE_CACHE_VERSION,
+          modules: {
+            [modulePath]: {
+              path: modulePath,
+              hash: "hash",
+              objectFile: objectPath,
+              timestamp: Date.now(),
+            },
+          },
+        }),
+      );
+      const cache = new ModuleCache(projectDir);
+
+      renameSync(projectDir, realProjectDir);
+      const outsideCacheDir = join(outsideProjectDir, ".bpl-cache");
+      mkdirSync(outsideCacheDir, { recursive: true });
+      writeFileSync(join(outsideCacheDir, "cached-object.o"), "outside object");
+      symlinkSync(outsideProjectDir, projectDir, "dir");
+
+      expect(cache.getCachedObjectFile(modulePath)).toBeNull();
+      expect(cache.getStats().cacheSize).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects cache clean when the project parent becomes a symlink", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-parent-clean-"));
+
+    try {
+      const projectDir = join(dir, "project");
+      const realProjectDir = join(dir, "project-real");
+      const outsideProjectDir = join(dir, "outside-project");
+      const outsideCacheDir = join(outsideProjectDir, ".bpl-cache");
+      const outsideObject = join(outsideCacheDir, "keep.o");
+      mkdirSync(projectDir);
+      const cache = new ModuleCache(projectDir);
+      renameSync(projectDir, realProjectDir);
+      mkdirSync(outsideCacheDir, { recursive: true });
+      writeFileSync(outsideObject, "outside object");
+      symlinkSync(outsideProjectDir, projectDir, "dir");
+
+      expect(() => cache.clearCache()).toThrow(
+        /Module cache parent path is a symbolic link/,
+      );
+      expect(readFileSync(outsideObject, "utf8")).toBe("outside object");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
