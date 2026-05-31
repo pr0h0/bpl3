@@ -37,6 +37,9 @@ const NATIVE_RUNTIME_SUPPORT_HINT =
   "Run `bun run build:runtime`, then `bpl doctor`; reinstall BPL if runtime_support.o is still missing.";
 const WASM_RUNTIME_HINT =
   "Run `bpl doctor` to inspect runtime assets, then reinstall BPL or restore the missing wasm runtime IR from the release package.";
+const WASM_LINKER_HINT =
+  "Install LLVM lld or set WASM_LD to a working wasm-ld binary before building wasm targets. Set BPL_REQUIRE_WASM_LD=1 when you want missing wasm linker support to fail instead of skipping runtime execution.";
+const WASM_LINKER_UNAVAILABLE_CODE = "BPL_WASM_LINKER_UNAVAILABLE";
 
 interface DoctorCheck {
   name: string;
@@ -44,6 +47,10 @@ interface DoctorCheck {
   detail: string;
   hint?: string;
   required?: boolean;
+  code?: string;
+  candidates?: string[];
+  environment?: Record<string, string | null>;
+  recommendedCommands?: string[];
 }
 
 interface DoctorReport {
@@ -191,15 +198,7 @@ function createDoctorReport(version: string): DoctorReport {
       "Install opt, llvm-as, llc, or clang; or set BPL_OPT, BPL_LLVM_AS, BPL_LLC, or BPL_CC.",
       false,
     ),
-    checkAnyCommand(
-      "wasm linker",
-      getWasmLinkerCandidates().map((candidate) => [
-        candidate,
-        ["--version"],
-      ]),
-      "Install LLVM lld or set WASM_LD to a working wasm-ld binary before building wasm targets.",
-      false,
-    ),
+    checkWasmLinker(),
   ];
 
   const bunVersion = getCommandVersion("bun", ["--version"]);
@@ -443,6 +442,31 @@ function checkAnyCommand(
     detail: failures.length > 0 ? failures.join("; ") : "not found on PATH",
     hint,
     required,
+  };
+}
+
+function checkWasmLinker(): DoctorCheck {
+  const candidates = getWasmLinkerCandidates();
+  const check = checkAnyCommand(
+    "wasm linker",
+    candidates.map((candidate) => [candidate, ["--version"]]),
+    WASM_LINKER_HINT,
+    false,
+  );
+
+  if (check.ok) {
+    return check;
+  }
+
+  return {
+    ...check,
+    code: WASM_LINKER_UNAVAILABLE_CODE,
+    candidates,
+    environment: {
+      WASM_LD: process.env.WASM_LD ?? null,
+      BPL_REQUIRE_WASM_LD: process.env.BPL_REQUIRE_WASM_LD ?? null,
+    },
+    recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
   };
 }
 

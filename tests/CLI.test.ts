@@ -39,6 +39,18 @@ function linkBplHomeFixture(
   }
 }
 
+function writeNodePathShim(directory: string): void {
+  if (process.platform === "win32") {
+    fs.writeFileSync(
+      path.join(directory, "node.cmd"),
+      `@echo off\r\n"${process.execPath}" %*\r\n`,
+    );
+    return;
+  }
+
+  fs.symlinkSync(process.execPath, path.join(directory, "node"), "file");
+}
+
 describe("CLI Tests", () => {
   it("should lint files and report errors", () => {
     const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
@@ -3323,6 +3335,73 @@ describe("CLI Tests", () => {
     expect(compilerCheck.detail).toContain(missingCompiler);
     expect(compilerCheck.detail).toContain("command not found");
     expect(compilerCheck.detail).not.toContain("ENOENT");
+  });
+
+  it("should report wasm linker prerequisite guidance in doctor diagnostics", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-wasm-linker-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const toolDir = path.join(tempDir, "tools");
+    const missingWasmLd = path.join(toolDir, "missing-wasm-ld");
+
+    try {
+      fs.mkdirSync(toolDir, { recursive: true });
+      linkBplHomeFixture(bplHome);
+      writeNodePathShim(toolDir);
+      const okTool = writeNodeCommandShim(path.join(toolDir, "ok-tool"), [
+        'console.log("ok-tool 1.0.0");',
+        "process.exit(0);",
+      ]);
+      const doctorEnv = {
+        ...process.env,
+        BPL_HOME: bplHome,
+        BPL_CC: okTool,
+        BPL_WASM_CC: okTool,
+        BPL_NM: okTool,
+        BPL_TAR: okTool,
+        WASM_LD: missingWasmLd,
+        PATH: toolDir,
+        NO_COLOR: "1",
+      };
+
+      const result = spawnSync(process.execPath, [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: doctorEnv,
+      });
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(result.stdout);
+      const linkerCheck = report.checks.find(
+        (check: { name: string }) => check.name === "wasm linker",
+      );
+      expect(linkerCheck).toMatchObject({
+        ok: false,
+        required: false,
+        code: "BPL_WASM_LINKER_UNAVAILABLE",
+        environment: {
+          WASM_LD: missingWasmLd,
+          BPL_REQUIRE_WASM_LD: null,
+        },
+        recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
+      });
+      expect(linkerCheck.candidates).toEqual(
+        expect.arrayContaining([missingWasmLd, "wasm-ld"]),
+      );
+      expect(linkerCheck.hint).toContain("WASM_LD");
+      expect(linkerCheck.hint).toContain("BPL_REQUIRE_WASM_LD=1");
+
+      const textResult = spawnSync(process.execPath, [BPL_CLI, "doctor"], {
+        encoding: "utf-8",
+        env: doctorEnv,
+      });
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("WARN wasm linker");
+      expect(textResult.stdout).toContain("WASM_LD");
+      expect(textResult.stdout).toContain("BPL_REQUIRE_WASM_LD=1");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("should build a direct wasm artifact for wasm32 targets", () => {
