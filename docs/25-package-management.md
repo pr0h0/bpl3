@@ -456,6 +456,11 @@ Local uninstall also validates an existing `bpl.lock` before unlinking binaries
 or removing package files; symlinked, broken-symlink, malformed, or non-file
 lockfile paths are rejected instead of leaving package files and lock entries
 inconsistent.
+Local and global uninstall revalidate the selected package root before probing
+or removing `bpl_modules/<package>` or global package directories. If
+`bpl_modules/` or the configured global package directory is swapped to a
+symlink after the package manager starts, uninstall fails before reading or
+removing package files through the link.
 
 ## Package Scripts
 

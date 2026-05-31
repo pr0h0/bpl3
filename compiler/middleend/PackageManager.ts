@@ -3215,7 +3215,24 @@ export class PackageManager {
     const targetDir = options.global
       ? this.globalPackageDir
       : this.localPackageDir;
+    const targetDirLabel = options.global
+      ? "Global package directory"
+      : "Local package directory";
     const packagePath = path.join(targetDir, packageName);
+
+    if (!this.readPackageManagerDirectoryStats(targetDir, targetDirLabel)) {
+      throw new CompilerError(
+        `Package '${packageName}' is not installed ${options.global ? "globally" : "locally"}`,
+        "Check the package name.",
+        {
+          file: packagePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
 
     const packageRootStats = this.tryLstat(packagePath);
     if (!packageRootStats) {

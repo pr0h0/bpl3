@@ -4180,6 +4180,45 @@ describe("PackageManager", () => {
   });
 
   describe("Package Uninstallation", () => {
+    function createUninstallArchive(packageName: string): string {
+      const packageDir = path.join(tempDir, `${packageName}-source`);
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: packageName,
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      return new PackageManager(packageDir).pack(packageDir);
+    }
+
+    function writeInstalledPackage(rootDir: string, packageName: string): string {
+      const packagePath = path.join(rootDir, packageName);
+      fs.mkdirSync(packagePath, { recursive: true });
+      fs.writeFileSync(
+        path.join(packagePath, "bpl.json"),
+        JSON.stringify(
+          {
+            name: packageName,
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packagePath, "index.bpl"), "export test;");
+      return packagePath;
+    }
+
     test("should uninstall a locally installed package", () => {
       // Create and install a package
       const manifest = {
@@ -4208,6 +4247,86 @@ describe("PackageManager", () => {
       // Verify it's gone
       packages = packageManager.list({ global: false });
       expect(packages.length).toBe(0);
+    });
+
+    test("should uninstall a globally installed package", () => {
+      const tarballPath = createUninstallArchive("global-uninstall-test-pkg");
+      const installDir = path.join(tempDir, "global-uninstall-test");
+      const globalPackageDir = path.join(tempDir, "global-uninstall-packages");
+      fs.mkdirSync(installDir);
+      fs.mkdirSync(globalPackageDir);
+
+      const localPM = new PackageManager(installDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.install(tarballPath, { global: true, verbose: false });
+
+      const packagePath = path.join(
+        globalPackageDir,
+        "global-uninstall-test-pkg",
+      );
+      expect(fs.existsSync(packagePath)).toBe(true);
+
+      localPM.uninstall("global-uninstall-test-pkg", { global: true });
+      expect(fs.existsSync(packagePath)).toBe(false);
+    });
+
+    test("should reject swapped local package roots that become symlinks before uninstall", () => {
+      const appDir = path.join(tempDir, "swapped-local-uninstall-app");
+      const outsidePackageRoot = path.join(
+        tempDir,
+        "outside-local-uninstall-root",
+      );
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsidePackageRoot);
+
+      const localPM = new PackageManager(appDir);
+      const localPackageDir = path.join(appDir, "bpl_modules");
+      const outsidePackagePath = writeInstalledPackage(
+        outsidePackageRoot,
+        "swapped-local-uninstall",
+      );
+      fs.rmSync(localPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
+
+      expect(() =>
+        localPM.uninstall("swapped-local-uninstall", { global: false }),
+      ).toThrow(/Local package directory path is a symbolic link/);
+      expect(fs.lstatSync(localPackageDir).isSymbolicLink()).toBe(true);
+      expect(fs.existsSync(path.join(outsidePackagePath, "bpl.json"))).toBe(
+        true,
+      );
+    });
+
+    test("should reject swapped global package roots that become symlinks before uninstall", () => {
+      const appDir = path.join(tempDir, "swapped-global-uninstall-app");
+      const globalPackageDir = path.join(
+        tempDir,
+        "swapped-global-uninstall-packages",
+      );
+      const outsidePackageRoot = path.join(
+        tempDir,
+        "outside-global-uninstall-root",
+      );
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(outsidePackageRoot);
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      const outsidePackagePath = writeInstalledPackage(
+        outsidePackageRoot,
+        "swapped-global-uninstall",
+      );
+      fs.rmSync(globalPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsidePackageRoot, globalPackageDir, "dir");
+
+      expect(() =>
+        localPM.uninstall("swapped-global-uninstall", { global: true }),
+      ).toThrow(/Global package directory path is a symbolic link/);
+      expect(fs.lstatSync(globalPackageDir).isSymbolicLink()).toBe(true);
+      expect(fs.existsSync(path.join(outsidePackagePath, "bpl.json"))).toBe(
+        true,
+      );
     });
 
     test("should reject broken symlink lockfiles before uninstall removes packages", () => {
