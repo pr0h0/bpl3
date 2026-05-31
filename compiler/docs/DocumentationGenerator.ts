@@ -145,6 +145,13 @@ export class DocumentationGenerator {
         throw new Error(`Documentation input is not a file: ${candidate}`);
       }
 
+      const symlinkedParent = findSymlinkedPathComponent(candidate);
+      if (symlinkedParent) {
+        throw new Error(
+          `Documentation input parent contains a symbolic link: ${symlinkedParent}`,
+        );
+      }
+
       return candidate;
     }
 
@@ -396,6 +403,27 @@ export class DocumentationGenerator {
     }
     this.output.push("");
   }
+}
+
+function findSymlinkedPathComponent(filePath: string): string | null {
+  const absolutePath = path.resolve(filePath);
+  const parsedPath = path.parse(absolutePath);
+  const rootPath = parsedPath.root;
+  const components = path
+    .relative(rootPath, absolutePath)
+    .split(/[\\/]+/)
+    .filter(Boolean);
+  let currentPath = rootPath;
+
+  for (const component of components.slice(0, -1)) {
+    currentPath = path.join(currentPath, component);
+    const stats = tryLstat(currentPath);
+    if (stats?.isSymbolicLink()) {
+      return currentPath;
+    }
+  }
+
+  return null;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
