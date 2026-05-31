@@ -161,6 +161,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-152 | Package Manager     | Package uninstall treats symlinked package roots as installed packages.                                                    | Fixed    | Uninstall now rejects symlinked package roots before reading manifests, unlinking binaries, or removing the package path. Regression: `tests/PackageManager.test.ts`.                                                                                                                       |
 | BUG-153 | Package Manager     | Lock verification treats symlinked installed package roots as valid packages.                                              | Fixed    | `bpl install --locked` and lock verification now reject symlinked or non-directory package roots before loading manifests or hashing package contents. Regression: `tests/PackageManager.test.ts`.                                                                                          |
 | BUG-154 | Package Manager     | Lock verification treats symlinked recorded package sources as reachable.                                                  | Fixed    | Lock source reachability now requires a real regular file, so `bpl install --locked` reports symlinked recorded sources as unreachable instead of accepting sources that restore/install would reject. Regression: `tests/PackageManager.test.ts`.                                          |
+| BUG-155 | Package Manager     | Lock verification accepts installed transitive dependencies that are missing from `bpl.lock`.                              | Fixed    | `verifyLockFile()` now reports `missing-transitive-lock-entry` when an installed package manifest depends on another installed package that is not recorded in the lockfile. Regression: `tests/PackageManager.test.ts`.                                                                    |
 
 ## Details
 
@@ -2283,3 +2284,36 @@ could succeed when the installed package hash matched.
 **Resolution**: Lock source reachability now uses `lstat` and requires a real
 regular file. Missing sources, directories, and symlinks all produce the
 existing `unreachable-source` lock verification issue.
+
+---
+
+### BUG-155: Package Lock Verification Accepts Incomplete Transitive Locks
+
+**Status**: Fixed
+
+**Category**: Package Manager/Reproducibility
+
+**Description**: Lock verification checked that a package manifest's
+dependencies existed in `bpl_modules`, but it did not require those transitive
+dependencies to have their own entries in `bpl.lock`. A hand-edited or damaged
+lockfile could omit an installed transitive dependency and still pass
+`bpl install --locked`, weakening CI reproducibility checks.
+
+**Reproduction**:
+
+```bash
+bpl install
+# Remove the transitive dependency entry from bpl.lock while leaving
+# bpl_modules/<transitive-package> installed.
+bpl install --locked
+```
+
+**Expected**: Locked verification reports that the dependency is installed but
+missing from `bpl.lock`.
+
+**Actual**: Locked verification succeeded because the dependency directory
+existed.
+
+**Resolution**: `verifyLockFile()` now emits
+`missing-transitive-lock-entry` when an installed package manifest declares a
+dependency that is present on disk but absent from the lockfile.

@@ -102,6 +102,7 @@ export type PackageLockVerificationIssueKind =
   | "name-mismatch"
   | "version-mismatch"
   | "hash-mismatch"
+  | "missing-transitive-lock-entry"
   | "missing-transitive-dependency"
   | "unreachable-source";
 
@@ -989,6 +990,16 @@ export class PackageManager {
           !dependencyStats.isSymbolicLink() &&
           dependencyStats.isDirectory()
         ) {
+          if (!lock.packages[dependencyName]) {
+            addIssue({
+              packageName: dependencyName,
+              kind: "missing-transitive-lock-entry",
+              message: `${packageName}: dependency '${dependencyName}' is installed but missing from bpl.lock (requested ${requestedSource})`,
+              packagePath: dependencyPath,
+              dependencyOf: packageName,
+              requestedSource,
+            });
+          }
           continue;
         }
 
@@ -1205,6 +1216,7 @@ export class PackageManager {
     const restoreHelp = "Run 'bpl install' to restore packages from bpl.lock.";
     if (
       issueKinds.has("missing-package") ||
+      issueKinds.has("missing-transitive-lock-entry") ||
       issueKinds.has("missing-transitive-dependency")
     ) {
       return `${restoreHelp} Run 'bpl list --tree' to inspect dependency state.`;

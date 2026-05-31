@@ -180,8 +180,9 @@ symlink or non-directory, if the installed manifest declares a different name
 or version than the lock entry, if the recorded source archive is missing or a
 symlink, or if its source hash no longer matches the lockfile. It also checks
 installed package manifests for missing or malformed transitive dependency
-roots, so deleting `bpl_modules/math-core` will be reported even when only
-`math-extra` imports it.
+roots and lock entries, so deleting `bpl_modules/math-core` or removing
+`math-core` from `bpl.lock` will be reported even when only `math-extra`
+imports it.
 
 To re-resolve `bpl.json` dependency selectors and rewrite `bpl.lock`, run:
 

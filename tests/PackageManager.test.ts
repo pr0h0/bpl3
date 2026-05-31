@@ -2769,6 +2769,68 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report installed transitive dependencies missing from bpl.lock", () => {
+      const globalPackageDir = path.join(tempDir, "locked-complete-cache");
+      const appDir = path.join(tempDir, "locked-complete-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "locked-complete-b",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "locked-complete-a",
+        "1.0.0",
+        'import value from "locked-complete-b";\nexport value;',
+        globalPackageDir,
+        { "locked-complete-b": "1.0.0" },
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-complete-app",
+            version: "1.0.0",
+            dependencies: {
+              "locked-complete-a": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const lockPath = path.join(appDir, "bpl.lock");
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+      delete lock.packages["locked-complete-b"];
+      fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "locked-complete-b",
+          kind: "missing-transitive-lock-entry",
+          dependencyOf: "locked-complete-a",
+          requestedSource: "1.0.0",
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "locked-complete-a: dependency 'locked-complete-b' is installed but missing from bpl.lock",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/missing from bpl\.lock/);
+    });
+
     test("should build dependency trees with transitive packages and missing nodes", () => {
       const globalPackageDir = path.join(tempDir, "tree-graph-cache");
       const appDir = path.join(tempDir, "tree-graph-app");
