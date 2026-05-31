@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import {
+  compareCheckoutToRun,
   formatTriageJsonReport,
   formatTriageSummary,
   localCommandsForStep,
@@ -205,6 +206,87 @@ describe("CI triage helper", () => {
     expect(formatted).toContain("bun run test:ci");
   });
 
+  test("classifies local checkout state against the workflow run head", () => {
+    const run = {
+      id: 1,
+      url: "https://github.com/pr0h0/bpl3/actions/runs/1",
+      headSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    };
+
+    expect(
+      compareCheckoutToRun(
+        run,
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ),
+    ).toEqual({
+      status: "current",
+      headSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    });
+    expect(
+      compareCheckoutToRun(
+        run,
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      ),
+    ).toEqual({
+      status: "stale",
+      headSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    });
+    expect(compareCheckoutToRun(run, undefined)).toEqual({
+      status: "unknown",
+      reason: "local checkout SHA unavailable",
+    });
+    expect(
+      compareCheckoutToRun(
+        {
+          id: 2,
+          url: "https://github.com/pr0h0/bpl3/actions/runs/2",
+        },
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      ),
+    ).toEqual({
+      status: "unknown",
+      headSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      reason: "run head SHA unavailable",
+    });
+  });
+
+  test("prints stale checkout guidance when local HEAD differs from the run head", () => {
+    const jobs: GitHubWorkflowJob[] = [
+      {
+        id: 11,
+        name: "Ubuntu system clang release",
+        conclusion: "failure",
+        steps: [{ name: "Run CI-safe test suite", conclusion: "failure" }],
+      },
+    ];
+    const summary = summarizeWorkflowJobs(jobs);
+    const run = {
+      id: 1,
+      url: "https://github.com/pr0h0/bpl3/actions/runs/1",
+      headBranch: "master",
+      headSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      status: "completed",
+      conclusion: "failure",
+    };
+
+    const formatted = formatTriageSummary(
+      { owner: "pr0h0", repo: "bpl3", runId: 1 },
+      summary,
+      run,
+      compareCheckoutToRun(
+        run,
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      ),
+    );
+
+    expect(formatted).toContain(
+      "Checkout warning: local HEAD bbbbbbb differs from run HEAD aaaaaaa.",
+    );
+    expect(formatted).toContain(
+      "Reproduce on the run SHA or confirm current HEAD already fixes it before patching.",
+    );
+  });
+
   test("reports missing requested jobs explicitly", () => {
     const jobs: GitHubWorkflowJob[] = [
       {
@@ -250,14 +332,22 @@ describe("CI triage helper", () => {
     ]);
 
     expect(
-      formatTriageJsonReport(locator, summary, {
-        id: 26695335269,
-        url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
-        headBranch: "master",
-        headSha: "fedcba9876543210fedcba9876543210fedcba98",
-        status: "completed",
-        conclusion: "failure",
-      }),
+      formatTriageJsonReport(
+        locator,
+        summary,
+        {
+          id: 26695335269,
+          url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+          headBranch: "master",
+          headSha: "fedcba9876543210fedcba9876543210fedcba98",
+          status: "completed",
+          conclusion: "failure",
+        },
+        {
+          status: "stale",
+          headSha: "1111111111111111111111111111111111111111",
+        },
+      ),
     ).toEqual({
       schemaVersion: 1,
       check: "ci-triage",
@@ -270,6 +360,10 @@ describe("CI triage helper", () => {
         headSha: "fedcba9876543210fedcba9876543210fedcba98",
         status: "completed",
         conclusion: "failure",
+      },
+      checkout: {
+        status: "stale",
+        headSha: "1111111111111111111111111111111111111111",
       },
       summary,
     });

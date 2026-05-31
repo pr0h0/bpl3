@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { spawnSync } from "child_process";
 
 export interface GitHubRunLocator {
   owner: string;
@@ -50,6 +51,14 @@ export interface TriageRunIdentity {
   conclusion?: string | null;
 }
 
+export type TriageCheckoutState = "current" | "stale" | "unknown";
+
+export interface TriageCheckoutIdentity {
+  status: TriageCheckoutState;
+  headSha?: string;
+  reason?: string;
+}
+
 export interface TriageSummary {
   failedJobs: Array<{
     id: number;
@@ -71,6 +80,7 @@ export interface TriageJsonReport {
   success: true;
   locator: GitHubRunLocator;
   run: TriageRunIdentity;
+  checkout: TriageCheckoutIdentity;
   summary: TriageSummary;
 }
 
@@ -318,8 +328,14 @@ export function formatTriageSummary(
   locator: GitHubRunLocator,
   summary: TriageSummary,
   run = runIdentityFromLocator(locator),
+  checkout = compareCheckoutToRun(run),
 ): string {
   const lines = [formatRunIdentityLine(locator, run)];
+
+  const checkoutWarning = formatCheckoutWarning(run, checkout);
+  if (checkoutWarning) {
+    lines.push("", checkoutWarning);
+  }
 
   if (summary.missingJobIds.length > 0) {
     lines.push("", "Missing requested jobs:");
@@ -366,6 +382,7 @@ export function formatTriageJsonReport(
   locator: GitHubRunLocator,
   summary: TriageSummary,
   run = runIdentityFromLocator(locator),
+  checkout = compareCheckoutToRun(run),
 ): TriageJsonReport {
   return {
     schemaVersion: CI_TRIAGE_JSON_SCHEMA_VERSION,
@@ -373,7 +390,36 @@ export function formatTriageJsonReport(
     success: true,
     locator,
     run,
+    checkout,
     summary,
+  };
+}
+
+export function compareCheckoutToRun(
+  run: TriageRunIdentity,
+  localHeadSha?: string,
+): TriageCheckoutIdentity {
+  const normalizedLocalSha = normalizeSha(localHeadSha);
+  const normalizedRunSha = normalizeSha(run.headSha);
+
+  if (!normalizedRunSha) {
+    return {
+      status: "unknown",
+      ...(normalizedLocalSha ? { headSha: normalizedLocalSha } : {}),
+      reason: "run head SHA unavailable",
+    };
+  }
+
+  if (!normalizedLocalSha) {
+    return {
+      status: "unknown",
+      reason: "local checkout SHA unavailable",
+    };
+  }
+
+  return {
+    status: normalizedLocalSha === normalizedRunSha ? "current" : "stale",
+    headSha: normalizedLocalSha,
   };
 }
 
@@ -508,6 +554,7 @@ async function main(): Promise<void> {
     ? readWorkflowDataFromJson(jobsJsonPath)
     : await fetchWorkflowData(locator);
   const runIdentity = runIdentityFromGitHubRun(locator, workflowData.run);
+  const checkout = detectLocalCheckout(runIdentity);
   const summary = summarizeWorkflowJobs(workflowData.jobs, {
     requestedJobId: locator.jobId,
   });
@@ -515,13 +562,15 @@ async function main(): Promise<void> {
   if (json) {
     console.log(
       JSON.stringify(
-        formatTriageJsonReport(locator, summary, runIdentity),
+        formatTriageJsonReport(locator, summary, runIdentity, checkout),
         null,
         2,
       ),
     );
   } else {
-    process.stdout.write(formatTriageSummary(locator, summary, runIdentity));
+    process.stdout.write(
+      formatTriageSummary(locator, summary, runIdentity, checkout),
+    );
   }
 }
 
@@ -555,6 +604,45 @@ function formatRunIdentityLine(
   }
 
   return details.length > 0 ? `${base} (${details.join(", ")})` : base;
+}
+
+function formatCheckoutWarning(
+  run: TriageRunIdentity,
+  checkout: TriageCheckoutIdentity,
+): string | null {
+  if (checkout.status !== "stale" || !checkout.headSha || !run.headSha) {
+    return null;
+  }
+
+  return [
+    `Checkout warning: local HEAD ${checkout.headSha.slice(0, 7)} differs from run HEAD ${run.headSha.slice(0, 7)}.`,
+    "Reproduce on the run SHA or confirm current HEAD already fixes it before patching.",
+  ].join(" ");
+}
+
+function detectLocalCheckout(
+  run: TriageRunIdentity,
+): TriageCheckoutIdentity {
+  return compareCheckoutToRun(run, readLocalGitHeadSha());
+}
+
+function readLocalGitHeadSha(): string | undefined {
+  const result = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    timeout: 2000,
+  });
+
+  if (result.status !== 0) {
+    return undefined;
+  }
+
+  return normalizeSha(result.stdout);
+}
+
+function normalizeSha(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  return trimmed && /^[0-9a-f]+$/.test(trimmed) ? trimmed : undefined;
 }
 
 function isWorkflowRunLike(value: unknown): value is GitHubWorkflowRun {
