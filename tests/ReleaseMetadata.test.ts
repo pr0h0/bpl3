@@ -72,6 +72,11 @@ describe("Release metadata", () => {
       ["release:smoke", "tools/release_smoke.ts"],
       ["release:manifest", "tools/release_manifest.ts"],
       ["ci:triage", "tools/ci_triage.ts"],
+      ["fuzz", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:long", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:differential", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:promote", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
     ]);
 
@@ -213,6 +218,12 @@ describe("Release metadata", () => {
         kind: "helper",
         sha256: createHash("sha256")
           .update("fuzz artifact repro helper\n")
+          .digest("hex"),
+      });
+      expect(byPath.get("tools/fuzz_script_wrapper.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update("fuzz script wrapper\n")
           .digest("hex"),
       });
       expect(byPath.get("bpl-v3-9.9.9.tgz")).toMatchObject({
@@ -439,6 +450,9 @@ function writeReleaseFixture(tempRoot: string): void {
         bin: { bpl: "./bpl" },
         scripts: {
           "ci:triage": "bun tools/ci_triage.ts",
+          fuzz: "bun tools/fuzz_script_wrapper.ts run",
+          "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
+          "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
         },
       },
@@ -449,6 +463,10 @@ function writeReleaseFixture(tempRoot: string): void {
   mkdirSync(join(tempRoot, "tools"), { recursive: true });
   writeFileSync(join(tempRoot, "bpl"), "standalone compiler\n");
   writeFileSync(join(tempRoot, "tools", "ci_triage.ts"), "ci triage helper\n");
+  writeFileSync(
+    join(tempRoot, "tools", "fuzz_script_wrapper.ts"),
+    "fuzz script wrapper\n",
+  );
   writeFileSync(
     join(tempRoot, "tools", "fuzz_artifact_repro.ts"),
     "fuzz artifact repro helper\n",

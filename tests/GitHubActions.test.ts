@@ -42,7 +42,7 @@ describe("GitHub Actions workflows", () => {
       "FUZZ_DIFFERENTIAL_ITERATIONS:-48",
     );
     expect(packageJson.scripts["fuzz:replay"]).toContain(
-      "fuzz/replay_crash.ts",
+      "tools/fuzz_script_wrapper.ts replay",
     );
     expect(packageJson.scripts["fuzz:validate-artifacts"]).toBe(
       "bun test tests/FuzzFailureArtifactCorpus.test.ts",

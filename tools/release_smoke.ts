@@ -1011,6 +1011,40 @@ function runPackedHelperScriptSmoke(installDir: string): void {
     },
   );
 
+  runExpectedFailureStep(
+    "check packed npm CLI fuzz replay usage errors",
+    "npm",
+    ["run", "fuzz:replay", "--", "--metadata", "--mode", "parser"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--metadata requires a value",
+      forbiddenOutputIncludes: [
+        "Either sourcePath or metadataPath",
+        "No source artifact found",
+        "Source:",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
+    "check packed npm CLI fuzz promote usage errors",
+    "npm",
+    ["run", "fuzz:promote", "--", "--metadata", "--name", "bug"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--metadata requires a value",
+      forbiddenOutputIncludes: [
+        "Either --source or --metadata",
+        "No source artifact found",
+        "Promoted fuzz regression",
+      ],
+    },
+  );
+
   const ciTriage = runStep(
     "check packed npm CLI CI triage helper",
     "npm",

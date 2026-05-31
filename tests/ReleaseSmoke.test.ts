@@ -93,6 +93,12 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI fuzz artifact repro usage errors",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI fuzz replay usage errors",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI fuzz promote usage errors",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI CI triage helper",
       );
       expect(result.stdout).toContain(

@@ -24,6 +24,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun run fuzz:promote`, and `bun fuzz/run_fuzz.ts` now reject malformed CLI
   usage such as unknown options, missing option values, and extra positional
   arguments with usage-error exits before replay, promotion, or campaign work.
+- **Packed Fuzz Script Wrappers** - npm package fuzz scripts now route through
+  a shipped wrapper that validates malformed usage in packed installs before
+  delegating to source-tree fuzz helpers when repository sources are present.
 - **Hosted Wasm Printf Formatting** - Hosted WebAssembly `printf`, `fprintf`,
   and `dprintf` now format the documented `%s`, `%d`, `%c`, and `%%` subset, with
   a native-compatible `examples/wasm_hosted_printf` regression and explicit
@@ -54,6 +57,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   covered after packaging.
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
+- **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed
+  npm CLI's `fuzz:replay` and `fuzz:promote` usage-error paths before artifact
+  replay or corpus promotion.
 - **Run-Script JSON Errors** - `bpl run-script --json` now reports manifest and
   script validation failures as machine-readable `{ success, error }` JSON while
   preserving human-readable logger output without `--json`.
