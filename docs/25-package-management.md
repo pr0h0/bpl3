@@ -349,6 +349,11 @@ Symlinked package entrypoint and subpath candidates are also terminal resolution
 failures; the resolver will not fall through from a blocked `.bpl` package
 candidate to a lower-priority `.x` file, including package directory
 `index.bpl` candidates before `index.x`.
+After a package root has been accepted, package source failures are terminal
+too: unsafe manifest entrypoint values such as `../outside.bpl`, symlinked
+entrypoint files, and subpath source parents such as `features/` are reported
+at the import site instead of falling back to alternate candidates or following
+the link.
 
 Regular module import candidates use the same filesystem diagnostics: broken
 symlink candidates are reported as symlinks before extension fallback can import

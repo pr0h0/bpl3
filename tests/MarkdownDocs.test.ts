@@ -302,6 +302,29 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document package source safety JSON diagnostics", () => {
+    const combinedDocs = [
+      readFileSync("docs/25-package-management.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "After a package root has been accepted, package source failures are terminal too",
+      "unsafe manifest entrypoint values such as `../outside.bpl`",
+      "symlinked entrypoint files",
+      "subpath source parents such as `features/`",
+      "Package source-safety diagnostics stay in the same `bpl check --json` shape after package root resolution",
+      "unsafe `main` values report `unsafe entrypoint`",
+      "symlinked entrypoint files report `entrypoint resolves to a symbolic link candidate`",
+      "symlinked subpath parents report `subpath 'features/add' resolves to a symbolic link candidate`",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("imports docs document std path safety rules", () => {
     const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
       /\s+/g,

@@ -293,6 +293,11 @@ per-file `diagnostics` array with source locations and `success: false`. Local
 `bpl_modules/` and workspace `packages/` symlink failures report `package search
 directory is a symbolic link`; global package cache symlinks report `Global
 package directory path is a symbolic link`.
+Package source-safety diagnostics stay in the same `bpl check --json` shape
+after package root resolution: unsafe `main` values report `unsafe entrypoint`,
+symlinked entrypoint files report `entrypoint resolves to a symbolic link
+candidate`, and symlinked subpath parents report `subpath 'features/add'
+resolves to a symbolic link candidate`.
 
 ### CLI JSON compatibility policy
 
