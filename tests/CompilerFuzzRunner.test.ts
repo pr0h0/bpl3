@@ -525,6 +525,27 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("replay CLI rejects malformed usage before artifact replay", () => {
+    const cases: Array<[string[], string]> = [
+      [["--unknown", "value"], "Unknown option --unknown"],
+      [["--metadata", "--mode", "parser"], "--metadata requires a value"],
+      [["--=value"], "Missing option name"],
+      [["one.bpl", "two.bpl"], "Unexpected argument: two.bpl"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "fuzz:replay", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("Either sourcePath or metadataPath");
+      expect(result.stderr).not.toContain("No source artifact found");
+    }
+  });
+
   test("promotes minimized fuzz artifacts into the regression corpus", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-promote-"));
     const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-corpus-"));
@@ -694,6 +715,55 @@ describe("Compiler fuzz runner", () => {
       );
     } finally {
       rmSync(corpusDir, { recursive: true, force: true });
+    }
+  });
+
+  test("promote CLI rejects malformed usage before corpus promotion", () => {
+    const cases: Array<[string[], string]> = [
+      [["--unknown", "value"], "Unknown option --unknown"],
+      [["--metadata", "--name", "bug"], "--metadata requires a value"],
+      [["--=value"], "Missing option name"],
+      [["one.bpl", "two.bpl"], "Unexpected argument: two.bpl"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "fuzz:promote", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("Either --source or --metadata");
+      expect(result.stderr).not.toContain("No source artifact found");
+    }
+  });
+
+  test("fuzz runner CLI rejects malformed usage before starting a campaign", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-cli-usage-"));
+    const cases: Array<[string[], string]> = [
+      [["--unknown", "value", "--iterations", "1"], "Unknown option --unknown"],
+      [
+        ["--iterations", "--crash-dir", crashDir],
+        "--iterations requires a value",
+      ],
+      [["--=value"], "Missing option name"],
+      [["input.bpl"], "Unexpected argument: input.bpl"],
+    ];
+
+    try {
+      for (const [args, expectedError] of cases) {
+        const result = spawnSync("bun", ["fuzz/run_fuzz.ts", ...args], {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        });
+
+        expect(result.status).toBe(2);
+        expect(result.stderr).toContain(expectedError);
+        expect(result.stdout).not.toContain("Starting compiler fuzz campaign");
+      }
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
     }
   });
 

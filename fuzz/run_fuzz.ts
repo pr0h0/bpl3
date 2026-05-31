@@ -11,8 +11,18 @@ interface CliOptions {
   maxMinimizePasses?: number;
 }
 
+class CliUsageError extends Error {}
+
 const DEFAULT_ITERATIONS_PER_SEED = 10000;
 const DEFAULT_SEEDS = [0x5eed1234];
+const CLI_OPTIONS_WITH_VALUES = new Set([
+  "iterations",
+  "seeds",
+  "crash-dir",
+  "progress",
+  "minimize-passes",
+]);
+const CLI_BOOLEAN_OPTIONS = new Set(["differential", "minimize"]);
 
 function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
   const values = new Map<string, string>();
@@ -25,28 +35,48 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
     }
 
     if (!arg.startsWith("--")) {
-      throw new Error(`Unexpected argument '${arg}'. Use --help for usage.`);
+      throw new CliUsageError(`Unexpected argument: ${arg}`);
     }
 
     const parts = arg.slice(2).split("=", 2);
     const rawKey = parts[0];
     if (!rawKey) {
-      throw new Error(`Missing option name in '${arg}'. Use --help for usage.`);
+      throw new CliUsageError(
+        `Missing option name in '${arg}'. Use --help for usage.`,
+      );
     }
 
     const key = rawKey.trim();
-    if (key === "differential") {
-      values.set(key, "true");
+    const inlineValue = parts[1];
+
+    if (CLI_BOOLEAN_OPTIONS.has(key)) {
+      const nextArg = argv[index + 1];
+      const value =
+        inlineValue ??
+        (nextArg !== undefined && !nextArg.startsWith("--")
+          ? argv[++index]!
+          : "true");
+      values.set(key, value);
       continue;
     }
 
-    const inlineValue = parts[1];
+    if (!CLI_OPTIONS_WITH_VALUES.has(key)) {
+      throw new CliUsageError(
+        `Unknown option --${key}. Use --help for usage.`,
+      );
+    }
+
     const nextArg = argv[index + 1];
     const value =
       inlineValue ??
       (nextArg !== undefined && !nextArg.startsWith("--")
         ? argv[++index]!
-        : "true");
+        : undefined);
+    if (value === undefined) {
+      throw new CliUsageError(
+        `--${key} requires a value. Use --help for usage.`,
+      );
+    }
     values.set(key, value);
   }
 
@@ -209,6 +239,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exit(1);
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(error instanceof CliUsageError ? 2 : 1);
 });

@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   discovery.
 - **Fuzz Repro Unknown Options** - `bun run fuzz:repro` now rejects unknown
   options instead of accepting and ignoring them.
+- **Fuzz Helper Usage Errors** - `bun run fuzz:replay`,
+  `bun run fuzz:promote`, and `bun fuzz/run_fuzz.ts` now reject malformed CLI
+  usage such as unknown options, missing option values, and extra positional
+  arguments with usage-error exits before replay, promotion, or campaign work.
 - **Hosted Wasm Printf Formatting** - Hosted WebAssembly `printf`, `fprintf`,
   and `dprintf` now format the documented `%s`, `%d`, `%c`, and `%%` subset, with
   a native-compatible `examples/wasm_hosted_printf` regression and explicit

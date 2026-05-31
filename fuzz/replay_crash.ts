@@ -19,6 +19,8 @@ interface CliOptions {
   outPath?: string;
 }
 
+class CliUsageError extends Error {}
+
 const STAGES = new Set<FuzzStage>(["lexer", "parser", "typecheck", "codegen"]);
 const FAILURE_KINDS = new Set<FuzzFailureKind>(["crash", "mismatch"]);
 const REPLAY_MODES = new Set<FuzzReplayMode>([
@@ -31,6 +33,16 @@ const REPLAY_MODES = new Set<FuzzReplayMode>([
   "differential",
   "sanitizer",
 ]);
+const CLI_OPTIONS_WITH_VALUES = new Set([
+  "source",
+  "metadata",
+  "stage",
+  "message",
+  "failure-kind",
+  "mode",
+  "out",
+]);
+const CLI_FLAG_OPTIONS = new Set(["minimize"]);
 
 function parseCliOptions(argv: string[]): CliOptions {
   const values = new Map<string, string>();
@@ -52,12 +64,25 @@ function parseCliOptions(argv: string[]): CliOptions {
 
     const [rawKey, inlineValue] = arg.slice(2).split("=", 2);
     if (!rawKey) {
-      throw new Error(`Missing option name in '${arg}'. Use --help for usage.`);
+      throw new CliUsageError(
+        `Missing option name in '${arg}'. Use --help for usage.`,
+      );
     }
 
-    if (rawKey === "minimize") {
+    if (CLI_FLAG_OPTIONS.has(rawKey)) {
+      if (inlineValue !== undefined) {
+        throw new CliUsageError(
+          `--${rawKey} does not accept a value. Use --help for usage.`,
+        );
+      }
       flags.add(rawKey);
       continue;
+    }
+
+    if (!CLI_OPTIONS_WITH_VALUES.has(rawKey)) {
+      throw new CliUsageError(
+        `Unknown option --${rawKey}. Use --help for usage.`,
+      );
     }
 
     const nextArg = argv[index + 1];
@@ -68,14 +93,16 @@ function parseCliOptions(argv: string[]): CliOptions {
         : undefined);
 
     if (value === undefined) {
-      throw new Error(`--${rawKey} requires a value. Use --help for usage.`);
+      throw new CliUsageError(
+        `--${rawKey} requires a value. Use --help for usage.`,
+      );
     }
 
     values.set(rawKey, value);
   }
 
   if (positionals.length > 1) {
-    throw new Error("Expected at most one source path positional argument.");
+    throw new CliUsageError(`Unexpected argument: ${positionals[1]}`);
   }
 
   return {
@@ -255,6 +282,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exit(1);
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(error instanceof CliUsageError ? 2 : 1);
 });
