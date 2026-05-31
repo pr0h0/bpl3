@@ -723,6 +723,67 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("does not fall back after unsafe manifest main paths", () => {
+    const cases = [
+      { name: "parent", main: "../outside.bpl" },
+      { name: "posix-absolute", main: "/tmp/outside.bpl" },
+      { name: "windows-absolute", main: "C:\\outside.bpl" },
+      { name: "empty-segment", main: "src//index.bpl" },
+      { name: "dot-segment", main: "src/./index.bpl" },
+    ] as const;
+
+    for (const { name, main } of cases) {
+      const appDir = path.join(tempDir, `app-${name}`);
+      const sourceDir = path.join(appDir, "src");
+      const localPackageDir = path.join(appDir, "bpl_modules", "math");
+      const workspacePackageDir = path.join(appDir, "packages", "math");
+      const globalPackageDir = path.join(tempDir, `global-${name}`);
+      const globalVersionedPackageDir = path.join(
+        globalPackageDir,
+        "math-9.0.0",
+      );
+      fs.mkdirSync(path.join(localPackageDir, "src"), { recursive: true });
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(workspacePackageDir, { recursive: true });
+      fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(localPackageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version: "1.0.0", main }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(localPackageDir, "src", "index.bpl"),
+        "export local;",
+      );
+
+      for (const [packageDir, version] of [
+        [workspacePackageDir, "1.0.0"],
+        [globalVersionedPackageDir, "9.0.0"],
+      ] as const) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify({ name: "math", version, main: "index.bpl" }, null, 2),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+      }
+
+      const details = resolvePackageImport("math", sourceDir, {
+        globalPackageDir,
+      });
+
+      expect(details.result).toBeNull();
+      expect(details.trace.foundPackageRoot).toBe(localPackageDir);
+      expect(details.trace.failureReason).toBe("manifest-invalid");
+      expect(details.trace.failureMessage).toContain("unsafe entrypoint");
+      expect(details.trace.failureMessage).toContain(main);
+      expect(details.trace.failureMessage).toContain(localPackageDir);
+      expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
+      expect(details.trace.searchedPaths).not.toContain(
+        globalVersionedPackageDir,
+      );
+    }
+  });
+
   test("does not resolve package roots whose manifest name does not match the import", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");

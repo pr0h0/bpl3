@@ -504,7 +504,10 @@ function resolvePackageEntryPoint(
 
   if (!isSafeManifestRelativePath(mainEntry)) {
     trace.failureReason = "manifest-invalid";
-    trace.failureMessage = `Package '${trace.packageName}' has an unsafe entrypoint '${mainEntry}' in bpl.json.`;
+    trace.failureMessage = `Package '${trace.packageName}' has an unsafe entrypoint '${mainEntry}' in bpl.json at ${path.join(
+      packageRoot,
+      "bpl.json",
+    )} for package root ${packageRoot}.`;
     return null;
   }
 
