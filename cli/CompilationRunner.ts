@@ -50,6 +50,8 @@ type BuildJsonOutput = {
   executable?: string;
 };
 
+const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+
 export const BUILD_INVALID_OPTIMIZATION_CODE =
   "BPL_BUILD_INVALID_OPTIMIZATION";
 export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
@@ -965,12 +967,16 @@ function emitBuildJsonSuccess(
 
 function formatCompilationErrorMessage(error: unknown): string {
   if (error instanceof CompilerError) {
-    return diagnosticFormatter.formatError(error);
+    return stripAnsi(diagnosticFormatter.formatError(error));
   }
   if (error instanceof Error) {
-    return error.message;
+    return stripAnsi(error.message);
   }
-  return String(error);
+  return stripAnsi(String(error));
+}
+
+function stripAnsi(value: string): string {
+  return value.replace(ANSI_ESCAPE_PATTERN, "");
 }
 
 function shouldCompileExecutable(options: CompileOptions): boolean {

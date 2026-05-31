@@ -1178,6 +1178,69 @@ describe("CLI JSON parseability", () => {
     }
   });
 
+  test("keeps forced-color JSON command output machine-clean", () => {
+    const goodSource = path.join(tempDir, "good-color-json.bpl");
+    const badSource = path.join(tempDir, "bad-color-json.bpl");
+    fs.writeFileSync(goodSource, "frame main() ret int { return 0; }\n");
+    fs.writeFileSync(
+      badSource,
+      'frame main() { local value: int = "not an int"; }\n',
+    );
+
+    const version = runCli(["--color", "--version", "--json"]);
+    expect(version.status).toBe(0);
+    expect(parseJsonObjectStdout(version)).toMatchObject({
+      schemaVersion: 1,
+      check: "version",
+      success: true,
+    });
+
+    const checkSuccess = runCli(["check", goodSource, "--json", "--color"]);
+    expect(checkSuccess.status).toBe(0);
+    expect(parseJsonObjectStdout(checkSuccess)).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: true,
+      files: [{ file: goodSource, success: true }],
+    });
+
+    const checkFailure = runCli(["check", badSource, "--json", "--color"]);
+    expect(checkFailure.status).toBe(1);
+    expect(parseJsonObjectStdout(checkFailure)).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: false,
+      files: [
+        {
+          file: badSource,
+          success: false,
+          diagnostics: [
+            {
+              severityLabel: "error",
+              message: expect.stringContaining("Type mismatch"),
+            },
+          ],
+        },
+      ],
+    });
+
+    const buildFailure = runCli(["build", badSource, "--json", "--color"]);
+    expect(buildFailure.status).toBe(1);
+    expect(parseJsonObjectStdout(buildFailure)).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: badSource,
+      error: expect.stringContaining("Type mismatch"),
+      diagnostics: [
+        {
+          severityLabel: "error",
+          message: expect.stringContaining("Type mismatch"),
+        },
+      ],
+    });
+  });
+
   test("keeps run-script JSON validation failures parseable with error codes", () => {
     const assertRunScriptFailure = (
       result: SpawnSyncReturns<string>,
