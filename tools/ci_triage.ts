@@ -238,6 +238,15 @@ const PACKAGE_PACK_JSON_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_INIT_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_INIT_",
+    "package-init",
+    "package init JSON",
+    "init JSON contract",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_CACHE_VALIDATION_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_PACKAGE_CACHE_VERSION_INVALID",
@@ -493,6 +502,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/PackageManagerCLI.test.ts -t "pack command"',
   ],
   [PACKAGE_PACK_JSON_STEP_PATTERN, "bun run check"],
+  [
+    PACKAGE_INIT_JSON_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "init success and failures as JSON"',
+  ],
+  [
+    PACKAGE_INIT_JSON_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "init command"',
+  ],
+  [PACKAGE_INIT_JSON_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_MANIFEST_JSON_STEP_PATTERN,
     'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
