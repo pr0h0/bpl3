@@ -541,6 +541,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Object Parser Input Ancestor Symlink Blocking (BUG-204)** - Object and
   LLVM IR symbol parsing now rejects symlinked input parent path components
   before parsing `.ll`, `.o`, `.obj`, or `.a` files.
+- **BPL_HOME Runtime Resource Ancestor Symlink Blocking (BUG-205)** -
+  `BPL_HOME`, CLI-injected native runtime objects, linker-added runtime
+  resources, and `bpl doctor` runtime checks now reject symlinked parent
+  components before grammar or bundled runtime files are read or linked.
 - **Trusted macOS Temp Root Symlinks (BUG-210)** - Shared path-safety checks now
   allow trusted macOS root temp symlinks such as `/var -> /private/var` and
   `/tmp -> /private/tmp`, fixing wasm runtime CI outputs under `os.tmpdir()`

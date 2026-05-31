@@ -7,6 +7,7 @@
 
 import { existsSync, realpathSync, lstatSync } from "fs";
 import { dirname, resolve } from "path";
+import { findSymlinkedParentPath } from "./PathSafety";
 
 /**
  * Get the BPL installation root directory
@@ -20,6 +21,7 @@ export function getBplHome(): string {
   // 1. Check BPL_HOME environment variable
   const bplHome = process.env.BPL_HOME;
   if (bplHome && existsSync(bplHome)) {
+    assertSafeBplHomePath(bplHome, "BPL_HOME");
     return bplHome;
   }
 
@@ -43,17 +45,20 @@ export function getBplHome(): string {
 
   // Check if grammar exists in execDir (compiled binary case)
   if (existsSync(resolve(execDir, "grammar"))) {
+    assertSafeBplHomePath(execDir, "BPL executable directory");
     return execDir;
   }
 
   // 3. Try current working directory (development)
   if (existsSync(resolve(process.cwd(), "grammar"))) {
+    assertSafeBplHomePath(process.cwd(), "BPL working directory");
     return process.cwd();
   }
 
   // 4. Try __dirname/../.. (TypeScript source case)
   const sourceRoot = resolve(__dirname, "../..");
   if (existsSync(resolve(sourceRoot, "grammar"))) {
+    assertSafeBplHomePath(sourceRoot, "BPL source directory");
     return sourceRoot;
   }
 
@@ -62,6 +67,7 @@ export function getBplHome(): string {
 
   for (const p of commonPaths) {
     if (existsSync(resolve(p, "grammar"))) {
+      assertSafeBplHomePath(p, "BPL install directory");
       return p;
     }
   }
@@ -77,6 +83,15 @@ export function getBplHome(): string {
 export function resolveBplPath(...pathSegments: string[]): string {
   const bplHome = getBplHome();
   return resolve(bplHome, ...pathSegments);
+}
+
+function assertSafeBplHomePath(bplHome: string, label: string): void {
+  const symlinkedParent = findSymlinkedParentPath(bplHome);
+  if (!symlinkedParent) return;
+
+  throw new Error(
+    `${label} parent path contains a symbolic link: ${symlinkedParent}`,
+  );
 }
 
 /**

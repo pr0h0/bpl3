@@ -3059,6 +3059,55 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report runtime resources through symlinked parents in doctor diagnostics", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-runtime-parent-link-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const runtimeTarget = path.join(tempDir, "runtime-target");
+    const libLink = path.join(bplHome, "lib");
+
+    try {
+      fs.mkdirSync(bplHome, { recursive: true });
+      fs.mkdirSync(runtimeTarget);
+      fs.symlinkSync(
+        path.join(process.cwd(), "grammar"),
+        path.join(bplHome, "grammar"),
+        "dir",
+      );
+      fs.symlinkSync(runtimeTarget, libLink, "dir");
+      for (const entry of [
+        "runtime.ll",
+        "runtime_support.o",
+        "runtime_wasm.ll",
+        "runtime_wasm_host.ll",
+      ]) {
+        fs.writeFileSync(path.join(runtimeTarget, entry), `${entry}\n`);
+      }
+
+      const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_HOME: bplHome,
+          NO_COLOR: "1",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      const runtimeCheck = report.checks.find(
+        (check: { name: string }) => check.name === "Runtime IR",
+      );
+      expect(runtimeCheck.ok).toBe(false);
+      expect(runtimeCheck.detail).toContain(
+        `parent path contains a symbolic link: ${libLink}`,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should tell users how to repair missing hosted wasm runtime assets", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-doctor-wasm-host-runtime-"),

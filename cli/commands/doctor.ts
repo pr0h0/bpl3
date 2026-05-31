@@ -10,6 +10,7 @@ import { spawnSync } from "child_process";
 import { Command } from "commander";
 import { getLlvmVerifierCandidates } from "../../compiler/common/LlvmVerifier";
 import { getBplHome } from "../../compiler/common/PathResolver";
+import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
 import { formatSpawnFailureReason } from "../../compiler/common/ProcessErrors";
@@ -246,6 +247,17 @@ function checkDirectory(
     };
   }
 
+  const symlinkedParent = findSymlinkedParentPath(directoryPath);
+  if (symlinkedParent) {
+    return {
+      name,
+      ok: false,
+      detail: `${directoryPath} parent path contains a symbolic link: ${symlinkedParent}`,
+      hint,
+      required: true,
+    };
+  }
+
   if (!fs.statSync(directoryPath).isDirectory()) {
     return {
       name,
@@ -281,6 +293,17 @@ function checkFile(name: string, filePath: string, hint: string): DoctorCheck {
       name,
       ok: false,
       detail: `${filePath} is a broken symbolic link`,
+      hint,
+      required: true,
+    };
+  }
+
+  const symlinkedParent = findSymlinkedParentPath(filePath);
+  if (symlinkedParent) {
+    return {
+      name,
+      ok: false,
+      detail: `${filePath} parent path contains a symbolic link: ${symlinkedParent}`,
       hint,
       required: true,
     };

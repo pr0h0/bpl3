@@ -20,6 +20,7 @@ import {
 } from "../compiler/common/CompilerDriver";
 import { Logger } from "../compiler/common/Logger";
 import { getBplHome } from "../compiler/common/PathResolver";
+import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 import {
   formatCommandSpawnFailure,
   getProcessErrorCode,
@@ -481,6 +482,13 @@ function assertReadableRuntimeInput(filePath: string, label: string): void {
   if (linkStats.isSymbolicLink() && !fs.existsSync(filePath)) {
     throw new Error(
       `${label} is a broken symbolic link: ${filePath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
+    );
+  }
+
+  const symlinkedParent = findSymlinkedParentPath(filePath);
+  if (symlinkedParent) {
+    throw new Error(
+      `${label} parent path contains a symbolic link: ${symlinkedParent}. Run 'bun run build:runtime' or 'bpl doctor'.`,
     );
   }
 

@@ -17,6 +17,7 @@ import {
   TokenType,
 } from "../compiler";
 import { getBplHome } from "../compiler/common/PathResolver";
+import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
@@ -416,6 +417,13 @@ function assertReadableRuntimeObject(objectPath: string, label: string): void {
   if (linkStats.isSymbolicLink() && !fs.existsSync(objectPath)) {
     throw new Error(
       `${label} is a broken symbolic link: ${objectPath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
+    );
+  }
+
+  const symlinkedParent = findSymlinkedParentPath(objectPath);
+  if (symlinkedParent) {
+    throw new Error(
+      `${label} parent path contains a symbolic link: ${symlinkedParent}. Run 'bun run build:runtime' or 'bpl doctor'.`,
     );
   }
 

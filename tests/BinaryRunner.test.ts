@@ -124,6 +124,40 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("rejects native runtime inputs reached through symlinked parent directories", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-runtime-parent-link-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const runtimeTarget = path.join(tempDir, "runtime-target");
+    const libLink = path.join(bplHome, "lib");
+    const irPath = path.join(tempDir, "main.ll");
+
+    try {
+      fs.mkdirSync(bplHome, { recursive: true });
+      fs.mkdirSync(runtimeTarget);
+      fs.symlinkSync(runtimeTarget, libLink, "dir");
+      fs.writeFileSync(
+        path.join(runtimeTarget, "runtime.ll"),
+        "define void @__bpl_runtime_stub() { ret void }\n",
+      );
+      fs.writeFileSync(path.join(runtimeTarget, "runtime_support.o"), "obj\n");
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_HOME = bplHome;
+      process.env.BPL_CC = path.join(tempDir, "missing-cc");
+
+      const result = compileToBinary(irPath, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain(
+        `Runtime IR parent path contains a symbolic link: ${libLink}`,
+      );
+      expect(result.error).not.toContain("missing-cc");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("reports missing link object inputs before invoking clang", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-object-"));
     const irPath = path.join(tempDir, "main.ll");
