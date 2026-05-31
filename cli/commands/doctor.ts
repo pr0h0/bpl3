@@ -18,6 +18,13 @@ import {
   type TimeoutEnvDiagnostic,
 } from "../../compiler/common/Env";
 import { formatSpawnFailureReason } from "../../compiler/common/ProcessErrors";
+import {
+  explainBplSanitizerSupportFailure,
+  SANITIZER_CLANG_FLAG,
+  SANITIZER_RUNTIME_REPRO_COMMANDS,
+  SANITIZER_RUNTIME_SUPPORT_ID,
+  SANITIZER_RUNTIME_UNAVAILABLE_CODE,
+} from "../../compiler/common/SanitizerSupport";
 import { getObjectSymbolTool } from "../../compiler/middleend/ObjectFileParser";
 import {
   getPackageArchiveTool,
@@ -46,6 +53,7 @@ const WASM_LINKER_HINT =
 const WASM_LINKER_UNAVAILABLE_CODE = "BPL_WASM_LINKER_UNAVAILABLE";
 
 interface DoctorCheck {
+  id?: string;
   name: string;
   ok: boolean;
   detail: string;
@@ -173,6 +181,7 @@ function createDoctorReport(version: string): DoctorReport {
       ["--version"],
       "Install clang/LLVM and add it to PATH, or set BPL_CC/CC to a working compiler driver.",
     ),
+    checkSanitizerRuntimeSupport(),
     checkCommand(
       "wasm compiler",
       getCompilerDriver("wasm32-unknown-unknown"),
@@ -474,6 +483,74 @@ function checkWasmLinker(): DoctorCheck {
     },
     recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
   };
+}
+
+function checkSanitizerRuntimeSupport(): DoctorCheck {
+  const compiler = getCompilerDriver();
+  const environment = {
+    BPL_CC: process.env.BPL_CC ?? null,
+    CC: process.env.CC ?? null,
+  };
+  let probeDir: string | undefined;
+
+  try {
+    probeDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-doctor-sanitizer-"));
+    const sourcePath = path.join(probeDir, "sanitizer_probe.c");
+    const outputPath = path.join(probeDir, "sanitizer_probe");
+    fs.writeFileSync(sourcePath, "int main(void) { return 0; }\n");
+
+    const result = spawnSync(
+      compiler,
+      ["-x", "c", sourcePath, SANITIZER_CLANG_FLAG, "-o", outputPath],
+      getCommandProbeOptions(),
+    );
+
+    if (result.status === 0) {
+      return {
+        id: SANITIZER_RUNTIME_SUPPORT_ID,
+        name: "sanitizer runtime support",
+        ok: true,
+        detail: `${compiler}: ${SANITIZER_CLANG_FLAG} probe passed`,
+        required: false,
+        environment,
+      };
+    }
+
+    return {
+      id: SANITIZER_RUNTIME_SUPPORT_ID,
+      name: "sanitizer runtime support",
+      ok: false,
+      detail: `${compiler}: ${formatCommandResult(compiler, result)}`,
+      hint: explainBplSanitizerSupportFailure(
+        {
+          stdout: String(result.stdout ?? ""),
+          stderr: String(result.stderr ?? ""),
+          exitCode: result.status ?? -1,
+        },
+        SANITIZER_RUNTIME_REPRO_COMMANDS,
+      ),
+      required: false,
+      code: SANITIZER_RUNTIME_UNAVAILABLE_CODE,
+      environment,
+      recommendedCommands: [...SANITIZER_RUNTIME_REPRO_COMMANDS],
+    };
+  } catch (error) {
+    return {
+      id: SANITIZER_RUNTIME_SUPPORT_ID,
+      name: "sanitizer runtime support",
+      ok: false,
+      detail: `${compiler}: sanitizer probe could not run: ${formatFileSystemError(error)}`,
+      hint: "Install the Clang compiler-rt runtime package that provides libclang_rt ASan/UBSan libraries for this target, then run `bun run test:sanitizers`.",
+      required: false,
+      code: SANITIZER_RUNTIME_UNAVAILABLE_CODE,
+      environment,
+      recommendedCommands: [...SANITIZER_RUNTIME_REPRO_COMMANDS],
+    };
+  } finally {
+    if (probeDir) {
+      fs.rmSync(probeDir, { recursive: true, force: true });
+    }
+  }
 }
 
 function getCommandVersion(name: string, args: string[]): string | undefined {

@@ -12,6 +12,7 @@ import { writeNodeCommandShim } from "./helpers/executableShim";
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 
 type DoctorCheck = {
+  id?: string;
   name: string;
   ok: boolean;
   required?: boolean;
@@ -3550,6 +3551,83 @@ describe("CLI Tests", () => {
       expect(textResult.stdout).toContain("WASM_LD");
       expect(textResult.stdout).toContain("BPL_REQUIRE_WASM_LD=1");
       expect(textResult.stdout).toContain("not a successful wasm execution");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report sanitizer runtime support diagnostics from doctor", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-doctor-sanitizer-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const toolDir = path.join(tempDir, "tools");
+
+    try {
+      fs.mkdirSync(toolDir, { recursive: true });
+      linkBplHomeFixture(bplHome);
+      const okTool = writeNodeCommandShim(path.join(toolDir, "ok-tool"), [
+        'console.log("ok-tool 1.0.0");',
+        "process.exit(0);",
+      ]);
+      const sanitizerCompiler = writeNodeCommandShim(
+        path.join(toolDir, "sanitizer-cc"),
+        [
+          'if (process.argv.includes("--version")) { console.log("clang shim 1.0.0"); process.exit(0); }',
+          'if (process.argv.includes("-fsanitize=address,undefined")) { console.error("/usr/bin/ld: cannot find libclang_rt.asan-x86_64.a"); process.exit(1); }',
+          "process.exit(0);",
+        ],
+      );
+      const doctorEnv = {
+        ...process.env,
+        BPL_HOME: bplHome,
+        BPL_CC: sanitizerCompiler,
+        BPL_WASM_CC: okTool,
+        BPL_NM: okTool,
+        BPL_TAR: okTool,
+        WASM_LD: okTool,
+        NO_COLOR: "1",
+      };
+
+      const result = spawnSync(process.execPath, [BPL_CLI, "doctor", "--json"], {
+        encoding: "utf-8",
+        env: doctorEnv,
+      });
+
+      const report = expectDoctorJsonReport(result, {
+        status: 0,
+        success: true,
+      });
+      const sanitizerCheck = report.checks.find(
+        (check) => check.name === "sanitizer runtime support",
+      );
+      expect(sanitizerCheck).toMatchObject({
+        id: "sanitizer-runtime-support",
+        ok: false,
+        required: false,
+        code: "BPL_SANITIZER_RUNTIME_UNAVAILABLE",
+        environment: {
+          BPL_CC: sanitizerCompiler,
+          CC: process.env.CC ?? null,
+        },
+        recommendedCommands: [
+          "bun run test:sanitizers",
+          "bun test tests/CompilerSanitizerRuntime.test.ts",
+        ],
+      });
+      expect(sanitizerCheck?.detail).toContain("libclang_rt");
+      expect(sanitizerCheck?.hint).toContain("compiler-rt");
+      expect(sanitizerCheck?.hint).toContain("libclang_rt");
+
+      const textResult = spawnSync(process.execPath, [BPL_CLI, "doctor"], {
+        encoding: "utf-8",
+        env: doctorEnv,
+      });
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("WARN sanitizer runtime support");
+      expect(textResult.stdout).toContain("compiler-rt");
+      expect(textResult.stdout).toContain("libclang_rt");
+      expect(textResult.stdout).toContain("bun run test:sanitizers");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

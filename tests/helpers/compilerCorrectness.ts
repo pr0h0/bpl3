@@ -4,6 +4,12 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 
 import { verifyLlvmFile } from "../../compiler/common/LlvmVerifier";
+import {
+  explainBplSanitizerSupportFailure,
+  SANITIZER_DIAGNOSTIC_COMMANDS,
+} from "../../compiler/common/SanitizerSupport";
+
+export { explainBplSanitizerSupportFailure };
 
 const BPL_CLI = resolve(__dirname, "../../index.ts");
 
@@ -93,11 +99,6 @@ const INTERNAL_EXCEPTION_PATTERNS = [
   /\bat .+\.(ts|js):\d+:\d+/,
 ];
 const SANITIZER_CLANG_FLAG = "--clang-flag=-fsanitize=address,undefined";
-const SANITIZER_REPRO_COMMANDS = [
-  "bun index.ts doctor --json",
-  "bun run test:sanitizers",
-  "bun test tests/CompilerSanitizerRuntime.test.ts",
-] as const;
 let cachedSanitizerSupport: SanitizerSupportResult | undefined;
 
 function runCommand(
@@ -229,36 +230,13 @@ export function checkBplSanitizerSupport(): SanitizerSupportResult {
       ? { supported: true }
       : {
           supported: false,
-          reason: explainBplSanitizerSupportFailure(result),
+          reason: explainBplSanitizerSupportFailure(
+            result,
+            SANITIZER_DIAGNOSTIC_COMMANDS,
+          ),
         };
 
   return cachedSanitizerSupport;
-}
-
-export function explainBplSanitizerSupportFailure(
-  result: CorrectnessCommandResult,
-): string {
-  const combinedOutput = [result.stderr, result.stdout]
-    .filter(Boolean)
-    .join("\n");
-  const unsupportedSanitizerFlag =
-    /unsupported option.*-fsanitize|unknown argument.*-fsanitize/i.test(
-      combinedOutput,
-    );
-
-  return [
-    "BPL sanitizer support probe failed while compiling/running a tiny program with --clang-flag=-fsanitize=address,undefined.",
-    unsupportedSanitizerFlag
-      ? "The configured Clang does not appear to support -fsanitize=address,undefined for this target."
-      : "The configured Clang could not complete the ASan/UBSan probe.",
-    "To run sanitizer-backed compiler correctness tests, install the Clang compiler-rt runtime package that provides libclang_rt ASan/UBSan libraries for this target, or use a CI image/toolchain that includes it.",
-    "Useful local diagnostics:",
-    ...SANITIZER_REPRO_COMMANDS.map((command) => `- ${command}`),
-    `exitCode: ${result.exitCode}`,
-    combinedOutput ? `probe output:\n${combinedOutput}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 export function expectSameBehaviorAtO0AndO3(
