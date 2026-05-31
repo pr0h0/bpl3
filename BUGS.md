@@ -160,6 +160,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-151 | Package Manager     | Package installs can replace regular files or symlinks at `bpl_modules/<package>`.                                        | Fixed    | Package install targets are now preflighted before staging replacement; only absent paths or real directories are replaceable. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
 | BUG-152 | Package Manager     | Package uninstall treats symlinked package roots as installed packages.                                                    | Fixed    | Uninstall now rejects symlinked package roots before reading manifests, unlinking binaries, or removing the package path. Regression: `tests/PackageManager.test.ts`.                                                                                                                       |
 | BUG-153 | Package Manager     | Lock verification treats symlinked installed package roots as valid packages.                                              | Fixed    | `bpl install --locked` and lock verification now reject symlinked or non-directory package roots before loading manifests or hashing package contents. Regression: `tests/PackageManager.test.ts`.                                                                                          |
+| BUG-154 | Package Manager     | Lock verification treats symlinked recorded package sources as reachable.                                                  | Fixed    | Lock source reachability now requires a real regular file, so `bpl install --locked` reports symlinked recorded sources as unreachable instead of accepting sources that restore/install would reject. Regression: `tests/PackageManager.test.ts`.                                          |
 
 ## Details
 
@@ -2247,3 +2248,38 @@ target contents matched the lock hash.
 packages still report `missing-package`; symlinked roots and non-directory
 roots report `invalid-package-root`, and locked install fails with the lock
 verification diagnostic.
+
+---
+
+### BUG-154: Package Lock Verification Treats Symlinked Sources As Reachable
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Package restore and direct install reject symlinked `.tgz`
+archive paths before extraction, but lock verification only checked whether the
+recorded source path existed. A `bpl.lock` entry whose `source` pointed at a
+symlink could pass `bpl install --locked`, even though restoring that same
+source would fail later.
+
+**Reproduction**:
+
+```bash
+mkdir -p app
+printf 'archive placeholder\n' > app/real-source.tgz
+ln -s real-source.tgz app/source.tgz
+# bpl.lock records "source": "file:source.tgz" for an installed package.
+cd app
+bpl install --locked
+```
+
+**Expected**: Locked verification reports the symlinked source as unreachable
+or unsafe, matching restore/install behavior.
+
+**Actual**: Locked verification treated the symlinked source as reachable and
+could succeed when the installed package hash matched.
+
+**Resolution**: Lock source reachability now uses `lstat` and requires a real
+regular file. Missing sources, directories, and symlinks all produce the
+existing `unreachable-source` lock verification issue.

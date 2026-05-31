@@ -2047,6 +2047,77 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject symlinked lockfile sources during locked verification", () => {
+      const appDir = path.join(tempDir, "symlink-source-lock-app");
+      const installedDir = path.join(
+        appDir,
+        "bpl_modules",
+        "symlink-source-lock-test",
+      );
+      const realSourceArchive = path.join(appDir, "real-source.tgz");
+      const sourceArchiveLink = path.join(appDir, "source.tgz");
+      fs.mkdirSync(installedDir, { recursive: true });
+      fs.writeFileSync(realSourceArchive, "archive placeholder");
+      fs.symlinkSync(realSourceArchive, sourceArchiveLink, "file");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "symlink-source-lock-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(installedDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-source-lock-test",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(installedDir, "index.bpl"), "export stable;");
+
+      const localPM = new PackageManager(appDir);
+      const hash = localPM["calculatePackageHash"](installedDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "symlink-source-lock-test": {
+                version: "1.0.0",
+                source: "file:source.tgz",
+                hash,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "symlink-source-lock-test",
+          kind: "unreachable-source",
+          source: "file:source.tgz",
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "symlink-source-lock-test: lock source is not reachable",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/lock source is not reachable/);
+    });
+
     test("should install the highest exact semver match from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "global-packages");
       const appDir = path.join(tempDir, "semver-app");

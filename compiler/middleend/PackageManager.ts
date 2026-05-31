@@ -1274,8 +1274,13 @@ export class PackageManager {
 
   private lockSourceExists(packageName: string, source: string): boolean {
     return this.getLockSourceCandidates(packageName, source).some((candidate) =>
-      fs.existsSync(candidate),
+      this.isReachableLockSource(candidate),
     );
+  }
+
+  private isReachableLockSource(candidate: string): boolean {
+    const stats = this.tryLstat(candidate);
+    return Boolean(stats && !stats.isSymbolicLink() && stats.isFile());
   }
 
   private getLockSourceCandidates(packageName: string, source: string): string[] {
