@@ -3099,10 +3099,39 @@ export class PackageManager {
       : this.localPackageDir;
     const packagePath = path.join(targetDir, packageName);
 
-    if (!fs.existsSync(packagePath)) {
+    const packageRootStats = this.tryLstat(packagePath);
+    if (!packageRootStats) {
       throw new CompilerError(
         `Package '${packageName}' is not installed ${options.global ? "globally" : "locally"}`,
         "Check the package name.",
+        {
+          file: packagePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (packageRootStats.isSymbolicLink()) {
+      throw new CompilerError(
+        "Package root is a symbolic link",
+        `The installed package path ${packagePath} is a symbolic link. Move it out of the way and try again.`,
+        {
+          file: packagePath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (!packageRootStats.isDirectory()) {
+      throw new CompilerError(
+        `Invalid package directory: ${packagePath}`,
+        "Package root exists but is not a directory.",
         {
           file: packagePath,
           startLine: 1,

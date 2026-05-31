@@ -386,6 +386,9 @@ cached archive has a provenance sidecar, `package-cache clean` removes both
 files together. Use `--json` to return `schemaVersion: 1`,
 `check: "package-cache-clean"`, `success`, the removed archive list, and dry-run
 state in machine-readable form.
+`bpl uninstall <package>` only removes real installed package directories. If
+`bpl_modules/<package>` is a symlink, uninstall rejects it and leaves both the
+symlink and its target untouched.
 
 ## Package Scripts
 

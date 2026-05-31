@@ -158,6 +158,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-145 | Inheritance/VTable  | Method overrides with incompatible return types are accepted and can dispatch through the wrong signature.                 | Fixed    | Struct body checking now validates inherited method overrides with matching non-`this` parameters and rejects incompatible return types before vtable dispatch can use mismatched signatures. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                  |
 | BUG-148 | TypeChecker/Codegen | Aggregate `+` expressions on structs or tuples compile to invalid LLVM `add` instructions.                                | Fixed    | Arithmetic validation now includes `+`, so aggregate addition without an overload is rejected before code generation. Regression: `tests/InternalErrorBoundary.test.ts`.                                                                                                                   |
 | BUG-151 | Package Manager     | Package installs can replace regular files or symlinks at `bpl_modules/<package>`.                                        | Fixed    | Package install targets are now preflighted before staging replacement; only absent paths or real directories are replaceable. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
+| BUG-152 | Package Manager     | Package uninstall treats symlinked package roots as installed packages.                                                    | Fixed    | Uninstall now rejects symlinked package roots before reading manifests, unlinking binaries, or removing the package path. Regression: `tests/PackageManager.test.ts`.                                                                                                                       |
 
 ## Details
 
@@ -2176,3 +2177,36 @@ directory, and removed the temporary backup.
 **Resolution**: Package install target preflight now only allows absent paths
 or real directories. Regular files and symlinks produce a `CompilerError`
 before staging replacement begins.
+
+---
+
+### BUG-152: Package Uninstall Treats Symlinked Roots As Installed Packages
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: Package listing and doctor checks ignored symlinked entries in
+`bpl_modules`, but `bpl uninstall <package>` only checked that the path existed.
+It could load the manifest through a symlink and then remove the symlink as if
+it were an installed package root.
+
+**Reproduction**:
+
+```bash
+mkdir -p app/bpl_modules outside-package
+printf '{"name":"linked-pkg","version":"1.0.0"}\n' > outside-package/bpl.json
+ln -s ../../outside-package app/bpl_modules/linked-pkg
+cd app
+bpl uninstall linked-pkg
+```
+
+**Expected**: Uninstall rejects the symlinked package root and leaves the
+symlink and external target untouched.
+
+**Actual**: Uninstall succeeded and removed the symlink.
+
+**Resolution**: Uninstall now checks the package root with `lstat` before
+loading its manifest. Missing packages still report "not installed", real
+directories continue through the normal uninstall path, and symlinked roots
+produce a `CompilerError`.

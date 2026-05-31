@@ -3408,6 +3408,34 @@ describe("PackageManager", () => {
       }).toThrow(/Invalid package directory/);
     });
 
+    test("should reject symlinked package roots during uninstall", () => {
+      const outsidePackageDir = path.join(tempDir, "outside-uninstall-package");
+      const packagePath = path.join(tempDir, "bpl_modules", "linked-pkg");
+      fs.mkdirSync(outsidePackageDir);
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "linked-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.symlinkSync(outsidePackageDir, packagePath, "dir");
+
+      expect(() => {
+        packageManager.uninstall("linked-pkg", { global: false });
+      }).toThrow(/Package root is a symbolic link/);
+      expect(fs.lstatSync(packagePath).isSymbolicLink()).toBe(true);
+      expect(fs.existsSync(path.join(outsidePackageDir, "bpl.json"))).toBe(
+        true,
+      );
+    });
+
     test("should reject package binary unlink targets that are directories", () => {
       const packageDir = path.join(tempDir, "uninstall-bin-package");
       const installDir = path.join(tempDir, "uninstall-bin-install");
