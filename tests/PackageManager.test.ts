@@ -1876,6 +1876,41 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should preserve existing lockfile permissions when rewriting", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const appDir = path.join(tempDir, "lock-mode-app");
+      const lockPath = path.join(appDir, "bpl.lock");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        lockPath,
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.chmodSync(lockPath, 0o640);
+
+      new PackageManager(appDir)["saveLockFile"]({
+        lockfileVersion: 1,
+        packages: {
+          "mode-test-pkg": {
+            version: "1.0.0",
+            source: "mode-test-pkg-1.0.0.tgz",
+            hash: "mode-test-hash",
+          },
+        },
+      });
+
+      expect(fs.statSync(lockPath).mode & 0o777).toBe(0o640);
+      expect(
+        fs
+          .readdirSync(appDir)
+          .some(
+            (file) => file.startsWith(".bpl.lock.") && file.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    });
+
     test("should preserve existing installs when the local lockfile is invalid", () => {
       const manifest = {
         name: "lock-preflight-pkg",

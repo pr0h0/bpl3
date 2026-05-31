@@ -817,13 +817,25 @@ export class PackageManager {
   }
 
   private writeFileAtomically(filePath: string, content: string): void {
+    const existingFile = this.tryLstat(filePath);
+    const mode =
+      existingFile && existingFile.isFile()
+        ? existingFile.mode & 0o777
+        : undefined;
+
     for (let attempt = 0; attempt < 10; attempt++) {
       const tempPath = this.getAtomicWriteTempPath(filePath, attempt);
       let createdTemp = false;
 
       try {
-        fs.writeFileSync(tempPath, content, { flag: "wx" });
+        fs.writeFileSync(tempPath, content, {
+          flag: "wx",
+          ...(mode === undefined ? {} : { mode }),
+        });
         createdTemp = true;
+        if (mode !== undefined) {
+          fs.chmodSync(tempPath, mode);
+        }
         fs.renameSync(tempPath, filePath);
         return;
       } catch (error) {
