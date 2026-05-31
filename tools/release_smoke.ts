@@ -232,6 +232,27 @@ interface LintReport {
   }>;
 }
 
+interface FormatReport {
+  schemaVersion: 1;
+  check: "format";
+  success: boolean;
+  mode: "check";
+  totalFiles: number;
+  formattedFiles: number;
+  unformattedFiles: number;
+  errorCount: number;
+  error?: string;
+  errorCode?: string;
+  files: Array<{
+    file: string;
+    success: boolean;
+    formatted: boolean;
+    changed: boolean;
+    error?: string;
+    errorCode?: string;
+  }>;
+}
+
 interface RunScriptListReport {
   schemaVersion: 1;
   check: "run-script-list";
@@ -535,6 +556,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageImportDiagnosticCodeSmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
     runPackedLintJsonSmoke(installedBpl);
+    runPackedFormatJsonSmoke(installedBpl);
     runPackedSourceAnalysisValidationJsonSmoke(installedBpl);
     runPackedSourceAnalysisNoInputJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
@@ -2072,6 +2094,115 @@ function runPackedLintJsonSmoke(installedBpl: string): void {
   }
 }
 
+function runPackedFormatJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-format-json-"));
+  const formattedPath = join(tempDir, "formatted.bpl");
+  const unformattedPath = join(tempDir, "unformatted.bpl");
+  const formatted = "frame main() ret int {\n    return 0;\n}\n";
+  const unformatted = "frame  main ( )  ret  int { return 0 ; }";
+
+  try {
+    writeFileSync(formattedPath, formatted);
+    writeFileSync(unformattedPath, unformatted);
+
+    console.log("release smoke: check packed npm CLI format JSON");
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const successResult = spawnSync(
+      installedBpl,
+      ["format", "--check", "--json", formattedPath],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+    const failureResult = spawnSync(
+      installedBpl,
+      ["format", "--check", "--json", unformattedPath],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (successResult.error) throw successResult.error;
+    if (failureResult.error) throw failureResult.error;
+    if (successResult.status !== 0 || failureResult.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI format JSON smoke returned unexpected exits.",
+          `success exit: ${successResult.status ?? "unknown"}`,
+          `success stdout:\n${successResult.stdout}`,
+          `success stderr:\n${successResult.stderr}`,
+          `failure exit: ${failureResult.status ?? "unknown"}`,
+          `failure stdout:\n${failureResult.stdout}`,
+          `failure stderr:\n${failureResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (successResult.stderr !== "" || failureResult.stderr !== "") {
+      throw new Error(
+        [
+          "Packed npm CLI format JSON wrote stderr.",
+          `success stderr:\n${successResult.stderr}`,
+          `failure stderr:\n${failureResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    const successReport = parseFormatReport(successResult.stdout);
+    const failureReport = parseFormatReport(failureResult.stdout);
+    const successFileReport = successReport.files[0];
+    const failureFileReport = failureReport.files[0];
+    if (
+      !successReport.success ||
+      successReport.mode !== "check" ||
+      successReport.totalFiles !== 1 ||
+      successReport.formattedFiles !== 1 ||
+      successReport.unformattedFiles !== 0 ||
+      successReport.errorCount !== 0 ||
+      successReport.files.length !== 1 ||
+      successFileReport?.file !== formattedPath ||
+      !successFileReport.success ||
+      !successFileReport.formatted ||
+      successFileReport.changed
+    ) {
+      throw new Error(
+        `Packed npm CLI format JSON success reported unexpected payload:\n${JSON.stringify(successReport, null, 2)}`,
+      );
+    }
+    if (
+      failureReport.success ||
+      failureReport.mode !== "check" ||
+      failureReport.totalFiles !== 1 ||
+      failureReport.formattedFiles !== 0 ||
+      failureReport.unformattedFiles !== 1 ||
+      failureReport.errorCount !== 1 ||
+      failureReport.files.length !== 1 ||
+      failureFileReport?.file !== unformattedPath ||
+      failureFileReport.success ||
+      failureFileReport.formatted ||
+      !failureFileReport.changed ||
+      failureFileReport.error !== "File is not formatted" ||
+      failureFileReport.errorCode !== "BPL_FORMAT_NOT_FORMATTED" ||
+      readFileSync(unformattedPath, "utf-8") !== unformatted
+    ) {
+      throw new Error(
+        `Packed npm CLI format JSON failure reported unexpected payload:\n${JSON.stringify(failureReport, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void {
   const tempDir = mkdtempSync(
     join(tmpdir(), "bpl-release-source-validation-"),
@@ -3487,6 +3618,28 @@ function parseLintReport(stdout: string): LintReport {
     throw new Error(
       [
         "Lint command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseFormatReport(stdout: string): FormatReport {
+  try {
+    const report = JSON.parse(stdout) as FormatReport;
+    assertJsonReportContract(report, "format", "format");
+    if (report.mode !== "check") {
+      throw new Error("format mode is not check");
+    }
+    if (!Array.isArray(report.files)) {
+      throw new Error("format files is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Format command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

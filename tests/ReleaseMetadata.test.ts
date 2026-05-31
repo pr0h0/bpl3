@@ -359,6 +359,22 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["lint", "--json"');
   });
 
+  test("release smoke validates packed format JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI format JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedFormatJsonSmoke");
+    expect(releaseSmokeSource).toContain("parseFormatReport");
+    expect(releaseSmokeSource).toContain('check: "format"');
+    expect(releaseSmokeSource).toContain("BPL_FORMAT_NOT_FORMATTED");
+    expect(releaseSmokeSource).toContain('["format", "--check", "--json"');
+  });
+
   test("release smoke validates packed check and lint no-input error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
