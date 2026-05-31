@@ -290,12 +290,14 @@ package root. The example above resolves to either
 `bpl_modules/math-extra/features/increment/index.bpl`.
 The resolver does not follow symlinked package roots, manifests, entry files, or
 subpath entries, so package imports cannot escape the installed package root
-through filesystem links. Symlinked package roots are terminal metadata
-failures, so a blocked local package root cannot fall through to a same-name
-workspace or global package. Symlinked package entrypoint and subpath candidates
-are also terminal resolution failures; the resolver will not fall through from
-a blocked `.bpl` package candidate to a lower-priority `.x` file, including
-package directory `index.bpl` candidates before `index.x`.
+through filesystem links. Existing malformed package roots are terminal
+metadata failures, so a blocked local package root cannot fall through to a
+same-name workspace or global package. This includes symlinked package roots,
+non-directory package paths, and package directories missing `bpl.json`.
+Symlinked package entrypoint and subpath candidates are also terminal resolution
+failures; the resolver will not fall through from a blocked `.bpl` package
+candidate to a lower-priority `.x` file, including package directory
+`index.bpl` candidates before `index.x`.
 
 Regular module import candidates use the same filesystem diagnostics: broken
 symlink candidates are reported as symlinks before extension fallback can import

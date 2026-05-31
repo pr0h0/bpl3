@@ -207,9 +207,21 @@ function resolvePackageFromBaseDir(
       failOnSymlinkedPackageRoot(packageRoot, trace);
       return null;
     }
-    if (!packageRootStats.isDirectory()) continue;
+    if (!packageRootStats.isDirectory()) {
+      trace.foundPackageRoot = packageRoot;
+      failOnInvalidPackageRoot(
+        packageRoot,
+        "package root is not a directory",
+        trace,
+      );
+      return null;
+    }
     const manifestPath = path.join(packageRoot, "bpl.json");
-    if (!tryLstat(manifestPath)) continue;
+    if (!tryLstat(manifestPath)) {
+      trace.foundPackageRoot = packageRoot;
+      failOnMissingPackageManifest(manifestPath, trace);
+      return null;
+    }
 
     trace.foundPackageRoot = packageRoot;
 
@@ -386,6 +398,23 @@ function failOnSymlinkedPackageRoot(
 ): void {
   trace.failureReason = "manifest-invalid";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: package root is a symbolic link.`;
+}
+
+function failOnInvalidPackageRoot(
+  packageRoot: string,
+  reason: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: ${reason}.`;
+}
+
+function failOnMissingPackageManifest(
+  manifestPath: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid bpl.json at ${manifestPath}: missing bpl.json.`;
 }
 
 function isValidPackageName(name: string): boolean {

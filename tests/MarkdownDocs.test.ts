@@ -208,7 +208,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package import paths cannot contain empty, `.` or `..` segments",
       "The resolver does not follow symlinked package roots, manifests, entry files, or subpath entries",
-      "Symlinked package roots block same-name workspace/global fallback",
+      "Existing malformed package roots, including symlinked roots, non-directory package paths, and roots missing `bpl.json`, block same-name workspace/global fallback",
       "Symlinked package entrypoint and subpath candidates also block lower-priority `.x` fallbacks",
       "including package directory `index.bpl` candidates before `index.x`",
       "broken symlink candidates are reported as symlinks before extension fallback can import a lower-priority `.x` file",

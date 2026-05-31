@@ -163,6 +163,71 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain(path.join(modulesDir, "math"));
   });
 
+  test("does not fall back to workspace or global packages after non-directory local package roots", () => {
+    const appDir = path.join(tempDir, "app");
+    const modulesDir = path.join(appDir, "bpl_modules");
+    const packageRoot = path.join(modulesDir, "math");
+    const workspacePackageDir = path.join(appDir, "packages", "math");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(modulesDir, { recursive: true });
+    fs.mkdirSync(workspacePackageDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+    fs.writeFileSync(packageRoot, "not a package directory");
+
+    for (const [packageDir, version] of [
+      [workspacePackageDir, "1.0.0"],
+      [globalVersionedPackageDir, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain("not a directory");
+    expect(details.trace.failureMessage).toContain(packageRoot);
+  });
+
+  test("does not fall back to workspace or global packages after local package roots missing manifests", () => {
+    const appDir = path.join(tempDir, "app");
+    const modulesDir = path.join(appDir, "bpl_modules");
+    const packageRoot = path.join(modulesDir, "math");
+    const workspacePackageDir = path.join(appDir, "packages", "math");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(packageRoot, { recursive: true });
+    fs.mkdirSync(workspacePackageDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+
+    for (const [packageDir, version] of [
+      [workspacePackageDir, "1.0.0"],
+      [globalVersionedPackageDir, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain("missing bpl.json");
+    expect(details.trace.failureMessage).toContain(path.join(packageRoot, "bpl.json"));
+  });
+
   test("does not resolve symlinked package entry files", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");
