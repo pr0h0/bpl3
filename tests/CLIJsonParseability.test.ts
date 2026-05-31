@@ -163,6 +163,16 @@ describe("CLI JSON parseability", () => {
       packages: [],
     });
 
+    const listTree = runCli(["list", "--tree", "--json"], { cwd: tempDir });
+    expect(listTree.status).toBe(0);
+    expect(parseJsonObjectStdout(listTree)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-list-tree",
+      success: true,
+      scope: "local",
+      tree: [],
+    });
+
     const homeDir = path.join(tempDir, "home");
     fs.mkdirSync(homeDir);
     const cacheList = runCli(["package-cache", "list", "--json"], {

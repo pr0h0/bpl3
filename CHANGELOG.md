@@ -103,6 +103,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Cache Maintenance JSON Coverage** - Added parseability regression
   coverage for empty `package-cache clean --dry-run --json` and
   `package-cache repair --dry-run --json` reports.
+- **Package List Tree JSON Coverage** - Added parseability coverage for
+  `bpl list --tree --json` so both package list JSON report variants stay under
+  the shared contract guard.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.
