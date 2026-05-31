@@ -75,6 +75,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Run-Script JSON Failure Stability** - `bpl run-script --list --json`
   validation failures now include stable `schemaVersion` and
   `check: "run-script-list"` fields alongside `success: false` and `error`.
+- **Run-Script Missing Script JSON Coverage** - Added coverage for
+  `bpl run-script <missing> --json` returning `schemaVersion: 1`,
+  `check: "run-script"`, `success: false`, and `error` without printing the
+  human script list.
 - **Shared CLI JSON Contract Constants** - CLI and package-manager JSON report
   emitters now share one schema/check helper so package doctor and package-cache
   maintenance reports cannot drift from the documented contract strings.

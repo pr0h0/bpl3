@@ -1396,6 +1396,64 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report missing run-script names as JSON", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "run-script-missing-test",
+          version: "1.0.0",
+          scripts: {
+            build: "echo build",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    try {
+      const jsonResult = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "missing", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(jsonResult.status).toBe(1);
+      expect(jsonResult.stderr).toBe("");
+      expect(parseJsonObjectStdout(jsonResult)).toEqual({
+        schemaVersion: 1,
+        check: "run-script",
+        success: false,
+        error: "Script 'missing' not found in bpl.json",
+      });
+
+      const humanResult = spawnSync(
+        "bun",
+        [BPL_CLI, "run-script", "missing"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      expect(humanResult.status).toBe(1);
+      expect(humanResult.stderr).toContain(
+        "Script 'missing' not found in bpl.json",
+      );
+      expect(humanResult.stdout).toContain("Available scripts:");
+      expect(humanResult.stdout).toContain("- build: echo build");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject invalid run-script entries", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
 
