@@ -1165,6 +1165,144 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(packageVersionOutput)).toBe(false);
   });
 
+  test("reports module path diagnostic codes in JSON-mode check and build diagnostics", () => {
+    const missingFile = path.join(tempDir, "missing_module_import.bpl");
+    const missingOutput = path.join(tempDir, "missing-module-app");
+    const unsafeStdFile = path.join(tempDir, "unsafe_std_check.bpl");
+    const symlinkDir = path.join(tempDir, "broken-module-symlink");
+    const symlinkFile = path.join(symlinkDir, "main.bpl");
+    const brokenCandidate = path.join(symlinkDir, "linked.bpl");
+    const fallbackCandidate = path.join(symlinkDir, "linked.x");
+    fs.mkdirSync(symlinkDir, { recursive: true });
+
+    fs.writeFileSync(
+      missingFile,
+      [
+        'import value from "./does_not_exist.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      unsafeStdFile,
+      [
+        'import escaped from "std/../outside-std-lib.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      symlinkFile,
+      [
+        'import value from "./linked";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.symlinkSync(path.join(symlinkDir, "missing-linked.bpl"), brokenCandidate);
+    fs.writeFileSync(fallbackCandidate, "export value;\n");
+
+    const missingCheck = runCli(["check", "--json", missingFile]);
+    const missingDiagnostic = expectSingleCheckJsonDiagnostic(
+      missingCheck,
+      missingFile,
+    );
+    expect(missingDiagnostic.code).toBe("BPL_MODULE_NOT_FOUND");
+    expect(missingDiagnostic.source?.preview).toContain(
+      'import value from "./does_not_exist.bpl";',
+    );
+    expect(missingDiagnostic.message).toContain("Module not found");
+    expect(missingDiagnostic.message).toContain("./does_not_exist.bpl");
+    expect(missingDiagnostic.hint).toContain("Check if the file exists.");
+    expect(missingCheck.stderr).toBe("");
+
+    const unsafeStdCheck = runCli(["check", "--json", unsafeStdFile]);
+    const unsafeStdDiagnostic = expectSingleCheckJsonDiagnostic(
+      unsafeStdCheck,
+      unsafeStdFile,
+    );
+    expect(unsafeStdDiagnostic.code).toBe("BPL_IMPORT_STD_PATH_UNSAFE");
+    expect(unsafeStdDiagnostic.source?.preview).toContain(
+      'import escaped from "std/../outside-std-lib.bpl";',
+    );
+    expect(unsafeStdDiagnostic.message).toContain(
+      "Unsafe standard library import: std/../outside-std-lib.bpl",
+    );
+    expect(unsafeStdDiagnostic.hint).toContain(
+      "Use std/<path> without empty, '.', or '..' path segments.",
+    );
+    expect(unsafeStdCheck.stderr).toBe("");
+
+    const symlinkCheck = runCli(["check", "--json", symlinkFile]);
+    const symlinkDiagnostic = expectSingleCheckJsonDiagnostic(
+      symlinkCheck,
+      symlinkFile,
+    );
+    expect(symlinkDiagnostic.code).toBe("BPL_MODULE_PATH_SYMLINK");
+    expect(symlinkDiagnostic.source?.preview).toContain(
+      'import value from "./linked";',
+    );
+    expect(symlinkDiagnostic.message).toContain(
+      "Module path is a symbolic link",
+    );
+    expect(symlinkDiagnostic.message).toContain(brokenCandidate);
+    expect(symlinkDiagnostic.hint).toContain(
+      "Use a real .bpl file path or repair the symlink target.",
+    );
+    expect(symlinkCheck.stderr).toBe("");
+
+    const missingBuild = runCli([
+      "build",
+      missingFile,
+      "--json",
+      "-o",
+      missingOutput,
+    ]);
+    expect(missingBuild.status).toBe(1);
+    expect(missingBuild.stderr).toBe("");
+    const missingBuildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(missingBuild);
+    expect(missingBuildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: missingFile,
+      diagnostics: [
+        {
+          code: "BPL_MODULE_NOT_FOUND",
+          location: {
+            file: missingFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(missingBuildReport.diagnostics[0]?.message).toContain(
+      "Module not found",
+    );
+    expect(missingBuildReport.diagnostics[0]?.hint).toContain(
+      "Check if the file exists.",
+    );
+    expect(fs.existsSync(`${missingOutput}.ll`)).toBe(false);
+    expect(fs.existsSync(missingOutput)).toBe(false);
+  });
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
