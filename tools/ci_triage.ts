@@ -155,6 +155,9 @@ const SANITIZER_RUNTIME_STEP_PATTERN = new RegExp(
     "Compiler sanitizer-backed runtime tests",
     "ASan and UBSan",
     "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+    "BPL_SANITIZER_RUNTIME_UNAVAILABLE",
+    "compiler-rt",
+    "libclang_rt",
   ].join("|"),
   "i",
 );

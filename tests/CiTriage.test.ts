@@ -193,6 +193,14 @@ describe("CI triage helper", () => {
         "Compiler sanitizer-backed runtime tests timed out after 5000ms",
       ),
     ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_SANITIZER_RUNTIME_UNAVAILABLE")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "compiler-rt/libclang_rt sanitizer support probe failed",
+      ),
+    ).toEqual(expectedCommands);
   });
 
   test("maps timeout failure text to focused repro commands", () => {
@@ -751,6 +759,78 @@ describe("CI triage helper", () => {
       expect(textResult.stdout).toContain(
         "bun index.ts doctor sanitizer --json",
       );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints sanitizer doctor repro command from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-sanitizer-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          run: {
+            id: 26695335269,
+            html_url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+            head_branch: "master",
+            head_sha: "1234567890abcdef1234567890abcdef12345678",
+            status: "completed",
+            conclusion: "failure",
+          },
+          jobs: [
+            {
+              id: 42,
+              name: "Sanitizer support diagnostics",
+              conclusion: "failure",
+              html_url:
+                "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/42",
+              steps: [
+                {
+                  name: "BPL_SANITIZER_RUNTIME_UNAVAILABLE: compiler-rt/libclang_rt missing",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs).toHaveLength(1);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun run test:sanitizers",
+        "bun test tests/CompilerSanitizerRuntime.test.ts",
+        "bun index.ts doctor sanitizer --json",
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
