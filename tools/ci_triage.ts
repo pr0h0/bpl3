@@ -212,7 +212,19 @@ async function main(): Promise<void> {
 
   const json = takeFlag(args, "--json");
   const repo = takeOption(args, "--repo") ?? DEFAULT_REPO;
-  const run = takeOption(args, "--run") ?? args[0];
+  const explicitRun = takeOption(args, "--run");
+  const unknownOption = args.find((arg) => arg.startsWith("-"));
+  if (unknownOption) {
+    throw new CliUsageError(
+      `Unknown option ${unknownOption.split("=", 1)[0]}. Use --help for usage.`,
+    );
+  }
+
+  const run = explicitRun ?? args[0];
+  const extraArgument = explicitRun ? args[0] : args[1];
+  if (extraArgument) {
+    throw new CliUsageError(`Unexpected argument: ${extraArgument}`);
+  }
 
   if (!run) {
     console.error(formatCiTriageHelp().trimEnd());

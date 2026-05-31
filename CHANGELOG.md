@@ -43,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Option Validation** - `bun run ci:triage` now reports missing
   `--repo` and `--run` option values as usage errors before attempting any
   GitHub API request.
+- **CI Triage Unknown Options** - `bun run ci:triage` now rejects unknown flags
+  and extra positional arguments instead of treating them as malformed run URLs.
 - **Release Smoke CI Triage Coverage** - Release smoke now checks the packed
   npm CLI's `ci:triage` usage-error path so helper argument validation stays
   covered after packaging.

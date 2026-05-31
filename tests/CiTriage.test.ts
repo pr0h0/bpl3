@@ -113,4 +113,23 @@ describe("CI triage helper", () => {
       expect(result.stderr).not.toContain("api.github.com");
     }
   });
+
+  test("rejects unknown options and extra arguments before GitHub API calls", () => {
+    const cases: Array<[string[], string]> = [
+      [["--unknown", "26695335269"], "Unknown option --unknown"],
+      [["26695335269", "extra"], "Unexpected argument: extra"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "ci:triage", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("api.github.com");
+    }
+  });
 });
