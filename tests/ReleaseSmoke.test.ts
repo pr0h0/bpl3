@@ -51,6 +51,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI library template",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI run-script list JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: run packed npm CLI library example",
       );
       expect(result.stdout).toContain(

@@ -59,6 +59,13 @@ interface PackageCacheVerifyReport {
   issues: unknown[];
 }
 
+interface RunScriptListReport {
+  schemaVersion: 1;
+  check: "run-script-list";
+  success: boolean;
+  scripts: Array<{ name: string; command: string }>;
+}
+
 interface BuildReport {
   schemaVersion: 1;
   check: "build";
@@ -265,6 +272,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
+    runPackedRunScriptListJsonSmoke(installedBpl);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
     runPackedBuildJsonSmoke(installedBpl);
     runPackedWasmSmoke(installedBpl);
@@ -382,6 +390,56 @@ function runLibraryTemplateSmoke(
     }
   } finally {
     rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedRunScriptListJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-run-script-"));
+  const markerPath = join(tempDir, "should-not-exist.txt");
+  const markerCommand = `node -e "require('fs').writeFileSync('${markerPath}', 'bad')"`;
+
+  try {
+    writeFileSync(
+      join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "release-smoke-run-script",
+          version: "1.0.0",
+          scripts: {
+            check: "bpl check src/main.bpl",
+            marker: markerCommand,
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    const result = runStep(
+      "check packed npm CLI run-script list JSON",
+      installedBpl,
+      ["run-script", "--list", "--json"],
+      { cwd: tempDir, bplHome: null },
+    );
+    const report = parseRunScriptListReport(result.stdout);
+    const expectedScripts = [
+      { name: "check", command: "bpl check src/main.bpl" },
+      { name: "marker", command: markerCommand },
+    ];
+
+    if (
+      !report.success ||
+      JSON.stringify(report.scripts) !== JSON.stringify(expectedScripts)
+    ) {
+      throw new Error(
+        `Packed npm CLI run-script list JSON reported unexpected scripts:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+    if (existsSync(markerPath)) {
+      throw new Error("Packed npm CLI run-script --list executed a script.");
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
@@ -964,6 +1022,25 @@ function parsePackageCacheVerifyReport(stdout: string): PackageCacheVerifyReport
     throw new Error(
       [
         "Package-cache verify did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseRunScriptListReport(stdout: string): RunScriptListReport {
+  try {
+    const report = JSON.parse(stdout) as RunScriptListReport;
+    assertJsonReportContract(report, "run-script-list", "run-script list");
+    if (!Array.isArray(report.scripts)) {
+      throw new Error("run-script list scripts is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Run-script list did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
