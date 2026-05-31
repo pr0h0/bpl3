@@ -54,6 +54,13 @@ interface DoctorToolchainCheck {
   recommendedCommands?: string[];
 }
 
+interface VersionReport {
+  schemaVersion: 1;
+  check: "version";
+  success: boolean;
+  version: string;
+}
+
 interface DoctorFailureReport {
   schemaVersion: 1;
   check: "doctor";
@@ -555,6 +562,8 @@ function runPackedPackageSmoke(): void {
         ? join(installDir, "node_modules", ".bin", "bpl.cmd")
         : join(installDir, "node_modules", ".bin", "bpl");
 
+    runPackedVersionJsonSmoke(installedBpl, installDir, packEntry.version);
+
     const doctor = runStep(
       "check packed npm CLI doctor JSON",
       installedBpl,
@@ -655,6 +664,53 @@ function assertReleaseManifest(
   );
   if (!npmArtifact?.npmIntegrity || !npmArtifact.npmShasum) {
     throw new Error("Release manifest is missing npm package integrity data.");
+  }
+}
+
+function runPackedVersionJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+  expectedVersion: string | undefined,
+): void {
+  if (!expectedVersion) {
+    throw new Error("npm pack metadata did not include a package version.");
+  }
+
+  const first = runStep(
+    "check packed npm CLI version JSON",
+    installedBpl,
+    ["--version", "--json"],
+    { cwd: installDir, bplHome: null },
+  );
+  const second = runStep(
+    "check packed npm CLI version JSON alternate order",
+    installedBpl,
+    ["--json", "--version"],
+    { cwd: installDir, bplHome: null },
+  );
+
+  if (first.stderr !== "" || second.stderr !== "") {
+    throw new Error(
+      [
+        "Packed npm CLI version JSON wrote stderr.",
+        `first stderr:\n${first.stderr}`,
+        `second stderr:\n${second.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  const firstReport = parseVersionReport(first.stdout);
+  const secondReport = parseVersionReport(second.stdout);
+  for (const report of [firstReport, secondReport]) {
+    if (
+      !report.success ||
+      report.version !== expectedVersion ||
+      !/^\d+\.\d+\.\d+/.test(report.version)
+    ) {
+      throw new Error(
+        `Packed npm CLI version JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
   }
 }
 
@@ -3500,6 +3556,25 @@ function parseDoctorReport(stdout: string): DoctorReport {
     throw new Error(
       [
         "Standalone doctor did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseVersionReport(stdout: string): VersionReport {
+  try {
+    const report = JSON.parse(stdout) as VersionReport;
+    assertJsonReportContract(report, "version", "version");
+    if (typeof report.version !== "string") {
+      throw new Error("version is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Version command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

@@ -427,6 +427,22 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["completion", "fish", "--json"]');
   });
 
+  test("release smoke validates packed version JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI version JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedVersionJsonSmoke");
+    expect(releaseSmokeSource).toContain("parseVersionReport");
+    expect(releaseSmokeSource).toContain('check: "version"');
+    expect(releaseSmokeSource).toContain('["--version", "--json"]');
+    expect(releaseSmokeSource).toContain('["--json", "--version"]');
+  });
+
   test("release smoke validates packed check and lint no-input error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
