@@ -192,6 +192,12 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI check/lint no-input JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI completion JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI completion unsupported-shell JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI bash completion",
       );
       expect(result.stdout).toContain(

@@ -407,6 +407,26 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["docs", "--json"');
   });
 
+  test("release smoke validates packed completion JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI completion JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI completion unsupported-shell JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedCompletionJsonSmoke");
+    expect(releaseSmokeSource).toContain("parseCompletionReport");
+    expect(releaseSmokeSource).toContain('check: "completion"');
+    expect(releaseSmokeSource).toContain("BPL_COMPLETION_SHELL_UNSUPPORTED");
+    expect(releaseSmokeSource).toContain('["completion", "bash", "--json"]');
+    expect(releaseSmokeSource).toContain('["completion", "fish", "--json"]');
+  });
+
   test("release smoke validates packed check and lint no-input error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

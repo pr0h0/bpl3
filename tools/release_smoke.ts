@@ -276,6 +276,16 @@ interface DocsReport {
   errorCode?: string;
 }
 
+interface CompletionReport {
+  schemaVersion: 1;
+  check: "completion";
+  success: boolean;
+  shell: string;
+  script?: string;
+  error?: string;
+  errorCode?: string;
+}
+
 interface RunScriptListReport {
   schemaVersion: 1;
   check: "run-script-list";
@@ -584,6 +594,7 @@ function runPackedPackageSmoke(): void {
     runPackedDocsJsonSmoke(installedBpl);
     runPackedSourceAnalysisValidationJsonSmoke(installedBpl);
     runPackedSourceAnalysisNoInputJsonSmoke(installedBpl);
+    runPackedCompletionJsonSmoke(installedBpl, installDir);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runPackedRunScriptListJsonSmoke(installedBpl);
@@ -671,6 +682,75 @@ function runCompletionSmoke(installedBpl: string, installDir: string): void {
     "--template",
     "wasm32-unknown-unknown",
   ]);
+}
+
+function runPackedCompletionJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const bash = runStep(
+    "check packed npm CLI completion JSON",
+    installedBpl,
+    ["completion", "bash", "--json"],
+    { cwd: installDir, bplHome: null },
+  );
+  const bashReport = parseCompletionReport(bash.stdout);
+  if (
+    !bashReport.success ||
+    bashReport.shell !== "bash" ||
+    typeof bashReport.script !== "string" ||
+    !bashReport.script.includes("complete -F _bpl_completion bpl") ||
+    !bashReport.script.includes("completion_opts=\"bash zsh --json\"")
+  ) {
+    throw new Error(
+      `Packed npm CLI completion JSON success reported unexpected payload:\n${JSON.stringify(bashReport, null, 2)}`,
+    );
+  }
+
+  console.log(
+    "release smoke: check packed npm CLI completion unsupported-shell JSON",
+  );
+  const unsupported = spawnSync(
+    installedBpl,
+    ["completion", "fish", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null }),
+      timeout: smokeTimeoutMs,
+    },
+  );
+  if (unsupported.error) {
+    throw unsupported.error;
+  }
+  if (unsupported.status !== 1) {
+    throw new Error(
+      [
+        "Packed npm CLI completion JSON failure smoke did not fail as expected.",
+        `exit: ${unsupported.status ?? "unknown"}`,
+        `stdout:\n${unsupported.stdout}`,
+        `stderr:\n${unsupported.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (unsupported.stderr !== "") {
+    throw new Error(
+      `Packed npm CLI completion JSON failure wrote stderr:\n${unsupported.stderr}`,
+    );
+  }
+
+  const unsupportedReport = parseCompletionReport(unsupported.stdout);
+  if (
+    unsupportedReport.success ||
+    unsupportedReport.shell !== "fish" ||
+    unsupportedReport.errorCode !== "BPL_COMPLETION_SHELL_UNSUPPORTED" ||
+    typeof unsupportedReport.error !== "string" ||
+    !unsupportedReport.error.includes("Unsupported shell")
+  ) {
+    throw new Error(
+      `Packed npm CLI completion JSON failure reported unexpected payload:\n${JSON.stringify(unsupportedReport, null, 2)}`,
+    );
+  }
 }
 
 function runPackedDoctorFailureJsonSmoke(
@@ -3896,6 +3976,25 @@ function parseDocsReport(stdout: string): DocsReport {
     throw new Error(
       [
         "Docs command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseCompletionReport(stdout: string): CompletionReport {
+  try {
+    const report = JSON.parse(stdout) as CompletionReport;
+    assertJsonReportContract(report, "completion", "completion");
+    if (typeof report.shell !== "string") {
+      throw new Error("completion shell is not a string");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Completion command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
