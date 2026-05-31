@@ -122,9 +122,15 @@ interface CheckReport {
   files: Array<{
     file: string;
     success: boolean;
-    diagnostics?: unknown[];
+    diagnostics?: CheckDiagnostic[];
     error?: string;
   }>;
+}
+
+interface CheckDiagnostic {
+  code?: unknown;
+  message?: unknown;
+  severityLabel?: unknown;
 }
 
 interface LintReport {
@@ -413,6 +419,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
     runPackedLockedInstallSafetySmoke(installedBpl);
+    runPackedPackageImportDiagnosticCodeSmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
     runPackedLintJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
@@ -1011,6 +1018,81 @@ function runPackedLockedInstallSafetySmoke(installedBpl: string): void {
     );
   } finally {
     rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(
+    join(tmpdir(), "bpl-release-package-diagnostic-"),
+  );
+  const packageDir = join(tempDir, "bpl_modules", "pkg-math");
+
+  try {
+    mkdirSync(packageDir, { recursive: true });
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    console.log(
+      "release smoke: check packed npm CLI package import diagnostic code JSON",
+    );
+    const result = spawnSync(installedBpl, ["check", "--json", "main.bpl"], {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        BPL_HOME: undefined,
+        NO_COLOR: "1",
+      },
+      timeout: smokeTimeoutMs,
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI package import diagnostic smoke did not fail as expected.",
+          `exit: ${result.status ?? "unknown"}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (result.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI package import diagnostic smoke wrote stderr:\n${result.stderr}`,
+      );
+    }
+
+    const report = parseCheckReport(result.stdout);
+    const fileReport = report.files[0];
+    const diagnostic = fileReport?.diagnostics?.[0];
+    if (
+      report.success ||
+      report.totalFiles !== 1 ||
+      report.errorCount !== 1 ||
+      report.files.length !== 1 ||
+      fileReport?.file !== "main.bpl" ||
+      fileReport.success ||
+      diagnostic?.code !== "BPL_PACKAGE_MANIFEST_MISSING" ||
+      typeof diagnostic.message !== "string" ||
+      !diagnostic.message.includes("missing bpl.json")
+    ) {
+      throw new Error(
+        `Packed npm CLI package import diagnostic JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
   }
 }
 

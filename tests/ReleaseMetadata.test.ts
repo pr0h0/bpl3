@@ -263,6 +263,23 @@ describe("Release metadata", () => {
     );
   });
 
+  test("release smoke validates packed package import diagnostic codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package import diagnostic code JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedPackageImportDiagnosticCodeSmoke",
+    );
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
+    expect(releaseSmokeSource).toContain('["check", "--json", "main.bpl"]');
+    expect(releaseSmokeSource).toContain("parseCheckReport");
+  });
+
   test("release smoke guards packed sanitizer doctor JSON contract", async () => {
     const releaseSmoke = (await import("../tools/release_smoke")) as {
       assertSanitizerDoctorContract?: (report: unknown) => void;
