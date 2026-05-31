@@ -98,6 +98,17 @@ interface PackagePackReport {
   errorCode?: string;
 }
 
+interface PackageInitReport {
+  schemaVersion: 1;
+  check: "package-init";
+  success: boolean;
+  package: string | null;
+  version?: string;
+  manifestPath: string;
+  error?: string;
+  errorCode?: string;
+}
+
 interface PackageUninstallReport {
   schemaVersion: 1;
   check: "package-uninstall";
@@ -497,6 +508,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageInstallJsonSmoke(installedBpl);
     runPackedPackagePackJsonSmoke(installedBpl);
+    runPackedPackageInitJsonSmoke(installedBpl);
     runPackedPackageUninstallJsonSmoke(installedBpl);
     runPackedPackageManifestValidationJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
@@ -1015,6 +1027,115 @@ function runPackedPackagePackJsonSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI package pack failure JSON reported unexpected payload:\n${JSON.stringify(missingReport, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedPackageInitJsonSmoke(installedBpl: string): void {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-init-json-"));
+  const initDir = join(workspaceDir, "init-json-project");
+  const existingDir = join(workspaceDir, "init-json-existing");
+
+  try {
+    mkdirSync(initDir, { recursive: true });
+    mkdirSync(existingDir, { recursive: true });
+    writeFileSync(join(existingDir, "bpl.json"), "{}\n");
+
+    const init = runStep(
+      "check packed npm CLI package init JSON",
+      installedBpl,
+      ["init", "release-smoke-init-json", "--json"],
+      {
+        cwd: initDir,
+        bplHome: null,
+      },
+    );
+    const report = parsePackageInitReport(init.stdout);
+
+    if (
+      !report.success ||
+      report.package !== "release-smoke-init-json" ||
+      report.version !== "1.0.0" ||
+      report.manifestPath !== join(initDir, "bpl.json") ||
+      !existsSync(report.manifestPath)
+    ) {
+      throw new Error(
+        `Packed npm CLI package init JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+
+    const invalid = spawnSync(installedBpl, ["init", "Bad_Name", "--json"], {
+      cwd: workspaceDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null }),
+      timeout: smokeTimeoutMs,
+    });
+    if (invalid.error) throw invalid.error;
+    if (invalid.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI package init invalid-name JSON did not fail as expected.",
+          `exit: ${invalid.status ?? "unknown"}`,
+          `stdout:\n${invalid.stdout}`,
+          `stderr:\n${invalid.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (invalid.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI package init invalid-name JSON wrote stderr:\n${invalid.stderr}`,
+      );
+    }
+
+    const invalidReport = parsePackageInitReport(invalid.stdout);
+    if (
+      invalidReport.success ||
+      invalidReport.package !== "Bad_Name" ||
+      invalidReport.manifestPath !== join(workspaceDir, "bpl.json") ||
+      invalidReport.errorCode !== "BPL_PACKAGE_INIT_NAME_INVALID" ||
+      typeof invalidReport.error !== "string"
+    ) {
+      throw new Error(
+        `Packed npm CLI package init invalid-name JSON reported unexpected payload:\n${JSON.stringify(invalidReport, null, 2)}`,
+      );
+    }
+
+    const existing = spawnSync(installedBpl, ["init", "--json"], {
+      cwd: existingDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null }),
+      timeout: smokeTimeoutMs,
+    });
+    if (existing.error) throw existing.error;
+    if (existing.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI package init existing-manifest JSON did not fail as expected.",
+          `exit: ${existing.status ?? "unknown"}`,
+          `stdout:\n${existing.stdout}`,
+          `stderr:\n${existing.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (existing.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI package init existing-manifest JSON wrote stderr:\n${existing.stderr}`,
+      );
+    }
+
+    const existingReport = parsePackageInitReport(existing.stdout);
+    if (
+      existingReport.success ||
+      existingReport.package !== null ||
+      existingReport.manifestPath !== join(existingDir, "bpl.json") ||
+      existingReport.errorCode !== "BPL_PACKAGE_INIT_MANIFEST_EXISTS" ||
+      typeof existingReport.error !== "string"
+    ) {
+      throw new Error(
+        `Packed npm CLI package init existing-manifest JSON reported unexpected payload:\n${JSON.stringify(existingReport, null, 2)}`,
       );
     }
   } finally {
@@ -2997,6 +3118,22 @@ function parsePackagePackReport(stdout: string): PackagePackReport {
     throw new Error(
       [
         "Package pack did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parsePackageInitReport(stdout: string): PackageInitReport {
+  try {
+    const report = JSON.parse(stdout) as PackageInitReport;
+    assertJsonReportContract(report, "package-init", "package init");
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Package init did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),

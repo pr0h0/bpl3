@@ -536,6 +536,23 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain('["pack", missingManifestDir, "--json"]');
   });
 
+  test("release smoke validates packed package init JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package init JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedPackageInitJsonSmoke");
+    expect(releaseSmokeSource).toContain("parsePackageInitReport");
+    expect(releaseSmokeSource).toContain('check: "package-init"');
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_INIT_NAME_INVALID");
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_INIT_MANIFEST_EXISTS");
+    expect(releaseSmokeSource).toContain('["init", "Bad_Name", "--json"]');
+  });
+
   test("release smoke validates packed package uninstall JSON output", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
