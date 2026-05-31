@@ -1,14 +1,18 @@
-import { writeFileSync } from "fs";
+import { lstatSync, writeFileSync, type Stats } from "fs";
+import { dirname, join, parse, relative, resolve, sep } from "path";
 import {
   minimizeFuzzFailure,
   replayFuzzFailureArtifact,
   runFuzzReplayMode,
   type FuzzReplayMode,
   type FuzzFailureKind,
+  type FuzzRunner,
   type FuzzStage,
 } from "./compilerFuzz";
+import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 
 interface CliOptions {
+  help: boolean;
   sourcePath?: string;
   metadataPath?: string;
   expectedStage?: FuzzStage;
@@ -17,6 +21,11 @@ interface CliOptions {
   modes: FuzzReplayMode[];
   minimize: boolean;
   outPath?: string;
+}
+
+export interface FuzzReplayCliOptions {
+  runner?: FuzzRunner;
+  stdout?: (line: string) => void;
 }
 
 class CliUsageError extends Error {}
@@ -53,8 +62,7 @@ function parseCliOptions(argv: string[]): CliOptions {
     const arg = argv[index]!;
 
     if (arg === "--help" || arg === "-h") {
-      printHelp();
-      process.exit(0);
+      return { help: true, modes: [], minimize: false };
     }
 
     if (!arg.startsWith("--")) {
@@ -106,6 +114,7 @@ function parseCliOptions(argv: string[]): CliOptions {
   }
 
   return {
+    help: false,
     sourcePath: values.get("source") ?? positionals[0],
     metadataPath: values.get("metadata"),
     expectedStage: parseStage(values.get("stage")),
@@ -179,8 +188,8 @@ function parseFailureKind(
   return value as FuzzFailureKind;
 }
 
-function printHelp(): void {
-  console.log(`Usage: bun fuzz/replay_crash.ts [source.bpl] [options]
+function printHelp(stdout: (line: string) => void = console.log): void {
+  stdout(`Usage: bun fuzz/replay_crash.ts [source.bpl] [options]
 
 Re-run a compiler fuzz failure artifact and optionally reduce it by deleting
 tokens while preserving the failure signature.
@@ -207,28 +216,38 @@ function defaultMinimizedPath(sourcePath: string): string {
     : `${sourcePath}.min.bpl`;
 }
 
-async function main(): Promise<void> {
-  const options = parseCliOptions(process.argv.slice(2));
+export function runFuzzReplayCli(
+  argv: string[],
+  cliOptions: FuzzReplayCliOptions = {},
+): number {
+  const stdout = cliOptions.stdout ?? console.log;
+  const options = parseCliOptions(argv);
+  if (options.help) {
+    printHelp(stdout);
+    return 0;
+  }
+
   const replay = replayFuzzFailureArtifact({
     sourcePath: options.sourcePath,
     metadataPath: options.metadataPath,
     expectedStage: options.expectedStage,
     expectedMessageIncludes: options.expectedMessageIncludes,
     expectedFailureKind: options.expectedFailureKind,
+    runner: cliOptions.runner,
   });
 
-  console.log(`Source: ${replay.sourcePath}`);
+  stdout(`Source: ${replay.sourcePath}`);
   if (replay.metadataPath) {
-    console.log(`Metadata: ${replay.metadataPath}`);
+    stdout(`Metadata: ${replay.metadataPath}`);
   }
-  console.log(`Crashed: ${replay.crashed ? "yes" : "no"}`);
-  console.log(`Failed: ${replay.failed ? "yes" : "no"}`);
-  console.log(`Failure kind: ${replay.failureKind ?? "none"}`);
-  console.log(`Stage: ${replay.outcome.stage}`);
+  stdout(`Crashed: ${replay.crashed ? "yes" : "no"}`);
+  stdout(`Failed: ${replay.failed ? "yes" : "no"}`);
+  stdout(`Failure kind: ${replay.failureKind ?? "none"}`);
+  stdout(`Stage: ${replay.outcome.stage}`);
   if (replay.outcome.message) {
-    console.log(`Message: ${replay.outcome.message.split("\n")[0]}`);
+    stdout(`Message: ${replay.outcome.message.split("\n")[0]}`);
   }
-  console.log(`Signature matches: ${replay.signatureMatches ? "yes" : "no"}`);
+  stdout(`Signature matches: ${replay.signatureMatches ? "yes" : "no"}`);
 
   if (options.modes.length > 0) {
     let failedModes = 0;
@@ -240,9 +259,9 @@ async function main(): Promise<void> {
         replay.metadata,
       );
       const state = result.outcome.ok ? "ok" : "failed";
-      console.log(`Mode ${mode}: ${state} at ${result.outcome.stage}`);
+      stdout(`Mode ${mode}: ${state} at ${result.outcome.stage}`);
       if (result.outcome.message) {
-        console.log(
+        stdout(
           `Mode ${mode} message: ${result.outcome.message.split("\n")[0]}`,
         );
       }
@@ -251,37 +270,125 @@ async function main(): Promise<void> {
       }
     }
 
-    process.exit(failedModes === 0 ? 0 : 4);
+    return failedModes === 0 ? 0 : 4;
   }
 
   if (!replay.failed) {
-    process.exit(2);
+    return 2;
   }
 
   if (!replay.signatureMatches) {
-    process.exit(3);
+    return 3;
   }
 
   if (options.minimize) {
+    const outPath = options.outPath ?? defaultMinimizedPath(replay.sourcePath);
+    assertWritableMinimizedOutputPath(outPath);
     const minimized = minimizeFuzzFailure({
       source: replay.source,
       filePath: replay.sourcePath,
       expectedStage: replay.expectedStage ?? replay.outcome.stage,
       expectedMessageIncludes: replay.expectedMessageIncludes,
       expectedFailureKind: replay.expectedFailureKind ?? replay.failureKind,
+      runner: cliOptions.runner,
     });
-    const outPath = options.outPath ?? defaultMinimizedPath(replay.sourcePath);
     writeFileSync(outPath, minimized.minimizedSource);
 
-    console.log(`Minimized source: ${outPath}`);
-    console.log(
+    stdout(`Minimized source: ${outPath}`);
+    stdout(
       `Tokens: ${minimized.originalTokenCount} -> ${minimized.minimizedTokenCount}`,
     );
-    console.log(`Attempts: ${minimized.attempts}`);
+    stdout(`Attempts: ${minimized.attempts}`);
+  }
+
+  return 0;
+}
+
+function assertWritableMinimizedOutputPath(outPath: string): void {
+  const existingStats = tryLstat(outPath);
+  if (existingStats?.isSymbolicLink()) {
+    throw new Error(`Fuzz replay output path is a symbolic link: ${outPath}`);
+  }
+  if (existingStats?.isDirectory()) {
+    throw new Error(`Fuzz replay output path is a directory: ${outPath}`);
+  }
+  if (existingStats && !existingStats.isFile()) {
+    throw new Error(`Fuzz replay output path is not a regular file: ${outPath}`);
+  }
+
+  const symlinkedParent = findSymlinkedParentPath(outPath);
+  if (symlinkedParent) {
+    throw new Error(
+      `Fuzz replay output parent contains a symbolic link: ${symlinkedParent}`,
+    );
+  }
+
+  const parentPath = dirname(resolve(outPath));
+  const nonDirectoryParent = findNonDirectoryPathComponent(parentPath);
+  if (nonDirectoryParent) {
+    throw new Error(
+      `Fuzz replay output parent is not a directory: ${nonDirectoryParent}`,
+    );
+  }
+
+  const parentStats = tryLstat(parentPath);
+  if (!parentStats) {
+    throw new Error(`Fuzz replay output directory does not exist: ${parentPath}`);
+  }
+  if (!parentStats.isDirectory()) {
+    throw new Error(
+      `Fuzz replay output parent is not a directory: ${parentPath}`,
+    );
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(error instanceof CliUsageError ? 2 : 1);
-});
+function findNonDirectoryPathComponent(targetPath: string): string | null {
+  const absolutePath = resolve(targetPath);
+  const rootPath = parse(absolutePath).root;
+  const parts = relative(rootPath, absolutePath)
+    .split(sep)
+    .filter((part) => part.length > 0);
+
+  let currentPath = rootPath;
+  for (const part of parts) {
+    currentPath = join(currentPath, part);
+    const stats = tryLstat(currentPath);
+    if (!stats) {
+      return null;
+    }
+    if (stats.isSymbolicLink()) {
+      return null;
+    }
+    if (!stats.isDirectory()) {
+      return currentPath;
+    }
+  }
+
+  return null;
+}
+
+function tryLstat(path: string): Stats | null {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+if (import.meta.main) {
+  try {
+    process.exit(runFuzzReplayCli(process.argv.slice(2)));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(error instanceof CliUsageError ? 2 : 1);
+  }
+}

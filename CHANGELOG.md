@@ -549,6 +549,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl run-script` now rejects `bpl.json` paths reached through symlinked
   working-directory parent components before parsing, listing, or executing
   package scripts.
+- **Fuzz Replay Output Ancestor Symlink Blocking (BUG-207)** -
+  `fuzz:replay --minimize --out` now rejects final output symlinks,
+  non-directory output parents, and symlinked output parent components before
+  writing minimized repro files.
 - **Trusted macOS Temp Root Symlinks (BUG-210)** - Shared path-safety checks now
   allow trusted macOS root temp symlinks such as `/var -> /private/var` and
   `/tmp -> /private/tmp`, fixing wasm runtime CI outputs under `os.tmpdir()`

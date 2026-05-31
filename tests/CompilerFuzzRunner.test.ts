@@ -23,6 +23,7 @@ import {
   runFuzzCampaign,
   type PipelineOutcome,
 } from "../fuzz/compilerFuzz";
+import { runFuzzReplayCli } from "../fuzz/replay_crash";
 
 describe("Compiler fuzz runner", () => {
   test("generates deterministic mixed fuzz inputs for a seed", () => {
@@ -582,6 +583,93 @@ describe("Compiler fuzz runner", () => {
       expect(result.stderr).toContain(expectedError);
       expect(result.stderr).not.toContain("Either sourcePath or metadataPath");
       expect(result.stderr).not.toContain("No source artifact found");
+    }
+  });
+
+  test("replay CLI refuses minimized output paths through symlinked ancestors", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-replay-out-link-"));
+    const runner = (source: string): PipelineOutcome => {
+      if (source.includes("trigger") && source.includes("crash")) {
+        return {
+          ok: false,
+          stage: "codegen",
+          crash: new Error("synthetic crash"),
+          message: "synthetic crash",
+        };
+      }
+
+      return {
+        ok: false,
+        stage: "parser",
+        expectedError: true,
+        message: "synthetic parse rejection",
+      };
+    };
+
+    try {
+      const sourcePath = join(tempRoot, "crash.bpl");
+      const metadataPath = join(tempRoot, "crash.json");
+      const realRoot = join(tempRoot, "real-root");
+      const linkedRoot = join(tempRoot, "linked-root");
+      const realOutDir = join(realRoot, "out");
+      const outPath = join(linkedRoot, "out", "crash.min.bpl");
+
+      writeFileSync(sourcePath, "noise trigger removable crash tail");
+      writeFileSync(
+        metadataPath,
+        JSON.stringify(
+          {
+            seed: 0x7777,
+            iteration: 4,
+            kind: "tokens",
+            sourcePath,
+            stage: "codegen",
+            failureKind: "crash",
+          },
+          null,
+          2,
+        ),
+      );
+      mkdirSync(realOutDir, { recursive: true });
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      const replayWithOutput = (minimizedOutPath: string) => () =>
+        runFuzzReplayCli(
+          [
+            "--metadata",
+            metadataPath,
+            "--minimize",
+            "--out",
+            minimizedOutPath,
+          ],
+          {
+            runner,
+            stdout: () => {},
+          },
+        );
+
+      expect(replayWithOutput(outPath)).toThrow(
+        "Fuzz replay output parent contains a symbolic link",
+      );
+      expect(existsSync(join(realOutDir, "crash.min.bpl"))).toBe(false);
+
+      const targetOutputPath = join(tempRoot, "target.min.bpl");
+      const linkedOutputPath = join(tempRoot, "linked.min.bpl");
+      writeFileSync(targetOutputPath, "stale");
+      symlinkSync(targetOutputPath, linkedOutputPath, "file");
+
+      expect(replayWithOutput(linkedOutputPath)).toThrow(
+        "Fuzz replay output path is a symbolic link",
+      );
+      expect(readFileSync(targetOutputPath, "utf8")).toBe("stale");
+
+      const fileParentPath = join(tempRoot, "not-a-directory");
+      writeFileSync(fileParentPath, "plain file");
+      expect(replayWithOutput(join(fileParentPath, "crash.min.bpl"))).toThrow(
+        "Fuzz replay output parent is not a directory",
+      );
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
     }
   });
 
