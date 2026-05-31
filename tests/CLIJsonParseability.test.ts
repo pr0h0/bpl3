@@ -509,19 +509,46 @@ describe("CLI JSON parseability", () => {
     const sourceDir = path.join(tempDir, "source-dir");
     fs.mkdirSync(sourceDir);
 
+    const assertValidationFailure = (
+      result: SpawnSyncReturns<string>,
+      expectedError: string,
+      expectedFile?: string,
+    ) => {
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(parseJsonObjectStdout(result)).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        ...(expectedFile ? { file: expectedFile } : {}),
+        error: expect.stringContaining(expectedError),
+      });
+    };
+
     const inputFailure = runCli(["build", sourceDir, "--json"]);
-    expect(inputFailure.status).toBe(1);
-    expect(parseJsonObjectStdout(inputFailure)).toMatchObject({
-      schemaVersion: 1,
-      check: "build",
-      success: false,
-      file: sourceDir,
-      error: expect.stringContaining("Input path is not a file"),
-    });
+    assertValidationFailure(
+      inputFailure,
+      "Input path is not a file",
+      sourceDir,
+    );
 
     const validSource = path.join(tempDir, "valid.bpl");
     const missingParentOutput = path.join(tempDir, "missing", "app");
     fs.writeFileSync(validSource, "frame main() ret int { return 0; }\n");
+
+    const validationCases: Array<[string[], string]> = [
+      [["build", validSource, "--json", "-O", "debug"], "Invalid optimization"],
+      [["build", validSource, "--json", "--emit", "bytecode"], "Invalid emit"],
+      [
+        ["build", validSource, "--json", "--wasm-runtime", "wasi"],
+        "Invalid wasm runtime",
+      ],
+      [["build", validSource, "--json", "--jobs", "0"], "Invalid jobs count"],
+    ];
+
+    for (const [args, expectedError] of validationCases) {
+      assertValidationFailure(runCli(args), expectedError, validSource);
+    }
 
     const outputFailure = runCli([
       "build",
@@ -530,14 +557,27 @@ describe("CLI JSON parseability", () => {
       "-o",
       missingParentOutput,
     ]);
-    expect(outputFailure.status).toBe(1);
-    expect(parseJsonObjectStdout(outputFailure)).toMatchObject({
-      schemaVersion: 1,
-      check: "build",
-      success: false,
-      file: validSource,
-      error: expect.stringContaining("Output directory not found"),
-    });
+    assertValidationFailure(
+      outputFailure,
+      "Output directory not found",
+      validSource,
+    );
     expect(fs.existsSync(`${missingParentOutput}.ll`)).toBe(false);
+
+    const executableDirectoryOutput = path.join(tempDir, "app-dir");
+    fs.mkdirSync(executableDirectoryOutput);
+    const executablePathFailure = runCli([
+      "build",
+      validSource,
+      "--json",
+      "-o",
+      executableDirectoryOutput,
+    ]);
+    assertValidationFailure(
+      executablePathFailure,
+      "Output path is a directory",
+      validSource,
+    );
+    expect(fs.existsSync(`${executableDirectoryOutput}.ll`)).toBe(false);
   });
 });

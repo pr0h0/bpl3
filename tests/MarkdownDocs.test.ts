@@ -165,6 +165,8 @@ describe("Markdown documentation", () => {
       "### CLI JSON compatibility policy",
       "bpl build --json",
       "include `diagnostics` when the failure comes from compiler diagnostics",
+      "Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors",
+      "do not leave failed LLVM or executable artifacts behind",
       "bpl check --json",
       'check: "check"',
       "Import-resolution failures use the same diagnostic objects as type errors",

@@ -38,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Run-Script JSON Errors** - `bpl run-script --json` now reports manifest and
   script validation failures as machine-readable `{ success, error }` JSON while
   preserving human-readable logger output without `--json`.
+- **Build JSON Validation Coverage** - `bpl build --json` now has explicit
+  regression coverage and docs for invalid compiler options, input/output path
+  validation, stdout-only failure reports, and no failed artifact leftovers.
 - **Check JSON Stability** - `bpl check --json` now includes stable
   `schemaVersion: 1` and `check: "check"` metadata alongside the existing
   aggregate totals, timing, per-file diagnostics, and validation errors.
