@@ -339,6 +339,26 @@ describe("Release metadata", () => {
     );
   });
 
+  test("release smoke validates packed check and lint validation error codes", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI check/lint validation JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "runPackedSourceAnalysisValidationJsonSmoke",
+    );
+    expect(releaseSmokeSource).toContain("BPL_CHECK_INPUT_NOT_FILE");
+    expect(releaseSmokeSource).toContain("BPL_LINT_INPUT_SYMLINK");
+    expect(releaseSmokeSource).toContain("parseCheckReport");
+    expect(releaseSmokeSource).toContain("parseLintReport");
+    expect(releaseSmokeSource).toContain('["check", "--json"');
+    expect(releaseSmokeSource).toContain('["lint", "--json"');
+  });
+
   test("release smoke guards packed sanitizer doctor JSON contract", async () => {
     const releaseSmoke = (await import("../tools/release_smoke")) as {
       assertSanitizerDoctorContract?: (report: unknown) => void;

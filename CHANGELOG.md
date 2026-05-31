@@ -100,6 +100,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Check/Lint Validation Repros** - `bun run ci:triage` now maps
   `BPL_CHECK_INPUT_*` and `BPL_LINT_INPUT_*` failures to focused source-analysis
   JSON contract repro commands.
+- **Packed Check/Lint Validation Smoke** - Release smoke now checks that the
+  packed npm CLI preserves `bpl check --json` and `bpl lint --json` input
+  validation `errorCode` output such as `BPL_CHECK_INPUT_NOT_FILE` and
+  `BPL_LINT_INPUT_SYMLINK`.
 - **Build JSON Validation Coverage** - `bpl build --json` now has explicit
   regression coverage and docs for invalid compiler options, input/output path
   validation, stdout-only failure reports, and no failed artifact leftovers.

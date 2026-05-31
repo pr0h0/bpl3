@@ -125,6 +125,7 @@ interface CheckReport {
     success: boolean;
     diagnostics?: CheckDiagnostic[];
     error?: string;
+    errorCode?: string;
   }>;
 }
 
@@ -145,6 +146,7 @@ interface LintReport {
     success: boolean;
     diagnostics?: Array<{ code?: unknown; severityLabel?: unknown }>;
     error?: string;
+    errorCode?: string;
   }>;
 }
 
@@ -444,6 +446,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageImportDiagnosticCodeSmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
     runPackedLintJsonSmoke(installedBpl);
+    runPackedSourceAnalysisValidationJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runPackedRunScriptListJsonSmoke(installedBpl);
@@ -1221,6 +1224,108 @@ function runPackedLintJsonSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI lint JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(
+    join(tmpdir(), "bpl-release-source-validation-"),
+  );
+  const sourceDir = join(tempDir, "src");
+  const sourcePath = join(tempDir, "main.bpl");
+  const linkedSourcePath = join(tempDir, "linked.bpl");
+
+  try {
+    mkdirSync(sourceDir);
+    writeFileSync(sourcePath, "frame main() ret int { return 0; }\n");
+    symlinkSync(sourcePath, linkedSourcePath, "file");
+
+    console.log(
+      "release smoke: check packed npm CLI check/lint validation JSON",
+    );
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const checkResult = spawnSync(
+      installedBpl,
+      ["check", "--json", sourceDir],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+    const lintResult = spawnSync(
+      installedBpl,
+      ["lint", "--json", linkedSourcePath],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (checkResult.error) throw checkResult.error;
+    if (lintResult.error) throw lintResult.error;
+    if (checkResult.status !== 1 || lintResult.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI source-analysis validation smoke did not fail as expected.",
+          `check exit: ${checkResult.status ?? "unknown"}`,
+          `check stdout:\n${checkResult.stdout}`,
+          `check stderr:\n${checkResult.stderr}`,
+          `lint exit: ${lintResult.status ?? "unknown"}`,
+          `lint stdout:\n${lintResult.stdout}`,
+          `lint stderr:\n${lintResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (checkResult.stderr !== "" || lintResult.stderr !== "") {
+      throw new Error(
+        [
+          "Packed npm CLI source-analysis validation JSON wrote stderr.",
+          `check stderr:\n${checkResult.stderr}`,
+          `lint stderr:\n${lintResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    const checkReport = parseCheckReport(checkResult.stdout);
+    const lintReport = parseLintReport(lintResult.stdout);
+    const checkFileReport = checkReport.files[0];
+    const lintFileReport = lintReport.files[0];
+    if (
+      checkReport.success ||
+      checkReport.totalFiles !== 1 ||
+      checkReport.errorCount !== 1 ||
+      checkReport.files.length !== 1 ||
+      checkFileReport?.file !== sourceDir ||
+      checkFileReport.success ||
+      checkFileReport.error !== "Input path is not a file" ||
+      checkFileReport.errorCode !== "BPL_CHECK_INPUT_NOT_FILE" ||
+      lintReport.success ||
+      lintReport.totalFiles !== 1 ||
+      lintReport.errorCount !== 1 ||
+      lintReport.files.length !== 1 ||
+      lintFileReport?.file !== linkedSourcePath ||
+      lintFileReport.success ||
+      lintFileReport.error !== "Input path is a symbolic link" ||
+      lintFileReport.errorCode !== "BPL_LINT_INPUT_SYMLINK"
+    ) {
+      throw new Error(
+        [
+          "Packed npm CLI source-analysis validation JSON reported unexpected payload.",
+          `check:\n${JSON.stringify(checkReport, null, 2)}`,
+          `lint:\n${JSON.stringify(lintReport, null, 2)}`,
+        ].join("\n"),
       );
     }
   } finally {
