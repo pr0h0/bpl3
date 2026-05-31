@@ -1116,6 +1116,125 @@ describe("Package Manager CLI", () => {
       );
     });
 
+    test("should report malformed and unsafe cache provenance as JSON issues", () => {
+      const appDir = path.join(tempDir, "cache-json-edge-app");
+      const homeDir = path.join(tempDir, "cache-json-edge-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      const malformedCachePath = path.join(cacheDir, "cache-bad-1.0.0.tgz");
+      const linkedCachePath = path.join(cacheDir, "cache-link-1.0.0.tgz");
+      const linkedProvenancePath = `${linkedCachePath}.bplmeta.json`;
+      const outsideProvenancePath = path.join(
+        tempDir,
+        "outside-cache-provenance.json",
+      );
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "cache-json-edge-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(malformedCachePath, "legacy malformed provenance");
+      fs.writeFileSync(`${malformedCachePath}.bplmeta.json`, "{not-json");
+      fs.writeFileSync(linkedCachePath, "legacy linked provenance");
+      fs.writeFileSync(outsideProvenancePath, "{}");
+      fs.symlinkSync(outsideProvenancePath, linkedProvenancePath, "file");
+
+      const env = {
+        ...process.env,
+        HOME: homeDir,
+      };
+
+      const verifyResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "verify", "--json"],
+        {
+          cwd: appDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(verifyResult.status).toBe(1);
+      const verification = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        ok: boolean;
+        entriesChecked: number;
+        issues: Array<{
+          packageName: string;
+          kind: string;
+          message: string;
+          path: string;
+          provenancePath: string;
+        }>;
+      }>(verifyResult);
+      expect(verification).toMatchObject({
+        schemaVersion: 1,
+        check: "package-cache-verify",
+        success: false,
+        ok: false,
+        entriesChecked: 2,
+      });
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "cache-bad",
+          kind: "invalid-provenance",
+          message: expect.stringContaining("invalid package provenance"),
+          path: malformedCachePath,
+          provenancePath: `${malformedCachePath}.bplmeta.json`,
+        }),
+      );
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "cache-link",
+          kind: "invalid-provenance",
+          message: expect.stringContaining("symbolic link"),
+          path: linkedCachePath,
+          provenancePath: linkedProvenancePath,
+        }),
+      );
+
+      const doctorResult = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(doctorResult.status).toBe(0);
+      const doctor = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        cacheVerification: { issues: Array<{ kind: string; path: string }> };
+        issues: Array<{ severity: string; kind: string; path: string }>;
+      }>(doctorResult);
+      expect(doctor).toMatchObject({
+        schemaVersion: 1,
+        check: "packages",
+        success: true,
+      });
+      expect(
+        doctor.cacheVerification.issues.map((issue) => issue.kind),
+      ).toContain("invalid-provenance");
+      expect(doctor.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "warning",
+          kind: "package-cache-invalid-provenance",
+          path: malformedCachePath,
+        }),
+      );
+      expect(doctor.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "warning",
+          kind: "package-cache-invalid-provenance",
+          path: linkedCachePath,
+        }),
+      );
+    });
+
     test("should repair missing cache provenance for valid archives", () => {
       const homeDir = path.join(tempDir, "cache-repair-home");
       const cacheDir = path.join(homeDir, ".bpl", "packages");

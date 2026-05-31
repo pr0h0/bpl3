@@ -180,6 +180,8 @@ describe("Markdown documentation", () => {
       "bpl doctor packages --json",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",
+      "invalid-provenance",
+      "`provenancePath`",
       "bpl package-cache clean [package] --json",
       "bpl package-cache repair [package] --json",
       "bpl run-script --list --json",

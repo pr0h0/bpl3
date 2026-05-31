@@ -446,7 +446,10 @@ parent is rejected instead of followed.
 sidecar schema, the archive hash, the archive file name, the manifest identity,
 and the extracted package content hash. Missing sidecars are reported as
 `missing-provenance` so older caches remain visible instead of being silently
-trusted. The `--json` report uses `schemaVersion: 1`,
+trusted. Malformed sidecars and symlinked provenance paths are reported as
+`invalid-provenance` issues with the cache archive path and sidecar
+`provenancePath`, so automation can flag unsafe cache metadata without
+following it. The `--json` report uses `schemaVersion: 1`,
 `check: "package-cache-verify"`, `success`, the legacy `ok` boolean,
 `entriesChecked`, and structured provenance `issues`.
 `bpl doctor packages` includes the same cache verification result in its JSON
