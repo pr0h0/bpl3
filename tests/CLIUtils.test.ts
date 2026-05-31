@@ -42,6 +42,7 @@ describe("CLI utils", () => {
 
     try {
       fs.writeFileSync(outputPath, "old\n", { mode: 0o744 });
+      fs.chmodSync(outputPath, 0o744);
 
       writeFileAtomically(outputPath, "new\n");
 
