@@ -363,6 +363,31 @@ describe("CLI JSON parseability", () => {
     }
   });
 
+  test("keeps package install JSON parseable with invalid package timeout environment", () => {
+    const tarballPath = path.join(tempDir, "not-a-package.tgz");
+    fs.writeFileSync(tarballPath, "not a tarball\n");
+
+    const result = runCli(["install", tarballPath, "--json"], {
+      cwd: tempDir,
+      env: { BPL_PACKAGE_TOOL_TIMEOUT_MS: "0" },
+    });
+
+    const report = expectJsonStdoutReport<{
+      target: string;
+      error: string;
+    }>(result, {
+      status: 1,
+      check: "package-install",
+      success: false,
+    });
+    expect(report.target).toBe(tarballPath);
+    expect(report.error).toContain("Failed to inspect package archive");
+    expect(report.error).not.toContain(
+      "Ignoring invalid BPL_PACKAGE_TOOL_TIMEOUT_MS",
+    );
+    expect(result.stderr).toBe("");
+  });
+
   test("keeps package install JSON success stdout parseable", () => {
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
