@@ -167,6 +167,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-158 | Package Manager     | Local uninstall removes package files before rejecting a broken symlink `bpl.lock`.                                        | Fixed    | `uninstall()` now preloads and validates an existing local lockfile before unlinking binaries or removing package directories. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
 | BUG-159 | Package Manager     | Dependency-tree generation ignores broken symlink `bpl.lock` paths and reports packages as unlocked.                       | Fixed    | `getDependencyTree()` now uses `lstat` to detect existing local lockfile paths before loading them, so symlinked and broken symlink lockfiles are rejected consistently. Regression: `tests/PackageManager.test.ts`.                                                                        |
 | BUG-160 | Package Manager     | Dependency-tree generation follows symlinked package roots in `bpl_modules`.                                               | Fixed    | Dependency-tree node construction now classifies package roots with `lstat` and reports symlinked or non-directory roots as problems without loading manifests through them. Regression: `tests/PackageManager.test.ts`.                                                                    |
+| BUG-161 | Package Manager     | Package-cache clean leaves broken symlink provenance sidecars behind.                                                      | Fixed    | `cleanPackageCache()` now uses `lstat` to remove provenance sidecars, including broken symlinks, before deleting cached archives. Regression: `tests/PackageManager.test.ts`.                                                                                                               |
 
 ## Details
 
@@ -2481,3 +2482,33 @@ outside target as an installed package.
 **Resolution**: Dependency-tree node construction now classifies package roots
 with `lstat`, reports symlinked and non-directory roots as problems, and only
 loads manifests from real package directories.
+
+---
+
+### BUG-161: Package Cache Clean Leaves Broken Provenance Symlinks
+
+**Status**: Fixed
+
+**Category**: Package Manager/Safety
+
+**Description**: `cleanPackageCache()` used `fs.existsSync()` before removing
+the provenance sidecar associated with a cached archive. Since `existsSync()`
+follows symlinks, a broken symlink sidecar was treated as absent. The cache
+archive was deleted, but the dangling `.bplmeta.json` symlink remained.
+
+**Reproduction**:
+
+```bash
+bpl package-cache list example
+# Replace example-1.0.0.tgz.bplmeta.json with a symlink to a missing path.
+bpl package-cache clean example --package-version 1.0.0
+```
+
+**Expected**: Cache clean removes both the archive and the symlink sidecar path.
+
+**Actual**: Cache clean removed the archive but left the broken symlink
+sidecar.
+
+**Resolution**: `cleanPackageCache()` now uses `lstat` for provenance sidecar
+removal, so valid-target symlinks, broken symlinks, malformed directories, and
+regular sidecar files are all cleaned without following symlink targets.

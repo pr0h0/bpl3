@@ -3282,6 +3282,41 @@ describe("PackageManager", () => {
       expect(fs.existsSync(outsideProvenancePath)).toBe(true);
     });
 
+    test("should clean broken symlink package cache provenance", () => {
+      const globalPackageDir = path.join(tempDir, "cache-broken-provenance-link");
+      fs.mkdirSync(globalPackageDir);
+
+      const cachePath = createCachedPackage(
+        "cache-broken-provenance-link",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      const provenancePath = `${cachePath}.bplmeta.json`;
+      fs.unlinkSync(provenancePath);
+      fs.symlinkSync(
+        path.join(tempDir, "missing-cache-provenance.json"),
+        provenancePath,
+        "file",
+      );
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const entries = localPM.listPackageCache("cache-broken-provenance-link");
+      expect(entries.length).toBe(1);
+      expect(entries[0]!.provenanceStatus).toBe("invalid");
+      expect(entries[0]!.provenanceIssue).toContain("symbolic link");
+
+      const clean = localPM.cleanPackageCache({
+        packageName: "cache-broken-provenance-link",
+      });
+
+      expect(clean.removed.length).toBe(1);
+      expect(fs.existsSync(cachePath)).toBe(false);
+      expect(() => fs.lstatSync(provenancePath)).toThrow();
+    });
+
     test("should verify package cache provenance and report tampered archives", () => {
       const globalPackageDir = path.join(tempDir, "cache-verify-packages");
       fs.mkdirSync(globalPackageDir);

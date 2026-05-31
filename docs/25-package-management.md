@@ -393,7 +393,8 @@ cached version in `X.Y.Z` form; dependency ranges such as `^1.2.3` belong in
 `package-cache clean` removes cached archives only. It does not remove installed
 packages from `bpl_modules/`; use `bpl uninstall <package>` for that. When a
 cached archive has a provenance sidecar, `package-cache clean` removes both
-files together. Use `--json` to return `schemaVersion: 1`,
+files together, including malformed sidecar directories and symlink sidecars
+whose targets may already be missing. Use `--json` to return `schemaVersion: 1`,
 `check: "package-cache-clean"`, `success`, the removed archive list, and dry-run
 state in machine-readable form.
 `bpl uninstall <package>` only removes real installed package directories. If

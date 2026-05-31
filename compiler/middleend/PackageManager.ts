@@ -3403,8 +3403,8 @@ export class PackageManager {
 
     if (!options.dryRun) {
       for (const entry of removed) {
-        if (fs.existsSync(entry.provenancePath)) {
-          const provenanceStats = fs.lstatSync(entry.provenancePath);
+        const provenanceStats = this.tryLstat(entry.provenancePath);
+        if (provenanceStats) {
           fs.rmSync(entry.provenancePath, {
             recursive: provenanceStats.isDirectory(),
             force: true,
