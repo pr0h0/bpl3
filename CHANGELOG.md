@@ -58,8 +58,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
 - **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed
-  npm CLI's `fuzz:replay` and `fuzz:promote` usage-error paths before artifact
-  replay or corpus promotion.
+  npm CLI's `fuzz`, `fuzz:replay`, and `fuzz:promote` usage-error paths before
+  campaign startup, artifact replay, or corpus promotion.
 - **Run-Script JSON Errors** - `bpl run-script --json` now reports manifest and
   script validation failures as machine-readable `{ success, error }` JSON while
   preserving human-readable logger output without `--json`.

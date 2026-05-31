@@ -1012,6 +1012,22 @@ function runPackedHelperScriptSmoke(installDir: string): void {
   );
 
   runExpectedFailureStep(
+    "check packed npm CLI fuzz runner usage errors",
+    "npm",
+    ["run", "fuzz", "--", "--iterations", "--crash-dir", "fuzz/crashes"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--iterations requires a value",
+      forbiddenOutputIncludes: [
+        "Starting compiler fuzz campaign",
+        "requires a source checkout",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
     "check packed npm CLI fuzz replay usage errors",
     "npm",
     ["run", "fuzz:replay", "--", "--metadata", "--mode", "parser"],
