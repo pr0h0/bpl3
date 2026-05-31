@@ -42,6 +42,7 @@ export interface FuzzArtifactReproEntry {
 }
 
 export interface FuzzArtifactReproPlan {
+  schemaVersion: typeof FUZZ_ARTIFACT_REPRO_SCHEMA_VERSION;
   inputPath: string;
   repoRoot: string;
   entries: FuzzArtifactReproEntry[];
@@ -55,6 +56,7 @@ interface CliOptions {
 
 const ALL_REPLAY_MODES =
   "parser,typecheck,codegen,runtime,differential,sanitizer";
+const FUZZ_ARTIFACT_REPRO_SCHEMA_VERSION = 1;
 const CLI_OPTIONS_WITH_VALUES = new Set(["input", "repo-root"]);
 const CLI_FLAG_OPTIONS = new Set(["json"]);
 
@@ -90,6 +92,7 @@ export function buildFuzzArtifactReproPlan(
   }
 
   return {
+    schemaVersion: FUZZ_ARTIFACT_REPRO_SCHEMA_VERSION,
     inputPath: toDisplayPath(absoluteInputPath, repoRoot),
     repoRoot,
     entries: entries.sort((left, right) =>

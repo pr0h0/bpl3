@@ -206,6 +206,82 @@ describe("Fuzz artifact repro helper", () => {
     expect(result.stdout).toContain("fuzz/crashes");
   });
 
+  test("prints a versioned JSON repro plan for automation", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-repro-json-"));
+    const metadataName = "crash_seed-feed_iter-4_tokens.json";
+    const metadataPath = join(crashDir, metadataName);
+
+    try {
+      writeFileSync(
+        join(crashDir, "crash_seed-feed_iter-4_tokens.bpl"),
+        "frame main() ret int { return 0; }\n",
+      );
+      writeFileSync(
+        metadataPath,
+        JSON.stringify(
+          {
+            seedHex: "feed",
+            pass: 4,
+            kind: "tokens",
+            failure: {
+              kind: "crash",
+              stage: "parser",
+              message: "synthetic parser crash",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:repro",
+          "--",
+          "--input",
+          metadataPath,
+          "--repo-root",
+          crashDir,
+          "--json",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      const plan = JSON.parse(result.stdout);
+      expect(plan).toMatchObject({
+        schemaVersion: 1,
+        inputPath: metadataName,
+        entries: [
+          {
+            metadataPath: metadataName,
+            sourcePath: "crash_seed-feed_iter-4_tokens.bpl",
+            seedHex: "0xfeed",
+            iteration: 4,
+            inputKind: "tokens",
+            failureKind: "crash",
+            stage: "parser",
+            message: "synthetic parser crash",
+          },
+        ],
+      });
+      expect(plan.entries[0].commands).toEqual([
+        `bun run fuzz:replay -- --metadata ${metadataName}`,
+        `bun run fuzz:replay -- --metadata ${metadataName} --mode parser,typecheck,codegen,runtime,differential,sanitizer`,
+        `bun run fuzz:replay -- --metadata ${metadataName} --minimize --out crash_seed-feed_iter-4_tokens.min.bpl`,
+        `bun run fuzz -- --iterations 5 --seeds 0xfeed --minimize true --minimize-passes 8`,
+        `bun run fuzz:promote -- --metadata ${metadataName} --name crash-seed-feed-iter-4-tokens`,
+      ]);
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
   test("rejects missing CLI option values as usage errors", () => {
     const cases: Array<[string[], string]> = [
       [["--input", "--json"], "--input requires a value"],
