@@ -280,6 +280,84 @@ describe("Package JSON failure contracts", () => {
     }
   });
 
+  test("surfaces stable package-cache package filter error codes", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-cache-name-codes-"));
+
+    try {
+      const cases: Array<{
+        args: string[];
+        expectedCheck: string;
+        expectedPayload: Record<string, unknown>;
+      }> = [
+        {
+          args: ["package-cache", "list", "Bad_Name", "--json"],
+          expectedCheck: "package-cache-list",
+          expectedPayload: { entries: [] },
+        },
+        {
+          args: ["package-cache", "verify", "Bad_Name", "--json"],
+          expectedCheck: "package-cache-verify",
+          expectedPayload: {
+            ok: false,
+            entriesChecked: 0,
+            issues: [],
+          },
+        },
+        {
+          args: [
+            "package-cache",
+            "clean",
+            "Bad_Name",
+            "--dry-run",
+            "--json",
+          ],
+          expectedCheck: "package-cache-clean",
+          expectedPayload: {
+            removed: [],
+            dryRun: true,
+          },
+        },
+        {
+          args: [
+            "package-cache",
+            "repair",
+            "Bad_Name",
+            "--dry-run",
+            "--json",
+          ],
+          expectedCheck: "package-cache-repair",
+          expectedPayload: {
+            dryRun: true,
+            repaired: [],
+            unchanged: [],
+            issues: [],
+          },
+        },
+      ];
+
+      for (const testCase of cases) {
+        const report = expectJsonStdoutReport(
+          runCli(
+            testCase.args,
+            cleanPackageRoot(tempDir, testCase.expectedCheck),
+          ),
+          {
+            status: 1,
+            check: testCase.expectedCheck,
+            success: false,
+          },
+        );
+        expect(report).toMatchObject({
+          ...testCase.expectedPayload,
+          error: expect.stringContaining("Invalid package name"),
+          errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID",
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("surfaces stable package install option conflict error codes", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-option-codes-"));
 

@@ -3502,6 +3502,8 @@ export class PackageManager {
   }
 
   listPackageCache(packageName?: string): PackageCacheEntry[] {
+    validatePackageCachePackageNameFilter(packageName);
+
     if (
       !this.readPackageManagerDirectoryStats(
         this.globalPackageDir,
@@ -4351,6 +4353,24 @@ function validatePackageCacheVersionFilter(version: string | undefined): void {
       "BPL_PACKAGE_CACHE_VERSION_INVALID",
     );
   }
+}
+
+function validatePackageCachePackageNameFilter(
+  packageName: string | undefined,
+): void {
+  if (packageName === undefined) return;
+
+  validatePackageName(
+    packageName,
+    {
+      file: "package-cache",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    },
+    "BPL_PACKAGE_CACHE_NAME_INVALID",
+  );
 }
 
 function defaultPackageNameFromDirectory(dir: string): string {
