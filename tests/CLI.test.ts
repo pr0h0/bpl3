@@ -356,6 +356,93 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should preserve missing relative import diagnostics across CLI modes", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-missing-import-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "missing-import-app");
+    const llvmFile = `${outputFile}.ll`;
+    const importSource = "./missing/util.bpl";
+    const resolvedImportPath = path.resolve(tempDir, importSource);
+    fs.writeFileSync(
+      sourceFile,
+      [
+        `import helper from "${importSource}";`,
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const expectMissingImportDiagnostic = (message: string) => {
+        expect(message).toContain(`Module not found: ${importSource}`);
+        expect(message).toContain(resolvedImportPath);
+      };
+
+      const checkResult = runCLI(["check", sourceFile]);
+      expect(checkResult.status).toBe(1);
+      expectMissingImportDiagnostic(checkResult.stderr);
+
+      const checkJsonResult = runCLI(["check", "--json", sourceFile]);
+      expect(checkJsonResult.status).toBe(1);
+      const checkJsonReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        totalFiles: number;
+        errorCount: number;
+        files: Array<{
+          file: string;
+          success: boolean;
+          diagnostics: Array<{
+            message: string;
+            location: { file: string; start: { line: number; column: number } };
+          }>;
+        }>;
+      }>(checkJsonResult);
+      expect(checkJsonReport).toMatchObject({
+        schemaVersion: 1,
+        check: "check",
+        success: false,
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: sourceFile,
+            success: false,
+            diagnostics: [
+              {
+                location: {
+                  file: sourceFile,
+                  start: { line: 1, column: 1 },
+                },
+              },
+            ],
+          },
+        ],
+      });
+      expectMissingImportDiagnostic(
+        checkJsonReport.files[0]!.diagnostics[0]!.message,
+      );
+
+      const buildResult = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+      expect(buildResult.status).toBe(1);
+      expectMissingImportDiagnostic(buildResult.stderr);
+      expect(fs.existsSync(llvmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should preserve package resolver diagnostics across import build modes", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-package-diagnostic-"),
