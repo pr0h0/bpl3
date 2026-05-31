@@ -277,7 +277,8 @@ must match their manifest `version`. The resolver does not follow symlinked
 package roots, manifests, entry files, or subpath entries; malformed packages
 are treated as package metadata instead of silently importing a different
 package. Symlinked package entrypoint and subpath candidates also block
-lower-priority `.x` fallbacks for that package import.
+lower-priority `.x` fallbacks for that package import, including package
+directory `index.bpl` candidates before `index.x`.
 
 Entry module paths and import candidates are checked before parsing. Missing
 files, directories, and broken symlink paths produce distinct diagnostics.

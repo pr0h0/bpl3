@@ -427,7 +427,12 @@ function resolvePackageSourcePath(
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
         trace.entryCandidates.push(indexPath);
-        if (tryLstat(indexPath)?.isFile()) {
+        const indexStats = tryLstat(indexPath);
+        if (indexStats?.isSymbolicLink()) {
+          failOnSymlinkedSourceCandidate(indexPath, trace);
+          return null;
+        }
+        if (indexStats?.isFile()) {
           return indexPath;
         }
       }
