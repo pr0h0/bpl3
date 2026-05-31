@@ -81,6 +81,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Doctor Scope JSON Code** - Unknown doctor scopes now include stable
   `BPL_DOCTOR_SCOPE_UNKNOWN` in JSON mode, with a focused repro at
   `bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"`.
+- **Packed Doctor Scope JSON Smoke** - Release smoke now checks packed
+  `bpl doctor unknown-scope --json` preserves `BPL_DOCTOR_SCOPE_UNKNOWN`.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing

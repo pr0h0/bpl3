@@ -59,6 +59,7 @@ interface DoctorFailureReport {
   check: "doctor";
   success: boolean;
   error: string;
+  errorCode?: string;
 }
 
 interface PackageDoctorReport {
@@ -610,6 +611,7 @@ function runPackedDoctorFailureJsonSmoke(
   const report = parseDoctorFailureReport(result.stdout);
   if (
     report.success ||
+    report.errorCode !== "BPL_DOCTOR_SCOPE_UNKNOWN" ||
     !report.error.includes("Unknown doctor scope 'unknown-scope'")
   ) {
     throw new Error(

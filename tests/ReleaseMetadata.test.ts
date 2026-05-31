@@ -493,6 +493,20 @@ describe("Release metadata", () => {
     ).toThrow("wasm linker check missing checked candidates");
   });
 
+  test("release smoke validates packed doctor scope JSON error code", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI doctor failure JSON",
+    );
+    expect(releaseSmokeSource).toContain("BPL_DOCTOR_SCOPE_UNKNOWN");
+    expect(releaseSmokeSource).toContain("parseDoctorFailureReport");
+    expect(releaseSmokeSource).toContain("errorCode");
+  });
+
   test("release smoke validates packed package install JSON output", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),
