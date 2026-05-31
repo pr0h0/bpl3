@@ -4200,6 +4200,36 @@ describe("PackageManager", () => {
       return new PackageManager(packageDir).pack(packageDir);
     }
 
+    function createUninstallArchiveWithBin(
+      packageName: string,
+      commandName = "tool",
+    ): string {
+      const packageDir = path.join(tempDir, `${packageName}-source`);
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: packageName,
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              [commandName]: "bin/tool.sh",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      return new PackageManager(packageDir).pack(packageDir);
+    }
+
     function writeInstalledPackage(rootDir: string, packageName: string): string {
       const packagePath = path.join(rootDir, packageName);
       fs.mkdirSync(packagePath, { recursive: true });
@@ -4327,6 +4357,101 @@ describe("PackageManager", () => {
       expect(fs.existsSync(path.join(outsidePackagePath, "bpl.json"))).toBe(
         true,
       );
+    });
+
+    test("should reject swapped local binary directories that become symlinks before uninstall", () => {
+      const tarballPath = createUninstallArchiveWithBin(
+        "swapped-local-bin-uninstall",
+        "local-tool",
+      );
+      const appDir = path.join(tempDir, "swapped-local-bin-uninstall-app");
+      const outsideBinDir = path.join(tempDir, "outside-local-bin-dir");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(outsideBinDir);
+
+      const localPM = new PackageManager(appDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      const packagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "swapped-local-bin-uninstall",
+      );
+      const localBinDir = path.join(appDir, "bpl_modules", ".bin");
+      const outsideTool = path.join(outsideBinDir, "local-tool");
+      fs.rmSync(localBinDir, { recursive: true, force: true });
+      fs.symlinkSync(path.join(packagePath, "bin", "tool.sh"), outsideTool);
+      fs.symlinkSync(outsideBinDir, localBinDir, "dir");
+
+      expect(() =>
+        localPM.uninstall("swapped-local-bin-uninstall", { global: false }),
+      ).toThrow(/Local binary directory path is a symbolic link/);
+      expect(fs.lstatSync(localBinDir).isSymbolicLink()).toBe(true);
+      expect(fs.lstatSync(outsideTool).isSymbolicLink()).toBe(true);
+      expect(fs.existsSync(packagePath)).toBe(true);
+    });
+
+    test("should reject swapped global binary directories that become symlinks before uninstall", () => {
+      const tarballPath = createUninstallArchiveWithBin(
+        "swapped-global-bin-uninstall",
+        "global-tool",
+      );
+      const appDir = path.join(tempDir, "swapped-global-bin-uninstall-app");
+      const globalPackageDir = path.join(
+        tempDir,
+        "swapped-global-bin-packages",
+      );
+      const globalBinDir = path.join(tempDir, "swapped-global-bin");
+      const outsideBinDir = path.join(tempDir, "outside-global-bin-dir");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(globalBinDir);
+      fs.mkdirSync(outsideBinDir);
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM["globalBinDir"] = globalBinDir;
+      localPM.install(tarballPath, { global: true, verbose: false });
+
+      const packagePath = path.join(
+        globalPackageDir,
+        "swapped-global-bin-uninstall",
+      );
+      const outsideTool = path.join(outsideBinDir, "global-tool");
+      fs.rmSync(globalBinDir, { recursive: true, force: true });
+      fs.symlinkSync(path.join(packagePath, "bin", "tool.sh"), outsideTool);
+      fs.symlinkSync(outsideBinDir, globalBinDir, "dir");
+
+      expect(() =>
+        localPM.uninstall("swapped-global-bin-uninstall", { global: true }),
+      ).toThrow(/Global binary directory path is a symbolic link/);
+      expect(fs.lstatSync(globalBinDir).isSymbolicLink()).toBe(true);
+      expect(fs.lstatSync(outsideTool).isSymbolicLink()).toBe(true);
+      expect(fs.existsSync(packagePath)).toBe(true);
+    });
+
+    test("should tolerate missing binary directories during uninstall", () => {
+      const tarballPath = createUninstallArchiveWithBin(
+        "missing-bin-dir-uninstall",
+      );
+      const appDir = path.join(tempDir, "missing-bin-dir-uninstall-app");
+      fs.mkdirSync(appDir);
+
+      const localPM = new PackageManager(appDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      const packagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "missing-bin-dir-uninstall",
+      );
+      fs.rmSync(path.join(appDir, "bpl_modules", ".bin"), {
+        recursive: true,
+        force: true,
+      });
+
+      localPM.uninstall("missing-bin-dir-uninstall", { global: false });
+      expect(fs.existsSync(packagePath)).toBe(false);
     });
 
     test("should reject broken symlink lockfiles before uninstall removes packages", () => {

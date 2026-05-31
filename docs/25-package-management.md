@@ -461,6 +461,10 @@ or removing `bpl_modules/<package>` or global package directories. If
 `bpl_modules/` or the configured global package directory is swapped to a
 symlink after the package manager starts, uninstall fails before reading or
 removing package files through the link.
+When uninstalling packages with `bin` entries, BPL also revalidates
+`bpl_modules/.bin` or the global BPL bin directory before unlinking command
+symlinks. Symlinked or non-directory bin roots are rejected; a missing bin
+directory is tolerated because there are no command links to remove.
 
 ## Package Scripts
 
