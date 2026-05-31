@@ -1361,7 +1361,7 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should format files in write mode atomically", () => {
+  it("should format files in write mode atomically and preserve executable permissions", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-format-write-"));
     const tempFile = path.join(tempDir, "main.bpl");
     const unformatted = "frame  main ( )  ret  int { return 0 ; }";
@@ -1369,7 +1369,7 @@ describe("CLI Tests", () => {
     try {
       fs.writeFileSync(tempFile, unformatted);
       if (process.platform !== "win32") {
-        fs.chmodSync(tempFile, 0o640);
+        fs.chmodSync(tempFile, 0o755);
       }
 
       const result = runCLI(["format", "--write", tempFile]);
@@ -1379,7 +1379,7 @@ describe("CLI Tests", () => {
         "frame main() ret int {",
       );
       if (process.platform !== "win32") {
-        expect(fs.statSync(tempFile).mode & 0o777).toBe(0o640);
+        expect(fs.statSync(tempFile).mode & 0o777).toBe(0o755);
       }
       expect(
         fs
