@@ -861,6 +861,46 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports package manifest symlink failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const linkedManifest = path.join(packageDir, "bpl.json");
+    const outsideManifest = path.join(tempDir, "outside-bpl.json");
+    const sourceFile = path.join(sourceDir, "manifest_symlink_import.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      outsideManifest,
+      JSON.stringify({
+        name: "pkg-math",
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
+    );
+    fs.symlinkSync(outsideManifest, linkedManifest, "file");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic?.message).toContain("invalid bpl.json");
+    expect(diagnostic?.message).toContain(linkedManifest);
+    expect(diagnostic?.message).not.toContain(outsideManifest);
+    expect(diagnostic?.hint).toContain("invalid bpl.json");
+    expect(diagnostic?.hint).toContain(linkedManifest);
+    expect(diagnostic?.hint).not.toContain(outsideManifest);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
