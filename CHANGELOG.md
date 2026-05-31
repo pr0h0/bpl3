@@ -69,6 +69,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Shared CLI JSON Contract Constants** - CLI and package-manager JSON report
   emitters now share one schema/check helper so package doctor and package-cache
   maintenance reports cannot drift from the documented contract strings.
+- **Package Cache Maintenance JSON Coverage** - Added parseability regression
+  coverage for empty `package-cache clean --dry-run --json` and
+  `package-cache repair --dry-run --json` reports.
 - **CLI JSON Contract Docs** - Added a machine-readable JSON contract table for
   check, lint, doctor, package doctor, package-cache verify, run-script, clean,
   and package list/tree commands.

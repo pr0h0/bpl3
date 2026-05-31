@@ -142,6 +142,45 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package-cache maintenance JSON stdout parseable", () => {
+    const homeDir = path.join(tempDir, "cache-maintenance-home");
+    fs.mkdirSync(homeDir);
+
+    const clean = runCli(
+      ["package-cache", "clean", "--dry-run", "--json"],
+      {
+        cwd: tempDir,
+        env: { HOME: homeDir },
+      },
+    );
+    expect(clean.status).toBe(0);
+    expect(parseJsonObjectStdout(clean)).toEqual({
+      schemaVersion: 1,
+      check: "package-cache-clean",
+      success: true,
+      removed: [],
+      dryRun: true,
+    });
+
+    const repair = runCli(
+      ["package-cache", "repair", "--dry-run", "--json"],
+      {
+        cwd: tempDir,
+        env: { HOME: homeDir },
+      },
+    );
+    expect(repair.status).toBe(0);
+    expect(parseJsonObjectStdout(repair)).toEqual({
+      schemaVersion: 1,
+      check: "package-cache-repair",
+      success: true,
+      dryRun: true,
+      repaired: [],
+      unchanged: [],
+      issues: [],
+    });
+  });
+
   test("keeps run-script list JSON stdout parseable", () => {
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
