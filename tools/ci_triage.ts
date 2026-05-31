@@ -205,6 +205,18 @@ const VERSION_JSON_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const JSON_COLOR_PURITY_STEP_PATTERN = new RegExp(
+  [
+    "forced-color JSON",
+    "JSON color-purity",
+    "JSON color purity",
+    "JSON string at \\$\\.[^ ]+ contains ANSI escape sequence",
+    "ANSI escape sequence.*JSON",
+    "build --json --color",
+    "check --json --color",
+  ].join("|"),
+  "i",
+);
 const DOCTOR_SCOPE_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_DOCTOR_SCOPE_UNKNOWN",
@@ -544,6 +556,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [VERSION_JSON_STEP_PATTERN, "bun test tests/JsonContracts.test.ts"],
   [VERSION_JSON_STEP_PATTERN, "bun run check"],
+  [
+    JSON_COLOR_PURITY_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "forced-color JSON"',
+  ],
+  [
+    JSON_COLOR_PURITY_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "explicit color flags"',
+  ],
+  [JSON_COLOR_PURITY_STEP_PATTERN, "bun run check"],
   [
     DOCTOR_SCOPE_JSON_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',

@@ -294,6 +294,26 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps JSON color-purity failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "forced-color JSON"',
+      'bun test tests/CLI.test.ts -t "explicit color flags"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep(
+        'JSON string at $.error contains ANSI escape sequence "\\u001b[1m"',
+      ),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("forced-color JSON contract failure")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("build --json --color emitted colored JSON"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps doctor scope JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
@@ -2042,6 +2062,69 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "version JSON"',
         "bun test tests/JsonContracts.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints JSON color-purity repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-json-color-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 80,
+              name: "JSON color-purity validation failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/80",
+              steps: [
+                {
+                  name: "JSON string at $.error contains ANSI escape sequence",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "forced-color JSON"',
+        'bun test tests/CLI.test.ts -t "explicit color flags"',
         "bun run check",
       ]);
     } finally {
