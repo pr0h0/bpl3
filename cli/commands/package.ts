@@ -288,7 +288,18 @@ export function registerPackageCommands(program: Command): void {
           const outputJson = options.json || globalOpts.json;
 
           if (outputJson) {
-            console.log(JSON.stringify(entries, null, 2));
+            console.log(
+              JSON.stringify(
+                {
+                  schemaVersion: 1,
+                  check: "package-cache-list",
+                  success: true,
+                  entries,
+                },
+                null,
+                2,
+              ),
+            );
             return;
           }
 

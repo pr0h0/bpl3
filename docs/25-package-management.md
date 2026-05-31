@@ -330,6 +330,10 @@ bpl package-cache clean math-core --package-version 1.0.0 --dry-run
 bpl package-cache clean math-core --package-version 1.0.0 --json
 ```
 
+`package-cache list --json` reports cached archives with `schemaVersion: 1`,
+`check: "package-cache-list"`, `success`, and the existing cache entry payload
+under `entries`.
+
 `package-cache verify` checks every matching cached archive. It verifies the
 sidecar schema, the archive hash, the archive file name, the manifest identity,
 and the extracted package content hash. Missing sidecars are reported as

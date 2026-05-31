@@ -878,7 +878,16 @@ describe("Package Manager CLI", () => {
         },
       );
       expect(listResult.status).toBe(0);
-      const entries = JSON.parse(listResult.stdout);
+      const listReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        entries: Array<{ version: string; provenanceStatus: string }>;
+      }>(listResult);
+      expect(listReport.schemaVersion).toBe(1);
+      expect(listReport.check).toBe("package-cache-list");
+      expect(listReport.success).toBe(true);
+      const { entries } = listReport;
       expect(entries.map((entry: { version: string }) => entry.version)).toEqual([
         "2.0.0",
         "1.0.0",

@@ -67,6 +67,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   --json` and `bpl package-cache repair --json` now include stable
   `schemaVersion: 1`, `check`, and `success` fields alongside existing
   removed/repaired/unchanged/issues payloads.
+- **Package Cache List JSON Stability** - `bpl package-cache list --json` now
+  includes stable `schemaVersion: 1`, `check: "package-cache-list"`, and
+  `success` fields with cached archive data under `entries`.
 - **Package List JSON Stability** - `bpl list --json` and
   `bpl list --tree --json` now include stable `schemaVersion: 1`, `check`, and
   `success` fields while preserving existing package summary and dependency

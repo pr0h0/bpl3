@@ -253,6 +253,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl lint --json` | Lint diagnostics with `success`, rule codes, source ranges, and messages. |
 | `bpl doctor --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. Unknown doctor scopes in JSON mode return `{ "success": false, "error": "..." }`. |
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. |
+| `bpl package-cache list [package] --json` | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`. |
 | `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`. |
 | `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads. |
 | `bpl run-script --list --json` | Script list with `success: true` and `scripts`; manifest or script validation failures return `{ "success": false, "error": "..." }` on stdout. |
