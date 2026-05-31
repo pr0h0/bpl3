@@ -751,6 +751,33 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects broken symlink cache directories before invoking the compiler", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-dir-link-"));
+
+    try {
+      const modulePath = join(dir, "main.bpl");
+      const content = "frame main() ret int { return 0; }";
+      const cache = new ModuleCache(dir);
+      const cacheDir = join(dir, ".bpl-cache");
+      rmSync(cacheDir, { recursive: true, force: true });
+      symlinkSync(join(dir, "missing-cache-target"), cacheDir, "dir");
+
+      expect(() =>
+        cache.compileModule(
+          modulePath,
+          content,
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          0,
+        ),
+      ).toThrow(/Module cache directory is a symbolic link/);
+      expect(lstatSync(cacheDir).isSymbolicLink()).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects symlinked temporary object cache paths before invoking the compiler", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-temp-link-"));
     const originalDateNow = Date.now;

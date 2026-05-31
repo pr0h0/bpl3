@@ -783,7 +783,22 @@ export class ModuleCache {
     }
 
     const outputDir = path.dirname(path.resolve(filePath));
-    if (!fs.existsSync(outputDir) || !fs.statSync(outputDir).isDirectory()) {
+    const outputDirStat = this.tryLstat(outputDir);
+    if (outputDirStat?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Module cache directory is a symbolic link: ${outputDir}`,
+        "Remove the symlink or run 'bpl clean' before rebuilding.",
+        {
+          file: modulePath,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
+    if (!outputDirStat?.isDirectory()) {
       throw new CompilerError(
         `Module cache directory is not writable: ${outputDir}`,
         "Remove the malformed cache path or run 'bpl clean' before rebuilding.",
@@ -829,6 +844,20 @@ export class ModuleCache {
 
     const outputDir = path.dirname(path.resolve(this.manifestPath));
     const outputDirStat = this.tryLstat(outputDir);
+    if (outputDirStat?.isSymbolicLink()) {
+      throw new CompilerError(
+        `Module cache directory is a symbolic link: ${outputDir}`,
+        "Remove the symlink so the compiler can recreate the cache manifest.",
+        {
+          file: outputDir,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+      );
+    }
+
     if (!outputDirStat?.isDirectory()) {
       throw new CompilerError(
         `Module cache directory is not writable: ${outputDir}`,
