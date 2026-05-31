@@ -414,6 +414,11 @@ function resolvePackageSourcePath(
 ): string | null {
   const directStats = tryLstat(filePath);
   if (directStats) {
+    if (directStats.isSymbolicLink()) {
+      trace.entryCandidates.push(filePath);
+      failOnSymlinkedSourceCandidate(filePath, trace);
+      return null;
+    }
     if (directStats.isFile()) {
       trace.entryCandidates.push(filePath);
       return filePath;
@@ -435,12 +440,31 @@ function resolvePackageSourcePath(
         ? filePath
         : filePath + ext;
     trace.entryCandidates.push(fullPath);
-    if (tryLstat(fullPath)?.isFile()) {
+    const stats = tryLstat(fullPath);
+    if (stats?.isSymbolicLink()) {
+      failOnSymlinkedSourceCandidate(fullPath, trace);
+      return null;
+    }
+    if (stats?.isFile()) {
       return fullPath;
     }
   }
 
   return null;
+}
+
+function failOnSymlinkedSourceCandidate(
+  filePath: string,
+  trace: PackageResolutionTrace,
+): void {
+  if (trace.subPath) {
+    trace.failureReason = "subpath-not-found";
+    trace.failureMessage = `Package '${trace.packageName}' subpath '${trace.subPath}' resolves to a symbolic link candidate: ${filePath}.`;
+    return;
+  }
+
+  trace.failureReason = "entrypoint-not-found";
+  trace.failureMessage = `Package '${trace.packageName}' entrypoint resolves to a symbolic link candidate: ${filePath}.`;
 }
 
 function findNearestPackageRoot(startDir: string): string | undefined {

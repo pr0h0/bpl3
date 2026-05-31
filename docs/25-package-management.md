@@ -290,7 +290,9 @@ package root. The example above resolves to either
 `bpl_modules/math-extra/features/increment/index.bpl`.
 The resolver does not follow symlinked package roots, manifests, entry files, or
 subpath entries, so package imports cannot escape the installed package root
-through filesystem links.
+through filesystem links. Symlinked package entrypoint and subpath candidates
+are terminal resolution failures; the resolver will not fall through from a
+blocked `.bpl` package candidate to a lower-priority `.x` file.
 
 Regular module import candidates use the same filesystem diagnostics: broken
 symlink candidates are reported as symlinks before extension fallback can import

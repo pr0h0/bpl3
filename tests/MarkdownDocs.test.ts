@@ -208,6 +208,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package import paths cannot contain empty, `.` or `..` segments",
       "The resolver does not follow symlinked package roots, manifests, entry files, or subpath entries",
+      "Symlinked package entrypoint and subpath candidates also block lower-priority `.x` fallbacks",
       "broken symlink candidates are reported as symlinks before extension fallback can import a lower-priority `.x` file",
       "`bpl_modules/my-package/bpl.json` must declare `\"name\": \"my-package\"`",
       "Global versioned package directories must match their manifest `version`",

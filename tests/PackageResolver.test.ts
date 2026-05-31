@@ -144,6 +144,26 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("entrypoint-not-found");
   });
 
+  test("stops package entrypoint fallback after symlinked preferred .bpl candidates", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const linkedEntrypoint = path.join(packageDir, "index.bpl");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index" }),
+    );
+    fs.symlinkSync(path.join(tempDir, "missing-index.bpl"), linkedEntrypoint);
+    fs.writeFileSync(path.join(packageDir, "index.x"), "export legacy;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("entrypoint-not-found");
+    expect(details.trace.failureMessage).toContain("symbolic link");
+    expect(details.trace.failureMessage).toContain(linkedEntrypoint);
+  });
+
   test("does not resolve symlinked package manifests", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");
@@ -200,6 +220,28 @@ describe("PackageResolver", () => {
 
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("subpath-not-found");
+  });
+
+  test("stops package subpath fallback after symlinked preferred .bpl candidates", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    const linkedFeature = path.join(featureDir, "add.bpl");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.symlinkSync(path.join(tempDir, "missing-add.bpl"), linkedFeature);
+    fs.writeFileSync(path.join(featureDir, "add.x"), "export legacy;");
+
+    const details = resolvePackageImport("math/features/add", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("subpath-not-found");
+    expect(details.trace.failureMessage).toContain("symbolic link");
+    expect(details.trace.failureMessage).toContain(linkedFeature);
   });
 
   test("does not resolve package entrypoints outside the package root", () => {
