@@ -288,38 +288,56 @@ export class PackageManager {
   private ensurePackageManagerDirectory(dirPath: string, label: string): void {
     const existingPath = this.tryLstat(dirPath);
     if (existingPath) {
-      if (existingPath.isSymbolicLink()) {
-        throw new CompilerError(
-          `${label} path is a symbolic link: ${dirPath}`,
-          "Move the symlink out of the way or choose a real package root directory.",
-          {
-            file: dirPath,
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
-        );
-      }
-
-      if (!existingPath.isDirectory()) {
-        throw new CompilerError(
-          `${label} path is not a directory: ${dirPath}`,
-          "Move the file out of the way or choose a different package root.",
-          {
-            file: dirPath,
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
-        );
-      }
+      this.assertPackageManagerDirectoryStats(existingPath, dirPath, label);
       return;
     }
 
     this.assertPackageManagerDirectoryParent(dirPath, label);
     fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  private readPackageManagerDirectoryStats(
+    dirPath: string,
+    label: string,
+  ): fs.Stats | undefined {
+    const existingPath = this.tryLstat(dirPath);
+    if (!existingPath) return undefined;
+    this.assertPackageManagerDirectoryStats(existingPath, dirPath, label);
+    return existingPath;
+  }
+
+  private assertPackageManagerDirectoryStats(
+    stats: fs.Stats,
+    dirPath: string,
+    label: string,
+  ): void {
+    if (stats.isSymbolicLink()) {
+      throw new CompilerError(
+        `${label} path is a symbolic link: ${dirPath}`,
+        "Move the symlink out of the way or choose a real package root directory.",
+        {
+          file: dirPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+
+    if (!stats.isDirectory()) {
+      throw new CompilerError(
+        `${label} path is not a directory: ${dirPath}`,
+        "Move the file out of the way or choose a different package root.",
+        {
+          file: dirPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
   }
 
   private assertPackageManagerDirectoryParent(
@@ -3324,8 +3342,11 @@ export class PackageManager {
     const searchDir = options.global
       ? this.globalPackageDir
       : this.localPackageDir;
+    const searchDirLabel = options.global
+      ? "Global package directory"
+      : "Local package directory";
 
-    if (!fs.existsSync(searchDir)) {
+    if (!this.readPackageManagerDirectoryStats(searchDir, searchDirLabel)) {
       return [];
     }
 
@@ -3356,7 +3377,12 @@ export class PackageManager {
   }
 
   listPackageCache(packageName?: string): PackageCacheEntry[] {
-    if (!fs.existsSync(this.globalPackageDir)) {
+    if (
+      !this.readPackageManagerDirectoryStats(
+        this.globalPackageDir,
+        "Global package directory",
+      )
+    ) {
       return [];
     }
 
@@ -3791,28 +3817,72 @@ export class PackageManager {
       });
     }
 
-    const installedPackages = this.list({ global: false });
-    issues.push(...this.findInstalledPackageNameIssues());
-
-    let dependencyTree: PackageDependencyTreeNode[] = [];
+    let installedPackages: PackageInfo[] = [];
+    let localPackageDirectoryReadable = true;
     try {
-      dependencyTree = this.getDependencyTree({ global: false });
-      for (const nodeIssue of collectDependencyTreeIssues(dependencyTree)) {
-        issues.push(nodeIssue);
-      }
+      installedPackages = this.list({ global: false });
+      issues.push(...this.findInstalledPackageNameIssues());
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      issues.push({
-        severity: "error",
-        kind: "dependency-tree",
-        message: `Unable to build dependency tree: ${detail}`,
-        path: this.projectRoot,
-        hint: "Fix bpl.json and bpl.lock, then rerun 'bpl doctor packages'.",
-      });
+      localPackageDirectoryReadable = false;
+      issues.push(
+        this.formatUnsafePackageDirectoryIssue(
+          error,
+          this.localPackageDir,
+          "Local package directory",
+        ),
+      );
     }
 
-    const cacheEntries = this.listPackageCache();
-    const cacheVerification = this.verifyPackageCache();
+    let dependencyTree: PackageDependencyTreeNode[] = [];
+    if (localPackageDirectoryReadable) {
+      try {
+        dependencyTree = this.getDependencyTree({ global: false });
+        for (const nodeIssue of collectDependencyTreeIssues(dependencyTree)) {
+          issues.push(nodeIssue);
+        }
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          severity: "error",
+          kind: "dependency-tree",
+          message: `Unable to build dependency tree: ${detail}`,
+          path: this.projectRoot,
+          hint: "Fix bpl.json and bpl.lock, then rerun 'bpl doctor packages'.",
+        });
+      }
+    }
+
+    let cacheEntries: PackageCacheEntry[] = [];
+    let cacheVerification: PackageCacheVerificationReport = createJsonReport(
+      CLI_JSON_CHECKS.packageCacheVerify,
+      true,
+      {
+        ok: true,
+        entriesChecked: 0,
+        issues: [],
+      },
+    );
+    try {
+      cacheEntries = this.listPackageCache();
+      cacheVerification = this.verifyPackageCache();
+    } catch (error) {
+      cacheVerification = createJsonReport(
+        CLI_JSON_CHECKS.packageCacheVerify,
+        false,
+        {
+          ok: false,
+          entriesChecked: 0,
+          issues: [],
+        },
+      );
+      issues.push(
+        this.formatUnsafePackageDirectoryIssue(
+          error,
+          this.globalPackageDir,
+          "Global package directory",
+        ),
+      );
+    }
     for (const issue of cacheVerification.issues) {
       issues.push({
         severity: "warning",
@@ -3848,8 +3918,30 @@ export class PackageManager {
     });
   }
 
+  private formatUnsafePackageDirectoryIssue(
+    error: unknown,
+    dirPath: string,
+    label: string,
+  ): PackageDoctorIssue {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      severity: "error",
+      kind: "unsafe-package-directory",
+      message: `${label} is not safe to read: ${detail}`,
+      path: dirPath,
+      hint: "Move the unsafe package directory out of the way, then rerun 'bpl doctor packages'.",
+    };
+  }
+
   private findInstalledPackageNameIssues(): PackageDoctorIssue[] {
-    if (!fs.existsSync(this.localPackageDir)) return [];
+    if (
+      !this.readPackageManagerDirectoryStats(
+        this.localPackageDir,
+        "Local package directory",
+      )
+    ) {
+      return [];
+    }
 
     const issues: PackageDoctorIssue[] = [];
     const seen = new Map<string, string[]>();
@@ -3903,6 +3995,14 @@ export class PackageManager {
   getDependencyTree(
     options: PackageOptionsGlobal = { global: false },
   ): PackageDependencyTreeNode[] {
+    const targetDir = options.global
+      ? this.globalPackageDir
+      : this.localPackageDir;
+    this.readPackageManagerDirectoryStats(
+      targetDir,
+      options.global ? "Global package directory" : "Local package directory",
+    );
+
     const lock =
       !options.global && this.tryLstat(this.getLockFilePath())
         ? this.loadLockFile()

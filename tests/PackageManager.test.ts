@@ -3657,6 +3657,88 @@ describe("PackageManager", () => {
       expect(report.installedPackages).toEqual([]);
     });
 
+    test("should report symlinked local package directories during doctor checks without following them", () => {
+      const appDir = path.join(tempDir, "doctor-swapped-local-package-dir-app");
+      const outsidePackageRoot = path.join(
+        tempDir,
+        "doctor-swapped-package-root",
+      );
+      const outsidePackageDir = path.join(outsidePackageRoot, "escaped-doctor");
+      const localPackageDir = path.join(appDir, "bpl_modules");
+
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({
+          name: "doctor-swapped-local-package-dir-app",
+          version: "1.0.0",
+        }),
+      );
+
+      const localPM = new PackageManager(appDir);
+
+      fs.rmSync(localPackageDir, { recursive: true, force: true });
+      fs.mkdirSync(outsidePackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "escaped-doctor", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
+
+      const report = localPM.doctorPackages();
+
+      expect(report.ok).toBe(false);
+      expect(report.installedPackages).toEqual([]);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "unsafe-package-directory",
+          path: localPackageDir,
+        }),
+      );
+    });
+
+    test("should report symlinked global package cache directories during doctor checks without following them", () => {
+      const appDir = path.join(tempDir, "doctor-swapped-global-cache-app");
+      const globalPackageDir = path.join(tempDir, "doctor-swapped-cache-root");
+      const outsideCacheRoot = path.join(tempDir, "doctor-outside-cache-root");
+
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(outsideCacheRoot);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({
+          name: "doctor-swapped-global-cache-app",
+          version: "1.0.0",
+        }),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      fs.rmSync(globalPackageDir, { recursive: true, force: true });
+      fs.symlinkSync(outsideCacheRoot, globalPackageDir, "dir");
+
+      const report = localPM.doctorPackages();
+
+      expect(report.ok).toBe(false);
+      expect(report.cacheEntries).toEqual([]);
+      expect(report.cacheVerification.ok).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "unsafe-package-directory",
+          path: globalPackageDir,
+        }),
+      );
+    });
+
     test("should surface package cache provenance issues as doctor warnings", () => {
       const appDir = path.join(tempDir, "doctor-cache-app");
       const globalPackageDir = path.join(tempDir, "doctor-cache-packages");
@@ -3882,6 +3964,33 @@ describe("PackageManager", () => {
       );
 
       expect(localPM.list({ global: false })).toEqual([]);
+    });
+
+    test("should reject symlinked local package directories when listing after construction", () => {
+      const appDir = path.join(tempDir, "list-swapped-local-package-dir-app");
+      const outsidePackageRoot = path.join(tempDir, "list-swapped-package-root");
+      const outsidePackageDir = path.join(outsidePackageRoot, "escaped-list");
+      const localPackageDir = path.join(appDir, "bpl_modules");
+
+      fs.mkdirSync(appDir);
+      const localPM = new PackageManager(appDir);
+
+      fs.rmSync(localPackageDir, { recursive: true, force: true });
+      fs.mkdirSync(outsidePackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(outsidePackageDir, "bpl.json"),
+        JSON.stringify(
+          { name: "escaped-list", version: "1.0.0", main: "index.bpl" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
+
+      expect(() => localPM.list({ global: false })).toThrow(
+        /Local package directory path is a symbolic link/,
+      );
     });
   });
 

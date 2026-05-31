@@ -219,17 +219,24 @@ bpl doctor packages --json
 Use the JSON forms for CI and tooling. `bpl list --json` uses a stable
 top-level contract with `schemaVersion: 1`, `check: "package-list"`,
 `success`, and installed package names, versions, paths, and content hashes.
+Package listing revalidates the local or global package directory with
+`lstat` before scanning, so a symlinked `bpl_modules` or global package cache
+directory is rejected instead of followed.
 `bpl list --tree --json` uses `check: "package-list-tree"` with the same
 `schemaVersion` and `success` fields, plus the dependency tree data used by the
 human tree output. Tree generation validates an existing local `bpl.lock`
 before choosing lockfile roots; symlinked, broken-symlink, malformed, or
 non-file lockfile paths are rejected instead of being treated as absent. Tree
-nodes also classify `bpl_modules/<package>` roots with `lstat`, so symlinked or
-non-directory package roots are reported as problems instead of being followed.
+roots and nodes also classify `bpl_modules` and `bpl_modules/<package>` paths
+with `lstat`, so symlinked or non-directory package roots are reported as
+problems instead of being followed.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured
 issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
+When the local package directory or global package cache directory is unsafe to
+read, doctor reports an `unsafe-package-directory` issue and leaves the affected
+package lists empty instead of following the directory.
 
 Example output:
 
