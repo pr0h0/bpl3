@@ -3,6 +3,11 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, normalize } from "path";
 import { spawnSync } from "child_process";
 import { TIMEOUT_ENV_DEFAULTS } from "../compiler/common/Env";
+import {
+  getPackageResolutionFailureCode,
+  type PackageResolutionFailureReason,
+  type PackageResolutionTrace,
+} from "../compiler/middleend/PackageResolver";
 
 function trackedMarkdownFiles(): string[] {
   const result = spawnSync("git", ["ls-files", "*.md"], {
@@ -30,6 +35,22 @@ function trackedFiles(): Set<string> {
       .map((line) => normalize(line.trim()))
       .filter(Boolean),
   );
+}
+
+function packageTrace(
+  failureReason: PackageResolutionFailureReason,
+  failureMessage: string,
+): PackageResolutionTrace {
+  return {
+    importPath: "pkg-math",
+    startDir: "/workspace/app/src",
+    searchRoots: ["/workspace/app/src", "/workspace/app"],
+    searchedPaths: [],
+    entryCandidates: [],
+    packageName: "pkg-math",
+    failureReason,
+    failureMessage,
+  };
 }
 
 function isTrackedPath(path: string, files: Set<string>): boolean {
@@ -346,6 +367,63 @@ describe("Markdown documentation", () => {
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
     }
+  });
+
+  test("docs document package import diagnostic codes from resolver contract", () => {
+    const combinedDocs = [
+      readFileSync("docs/25-package-management.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const expectedCodes = [
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "package search directory is a symbolic link",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "package root is not a directory"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "missing bpl.json"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "invalid bpl.json"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "unsafe entrypoint '../outside.bpl'"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "entrypoint-not-found",
+          "entrypoint resolves to a symbolic link candidate",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "subpath-not-found",
+          "subpath 'features/add' resolves to a symbolic link candidate",
+        ),
+      ),
+    ].filter((code): code is string => typeof code === "string");
+
+    expect(expectedCodes).toEqual([
+      "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+      "BPL_PACKAGE_ROOT_NOT_DIRECTORY",
+      "BPL_PACKAGE_MANIFEST_MISSING",
+      "BPL_PACKAGE_MANIFEST_INVALID",
+      "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
+      "BPL_PACKAGE_ENTRYPOINT_SYMLINK",
+      "BPL_PACKAGE_SUBPATH_SYMLINK",
+    ]);
+
+    for (const code of expectedCodes) {
+      expect(combinedDocs).toContain(code);
+    }
+    expect(combinedDocs).toContain("include a stable `code`");
+    expect(combinedDocs).toContain("the normal diagnostic object shape");
   });
 
   test("imports docs document std path safety rules", () => {

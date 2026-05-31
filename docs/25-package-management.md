@@ -373,6 +373,14 @@ entrypoint files, and subpath source parents such as `features/` are reported
 at the import site instead of falling back to alternate candidates or following
 the link.
 
+In `bpl check --json` and `bpl build --json`, package import diagnostics use
+the normal diagnostic object shape and include a stable `code` when the
+resolver can classify the failure. Source-safety failures use
+`BPL_PACKAGE_ENTRYPOINT_UNSAFE`, `BPL_PACKAGE_ENTRYPOINT_SYMLINK`, and
+`BPL_PACKAGE_SUBPATH_SYMLINK`. Package search and metadata failures use
+`BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_ROOT_NOT_DIRECTORY`,
+`BPL_PACKAGE_MANIFEST_MISSING`, and `BPL_PACKAGE_MANIFEST_INVALID`.
+
 Regular module import candidates use the same filesystem diagnostics: broken
 symlink candidates are reported as symlinks before extension fallback can import
 a lower-priority `.x` file, while valid symlink imports normalize to their real

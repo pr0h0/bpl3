@@ -313,7 +313,12 @@ Package source-safety diagnostics stay in the same `bpl check --json` shape
 after package root resolution: unsafe `main` values report `unsafe entrypoint`,
 symlinked entrypoint files report `entrypoint resolves to a symbolic link
 candidate`, and symlinked subpath parents report `subpath 'features/add'
-resolves to a symbolic link candidate`.
+resolves to a symbolic link candidate`. When the resolver can classify a
+package import failure, the diagnostic includes a stable `code` such as
+`BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_ROOT_NOT_DIRECTORY`,
+`BPL_PACKAGE_MANIFEST_MISSING`, `BPL_PACKAGE_MANIFEST_INVALID`,
+`BPL_PACKAGE_ENTRYPOINT_UNSAFE`, `BPL_PACKAGE_ENTRYPOINT_SYMLINK`, or
+`BPL_PACKAGE_SUBPATH_SYMLINK`.
 
 ### CLI JSON compatibility policy
 
