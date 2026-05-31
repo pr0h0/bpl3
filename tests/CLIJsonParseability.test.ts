@@ -528,6 +528,88 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(packageVersionOutput)).toBe(false);
   });
 
+  test("reports global package root failures in JSON-mode check diagnostics", () => {
+    const homeDir = path.join(tempDir, "home");
+    const globalPackageDir = path.join(homeDir, ".bpl", "packages");
+    const lowerPackageDir = path.join(globalPackageDir, "pkg-math-1.0.0");
+    const unsafePackageRoot = path.join(globalPackageDir, "pkg-math-9.0.0");
+    const sourceFile = path.join(tempDir, "global_package_import.bpl");
+    fs.mkdirSync(lowerPackageDir, { recursive: true });
+    fs.writeFileSync(unsafePackageRoot, "not a package directory");
+    fs.writeFileSync(
+      path.join(lowerPackageDir, "bpl.json"),
+      JSON.stringify({
+        name: "pkg-math",
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
+    );
+    fs.writeFileSync(path.join(lowerPackageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile], {
+      env: { HOME: homeDir, USERPROFILE: homeDir },
+    });
+    expect(result.status).toBe(1);
+    const report = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      totalFiles: number;
+      errorCount: number;
+      files: Array<{
+        file: string;
+        success: boolean;
+        diagnostics: Array<{
+          message: string;
+          hint: string;
+          location: {
+            file: string;
+            start: { line: number; column: number };
+          };
+        }>;
+      }>;
+    }>(result);
+
+    expect(report).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: false,
+      totalFiles: 1,
+      errorCount: 1,
+      files: [
+        {
+          file: sourceFile,
+          success: false,
+          diagnostics: [
+            {
+              location: {
+                file: sourceFile,
+                start: { line: 1, column: 1 },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const diagnostic = report.files[0]?.diagnostics[0];
+    expect(diagnostic?.message).toContain("invalid package root");
+    expect(diagnostic?.message).toContain("not a directory");
+    expect(diagnostic?.message).toContain(unsafePackageRoot);
+    expect(diagnostic?.hint).toContain("Searched paths:");
+    expect(diagnostic?.hint).toContain(unsafePackageRoot);
+    expect(diagnostic?.hint).not.toContain(lowerPackageDir);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports virtual source diagnostics in JSON-mode build failures", () => {
     const source = [
       "frame main() {",
