@@ -2298,6 +2298,37 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should reject broken symlink file dependency archives", () => {
+      const appDir = path.join(tempDir, "broken-file-dependency-app");
+      const depsDir = path.join(appDir, "deps");
+      const brokenArchive = path.join(depsDir, "broken-file-dep-1.0.0.tgz");
+      fs.mkdirSync(depsDir, { recursive: true });
+      fs.symlinkSync(path.join(tempDir, "missing-file-dep.tgz"), brokenArchive);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "broken-file-dependency-app",
+            version: "1.0.0",
+            dependencies: {
+              "broken-file-dep": "file:deps/broken-file-dep-1.0.0.tgz",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false }),
+      ).toThrow(/Package archive path is a symbolic link/);
+      expect(
+        fs.existsSync(path.join(appDir, "bpl_modules", "broken-file-dep")),
+      ).toBe(false);
+    });
+
     test("should resolve package dependency semver ranges from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "range-cache");
       const appDir = path.join(tempDir, "range-app");

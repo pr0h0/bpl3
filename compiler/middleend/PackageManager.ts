@@ -1255,10 +1255,11 @@ export class PackageManager {
       path.isAbsolute(fileSource) ||
       fileSource.includes(path.sep)
     ) {
-      const packageSource = fs.existsSync(baseRelativePath)
+      const baseRelativePathExists = Boolean(this.tryLstat(baseRelativePath));
+      const packageSource = baseRelativePathExists
         ? baseRelativePath
         : fileSource;
-      const lockSource = fs.existsSync(baseRelativePath)
+      const lockSource = baseRelativePathExists
         ? this.formatFileLockSource(baseRelativePath)
         : source;
 

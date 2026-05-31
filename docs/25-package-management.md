@@ -408,6 +408,10 @@ the same archive path validation as a direct file path. Symlinked or broken
 symlink cache entries are rejected as package archive symlinks rather than being
 treated as missing packages.
 
+`file:` and relative archive dependencies use the same path classification.
+Broken symlink dependency archives are rejected as package archive symlinks
+instead of falling back to a package-name lookup.
+
 `bpl uninstall <package>` only removes real installed package directories. If
 `bpl_modules/<package>` is a symlink, uninstall rejects it and leaves both the
 symlink and its target untouched. Package manifests are validated with the same
