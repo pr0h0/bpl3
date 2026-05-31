@@ -3522,6 +3522,10 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain(
       "--json[Output machine-readable cleanup report]",
     );
+    expect(bash.stdout).toContain('completion_opts="bash zsh --json"');
+    expect(zsh.stdout).toContain(
+      "--json[Output machine-readable completion report]",
+    );
   });
 
   it("should report host toolchain diagnostics from doctor as JSON", () => {

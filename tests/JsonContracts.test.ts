@@ -11,6 +11,7 @@ describe("JSON contract constants", () => {
       { command: "bpl bindgen <header> --json", check: "bindgen" },
       { command: "bpl build --json", check: "build" },
       { command: "bpl check --json", check: "check" },
+      { command: "bpl completion [shell] --json", check: "completion" },
       { command: "bpl docs <file> --json", check: "docs" },
       { command: "bpl format --check --json", check: "format" },
       { command: "bpl lint --json", check: "lint" },

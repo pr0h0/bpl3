@@ -67,7 +67,7 @@ _bpl_completion() {
     local run_script_opts="--list --json"
 
     # Completion command options
-    local completion_opts="bash zsh"
+    local completion_opts="bash zsh --json"
 
     # Emit types
     local emit_types="llvm ast tokens formatted"
@@ -405,6 +405,7 @@ _bpl() {
                     ;;
                 completion)
                     _arguments \\
+                        '--json[Output machine-readable completion report]' \\
                         '1:shell:(bash zsh)'
                     ;;
                 help)

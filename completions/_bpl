@@ -167,6 +167,7 @@ _bpl() {
                     ;;
                 completion)
                     _arguments \
+                        '--json[Output machine-readable completion report]' \
                         '1:shell:(bash zsh)'
                     ;;
                 help)

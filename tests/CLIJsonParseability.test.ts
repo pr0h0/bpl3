@@ -1132,6 +1132,35 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps completion JSON stdout parseable", () => {
+    const bash = runCli(["completion", "bash", "--json"]);
+    expect(bash.status).toBe(0);
+    expect(parseJsonObjectStdout<{
+      schemaVersion: 1;
+      check: "completion";
+      success: true;
+      shell: "bash";
+      script: string;
+    }>(bash)).toMatchObject({
+      schemaVersion: 1,
+      check: "completion",
+      success: true,
+      shell: "bash",
+      script: expect.stringContaining("bpl"),
+    });
+
+    const unsupported = runCli(["completion", "fish", "--json"]);
+    expect(unsupported.status).toBe(1);
+    expect(parseJsonObjectStdout(unsupported)).toMatchObject({
+      schemaVersion: 1,
+      check: "completion",
+      success: false,
+      shell: "fish",
+      error: expect.stringContaining("Unsupported shell"),
+      errorCode: "BPL_COMPLETION_SHELL_UNSUPPORTED",
+    });
+  });
+
   test("keeps run-script JSON validation failures parseable with error codes", () => {
     const assertRunScriptFailure = (
       result: SpawnSyncReturns<string>,

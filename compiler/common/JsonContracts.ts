@@ -5,6 +5,7 @@ export const CLI_JSON_CHECKS = {
   build: "build",
   check: "check",
   clean: "clean",
+  completion: "completion",
   docs: "docs",
   doctor: "doctor",
   format: "format",
@@ -30,6 +31,10 @@ export const CLI_JSON_CONTRACTS = [
   { command: "bpl bindgen <header> --json", check: CLI_JSON_CHECKS.bindgen },
   { command: "bpl build --json", check: CLI_JSON_CHECKS.build },
   { command: "bpl check --json", check: CLI_JSON_CHECKS.check },
+  {
+    command: "bpl completion [shell] --json",
+    check: CLI_JSON_CHECKS.completion,
+  },
   { command: "bpl docs <file> --json", check: CLI_JSON_CHECKS.docs },
   { command: "bpl format --check --json", check: CLI_JSON_CHECKS.format },
   { command: "bpl lint --json", check: CLI_JSON_CHECKS.lint },
