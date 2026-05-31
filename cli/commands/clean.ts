@@ -21,6 +21,10 @@ import { findSymlinkedPathComponent } from "../../compiler/common/PathSafety";
 const log = new Logger("Clean");
 const CLEAN_GIT_TIMEOUT_MS = TIMEOUT_ENV_DEFAULTS.BPL_CLEAN_GIT_TIMEOUT_MS;
 
+export const CLEAN_WORKDIR_SYMLINK_CODE = "BPL_CLEAN_WORKDIR_SYMLINK";
+export const CLEAN_GIT_TRACKED_UNAVAILABLE_CODE =
+  "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE";
+
 interface CleanEntry {
   path: string;
   type: "file" | "directory" | "symlink";
@@ -33,6 +37,16 @@ interface CleanReport {
   dryRun: boolean;
   count: number;
   entries: CleanEntry[];
+}
+
+class CleanValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message);
+    this.name = "CleanValidationError";
+  }
 }
 
 /**
@@ -67,8 +81,9 @@ export function registerCleanCommand(program: Command): void {
           const entriesToDelete: CleanEntry[] = [];
           const trackedPaths = getGitTrackedPaths(cwd);
           if (!trackedPaths) {
-            throw new Error(
+            throw new CleanValidationError(
               "Could not determine git-tracked files; refusing to clean in a git repository.",
+              CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
             );
           }
           const trackedPathSet = trackedPaths;
@@ -232,6 +247,7 @@ export function registerCleanCommand(program: Command): void {
                   count: 0,
                   entries: [] as CleanEntry[],
                   error: message,
+                  ...formatCleanJsonErrorCode(e),
                 }),
                 null,
                 2,
@@ -250,9 +266,20 @@ function assertNoSymlinkedWorkingDirectoryPath(cwd: string): void {
   const symlinkedPath = findSymlinkedPathComponent(cwd);
   if (!symlinkedPath) return;
 
-  throw new Error(
+  throw new CleanValidationError(
     `Clean working directory path contains a symbolic link: ${symlinkedPath}. Run bpl clean from the real project path.`,
+    CLEAN_WORKDIR_SYMLINK_CODE,
   );
+}
+
+function formatCleanJsonErrorCode(
+  error: unknown,
+): { errorCode: string } | Record<string, never> {
+  if (error instanceof CleanValidationError) {
+    return { errorCode: error.code };
+  }
+
+  return {};
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

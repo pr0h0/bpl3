@@ -7,6 +7,7 @@ import {
   expectJsonStdoutReport,
   parseJsonObjectStdout,
 } from "./helpers/cliJson";
+import { writeNodeCommandShim } from "./helpers/executableShim";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 
@@ -207,6 +208,79 @@ describe("CLI JSON parseability", () => {
         },
       ],
     });
+  });
+
+  test("keeps clean JSON validation failures parseable with error codes", () => {
+    const realRoot = path.join(tempDir, "real-root");
+    const linkedRoot = path.join(tempDir, "linked-root");
+    const realProject = path.join(realRoot, "project");
+    const linkedProject = path.join(linkedRoot, "project");
+    const artifact = path.join(realProject, "main.ll");
+
+    fs.mkdirSync(realProject, { recursive: true });
+    fs.writeFileSync(artifact, "; keep ir");
+    fs.symlinkSync(realRoot, linkedRoot, "dir");
+
+    const symlinkedCwdClean = spawnSync(
+      "bun",
+      ["--cwd", linkedProject, BPL_CLI, "clean", "--dry-run", "--json"],
+      {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      },
+    );
+
+    expect(symlinkedCwdClean.status).toBe(1);
+    expect(symlinkedCwdClean.stderr).toBe("");
+    expect(parseJsonObjectStdout(symlinkedCwdClean)).toMatchObject({
+      schemaVersion: 1,
+      check: "clean",
+      success: false,
+      dryRun: true,
+      count: 0,
+      entries: [],
+      errorCode: "BPL_CLEAN_WORKDIR_SYMLINK",
+      error: expect.stringContaining(
+        "Clean working directory path contains a symbolic link",
+      ),
+    });
+    expect(fs.readFileSync(artifact, "utf-8")).toBe("; keep ir");
+
+    const fakeBin = path.join(tempDir, "bin");
+    const gitFailureProject = path.join(tempDir, "git-failure-project");
+    const gitFailureArtifact = path.join(gitFailureProject, "main.ll");
+    fs.mkdirSync(path.join(gitFailureProject, ".git"), { recursive: true });
+    fs.mkdirSync(fakeBin);
+    fs.writeFileSync(gitFailureArtifact, "; keep git artifact");
+    writeNodeCommandShim(path.join(fakeBin, "git"), [
+      'console.error("fatal: simulated git failure");',
+      "process.exit(1);",
+    ]);
+
+    const gitProbeClean = runCli(["clean", "--json"], {
+      cwd: gitFailureProject,
+      env: {
+        PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}`,
+      },
+    });
+
+    expect(gitProbeClean.status).toBe(1);
+    expect(gitProbeClean.stderr).toBe("");
+    expect(parseJsonObjectStdout(gitProbeClean)).toMatchObject({
+      schemaVersion: 1,
+      check: "clean",
+      success: false,
+      dryRun: false,
+      count: 0,
+      entries: [],
+      errorCode: "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE",
+      error:
+        "Could not determine git-tracked files; refusing to clean in a git repository.",
+    });
+    expect(fs.readFileSync(gitFailureArtifact, "utf-8")).toBe(
+      "; keep git artifact",
+    );
   });
 
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {
