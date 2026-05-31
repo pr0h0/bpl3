@@ -25,15 +25,7 @@ export function findSymlinkedPathComponent(
   options: SymlinkPathOptions = {},
 ): string | null {
   const absolutePath = path.resolve(targetPath);
-  const rootPath = path.parse(absolutePath).root;
-  const parts = path
-    .relative(rootPath, absolutePath)
-    .split(path.sep)
-    .filter((part) => part.length > 0);
-
-  let currentPath = rootPath;
-  for (const part of parts) {
-    currentPath = path.join(currentPath, part);
+  for (const currentPath of pathComponents(absolutePath).slice(1)) {
     const stats = tryLstat(currentPath);
     if (stats?.isSymbolicLink()) {
       if (isTrustedSymlinkRoot(currentPath, options)) {
@@ -45,6 +37,42 @@ export function findSymlinkedPathComponent(
   }
 
   return null;
+}
+
+export function findNonDirectoryPathComponent(targetPath: string): string | null {
+  const absolutePath = path.resolve(targetPath);
+
+  for (const currentPath of pathComponents(absolutePath).slice(1)) {
+    const stats = tryLstat(currentPath);
+    if (!stats) {
+      return null;
+    }
+    if (stats.isSymbolicLink()) {
+      return null;
+    }
+    if (!stats.isDirectory()) {
+      return currentPath;
+    }
+  }
+
+  return null;
+}
+
+function pathComponents(absolutePath: string): string[] {
+  const rootPath = path.parse(absolutePath).root;
+  const components = path
+    .relative(rootPath, absolutePath)
+    .split(/[\\/]+/)
+    .filter(Boolean);
+  const paths = [rootPath];
+  let currentPath = rootPath;
+
+  for (const component of components) {
+    currentPath = path.join(currentPath, component);
+    paths.push(currentPath);
+  }
+
+  return paths;
 }
 
 function isTrustedSymlinkRoot(

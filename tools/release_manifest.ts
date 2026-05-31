@@ -6,8 +6,12 @@ import {
   type Stats,
   writeFileSync,
 } from "fs";
-import { basename, dirname, join, parse, relative, resolve } from "path";
+import { basename, dirname, join, relative, resolve } from "path";
 import { spawnSync } from "child_process";
+import {
+  findNonDirectoryPathComponent,
+  findSymlinkedPathComponent,
+} from "../compiler/common/PathSafety";
 
 export interface ReleaseManifestArtifact {
   kind: "binary" | "runtime" | "helper" | "npm-package";
@@ -215,48 +219,25 @@ function assertWritableManifestPath(outPath: string): void {
 
 function assertWritableManifestParent(outPath: string): void {
   const outputDir = dirname(resolve(outPath));
-
-  for (const parentPath of pathComponents(outputDir)) {
-    const parentStats = tryLstat(parentPath);
-    if (!parentStats) {
-      continue;
-    }
-
-    if (parentStats.isSymbolicLink()) {
-      if (parentPath === outputDir) {
-        throw new Error(
-          `Release manifest output directory is a symbolic link: ${parentPath}`,
-        );
-      }
-
+  const symlinkedParent = findSymlinkedPathComponent(outputDir);
+  if (symlinkedParent) {
+    if (symlinkedParent === outputDir) {
       throw new Error(
-        `Release manifest output parent contains a symbolic link: ${parentPath}`,
+        `Release manifest output directory is a symbolic link: ${symlinkedParent}`,
       );
     }
 
-    if (!parentStats.isDirectory()) {
-      throw new Error(
-        `Release manifest output parent is not a directory: ${parentPath}`,
-      );
-    }
-  }
-}
-
-function pathComponents(absolutePath: string): string[] {
-  const parsedPath = parse(absolutePath);
-  const rootPath = parsedPath.root;
-  const components = relative(rootPath, absolutePath)
-    .split(/[\\/]+/)
-    .filter(Boolean);
-  const paths = [rootPath];
-  let currentPath = rootPath;
-
-  for (const component of components) {
-    currentPath = join(currentPath, component);
-    paths.push(currentPath);
+    throw new Error(
+      `Release manifest output parent contains a symbolic link: ${symlinkedParent}`,
+    );
   }
 
-  return paths;
+  const nonDirectoryParent = findNonDirectoryPathComponent(outputDir);
+  if (nonDirectoryParent) {
+    throw new Error(
+      `Release manifest output parent is not a directory: ${nonDirectoryParent}`,
+    );
+  }
 }
 
 function tryLstat(filePath: string): Stats | null {

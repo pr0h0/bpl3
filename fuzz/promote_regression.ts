@@ -6,7 +6,11 @@ import {
   type Stats,
   writeFileSync,
 } from "fs";
-import { basename, join, parse, relative, resolve } from "path";
+import { basename, join, resolve } from "path";
+import {
+  findNonDirectoryPathComponent,
+  findSymlinkedPathComponent,
+} from "../compiler/common/PathSafety";
 import {
   runBplDifferentialPipeline,
   runCompilerPipeline,
@@ -202,48 +206,26 @@ function promoteFuzzRegression(options: CliOptions): PromotionResult {
 
 function assertWritableCorpusDirectory(corpusDir: string): void {
   const absoluteCorpusDir = resolve(corpusDir);
-
-  for (const componentPath of pathComponents(absoluteCorpusDir)) {
-    const componentStats = tryLstat(componentPath);
-    if (!componentStats) {
-      continue;
-    }
-
-    if (componentStats.isSymbolicLink()) {
-      if (componentPath === absoluteCorpusDir) {
-        throw new Error(
-          `Fuzz regression corpus directory is a symbolic link: ${componentPath}`,
-        );
-      }
-
+  const symlinkedComponent = findSymlinkedPathComponent(absoluteCorpusDir);
+  if (symlinkedComponent) {
+    if (symlinkedComponent === absoluteCorpusDir) {
       throw new Error(
-        `Fuzz regression corpus directory parent contains a symbolic link: ${componentPath}`,
+        `Fuzz regression corpus directory is a symbolic link: ${symlinkedComponent}`,
       );
     }
 
-    if (!componentStats.isDirectory()) {
-      throw new Error(
-        `Fuzz regression corpus directory parent is not a directory: ${componentPath}`,
-      );
-    }
-  }
-}
-
-function pathComponents(absolutePath: string): string[] {
-  const parsedPath = parse(absolutePath);
-  const rootPath = parsedPath.root;
-  const components = relative(rootPath, absolutePath)
-    .split(/[\\/]+/)
-    .filter(Boolean);
-  const paths = [rootPath];
-  let currentPath = rootPath;
-
-  for (const component of components) {
-    currentPath = join(currentPath, component);
-    paths.push(currentPath);
+    throw new Error(
+      `Fuzz regression corpus directory parent contains a symbolic link: ${symlinkedComponent}`,
+    );
   }
 
-  return paths;
+  const nonDirectoryComponent =
+    findNonDirectoryPathComponent(absoluteCorpusDir);
+  if (nonDirectoryComponent) {
+    throw new Error(
+      `Fuzz regression corpus directory parent is not a directory: ${nonDirectoryComponent}`,
+    );
+  }
 }
 
 function resolveSourcePath(options: CliOptions): string {
@@ -279,36 +261,32 @@ function readCrashMetadata(metadataPath: string): CrashMetadata {
 
 function assertFuzzRegressionSourcePath(sourcePath: string): void {
   const absoluteSourcePath = resolve(sourcePath);
-
-  for (const componentPath of pathComponents(absoluteSourcePath)) {
-    const componentStats = tryLstat(componentPath);
-    if (!componentStats) {
-      continue;
-    }
-
-    if (componentStats.isSymbolicLink()) {
-      if (componentPath === absoluteSourcePath) {
-        throw new Error(
-          `Fuzz regression source path is a symbolic link: ${componentPath}`,
-        );
-      }
-
+  const symlinkedComponent = findSymlinkedPathComponent(absoluteSourcePath);
+  if (symlinkedComponent) {
+    if (symlinkedComponent === absoluteSourcePath) {
       throw new Error(
-        `Fuzz regression source parent contains a symbolic link: ${componentPath}`,
+        `Fuzz regression source path is a symbolic link: ${symlinkedComponent}`,
       );
     }
 
-    if (componentPath === absoluteSourcePath) {
-      if (!componentStats.isFile()) {
-        throw new Error(
-          `Fuzz regression source path is not a file: ${componentPath}`,
-        );
-      }
-    } else if (!componentStats.isDirectory()) {
-      throw new Error(
-        `Fuzz regression source parent is not a directory: ${componentPath}`,
-      );
-    }
+    throw new Error(
+      `Fuzz regression source parent contains a symbolic link: ${symlinkedComponent}`,
+    );
+  }
+
+  const nonDirectoryComponent =
+    findNonDirectoryPathComponent(absoluteSourcePath);
+  if (nonDirectoryComponent && nonDirectoryComponent !== absoluteSourcePath) {
+    throw new Error(
+      `Fuzz regression source parent is not a directory: ${nonDirectoryComponent}`,
+    );
+  }
+
+  const sourceStats = tryLstat(absoluteSourcePath);
+  if (sourceStats && !sourceStats.isFile()) {
+    throw new Error(
+      `Fuzz regression source path is not a file: ${absoluteSourcePath}`,
+    );
   }
 }
 
@@ -330,36 +308,35 @@ function tryLstat(filePath: string): Stats | null {
 
 function assertCrashMetadataPath(metadataPath: string): void {
   const absoluteMetadataPath = resolve(metadataPath);
-
-  for (const componentPath of pathComponents(absoluteMetadataPath)) {
-    const componentStats = tryLstat(componentPath);
-    if (!componentStats) {
-      continue;
-    }
-
-    if (componentStats.isSymbolicLink()) {
-      if (componentPath === absoluteMetadataPath) {
-        throw new Error(
-          `Fuzz crash metadata path is a symbolic link: ${componentPath}`,
-        );
-      }
-
+  const symlinkedComponent = findSymlinkedPathComponent(absoluteMetadataPath);
+  if (symlinkedComponent) {
+    if (symlinkedComponent === absoluteMetadataPath) {
       throw new Error(
-        `Fuzz crash metadata parent contains a symbolic link: ${componentPath}`,
+        `Fuzz crash metadata path is a symbolic link: ${symlinkedComponent}`,
       );
     }
 
-    if (componentPath === absoluteMetadataPath) {
-      if (!componentStats.isFile()) {
-        throw new Error(
-          `Fuzz crash metadata path is not a file: ${componentPath}`,
-        );
-      }
-    } else if (!componentStats.isDirectory()) {
-      throw new Error(
-        `Fuzz crash metadata parent is not a directory: ${componentPath}`,
-      );
-    }
+    throw new Error(
+      `Fuzz crash metadata parent contains a symbolic link: ${symlinkedComponent}`,
+    );
+  }
+
+  const nonDirectoryComponent =
+    findNonDirectoryPathComponent(absoluteMetadataPath);
+  if (
+    nonDirectoryComponent &&
+    nonDirectoryComponent !== absoluteMetadataPath
+  ) {
+    throw new Error(
+      `Fuzz crash metadata parent is not a directory: ${nonDirectoryComponent}`,
+    );
+  }
+
+  const metadataStats = tryLstat(absoluteMetadataPath);
+  if (metadataStats && !metadataStats.isFile()) {
+    throw new Error(
+      `Fuzz crash metadata path is not a file: ${absoluteMetadataPath}`,
+    );
   }
 }
 

@@ -315,6 +315,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
+  artifact repro, crash artifact recording, and release manifest output
+  validation now share path-component safety helpers while preserving their
+  existing diagnostics.
 - **Runtime Asset Diagnostics** - `bpl doctor` now points missing runtime
   support objects at `bun run build:runtime` plus `bpl doctor`, and missing
   runtime IR files at `bpl doctor` plus reinstall/restore guidance.

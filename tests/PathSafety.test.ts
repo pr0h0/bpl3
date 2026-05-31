@@ -4,6 +4,7 @@ import * as os from "os";
 import * as path from "path";
 
 import {
+  findNonDirectoryPathComponent,
   findSymlinkedParentPath,
   findSymlinkedPathComponent,
 } from "../compiler/common/PathSafety";
@@ -40,6 +41,24 @@ describe("Path safety helpers", () => {
           trustedSymlinks,
         }),
       ).toBe(nestedSymlink);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("finds the first existing non-directory path component", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-path-safety-"));
+    const fileParent = path.join(tempDir, "plain-file");
+
+    try {
+      fs.writeFileSync(fileParent, "not a directory");
+
+      expect(
+        findNonDirectoryPathComponent(path.join(fileParent, "child", "out")),
+      ).toBe(fileParent);
+      expect(
+        findNonDirectoryPathComponent(path.join(tempDir, "missing", "child")),
+      ).toBeNull();
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

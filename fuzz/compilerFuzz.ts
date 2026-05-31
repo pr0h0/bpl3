@@ -10,13 +10,17 @@ import {
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join, parse, relative, resolve } from "path";
+import { join, resolve } from "path";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { verifyLlvmFile } from "../compiler/common/LlvmVerifier";
+import {
+  findNonDirectoryPathComponent,
+  findSymlinkedPathComponent,
+} from "../compiler/common/PathSafety";
 
 export const DEFAULT_MIN_TOKENS = 20;
 export const DEFAULT_MAX_TOKENS = 100;
@@ -1409,48 +1413,25 @@ function writeFailureArtifact(
 
 function assertWritableCrashArtifactDirectory(crashDir: string): void {
   const artifactDir = resolve(crashDir);
-
-  for (const componentPath of pathComponents(artifactDir)) {
-    const componentStats = tryLstat(componentPath);
-    if (!componentStats) {
-      continue;
-    }
-
-    if (componentStats.isSymbolicLink()) {
-      if (componentPath === artifactDir) {
-        throw new Error(
-          `Fuzz crash artifact directory is a symbolic link: ${componentPath}`,
-        );
-      }
-
+  const symlinkedComponent = findSymlinkedPathComponent(artifactDir);
+  if (symlinkedComponent) {
+    if (symlinkedComponent === artifactDir) {
       throw new Error(
-        `Fuzz crash artifact directory parent contains a symbolic link: ${componentPath}`,
+        `Fuzz crash artifact directory is a symbolic link: ${symlinkedComponent}`,
       );
     }
 
-    if (!componentStats.isDirectory()) {
-      throw new Error(
-        `Fuzz crash artifact directory parent is not a directory: ${componentPath}`,
-      );
-    }
-  }
-}
-
-function pathComponents(absolutePath: string): string[] {
-  const parsedPath = parse(absolutePath);
-  const rootPath = parsedPath.root;
-  const components = relative(rootPath, absolutePath)
-    .split(/[\\/]+/)
-    .filter(Boolean);
-  const paths = [rootPath];
-  let currentPath = rootPath;
-
-  for (const component of components) {
-    currentPath = join(currentPath, component);
-    paths.push(currentPath);
+    throw new Error(
+      `Fuzz crash artifact directory parent contains a symbolic link: ${symlinkedComponent}`,
+    );
   }
 
-  return paths;
+  const nonDirectoryComponent = findNonDirectoryPathComponent(artifactDir);
+  if (nonDirectoryComponent) {
+    throw new Error(
+      `Fuzz crash artifact directory parent is not a directory: ${nonDirectoryComponent}`,
+    );
+  }
 }
 
 function createFailureMetadata(

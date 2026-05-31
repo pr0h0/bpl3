@@ -9,10 +9,13 @@ import {
   basename,
   isAbsolute,
   join,
-  parse,
   relative,
   resolve,
 } from "path";
+import {
+  findNonDirectoryPathComponent,
+  findSymlinkedPathComponent,
+} from "../compiler/common/PathSafety";
 
 import type {
   CrashMetadata,
@@ -316,54 +319,36 @@ function listJsonFiles(dir: string): string[] {
 
 function assertFuzzArtifactMetadataPath(metadataPath: string): void {
   const absoluteMetadataPath = resolve(metadataPath);
-
-  for (const componentPath of pathComponents(absoluteMetadataPath)) {
-    const componentStats = tryLstat(componentPath);
-    if (!componentStats) {
-      continue;
-    }
-
-    if (componentStats.isSymbolicLink()) {
-      if (componentPath === absoluteMetadataPath) {
-        throw new Error(
-          `Fuzz artifact metadata path is a symbolic link: ${componentPath}`,
-        );
-      }
-
+  const symlinkedComponent = findSymlinkedPathComponent(absoluteMetadataPath);
+  if (symlinkedComponent) {
+    if (symlinkedComponent === absoluteMetadataPath) {
       throw new Error(
-        `Fuzz artifact metadata parent contains a symbolic link: ${componentPath}`,
+        `Fuzz artifact metadata path is a symbolic link: ${symlinkedComponent}`,
       );
     }
 
-    if (componentPath === absoluteMetadataPath) {
-      if (!componentStats.isFile()) {
-        throw new Error(
-          `Fuzz artifact metadata path is not a file: ${componentPath}`,
-        );
-      }
-    } else if (!componentStats.isDirectory()) {
-      throw new Error(
-        `Fuzz artifact metadata parent is not a directory: ${componentPath}`,
-      );
-    }
-  }
-}
-
-function pathComponents(absolutePath: string): string[] {
-  const parsedPath = parse(absolutePath);
-  const rootPath = parsedPath.root;
-  const components = relative(rootPath, absolutePath)
-    .split(/[\\/]+/)
-    .filter(Boolean);
-  const paths = [rootPath];
-  let currentPath = rootPath;
-
-  for (const component of components) {
-    currentPath = join(currentPath, component);
-    paths.push(currentPath);
+    throw new Error(
+      `Fuzz artifact metadata parent contains a symbolic link: ${symlinkedComponent}`,
+    );
   }
 
-  return paths;
+  const nonDirectoryComponent =
+    findNonDirectoryPathComponent(absoluteMetadataPath);
+  if (
+    nonDirectoryComponent &&
+    nonDirectoryComponent !== absoluteMetadataPath
+  ) {
+    throw new Error(
+      `Fuzz artifact metadata parent is not a directory: ${nonDirectoryComponent}`,
+    );
+  }
+
+  const metadataStats = tryLstat(absoluteMetadataPath);
+  if (metadataStats && !metadataStats.isFile()) {
+    throw new Error(
+      `Fuzz artifact metadata path is not a file: ${absoluteMetadataPath}`,
+    );
+  }
 }
 
 function tryLstat(filePath: string): Stats | null {

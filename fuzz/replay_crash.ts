@@ -1,5 +1,5 @@
 import { lstatSync, writeFileSync, type Stats } from "fs";
-import { dirname, join, parse, relative, resolve, sep } from "path";
+import { dirname, resolve } from "path";
 import {
   minimizeFuzzFailure,
   replayFuzzFailureArtifact,
@@ -9,7 +9,10 @@ import {
   type FuzzRunner,
   type FuzzStage,
 } from "./compilerFuzz";
-import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
+import {
+  findNonDirectoryPathComponent,
+  findSymlinkedParentPath,
+} from "../compiler/common/PathSafety";
 
 interface CliOptions {
   help: boolean;
@@ -340,31 +343,6 @@ function assertWritableMinimizedOutputPath(outPath: string): void {
       `Fuzz replay output parent is not a directory: ${parentPath}`,
     );
   }
-}
-
-function findNonDirectoryPathComponent(targetPath: string): string | null {
-  const absolutePath = resolve(targetPath);
-  const rootPath = parse(absolutePath).root;
-  const parts = relative(rootPath, absolutePath)
-    .split(sep)
-    .filter((part) => part.length > 0);
-
-  let currentPath = rootPath;
-  for (const part of parts) {
-    currentPath = join(currentPath, part);
-    const stats = tryLstat(currentPath);
-    if (!stats) {
-      return null;
-    }
-    if (stats.isSymbolicLink()) {
-      return null;
-    }
-    if (!stats.isDirectory()) {
-      return currentPath;
-    }
-  }
-
-  return null;
 }
 
 function tryLstat(path: string): Stats | null {
