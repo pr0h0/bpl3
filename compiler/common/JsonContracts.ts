@@ -11,6 +11,7 @@ export const CLI_JSON_CHECKS = {
   packageList: "package-list",
   packageListTree: "package-list-tree",
   packages: "packages",
+  runScript: "run-script",
   runScriptList: "run-script-list",
   toolchain: "toolchain",
 } as const;

@@ -1532,6 +1532,8 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toBe("");
       expect(JSON.parse(result.stdout)).toEqual({
+        schemaVersion: 1,
+        check: "run-script-list",
         success: false,
         error,
       });

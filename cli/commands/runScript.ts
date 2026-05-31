@@ -52,9 +52,13 @@ export function registerRunScriptCommand(program: Command): void {
           json: Boolean(rawOptions.json || inheritedOptions.json),
           list: Boolean(rawOptions.list),
         };
+        const jsonFailureCheck =
+          options.list || !scriptName
+            ? CLI_JSON_CHECKS.runScriptList
+            : CLI_JSON_CHECKS.runScript;
         const manifestPath = path.join(process.cwd(), "bpl.json");
         const fail = (message: string): never =>
-          failRunScript(message, Boolean(options.json));
+          failRunScript(message, Boolean(options.json), jsonFailureCheck);
 
         const manifestStat = tryLstat(manifestPath);
         if (!manifestStat) {
@@ -137,14 +141,17 @@ export function registerRunScriptCommand(program: Command): void {
     );
 }
 
-function failRunScript(message: string, outputJson: boolean): never {
+function failRunScript(
+  message: string,
+  outputJson: boolean,
+  check: string,
+): never {
   if (outputJson) {
     console.log(
       JSON.stringify(
-        {
-          success: false,
+        createJsonReport(check, false, {
           error: message,
-        },
+        }),
         null,
         2,
       ),

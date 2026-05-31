@@ -209,6 +209,19 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps run-script list JSON failures parseable", () => {
+    const result = runCli(["run-script", "--list", "--json"], {
+      cwd: tempDir,
+    });
+    expect(result.status).toBe(1);
+    expect(parseJsonObjectStdout(result)).toMatchObject({
+      schemaVersion: 1,
+      check: "run-script-list",
+      success: false,
+      error: expect.stringContaining("No bpl.json found"),
+    });
+  });
+
   test("keeps JSON-mode build failures parseable on stdout", () => {
     const badSource = path.join(tempDir, "bad.bpl");
     fs.writeFileSync(

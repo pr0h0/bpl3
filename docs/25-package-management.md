@@ -386,8 +386,8 @@ after `--`, for example `bpl rs build -- --release`. When `--json` is used,
 `bpl run-script --list --json` returns `schemaVersion: 1`,
 `check: "run-script-list"`, `success: true`, and the `scripts` array. Manifest
 and script validation failures are emitted as machine-readable
-`{ "success": false, "error": "..." }` JSON so CI and editor integrations do not
-need to parse logger text.
+JSON with the same `schemaVersion` and `check`, plus `success: false` and
+`error`, so CI and editor integrations do not need to parse logger text.
 
 ```bash
 bpl run-script --list
