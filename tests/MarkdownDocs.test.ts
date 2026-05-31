@@ -444,6 +444,26 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("package docs document uninstall JSON error codes", () => {
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Package uninstall JSON reports",
+      "BPL_PACKAGE_UNINSTALL_NAME_INVALID",
+      "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
+      "bun test tests/PackageManagerCLI.test.ts -t \"uninstall success and failures as JSON\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document global versioned root validation", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

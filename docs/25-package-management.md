@@ -552,6 +552,15 @@ instead of falling back to a package-name lookup.
 symlink and its target untouched. Package manifests are validated with the same
 `lstat` rules during uninstall, so symlinked or broken-symlink `bpl.json` paths
 are rejected as manifest symlinks instead of being treated as missing manifests.
+Package uninstall JSON reports are available with
+`bpl uninstall <package> --json` and the `remove` alias. Successful uninstalls
+emit `schemaVersion: 1`, `check: "package-uninstall"`, `success: true`, the
+removed `package`, its `version`, and the requested `global` scope. JSON-mode
+failures stay on stdout with `success: false`, `package`, `global`, `error`,
+and stable `errorCode` values including `BPL_PACKAGE_UNINSTALL_NAME_INVALID`
+for invalid package names and `BPL_PACKAGE_UNINSTALL_NOT_INSTALLED` for missing
+local or global packages. Reproduce the focused JSON contract with
+`bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"`.
 Local uninstall also validates an existing `bpl.lock` before unlinking binaries
 or removing package files; symlinked, broken-symlink, malformed, or non-file
 lockfile paths are rejected instead of leaving package files and lock entries
