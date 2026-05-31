@@ -178,6 +178,7 @@ describe("Markdown documentation", () => {
       'check: "lint"',
       "bpl doctor --json",
       "bpl doctor packages --json",
+      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION` or `BPL_PACKAGE_NOT_FOUND`",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",
       "unsafe cache-root validation failures",

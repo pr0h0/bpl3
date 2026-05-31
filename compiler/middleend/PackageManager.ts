@@ -2284,6 +2284,7 @@ export class PackageManager {
             endLine: 1,
             endColumn: 1,
           },
+          "BPL_PACKAGE_NOT_FOUND",
         );
       }
 

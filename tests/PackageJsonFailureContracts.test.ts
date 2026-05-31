@@ -148,6 +148,59 @@ describe("Package JSON failure contracts", () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("surfaces stable package install error codes when available", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-install-codes-"));
+
+    try {
+      const lockfileDir = cleanPackageRoot(tempDir, "invalid-lockfile");
+      writeFileSync(
+        join(lockfileDir.cwd, "bpl.json"),
+        JSON.stringify({ name: "invalid-lockfile", version: "1.0.0" }),
+      );
+      writeFileSync(
+        join(lockfileDir.cwd, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 2, packages: {} }),
+      );
+
+      const lockfileResult = runCli(
+        ["install", "--locked", "--json"],
+        lockfileDir,
+      );
+      const lockfileReport = expectJsonStdoutReport(lockfileResult, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+      expect(lockfileReport).toMatchObject({
+        mode: "project",
+        target: null,
+        error: expect.stringContaining("Only lockfileVersion 1 is supported"),
+        errorCode: "BPL_LOCKFILE_UNSUPPORTED_VERSION",
+      });
+
+      const missingPackageResult = runCli(
+        ["install", "missing-package", "--json"],
+        cleanPackageRoot(tempDir, "missing-package"),
+      );
+      const missingPackageReport = expectJsonStdoutReport(
+        missingPackageResult,
+        {
+          status: 1,
+          check: "package-install",
+          success: false,
+        },
+      );
+      expect(missingPackageReport).toMatchObject({
+        mode: "package",
+        target: "missing-package",
+        error: expect.stringContaining("Package not found"),
+        errorCode: "BPL_PACKAGE_NOT_FOUND",
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function runCli(

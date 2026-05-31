@@ -176,6 +176,7 @@ export function registerPackageCommands(program: Command): void {
                 createJsonReport(CLI_JSON_CHECKS.packageInstall, false, {
                   ...formatPackageInstallJsonPayload(pkg, options),
                   error: formatPackageCommandError(e),
+                  ...formatPackageCommandErrorCode(e),
                 }),
                 null,
                 2,
@@ -572,6 +573,16 @@ function formatPackageCommandError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatPackageCommandErrorCode(
+  error: unknown,
+): { errorCode: string } | Record<string, never> {
+  if (error instanceof CompilerError && error.code) {
+    return { errorCode: error.code };
+  }
+
+  return {};
 }
 
 function formatPackageInstallJsonPayload(
