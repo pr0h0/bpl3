@@ -249,7 +249,7 @@ part of a command's validation path use stdout with `success: false` or
 | Command | Stable stdout shape |
 | --- | --- |
 | `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout. |
-| `bpl check --json` | Type-check diagnostics with `success`, `errors`, source ranges, previews, and diagnostic codes. |
+| `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. |
 | `bpl lint --json` | Lint diagnostics with `success`, rule codes, source ranges, and messages. |
 | `bpl doctor --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. Unknown doctor scopes in JSON mode return `{ "success": false, "error": "..." }`. |
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. |

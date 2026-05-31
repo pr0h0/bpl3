@@ -164,6 +164,7 @@ describe("Markdown documentation", () => {
       "### CLI JSON compatibility policy",
       "bpl build --json",
       "bpl check --json",
+      'check: "check"',
       "bpl lint --json",
       "bpl doctor --json",
       "bpl doctor packages --json",

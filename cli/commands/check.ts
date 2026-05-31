@@ -15,6 +15,10 @@ import { diagnosticFormatter } from "../DiagnosticFormatter";
 import { getInputFilePathError } from "../utils";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../../compiler/common/JsonContracts";
 
 const log = new Logger("Check");
 
@@ -207,13 +211,12 @@ export function registerCheckCommand(program: Command): void {
       if (options.json) {
         console.log(
           JSON.stringify(
-            {
-              success: errorCount === 0,
+            createJsonReport(CLI_JSON_CHECKS.check, errorCount === 0, {
               totalFiles,
               errorCount,
               timeMs: totalTime,
               files: results,
-            },
+            }),
             null,
             2,
           ),

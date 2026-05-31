@@ -65,6 +65,22 @@ describe("CLI JSON parseability", () => {
         executable: buildOutput,
       },
     });
+
+    const check = runCli(["check", "--json", buildSource]);
+    expect(check.status).toBe(0);
+    expect(parseJsonObjectStdout(check)).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: true,
+      totalFiles: 1,
+      errorCount: 0,
+      files: [
+        {
+          file: buildSource,
+          success: true,
+        },
+      ],
+    });
   });
 
   test("keeps JSON-mode doctor scope failures parseable on stdout", () => {

@@ -2,6 +2,7 @@ export const CLI_JSON_SCHEMA_VERSION = 1 as const;
 
 export const CLI_JSON_CHECKS = {
   build: "build",
+  check: "check",
   clean: "clean",
   doctor: "doctor",
   packageCacheClean: "package-cache-clean",

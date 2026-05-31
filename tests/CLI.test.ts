@@ -1674,6 +1674,8 @@ describe("CLI Tests", () => {
 
       expect(result.status).toBe(1);
       const report = JSON.parse(result.stdout);
+      expect(report.schemaVersion).toBe(1);
+      expect(report.check).toBe("check");
       expect(report.success).toBe(false);
       expect(report.files[0].diagnostics[0]).toMatchObject({
         code: "E001",
@@ -1698,6 +1700,8 @@ describe("CLI Tests", () => {
 
     expect(result.status).toBe(1);
     const report = JSON.parse(result.stdout);
+    expect(report.schemaVersion).toBe(1);
+    expect(report.check).toBe("check");
     expect(report.success).toBe(false);
     expect(report.totalFiles).toBe(1);
     expect(report.errorCount).toBe(1);
