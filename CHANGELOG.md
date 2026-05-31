@@ -317,6 +317,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Documentation
 
+- Refreshed `TODO.md` and `PLAN.md` so recommended next steps reflect current
+  compiler-stability, wasm, package-manager, CI, and documentation priorities
+  instead of completed feature work.
 - Updated README.md with comprehensive CLI command reference
 - Rewrote `docs/39-compiler-options.md` with command-first structure
 - Updated `docs/03-quick-start.md` to use `bpl run` command

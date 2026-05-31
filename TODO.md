@@ -24,9 +24,10 @@
 ## Variadic Functions
 
 - [x] Support homogeneous variadics (e.g., `...int`) alongside heterogeneous `...Any`.
-  - Currently, all variadics are treated as `...Any` (array of Any structs).
-  - Need to support `...T` where T is a specific type, passing `T*` (pointer to array of T) and count.
-  - Ensure type checking enforces all arguments match `T`.
+  - Homogeneous `...T` parameters are packed as `T*` plus the implicit `count`
+    argument.
+  - Heterogeneous `...Any` parameters wrap arguments in `Any`.
+  - Type checking enforces homogeneous variadic argument types.
 
 ## Struct Initialization
 
@@ -221,7 +222,39 @@
 
 ## Pending Features (Prioritized)
 
-### High Priority (Next Steps)
+### High Priority (Current Stability / DX)
+
+- [ ] **Compiler correctness and fuzz stability**
+  - Keep scheduled fuzz, differential fuzz, O0/O3 correctness, sanitizer, and
+    runtime-failure suites green.
+  - Promote minimized fuzz artifacts into regression corpora when failures
+    appear.
+  - Keep compiler failures as structured diagnostics instead of uncaught
+    exceptions.
+
+- [ ] **WebAssembly runtime and toolchain hardening**
+  - Keep hosted/freestanding wasm examples runnable on CI with
+    `BPL_REQUIRE_WASM_LD=1`.
+  - Expand compatibility matrix checks when new `examples/wasm_*` entries are
+    added.
+  - Improve browser/playground wasm execution evidence without requiring native
+    services.
+
+- [ ] **Package manager and import stability**
+  - Keep package manifest, lockfile, cache, binary-link, and import diagnostics
+    strict and JSON-parseable.
+  - Continue release-smoke coverage for packed package-manager helper paths.
+
+- [ ] **Release and CI contract coverage**
+  - Keep workflow action versions, Node 24 opt-in, runtime builds, type checks,
+    lint, CI-safe tests, correctness, wasm, and sanitizer stages covered by
+    local tests.
+
+- [ ] **Roadmap and documentation drift control**
+  - Keep `TODO.md`, `PLAN.md`, docs, playground examples, and command
+    references synchronized with shipped compiler behavior.
+
+### Completed High Priority Items
 
 - [x] **Proper Runtime Library Implementation** ✅
   - **Status:** COMPLETED (January 2026)
@@ -312,7 +345,10 @@
     - ✅ Direct `.wasm` artifact output through a wasm linker path when available.
     - ✅ Freestanding `runtime_wasm.ll` shim for standalone no-entry modules.
     - ✅ Relocatable wasm object fallback when `wasm-ld`/`ld.lld` is not installed.
-  - Remaining: WASI/browser host bindings and executable runtime harnesses.
+    - ✅ Hosted wasm runtime shim, browser playground host import alignment, and
+      executable wasm runtime harnesses when a linker is available.
+  - Remaining: WASI-specific bindings, broader host API coverage, and more CI
+    environments that require a real wasm linker instead of local skips.
 
 - [x] **Automatic C Binding Generation (bindgen) v2** ✅
   - Description: Tool to generate BPL `extern` declarations from C headers.
@@ -374,9 +410,11 @@
   - Description: Implement interactive shell for quick prototyping and testing.
   - Implementation notes: Create input loop, reuse parser/compiler, use JIT or interpreter.
 
-- [9] **Source Code Display for Eval/Stdin Errors**
-  - Description: Fix error message code snippets when compiling from stdin or eval.
-  - Implementation notes: Modify CompilerError to accept source lines directly.
+- [x] **Source Code Display for Eval/Stdin Errors** ✅
+  - Description: Error snippets for eval and virtual-input compilation use
+    in-memory source content instead of synthetic disk paths.
+  - Implementation: `DiagnosticFormatter` uses `SourceManager` for virtual
+    files, with CLI regression coverage for eval diagnostics.
 
 - [9] **Reflection API**
   - Description: Provide runtime type inspection and manipulation capabilities.

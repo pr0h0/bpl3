@@ -1,35 +1,75 @@
-# Pending Features
+# BPL Roadmap
 
-This document outlines the pending features for the BPL compiler, prioritized by their importance and complexity. Each item includes a description, implementation notes, and acceptance criteria.
+This document tracks completed work, pending work, and recommended next steps
+for the BPL compiler. Near-term recommendations should favor compiler
+correctness, release stability, package/import reliability, WebAssembly
+runtime coverage, and developer experience before adding new language syntax.
 
 Priority levels: 0 = Highest Priority, 9 = Lowest Priority
 
 ---
 
-## 🎯 RECOMMENDED NEXT STEPS
+## 🎯 RECOMMENDED NEXT STEPS (NON-LANGUAGE)
 
-The following features are recommended for implementation next:
+The following tasks are recommended next because they reduce regression risk
+without expanding the language surface:
 
-### 1. **Function Attributes (LLVM)** [Priority 3] 🔧 Optimization
+### 1. **Compiler Correctness and Fuzz Stability** [Priority 0]
 
-- **Why:** Low-effort way to unlock major compiler optimizations
-- **Impact:** Significant performance gains with minimal implementation cost
-- **Use cases:** Fine-grained control over inlining, branch prediction, optimization hints
-- **Complexity:** Low
-
-### 2. **Volatile Operations (LLVM)** [Priority 6] 🖥️ Systems Programming
-
-- **Why:** Essential for embedded systems and OS development
-- **Impact:** Enables memory-mapped I/O and hardware register access
-- **Use cases:** Embedded systems, device drivers, OS kernels
-- **Complexity:** Low
-
-### 3. **Parallel Compilation** [Priority 5] ⚡ Build Performance
-
-- **Why:** Dramatically faster builds for large projects
-- **Impact:** 2-8x faster compilation by utilizing multiple CPU cores
-- **Use cases:** Large projects, CI/CD pipelines
+- **Why:** Keeps the compiler reliable under generated and real programs.
+- **Impact:** Fewer backend crashes, optimizer mismatches, and silent runtime
+  behavior changes.
+- **Use cases:** Scheduled fuzz runs, differential O0/O3 correctness, sanitizer
+  runtime checks, and promoted crash artifacts.
 - **Complexity:** Medium
+
+### 2. **WebAssembly Runtime and Toolchain Hardening** [Priority 2]
+
+- **Why:** The wasm target is usable, but coverage still depends on a working
+  local or CI wasm linker.
+- **Impact:** More predictable browser/Node execution and clearer failures when
+  toolchains are missing.
+- **Use cases:** Hosted wasm examples, freestanding runtime helpers, playground
+  wasm execution, and compatibility matrix drift checks.
+- **Complexity:** Medium
+
+### 3. **Package Manager and Import Stability** [Priority 2]
+
+- **Why:** Packages now have lockfiles, binary links, cache verification, and
+  hardened import diagnostics; these paths need continued regression coverage.
+- **Impact:** Safer installs, clearer diagnostics, and fewer CI-only packaging
+  failures.
+- **Use cases:** `bpl install --locked`, package-cache verification, package
+  import resolution, packed CLI smoke tests.
+- **Complexity:** Medium
+
+### 4. **Release and CI Contract Coverage** [Priority 3]
+
+- **Why:** CI now owns compiler correctness, scheduled fuzzing, Node 24 action
+  compatibility, sanitizer tests, and release smoke checks.
+- **Impact:** Workflow drift is caught locally before GitHub Actions failures.
+- **Use cases:** `.github/workflows/*`, `bun run test:ci`,
+  `bun run release:check`, and packed npm smoke checks.
+- **Complexity:** Low
+
+### 5. **Roadmap and Documentation Drift Control** [Priority 4]
+
+- **Why:** The compiler has moved faster than the roadmap documents.
+- **Impact:** Contributors see accurate next steps and do not re-plan completed
+  features.
+- **Use cases:** `TODO.md`, `PLAN.md`, `docs/`, playground examples, and
+  command references.
+- **Complexity:** Low
+
+### Recently Completed Former Recommendations
+
+- **Function Attributes (LLVM):** implemented and covered by
+  `tests/FunctionAttributes.test.ts`.
+- **Parallel Compilation Backend MVP:** implemented in `ModuleCache` with a
+  bounded async job pool. The remaining work is true per-module IR generation
+  in the frontend pipeline, not the job scheduler itself.
+- **WebAssembly Target MVP:** direct wasm artifacts, hosted/freestanding runtime
+  shims, wasm examples, playground integration, and CI coverage are in place.
 
 ---
 
@@ -708,48 +748,29 @@ Location: line 5, column 14
 
 ## [9] ✅ Source Code Display for Eval/Stdin Errors (COMPLETED)
 
-**Description:** Fix error message code snippets when compiling from stdin (`--stdin`) or eval mode (`-e`). Currently, when an error occurs in code compiled from these sources, the error formatter attempts to read the source from a file that doesn't exist or accidentally reads binary data from compiled executables with similar names (e.g., `stdin-42069`), resulting in garbled output.
+**Description:** Error snippets for eval and virtual-input compilation now use
+the in-memory source manager instead of trying to read synthetic file names from
+disk.
 
-**The Problem:**
+**Original Problem:**
 
-When using `--stdin` or `-e`, the compiler assigns fake file paths like `stdin-42069` or `eval-42069` to track the source. However, the `CompilerError` class tries to read these as real files to display code snippets. This causes:
+When using `--stdin` or `-e`, the compiler assigned fake file paths like
+`stdin-42069` or `eval-42069` to track the source. Older error formatting tried
+to read these as real files to display code snippets. That caused:
 
 1. Binary data display when a compiled executable with that name exists
 2. Empty/missing code snippets when no file exists
 3. Poor user experience for interactive/piped compilation
 
-**Implementation Notes:**
-
-There are several approaches to fix this:
-
-**Option 1: Thread source through CompilerError (Preferred)**
-
-- Modify `CompilerError` constructor to accept optional `sourceLines: string[]` parameter
-- When compiling from stdin/eval, capture the source and pass it to error constructors
-- Store source in a global context or thread it through the compilation pipeline
-- Modify all places that create `CompilerError` to optionally provide source
-
-**Option 2: Source cache by file path**
-
-- Create a global `SourceCache` that maps file paths to source content
-- When compiling stdin/eval, register the source in the cache with the fake path
-- Modify `CompilerError.loadSourceLines()` to check the cache before reading from disk
-- Clear cache after compilation to avoid memory leaks
-
-**Option 3: Virtual file system**
-
-- Create an abstraction layer for file reading that supports "virtual" files
-- Register stdin/eval sources as virtual files in this system
-- Update all file reading throughout the compiler to use this abstraction
+**Implementation Status:** Completed. `DiagnosticFormatter` uses `SourceManager`
+for virtual sources, and CLI tests cover eval diagnostics with correct snippets.
 
 **Acceptance Criteria:**
 
-- Errors from `bpl --stdin` display the actual source code line with proper highlighting
-- Errors from `bpl -e "code"` show the code that was passed
-- No binary data or garbled text appears in error messages
-- Column indicators (^^^) correctly point to error locations
-- Solution doesn't significantly complicate the codebase
-- Memory usage remains reasonable (no unbounded caching)
+- ✅ Errors from eval-style inputs display the actual source code line with
+  proper highlighting.
+- ✅ No binary data or garbled text appears in error messages.
+- ✅ Column indicators point to virtual-source error locations.
 
 ## 🚧 PARTIALLY COMPLETED FEATURES
 
@@ -978,23 +999,31 @@ There are several approaches to fix this:
 
 ---
 
-## [7] WebAssembly (WASM) Target
+## [7] ✅ WebAssembly (WASM) Target MVP (COMPLETED)
 
 **Description:** Add a compilation target for WebAssembly (WASM) to enable running BPL code in web browsers and other WASM runtimes.
 
-**Implementation Notes:**
+**Implementation Status:** MVP complete. BPL can emit direct `.wasm` artifacts
+for `wasm32-unknown-unknown` when a wasm linker is available, falls back to
+relocatable wasm objects when linking is unavailable, and has both
+freestanding and hosted runtime shims.
 
-- Add `wasm32-unknown-unknown` or `wasm32-wasi` target triple support
-- Handle WASM-specific ABI differences
-- Map BPL primitives to WASM types
-- Provide WASM-compatible standard library (or subset)
-- Generate `.wasm` files via LLVM backend
+**Implemented:**
 
-**Acceptance Criteria:**
+- ✅ `wasm32-unknown-unknown` target triple support and datalayout coverage.
+- ✅ Direct `.wasm` output via `wasm-ld`/`ld.lld` when available.
+- ✅ Freestanding `runtime_wasm.ll` and hosted `runtime_wasm_host.ll` runtime
+  shims.
+- ✅ Hosted wasm stdout/stderr/argv/error-hook tests.
+- ✅ Wasm-compatible examples and compatibility matrix tests.
+- ✅ Browser playground adapter alignment for hosted wasm imports.
 
-- Can compile BPL code to `.wasm`
-- Generated WASM runs in a browser or Node.js
-- Basic I/O works (via WASI or imports)
+**Remaining:**
+
+- WASI-specific bindings.
+- Broader host API coverage for filesystem, time, and process features.
+- More CI environments that require a real wasm linker instead of skipping
+  executable wasm tests locally.
 
 ---
 
@@ -1458,21 +1487,25 @@ There are several approaches to fix this:
 - Type guards work correctly
 - Intersection and union types are supported
 
-## [5] Parallel Compilation
+## [5] ✅ Parallel Compilation Backend MVP (COMPLETED)
 
 **Description:** Utilize multi-core processors to compile independent modules in parallel, significantly reducing build times for large projects.
 
-**Implementation Notes:**
+**Implementation Status:** Backend cache compilation is implemented through
+`ModuleCache.compileModules(...)` with a bounded async job pool. It preserves
+object order and reuses cache entries across optimization levels and target
+triples.
 
-- Analyze module dependency graph to identify independent subgraphs
-- Use worker threads or child processes to compile modules concurrently
-- Manage shared resources (cache, file locks) safely
-- Implement a task scheduler for compilation jobs
+**Implemented:**
 
-**Acceptance Criteria:**
+- ✅ Bounded concurrent compilation for independent cached LLVM module inputs.
+- ✅ Stable linked-object ordering.
+- ✅ Cache reuse across optimization levels and target triples.
+- ✅ Regression coverage in `tests/ModuleCache.test.ts`.
 
-- `bpl build` utilizes multiple cores
-- Build time decreases for projects with many modules
-- No race conditions or corrupted artifacts
+**Remaining:**
+
+- Generate true per-module IR earlier in the frontend pipeline so more real
+  projects can feed independent module inputs into the existing backend pool.
 
 ---
