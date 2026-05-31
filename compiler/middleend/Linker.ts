@@ -328,6 +328,15 @@ export class Linker {
         location,
       );
     }
+
+    const symlinkedParent = this.findSymlinkedPathComponent(outputDir);
+    if (symlinkedParent) {
+      throw new CompilerError(
+        `Output parent path contains a symbolic link: ${symlinkedParent}`,
+        "Choose an output path whose parent components are real directories.",
+        location,
+      );
+    }
   }
 
   private tryLstat(filePath: string): fs.Stats | null {
@@ -552,6 +561,7 @@ export class Linker {
       }
 
       try {
+        this.validateOutputPath(tempOutputPath);
         this.validateOutputPath(options.outputPath);
         fs.renameSync(tempOutputPath, options.outputPath);
       } catch (error) {
@@ -609,10 +619,35 @@ export class Linker {
   private removeBestEffort(filePath: string | undefined): void {
     if (!filePath) return;
     try {
+      if (
+        this.findSymlinkedPathComponent(path.dirname(path.resolve(filePath))) !==
+        null
+      ) {
+        return;
+      }
       fs.rmSync(filePath, { force: true, recursive: true });
     } catch {
       // Best-effort cleanup only.
     }
+  }
+
+  private findSymlinkedPathComponent(filePath: string): string | null {
+    const absolutePath = path.resolve(filePath);
+    const rootPath = path.parse(absolutePath).root;
+    const parts = path
+      .relative(rootPath, absolutePath)
+      .split(path.sep)
+      .filter((part) => part.length > 0);
+
+    let currentPath = rootPath;
+    for (const part of parts) {
+      currentPath = path.join(currentPath, part);
+      const stats = this.tryLstat(currentPath);
+      if (stats?.isSymbolicLink()) return currentPath;
+      if (stats && !stats.isDirectory()) return null;
+    }
+
+    return null;
   }
 
   /**

@@ -247,6 +247,8 @@ Commands that write files through shared CLI output handling, including compile
 outputs, `bpl format --write`, `bpl docs -o`, and `bpl bindgen -o`, reject
 symbolic links at the destination path, the immediate parent, or any parent path
 component before creating atomic temporary files.
+Native linker executable outputs apply the same parent-component rule before
+temporary executable creation and final rename.
 
 ### Machine-readable JSON contracts
 

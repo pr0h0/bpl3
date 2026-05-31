@@ -657,6 +657,10 @@ describe("Linker", () => {
     const realParentDir = join(dir, "real-parent");
     const linkedParentDir = join(dir, "linked-parent");
     const linkedParentOutput = join(linkedParentDir, "app");
+    const realAncestorRoot = join(dir, "real-ancestor");
+    const linkedAncestorRoot = join(dir, "linked-ancestor");
+    const realAncestorNested = join(realAncestorRoot, "nested");
+    const linkedAncestorOutput = join(linkedAncestorRoot, "nested", "app");
     const originalError = console.error;
     const errors: string[] = [];
 
@@ -671,9 +675,11 @@ describe("Linker", () => {
     );
     mkdirSync(outputDir);
     mkdirSync(realParentDir);
+    mkdirSync(realAncestorNested, { recursive: true });
     writeFileSync(parentFile, "not a directory\n");
     symlinkSync(outputLinkTarget, outputLink, "file");
     symlinkSync(realParentDir, linkedParentDir, "dir");
+    symlinkSync(realAncestorRoot, linkedAncestorRoot, "dir");
 
     try {
       console.error = (...args: unknown[]) => {
@@ -718,6 +724,18 @@ describe("Linker", () => {
       });
       expect(symlinkParentOk).toBe(false);
       expect(existsSync(linkedParentOutput)).toBe(false);
+
+      const symlinkAncestorOk = new Linker().link({
+        irFiles: [irPath],
+        outputPath: linkedAncestorOutput,
+        clangFlags: ["-Wno-override-module"],
+      });
+      expect(symlinkAncestorOk).toBe(false);
+      expect(existsSync(join(realAncestorNested, "app"))).toBe(false);
+      expect(
+        readdirSync(realAncestorNested).some((entry) => entry.includes("app")),
+      ).toBe(false);
+
       expect(errors.join("\n")).toContain("Output path is a directory");
       expect(errors.join("\n")).toContain("Output path is a symbolic link");
       expect(errors.join("\n")).toContain("Output directory not found");
@@ -726,6 +744,9 @@ describe("Linker", () => {
       );
       expect(errors.join("\n")).toContain(
         "Output parent path is a symbolic link",
+      );
+      expect(errors.join("\n")).toContain(
+        "Output parent path contains a symbolic link",
       );
       expect(errors.join("\n")).not.toContain("EISDIR");
       expect(errors.join("\n")).not.toContain("ENOENT");
