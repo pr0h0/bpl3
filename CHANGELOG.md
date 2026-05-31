@@ -66,6 +66,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   packed `bpl package-cache list --json` output with an isolated cache home.
 - **Release Smoke Package Cache Verify Coverage** - Release smoke now validates
   packed `bpl package-cache verify --json` output with an isolated cache home.
+- **Release Smoke Check/Lint JSON Coverage** - Release smoke now validates
+  packed `bpl check --json` and `bpl lint --json` contract metadata through the
+  installed npm CLI.
 - **Release Smoke Run-Script JSON Coverage** - Release smoke now validates
   packed `bpl run-script --list --json` output and confirms listing scripts
   does not execute them.

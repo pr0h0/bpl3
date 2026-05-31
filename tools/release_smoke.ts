@@ -59,6 +59,34 @@ interface PackageCacheVerifyReport {
   issues: unknown[];
 }
 
+interface CheckReport {
+  schemaVersion: 1;
+  check: "check";
+  success: boolean;
+  totalFiles: number;
+  errorCount: number;
+  files: Array<{
+    file: string;
+    success: boolean;
+    diagnostics?: unknown[];
+    error?: string;
+  }>;
+}
+
+interface LintReport {
+  schemaVersion: 1;
+  check: "lint";
+  success: boolean;
+  totalFiles: number;
+  errorCount: number;
+  files: Array<{
+    file: string;
+    success: boolean;
+    diagnostics?: Array<{ code?: unknown; severityLabel?: unknown }>;
+    error?: string;
+  }>;
+}
+
 interface RunScriptListReport {
   schemaVersion: 1;
   check: "run-script-list";
@@ -277,6 +305,8 @@ function runPackedPackageSmoke(): void {
     runPackedPackageDoctorSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
+    runPackedCheckJsonSmoke(installedBpl);
+    runPackedLintJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
     runLibraryTemplateSmoke(installedBpl, installDir);
     runPackedRunScriptListJsonSmoke(installedBpl);
@@ -605,6 +635,113 @@ function runPackedPackageCacheVerifyJsonSmoke(
     throw new Error(
       `Packed npm CLI package-cache verify JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
     );
+  }
+}
+
+function runPackedCheckJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-check-json-"));
+
+  try {
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      "frame main() ret int { return 0; }\n",
+    );
+
+    const result = runStep(
+      "check packed npm CLI check JSON",
+      installedBpl,
+      ["check", "--json", "main.bpl"],
+      { cwd: tempDir, bplHome: null },
+    );
+    const report = parseCheckReport(result.stdout);
+    const fileReport = report.files[0];
+
+    if (
+      !report.success ||
+      report.totalFiles !== 1 ||
+      report.errorCount !== 0 ||
+      report.files.length !== 1 ||
+      fileReport?.file !== "main.bpl" ||
+      !fileReport.success
+    ) {
+      throw new Error(
+        `Packed npm CLI check JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPackedLintJsonSmoke(installedBpl: string): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-lint-json-"));
+
+  try {
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        "struct bad_struct_name {",
+        "    x: int,",
+        "}",
+        "",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    console.log("release smoke: check packed npm CLI lint JSON");
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      BPL_HOME: undefined,
+      NO_COLOR: "1",
+    };
+    const result = spawnSync(installedBpl, ["lint", "--json", "main.bpl"], {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 1) {
+      throw new Error(
+        [
+          "Packed npm CLI lint JSON smoke did not fail as expected.",
+          `exit: ${result.status ?? "unknown"}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
+    if (result.stderr !== "") {
+      throw new Error(
+        `Packed npm CLI lint JSON wrote stderr:\n${result.stderr}`,
+      );
+    }
+
+    const report = parseLintReport(result.stdout);
+    const fileReport = report.files[0];
+    const diagnostic = fileReport?.diagnostics?.[0];
+    if (
+      report.success ||
+      report.totalFiles !== 1 ||
+      report.errorCount < 1 ||
+      report.files.length !== 1 ||
+      fileReport?.file !== "main.bpl" ||
+      fileReport.success ||
+      diagnostic?.code !== "L001" ||
+      diagnostic.severityLabel !== "warning"
+    ) {
+      throw new Error(
+        `Packed npm CLI lint JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
@@ -1084,6 +1221,44 @@ function parsePackageCacheVerifyReport(stdout: string): PackageCacheVerifyReport
     throw new Error(
       [
         "Package-cache verify did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseCheckReport(stdout: string): CheckReport {
+  try {
+    const report = JSON.parse(stdout) as CheckReport;
+    assertJsonReportContract(report, "check", "check");
+    if (!Array.isArray(report.files)) {
+      throw new Error("check files is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Check command did not print valid JSON.",
+        `stdout:\n${stdout}`,
+        `parse error: ${error instanceof Error ? error.message : String(error)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function parseLintReport(stdout: string): LintReport {
+  try {
+    const report = JSON.parse(stdout) as LintReport;
+    assertJsonReportContract(report, "lint", "lint");
+    if (!Array.isArray(report.files)) {
+      throw new Error("lint files is not an array");
+    }
+    return report;
+  } catch (error) {
+    throw new Error(
+      [
+        "Lint command did not print valid JSON.",
         `stdout:\n${stdout}`,
         `parse error: ${error instanceof Error ? error.message : String(error)}`,
       ].join("\n"),
