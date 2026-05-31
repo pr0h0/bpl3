@@ -69,9 +69,13 @@ bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 ```
 
 Use `--json` for automation. The JSON report is versioned with
-`schemaVersion: 1`, `check: "ci-triage"`, `success`, `locator`, and `summary`.
-For offline triage or tests, pass a saved GitHub jobs API response instead of
-calling the network:
+`schemaVersion: 1`, `check: "ci-triage"`, `success`, `locator`, `run`,
+`checkout`, and `summary`. Use `run.headSha` to identify the exact commit that
+failed and `checkout.status` to tell whether the local checkout is `current`,
+`stale`, or `unknown` relative to that run. If `checkout.status` is `stale`,
+reproduce on the run SHA or confirm current HEAD already fixes it before
+patching. For offline triage or tests, pass a saved GitHub jobs API response
+instead of calling the network:
 
 ```bash
 bun run ci:triage -- --json --jobs-json jobs.json <run-id>
