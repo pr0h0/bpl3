@@ -6,8 +6,10 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
@@ -336,6 +338,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
+    runPackedLockedInstallSafetySmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
     runPackedLintJsonSmoke(installedBpl);
     runCompletionSmoke(installedBpl, installDir);
@@ -758,6 +761,87 @@ function runPackedPackageCacheVerifyJsonSmoke(
     throw new Error(
       `Packed npm CLI package-cache verify JSON was not isolated:\n${JSON.stringify(report, null, 2)}`,
     );
+  }
+}
+
+function runPackedLockedInstallSafetySmoke(installedBpl: string): void {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-lock-safety-"));
+  const packageDir = join(workspaceDir, "lock-safety-pkg");
+  const rootSymlinkAppDir = join(workspaceDir, "root-symlink-app");
+  const sourceSymlinkAppDir = join(workspaceDir, "source-symlink-app");
+
+  try {
+    mkdirSync(packageDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "lock-safety-pkg",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export stable;\n");
+
+    runStep("pack locked install safety fixture", installedBpl, ["pack"], {
+      cwd: packageDir,
+      bplHome: null,
+    });
+    const archivePath = join(packageDir, "lock-safety-pkg-1.0.0.tgz");
+
+    mkdirSync(rootSymlinkAppDir, { recursive: true });
+    runStep(
+      "install packed npm CLI lock safety root fixture",
+      installedBpl,
+      ["install", archivePath],
+      { cwd: rootSymlinkAppDir, bplHome: null },
+    );
+    const installedPackageRoot = join(
+      rootSymlinkAppDir,
+      "bpl_modules",
+      "lock-safety-pkg",
+    );
+    const outsidePackageRoot = join(workspaceDir, "outside-lock-safety-pkg");
+    renameSync(installedPackageRoot, outsidePackageRoot);
+    symlinkSync(outsidePackageRoot, installedPackageRoot, "dir");
+    runExpectedFailureStep(
+      "check packed npm CLI locked install rejects symlinked package root",
+      installedBpl,
+      ["install", "--locked"],
+      {
+        cwd: rootSymlinkAppDir,
+        bplHome: null,
+        expectedStatus: 1,
+        expectedStderrIncludes: "installed package root is a symbolic link",
+      },
+    );
+
+    mkdirSync(sourceSymlinkAppDir, { recursive: true });
+    runStep(
+      "install packed npm CLI lock safety source fixture",
+      installedBpl,
+      ["install", archivePath],
+      { cwd: sourceSymlinkAppDir, bplHome: null },
+    );
+    const realArchivePath = join(workspaceDir, "real-lock-safety-pkg.tgz");
+    renameSync(archivePath, realArchivePath);
+    symlinkSync(realArchivePath, archivePath, "file");
+    runExpectedFailureStep(
+      "check packed npm CLI locked install rejects symlinked lock source",
+      installedBpl,
+      ["install", "--locked"],
+      {
+        cwd: sourceSymlinkAppDir,
+        bplHome: null,
+        expectedStatus: 1,
+        expectedStderrIncludes: "lock source is not reachable",
+      },
+    );
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
   }
 }
 
