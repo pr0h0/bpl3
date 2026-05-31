@@ -698,6 +698,12 @@ linker is installed and prints the checked linker candidates plus the exact
 `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` to match CI and fail immediately when
 `wasm-ld` or `WASM_LD` cannot be used.
 
+Start with `bpl doctor --json` to see the same
+`BPL_WASM_LINKER_UNAVAILABLE` code, candidates, environment, and recommended
+commands that the wasm tests report when linker probing fails. Use
+`BPL_REQUIRE_WASM_LD=1 bun run test:wasm` after doctor output to reproduce CI's
+required-linker behavior locally.
+
 ## Complete Examples
 
 ### Development Workflow

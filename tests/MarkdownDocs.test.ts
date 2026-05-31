@@ -384,6 +384,8 @@ describe("Markdown documentation", () => {
       "bun run test:wasm",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
       "prints the checked linker candidates",
+      "Start with `bpl doctor --json` to see the same `BPL_WASM_LINKER_UNAVAILABLE` code, candidates, environment, and recommended commands",
+      "Use `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` after doctor output to reproduce CI's required-linker behavior locally",
       "tests/helpers/wasmCompatibilityMatrix.ts",
       "`wasm-freestanding`, `wasm-hosted`, `blocked-by-host-api`, or `native-only`",
     ];
@@ -404,6 +406,8 @@ describe("Markdown documentation", () => {
       "bun run ci:triage -- --json --jobs-json jobs.json <run-id>",
       'check: "ci-triage"',
       "When a wasm/toolchain step fails, the triage helper prints",
+      "Use this order for wasm CI failures: run `bun run ci:triage`, inspect `bpl doctor --json`, then reproduce with `BPL_REQUIRE_WASM_LD=1 bun run test:wasm`",
+      "`BPL_WASM_LINKER_UNAVAILABLE` in the doctor report means the local optional linker probe failed; CI makes that condition required through `BPL_REQUIRE_WASM_LD=1`",
       "bun test tests/WasmRuntime.test.ts",
       "bun index.ts doctor --json",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",

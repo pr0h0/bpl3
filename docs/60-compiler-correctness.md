@@ -88,6 +88,12 @@ BPL_REQUIRE_WASM_LD=1 bun run test:wasm
 bun index.ts doctor --json
 ```
 
+Use this order for wasm CI failures: run `bun run ci:triage`, inspect
+`bpl doctor --json`, then reproduce with
+`BPL_REQUIRE_WASM_LD=1 bun run test:wasm`. `BPL_WASM_LINKER_UNAVAILABLE` in the
+doctor report means the local optional linker probe failed; CI makes that
+condition required through `BPL_REQUIRE_WASM_LD=1`.
+
 When package JSON contract, install JSON, or `BPL_LOCKFILE_*` diagnostics fail,
 the triage helper points at the focused package automation checks:
 
