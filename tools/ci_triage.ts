@@ -122,6 +122,23 @@ const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const BUILD_JSON_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "build validation failures",
+    "BPL_BUILD_",
+    "Invalid optimization",
+    "Invalid emit",
+    "Invalid wasm runtime",
+    "Invalid jobs count",
+    "Input path is not a file",
+    "Input path is a symbolic link",
+    "Output directory not found",
+    "Output path is a directory",
+    "Output path is a symbolic link",
+    "Output parent path",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   [
     "package source-safety",
@@ -296,6 +313,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     IMPORT_RESOLVER_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|import diagnostics|JSON-mode build failures"',
   ],
+  [
+    BUILD_JSON_VALIDATION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
+  ],
+  [
+    BUILD_JSON_VALIDATION_STEP_PATTERN,
+    "bun test tests/CLIJsonParseability.test.ts",
+  ],
+  [BUILD_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',

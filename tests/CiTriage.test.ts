@@ -147,6 +147,29 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps build JSON validation failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
+      "bun test tests/CLIJsonParseability.test.ts",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_BUILD_INVALID_OPTIMIZATION")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_BUILD_OUTPUT_PARENT_NOT_FOUND")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "keeps JSON-mode build validation failures parseable on stdout",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("Output directory not found in build --json"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package source-safety JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
@@ -816,6 +839,69 @@ describe("CI triage helper", () => {
       expect(releaseJob?.localCommands).toContain(
         'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints build validation repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-build-codes-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 63,
+              name: "Generic test failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/63",
+              steps: [
+                {
+                  name: "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND in build --json",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
+        "bun test tests/CLIJsonParseability.test.ts",
+        "bun run check",
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
