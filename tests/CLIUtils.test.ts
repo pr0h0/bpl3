@@ -91,4 +91,43 @@ describe("CLI utils", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("rejects symlinked output ancestors before creating atomic temp files", () => {
+    const dir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-cli-utils-ancestor-link-"),
+    );
+    const originalDateNow = Date.now;
+    const originalRandom = Math.random;
+    const fixedTimestamp = 1700000000000;
+    const realRoot = path.join(dir, "real-root");
+    const linkedRoot = path.join(dir, "linked-root");
+    const realProject = path.join(realRoot, "project");
+    const outputPath = path.join(linkedRoot, "project", "output.txt");
+    const redirectedOutput = path.join(realProject, "output.txt");
+    const outsidePath = path.join(dir, "outside.txt");
+    const poisonedTempPath = path.join(
+      realProject,
+      `.output.txt.${process.pid}-${fixedTimestamp}-8-0.tmp`,
+    );
+
+    try {
+      fs.mkdirSync(realProject, { recursive: true });
+      fs.writeFileSync(outsidePath, "outside\n");
+      fs.symlinkSync(realRoot, linkedRoot, "dir");
+      fs.symlinkSync(outsidePath, poisonedTempPath, "file");
+      Date.now = () => fixedTimestamp;
+      Math.random = () => 0.5;
+
+      expect(() => writeFileAtomically(outputPath, "new\n")).toThrow(
+        "Output parent path contains a symbolic link",
+      );
+      expect(fs.lstatSync(poisonedTempPath).isSymbolicLink()).toBe(true);
+      expect(fs.readFileSync(outsidePath, "utf8")).toBe("outside\n");
+      expect(fs.existsSync(redirectedOutput)).toBe(false);
+    } finally {
+      Date.now = originalDateNow;
+      Math.random = originalRandom;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

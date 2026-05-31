@@ -243,6 +243,11 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `--color`: Force colored output
 - `--no-color`: Disable colored output
 
+Commands that write files through shared CLI output handling, including compile
+outputs, `bpl format --write`, `bpl docs -o`, and `bpl bindgen -o`, reject
+symbolic links at the destination path, the immediate parent, or any parent path
+component before creating atomic temporary files.
+
 ### Machine-readable JSON contracts
 
 JSON-capable commands write machine-readable data to stdout. Human-readable

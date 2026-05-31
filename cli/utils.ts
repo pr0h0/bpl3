@@ -101,6 +101,8 @@ export function assertWritableFileOutputPath(outputPath: string): void {
   if (!outputDirStats.isDirectory()) {
     throw new Error(`Output parent path is not a directory: ${outputDir}`);
   }
+
+  assertNoSymlinkedOutputParentPath(outputPath);
 }
 
 export function assertWritableInputFilePath(inputPath: string): void {
@@ -141,9 +143,11 @@ export function writeFileAtomically(filePath: string, content: string): void {
         ...(mode === undefined ? {} : { mode }),
       });
       createdTemp = true;
+      assertNoSymlinkedOutputParentPath(tempPath);
       if (mode !== undefined) {
         fs.chmodSync(tempPath, mode);
       }
+      assertNoSymlinkedOutputParentPath(filePath);
       fs.renameSync(tempPath, filePath);
       return;
     } catch (error) {
@@ -171,8 +175,43 @@ function getAtomicWriteTempPath(filePath: string, attempt: number): string {
   );
 }
 
+function assertNoSymlinkedOutputParentPath(filePath: string): void {
+  const symlinkedParent = findSymlinkedPathComponent(
+    path.dirname(path.resolve(filePath)),
+  );
+  if (!symlinkedParent) return;
+
+  throw new Error(
+    `Output parent path contains a symbolic link: ${symlinkedParent}`,
+  );
+}
+
+function findSymlinkedPathComponent(targetPath: string): string | null {
+  const absolutePath = path.resolve(targetPath);
+  const rootPath = path.parse(absolutePath).root;
+  const parts = path
+    .relative(rootPath, absolutePath)
+    .split(path.sep)
+    .filter((part) => part.length > 0);
+
+  let currentPath = rootPath;
+  for (const part of parts) {
+    currentPath = path.join(currentPath, part);
+    const stats = tryLstat(currentPath);
+    if (stats?.isSymbolicLink()) return currentPath;
+    if (stats && !stats.isDirectory()) return null;
+  }
+
+  return null;
+}
+
 function removeBestEffort(filePath: string): void {
   try {
+    if (
+      findSymlinkedPathComponent(path.dirname(path.resolve(filePath))) !== null
+    ) {
+      return;
+    }
     fs.rmSync(filePath, { force: true });
   } catch {
     // Best-effort cleanup only.

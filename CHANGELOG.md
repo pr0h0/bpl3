@@ -493,6 +493,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rejects working directory paths that contain symbolic-link components before
   scanning or removing artifacts, and JSON mode reports the refusal as a
   parseable `success: false` clean report.
+- **Shared CLI Output Ancestor Symlink Blocking (BUG-192)** - Shared CLI
+  output writes now reject symlinked parent path components before creating
+  atomic temp files, preserving final-path and immediate-parent symlink checks
+  while preventing format, docs, bindgen, and compile outputs from writing
+  through symlinked ancestors.
 - **Package Import Manifest Validation**: Package resolution now rejects invalid package import names before searching, rejects malformed package roots whose `bpl.json` `name` or `version` does not satisfy package manifest rules, and rejects versioned global package directories whose manifest `version` does not match the directory version.
 - **WebAssembly Linker Selection**: Treat explicit `WASM_LD` settings as authoritative instead of falling back to other linker names on `PATH`, making CI and local wasm linker failure tests deterministic.
 - **Unicode String Encoding (BUG-118)**: Fixed LLVM IR generation for strings containing non-ASCII characters. The `escapeString()` function now uses `TextEncoder` to properly compute UTF-8 byte lengths, preventing size mismatches between LLVM IR string constants and their declared array lengths.
