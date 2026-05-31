@@ -210,6 +210,97 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps check and lint JSON input validation failures parseable with error codes", () => {
+    const sourceDir = path.join(tempDir, "source-dir");
+    const realSource = path.join(tempDir, "main.bpl");
+    const linkedSource = path.join(tempDir, "linked.bpl");
+    const missingSource = path.join(tempDir, "missing.bpl");
+    fs.mkdirSync(sourceDir);
+    fs.writeFileSync(realSource, "frame main() ret int { return 0; }\n");
+    fs.symlinkSync(realSource, linkedSource, "file");
+
+    const cases: Array<{
+      args: string[];
+      check: "check" | "lint";
+      file: string;
+      error: string;
+      errorCode: string;
+    }> = [
+      {
+        args: ["check", "--json", missingSource],
+        check: "check",
+        file: missingSource,
+        error: "File not found",
+        errorCode: "BPL_CHECK_INPUT_NOT_FOUND",
+      },
+      {
+        args: ["check", "--json", linkedSource],
+        check: "check",
+        file: linkedSource,
+        error: "Input path is a symbolic link",
+        errorCode: "BPL_CHECK_INPUT_SYMLINK",
+      },
+      {
+        args: ["check", "--json", sourceDir],
+        check: "check",
+        file: sourceDir,
+        error: "Input path is not a file",
+        errorCode: "BPL_CHECK_INPUT_NOT_FILE",
+      },
+      {
+        args: ["lint", "--json", missingSource],
+        check: "lint",
+        file: missingSource,
+        error: "File not found",
+        errorCode: "BPL_LINT_INPUT_NOT_FOUND",
+      },
+      {
+        args: ["lint", "--json", linkedSource],
+        check: "lint",
+        file: linkedSource,
+        error: "Input path is a symbolic link",
+        errorCode: "BPL_LINT_INPUT_SYMLINK",
+      },
+      {
+        args: ["lint", "--json", sourceDir],
+        check: "lint",
+        file: sourceDir,
+        error: "Input path is not a file",
+        errorCode: "BPL_LINT_INPUT_NOT_FILE",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const report = expectJsonStdoutReport<{
+        totalFiles: number;
+        errorCount: number;
+        files: Array<{
+          file: string;
+          success: boolean;
+          error: string;
+          errorCode: string;
+        }>;
+      }>(runCli(testCase.args), {
+        status: 1,
+        check: testCase.check,
+        success: false,
+      });
+
+      expect(report).toMatchObject({
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: testCase.file,
+            success: false,
+            error: testCase.error,
+            errorCode: testCase.errorCode,
+          },
+        ],
+      });
+    }
+  });
+
   test("keeps clean JSON validation failures parseable with error codes", () => {
     const realRoot = path.join(tempDir, "real-root");
     const linkedRoot = path.join(tempDir, "linked-root");

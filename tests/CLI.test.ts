@@ -964,24 +964,36 @@ describe("CLI Tests", () => {
       expect(check.status).toBe(1);
       expect(
         parseJsonObjectStdout<{
-          files: Array<{ file: string; success: boolean; error: string }>;
+          files: Array<{
+            file: string;
+            success: boolean;
+            error: string;
+            errorCode: string;
+          }>;
         }>(check).files[0],
       ).toEqual({
         file: sourceDir,
         success: false,
         error: "Input path is not a file",
+        errorCode: "BPL_CHECK_INPUT_NOT_FILE",
       });
 
       const lint = runCLI(["lint", "--json", sourceDir]);
       expect(lint.status).toBe(1);
       expect(
         parseJsonObjectStdout<{
-          files: Array<{ file: string; success: boolean; error: string }>;
+          files: Array<{
+            file: string;
+            success: boolean;
+            error: string;
+            errorCode: string;
+          }>;
         }>(lint).files[0],
       ).toEqual({
         file: sourceDir,
         success: false,
         error: "Input path is not a file",
+        errorCode: "BPL_LINT_INPUT_NOT_FILE",
       });
 
       const format = runCLI(["format", sourceDir]);
@@ -1007,24 +1019,36 @@ describe("CLI Tests", () => {
       expect(check.status).toBe(1);
       expect(
         parseJsonObjectStdout<{
-          files: Array<{ file: string; success: boolean; error: string }>;
+          files: Array<{
+            file: string;
+            success: boolean;
+            error: string;
+            errorCode: string;
+          }>;
         }>(check).files[0],
       ).toEqual({
         file: linkedFile,
         success: false,
         error: "Input path is a symbolic link",
+        errorCode: "BPL_CHECK_INPUT_SYMLINK",
       });
 
       const lint = runCLI(["lint", "--json", linkedFile]);
       expect(lint.status).toBe(1);
       expect(
         parseJsonObjectStdout<{
-          files: Array<{ file: string; success: boolean; error: string }>;
+          files: Array<{
+            file: string;
+            success: boolean;
+            error: string;
+            errorCode: string;
+          }>;
         }>(lint).files[0],
       ).toEqual({
         file: linkedFile,
         success: false,
         error: "Input path is a symbolic link",
+        errorCode: "BPL_LINT_INPUT_SYMLINK",
       });
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -2371,12 +2395,13 @@ describe("CLI Tests", () => {
     expect(report.totalFiles).toBe(1);
     expect(report.errorCount).toBe(1);
     expect(report.files).toEqual([
-      {
-        file: missingFile,
-        success: false,
-        error: "File not found",
-      },
-    ]);
+        {
+          file: missingFile,
+          success: false,
+          error: "File not found",
+          errorCode: "BPL_CHECK_INPUT_NOT_FOUND",
+        },
+      ]);
   });
 
   it("should scaffold library projects with package-friendly defaults", () => {

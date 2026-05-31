@@ -17,6 +17,10 @@ import {
 
 const log = new Logger("Lint");
 
+export const LINT_INPUT_NOT_FOUND_CODE = "BPL_LINT_INPUT_NOT_FOUND";
+export const LINT_INPUT_SYMLINK_CODE = "BPL_LINT_INPUT_SYMLINK";
+export const LINT_INPUT_NOT_FILE_CODE = "BPL_LINT_INPUT_NOT_FILE";
+
 /**
  * Register the lint command
  */
@@ -50,6 +54,7 @@ export function registerLintCommand(program: Command): void {
         success: boolean;
         diagnostics?: unknown[];
         error?: string;
+        errorCode?: string;
       }> = [];
 
       for (const file of files) {
@@ -61,6 +66,7 @@ export function registerLintCommand(program: Command): void {
                 file,
                 success: false,
                 error: inputError,
+                errorCode: getLintInputErrorCode(inputError),
               });
             } else {
               log.error(`${inputError}: ${file}`);
@@ -138,4 +144,17 @@ export function registerLintCommand(program: Command): void {
         process.exit(1);
       }
     });
+}
+
+function getLintInputErrorCode(inputError: string): string {
+  switch (inputError) {
+    case "File not found":
+      return LINT_INPUT_NOT_FOUND_CODE;
+    case "Input path is a symbolic link":
+      return LINT_INPUT_SYMLINK_CODE;
+    case "Input path is not a file":
+      return LINT_INPUT_NOT_FILE_CODE;
+    default:
+      return "BPL_LINT_INPUT_INVALID";
+  }
 }

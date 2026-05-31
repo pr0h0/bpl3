@@ -22,6 +22,10 @@ import {
 
 const log = new Logger("Check");
 
+export const CHECK_INPUT_NOT_FOUND_CODE = "BPL_CHECK_INPUT_NOT_FOUND";
+export const CHECK_INPUT_SYMLINK_CODE = "BPL_CHECK_INPUT_SYMLINK";
+export const CHECK_INPUT_NOT_FILE_CODE = "BPL_CHECK_INPUT_NOT_FILE";
+
 /**
  * Register the check command
  *
@@ -87,6 +91,7 @@ export function registerCheckCommand(program: Command): void {
                 file: filePath,
                 success: false,
                 error: inputError,
+                errorCode: getCheckInputErrorCode(inputError),
               });
             } else {
               log.error(`${inputError}: ${filePath}`);
@@ -243,4 +248,17 @@ export function registerCheckCommand(program: Command): void {
         process.exit(1);
       }
     });
+}
+
+function getCheckInputErrorCode(inputError: string): string {
+  switch (inputError) {
+    case "File not found":
+      return CHECK_INPUT_NOT_FOUND_CODE;
+    case "Input path is a symbolic link":
+      return CHECK_INPUT_SYMLINK_CODE;
+    case "Input path is not a file":
+      return CHECK_INPUT_NOT_FILE_CODE;
+    default:
+      return "BPL_CHECK_INPUT_INVALID";
+  }
 }
