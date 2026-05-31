@@ -761,6 +761,27 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain("parsePackageInstallReport");
   });
 
+  test("release smoke validates packed global package list JSON output", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI global package list JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI global package list tree JSON",
+    );
+    expect(releaseSmokeSource).toContain("runPackedPackageListJsonSmoke");
+    expect(releaseSmokeSource).toContain("parsePackageListReport");
+    expect(releaseSmokeSource).toContain("parsePackageListTreeReport");
+    expect(releaseSmokeSource).toContain('["list", "--global", "--json"]');
+    expect(releaseSmokeSource).toContain(
+      '["list", "--global", "--tree", "--json"]',
+    );
+  });
+
   test("release smoke validates packed package-cache validation error codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

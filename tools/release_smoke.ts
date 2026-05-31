@@ -1877,6 +1877,9 @@ function runPackedPackageListJsonSmoke(
   installedBpl: string,
   installDir: string,
 ): void {
+  const globalHomeDir = join(installDir, "package-list-global-home");
+  mkdirSync(globalHomeDir, { recursive: true });
+
   const list = runStep(
     "check packed npm CLI package list JSON",
     installedBpl,
@@ -1910,6 +1913,50 @@ function runPackedPackageListJsonSmoke(
   ) {
     throw new Error(
       `Packed npm CLI package list tree JSON was not isolated:\n${JSON.stringify(treeReport, null, 2)}`,
+    );
+  }
+
+  const globalList = runStep(
+    "check packed npm CLI global package list JSON",
+    installedBpl,
+    ["list", "--global", "--json"],
+    {
+      cwd: installDir,
+      bplHome: null,
+      env: { HOME: globalHomeDir },
+    },
+  );
+  const globalListReport = parsePackageListReport(globalList.stdout);
+
+  if (
+    !globalListReport.success ||
+    globalListReport.scope !== "global" ||
+    globalListReport.packages.length !== 0
+  ) {
+    throw new Error(
+      `Packed npm CLI global package list JSON was not isolated:\n${JSON.stringify(globalListReport, null, 2)}`,
+    );
+  }
+
+  const globalTree = runStep(
+    "check packed npm CLI global package list tree JSON",
+    installedBpl,
+    ["list", "--global", "--tree", "--json"],
+    {
+      cwd: installDir,
+      bplHome: null,
+      env: { HOME: globalHomeDir },
+    },
+  );
+  const globalTreeReport = parsePackageListTreeReport(globalTree.stdout);
+
+  if (
+    !globalTreeReport.success ||
+    globalTreeReport.scope !== "global" ||
+    globalTreeReport.tree.length !== 0
+  ) {
+    throw new Error(
+      `Packed npm CLI global package list tree JSON was not isolated:\n${JSON.stringify(globalTreeReport, null, 2)}`,
     );
   }
 }
