@@ -668,7 +668,11 @@ export function checkBinary(
   }
 
   // Ensure arithmetic operators are only applied to numeric types (unless overloaded)
-  if ([TokenType.Minus, TokenType.Star, TokenType.Slash].includes(op)) {
+  if (
+    [TokenType.Plus, TokenType.Minus, TokenType.Star, TokenType.Slash].includes(
+      op,
+    )
+  ) {
     if (
       !TypeUtils.isNumericType(leftType) ||
       !TypeUtils.isNumericType(rightType)

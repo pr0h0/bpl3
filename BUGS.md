@@ -156,6 +156,7 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-143 | Safety              | Escape analysis misses stack addresses hidden inside aggregate return values.                                              | Fixed    | Return checking now recursively rejects stack addresses hidden in struct, tuple, array, enum-struct, cast, group, and ternary return expressions. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                |
 | BUG-144 | Pointers            | Pointer subtraction across incompatible pointee types is accepted.                                                         | Fixed    | Pointer subtraction now requires compatible pointer operands before lowering to an integer difference. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                                                        |
 | BUG-145 | Inheritance/VTable  | Method overrides with incompatible return types are accepted and can dispatch through the wrong signature.                 | Fixed    | Struct body checking now validates inherited method overrides with matching non-`this` parameters and rejects incompatible return types before vtable dispatch can use mismatched signatures. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                  |
+| BUG-148 | TypeChecker/Codegen | Aggregate `+` expressions on structs or tuples compile to invalid LLVM `add` instructions.                                | Fixed    | Arithmetic validation now includes `+`, so aggregate addition without an overload is rejected before code generation. Regression: `tests/InternalErrorBoundary.test.ts`.                                                                                                                   |
 
 ## Details
 
@@ -2026,3 +2027,39 @@ frame main() ret int {
 **Actual**: Program compiles and prints a garbage integer. The generated `Child_vtable` stores `@Child_value_Child_ptr` with `double` return type in the slot used by a base call emitted as `i32`.
 
 **Resolution**: Struct method checking now validates inherited override signatures for matching non-`this` parameters and rejects incompatible return types before vtable layout/codegen.
+
+---
+
+### BUG-148: Aggregate Addition Lowers To Invalid LLVM
+
+**Status**: Fixed
+
+**Category**: TypeChecker/Codegen
+
+**Description**: Struct and tuple operands with matching types could use `+`
+without defining an overload. The type checker treated the operands as
+compatible and returned the aggregate type, then code generation emitted invalid
+LLVM such as `add %struct.Box ...` or `add { i32, i32 } ...`.
+
+**Reproduction**:
+
+```bpl
+struct Box {
+    value: int,
+}
+
+frame bad() ret Box {
+    local lhs: Box = Box { value: 1 };
+    local rhs: Box = Box { value: 2 };
+    return lhs + rhs;
+}
+```
+
+**Expected**: Compile-time type error explaining that `+` cannot be applied to
+`Box` and `Box` without an overload.
+
+**Actual**: The program compiled and generated verifier-invalid LLVM.
+
+**Resolution**: Arithmetic operator validation now includes `+` alongside `-`,
+`*`, and `/`, while preserving pointer arithmetic and explicit operator
+overload handling.
