@@ -6,10 +6,47 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Command } from "commander";
-import { Logger } from "../../compiler/common/Logger";
+import {
+  Logger,
+  LogLevel,
+  resetLogLevel,
+  setLogLevel,
+} from "../../compiler/common/Logger";
+import {
+  CLI_JSON_CHECKS,
+  createJsonReport,
+} from "../../compiler/common/JsonContracts";
 import { writeFileAtomically } from "../utils";
 
 const log = new Logger("New");
+
+type NewTemplate = "app" | "library";
+
+interface NewCommandOptions {
+  verbose?: boolean;
+  git?: boolean;
+  template?: string;
+  json?: boolean;
+}
+
+interface NewProjectResult {
+  name: string;
+  template: NewTemplate;
+  projectPath: string;
+  manifestPath: string;
+  entrypoint: string;
+  gitInitialized: boolean;
+}
+
+class NewCommandError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly projectPath: string | null,
+  ) {
+    super(message);
+  }
+}
 
 /**
  * Register the new command
@@ -31,66 +68,68 @@ export function registerNewCommand(program: Command): void {
     .option("--template <name>", "project template: app or library", "app")
     .option("-v, --verbose", "enable verbose output")
     .option("--no-git", "do not initialize git repository")
-    .action(
-      (
-        name: string,
-        options: { verbose?: boolean; git?: boolean; template?: string },
-      ) => {
-        try {
-          validateProjectName(name);
+    .option("--json", "output machine-readable project creation result")
+    .action((name: string, options: NewCommandOptions, command: Command) => {
+      const globalOpts = command.parent?.opts() || {};
+      const outputJson = Boolean(options.json || globalOpts.json);
+      if (outputJson) {
+        setLogLevel(LogLevel.SILENT);
+      }
+      const requestedTemplate = options.template ?? "app";
+      let projectPath: string | null = null;
+      try {
+        validateProjectName(name);
 
-          const template = options.template ?? "app";
-          if (template !== "app" && template !== "library") {
-            log.error("Unsupported template. Use 'app' or 'library'.");
-            process.exit(1);
+        projectPath = path.resolve(process.cwd(), name);
+        const template = validateTemplate(requestedTemplate, projectPath);
+        assertProjectPathAvailable(projectPath);
+
+        let gitInitialized = false;
+        const entrypoint = template === "library" ? "src/index.bpl" : "main.bpl";
+        const manifestPath = path.join(projectPath, "bpl.json");
+        let stagingPath: string | null = createProjectStagingDir(projectPath);
+        try {
+          if (options.verbose) {
+            log.info(`Created staging directory: ${stagingPath}`);
           }
 
-          const projectPath = path.resolve(process.cwd(), name);
-          assertProjectPathAvailable(projectPath);
+          // Create bpl.json manifest
+          const manifest =
+            template === "library"
+              ? {
+                  name,
+                  version: "0.1.0",
+                  type: "library",
+                  description: `A BPL library named ${name}`,
+                  main: "src/index.bpl",
+                  dependencies: {},
+                  devDependencies: {},
+                }
+              : {
+                  name,
+                  version: "0.1.0",
+                  type: "app",
+                  description: `A BPL project named ${name}`,
+                  main: "main.bpl",
+                  dependencies: {},
+                  devDependencies: {},
+                };
 
-          let stagingPath: string | null = createProjectStagingDir(projectPath);
-          try {
-            if (options.verbose) {
-              log.info(`Created staging directory: ${stagingPath}`);
-            }
+          writeFileAtomically(
+            path.join(stagingPath, "bpl.json"),
+            JSON.stringify(manifest, null, 2) + "\n",
+          );
+          if (options.verbose) {
+            log.info("Created bpl.json");
+          }
 
-            // Create bpl.json manifest
-            const manifest =
-              template === "library"
-                ? {
-                    name,
-                    version: "0.1.0",
-                    type: "library",
-                    description: `A BPL library named ${name}`,
-                    main: "src/index.bpl",
-                    dependencies: {},
-                    devDependencies: {},
-                  }
-                : {
-                    name,
-                    version: "0.1.0",
-                    type: "app",
-                    description: `A BPL project named ${name}`,
-                    main: "main.bpl",
-                    dependencies: {},
-                    devDependencies: {},
-                  };
+          if (template === "library") {
+            fs.mkdirSync(path.join(stagingPath, "src"), { recursive: true });
+            fs.mkdirSync(path.join(stagingPath, "examples"), {
+              recursive: true,
+            });
 
-            writeFileAtomically(
-              path.join(stagingPath, "bpl.json"),
-              JSON.stringify(manifest, null, 2) + "\n",
-            );
-            if (options.verbose) {
-              log.info("Created bpl.json");
-            }
-
-            if (template === "library") {
-              fs.mkdirSync(path.join(stagingPath, "src"), { recursive: true });
-              fs.mkdirSync(path.join(stagingPath, "examples"), {
-                recursive: true,
-              });
-
-              const libraryContent = `# ${name}
+            const libraryContent = `# ${name}
 # Public package entry point
 
 export add;
@@ -100,15 +139,15 @@ frame add(left: int, right: int) ret int {
 }
 `;
 
-              writeFileAtomically(
-                path.join(stagingPath, "src", "index.bpl"),
-                libraryContent,
-              );
-              if (options.verbose) {
-                log.info("Created src/index.bpl");
-              }
+            writeFileAtomically(
+              path.join(stagingPath, "src", "index.bpl"),
+              libraryContent,
+            );
+            if (options.verbose) {
+              log.info("Created src/index.bpl");
+            }
 
-              const usageContent = `# ${name} usage example
+            const usageContent = `# ${name} usage example
 
 import add from "../src/index.bpl";
 
@@ -121,16 +160,16 @@ frame main() ret int {
 }
 `;
 
-              writeFileAtomically(
-                path.join(stagingPath, "examples", "usage.bpl"),
-                usageContent,
-              );
-              if (options.verbose) {
-                log.info("Created examples/usage.bpl");
-              }
-            } else {
-              // Create main.bpl
-              const mainContent = `# ${name}
+            writeFileAtomically(
+              path.join(stagingPath, "examples", "usage.bpl"),
+              usageContent,
+            );
+            if (options.verbose) {
+              log.info("Created examples/usage.bpl");
+            }
+          } else {
+            // Create main.bpl
+            const mainContent = `# ${name}
 # Main entry point
 
 extern printf(fmt: string, ...);
@@ -141,25 +180,25 @@ frame main() ret int {
 }
 `;
 
-              writeFileAtomically(
-                path.join(stagingPath, "main.bpl"),
-                mainContent,
-              );
-              if (options.verbose) {
-                log.info("Created main.bpl");
-              }
-
-              // Create lib directory
-              fs.mkdirSync(path.join(stagingPath, "lib"), { recursive: true });
-              if (options.verbose) {
-                log.info("Created lib/");
-              }
+            writeFileAtomically(
+              path.join(stagingPath, "main.bpl"),
+              mainContent,
+            );
+            if (options.verbose) {
+              log.info("Created main.bpl");
             }
 
-            // Create README.md
-            const readmeContent =
-              template === "library"
-                ? `# ${name}
+            // Create lib directory
+            fs.mkdirSync(path.join(stagingPath, "lib"), { recursive: true });
+            if (options.verbose) {
+              log.info("Created lib/");
+            }
+          }
+
+          // Create README.md
+          const readmeContent =
+            template === "library"
+              ? `# ${name}
 
 ${manifest.description}
 
@@ -186,7 +225,7 @@ bpl pack
 
 See the [BPL Language Documentation](https://github.com/pr0h0/bpl) for more information.
 `
-                : `# ${name}
+              : `# ${name}
 
 ${manifest.description}
 
@@ -217,16 +256,16 @@ bpl check main.bpl
 See the [BPL Language Documentation](https://github.com/pr0h0/bpl) for more information.
 `;
 
-            writeFileAtomically(
-              path.join(stagingPath, "README.md"),
-              readmeContent,
-            );
-            if (options.verbose) {
-              log.info("Created README.md");
-            }
+          writeFileAtomically(
+            path.join(stagingPath, "README.md"),
+            readmeContent,
+          );
+          if (options.verbose) {
+            log.info("Created README.md");
+          }
 
-            // Create .gitignore
-            const gitignoreContent = `# BPL build artifacts
+          // Create .gitignore
+          const gitignoreContent = `# BPL build artifacts
 *.ll
 *.o
 *.exe
@@ -248,59 +287,103 @@ bpl_modules/
 Thumbs.db
 `;
 
-            writeFileAtomically(
-              path.join(stagingPath, ".gitignore"),
-              gitignoreContent,
-            );
-            if (options.verbose) {
-              log.info("Created .gitignore");
-            }
-
-            fs.renameSync(stagingPath, projectPath);
-            stagingPath = null;
-            if (options.verbose) {
-              log.info(`Created directory: ${projectPath}`);
-            }
-          } finally {
-            if (stagingPath) {
-              fs.rmSync(stagingPath, { recursive: true, force: true });
-            }
-          }
-
-          // Initialize git repository if not disabled
-          if (options.git !== false) {
-            try {
-              const { execSync } = require("child_process");
-              execSync("git init", { cwd: projectPath, stdio: "ignore" });
-              execSync("git add .", { cwd: projectPath, stdio: "ignore" });
-              execSync('git commit -m "Initial commit"', {
-                cwd: projectPath,
-                stdio: "ignore",
-              });
-              if (options.verbose) {
-                log.info("Initialized git repository");
-              }
-            } catch {
-              // Silently fail if git is not available
-            }
-          }
-
-          // Success message
-          log.info(`\n✓ Created project: ${name}\n`);
-          log.info("Next steps:");
-          log.info(`  cd ${name}`);
-          log.info(
-            template === "library"
-              ? "  bpl check src/index.bpl"
-              : "  bpl run main.bpl",
+          writeFileAtomically(
+            path.join(stagingPath, ".gitignore"),
+            gitignoreContent,
           );
-          log.info("\nHappy coding! 🚀\n");
-        } catch (e) {
-          log.error(`${e instanceof Error ? e.message : String(e)}`);
+          if (options.verbose) {
+            log.info("Created .gitignore");
+          }
+
+          fs.renameSync(stagingPath, projectPath);
+          stagingPath = null;
+          if (options.verbose) {
+            log.info(`Created directory: ${projectPath}`);
+          }
+        } finally {
+          if (stagingPath) {
+            fs.rmSync(stagingPath, { recursive: true, force: true });
+          }
+        }
+
+        // Initialize git repository if not disabled
+        if (options.git !== false) {
+          try {
+            const { execSync } = require("child_process");
+            execSync("git init", { cwd: projectPath, stdio: "ignore" });
+            execSync("git add .", { cwd: projectPath, stdio: "ignore" });
+            execSync('git commit -m "Initial commit"', {
+              cwd: projectPath,
+              stdio: "ignore",
+            });
+            gitInitialized = true;
+            if (options.verbose) {
+              log.info("Initialized git repository");
+            }
+          } catch {
+            // Silently fail if git is not available
+          }
+        }
+
+        const result: NewProjectResult = {
+          name,
+          template,
+          projectPath,
+          manifestPath,
+          entrypoint,
+          gitInitialized,
+        };
+
+        if (outputJson) {
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.projectNew, true, {
+                ...result,
+              }),
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+
+        // Success message
+        log.info(`\n✓ Created project: ${name}\n`);
+        log.info("Next steps:");
+        log.info(`  cd ${name}`);
+        log.info(
+          template === "library"
+            ? "  bpl check src/index.bpl"
+            : "  bpl run main.bpl",
+        );
+        log.info("\nHappy coding! 🚀\n");
+      } catch (e) {
+        if (outputJson) {
+          const errorProjectPath =
+            e instanceof NewCommandError ? e.projectPath : projectPath;
+          console.log(
+            JSON.stringify(
+              createJsonReport(CLI_JSON_CHECKS.projectNew, false, {
+                name,
+                template: requestedTemplate,
+                projectPath: errorProjectPath,
+                error: e instanceof Error ? e.message : String(e),
+                ...formatNewCommandErrorCode(e),
+              }),
+              null,
+              2,
+            ),
+          );
           process.exit(1);
         }
-      },
-    );
+        log.error(`${e instanceof Error ? e.message : String(e)}`);
+        process.exit(1);
+      } finally {
+        if (outputJson) {
+          resetLogLevel();
+        }
+      }
+    });
 }
 
 function validateProjectName(name: string): void {
@@ -309,16 +392,32 @@ function validateProjectName(name: string): void {
     name.includes("\\") ||
     path.basename(name) !== name
   ) {
-    log.error("Invalid project name. Use a package name, not a path.");
-    process.exit(1);
+    throw new NewCommandError(
+      "Invalid project name. Use a package name, not a path.",
+      "BPL_NEW_NAME_PATH",
+      null,
+    );
   }
 
   if (!/^[a-z0-9-]+$/.test(name)) {
-    log.error(
+    throw new NewCommandError(
       `Invalid project name: ${name} (use lowercase letters, numbers, and hyphens only).`,
+      "BPL_NEW_NAME_INVALID",
+      null,
     );
-    process.exit(1);
   }
+}
+
+function validateTemplate(template: string, projectPath: string): NewTemplate {
+  if (template === "app" || template === "library") {
+    return template;
+  }
+
+  throw new NewCommandError(
+    "Unsupported template. Use 'app' or 'library'.",
+    "BPL_NEW_TEMPLATE_INVALID",
+    projectPath,
+  );
 }
 
 function assertProjectPathAvailable(projectPath: string): void {
@@ -326,18 +425,36 @@ function assertProjectPathAvailable(projectPath: string): void {
   if (!existingPath) return;
 
   if (existingPath.isDirectory()) {
-    throw new Error(`Directory already exists: ${projectPath}`);
-  }
-
-  if (existingPath.isSymbolicLink()) {
-    throw new Error(
-      `Project path already exists as a symbolic link: ${projectPath}`,
+    throw new NewCommandError(
+      `Directory already exists: ${projectPath}`,
+      "BPL_NEW_PATH_EXISTS_DIRECTORY",
+      projectPath,
     );
   }
 
-  throw new Error(
+  if (existingPath.isSymbolicLink()) {
+    throw new NewCommandError(
+      `Project path already exists as a symbolic link: ${projectPath}`,
+      "BPL_NEW_PATH_EXISTS_SYMLINK",
+      projectPath,
+    );
+  }
+
+  throw new NewCommandError(
     `Project path already exists and is not a directory: ${projectPath}`,
+    "BPL_NEW_PATH_EXISTS_NOT_DIRECTORY",
+    projectPath,
   );
+}
+
+function formatNewCommandErrorCode(
+  error: unknown,
+): { errorCode: string } | Record<string, never> {
+  if (error instanceof NewCommandError) {
+    return { errorCode: error.code };
+  }
+
+  return {};
 }
 
 function createProjectStagingDir(projectPath: string): string {

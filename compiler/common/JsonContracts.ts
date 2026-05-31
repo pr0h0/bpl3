@@ -10,6 +10,7 @@ export const CLI_JSON_CHECKS = {
   packageCacheList: "package-cache-list",
   packageCacheRepair: "package-cache-repair",
   packageCacheVerify: "package-cache-verify",
+  projectNew: "project-new",
   packageInit: "package-init",
   packageInstall: "package-install",
   packageList: "package-list",
@@ -30,6 +31,7 @@ export const CLI_JSON_CONTRACTS = [
   { command: "bpl doctor sanitizer --json", check: CLI_JSON_CHECKS.toolchain },
   { command: "bpl doctor <unknown> --json", check: CLI_JSON_CHECKS.doctor },
   { command: "bpl doctor packages --json", check: CLI_JSON_CHECKS.packages },
+  { command: "bpl new <name> --json", check: CLI_JSON_CHECKS.projectNew },
   {
     command: "bpl package-cache list [package] --json",
     check: CLI_JSON_CHECKS.packageCacheList,

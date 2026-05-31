@@ -15,6 +15,7 @@ describe("JSON contract constants", () => {
       { command: "bpl doctor sanitizer --json", check: "toolchain" },
       { command: "bpl doctor <unknown> --json", check: "doctor" },
       { command: "bpl doctor packages --json", check: "packages" },
+      { command: "bpl new <name> --json", check: "project-new" },
       {
         command: "bpl package-cache list [package] --json",
         check: "package-cache-list",
@@ -63,6 +64,7 @@ describe("JSON contract constants", () => {
       "cli/commands/clean.ts",
       "cli/commands/doctor.ts",
       "cli/commands/lint.ts",
+      "cli/commands/new.ts",
       "cli/commands/package.ts",
       "cli/commands/runScript.ts",
       "compiler/middleend/PackageManager.ts",

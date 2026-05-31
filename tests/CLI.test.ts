@@ -2507,6 +2507,151 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report new project success and failures as JSON", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-json-"));
+    const existingProject = path.join(tempDir, "existing-project");
+    fs.mkdirSync(existingProject);
+
+    try {
+      const success = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "new",
+          "json-app",
+          "--template",
+          "app",
+          "--no-git",
+          "--json",
+        ],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const successReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: string;
+        manifestPath: string;
+        entrypoint: string;
+        gitInitialized: boolean;
+      }>(success, {
+        status: 0,
+        check: "project-new",
+        success: true,
+      });
+      expect(successReport).toMatchObject({
+        name: "json-app",
+        template: "app",
+        projectPath: path.join(tempDir, "json-app"),
+        manifestPath: path.join(tempDir, "json-app", "bpl.json"),
+        entrypoint: "main.bpl",
+        gitInitialized: false,
+      });
+      expect(fs.existsSync(path.join(tempDir, "json-app", "main.bpl"))).toBe(
+        true,
+      );
+
+      const badName = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "Bad_Name", "--no-git", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const badNameReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: null;
+        error: string;
+        errorCode: string;
+      }>(badName, {
+        status: 1,
+        check: "project-new",
+        success: false,
+      });
+      expect(badNameReport).toMatchObject({
+        name: "Bad_Name",
+        template: "app",
+        projectPath: null,
+        error: expect.stringContaining("Invalid project name"),
+        errorCode: "BPL_NEW_NAME_INVALID",
+      });
+      expect(fs.existsSync(path.join(tempDir, "Bad_Name"))).toBe(false);
+
+      const badTemplate = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "bad-template", "--template", "bad", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const badTemplateReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: string;
+        error: string;
+        errorCode: string;
+      }>(badTemplate, {
+        status: 1,
+        check: "project-new",
+        success: false,
+      });
+      expect(badTemplateReport).toMatchObject({
+        name: "bad-template",
+        template: "bad",
+        projectPath: path.join(tempDir, "bad-template"),
+        error: expect.stringContaining("Unsupported template"),
+        errorCode: "BPL_NEW_TEMPLATE_INVALID",
+      });
+      expect(fs.existsSync(path.join(tempDir, "bad-template"))).toBe(false);
+
+      const existing = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "existing-project", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const existingReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: string;
+        error: string;
+        errorCode: string;
+      }>(existing, {
+        status: 1,
+        check: "project-new",
+        success: false,
+      });
+      expect(existingReport).toMatchObject({
+        name: "existing-project",
+        template: "app",
+        projectPath: existingProject,
+        error: expect.stringContaining("Directory already exists"),
+        errorCode: "BPL_NEW_PATH_EXISTS_DIRECTORY",
+      });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject existing non-directory project paths before scaffolding", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-collision-"));
     const fileName = "taken-file";
