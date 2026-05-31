@@ -153,6 +153,16 @@ bun run test:sanitizers
 bun test tests/CompilerSanitizerRuntime.test.ts
 ```
 
+Packed package/import diagnostic smoke validates that the installed npm CLI
+keeps package import JSON diagnostics machine-readable, including stable
+diagnostic codes such as `BPL_PACKAGE_MANIFEST_MISSING`. Reproduce that release
+slice locally with:
+
+```bash
+bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"
+bun run release:smoke
+```
+
 ## 🚀 Quick Start
 
 ### Hello World

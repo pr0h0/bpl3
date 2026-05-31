@@ -613,6 +613,11 @@ This type-checks the TypeScript code, validates release metadata and workflow
 expectations, runs standalone `./bpl` and packed npm tarball smoke tests, and
 runs the VS Code extension tests. It is intentionally smaller than the full
 compiler correctness matrix so it stays useful as a local pre-release gate.
+The packed npm smoke includes package/import diagnostic JSON coverage: it runs
+the installed CLI against a malformed package import and asserts the stable
+`BPL_PACKAGE_MANIFEST_MISSING` diagnostic code. Reproduce that focused contract
+with `bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"`,
+or run the full packed smoke with `bun run release:smoke`.
 
 To create a checksum manifest for the release artifacts, run:
 

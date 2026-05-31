@@ -61,6 +61,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Sanitizer Contracts** - Release helper smoke now checks
   that packed `ci:triage` JSON keeps sanitizer runtime repro commands available
   after npm packaging.
+- **Packed Package Import Diagnostic Smoke** - Release smoke now checks that
+  the packed npm CLI preserves package/import JSON diagnostic codes such as
+  `BPL_PACKAGE_MANIFEST_MISSING`, with a focused metadata repro command for the
+  smoke contract.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing

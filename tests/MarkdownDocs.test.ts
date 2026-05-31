@@ -291,6 +291,9 @@ describe("Markdown documentation", () => {
       "Packed `ci:triage` smoke also validates sanitizer runtime repro contracts",
       "bun run test:sanitizers",
       "bun test tests/CompilerSanitizerRuntime.test.ts",
+      "Packed package/import diagnostic smoke validates that the installed npm CLI keeps package import JSON diagnostics machine-readable",
+      'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+      "BPL_PACKAGE_MANIFEST_MISSING",
     ];
 
     for (const snippet of requiredSnippets) {
