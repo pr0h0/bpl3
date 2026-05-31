@@ -242,4 +242,23 @@ describe("Markdown documentation", () => {
       expect(text).toContain(snippet.replace(/\s+/g, " "));
     }
   });
+
+  test("imports docs document diagnostic mode policy", () => {
+    const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Normal `bpl check`, `bpl build`, and cached builds preserve resolver-specific import diagnostics",
+      "Unsafe `std/` paths report the rejected import path",
+      "package failures keep package metadata details such as invalid `bpl.json` fields",
+      "manifest-name mismatches, missing entrypoints, and searched package paths",
+      "Frontend-only outputs such as `bpl build --emit tokens`, `bpl build --emit ast`, and `bpl build --emit formatted` parse the source without loading imported modules",
+      "Use `bpl check` or a normal build when you need import resolution diagnostics",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });

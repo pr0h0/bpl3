@@ -145,6 +145,19 @@ They cannot contain empty, `.`, or `..` path segments, so imports such as
 `std//array.bpl`, `std/./array.bpl`, and `std/../array.bpl` are rejected before
 the compiler resolves them against the standard library root.
 
+### Import Diagnostics
+
+Normal `bpl check`, `bpl build`, and cached builds preserve resolver-specific
+import diagnostics. Unsafe `std/` paths report the rejected import path, and
+package failures keep package metadata details such as invalid `bpl.json`
+fields, manifest-name mismatches, missing entrypoints, and searched package
+paths.
+
+Frontend-only outputs such as `bpl build --emit tokens`, `bpl build --emit ast`,
+and `bpl build --emit formatted` parse the source without loading imported
+modules. Use `bpl check` or a normal build when you need import resolution
+diagnostics.
+
 ## Common Standard Library Imports
 
 ### Strings
