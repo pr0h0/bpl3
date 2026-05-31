@@ -12,6 +12,7 @@ import {
   summarizeWorkflowJobs,
   type GitHubWorkflowJob,
 } from "../tools/ci_triage";
+import { expectJsonStdoutReport } from "./helpers/cliJson";
 
 describe("CI triage helper", () => {
   test("parses GitHub Actions run and job URLs", () => {
@@ -285,11 +286,19 @@ describe("CI triage helper", () => {
         },
       );
 
-      expect(result.status).toBe(0);
       expect(result.stderr).not.toContain("GitHub API");
       expect(result.stderr).not.toContain("api.github.com");
 
-      const report = JSON.parse(result.stdout);
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
       expect(report).toMatchObject({
         schemaVersion: 1,
         check: "ci-triage",
@@ -300,7 +309,7 @@ describe("CI triage helper", () => {
           runId: 26695335269,
         },
       });
-      expect(report.summary.failedJobs[0].localCommands).toEqual([
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         "bun run test:ci",
       ]);
     } finally {
@@ -337,8 +346,15 @@ describe("CI triage helper", () => {
         },
       );
 
-      expect(result.status).toBe(0);
-      const report = JSON.parse(result.stdout);
+      const report = expectJsonStdoutReport<{
+        locator: { jobId: number };
+        summary: { failedJobs: unknown[]; missingJobIds: number[] };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
       expect(report.locator.jobId).toBe(42);
       expect(report.summary.failedJobs).toEqual([]);
       expect(report.summary.missingJobIds).toEqual([42]);

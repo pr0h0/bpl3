@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync } from "child_process";
+import { expectJsonStdoutReport } from "./helpers/cliJson";
 
 const REPO_ROOT = join(import.meta.dir, "..");
 
@@ -91,10 +92,19 @@ describe("Package helper JSON contracts", () => {
         ],
         { cwd: REPO_ROOT, encoding: "utf8" },
       );
-      expect(triageResult.status).toBe(0);
       expect(triageResult.stderr).not.toContain("GitHub API");
       expect(triageResult.stderr).not.toContain("api.github.com");
-      const triage = JSON.parse(triageResult.stdout);
+      const triage = expectJsonStdoutReport<{
+        summary: {
+          missingJobIds: number[];
+          failedJobs: Array<{ localCommands: string[] }>;
+        };
+      }>(triageResult, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
       expect(triage).toMatchObject({
         schemaVersion: 1,
         check: "ci-triage",
@@ -106,7 +116,7 @@ describe("Package helper JSON contracts", () => {
         },
       });
       expect(triage.summary.missingJobIds).toEqual([]);
-      expect(triage.summary.failedJobs[0].localCommands).toEqual([
+      expect(triage.summary.failedJobs[0]?.localCommands).toEqual([
         "bun run test:ci",
       ]);
     } finally {

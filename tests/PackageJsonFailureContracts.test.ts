@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync, type SpawnSyncReturns } from "child_process";
-import { parseJsonObjectStdout } from "./helpers/cliJson";
+import { expectJsonStdoutReport } from "./helpers/cliJson";
 
 const BPL_CLI = join(import.meta.dir, "..", "index.ts");
 
@@ -134,8 +134,12 @@ describe("Package JSON failure contracts", () => {
       for (const testCase of cases) {
         const context = testCase.context();
         const result = runCli(testCase.args, context);
-        expect(result.status).toBe(1);
-        expect(parseJsonObjectStdout(result)).toMatchObject({
+        const report = expectJsonStdoutReport(result, {
+          status: 1,
+          check: String(testCase.expected.check),
+          success: false,
+        });
+        expect(report).toMatchObject({
           ...testCase.expected,
           error: expect.any(String),
         });
