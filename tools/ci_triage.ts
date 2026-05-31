@@ -37,6 +37,8 @@ export interface TriageSummary {
 
 const DEFAULT_REPO = "pr0h0/bpl3";
 
+class CliUsageError extends Error {}
+
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
   [/^Lint$/i, "bun run lint"],
@@ -255,6 +257,10 @@ function takeOption(args: string[], flag: string): string | undefined {
   if (index < 0) return undefined;
 
   const value = args[index + 1];
+  if (!value || value.startsWith("-")) {
+    throw new CliUsageError(`Missing value for ${flag}`);
+  }
+
   args.splice(index, 2);
   return value;
 }
@@ -262,6 +268,6 @@ function takeOption(args: string[], flag: string): string | undefined {
 if (import.meta.main) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    process.exit(error instanceof CliUsageError ? 2 : 1);
   });
 }

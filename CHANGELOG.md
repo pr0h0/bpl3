@@ -35,6 +35,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   summarize failed GitHub Actions jobs and print local reproduction commands
   without requiring GitHub admin access. The helper now also supports offline
   `--help` output for packed-package smoke checks.
+- **CI Triage Option Validation** - `bun run ci:triage` now reports missing
+  `--repo` and `--run` option values as usage errors before attempting any
+  GitHub API request.
 - **Run-Script JSON Errors** - `bpl run-script --json` now reports manifest and
   script validation failures as machine-readable `{ success, error }` JSON while
   preserving human-readable logger output without `--json`.

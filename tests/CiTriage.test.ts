@@ -91,4 +91,26 @@ describe("CI triage helper", () => {
     expect(result.stderr).not.toContain("GitHub API");
     expect(result.stderr).not.toContain("Expected a GitHub Actions run URL");
   });
+
+  test("rejects missing option values before GitHub API calls", () => {
+    const cases: Array<[string[], string]> = [
+      [["--repo", "--run", "26695335269"], "Missing value for --repo"],
+      [
+        ["--run", "--repo", "pr0h0/bpl3"],
+        "Missing value for --run",
+      ],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "ci:triage", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("api.github.com");
+    }
+  });
 });
