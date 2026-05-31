@@ -290,6 +290,21 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("docs document doctor scope JSON error code", () => {
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Unknown doctor scopes",
+      "BPL_DOCTOR_SCOPE_UNKNOWN",
+      "bun test tests/CLIJsonParseability.test.ts -t \"doctor scope failures\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document import safety rules", () => {
     const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
     const importDocs = readFileSync("docs/23-imports-exports.md", "utf8");
