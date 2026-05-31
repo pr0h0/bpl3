@@ -3,7 +3,10 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseJsonObjectStdout } from "./helpers/cliJson";
+import {
+  expectJsonStdoutReport,
+  parseJsonObjectStdout,
+} from "./helpers/cliJson";
 
 describe("Package Manager CLI", () => {
   let tempDir: string;
@@ -757,8 +760,7 @@ describe("Package Manager CLI", () => {
         cwd: tempDir,
         encoding: "utf-8",
       });
-      expect(listJson.status).toBe(0);
-      const report = parseJsonObjectStdout<{
+      const report = expectJsonStdoutReport<{
         schemaVersion: number;
         check: string;
         success: boolean;
@@ -770,10 +772,11 @@ describe("Package Manager CLI", () => {
           path?: string;
           hash?: string;
         }>;
-      }>(listJson);
-      expect(report.schemaVersion).toBe(1);
-      expect(report.check).toBe("package-list");
-      expect(report.success).toBe(true);
+      }>(listJson, {
+        status: 0,
+        check: "package-list",
+        success: true,
+      });
       expect(report.scope).toBe("local");
       expect(report.packages).toHaveLength(1);
       const listedPackage = report.packages[0];
@@ -830,10 +833,44 @@ describe("Package Manager CLI", () => {
       );
 
       expect(result.status).toBe(1);
-      const report = JSON.parse(result.stdout);
-      expect(report.schemaVersion).toBe(1);
-      expect(report.check).toBe("packages");
-      expect(report.success).toBe(false);
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        projectRoot: string;
+        localPackageDir: string;
+        globalPackageDir: string;
+        lockfile: {
+          exists: boolean;
+          path: string;
+          packages: number;
+          verified: boolean;
+        };
+        cacheVerification: {
+          ok: boolean;
+          entriesChecked: number;
+          issues: unknown[];
+        };
+        installedPackages: unknown[];
+        cacheEntries: unknown[];
+        dependencyTree: Array<{
+          name: string;
+          source: string;
+          installed: boolean;
+          locked: boolean;
+          problems: string[];
+          dependencies: unknown[];
+        }>;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          message: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
       expect(report.ok).toBe(false);
       expect(typeof report.projectRoot).toBe("string");
       expect(report.localPackageDir).toContain("bpl_modules");
@@ -980,18 +1017,18 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(listResult.status).toBe(0);
       expect(
-        parseJsonObjectStdout<{
+        expectJsonStdoutReport<{
           schemaVersion: number;
           check: string;
           success: boolean;
           entries: unknown[];
-        }>(listResult),
+        }>(listResult, {
+          status: 0,
+          check: "package-cache-list",
+          success: true,
+        }),
       ).toMatchObject({
-        schemaVersion: 1,
-        check: "package-cache-list",
-        success: true,
         entries: [],
       });
 
@@ -1004,20 +1041,20 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(verifyResult.status).toBe(0);
       expect(
-        parseJsonObjectStdout<{
+        expectJsonStdoutReport<{
           schemaVersion: number;
           check: string;
           success: boolean;
           ok: boolean;
           entriesChecked: number;
           issues: unknown[];
-        }>(verifyResult),
+        }>(verifyResult, {
+          status: 0,
+          check: "package-cache-verify",
+          success: true,
+        }),
       ).toMatchObject({
-        schemaVersion: 1,
-        check: "package-cache-verify",
-        success: true,
         ok: true,
         entriesChecked: 0,
         issues: [],
@@ -1045,16 +1082,16 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(listResult.status).toBe(0);
-      const listReport = parseJsonObjectStdout<{
+      const listReport = expectJsonStdoutReport<{
         schemaVersion: number;
         check: string;
         success: boolean;
         entries: Array<{ version: string; provenanceStatus: string }>;
-      }>(listResult);
-      expect(listReport.schemaVersion).toBe(1);
-      expect(listReport.check).toBe("package-cache-list");
-      expect(listReport.success).toBe(true);
+      }>(listResult, {
+        status: 0,
+        check: "package-cache-list",
+        success: true,
+      });
       const { entries } = listReport;
       expect(entries.map((entry: { version: string }) => entry.version)).toEqual([
         "2.0.0",
@@ -1076,11 +1113,22 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(verifyResult.status).toBe(1);
-      const verification = JSON.parse(verifyResult.stdout);
-      expect(verification.schemaVersion).toBe(1);
-      expect(verification.check).toBe("package-cache-verify");
-      expect(verification.success).toBe(false);
+      const verification = expectJsonStdoutReport<{
+        ok: boolean;
+        entriesChecked: number;
+        issues: Array<{
+          packageName: string;
+          version: string;
+          kind: string;
+          message: string;
+          path: string;
+          provenancePath: string;
+        }>;
+      }>(verifyResult, {
+        status: 1,
+        check: "package-cache-verify",
+        success: false,
+      });
       expect(verification.ok).toBe(false);
       expect(verification.entriesChecked).toBe(2);
       const missingProvenanceIssue = verification.issues.find(
@@ -1117,11 +1165,14 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(dryRunCleanJson.status).toBe(0);
-      const cleanReport = JSON.parse(dryRunCleanJson.stdout);
-      expect(cleanReport.schemaVersion).toBe(1);
-      expect(cleanReport.check).toBe("package-cache-clean");
-      expect(cleanReport.success).toBe(true);
+      const cleanReport = expectJsonStdoutReport<{
+        dryRun: boolean;
+        removed: Array<{ version: string }>;
+      }>(dryRunCleanJson, {
+        status: 0,
+        check: "package-cache-clean",
+        success: true,
+      });
       expect(cleanReport.dryRun).toBe(true);
       expect(
         cleanReport.removed.map((entry: { version: string }) => entry.version),
@@ -1314,11 +1365,16 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(repairResult.status).toBe(0);
-      const repair = JSON.parse(repairResult.stdout);
-      expect(repair.schemaVersion).toBe(1);
-      expect(repair.check).toBe("package-cache-repair");
-      expect(repair.success).toBe(true);
+      const repair = expectJsonStdoutReport<{
+        dryRun: boolean;
+        repaired: unknown[];
+        unchanged: unknown[];
+        issues: unknown[];
+      }>(repairResult, {
+        status: 0,
+        check: "package-cache-repair",
+        success: true,
+      });
       expect(repair.dryRun).toBe(false);
       expect(repair.repaired.length).toBe(1);
       expect(repair.unchanged).toEqual([]);
@@ -1333,11 +1389,15 @@ describe("Package Manager CLI", () => {
           encoding: "utf-8",
         },
       );
-      expect(verifyResult.status).toBe(0);
-      const verification = JSON.parse(verifyResult.stdout);
-      expect(verification.schemaVersion).toBe(1);
-      expect(verification.check).toBe("package-cache-verify");
-      expect(verification.success).toBe(true);
+      const verification = expectJsonStdoutReport<{
+        ok: boolean;
+        entriesChecked: number;
+        issues: unknown[];
+      }>(verifyResult, {
+        status: 0,
+        check: "package-cache-verify",
+        success: true,
+      });
       expect(verification.ok).toBe(true);
       expect(verification.entriesChecked).toBe(1);
       expect(verification.issues).toEqual([]);
