@@ -3691,18 +3691,50 @@ describe("CLI Tests", () => {
         status: 0,
         success: true,
       });
-      expect(report.checks.map((check) => check.name)).toEqual([
-        "sanitizer runtime support",
-      ]);
-      expect(report.checks[0]).toMatchObject({
+      expect(result.stderr).toBe("");
+      expect(report).toMatchObject({
+        schemaVersion: 1,
+        check: "toolchain",
+        success: true,
+      });
+      expect(report.checks).toHaveLength(1);
+
+      const sanitizerCheck = report.checks[0]!;
+      expect(sanitizerCheck).toMatchObject({
         id: "sanitizer-runtime-support",
+        name: "sanitizer runtime support",
         ok: false,
         required: false,
         code: "BPL_SANITIZER_RUNTIME_UNAVAILABLE",
+        environment: {
+          BPL_CC: sanitizerCompiler,
+          CC: process.env.CC ?? null,
+        },
         recommendedCommands: [
           "bun run test:sanitizers",
           "bun test tests/CompilerSanitizerRuntime.test.ts",
         ],
+      });
+      expect(sanitizerCheck.detail).toContain(
+        "cannot find libclang_rt.ubsan_standalone-x86_64.a",
+      );
+      expect(sanitizerCheck.hint).toContain(
+        "BPL sanitizer support probe failed",
+      );
+      expect(sanitizerCheck.hint).toContain("compiler-rt");
+      expect(sanitizerCheck.hint).toContain("libclang_rt");
+      expect(sanitizerCheck.hint).toContain("bun run test:sanitizers");
+      expect(sanitizerCheck.hint).toContain(
+        "bun test tests/CompilerSanitizerRuntime.test.ts",
+      );
+
+      const sanitizerTimeout = report.timeouts?.find(
+        (timeout) => timeout.name === "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+      );
+      expect(sanitizerTimeout).toMatchObject({
+        defaultMs: 30000,
+        effectiveMs: 30000,
+        fallbackAction: "using 30000ms",
       });
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
