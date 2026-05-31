@@ -336,6 +336,148 @@ describe("Package JSON failure contracts", () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("surfaces stable package manifest error codes from install JSON", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-manifest-codes-"));
+
+    try {
+      const cases: Array<{
+        name: string;
+        setup: (context: CommandContext) => void;
+        expectedCode: string;
+        expectedError: string;
+      }> = [
+        {
+          name: "missing-manifest",
+          setup: () => {},
+          expectedCode: "BPL_PACKAGE_MANIFEST_MISSING",
+          expectedError: "No bpl.json found",
+        },
+        {
+          name: "symlink-manifest",
+          setup: (context) => {
+            const outsideManifest = join(tempDir, "outside-bpl.json");
+            writeFileSync(
+              outsideManifest,
+              JSON.stringify({ name: "pkg", version: "1.0.0" }),
+            );
+            symlinkSync(outsideManifest, join(context.cwd, "bpl.json"), "file");
+          },
+          expectedCode: "BPL_PACKAGE_MANIFEST_SYMLINK",
+          expectedError: "Invalid package manifest path: symbolic link",
+        },
+        {
+          name: "directory-manifest",
+          setup: (context) => mkdirSync(join(context.cwd, "bpl.json")),
+          expectedCode: "BPL_PACKAGE_MANIFEST_NOT_FILE",
+          expectedError: "Invalid package manifest path",
+        },
+        {
+          name: "invalid-json",
+          setup: (context) => writeFileSync(join(context.cwd, "bpl.json"), "{"),
+          expectedCode: "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+          expectedError: "Failed to load package manifest",
+        },
+        {
+          name: "array-manifest",
+          setup: (context) =>
+            writeFileSync(join(context.cwd, "bpl.json"), "[]"),
+          expectedCode: "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
+          expectedError: "Invalid package manifest",
+        },
+        {
+          name: "missing-name",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({ version: "1.0.0" }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_NAME_MISSING",
+          expectedError: "Package manifest missing 'name' field",
+        },
+        {
+          name: "invalid-name",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({ name: "Bad_Name", version: "1.0.0" }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_NAME_INVALID",
+          expectedError: "Invalid package name",
+        },
+        {
+          name: "missing-version",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({ name: "missing-version" }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_VERSION_MISSING",
+          expectedError: "Package manifest missing 'version' field",
+        },
+        {
+          name: "invalid-version",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({ name: "invalid-version", version: "latest" }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
+          expectedError: "Invalid version format",
+        },
+        {
+          name: "invalid-main",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-main",
+                version: "1.0.0",
+                main: "src//index.bpl",
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
+          expectedError: "Invalid package manifest 'main' field",
+        },
+        {
+          name: "invalid-dependencies",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-dependencies",
+                version: "1.0.0",
+                dependencies: { "Bad_Name": "1.0.0" },
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+          expectedError: "Invalid 'dependencies' package name",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const context = cleanPackageRoot(tempDir, testCase.name);
+        testCase.setup(context);
+        const report = expectJsonStdoutReport(
+          runCli(["install", "--json"], context),
+          {
+            status: 1,
+            check: "package-install",
+            success: false,
+          },
+        );
+
+        expect(report).toMatchObject({
+          mode: "project",
+          target: null,
+          error: expect.stringContaining(testCase.expectedError),
+          errorCode: testCase.expectedCode,
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function runCli(
