@@ -98,6 +98,7 @@ export type PackageLockVerificationIssueKind =
   | "missing-lockfile"
   | "missing-package"
   | "invalid-manifest"
+  | "name-mismatch"
   | "version-mismatch"
   | "hash-mismatch"
   | "missing-transitive-dependency"
@@ -111,6 +112,8 @@ export interface PackageLockVerificationIssue {
   source?: string;
   expectedVersion?: string;
   actualVersion?: string;
+  expectedName?: string;
+  actualName?: string;
   expectedHash?: string;
   actualHash?: string;
   dependencyOf?: string;
@@ -893,6 +896,20 @@ export class PackageManager {
         continue;
       }
 
+      if (manifest.name !== packageName) {
+        addIssue({
+          packageName,
+          kind: "name-mismatch",
+          message: `${packageName}: manifest name mismatch, lock entry is ${packageName} but installed package declares ${manifest.name}`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedName: packageName,
+          actualName: manifest.name,
+          expectedVersion: entry.version,
+          actualVersion: manifest.version,
+        });
+      }
+
       if (manifest.version !== entry.version) {
         addIssue({
           packageName,
@@ -1138,6 +1155,10 @@ export class PackageManager {
       issueKinds.has("missing-transitive-dependency")
     ) {
       return `${restoreHelp} Run 'bpl list --tree' to inspect dependency state.`;
+    }
+
+    if (issueKinds.has("name-mismatch")) {
+      return `${restoreHelp} Reinstall the package so bpl_modules directory names and bpl.lock entries match manifest names.`;
     }
 
     if (

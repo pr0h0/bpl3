@@ -70,6 +70,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   tests now cover invalid package import names and malformed imported package
   manifest versions in human-readable, `check --json`, `build --json`, and
   middle-end diagnostic modes.
+- **Package Lock Name Verification** - `bpl install --locked` now rejects lock
+  entries whose package key does not match the installed package manifest name,
+  even when the version and content hash otherwise match.
 - **Shared Wasm Toolchain Discovery** - CLI wasm builds, `bpl doctor`, and wasm
   runtime tests now share wasm linker candidate/probe logic, and
   `BPL_REQUIRE_WASM_LD=1` failures list the checked candidates.

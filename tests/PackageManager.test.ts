@@ -1727,6 +1727,72 @@ describe("PackageManager", () => {
       expect(verification.errors.join("\n")).toContain("hash mismatch");
     });
 
+    test("should reject lock entries whose installed manifest name differs from the lock key", () => {
+      const appDir = path.join(tempDir, "manifest-name-lock-app");
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const installedDir = path.join(
+        appDir,
+        "bpl_modules",
+        "manifest-name-alias",
+      );
+      fs.mkdirSync(installedDir, { recursive: true });
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "manifest-name-app", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(installedDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "manifest-name-actual",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(installedDir, "index.bpl"), "export stable;");
+
+      const localPM = new PackageManager(appDir);
+      const hash = localPM["calculatePackageHash"](installedDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "manifest-name-alias": {
+                version: "1.0.0",
+                source: "file:source.tgz",
+                hash,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "manifest-name-alias",
+          kind: "name-mismatch",
+          expectedName: "manifest-name-alias",
+          actualName: "manifest-name-actual",
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "manifest-name-alias: manifest name mismatch, lock entry is manifest-name-alias but installed package declares manifest-name-actual",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/manifest name mismatch/);
+    });
+
     test("should verify installed package binaries against bpl.lock", () => {
       const manifest = {
         name: "bin-lock-test",
