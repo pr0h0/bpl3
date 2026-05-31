@@ -73,6 +73,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Shared Wasm Toolchain Discovery** - CLI wasm builds, `bpl doctor`, and wasm
   runtime tests now share wasm linker candidate/probe logic, and
   `BPL_REQUIRE_WASM_LD=1` failures list the checked candidates.
+- **Wasm Matrix Drift Diagnostics** - The wasm compatibility sweep now reports
+  missing dedicated `examples/wasm_*` entries with an actionable matrix-update
+  message, and runnable wasm examples must keep expected execution metadata.
 - **Workflow Action Contract Coverage** - GitHub Actions tests now scan compiler
   workflows for maintained action major versions, Node 24 JavaScript action
   opt-in, and scheduled fuzz workflow contract-test coverage before long fuzz

@@ -36,16 +36,16 @@ interface CompileWasmOptions {
 const WASM_EXAMPLE_CORPUS: WasmExampleCase[] = WASM_FREESTANDING_EXAMPLES.map(
   (entry) => ({
     file: entry.file,
-    expectedReturn: entry.expectedReturn ?? 0,
+    expectedReturn: entry.expectedReturn,
   }),
 );
 const HOSTED_WASM_EXAMPLE_CORPUS: HostedWasmExampleCase[] =
   WASM_HOSTED_EXAMPLES.map((entry) => ({
     file: entry.file,
-    expectedReturn: entry.expectedReturn ?? 0,
-    argv: entry.argv ?? [],
-    expectedStdout: entry.expectedStdout ?? "",
-    expectedStderr: entry.expectedStderr ?? "",
+    expectedReturn: entry.expectedReturn,
+    argv: entry.argv,
+    expectedStdout: entry.expectedStdout,
+    expectedStderr: entry.expectedStderr,
   }));
 const REQUIRE_WASM_LINKER = /^(1|true)$/i.test(
   process.env.BPL_REQUIRE_WASM_LD ?? "",

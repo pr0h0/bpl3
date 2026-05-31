@@ -842,6 +842,7 @@ bun run test:correctness
 # Run standalone and hosted WebAssembly runtime coverage
 bun run test:wasm
 # CI sets BPL_REQUIRE_WASM_LD=1 so this fails instead of skipping when wasm-ld is missing.
+BPL_REQUIRE_WASM_LD=1 bun run test:wasm
 
 # Start the playground. The Run Wasm button compiles hosted wasm and executes it
 # in the browser with JavaScript host imports.

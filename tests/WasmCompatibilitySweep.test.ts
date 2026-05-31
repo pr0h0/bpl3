@@ -19,6 +19,9 @@ import {
   WASM_COMPATIBILITY_MATRIX,
   WASM_FREESTANDING_EXAMPLES,
   WASM_HOSTED_EXAMPLES,
+  findMissingDedicatedWasmExamples,
+  formatMissingWasmMatrixEntriesError,
+  validateExecutableWasmEntryMetadata,
   type WasmCompatibilityEntry,
   type WasmCompatibilityMode,
 } from "./helpers/wasmCompatibilityMatrix";
@@ -224,6 +227,10 @@ describe("WebAssembly compatibility sweep", () => {
       expect(modes.has(mode)).toBe(true);
     }
 
+    expect(validateExecutableWasmEntryMetadata(WASM_COMPATIBILITY_MATRIX)).toEqual(
+      [],
+    );
+
     expect(hostedTransform).toMatchObject({
       mode: "wasm-hosted",
       expectedReturn: 0,
@@ -239,11 +246,56 @@ describe("WebAssembly compatibility sweep", () => {
       expectedStderr: "err:-7:ok?\n",
     });
 
-    for (const file of examples.filter((example) =>
-      example.split("/").some((part) => part.startsWith("wasm_")),
-    )) {
-      expect(matrixFiles.has(file)).toBe(true);
+    const missingWasmExamples = findMissingDedicatedWasmExamples(
+      examples,
+      matrixFiles,
+    );
+    if (missingWasmExamples.length > 0) {
+      throw new Error(formatMissingWasmMatrixEntriesError(missingWasmExamples));
     }
+  });
+
+  it("formats actionable diagnostics for missing dedicated wasm examples", () => {
+    const matrixFiles = new Set(["examples/wasm_known/main.bpl"]);
+    const missing = findMissingDedicatedWasmExamples(
+      [
+        "examples/wasm_known/main.bpl",
+        "examples/feature/wasm_new/main.bpl",
+        "examples/native_only/main.bpl",
+      ],
+      matrixFiles,
+    );
+
+    expect(missing).toEqual(["examples/feature/wasm_new/main.bpl"]);
+    expect(formatMissingWasmMatrixEntriesError(missing)).toContain(
+      "Add each file to tests/helpers/wasmCompatibilityMatrix.ts",
+    );
+    expect(formatMissingWasmMatrixEntriesError(missing)).toContain(
+      "mode, reason, and expected execution metadata",
+    );
+  });
+
+  it("requires executable wasm matrix entries to preserve expected runtime metadata", () => {
+    const invalidEntries = [
+      {
+        file: "examples/wasm_missing_return/main.bpl",
+        mode: "wasm-freestanding",
+        reason: "freestanding example without expected return metadata",
+      },
+      {
+        file: "examples/wasm_hosted_missing_stdio/main.bpl",
+        mode: "wasm-hosted",
+        expectedReturn: 0,
+        argv: ["program"],
+        expectedStdout: "",
+        reason: "hosted example without expected stderr metadata",
+      },
+    ] as unknown as WasmCompatibilityEntry[];
+
+    expect(validateExecutableWasmEntryMetadata(invalidEntries)).toEqual([
+      "examples/wasm_missing_return/main.bpl: wasm-freestanding entries must declare numeric expectedReturn",
+      "examples/wasm_hosted_missing_stdio/main.bpl: wasm-hosted entries must declare expectedStderr",
+    ]);
   });
 
   wasmIt("builds the wasm-compatible example set and classifies representative unsupported examples", () => {

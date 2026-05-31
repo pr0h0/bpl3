@@ -270,4 +270,23 @@ describe("Markdown documentation", () => {
       expect(text).toContain(snippet.replace(/\s+/g, " "));
     }
   });
+
+  test("wasm docs document optional and required compatibility matrix runs", () => {
+    const combinedDocs = [
+      readFileSync("README.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("docs/60-compiler-correctness.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "bun run test:wasm",
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "tests/helpers/wasmCompatibilityMatrix.ts",
+      "`wasm-freestanding`, `wasm-hosted`, `blocked-by-host-api`, or `native-only`",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
 });

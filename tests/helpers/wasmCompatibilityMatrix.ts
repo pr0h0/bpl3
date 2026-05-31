@@ -4,15 +4,35 @@ export type WasmCompatibilityMode =
   | "blocked-by-host-api"
   | "native-only";
 
-export interface WasmCompatibilityEntry {
+interface WasmCompatibilityBaseEntry {
   file: string;
-  mode: WasmCompatibilityMode;
-  expectedReturn?: number;
-  argv?: string[];
-  expectedStdout?: string;
-  expectedStderr?: string;
   reason: string;
 }
+
+export interface WasmFreestandingCompatibilityEntry
+  extends WasmCompatibilityBaseEntry {
+  mode: "wasm-freestanding";
+  expectedReturn: number;
+}
+
+export interface WasmHostedCompatibilityEntry
+  extends WasmCompatibilityBaseEntry {
+  mode: "wasm-hosted";
+  expectedReturn: number;
+  argv: string[];
+  expectedStdout: string;
+  expectedStderr: string;
+}
+
+export interface WasmUnsupportedCompatibilityEntry
+  extends WasmCompatibilityBaseEntry {
+  mode: "blocked-by-host-api" | "native-only";
+}
+
+export type WasmCompatibilityEntry =
+  | WasmFreestandingCompatibilityEntry
+  | WasmHostedCompatibilityEntry
+  | WasmUnsupportedCompatibilityEntry;
 
 export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
   {
@@ -202,9 +222,71 @@ export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
 ];
 
 export const WASM_FREESTANDING_EXAMPLES = WASM_COMPATIBILITY_MATRIX.filter(
-  (entry) => entry.mode === "wasm-freestanding",
+  (entry): entry is WasmFreestandingCompatibilityEntry =>
+    entry.mode === "wasm-freestanding",
 );
 
 export const WASM_HOSTED_EXAMPLES = WASM_COMPATIBILITY_MATRIX.filter(
-  (entry) => entry.mode === "wasm-hosted",
+  (entry): entry is WasmHostedCompatibilityEntry =>
+    entry.mode === "wasm-hosted",
 );
+
+export function findMissingDedicatedWasmExamples(
+  examples: string[],
+  matrixFiles: ReadonlySet<string>,
+): string[] {
+  return examples
+    .filter((file) =>
+      file.split("/").some((part) => part.startsWith("wasm_")),
+    )
+    .filter((file) => !matrixFiles.has(file))
+    .sort();
+}
+
+export function formatMissingWasmMatrixEntriesError(
+  missingFiles: string[],
+): string {
+  return [
+    "Missing wasm compatibility matrix entries:",
+    ...missingFiles.map((file) => `- ${file}`),
+    "Add each file to tests/helpers/wasmCompatibilityMatrix.ts with mode, reason, and expected execution metadata when the mode is wasm-freestanding or wasm-hosted.",
+  ].join("\n");
+}
+
+export function validateExecutableWasmEntryMetadata(
+  entries: WasmCompatibilityEntry[],
+): string[] {
+  const failures: string[] = [];
+
+  for (const entry of entries) {
+    if (
+      (entry.mode === "wasm-freestanding" || entry.mode === "wasm-hosted") &&
+      (typeof entry.expectedReturn !== "number" ||
+        !Number.isFinite(entry.expectedReturn))
+    ) {
+      failures.push(
+        `${entry.file}: ${entry.mode} entries must declare numeric expectedReturn`,
+      );
+    }
+
+    if (entry.mode !== "wasm-hosted") {
+      continue;
+    }
+
+    if (!Array.isArray(entry.argv)) {
+      failures.push(`${entry.file}: wasm-hosted entries must declare argv`);
+    }
+    if (typeof entry.expectedStdout !== "string") {
+      failures.push(
+        `${entry.file}: wasm-hosted entries must declare expectedStdout`,
+      );
+    }
+    if (typeof entry.expectedStderr !== "string") {
+      failures.push(
+        `${entry.file}: wasm-hosted entries must declare expectedStderr`,
+      );
+    }
+  }
+
+  return failures;
+}

@@ -56,6 +56,8 @@ To reproduce just the wasm runtime and compatibility coverage:
 
 ```bash
 bun run test:wasm
+# Match CI: require a usable wasm linker instead of skipping linker-backed tests.
+BPL_REQUIRE_WASM_LD=1 bun run test:wasm
 ```
 
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.

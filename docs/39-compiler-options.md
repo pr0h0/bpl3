@@ -643,7 +643,10 @@ matching, generics, and lambda capture.
 
 The compatibility matrix in `tests/helpers/wasmCompatibilityMatrix.ts` is the
 source of truth for CI. Each tracked example is marked as `wasm-freestanding`,
-`wasm-hosted`, `blocked-by-host-api`, or `native-only`.
+`wasm-hosted`, `blocked-by-host-api`, or `native-only`. Run it locally with
+`bun run test:wasm`; this keeps wasm runtime checks skippable when no wasm
+linker is installed. Run `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` to match CI
+and fail immediately when `wasm-ld` or `WASM_LD` cannot be used.
 
 ## Complete Examples
 
