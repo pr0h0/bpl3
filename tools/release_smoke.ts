@@ -106,6 +106,8 @@ interface PackageCacheListReport {
   check: "package-cache-list";
   success: boolean;
   entries: unknown[];
+  error?: string;
+  errorCode?: string;
 }
 
 interface PackageCacheVerifyReport {
@@ -115,6 +117,8 @@ interface PackageCacheVerifyReport {
   ok: boolean;
   entriesChecked: number;
   issues: unknown[];
+  error?: string;
+  errorCode?: string;
 }
 
 interface PackageCacheCleanReport {
@@ -473,6 +477,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheValidationJsonSmoke(installedBpl, installDir);
+    runPackedPackageCacheNameValidationJsonSmoke(installedBpl, installDir);
     runPackedLockedInstallSafetySmoke(installedBpl);
     runPackedPackageImportDiagnosticCodeSmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
@@ -1178,6 +1183,127 @@ function runPackedPackageCacheValidationJsonSmoke(
     throw new Error(
       [
         "Packed npm CLI package-cache validation JSON reported unexpected payload.",
+        `clean:\n${JSON.stringify(cleanReport, null, 2)}`,
+        `repair:\n${JSON.stringify(repairReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function runPackedPackageCacheNameValidationJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const homeDir = join(installDir, "package-cache-name-validation-home");
+  mkdirSync(homeDir, { recursive: true });
+
+  console.log(
+    "release smoke: check packed npm CLI package-cache package filter JSON",
+  );
+  const env = buildStepEnv({ bplHome: null, env: { HOME: homeDir } });
+  const listResult = spawnSync(installedBpl, ["package-cache", "list", "Bad_Name", "--json"], {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
+  const verifyResult = spawnSync(installedBpl, ["package-cache", "verify", "Bad_Name", "--json"], {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
+  const cleanResult = spawnSync(installedBpl, ["package-cache", "clean", "Bad_Name", "--dry-run", "--json"], {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
+  const repairResult = spawnSync(installedBpl, ["package-cache", "repair", "Bad_Name", "--dry-run", "--json"], {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
+
+  if (listResult.error) throw listResult.error;
+  if (verifyResult.error) throw verifyResult.error;
+  if (cleanResult.error) throw cleanResult.error;
+  if (repairResult.error) throw repairResult.error;
+  if (
+    listResult.status !== 1 ||
+    verifyResult.status !== 1 ||
+    cleanResult.status !== 1 ||
+    repairResult.status !== 1
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache name validation smoke did not fail as expected.",
+        `list exit: ${listResult.status ?? "unknown"}`,
+        `list stdout:\n${listResult.stdout}`,
+        `list stderr:\n${listResult.stderr}`,
+        `verify exit: ${verifyResult.status ?? "unknown"}`,
+        `verify stdout:\n${verifyResult.stdout}`,
+        `verify stderr:\n${verifyResult.stderr}`,
+        `clean exit: ${cleanResult.status ?? "unknown"}`,
+        `clean stdout:\n${cleanResult.stdout}`,
+        `clean stderr:\n${cleanResult.stderr}`,
+        `repair exit: ${repairResult.status ?? "unknown"}`,
+        `repair stdout:\n${repairResult.stdout}`,
+        `repair stderr:\n${repairResult.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (
+    listResult.stderr !== "" ||
+    verifyResult.stderr !== "" ||
+    cleanResult.stderr !== "" ||
+    repairResult.stderr !== ""
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache name validation JSON wrote stderr.",
+        `list stderr:\n${listResult.stderr}`,
+        `verify stderr:\n${verifyResult.stderr}`,
+        `clean stderr:\n${cleanResult.stderr}`,
+        `repair stderr:\n${repairResult.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  const listReport = parsePackageCacheListReport(listResult.stdout);
+  const verifyReport = parsePackageCacheVerifyReport(verifyResult.stdout);
+  const cleanReport = parsePackageCacheCleanReport(cleanResult.stdout);
+  const repairReport = parsePackageCacheRepairReport(repairResult.stdout);
+  if (
+    listReport.success ||
+    listReport.entries.length !== 0 ||
+    listReport.errorCode !== "BPL_PACKAGE_CACHE_NAME_INVALID" ||
+    typeof listReport.error !== "string" ||
+    verifyReport.success ||
+    verifyReport.ok ||
+    verifyReport.entriesChecked !== 0 ||
+    verifyReport.issues.length !== 0 ||
+    verifyReport.errorCode !== "BPL_PACKAGE_CACHE_NAME_INVALID" ||
+    typeof verifyReport.error !== "string" ||
+    cleanReport.success ||
+    !cleanReport.dryRun ||
+    cleanReport.removed.length !== 0 ||
+    cleanReport.errorCode !== "BPL_PACKAGE_CACHE_NAME_INVALID" ||
+    typeof cleanReport.error !== "string" ||
+    repairReport.success ||
+    !repairReport.dryRun ||
+    repairReport.repaired.length !== 0 ||
+    repairReport.unchanged.length !== 0 ||
+    repairReport.issues.length !== 0 ||
+    repairReport.errorCode !== "BPL_PACKAGE_CACHE_NAME_INVALID" ||
+    typeof repairReport.error !== "string"
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache name validation JSON reported unexpected payload.",
+        `list:\n${JSON.stringify(listReport, null, 2)}`,
+        `verify:\n${JSON.stringify(verifyReport, null, 2)}`,
         `clean:\n${JSON.stringify(cleanReport, null, 2)}`,
         `repair:\n${JSON.stringify(repairReport, null, 2)}`,
       ].join("\n"),

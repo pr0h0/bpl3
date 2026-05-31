@@ -550,13 +550,31 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain(
       "runPackedPackageCacheValidationJsonSmoke",
     );
+    expect(releaseSmokeSource).toContain(
+      "runPackedPackageCacheNameValidationJsonSmoke",
+    );
     expect(releaseSmokeSource).toContain("BPL_PACKAGE_CACHE_VERSION_INVALID");
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_CACHE_NAME_INVALID");
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "list", "Bad_Name", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "verify", "Bad_Name", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "clean", "Bad_Name", "--dry-run", "--json"]',
+    );
+    expect(releaseSmokeSource).toContain(
+      '["package-cache", "repair", "Bad_Name", "--dry-run", "--json"]',
+    );
     expect(releaseSmokeSource).toContain(
       '["package-cache", "clean", "pkg", "--package-version", "^1.0.0", "--dry-run", "--json"]',
     );
     expect(releaseSmokeSource).toContain(
       '["package-cache", "repair", "pkg", "--package-version", "latest", "--dry-run", "--json"]',
     );
+    expect(releaseSmokeSource).toContain("parsePackageCacheListReport");
+    expect(releaseSmokeSource).toContain("parsePackageCacheVerifyReport");
     expect(releaseSmokeSource).toContain("parsePackageCacheCleanReport");
     expect(releaseSmokeSource).toContain("parsePackageCacheRepairReport");
   });
