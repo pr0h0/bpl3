@@ -1,4 +1,4 @@
-import { exec, execFile, spawnSync } from "child_process";
+import { exec, execFile } from "child_process";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
@@ -13,6 +13,10 @@ import { lexWithGrammar } from "../../compiler/frontend/GrammarLexer";
 import { Parser } from "../../compiler/frontend/Parser";
 import { Compiler } from "../../compiler/index";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
+import {
+  createPlaygroundWasmBuildEnv,
+  resolvePlaygroundWasmLinker,
+} from "./wasmToolchain";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -469,37 +473,19 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   }
 }
 
-function findWasmLinker(): string | null {
-  const candidates = [
-    process.env.WASM_LD,
-    "wasm-ld",
-    "wasm-ld-18",
-    "wasm-ld-17",
-    "wasm-ld-16",
-    "ld.lld",
-  ].filter((candidate): candidate is string => Boolean(candidate));
-
-  for (const candidate of candidates) {
-    const result = spawnSync(candidate, ["--version"], { stdio: "ignore" });
-    if (result.status === 0) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
 async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> {
   const requestId = `wasm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
-  const linker = findWasmLinker();
-  if (!linker) {
+  const linkerResult = resolvePlaygroundWasmLinker({
+    warn: (message) => logger.warn(`[${requestId}] ${message}`),
+  });
+  if (!linkerResult.ok) {
     return {
       success: false,
-      error:
-        "WebAssembly linker unavailable. Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
+      error: linkerResult.error,
     };
   }
+  const linker = linkerResult.linker;
 
   const tempDir = path.join("/tmp", `bpl-playground-wasm-${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
@@ -531,12 +517,7 @@ async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> 
       ],
       {
         cwd: repoRoot,
-        env: {
-          ...process.env,
-          BPL_HOME: repoRoot,
-          NO_COLOR: "1",
-          WASM_LD: linker,
-        },
+        env: createPlaygroundWasmBuildEnv(process.env, linker, repoRoot),
         timeout: 10_000,
         maxBuffer: 1024 * 1024 * 16,
       },

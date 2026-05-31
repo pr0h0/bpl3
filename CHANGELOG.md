@@ -76,6 +76,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Wasm Matrix Drift Diagnostics** - The wasm compatibility sweep now reports
   missing dedicated `examples/wasm_*` entries with an actionable matrix-update
   message, and runnable wasm examples must keep expected execution metadata.
+- **Playground Wasm Toolchain Alignment** - The playground backend now uses the
+  shared wasm linker discovery/error helper instead of a separate hardcoded
+  probe, keeping browser wasm diagnostics aligned with CLI builds.
 - **Workflow Action Contract Coverage** - GitHub Actions tests now scan compiler
   workflows for maintained action major versions, Node 24 JavaScript action
   opt-in, and scheduled fuzz workflow contract-test coverage before long fuzz
