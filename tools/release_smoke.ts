@@ -151,6 +151,12 @@ interface RunStepOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+interface ExpectedFailureStepOptions extends RunStepOptions {
+  expectedStatus: number;
+  expectedStderrIncludes: string;
+  forbiddenOutputIncludes?: string[];
+}
+
 interface PackageJson {
   name: string;
   version: string;
@@ -989,61 +995,21 @@ function runPackedHelperScriptSmoke(installDir: string): void {
     "fuzz/crashes",
   ]);
 
-  console.log(
-    "release smoke: check packed npm CLI fuzz artifact repro usage errors",
-  );
-  const fuzzReproEnv: NodeJS.ProcessEnv = {
-    ...process.env,
-    BPL_HOME: undefined,
-    NO_COLOR: "1",
-  };
-  const fuzzReproUsageError = spawnSync(
+  runExpectedFailureStep(
+    "check packed npm CLI fuzz artifact repro usage errors",
     "npm",
     ["run", "fuzz:repro", "--", "--input", "--json"],
     {
       cwd: packageDir,
-      encoding: "utf-8",
-      env: fuzzReproEnv,
-      timeout: smokeTimeoutMs,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--input requires a value",
+      forbiddenOutputIncludes: [
+        "Fuzz artifact path does not exist",
+        "No fuzz artifact metadata found",
+      ],
     },
   );
-
-  if (fuzzReproUsageError.error) {
-    throw fuzzReproUsageError.error;
-  }
-  if (fuzzReproUsageError.status !== 2) {
-    throw new Error(
-      [
-        "Packed npm CLI fuzz repro usage error smoke did not fail as expected.",
-        `exit: ${fuzzReproUsageError.status ?? "unknown"}`,
-        `stdout:\n${fuzzReproUsageError.stdout}`,
-        `stderr:\n${fuzzReproUsageError.stderr}`,
-      ].join("\n"),
-    );
-  }
-  if (!fuzzReproUsageError.stderr.includes("--input requires a value")) {
-    throw new Error(
-      [
-        "Packed npm CLI fuzz repro usage error did not report the missing option.",
-        `stdout:\n${fuzzReproUsageError.stdout}`,
-        `stderr:\n${fuzzReproUsageError.stderr}`,
-      ].join("\n"),
-    );
-  }
-  if (
-    fuzzReproUsageError.stdout.includes("Fuzz artifact path does not exist") ||
-    fuzzReproUsageError.stderr.includes("Fuzz artifact path does not exist") ||
-    fuzzReproUsageError.stdout.includes("No fuzz artifact metadata found") ||
-    fuzzReproUsageError.stderr.includes("No fuzz artifact metadata found")
-  ) {
-    throw new Error(
-      [
-        "Packed npm CLI fuzz repro usage error reached artifact discovery.",
-        `stdout:\n${fuzzReproUsageError.stdout}`,
-        `stderr:\n${fuzzReproUsageError.stderr}`,
-      ].join("\n"),
-    );
-  }
 
   const ciTriage = runStep(
     "check packed npm CLI CI triage helper",
@@ -1058,59 +1024,18 @@ function runPackedHelperScriptSmoke(installDir: string): void {
     "run-id-or-actions-url",
   ]);
 
-  console.log("release smoke: check packed npm CLI CI triage usage errors");
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    BPL_HOME: undefined,
-    NO_COLOR: "1",
-  };
-  const usageError = spawnSync(
+  runExpectedFailureStep(
+    "check packed npm CLI CI triage usage errors",
     "npm",
     ["run", "ci:triage", "--", "--repo", "--run", "26695335269"],
     {
       cwd: packageDir,
-      encoding: "utf-8",
-      env,
-      timeout: smokeTimeoutMs,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "Missing value for --repo",
+      forbiddenOutputIncludes: ["GitHub API", "api.github.com"],
     },
   );
-
-  if (usageError.error) {
-    throw usageError.error;
-  }
-  if (usageError.status !== 2) {
-    throw new Error(
-      [
-        "Packed npm CLI CI triage usage error smoke did not fail as expected.",
-        `exit: ${usageError.status ?? "unknown"}`,
-        `stdout:\n${usageError.stdout}`,
-        `stderr:\n${usageError.stderr}`,
-      ].join("\n"),
-    );
-  }
-  if (!usageError.stderr.includes("Missing value for --repo")) {
-    throw new Error(
-      [
-        "Packed npm CLI CI triage usage error did not report the missing option.",
-        `stdout:\n${usageError.stdout}`,
-        `stderr:\n${usageError.stderr}`,
-      ].join("\n"),
-    );
-  }
-  if (
-    usageError.stdout.includes("GitHub API") ||
-    usageError.stderr.includes("GitHub API") ||
-    usageError.stdout.includes("api.github.com") ||
-    usageError.stderr.includes("api.github.com")
-  ) {
-    throw new Error(
-      [
-        "Packed npm CLI CI triage usage error attempted a GitHub API request.",
-        `stdout:\n${usageError.stdout}`,
-        `stderr:\n${usageError.stderr}`,
-      ].join("\n"),
-    );
-  }
 }
 
 function assertBuiltBinary(): void {
@@ -1640,22 +1565,10 @@ function runStep(
 ) {
   console.log(`release smoke: ${label}`);
 
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    NO_COLOR: "1",
-  };
-
-  if (options.bplHome === null) {
-    env.BPL_HOME = undefined;
-  } else {
-    env.BPL_HOME = options.bplHome ?? repoRoot;
-  }
-  Object.assign(env, options.env);
-
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? repoRoot,
     encoding: "utf-8",
-    env,
+    env: buildStepEnv(options),
     timeout: smokeTimeoutMs,
   });
 
@@ -1677,6 +1590,79 @@ function runStep(
   }
 
   return result;
+}
+
+function runExpectedFailureStep(
+  label: string,
+  command: string,
+  args: string[],
+  options: ExpectedFailureStepOptions,
+): void {
+  console.log(`release smoke: ${label}`);
+
+  const result = spawnSync(command, args, {
+    cwd: options.cwd ?? repoRoot,
+    encoding: "utf-8",
+    env: buildStepEnv(options),
+    timeout: smokeTimeoutMs,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== options.expectedStatus) {
+    throw new Error(
+      [
+        `Release smoke expected-failure step did not fail as expected: ${label}`,
+        `command: ${[command, ...args].join(" ")}`,
+        `cwd: ${options.cwd ?? repoRoot}`,
+        `exit: ${result.status ?? "unknown"}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  if (!result.stderr.includes(options.expectedStderrIncludes)) {
+    throw new Error(
+      [
+        `Release smoke expected-failure step missed stderr marker: ${label}`,
+        `expected stderr to include: ${options.expectedStderrIncludes}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  for (const forbidden of options.forbiddenOutputIncludes ?? []) {
+    if (result.stdout.includes(forbidden) || result.stderr.includes(forbidden)) {
+      throw new Error(
+        [
+          `Release smoke expected-failure step emitted forbidden marker: ${label}`,
+          `forbidden marker: ${forbidden}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
+  }
+}
+
+function buildStepEnv(options: RunStepOptions): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    NO_COLOR: "1",
+  };
+
+  if (options.bplHome === null) {
+    env.BPL_HOME = undefined;
+  } else {
+    env.BPL_HOME = options.bplHome ?? repoRoot;
+  }
+  Object.assign(env, options.env);
+
+  return env;
 }
 
 if (import.meta.main) {
