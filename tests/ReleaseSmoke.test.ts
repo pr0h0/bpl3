@@ -276,6 +276,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI CI triage helper",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI CI triage root build no-input JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI CI triage usage errors",
       );
       expect(result.stdout).toContain("release smoke passed");

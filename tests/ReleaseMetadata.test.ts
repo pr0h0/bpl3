@@ -213,6 +213,16 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain(
       "check packed npm CLI CI triage JSON",
     );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI CI triage root build no-input JSON",
+    );
+    expect(releaseSmokeSource).toContain("BPL_BUILD_NO_INPUTS");
+    expect(releaseSmokeSource).toContain(
+      'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',
+    );
+    expect(releaseSmokeSource).toContain(
+      'bun test tests/CLI.test.ts -t "no-input compile"',
+    );
     expect(releaseSmokeSource).toContain("parseCiTriageReport");
     expect(releaseSmokeSource).toContain("run.headSha");
     expect(releaseSmokeSource).toContain("checkout.status");

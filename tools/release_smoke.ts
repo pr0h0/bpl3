@@ -3407,6 +3407,19 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
               },
             ],
           },
+          {
+            id: 45,
+            name: "Root build no-input JSON",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/45",
+            steps: [
+              {
+                name: "BPL_BUILD_NO_INPUTS in root build --json",
+                conclusion: "failure",
+              },
+            ],
+          },
         ],
       },
       null,
@@ -3441,6 +3454,37 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   ) {
     throw new Error(
       `Packed npm CLI CI triage JSON reported unexpected payload:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+    );
+  }
+
+  const ciTriageRootBuildNoInputLabel =
+    "check packed npm CLI CI triage root build no-input JSON";
+  console.log(`release smoke: ${ciTriageRootBuildNoInputLabel}`);
+  const rootBuildNoInputCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Root build no-input JSON",
+    )?.localCommands ?? [];
+  const expectedRootBuildNoInputCommands = [
+    'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',
+    'bun test tests/CLI.test.ts -t "no-input compile"',
+    "bun run check",
+  ];
+  if (
+    rootBuildNoInputCommands.length !==
+      expectedRootBuildNoInputCommands.length ||
+    !expectedRootBuildNoInputCommands.every(
+      (command, index) => rootBuildNoInputCommands[index] === command,
+    )
+  ) {
+    throw new Error(
+      [
+        `${ciTriageRootBuildNoInputLabel} reported unexpected payload:`,
+        "expected root build no-input commands:",
+        ...expectedRootBuildNoInputCommands.map((command) => `- ${command}`),
+        "actual root build no-input commands:",
+        ...rootBuildNoInputCommands.map((command) => `- ${command}`),
+        `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+      ].join("\n"),
     );
   }
 
