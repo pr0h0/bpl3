@@ -385,6 +385,7 @@ describe("Markdown documentation", () => {
       "bun run test:wasm",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
       "prints the checked linker candidates",
+      "`BPL_WASM_LINKER_PROBE_TIMEOUT_MS` must be a positive integer; invalid values are ignored with a warning and the 5000ms default is used",
       "optional prerequisite skip, not a successful wasm execution",
       "Start with `bpl doctor --json` to see the same `BPL_WASM_LINKER_UNAVAILABLE` code, candidates, environment, and recommended commands",
       "Use `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` after doctor output to reproduce CI's required-linker behavior locally",
