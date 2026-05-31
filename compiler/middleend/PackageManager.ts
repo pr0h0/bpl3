@@ -3131,6 +3131,10 @@ export class PackageManager {
         const match = packagePattern.exec(file);
         if (!match) return null;
 
+        const filePath = path.join(this.globalPackageDir, file);
+        const stats = this.tryLstat(filePath);
+        if (!stats?.isFile()) return null;
+
         return {
           file,
           version: [Number(match[1]), Number(match[2]), Number(match[3])] as [

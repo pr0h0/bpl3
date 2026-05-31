@@ -370,7 +370,9 @@ bpl package-cache clean math-core --package-version 1.0.0 --json
 
 `package-cache list --json` reports cached archives with `schemaVersion: 1`,
 `check: "package-cache-list"`, `success`, and the existing cache entry payload
-under `entries`.
+under `entries`. Package-name and semver cache resolution use the same
+`lstat`-based archive filtering as list and verify, so symlinked cache archives
+cannot shadow real cached versions.
 
 `package-cache verify` checks every matching cached archive. It verifies the
 sidecar schema, the archive hash, the archive file name, the manifest identity,

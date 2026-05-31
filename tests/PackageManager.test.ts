@@ -2298,6 +2298,44 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
+    test("should ignore symlinked package cache archives during package-name resolution", () => {
+      const globalPackageDir = path.join(tempDir, "global-cache-link-select");
+      const appDir = path.join(tempDir, "global-cache-link-app");
+      const outsideArchive = path.join(tempDir, "outside-cache-select.tgz");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(outsideArchive, "not a real archive");
+      fs.symlinkSync(
+        outsideArchive,
+        path.join(globalPackageDir, "cache-select-9.0.0.tgz"),
+        "file",
+      );
+      createCachedPackage(
+        "cache-select",
+        "1.0.0",
+        "export realVersion;",
+        globalPackageDir,
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.install("cache-select", { global: false, verbose: false });
+
+      const installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "cache-select", "bpl.json"),
+          "utf8",
+        ),
+      );
+      const installedSource = fs.readFileSync(
+        path.join(appDir, "bpl_modules", "cache-select", "index.bpl"),
+        "utf8",
+      );
+
+      expect(installedManifest.version).toBe("1.0.0");
+      expect(installedSource).toContain("export realVersion;");
+    });
+
     test("should reject broken symlink file dependency archives", () => {
       const appDir = path.join(tempDir, "broken-file-dependency-app");
       const depsDir = path.join(appDir, "deps");
