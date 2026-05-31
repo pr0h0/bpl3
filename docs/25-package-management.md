@@ -96,6 +96,15 @@ bpl pack --output dist/packages
 The first command creates `my-package-0.1.0.tgz` in the current directory.
 When `--output` points to a missing directory, BPL creates that directory before
 writing the archive and provenance sidecar.
+Package pack JSON reports are available with `bpl pack [dir] --json`.
+Successful packs emit `schemaVersion: 1`, `check: "package-pack"`,
+`success: true`, `package`, `version`, `packageDir`, `outputDir`, and
+`archivePath`. JSON-mode validation failures stay on stdout with
+`success: false`, `packageDir`, `outputDir`, `error`, and stable PackageManager
+`errorCode` values when the failure is classified, including
+`BPL_PACKAGE_MANIFEST_MISSING` for package directories without `bpl.json`.
+Reproduce the focused JSON contract with
+`bun test tests/PackageManagerCLI.test.ts -t "pack success and failures as JSON"`.
 
 ## Installing Packages
 

@@ -93,6 +93,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl remove <package> --json` now emit `package-uninstall` reports, including
   `BPL_PACKAGE_UNINSTALL_NAME_INVALID` and
   `BPL_PACKAGE_UNINSTALL_NOT_INSTALLED` for stable failure handling.
+- **Package Pack JSON Contract** - `bpl pack [dir] --json` now emits
+  `package-pack` reports with archive paths on success and PackageManager
+  `errorCode` values such as `BPL_PACKAGE_MANIFEST_MISSING` on validation
+  failures.
 - **Doctor Sanitizer Diagnostics** - `bpl doctor --json` and
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
