@@ -556,7 +556,7 @@ function isTerminalPackageResolutionFailure(
   );
 }
 
-function isSafeStandardLibraryImportPath(relativePath: string): boolean {
+export function isSafeStandardLibraryImportPath(relativePath: string): boolean {
   if (relativePath.length === 0) return false;
   if (path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) {
     return false;

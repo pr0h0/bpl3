@@ -14,7 +14,10 @@ import { Parser } from "../frontend/Parser";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import { initializeBuiltinsInScope } from "./BuiltinTypes";
 import { getLibPath } from "../common/PathResolver";
-import { ModuleResolver } from "./ModuleResolver";
+import {
+  isSafeStandardLibraryImportPath,
+  ModuleResolver,
+} from "./ModuleResolver";
 
 /**
  * Import handler context
@@ -155,6 +158,13 @@ export class ImportHandler {
       } else if (stmt.source.startsWith("std/")) {
         const stdLibPath = getLibPath();
         const relativePath = stmt.source.substring(4);
+        if (!isSafeStandardLibraryImportPath(relativePath)) {
+          throw new CompilerError(
+            `Unsafe standard library import: ${stmt.source}`,
+            "Use std/<path> without empty, '.', or '..' path segments.",
+            stmt.location,
+          );
+        }
         importPath = path.join(stdLibPath, relativePath);
       } else {
         const currentDir = path.dirname(currentFile);

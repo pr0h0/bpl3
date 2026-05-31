@@ -318,6 +318,44 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject unsafe std imports without writing build artifacts", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-unsafe-std-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const outputFile = path.join(tempDir, "unsafe-std-app");
+    const llvmFile = `${outputFile}.ll`;
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import escaped from "std/../outside-std-lib.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const checkResult = runCLI(["check", sourceFile]);
+      expect(checkResult.status).toBe(1);
+      expect(checkResult.stderr).toContain("Unsafe standard library import");
+      expect(checkResult.stderr).toContain("std/../outside-std-lib.bpl");
+      expect(checkResult.stderr).toContain("empty, '.', or '..'");
+
+      const buildResult = runCLI([
+        "build",
+        sourceFile,
+        "--emit",
+        "llvm",
+        "-o",
+        outputFile,
+      ]);
+      expect(buildResult.status).toBe(1);
+      expect(buildResult.stderr).toContain("Unsafe standard library import");
+      expect(fs.existsSync(llvmFile)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
