@@ -97,7 +97,79 @@ function writeNodePathShim(directory: string): void {
   fs.symlinkSync(process.execPath, path.join(directory, "node"), "file");
 }
 
+function expectHelpOutput(args: string[], snippets: string[]): string {
+  const result = runCLI(args);
+  expect(result.status).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(result.stdout).toContain("Usage:");
+  expect(result.stdout).toContain("-h, --help");
+
+  for (const snippet of snippets) {
+    expect(result.stdout).toContain(snippet);
+  }
+
+  return result.stdout;
+}
+
 describe("CLI Tests", () => {
+  it("should keep root help output stable and stdout-only", () => {
+    expectHelpOutput(["--help"], [
+      "Usage: bpl [options] [command] [files...]",
+      "-V, --version",
+      "--json",
+      "run-script|rs",
+      "package-cache",
+      "completion [options] [shell]",
+      "bindgen [options] <header>",
+      "doctor [options] [scope]",
+    ]);
+  });
+
+  it("should keep key subcommand help output stable and stdout-only", () => {
+    const cases: Array<{ args: string[]; snippets: string[] }> = [
+      {
+        args: ["build", "--help"],
+        snippets: [
+          "Usage: bpl build [options] <file>",
+          "--emit <type>",
+          "--wasm-runtime <mode>",
+          "--cache-stats",
+          "--json",
+        ],
+      },
+      {
+        args: ["check", "--help"],
+        snippets: [
+          "Usage: bpl check [options] [files...]",
+          "--json",
+          "--time",
+          "--no-prelude",
+        ],
+      },
+      {
+        args: ["run-script", "--help"],
+        snippets: [
+          "Usage: bpl run-script|rs [options] [script] [args...]",
+          "--list",
+          "--json",
+        ],
+      },
+      {
+        args: ["package-cache", "--help"],
+        snippets: [
+          "Usage: bpl package-cache [options] [command]",
+          "list [options] [package]",
+          "verify [options] [package]",
+          "repair [options] [package]",
+        ],
+      },
+    ];
+
+    for (const { args, snippets } of cases) {
+      expectHelpOutput(args, snippets);
+    }
+  });
+
   it("should lint files and report errors", () => {
     const lintFile = path.join(process.cwd(), "examples/lint_test/main.bpl");
     const result = runCLI(["lint", lintFile]);
