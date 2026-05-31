@@ -68,7 +68,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   validation, stdout-only failure reports, and no failed artifact leftovers.
 - **Package Import Diagnostic Coverage** - CLI and ModuleResolver regression
   tests now cover invalid package import names and malformed imported package
-  manifest versions in human-readable, JSON, and middle-end diagnostic modes.
+  manifest versions in human-readable, `check --json`, `build --json`, and
+  middle-end diagnostic modes.
 - **Check JSON Stability** - `bpl check --json` now includes stable
   `schemaVersion: 1` and `check: "check"` metadata alongside the existing
   aggregate totals, timing, per-file diagnostics, and validation errors.

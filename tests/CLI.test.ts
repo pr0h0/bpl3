@@ -1949,8 +1949,12 @@ describe("CLI Tests", () => {
     );
     const unsafeStdFile = path.join(tempDir, "unsafe_std.bpl");
     const packageFile = path.join(tempDir, "package_import.bpl");
+    const invalidNameFile = path.join(tempDir, "invalid_package_name.bpl");
+    const packageVersionFile = path.join(tempDir, "package_version_import.bpl");
     const packageDir = path.join(tempDir, "bpl_modules", "badpkg");
+    const packageVersionDir = path.join(tempDir, "bpl_modules", "badversion");
     fs.mkdirSync(packageDir, { recursive: true });
+    fs.mkdirSync(packageVersionDir, { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),
       JSON.stringify(
@@ -1964,7 +1968,25 @@ describe("CLI Tests", () => {
       ),
     );
     fs.writeFileSync(
+      path.join(packageVersionDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "badversion",
+          version: "latest",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
       path.join(packageDir, "index.bpl"),
+      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
+        "\n",
+      ),
+    );
+    fs.writeFileSync(
+      path.join(packageVersionDir, "index.bpl"),
       ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
         "\n",
       ),
@@ -1987,9 +2009,34 @@ describe("CLI Tests", () => {
         "}",
       ].join("\n"),
     );
+    fs.writeFileSync(
+      invalidNameFile,
+      [
+        'import value from "Bad_Name";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      packageVersionFile,
+      [
+        'import value from "badversion";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
 
     try {
-      const result = runCLI(["check", "--json", unsafeStdFile, packageFile]);
+      const result = runCLI([
+        "check",
+        "--json",
+        unsafeStdFile,
+        packageFile,
+        invalidNameFile,
+        packageVersionFile,
+      ]);
 
       expect(result.status).toBe(1);
       const report = parseJsonObjectStdout<{
@@ -2016,8 +2063,8 @@ describe("CLI Tests", () => {
       expect(report.schemaVersion).toBe(1);
       expect(report.check).toBe("check");
       expect(report.success).toBe(false);
-      expect(report.totalFiles).toBe(2);
-      expect(report.errorCount).toBe(2);
+      expect(report.totalFiles).toBe(4);
+      expect(report.errorCount).toBe(4);
 
       const reportsByFile = new Map(report.files.map((file) => [file.file, file]));
       const unsafeStdDiagnostic = reportsByFile.get(
@@ -2046,6 +2093,34 @@ describe("CLI Tests", () => {
       expect(packageDiagnostic?.hint).toContain("Searched paths:");
       expect(packageDiagnostic?.location).toMatchObject({
         file: packageFile,
+        start: { line: 1, column: 1 },
+      });
+
+      const invalidNameDiagnostic = reportsByFile.get(
+        invalidNameFile,
+      )?.diagnostics[0];
+      expect(invalidNameDiagnostic?.message).toContain(
+        "Package import names must use lowercase letters, digits, and hyphens only.",
+      );
+      expect(invalidNameDiagnostic?.hint).toContain(
+        "Package import names must use lowercase letters, digits, and hyphens only.",
+      );
+      expect(invalidNameDiagnostic?.location).toMatchObject({
+        file: invalidNameFile,
+        start: { line: 1, column: 1 },
+      });
+
+      const packageVersionDiagnostic = reportsByFile.get(
+        packageVersionFile,
+      )?.diagnostics[0];
+      expect(packageVersionDiagnostic?.message).toContain(
+        "manifest version must use X.Y.Z semantic version format",
+      );
+      expect(packageVersionDiagnostic?.hint).toContain(
+        "manifest version must use X.Y.Z semantic version format",
+      );
+      expect(packageVersionDiagnostic?.location).toMatchObject({
+        file: packageVersionFile,
         start: { line: 1, column: 1 },
       });
     } finally {
