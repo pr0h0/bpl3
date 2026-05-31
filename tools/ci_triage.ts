@@ -91,7 +91,7 @@ const CI_TRIAGE_JSON_CHECK = "ci-triage";
 class CliUsageError extends Error {}
 
 const RELEASE_SMOKE_STEP_PATTERN =
-  /(?:ReleaseSmoke\.test|release smoke|release:smoke)/i;
+  /(?:ReleaseSmoke\.test|release smoke|release:smoke|package import diagnostic code JSON)/i;
 const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "PackageResolver\\.test",
@@ -110,6 +110,9 @@ const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
     "Module resolver",
     "import resolver",
     "import diagnostics",
+    "module path diagnostic codes",
+    "BPL_MODULE_",
+    "BPL_IMPORT_STD_PATH_UNSAFE",
     "JSON-mode build failures",
     "Module path is a symbolic link",
     "invalid package import subpaths",
@@ -250,6 +253,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [RELEASE_SMOKE_STEP_PATTERN, "bun run release:smoke"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseSmoke.test.ts"],
+  [
+    RELEASE_SMOKE_STEP_PATTERN,
+    'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+  ],
   [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseHelperSmoke.test.ts"],
   [
     RELEASE_SMOKE_STEP_PATTERN,
@@ -287,7 +294,7 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [IMPORT_RESOLVER_STEP_PATTERN, "bun test tests/ModuleResolver.test.ts"],
   [
     IMPORT_RESOLVER_STEP_PATTERN,
-    'bun test tests/CLIJsonParseability.test.ts -t "import diagnostics|JSON-mode build failures"',
+    'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|import diagnostics|JSON-mode build failures"',
   ],
   [
     PACKAGE_SOURCE_SAFETY_STEP_PATTERN,

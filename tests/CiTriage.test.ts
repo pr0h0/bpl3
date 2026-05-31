@@ -84,6 +84,7 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("ReleaseSmoke.test")).toEqual([
       "bun run release:smoke",
       "bun test tests/ReleaseSmoke.test.ts",
+      'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       "bun test tests/ReleaseHelperSmoke.test.ts",
       "cd <packed-bpl-v3-package> && npm run fuzz:repro -- --help",
       "cd <packed-bpl-v3-package> && npm run fuzz:repro -- --input --json",
@@ -118,7 +119,7 @@ describe("CI triage helper", () => {
   test("maps import resolver failures to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/ModuleResolver.test.ts",
-      'bun test tests/CLIJsonParseability.test.ts -t "import diagnostics|JSON-mode build failures"',
+      'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|import diagnostics|JSON-mode build failures"',
     ];
 
     expect(localCommandsForStep("ModuleResolver.test")).toEqual(
@@ -128,6 +129,18 @@ describe("CI triage helper", () => {
       localCommandsForStep(
         "reports import diagnostics in JSON-mode build failures",
       ),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_MODULE_NOT_FOUND")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_MODULE_PATH_SYMLINK")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_IMPORT_STD_PATH_UNSAFE")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("reports module path diagnostic codes"),
     ).toEqual(expectedCommands);
     expect(
       localCommandsForStep("should explain invalid package import subpaths"),
@@ -698,7 +711,7 @@ describe("CI triage helper", () => {
       );
       expect(moduleResolverJob?.localCommands).toEqual([
         "bun test tests/ModuleResolver.test.ts",
-        'bun test tests/CLIJsonParseability.test.ts -t "import diagnostics|JSON-mode build failures"',
+        'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|import diagnostics|JSON-mode build failures"',
       ]);
 
       const sourceSafetyJob = report.summary.failedJobs.find(
@@ -718,6 +731,91 @@ describe("CI triage helper", () => {
         "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
         "bun index.ts doctor --json",
       ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints module diagnostic and packed smoke repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-import-codes-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 61,
+              name: "Generic test failure",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/61",
+              steps: [
+                {
+                  name: "BPL_MODULE_PATH_SYMLINK in JSON-mode check diagnostics",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 62,
+              name: "Packed release smoke",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/62",
+              steps: [
+                {
+                  name: "check packed npm CLI package import diagnostic code JSON",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const moduleJob = report.summary.failedJobs.find(
+        (job) => job.name === "Generic test failure",
+      );
+      expect(moduleJob?.localCommands).toEqual([
+        "bun test tests/ModuleResolver.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|import diagnostics|JSON-mode build failures"',
+      ]);
+
+      const releaseJob = report.summary.failedJobs.find(
+        (job) => job.name === "Packed release smoke",
+      );
+      expect(releaseJob?.localCommands).toContain("bun run release:smoke");
+      expect(releaseJob?.localCommands).toContain(
+        'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+      );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
