@@ -277,13 +277,44 @@ describe("CLI JSON parseability", () => {
 
     const result = runCli(["build", badSource, "--json"]);
     expect(result.status).toBe(1);
-    expect(parseJsonObjectStdout(result)).toMatchObject({
+    const report = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      error: string;
+      diagnostics: Array<{
+        severity: string;
+        severityLabel: string;
+        message: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+        source?: { line: string };
+      }>;
+    }>(result);
+    expect(report).toMatchObject({
       schemaVersion: 1,
       check: "build",
       success: false,
       file: badSource,
       error: expect.stringContaining("Type mismatch"),
+      diagnostics: [
+        {
+          severity: "error",
+          severityLabel: "error",
+          location: {
+            file: badSource,
+            start: { line: 1 },
+          },
+          source: {
+            line: 'frame main() { local value: int = "not an int"; }',
+          },
+        },
+      ],
     });
+    expect(report.diagnostics[0]?.message).toContain("Type mismatch");
   });
 
   test("reports import diagnostics in JSON-mode build failures", () => {
