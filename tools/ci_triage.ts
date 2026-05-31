@@ -149,6 +149,15 @@ const CLEAN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const DOCTOR_SCOPE_JSON_STEP_PATTERN = new RegExp(
+  [
+    "BPL_DOCTOR_SCOPE_UNKNOWN",
+    "Unknown doctor scope",
+    "doctor unknown scope",
+    "doctor scope JSON",
+  ].join("|"),
+  "i",
+);
 const RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   [
     "run-script JSON validation failures",
@@ -393,6 +402,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "clean"',
   ],
   [CLEAN_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    DOCTOR_SCOPE_JSON_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
+  ],
+  [
+    DOCTOR_SCOPE_JSON_STEP_PATTERN,
+    "bun test tests/CLIJsonParseability.test.ts",
+  ],
+  [DOCTOR_SCOPE_JSON_STEP_PATTERN, "bun run check"],
   [
     RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "run-script JSON validation failures"',

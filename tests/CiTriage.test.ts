@@ -195,6 +195,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps doctor scope JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
+      "bun test tests/CLIJsonParseability.test.ts",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("BPL_DOCTOR_SCOPE_UNKNOWN")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("Unknown doctor scope 'bad-scope'")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("doctor unknown scope JSON failure")).toEqual(
+      expectedCommands,
+    );
+  });
+
   test("maps run-script JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "run-script JSON validation failures"',
@@ -1069,6 +1087,69 @@ describe("CI triage helper", () => {
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
+        "bun test tests/CLIJsonParseability.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints doctor scope repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-doctor-scope-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 73,
+              name: "Doctor JSON contracts",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/73",
+              steps: [
+                {
+                  name: "BPL_DOCTOR_SCOPE_UNKNOWN unknown doctor scope JSON",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
         "bun test tests/CLIJsonParseability.test.ts",
         "bun run check",
       ]);
