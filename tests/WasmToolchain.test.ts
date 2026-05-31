@@ -9,6 +9,7 @@ import {
   formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
+  getWasmLinkerProbeTimeoutMs,
 } from "../cli/WasmToolchain";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
@@ -43,6 +44,28 @@ describe("Wasm toolchain helpers", () => {
     process.env.WASM_LD = "wasm-ld";
 
     expect(getWasmLinkerCandidates()).toEqual(DEFAULT_WASM_LINKER_CANDIDATES);
+  });
+
+  test("parses wasm linker probe timeout from the environment", () => {
+    expect(
+      getWasmLinkerProbeTimeoutMs({
+        BPL_WASM_LINKER_PROBE_TIMEOUT_MS: "1250",
+      } as NodeJS.ProcessEnv),
+    ).toBe(1250);
+  });
+
+  test("falls back and warns for invalid wasm linker probe timeouts", () => {
+    const warnings: string[] = [];
+
+    expect(
+      getWasmLinkerProbeTimeoutMs(
+        { BPL_WASM_LINKER_PROBE_TIMEOUT_MS: "0" } as NodeJS.ProcessEnv,
+        (message) => warnings.push(message),
+      ),
+    ).toBe(5000);
+    expect(warnings).toEqual([
+      "Ignoring invalid BPL_WASM_LINKER_PROBE_TIMEOUT_MS=0; expected a positive integer; using 5000ms",
+    ]);
   });
 
   test("formats required-linker failures with checked candidates", () => {

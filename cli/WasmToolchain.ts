@@ -36,7 +36,7 @@ export function getWasmLinkerProbeTimeoutMs(
   }
 
   warn?.(
-    `Ignoring invalid BPL_WASM_LINKER_PROBE_TIMEOUT_MS=${raw}; using ${DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS}ms`,
+    `Ignoring invalid BPL_WASM_LINKER_PROBE_TIMEOUT_MS=${raw}; expected a positive integer; using ${DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS}ms`,
   );
   return DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS;
 }
