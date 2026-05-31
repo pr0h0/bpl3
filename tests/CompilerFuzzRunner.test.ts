@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import { spawnSync } from "child_process";
@@ -179,6 +181,43 @@ describe("Compiler fuzz runner", () => {
       });
     } finally {
       rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
+  test("refuses to record crash artifacts through symlinked crash directory ancestors", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-crashdir-link-"));
+
+    try {
+      const realRoot = join(tempRoot, "real-root");
+      const linkedRoot = join(tempRoot, "linked-root");
+      const realCrashDir = join(realRoot, "crashes");
+      const crashDir = join(linkedRoot, "crashes");
+      mkdirSync(realCrashDir, { recursive: true });
+      symlinkSync(realRoot, linkedRoot, "dir");
+
+      expect(() =>
+        runFuzzCampaign({
+          seeds: [0x7171],
+          iterationsPerSeed: 1,
+          crashDir,
+          runner: () => ({
+            ok: false,
+            stage: "codegen",
+            crash: new Error("synthetic crash"),
+            message: "synthetic crash",
+          }),
+          inputForIteration: ({ seed, iteration }) => ({
+            seed,
+            iteration,
+            kind: "tokens",
+            filePath: `synthetic_${seed}_${iteration}.bpl`,
+            source: "trigger internal crash",
+          }),
+        }),
+      ).toThrow(/Fuzz crash artifact directory parent contains a symbolic link/);
+      expect(readdirSync(realCrashDir)).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
     }
   });
 

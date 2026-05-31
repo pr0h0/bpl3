@@ -1,14 +1,16 @@
 import { spawnSync } from "child_process";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  type Stats,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, parse, relative, resolve } from "path";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
@@ -1352,7 +1354,9 @@ function writeFailureArtifact(
   outcome: PipelineOutcome,
   options: WriteFailureArtifactOptions,
 ): FuzzFailureArtifact {
+  assertWritableCrashArtifactDirectory(crashDir);
   mkdirSync(crashDir, { recursive: true });
+  assertWritableCrashArtifactDirectory(crashDir);
 
   const failureKind = inferFailureKind(outcome) ?? "crash";
   const baseName = [
@@ -1401,6 +1405,52 @@ function writeFailureArtifact(
   writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
   return { sourcePath, metadataPath, failureKind };
+}
+
+function assertWritableCrashArtifactDirectory(crashDir: string): void {
+  const artifactDir = resolve(crashDir);
+
+  for (const componentPath of pathComponents(artifactDir)) {
+    const componentStats = tryLstat(componentPath);
+    if (!componentStats) {
+      continue;
+    }
+
+    if (componentStats.isSymbolicLink()) {
+      if (componentPath === artifactDir) {
+        throw new Error(
+          `Fuzz crash artifact directory is a symbolic link: ${componentPath}`,
+        );
+      }
+
+      throw new Error(
+        `Fuzz crash artifact directory parent contains a symbolic link: ${componentPath}`,
+      );
+    }
+
+    if (!componentStats.isDirectory()) {
+      throw new Error(
+        `Fuzz crash artifact directory parent is not a directory: ${componentPath}`,
+      );
+    }
+  }
+}
+
+function pathComponents(absolutePath: string): string[] {
+  const parsedPath = parse(absolutePath);
+  const rootPath = parsedPath.root;
+  const components = relative(rootPath, absolutePath)
+    .split(/[\\/]+/)
+    .filter(Boolean);
+  const paths = [rootPath];
+  let currentPath = rootPath;
+
+  for (const component of components) {
+    currentPath = join(currentPath, component);
+    paths.push(currentPath);
+  }
+
+  return paths;
 }
 
 function createFailureMetadata(
@@ -1803,6 +1853,22 @@ function inputFromCrashMetadata(
 
 function readCrashMetadata(metadataPath: string): CrashMetadata {
   return JSON.parse(readFileSync(metadataPath, "utf8")) as CrashMetadata;
+}
+
+function tryLstat(filePath: string): Stats | null {
+  try {
+    return lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function resolveCrashSourcePath(
