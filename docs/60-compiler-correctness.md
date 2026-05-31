@@ -100,6 +100,18 @@ Use this order for wasm CI failures: run `bun run ci:triage`, inspect
 doctor report means the local optional linker probe failed; CI makes that
 condition required through `BPL_REQUIRE_WASM_LD=1`.
 
+Timeout failures in CI triage map to the same focused repro commands and
+timeout knobs shown by `bpl doctor --json`. Use the focused command first, then
+increase only the relevant timeout when the local host is known to be slower:
+
+```bash
+BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci
+BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts
+BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts
+BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm
+BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts
+```
+
 When package JSON contract, install JSON, or `BPL_LOCKFILE_*` diagnostics fail,
 the triage helper points at the focused package automation checks:
 

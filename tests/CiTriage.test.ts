@@ -170,6 +170,55 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps timeout failure text to focused repro commands", () => {
+    expect(
+      localCommandsForStep("compiler driver timed out after 600000ms"),
+    ).toEqual([
+      "bun index.ts doctor --json",
+      "bun run test:ci",
+      "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
+    ]);
+    expect(localCommandsForStep("BPL_COMPILE_DRIVER_TIMEOUT_MS=abc")).toEqual([
+      "bun index.ts doctor --json",
+      "bun run test:ci",
+      "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
+    ]);
+
+    expect(
+      localCommandsForStep("tar tool timed out while extracting package"),
+    ).toEqual([
+      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts",
+      "bun index.ts doctor packages --json",
+      "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
+      'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
+    ]);
+    expect(localCommandsForStep("BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=0")).toEqual([
+      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts",
+      "bun index.ts doctor packages --json",
+      "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
+      'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
+    ]);
+
+    expect(localCommandsForStep("object symbol parsing timed out")).toEqual([
+      "bun test tests/ObjectFileParser.test.ts",
+      "bun index.ts doctor --json",
+      "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
+    ]);
+
+    expect(localCommandsForStep("wasm linker probe timed out")).toEqual([
+      "bun run test:wasm",
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      "bun index.ts doctor --json",
+      "BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm",
+    ]);
+
+    expect(localCommandsForStep("Executable timed out after 5000ms")).toEqual([
+      "bun test tests/BinaryRunner.test.ts",
+      "BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts",
+      "bun run test:ci",
+    ]);
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {
@@ -556,6 +605,100 @@ describe("CI triage helper", () => {
         "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
         "bun index.ts doctor --json",
       ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints timeout repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-timeouts-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 61,
+              name: "Compiler timeout",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/61",
+              steps: [
+                {
+                  name: "compiler driver timed out after 600000ms",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 62,
+              name: "Runtime timeout",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/62",
+              steps: [
+                {
+                  name: "Executable timed out after 5000ms",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const jsonResult = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(jsonResult, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+      expect(
+        report.summary.failedJobs.find((job) => job.name === "Compiler timeout")
+          ?.localCommands,
+      ).toEqual([
+        "bun index.ts doctor --json",
+        "bun run test:ci",
+        "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
+      ]);
+
+      const textResult = spawnSync(
+        "bun",
+        ["run", "ci:triage", "--", "--jobs-json", jobsPath, "26695335269"],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("Compiler timeout");
+      expect(textResult.stdout).toContain("Runtime timeout");
+      expect(textResult.stdout).toContain(
+        "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
+      );
+      expect(textResult.stdout).toContain(
+        "BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts",
+      );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

@@ -148,6 +148,51 @@ const WASM_RUNTIME_FAILURE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const COMPILER_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "compiler driver timed out",
+    "BPL_COMPILE_DRIVER_TIMEOUT_MS",
+    "compile driver timeout",
+  ].join("|"),
+  "i",
+);
+const PACKAGE_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "package tool timed out",
+    "tar tool timed out",
+    "package archive .*timed out",
+    "package IR verification timed out",
+    "BPL_PACKAGE_TOOL_TIMEOUT_MS",
+    "BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS",
+  ].join("|"),
+  "i",
+);
+const OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "object symbol parsing timed out",
+    "object symbol .*timeout",
+    "nm .*timed out",
+    "BPL_OBJECT_SYMBOL_TIMEOUT_MS",
+  ].join("|"),
+  "i",
+);
+const WASM_LINKER_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "wasm linker probe timed out",
+    "WebAssembly linker probe timed out",
+    "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
+  ].join("|"),
+  "i",
+);
+const RUNTIME_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "Executable timed out",
+    "binary execution timed out",
+    "runtime execution timed out",
+    "BPL_RUN_TIMEOUT_MS",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
@@ -156,7 +201,17 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [WASM_TOOLCHAIN_STEP_PATTERN, "bun run test:wasm"],
   [WASM_TOOLCHAIN_STEP_PATTERN, "BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
   [WASM_TOOLCHAIN_STEP_PATTERN, "bun index.ts doctor --json"],
+  [
+    WASM_LINKER_TIMEOUT_STEP_PATTERN,
+    "BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm",
+  ],
   [/Run CI-safe test suite/i, "bun run test:ci"],
+  [COMPILER_TIMEOUT_STEP_PATTERN, "bun index.ts doctor --json"],
+  [COMPILER_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
+  [
+    COMPILER_TIMEOUT_STEP_PATTERN,
+    "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
+  ],
   [RELEASE_SMOKE_STEP_PATTERN, "bun run release:smoke"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseSmoke.test.ts"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseHelperSmoke.test.ts"],
@@ -213,6 +268,25 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_JSON_CONTRACT_STEP_PATTERN,
     'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
   ],
+  [
+    PACKAGE_TIMEOUT_STEP_PATTERN,
+    "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts",
+  ],
+  [PACKAGE_TIMEOUT_STEP_PATTERN, "bun index.ts doctor packages --json"],
+  [
+    PACKAGE_TIMEOUT_STEP_PATTERN,
+    "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
+  ],
+  [
+    PACKAGE_TIMEOUT_STEP_PATTERN,
+    'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
+  ],
+  [OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN, "bun test tests/ObjectFileParser.test.ts"],
+  [OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN, "bun index.ts doctor --json"],
+  [
+    OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN,
+    "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
+  ],
   [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun test tests/WasmRuntime.test.ts"],
   [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun run test:wasm"],
   [
@@ -220,6 +294,12 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
   ],
   [WASM_RUNTIME_FAILURE_STEP_PATTERN, "bun index.ts doctor --json"],
+  [RUNTIME_TIMEOUT_STEP_PATTERN, "bun test tests/BinaryRunner.test.ts"],
+  [
+    RUNTIME_TIMEOUT_STEP_PATTERN,
+    "BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts",
+  ],
+  [RUNTIME_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],
   [/Run sanitizer-backed runtime tests/i, "bun run test:sanitizers"],
