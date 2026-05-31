@@ -7,6 +7,7 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 import type { HostDefaults } from "./types";
+import { findSymlinkedPathComponent } from "../compiler/common/PathSafety";
 export { getNativeLinkerFlags } from "../compiler/common/NativeLinkerFlags";
 
 /**
@@ -184,25 +185,6 @@ function assertNoSymlinkedOutputParentPath(filePath: string): void {
   throw new Error(
     `Output parent path contains a symbolic link: ${symlinkedParent}`,
   );
-}
-
-function findSymlinkedPathComponent(targetPath: string): string | null {
-  const absolutePath = path.resolve(targetPath);
-  const rootPath = path.parse(absolutePath).root;
-  const parts = path
-    .relative(rootPath, absolutePath)
-    .split(path.sep)
-    .filter((part) => part.length > 0);
-
-  let currentPath = rootPath;
-  for (const part of parts) {
-    currentPath = path.join(currentPath, part);
-    const stats = tryLstat(currentPath);
-    if (stats?.isSymbolicLink()) return currentPath;
-    if (stats && !stats.isDirectory()) return null;
-  }
-
-  return null;
 }
 
 function removeBestEffort(filePath: string): void {

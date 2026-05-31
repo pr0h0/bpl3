@@ -12,6 +12,7 @@ import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
+import { findSymlinkedPathComponent } from "../../compiler/common/PathSafety";
 
 const log = new Logger("Clean");
 const CLEAN_GIT_TIMEOUT_MS = 5000;
@@ -248,25 +249,6 @@ function assertNoSymlinkedWorkingDirectoryPath(cwd: string): void {
   throw new Error(
     `Clean working directory path contains a symbolic link: ${symlinkedPath}. Run bpl clean from the real project path.`,
   );
-}
-
-function findSymlinkedPathComponent(targetPath: string): string | null {
-  const absolutePath = path.resolve(targetPath);
-  const rootPath = path.parse(absolutePath).root;
-  const parts = path
-    .relative(rootPath, absolutePath)
-    .split(path.sep)
-    .filter((part) => part.length > 0);
-
-  let currentPath = rootPath;
-  for (const part of parts) {
-    currentPath = path.join(currentPath, part);
-    const stats = tryLstat(currentPath);
-    if (stats?.isSymbolicLink()) return currentPath;
-    if (stats && !stats.isDirectory()) return null;
-  }
-
-  return null;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

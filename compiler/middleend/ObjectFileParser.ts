@@ -15,6 +15,7 @@ import { spawnSync } from "child_process";
 
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
 import { LinkerSymbolTable, type ObjectFileSymbol } from "./LinkerSymbolTable";
 
@@ -242,7 +243,7 @@ export class ObjectFileParser {
       });
     }
 
-    const symlinkedParent = this.findSymlinkedPathComponent(filePath);
+    const symlinkedParent = findSymlinkedParentPath(filePath);
     if (symlinkedParent) {
       throw new CompilerError(
         `Object parent path contains a symbolic link: ${symlinkedParent}`,
@@ -256,27 +257,6 @@ export class ObjectFileParser {
         },
       );
     }
-  }
-
-  private static findSymlinkedPathComponent(filePath: string): string | null {
-    const absolutePath = path.resolve(filePath);
-    const parsedPath = path.parse(absolutePath);
-    const rootPath = parsedPath.root;
-    const components = path
-      .relative(rootPath, absolutePath)
-      .split(/[\\/]+/)
-      .filter(Boolean);
-    let currentPath = rootPath;
-
-    for (const component of components.slice(0, -1)) {
-      currentPath = path.join(currentPath, component);
-      const stats = this.tryLstat(currentPath);
-      if (stats?.isSymbolicLink()) {
-        return currentPath;
-      }
-    }
-
-    return null;
   }
 
   private static tryLstat(filePath: string): fs.Stats | null {

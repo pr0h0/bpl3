@@ -13,6 +13,7 @@ import { CompilerError } from "../common/CompilerError";
 import { codeGenLog } from "../common/Logger";
 import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
+import { findSymlinkedPathComponent } from "../common/PathSafety";
 
 /**
  * Main entry point for LLVM IR code generation.
@@ -416,7 +417,7 @@ export class CodeGenerator extends StatementGenerator {
     if (!parentPath.isDirectory()) {
       throw new Error(`Debug IR parent path is not a directory: ${debugIrParent}`);
     }
-    const symlinkedParent = this.findSymlinkedPathComponent(debugIrParent);
+    const symlinkedParent = findSymlinkedPathComponent(debugIrParent);
     if (symlinkedParent) {
       throw new Error(
         `Debug IR parent path contains a symbolic link: ${symlinkedParent}`,
@@ -424,38 +425,6 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     fs.writeFileSync(this.debugIrPath, result);
-  }
-
-  private findSymlinkedPathComponent(filePath: string): string | null {
-    const absolutePath = path.resolve(filePath);
-    const rootPath = path.parse(absolutePath).root;
-    const parts = path
-      .relative(rootPath, absolutePath)
-      .split(path.sep)
-      .filter((part) => part.length > 0);
-
-    let currentPath = rootPath;
-    for (const part of parts) {
-      currentPath = path.join(currentPath, part);
-      let stats: fs.Stats;
-      try {
-        stats = fs.lstatSync(currentPath);
-      } catch (error) {
-        if (
-          error &&
-          typeof error === "object" &&
-          "code" in error &&
-          (error.code === "ENOENT" || error.code === "ENOTDIR")
-        ) {
-          return null;
-        }
-        throw error;
-      }
-      if (stats.isSymbolicLink()) return currentPath;
-      if (!stats.isDirectory()) return null;
-    }
-
-    return null;
   }
 
   private generateTopLevel(node: AST.ASTNode) {

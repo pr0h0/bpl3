@@ -1,0 +1,47 @@
+import { describe, expect, it } from "bun:test";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+import {
+  findSymlinkedParentPath,
+  findSymlinkedPathComponent,
+} from "../compiler/common/PathSafety";
+
+describe("Path safety helpers", () => {
+  it("allows trusted platform root symlinks while rejecting nested symlink ancestors", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-path-safety-"));
+    const privateVar = path.join(tempDir, "private", "var");
+    const trustedVar = path.join(tempDir, "var");
+    const outputDir = path.join(trustedVar, "folders", "runner", "project");
+    const outsideDir = path.join(tempDir, "outside");
+    const nestedSymlink = path.join(outputDir, "linked-output");
+    const trustedSymlinks = [{ path: trustedVar, realPath: privateVar }];
+
+    try {
+      fs.mkdirSync(privateVar, { recursive: true });
+      fs.mkdirSync(outsideDir);
+      fs.symlinkSync(privateVar, trustedVar, "dir");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      expect(
+        findSymlinkedPathComponent(outputDir, { trustedSymlinks }),
+      ).toBeNull();
+      expect(
+        findSymlinkedParentPath(path.join(outputDir, "main.wasm"), {
+          trustedSymlinks,
+        }),
+      ).toBeNull();
+
+      fs.symlinkSync(outsideDir, nestedSymlink, "dir");
+
+      expect(
+        findSymlinkedPathComponent(path.join(nestedSymlink, "main.wasm"), {
+          trustedSymlinks,
+        }),
+      ).toBe(nestedSymlink);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+});

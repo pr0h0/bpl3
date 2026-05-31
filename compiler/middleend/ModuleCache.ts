@@ -19,6 +19,7 @@ import {
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
+import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
 
 export const MODULE_CACHE_VERSION = "2.0.0";
@@ -665,7 +666,7 @@ export class ModuleCache {
 
   private removeCacheTempFile(filePath: string): void {
     try {
-      if (this.findSymlinkedParentPath(filePath)) return;
+      if (findSymlinkedParentPath(filePath)) return;
       fs.rmSync(filePath, { force: true, recursive: true });
     } catch {
       // Best-effort cleanup only.
@@ -740,7 +741,7 @@ export class ModuleCache {
         return null;
       }
 
-      if (this.findSymlinkedParentPath(filePath)) {
+      if (findSymlinkedParentPath(filePath)) {
         return null;
       }
 
@@ -893,7 +894,7 @@ export class ModuleCache {
     filePath: string,
     diagnosticFile: string,
   ): void {
-    const symlinkedParent = this.findSymlinkedParentPath(filePath);
+    const symlinkedParent = findSymlinkedParentPath(filePath);
     if (!symlinkedParent) return;
 
     throw new CompilerError(
@@ -907,25 +908,6 @@ export class ModuleCache {
         endColumn: 0,
       },
     );
-  }
-
-  private findSymlinkedParentPath(filePath: string): string | undefined {
-    const absolutePath = path.resolve(filePath);
-    const rootPath = path.parse(absolutePath).root;
-    const parts = path
-      .relative(rootPath, path.dirname(absolutePath))
-      .split(path.sep)
-      .filter((part) => part.length > 0);
-
-    let currentPath = rootPath;
-    for (const part of parts) {
-      currentPath = path.join(currentPath, part);
-      const stats = this.tryLstat(currentPath);
-      if (stats?.isSymbolicLink()) return currentPath;
-      if (stats && !stats.isDirectory()) return undefined;
-    }
-
-    return undefined;
   }
 
   private tryLstat(filePath: string): fs.Stats | undefined {
@@ -1222,7 +1204,7 @@ export class ModuleCache {
       );
     }
 
-    const symlinkedParent = this.findSymlinkedParentPath(outputPath);
+    const symlinkedParent = findSymlinkedParentPath(outputPath);
     if (symlinkedParent) {
       throw new CompilerError(
         `Output parent path contains a symbolic link: ${symlinkedParent}`,

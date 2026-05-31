@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import * as path from "path";
+import { findSymlinkedParentPath } from "../common/PathSafety";
 
 export interface BindgenOptions {
   headerPath: string;
@@ -62,7 +62,7 @@ export function generateBplBindings(options: BindgenOptions): string {
     throw new Error(`Header path is not a file: ${options.headerPath}`);
   }
 
-  const symlinkedParent = findSymlinkedPathComponent(options.headerPath);
+  const symlinkedParent = findSymlinkedParentPath(options.headerPath);
   if (symlinkedParent) {
     throw new Error(
       `Header parent path contains a symbolic link: ${symlinkedParent}`,
@@ -101,27 +101,6 @@ export function generateBplBindings(options: BindgenOptions): string {
 
 function joinLineContinuations(source: string): string {
   return source.replace(/\\\r?\n/g, " ");
-}
-
-function findSymlinkedPathComponent(filePath: string): string | null {
-  const absolutePath = path.resolve(filePath);
-  const parsedPath = path.parse(absolutePath);
-  const rootPath = parsedPath.root;
-  const components = path
-    .relative(rootPath, absolutePath)
-    .split(/[\\/]+/)
-    .filter(Boolean);
-  let currentPath = rootPath;
-
-  for (const component of components.slice(0, -1)) {
-    currentPath = path.join(currentPath, component);
-    const stats = tryLstat(currentPath);
-    if (stats?.isSymbolicLink()) {
-      return currentPath;
-    }
-  }
-
-  return null;
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
