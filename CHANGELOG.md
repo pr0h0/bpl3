@@ -65,6 +65,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl doctor sanitizer --json` now report optional sanitizer runtime support
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
   compiler-rt/libclang_rt support.
+- **Sanitizer Timeout Diagnostics** - `SANITIZER_RUNTIME_TEST_TIMEOUT_MS` now
+  uses the shared positive-integer timeout diagnostics and appears in `bpl
+  doctor --json` timeout reports.
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
 - **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed

@@ -894,6 +894,7 @@ cd playground && bun run start
 # without sanitizer runtimes are detected.
 bpl doctor sanitizer --json
 bun run test:sanitizers
+SANITIZER_RUNTIME_TEST_TIMEOUT_MS=30000 bun test tests/CompilerSanitizerRuntime.test.ts
 
 # Run a short deterministic O0/O3 differential fuzz campaign. Differential
 # inputs include successful programs and checked BPL runtime failures.

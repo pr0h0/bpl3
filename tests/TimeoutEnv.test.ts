@@ -12,6 +12,7 @@ import {
   PackageManager,
 } from "../compiler/middleend/PackageManager";
 import { ObjectFileParser } from "../compiler/middleend/ObjectFileParser";
+import { getSanitizerRuntimeTestTimeoutMs } from "./helpers/compilerCorrectness";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
@@ -40,6 +41,8 @@ describe("timeout environment diagnostics", () => {
   const originalRunTimeout = process.env.BPL_RUN_TIMEOUT_MS;
   const originalWasmLinkerProbeTimeout =
     process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
+  const originalSanitizerRuntimeTestTimeout =
+    process.env.SANITIZER_RUNTIME_TEST_TIMEOUT_MS;
   const originalBplNm = process.env.BPL_NM;
 
   afterEach(() => {
@@ -48,6 +51,10 @@ describe("timeout environment diagnostics", () => {
     restoreEnv("BPL_OBJECT_SYMBOL_TIMEOUT_MS", originalObjectSymbolTimeout);
     restoreEnv("BPL_RUN_TIMEOUT_MS", originalRunTimeout);
     restoreEnv("BPL_WASM_LINKER_PROBE_TIMEOUT_MS", originalWasmLinkerProbeTimeout);
+    restoreEnv(
+      "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+      originalSanitizerRuntimeTestTimeout,
+    );
     restoreEnv("BPL_NM", originalBplNm);
   });
 
@@ -75,6 +82,12 @@ describe("timeout environment diagnostics", () => {
         envName: "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
         defaultMs: 5000,
         run: () => getWasmLinkerProbeTimeoutMs(process.env, console.warn),
+      },
+      {
+        name: "sanitizer runtime test",
+        envName: "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+        defaultMs: 30000,
+        run: getSanitizerRuntimeTestTimeoutMs,
       },
     ];
 

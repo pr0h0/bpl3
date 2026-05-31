@@ -3065,6 +3065,7 @@ describe("CLI Tests", () => {
         BPL_COMPILE_DRIVER_TIMEOUT_MS: "1234",
         BPL_RUN_TIMEOUT_MS: "0",
         BPL_WASM_LINKER_PROBE_TIMEOUT_MS: "bad",
+        SANITIZER_RUNTIME_TEST_TIMEOUT_MS: "nope",
         NO_COLOR: "1",
       },
     });
@@ -3083,6 +3084,7 @@ describe("CLI Tests", () => {
         "BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS",
         "BPL_RUN_TIMEOUT_MS",
         "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
+        "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
       ]),
     );
 
@@ -3117,6 +3119,17 @@ describe("CLI Tests", () => {
       defaultMs: 5000,
       effectiveMs: 5000,
       fallbackAction: "using 5000ms",
+    });
+
+    const sanitizerTimeout = report.timeouts?.find(
+      (timeout) => timeout.name === "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+    );
+    expect(sanitizerTimeout).toMatchObject({
+      raw: "nope",
+      isValid: false,
+      defaultMs: 30000,
+      effectiveMs: 30000,
+      fallbackAction: "using 30000ms",
     });
   });
 

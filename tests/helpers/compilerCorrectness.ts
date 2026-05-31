@@ -3,6 +3,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 
+import {
+  getPositiveIntegerEnv,
+  TIMEOUT_ENV_DEFAULTS,
+} from "../../compiler/common/Env";
 import { verifyLlvmFile } from "../../compiler/common/LlvmVerifier";
 import {
   explainBplSanitizerSupportFailure,
@@ -100,6 +104,17 @@ const INTERNAL_EXCEPTION_PATTERNS = [
 ];
 const SANITIZER_CLANG_FLAG = "--clang-flag=-fsanitize=address,undefined";
 let cachedSanitizerSupport: SanitizerSupportResult | undefined;
+
+export function getSanitizerRuntimeTestTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+  warn: (message: string) => void = console.warn,
+): number {
+  return getPositiveIntegerEnv(
+    "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
+    TIMEOUT_ENV_DEFAULTS.SANITIZER_RUNTIME_TEST_TIMEOUT_MS,
+    { env, warn },
+  );
+}
 
 function runCommand(
   args: string[],

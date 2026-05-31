@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   checkBplSanitizerSupport,
+  getSanitizerRuntimeTestTimeoutMs,
   runBplWithSanitizers,
 } from "./helpers/compilerCorrectness";
 
-const SANITIZER_RUNTIME_TEST_TIMEOUT_MS = 30 * 1000;
+const SANITIZER_RUNTIME_TEST_TIMEOUT_MS = getSanitizerRuntimeTestTimeoutMs();
 
 describe("Compiler sanitizer-backed runtime tests", () => {
   test(

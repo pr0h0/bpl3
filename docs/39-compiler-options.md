@@ -532,6 +532,7 @@ override:
 - `BPL_PACKAGE_TOOL_TIMEOUT_MS` invalid values fall back to 300000 milliseconds.
 - `BPL_OBJECT_SYMBOL_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
 - `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
+- `SANITIZER_RUNTIME_TEST_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
 
 `bpl doctor --json` reports timeout environment configuration in `timeouts`.
 Each entry includes the known timeout variable name plus `raw`, `isValid`,

@@ -110,6 +110,7 @@ BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts
 BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts
 BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm
 BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts
+SANITIZER_RUNTIME_TEST_TIMEOUT_MS=30000 bun test tests/CompilerSanitizerRuntime.test.ts
 ```
 
 Sanitizer-backed runtime failures are separate from BPL runtime execution
@@ -134,7 +135,9 @@ the sanitizer binary yet.
 
 A Bun test timeout in `CompilerSanitizerRuntime.test` means the sanitizer
 harness exceeded its test budget; it is not fixed by `BPL_RUN_TIMEOUT_MS`.
-Use `BPL_RUN_TIMEOUT_MS` only for BPL executable runtime timeouts reported by
+`SANITIZER_RUNTIME_TEST_TIMEOUT_MS` must be a positive integer; invalid values
+are ignored with a warning and the 30000ms default is used. Use
+`BPL_RUN_TIMEOUT_MS` only for BPL executable runtime timeouts reported by
 `BinaryRunner` or `runExecutable`.
 
 When package JSON contract, install JSON, or `BPL_LOCKFILE_*` diagnostics fail,
