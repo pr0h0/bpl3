@@ -3171,6 +3171,96 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should report bindgen success and validation failures as JSON", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-json-"));
+    const tempHeader = path.join(tempDir, "input.h");
+    fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
+
+    try {
+      const success = spawnSync("bun", [BPL_CLI, "bindgen", "--json", tempHeader], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      const successReport = expectJsonStdoutReport<{
+        check: "bindgen";
+        success: boolean;
+        header: string;
+        outputPath: string | null;
+        generatedBytes: number;
+        bindings: string;
+      }>(success, {
+        status: 0,
+        check: "bindgen",
+        success: true,
+      });
+      expect(successReport).toMatchObject({
+        header: tempHeader,
+        outputPath: null,
+      });
+      expect(successReport.generatedBytes).toBeGreaterThan(0);
+      expect(successReport.bindings).toContain("extern puts(s: string) ret int;");
+
+      const directoryInput = spawnSync(
+        "bun",
+        [BPL_CLI, "bindgen", "--json", tempDir],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const directoryReport = expectJsonStdoutReport<{
+        check: "bindgen";
+        success: boolean;
+        header: string;
+        outputPath: string | null;
+        error: string;
+        errorCode: string;
+      }>(directoryInput, {
+        status: 1,
+        check: "bindgen",
+        success: false,
+      });
+      expect(directoryReport).toMatchObject({
+        header: tempDir,
+        outputPath: null,
+        errorCode: "BPL_BINDGEN_HEADER_NOT_FILE",
+      });
+      expect(directoryReport.error).toContain("Header path is not a file");
+
+      const outputDirectory = spawnSync(
+        "bun",
+        [BPL_CLI, "bindgen", "--json", tempHeader, "-o", tempDir],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const outputReport = expectJsonStdoutReport<{
+        check: "bindgen";
+        success: boolean;
+        header: string;
+        outputPath: string;
+        error: string;
+        errorCode: string;
+      }>(outputDirectory, {
+        status: 1,
+        check: "bindgen",
+        success: false,
+      });
+      expect(outputReport).toMatchObject({
+        header: tempHeader,
+        outputPath: tempDir,
+        errorCode: "BPL_BINDGEN_OUTPUT_DIRECTORY",
+      });
+      expect(outputReport.error).toContain("Output path is a directory");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should reject directories as bindgen inputs", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-dir-"));
 
