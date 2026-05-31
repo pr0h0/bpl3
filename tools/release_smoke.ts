@@ -219,6 +219,7 @@ interface CheckReport {
 
 interface CheckDiagnostic {
   code?: unknown;
+  hint?: unknown;
   message?: unknown;
   severityLabel?: unknown;
 }
@@ -2311,6 +2312,35 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI package import diagnostic JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+      );
+    }
+
+    writeFileSync(join(packageDir, "bpl.json"), "{not-json");
+
+    const malformedResult = runJsonFailureStep(
+      "check packed npm CLI package import malformed manifest JSON",
+      installedBpl,
+      ["check", "--json", "main.bpl"],
+      { cwd: tempDir, bplHome: null, expectedStatus: 1 },
+    );
+    const malformedReport = parseCheckReport(malformedResult.stdout);
+    const malformedFileReport = malformedReport.files[0];
+    const malformedDiagnostic = malformedFileReport?.diagnostics?.[0];
+    if (
+      malformedReport.success ||
+      malformedReport.totalFiles !== 1 ||
+      malformedReport.errorCount !== 1 ||
+      malformedReport.files.length !== 1 ||
+      malformedFileReport?.file !== "main.bpl" ||
+      malformedFileReport.success ||
+      malformedDiagnostic?.code !== "BPL_PACKAGE_MANIFEST_PARSE_ERROR" ||
+      typeof malformedDiagnostic.message !== "string" ||
+      !malformedDiagnostic.message.includes("manifest is not valid JSON") ||
+      typeof malformedDiagnostic.hint !== "string" ||
+      !malformedDiagnostic.hint.includes("manifest is not valid JSON")
+    ) {
+      throw new Error(
+        `Packed npm CLI package import malformed manifest JSON reported unexpected payload:\n${JSON.stringify(malformedReport, null, 2)}`,
       );
     }
   } finally {

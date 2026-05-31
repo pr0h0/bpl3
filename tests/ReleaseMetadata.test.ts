@@ -273,9 +273,14 @@ describe("Release metadata", () => {
       "check packed npm CLI package import diagnostic code JSON",
     );
     expect(releaseSmokeSource).toContain(
+      "check packed npm CLI package import malformed manifest JSON",
+    );
+    expect(releaseSmokeSource).toContain(
       "runPackedPackageImportDiagnosticCodeSmoke",
     );
     expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_PARSE_ERROR");
+    expect(releaseSmokeSource).toContain("manifest is not valid JSON");
     expect(releaseSmokeSource).toContain('["check", "--json", "main.bpl"]');
     expect(releaseSmokeSource).toContain("parseCheckReport");
   });
