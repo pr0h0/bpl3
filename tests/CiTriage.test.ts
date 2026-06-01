@@ -1930,6 +1930,87 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("prints package docs smoke repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-package-docs-smoke-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 68,
+              name: "Package import docs JSON smoke",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/68",
+              steps: [
+                {
+                  name: "CLIJsonParseability.test keeps package/import docs examples covered by JSON smoke fixtures",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 69,
+              name: "Package docs smoke documentation",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/69",
+              steps: [
+                {
+                  name: "MarkdownDocs.test package docs document package/import docs smoke fixtures",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const commandsByJobName = new Map(
+        report.summary.failedJobs.map((job) => [job.name, job.localCommands]),
+      );
+      expect(commandsByJobName.get("Package import docs JSON smoke")).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
+      ]);
+      expect(commandsByJobName.get("Package docs smoke documentation")).toEqual([
+        'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prints build validation repro commands from an offline jobs fixture", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-build-codes-"));
     const jobsPath = join(tempDir, "jobs.json");
