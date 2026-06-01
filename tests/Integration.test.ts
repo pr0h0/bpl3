@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -15,6 +15,10 @@ const INTEGRATION_TEST_TIMEOUT_MS = 30 * 60 * 1000;
 const INTEGRATION_ARTIFACTS_DIR = path.join(
   os.tmpdir(),
   "bpl-integration-artifacts",
+);
+const INTEGRATION_RUN_ARTIFACTS_DIR = path.join(
+  INTEGRATION_ARTIFACTS_DIR,
+  `run-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 );
 const runLimited = createLimiter(getIntegrationJobs());
 
@@ -50,7 +54,7 @@ function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
 
 function getExampleArtifactOutputPath(example: string): string {
   const safeExampleName = example.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return path.join(INTEGRATION_ARTIFACTS_DIR, safeExampleName, "main");
+  return path.join(INTEGRATION_RUN_ARTIFACTS_DIR, safeExampleName, "main");
 }
 
 function prepareExampleArtifactOutput(example: string): string {
@@ -69,6 +73,13 @@ describe("Integration Tests", () => {
   const examples = getExampleDirectories();
   const testOnly: string[] = [""].filter(Boolean); // Specify example names to test only
 
+  afterAll(() => {
+    fs.rmSync(INTEGRATION_RUN_ARTIFACTS_DIR, {
+      recursive: true,
+      force: true,
+    });
+  });
+
   it("includes package dependency example coverage in CI-safe integration tests", () => {
     expect(examples).toContain("package_transitive_dependency/app");
   });
@@ -83,6 +94,27 @@ describe("Integration Tests", () => {
     );
     expect(path.relative(EXAMPLES_DIR, outputPath).startsWith("..")).toBe(true);
     expect(path.basename(outputPath)).toBe("main");
+  });
+
+  it("uses a run-unique artifact root for integration outputs", () => {
+    const outputPath = getExampleArtifactOutputPath(
+      "package_transitive_dependency/app",
+    );
+
+    expect(outputPath).toContain(`run-${process.pid}-`);
+  });
+
+  it("cleans prepared integration artifact directories", () => {
+    const outputPath = prepareExampleArtifactOutput(
+      "package_transitive_dependency/app-cleanup",
+    );
+    const outputDir = path.dirname(outputPath);
+
+    fs.writeFileSync(outputPath, "stale binary");
+    fs.writeFileSync(`${outputPath}.ll`, "stale ir");
+    cleanupExampleArtifactOutput(outputPath);
+
+    expect(fs.existsSync(outputDir)).toBe(false);
   });
 
   for (const example of examples) {

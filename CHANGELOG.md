@@ -209,6 +209,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CLI Registry Consumer Docs** - Public API docs now show both ESM imports
   and CommonJS `require("bpl-v3/cli")` usage, and clarify that the subpath is a
   narrow data registry rather than a compiler-internals API.
+- **Integration Artifact Root Isolation** - Integration test output paths now
+  include a run-unique temporary root and cleanup guard so concurrent local runs
+  do not collide over generated binaries or LLVM IR.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.
