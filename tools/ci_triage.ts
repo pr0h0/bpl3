@@ -341,6 +341,16 @@ const BUILTIN_TYPE_REDEFINITION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const ARRAY_SIZE_INVALID_STEP_PATTERN = new RegExp(
+  [
+    "BPL_ARRAY_SIZE_INVALID",
+    "invalid array size",
+    "invalid fixed array size",
+    "Array size must be greater than zero",
+    "Arrays cannot have zero or negative size",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1045,6 +1055,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "builtin type redefinition"',
   ],
   [BUILTIN_TYPE_REDEFINITION_STEP_PATTERN, "bun run check"],
+  [
+    ARRAY_SIZE_INVALID_STEP_PATTERN,
+    "bun test tests/TypeCheckerInvalidArraySizes.test.ts",
+  ],
+  [
+    ARRAY_SIZE_INVALID_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "invalid array size"',
+  ],
+  [
+    ARRAY_SIZE_INVALID_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "invalid fixed array size"',
+  ],
+  [ARRAY_SIZE_INVALID_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
