@@ -1986,7 +1986,7 @@ describe("CLI JSON parseability", () => {
       env: { HOME: homeDir, USERPROFILE: homeDir },
     });
     const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile);
-    expect(checkDiagnostic.code).not.toBe("BPL_PACKAGE_ROOT_CASE_MISMATCH");
+    expect(checkDiagnostic.code).toBe("BPL_IMPORT_EXPORT_NOT_FOUND");
     expect(checkDiagnostic.source?.preview).toContain(
       'import packageMath from "math";',
     );
@@ -2032,8 +2032,8 @@ describe("CLI JSON parseability", () => {
         },
       ],
     });
-    expect(buildReport.diagnostics[0]?.code).not.toBe(
-      "BPL_PACKAGE_ROOT_CASE_MISMATCH",
+    expect(buildReport.diagnostics[0]?.code).toBe(
+      "BPL_IMPORT_EXPORT_NOT_FOUND",
     );
     expect(buildReport.diagnostics[0]?.message).toContain(
       "Module 'math' does not export 'packageMath'",

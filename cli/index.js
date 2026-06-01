@@ -203,6 +203,10 @@ const CLI_JSON_ERROR_CODE_LISTS = [
     ],
   },
   {
+    name: "import-handler",
+    codes: ["BPL_IMPORT_EXPORT_NOT_FOUND"],
+  },
+  {
     name: "run-script",
     codes: [
       "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",

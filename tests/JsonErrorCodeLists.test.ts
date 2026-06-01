@@ -38,6 +38,7 @@ describe("CLI JSON error-code list exports", () => {
       "package-manifest",
       "package-resolver",
       "module-resolver",
+      "import-handler",
       "run-script",
       "sanitizer-runtime",
       "wasm-linker",
