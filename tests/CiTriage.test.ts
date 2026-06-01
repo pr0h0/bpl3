@@ -259,8 +259,8 @@ describe("CI triage helper", () => {
 
   test("maps package atomic mode failures to focused reproduction commands", () => {
     const expectedCommands = [
-      'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|global cache archive permissions"',
-      'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|global cache archive permissions"',
+      'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|package archive permissions|global cache archive permissions"',
+      'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|package archive permissions|global cache archive permissions"',
       "bun run check",
     ];
 
@@ -277,6 +277,16 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep(
         "PackageManagerCLI global cache archive mode preservation failed",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "PackageManager > should preserve existing package archive permissions when rewriting",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "PackageManagerCLI package archive permissions expected 416 received 384",
       ),
     ).toEqual(expectedCommands);
   });

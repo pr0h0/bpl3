@@ -183,11 +183,12 @@ const ATOMIC_WRITE_PERMISSION_STEP_PATTERN = new RegExp(
 );
 const PACKAGE_ATOMIC_MODE_STEP_PATTERN = new RegExp(
   [
-    "PackageManager.*(?:lockfile|package provenance|global cache archive).*permissions",
-    "PackageManagerCLI.*(?:lockfile|global cache archive).*mode",
-    "PackageManager.*(?:bpl\\.lock|bplmeta|global cache archive).*mode",
+    "PackageManager.*(?:lockfile|package provenance|package archive|global cache archive).*permissions",
+    "PackageManagerCLI.*(?:lockfile|package archive|global cache archive).*mode",
+    "PackageManager.*(?:bpl\\.lock|bplmeta|package archive|global cache archive).*mode",
     "copyFileAtomically.*mode",
     "package atomic mode",
+    "package archive permissions",
     "global cache archive permissions",
     "package provenance permissions",
     "lockfile permissions",
@@ -615,11 +616,11 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_ATOMIC_MODE_STEP_PATTERN,
-    'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|global cache archive permissions"',
+    'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|package archive permissions|global cache archive permissions"',
   ],
   [
     PACKAGE_ATOMIC_MODE_STEP_PATTERN,
-    'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|global cache archive permissions"',
+    'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|package archive permissions|global cache archive permissions"',
   ],
   [PACKAGE_ATOMIC_MODE_STEP_PATTERN, "bun run check"],
   [
