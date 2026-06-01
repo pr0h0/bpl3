@@ -965,6 +965,12 @@ describe("Release metadata", () => {
           )
           .digest("hex"),
       });
+      expect(byPath.get("tools/release_smoke.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update("release smoke helper\n")
+          .digest("hex"),
+      });
       expect(byPath.get("tools/fuzz_script_wrapper.ts")).toMatchObject({
         kind: "helper",
         sha256: createHash("sha256")
@@ -982,6 +988,32 @@ describe("Release metadata", () => {
         npmIntegrity: "sha512-test",
         npmShasum: "abc123",
       });
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("release manifest fixture discovers helper references with script names", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-release-ref-fixture-"));
+
+    try {
+      writeReleaseFixture(tempRoot);
+
+      expect(
+        discoverPackageScriptHelperReferences(tempRoot).map(
+          ({ scriptName, helperPath }) => [scriptName, helperPath],
+        ),
+      ).toEqual([
+        ["ci:triage", "tools/ci_triage.ts"],
+        ["fuzz", "tools/fuzz_script_wrapper.ts"],
+        ["fuzz:differential", "tools/fuzz_script_wrapper.ts"],
+        ["fuzz:long", "tools/fuzz_script_wrapper.ts"],
+        ["fuzz:promote", "tools/fuzz_script_wrapper.ts"],
+        ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
+        ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
+        ["release:manifest", "tools/release_manifest.ts"],
+        ["release:smoke", "tools/release_smoke.ts"],
+      ]);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -1237,8 +1269,11 @@ function writeReleaseFixture(tempRoot: string): void {
         bin: { bpl: "./bpl" },
         scripts: {
           "ci:triage": "bun tools/ci_triage.ts",
+          "release:smoke": "bun tools/release_smoke.ts",
           "release:manifest": "bun tools/release_manifest.ts --out dist/release-manifest.json --pack-npm",
           fuzz: "bun tools/fuzz_script_wrapper.ts run",
+          "fuzz:long": "FUZZ_ITERATIONS=100000 bun tools/fuzz_script_wrapper.ts run",
+          "fuzz:differential": "FUZZ_DIFFERENTIAL=1 bun tools/fuzz_script_wrapper.ts run",
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
@@ -1263,6 +1298,10 @@ function writeReleaseFixture(tempRoot: string): void {
   writeFileSync(
     join(tempRoot, "tools", "release_manifest.ts"),
     'import "../compiler/common/PathSafety";\nrelease manifest helper\n',
+  );
+  writeFileSync(
+    join(tempRoot, "tools", "release_smoke.ts"),
+    "release smoke helper\n",
   );
   writeFileSync(
     join(tempRoot, "compiler", "common", "PathSafety.ts"),

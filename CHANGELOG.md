@@ -169,6 +169,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CLI JSON Registry Docs Guard** - MarkdownDocs now checks all codes from
   `CLI_JSON_ERROR_CODE_LISTS` against the tracked Markdown corpus so documented
   JSON/diagnostic code coverage cannot drift from the central registry.
+- **Release Manifest Helper Reference Fixture** - Release manifest tests now
+  cover script-name helper references in the local fixture, including multiple
+  npm scripts pointing at the same packed helper.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.
