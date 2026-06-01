@@ -7,11 +7,14 @@ import { TokenType } from "../frontend/TokenType";
 import { TypeUtils } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 import {
+  ARRAY_INDEX_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
   CALL_TARGET_NOT_CALLABLE_CODE,
   ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
   ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
+  INDEX_TARGET_NOT_INDEXABLE_CODE,
+  POINTER_INDEX_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
 
 function withoutAliasShape(type: AST.BasicTypeNode): AST.BasicTypeNode {
@@ -1135,6 +1138,7 @@ export function checkIndex(
         `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
+        POINTER_INDEX_TYPE_MISMATCH_CODE,
       );
     }
     return getPointerToAliasedArrayElementType(this, objectType);
@@ -1151,6 +1155,7 @@ export function checkIndex(
         `Array index must be an integer, got ${this.typeToString(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
+        ARRAY_INDEX_TYPE_MISMATCH_CODE,
       );
     }
     const innerType = { ...objectType };
@@ -1168,6 +1173,7 @@ export function checkIndex(
         `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
+        POINTER_INDEX_TYPE_MISMATCH_CODE,
       );
     }
     return {
@@ -1223,6 +1229,7 @@ export function checkIndex(
     `Type '${this.typeToString(objectType)}' is not indexable`,
     "Only arrays, pointers, or types with __get__ operator can be indexed.",
     expr.location,
+    INDEX_TARGET_NOT_INDEXABLE_CODE,
   );
 }
 
