@@ -868,6 +868,13 @@ bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "enum variant field diagnostics"
 ```
 
+Intrinsic call semantic failures use `BPL_INTRINSIC_GENERIC_ARITY_MISMATCH` and `BPL_INTRINSIC_ARGUMENT_COUNT_MISMATCH`. This covers missing or extra `__type_id`/`__type_info` generic type arguments and forbidden value arguments. Representative messages include `Intrinsic __type_id requires exactly 1 generic argument` and `Intrinsic __type_info accepts no arguments`. The corresponding hints include `Use __type_id<T>() with exactly one type argument.` and `Call __type_info<T>() without value arguments.`. Valid `__type_id<T>()` and `__type_info<T>()` calls remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerIntrinsicCallDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "intrinsic call diagnostics"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

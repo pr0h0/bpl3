@@ -1629,6 +1629,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document intrinsic call diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Intrinsic call semantic failures use `BPL_INTRINSIC_GENERIC_ARITY_MISMATCH` and `BPL_INTRINSIC_ARGUMENT_COUNT_MISMATCH`",
+      "`Intrinsic __type_id requires exactly 1 generic argument`",
+      "`Intrinsic __type_info accepts no arguments`",
+      "`Use __type_id<T>() with exactly one type argument.`",
+      "`Call __type_info<T>() without value arguments.`",
+      "missing or extra `__type_id`/`__type_info` generic type arguments and forbidden value arguments",
+      'bun test tests/TypeCheckerIntrinsicCallDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "intrinsic call diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

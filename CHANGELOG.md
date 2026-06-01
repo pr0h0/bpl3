@@ -162,6 +162,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Valid enum struct variant construction and pattern matching remain
   accepted.
+- **Intrinsic Call Diagnostic Codes** - Missing or extra `__type_id`/
+  `__type_info` generic type arguments and forbidden value arguments now report
+  `BPL_INTRINSIC_GENERIC_ARITY_MISMATCH` and
+  `BPL_INTRINSIC_ARGUMENT_COUNT_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. The diagnostics now include usage hints instead of empty hints.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
