@@ -16,6 +16,7 @@ import { initializeBuiltinsInScope } from "./BuiltinTypes";
 import { getLibPath } from "../common/PathResolver";
 import {
   IMPORT_STD_PATH_UNSAFE_CODE,
+  IMPORT_STD_PATH_UNSAFE_HINT,
   isSafeStandardLibraryImportPath,
   ModuleResolver,
 } from "./ModuleResolver";
@@ -167,18 +168,21 @@ export class ImportHandler {
       if (stmt.source === "std") {
         const stdLibPath = getLibPath();
         importPath = path.join(stdLibPath, "std.bpl");
-      } else if (stmt.source.startsWith("std/")) {
+      } else if (
+        stmt.source.startsWith("std/") ||
+        stmt.source.startsWith("std\\")
+      ) {
         const stdLibPath = getLibPath();
         const relativePath = stmt.source.substring(4);
         if (!isSafeStandardLibraryImportPath(relativePath)) {
           throw new CompilerError(
             `Unsafe standard library import: ${stmt.source}`,
-            "Use std/<path> without empty, '.', or '..' path segments.",
+            IMPORT_STD_PATH_UNSAFE_HINT,
             stmt.location,
             IMPORT_STD_PATH_UNSAFE_CODE,
           );
         }
-        importPath = path.join(stdLibPath, relativePath);
+        importPath = path.join(stdLibPath, ...relativePath.split(/[\\/]/));
       } else {
         const currentDir = path.dirname(currentFile);
         importPath = path.resolve(currentDir, stmt.source);

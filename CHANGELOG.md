@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Import Handler Std Fallback Drift** - The TypeChecker import fallback now
+  mirrors `ModuleResolver` for explicit `std/` and `std\` paths, including
+  backslash subpaths, unsafe segment rejection, and the shared
+  `BPL_IMPORT_STD_PATH_UNSAFE` hint.
 - **Integration Artifact Path Collisions** - CI-safe integration tests now add a
   stable source-path fingerprint to temporary artifact directories, so examples
   like `enum_imports/destructuring` and `enum_imports_destructuring` cannot

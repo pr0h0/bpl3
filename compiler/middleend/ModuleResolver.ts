@@ -38,6 +38,8 @@ export const MODULE_PATH_SYMLINK_CODE = "BPL_MODULE_PATH_SYMLINK";
 export const MODULE_PATH_CASE_MISMATCH_CODE =
   "BPL_MODULE_PATH_CASE_MISMATCH";
 export const IMPORT_STD_PATH_UNSAFE_CODE = "BPL_IMPORT_STD_PATH_UNSAFE";
+export const IMPORT_STD_PATH_UNSAFE_HINT =
+  "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.";
 
 export const MODULE_RESOLUTION_FAILURE_CODES = [
   MODULE_NOT_FOUND_CODE,
@@ -294,7 +296,7 @@ export class ModuleResolver {
       if (!isSafeStandardLibraryImportPath(relativePath)) {
         throw new CompilerError(
           `Unsafe standard library import: ${importSource}`,
-          "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
+          IMPORT_STD_PATH_UNSAFE_HINT,
           {
             file: fromFile,
             startLine: 0,
