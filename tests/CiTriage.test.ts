@@ -144,6 +144,23 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps explicit package source-file import diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageResolver.test.ts -t "explicit source-file"',
+      'bun test tests/CLIJsonParseability.test.ts -t "package import"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep(
+        "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("explicit source file shadowed by directory"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps import resolver failures to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/ModuleResolver.test.ts",
@@ -1813,6 +1830,71 @@ describe("CI triage helper", () => {
         'bun test tests/CLIJsonParseability.test.ts -t "malformed package manifests|package manifest symlink|missing package manifests"',
         'bun test tests/PackageResolver.test.ts -t "manifest"',
         'bun test tests/ModuleResolver.test.ts -t "manifest"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints explicit package source-file import repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-package-explicit-source-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 67,
+              name: "Explicit package source-file import diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/67",
+              steps: [
+                {
+                  name: "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageResolver.test.ts -t "explicit source-file"',
+        'bun test tests/CLIJsonParseability.test.ts -t "package import"',
         "bun run check",
       ]);
     } finally {

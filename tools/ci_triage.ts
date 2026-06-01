@@ -157,12 +157,20 @@ const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN = new RegExp(
+  [
+    "explicit package source-file",
+    "explicit source file shadowed by directory",
+    "do not fall back to directory indexes",
+  ].join("|"),
+  "i",
+);
 const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "ModuleResolver\\.test",
     "Module resolver",
     "import resolver",
-    "import diagnostics",
+    "import diagnostics in JSON-mode build failures",
     "module path diagnostic codes",
     "BPL_MODULE_",
     "BPL_IMPORT_STD_PATH_UNSAFE",
@@ -666,6 +674,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_RESOLVER_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
   ],
+  [
+    PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN,
+    'bun test tests/PackageResolver.test.ts -t "explicit source-file"',
+  ],
+  [
+    PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package import"',
+  ],
+  [PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN, "bun run check"],
   [IMPORT_RESOLVER_STEP_PATTERN, "bun test tests/ModuleResolver.test.ts"],
   [
     IMPORT_RESOLVER_STEP_PATTERN,
