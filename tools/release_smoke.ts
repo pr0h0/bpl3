@@ -3855,6 +3855,62 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   );
 
   runExpectedFailureStep(
+    "check packed npm CLI fuzz artifact repro flag value usage errors",
+    "npm",
+    ["run", "fuzz:repro", "--", "--json=true", "fuzz/crashes"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--json does not accept a value",
+      forbiddenOutputIncludes: [
+        "Fuzz artifact path does not exist",
+        "No fuzz artifact metadata found",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
+    "check packed npm CLI fuzz artifact repro empty input usage errors",
+    "npm",
+    ["run", "fuzz:repro", "--", "--input="],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--input requires a non-empty value",
+      forbiddenOutputIncludes: [
+        "Fuzz artifact path does not exist",
+        "No fuzz artifact metadata found",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
+    "check packed npm CLI fuzz artifact repro conflicting input usage errors",
+    "npm",
+    [
+      "run",
+      "fuzz:repro",
+      "--",
+      "--input",
+      "fuzz/crashes",
+      "other-artifacts",
+    ],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes:
+        "Pass artifact path either positionally or with --input, not both.",
+      forbiddenOutputIncludes: [
+        "Fuzz artifact path does not exist",
+        "No fuzz artifact metadata found",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
     "check packed npm CLI fuzz runner usage errors",
     "npm",
     ["run", "fuzz", "--", "--iterations", "--crash-dir", "fuzz/crashes"],
