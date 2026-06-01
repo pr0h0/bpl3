@@ -226,6 +226,9 @@ describe("GitHub Actions workflows", () => {
       "PlaygroundBrowserWasmRuntime.test.ts",
     );
     expect(packageJson.scripts["test:wasm"]).toContain(
+      "PlaygroundStaticAssets.test.ts",
+    );
+    expect(packageJson.scripts["test:wasm"]).toContain(
       "WasmHostImportContract.test.ts",
     );
     expect(packageJson.scripts["test:sanitizers"]).toContain(
