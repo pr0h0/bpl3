@@ -79,6 +79,31 @@ describe("integration example config parser", () => {
     ]);
   });
 
+  test("reports nested legacy integration config keys with file context", () => {
+    const errors = validateIntegrationExampleConfig(
+      "examples/bad/test_config.json",
+      {
+        test_cases: [
+          {
+            name: "legacy case",
+            expected_output: ["legacy"],
+          },
+          {
+            metadata: {
+              expected_output: "nested legacy",
+            },
+          },
+        ],
+      },
+    );
+
+    expect(errors).toEqual([
+      "examples/bad/test_config.json: unsupported key test_cases",
+      "examples/bad/test_config.json: unsupported legacy key test_cases[0].expected_output; use expectedOutput",
+      "examples/bad/test_config.json: unsupported legacy key test_cases[1].metadata.expected_output; use expectedOutput",
+    ]);
+  });
+
   test("reports malformed JSON with config file context", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-integration-config-"));
     const configFile = join(tempDir, "test_config.json");

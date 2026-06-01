@@ -25,6 +25,10 @@ const SUPPORTED_EXAMPLE_CONFIG_KEYS = new Set([
   "timeout",
 ]);
 
+const LEGACY_EXAMPLE_CONFIG_KEY_REPLACEMENTS = new Map([
+  ["expected_output", "expectedOutput"],
+]);
+
 export function parseIntegrationExampleConfig(
   configFile: string,
   value: unknown,
@@ -82,6 +86,7 @@ export function validateIntegrationExampleConfig(
   for (const key of Object.keys(value)) {
     if (!SUPPORTED_EXAMPLE_CONFIG_KEYS.has(key)) {
       errors.push(`${configFile}: unsupported key ${key}`);
+      reportNestedLegacyConfigKeys(configFile, key, value[key], errors);
     }
   }
 
@@ -139,6 +144,38 @@ function validateExpectedOutput(
       errors.push(`${configFile}: expectedOutput[${index}] must be a string`);
     }
   });
+}
+
+function reportNestedLegacyConfigKeys(
+  configFile: string,
+  path: string,
+  value: unknown,
+  errors: string[],
+): void {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      reportNestedLegacyConfigKeys(
+        configFile,
+        `${path}[${index}]`,
+        item,
+        errors,
+      );
+    });
+    return;
+  }
+
+  if (!isRecord(value)) return;
+
+  for (const [key, item] of Object.entries(value)) {
+    const nestedPath = `${path}.${key}`;
+    const replacement = LEGACY_EXAMPLE_CONFIG_KEY_REPLACEMENTS.get(key);
+    if (replacement) {
+      errors.push(
+        `${configFile}: unsupported legacy key ${nestedPath}; use ${replacement}`,
+      );
+    }
+    reportNestedLegacyConfigKeys(configFile, nestedPath, item, errors);
+  }
 }
 
 function validateStringArrayField(
