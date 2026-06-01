@@ -1860,6 +1860,88 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(missingOutput)).toBe(false);
   });
 
+  test("reports missing explicit std imports in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "missing_explicit_std.bpl");
+    const outputFile = path.join(tempDir, "missing-explicit-std-app");
+    const packageRoot = path.join(tempDir, "bpl_modules", "std");
+    writePackageFixture(packageRoot, {
+      name: "std",
+      main: "missing.bpl",
+      entryPath: "missing.bpl",
+      entrySource: [
+        "frame shadow() ret int {",
+        "    return 7;",
+        "}",
+        "export shadow;",
+      ].join("\n"),
+    });
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile);
+    expect(checkDiagnostic.code).toBe("BPL_MODULE_NOT_FOUND");
+    expect(checkDiagnostic.source?.preview).toContain(
+      'import "std/missing.bpl";',
+    );
+    expect(checkDiagnostic.message).toContain(
+      "Standard library module not found: std/missing.bpl",
+    );
+    expect(checkDiagnostic.hint).toContain(
+      "Explicit std/ and std\\ imports do not fall back to package resolution",
+    );
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [
+        {
+          code: "BPL_MODULE_NOT_FOUND",
+          location: {
+            file: sourceFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Standard library module not found: std/missing.bpl",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Explicit std/ and std\\ imports do not fall back to package resolution",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  });
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
