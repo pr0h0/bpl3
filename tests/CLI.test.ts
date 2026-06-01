@@ -505,6 +505,8 @@ describe("CLI Tests", () => {
   it("should not resolve missing explicit std imports from packages", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
     const sourceFile = path.join(tempDir, "main.bpl");
+    const aliasSourceFile = path.join(tempDir, "alias.bpl");
+    const namespaceSourceFile = path.join(tempDir, "namespace.bpl");
     const unrelatedUndefinedFile = path.join(tempDir, "unrelated.bpl");
     const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
     fs.mkdirSync(stdPackageDir, { recursive: true });
@@ -531,6 +533,24 @@ describe("CLI Tests", () => {
       ].join("\n"),
     );
     fs.writeFileSync(
+      aliasSourceFile,
+      [
+        'import shadow as localShadow from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return localShadow();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      namespaceSourceFile,
+      [
+        'import * as ShadowStd from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return ShadowStd.shadow();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
       unrelatedUndefinedFile,
       [
         'import shadow from "std/missing.bpl";',
@@ -541,6 +561,46 @@ describe("CLI Tests", () => {
     );
 
     try {
+      const expectMissingStdOnlyJson = (
+        file: string,
+        absentMessages: string[],
+      ) => {
+        const result = runCLI(["check", "--json", file]);
+        expect(result.status).toBe(1);
+        const report = parseJsonObjectStdout<{
+          files: Array<{
+            diagnostics: Array<{ message: string; hint: string }>;
+          }>;
+        }>(result);
+        const diagnostics = report.files[0]?.diagnostics ?? [];
+        expect(diagnostics).toHaveLength(1);
+        const diagnostic = diagnostics[0];
+        expect(diagnostic?.message).toContain(
+          "Standard library module not found: std/missing.bpl",
+        );
+        expect(diagnostic?.hint).toContain("standard library");
+        for (const message of absentMessages) {
+          expect(
+            diagnostics.some((item) => item.message.includes(message)),
+          ).toBe(false);
+        }
+      };
+
+      const expectMissingStdOnlyText = (
+        file: string,
+        absentMessages: string[],
+      ) => {
+        const result = runCLI(["check", file]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "Standard library module not found: std/missing.bpl",
+        );
+        expect(result.stderr).toContain("standard library");
+        for (const message of absentMessages) {
+          expect(result.stderr).not.toContain(message);
+        }
+      };
+
       const textResult = runCLI(["check", sourceFile]);
       expect(textResult.status).toBe(1);
       expect(textResult.stderr).toContain(
@@ -550,25 +610,28 @@ describe("CLI Tests", () => {
       expect(textResult.stderr).not.toContain("Undefined symbol 'shadow'");
       expect(textResult.stderr).not.toContain("Return type mismatch");
 
-      const jsonResult = runCLI(["check", "--json", sourceFile]);
-      expect(jsonResult.status).toBe(1);
-      const report = parseJsonObjectStdout<{
-        files: Array<{
-          diagnostics: Array<{ message: string; hint: string }>;
-        }>;
-      }>(jsonResult);
-      const diagnostics = report.files[0]?.diagnostics ?? [];
-      expect(diagnostics).toHaveLength(1);
-      const diagnostic = diagnostics[0];
-      expect(diagnostic?.message).toContain(
-        "Standard library module not found: std/missing.bpl",
-      );
-      expect(diagnostic?.hint).toContain("standard library");
-      expect(
-        diagnostics.some((item) =>
-          item.message.includes("Undefined symbol 'shadow'"),
-        ),
-      ).toBe(false);
+      expectMissingStdOnlyJson(sourceFile, [
+        "Undefined symbol 'shadow'",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyText(aliasSourceFile, [
+        "Undefined symbol 'localShadow'",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyJson(aliasSourceFile, [
+        "Undefined symbol 'localShadow'",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyText(namespaceSourceFile, [
+        "Undefined symbol 'ShadowStd'",
+        "has no member",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyJson(namespaceSourceFile, [
+        "Undefined symbol 'ShadowStd'",
+        "has no member",
+        "Return type mismatch",
+      ]);
 
       const unrelatedJsonResult = runCLI([
         "check",
