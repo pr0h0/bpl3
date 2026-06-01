@@ -718,14 +718,14 @@ function resolvePackageSourcePath(
 ): string | null {
   const symlinkedParent = findSymlinkedPackageSourceParent(filePath, packageRoot);
   if (symlinkedParent) {
-    trace.entryCandidates.push(filePath);
+    addEntryCandidate(trace, filePath);
     failOnSymlinkedSourceCandidate(symlinkedParent, trace);
     return null;
   }
 
   const sourceCaseMismatchPath = findCaseMismatchPath(filePath);
   if (sourceCaseMismatchPath) {
-    trace.entryCandidates.push(filePath);
+    addEntryCandidate(trace, filePath);
     failOnCaseMismatchedSourceCandidate(
       filePath,
       sourceCaseMismatchPath,
@@ -737,18 +737,18 @@ function resolvePackageSourcePath(
   const directStats = tryLstat(filePath);
   if (directStats) {
     if (directStats.isSymbolicLink()) {
-      trace.entryCandidates.push(filePath);
+      addEntryCandidate(trace, filePath);
       failOnSymlinkedSourceCandidate(filePath, trace);
       return null;
     }
     if (directStats.isFile()) {
-      trace.entryCandidates.push(filePath);
+      addEntryCandidate(trace, filePath);
       return filePath;
     }
     if (directStats.isDirectory()) {
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
-        trace.entryCandidates.push(indexPath);
+        addEntryCandidate(trace, indexPath);
         const indexCaseMismatchPath = findCaseMismatchPath(indexPath);
         if (indexCaseMismatchPath) {
           failOnCaseMismatchedSourceCandidate(
@@ -775,7 +775,7 @@ function resolvePackageSourcePath(
       filePath.endsWith(".bpl") || filePath.endsWith(".x")
         ? filePath
         : filePath + ext;
-    trace.entryCandidates.push(fullPath);
+    addEntryCandidate(trace, fullPath);
     const fullPathCaseMismatchPath = findCaseMismatchPath(fullPath);
     if (fullPathCaseMismatchPath) {
       failOnCaseMismatchedSourceCandidate(
@@ -796,6 +796,15 @@ function resolvePackageSourcePath(
   }
 
   return null;
+}
+
+function addEntryCandidate(
+  trace: PackageResolutionTrace,
+  candidatePath: string,
+): void {
+  if (!trace.entryCandidates.includes(candidatePath)) {
+    trace.entryCandidates.push(candidatePath);
+  }
 }
 
 function findSymlinkedPackageSourceParent(

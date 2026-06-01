@@ -330,6 +330,55 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("deduplicates explicit missing package source candidates", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "missing.bpl" }),
+    );
+
+    const explicitEntryPoint = path.join(packageDir, "missing.bpl");
+    const explicitBplSubpath = path.join(
+      packageDir,
+      "features",
+      "missing.bpl",
+    );
+    const explicitXSubpath = path.join(packageDir, "features", "missing.x");
+
+    const cases = [
+      {
+        name: "explicit bpl entrypoint",
+        details: resolvePackageImport("math", appDir),
+        expectedCandidate: explicitEntryPoint,
+      },
+      {
+        name: "explicit bpl subpath",
+        details: resolvePackageImport("math/features/missing.bpl", appDir),
+        expectedCandidate: explicitBplSubpath,
+      },
+      {
+        name: "explicit x subpath",
+        details: resolvePackageImport("math/features/missing.x", appDir),
+        expectedCandidate: explicitXSubpath,
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      expect(testCase.details.result, testCase.name).toBeNull();
+      expect(
+        testCase.details.trace.entryCandidates.filter(
+          (candidate) => candidate === testCase.expectedCandidate,
+        ),
+        testCase.name,
+      ).toHaveLength(1);
+      expect(testCase.details.trace.entryCandidates, testCase.name).toEqual([
+        ...new Set(testCase.details.trace.entryCandidates),
+      ]);
+    }
+  });
+
   test("rejects invalid package import names before searching", () => {
     const appDir = path.join(tempDir, "app");
     fs.mkdirSync(path.join(appDir, "bpl_modules", "bad_name"), {

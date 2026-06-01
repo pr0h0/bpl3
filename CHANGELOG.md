@@ -614,6 +614,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Linter Traversal Drift Guard** - Focused tests now pin child-bearing
   linter visitor cases, document intentional non-recursive AST leaves, and keep
   throw/try/switch child traversal covered.
+- **Package Resolver Candidate Traces** - Package import diagnostics now keep
+  missing explicit `.bpl` and `.x` entrypoint/subpath candidates de-duplicated
+  while preserving first-seen ordering.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.
