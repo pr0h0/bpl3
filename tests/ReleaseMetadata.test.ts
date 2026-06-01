@@ -461,8 +461,12 @@ describe("Release metadata", () => {
       "check packed npm CLI CI triage JSON-code mappings",
       "BPL_PACKAGE_ARCHIVE_NOT_FILE",
       "BPL_WASM_LINKER_UNAVAILABLE",
+      "Standard library module not found: std/missing.bpl",
       "bun test tests/PackageJsonFailureContracts.test.ts",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+      'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
+      'bun test tests/CLI.test.ts -t "missing explicit std"',
+      'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
     ]);
   });
 

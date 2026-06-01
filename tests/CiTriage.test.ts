@@ -265,6 +265,28 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps explicit std import diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
+      'bun test tests/CLI.test.ts -t "missing explicit std"',
+      'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+    ];
+
+    expect(
+      localCommandsForStep(
+        "Standard library module not found: std/missing.bpl",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("BPL_MODULE_NOT_FOUND while resolving std/missing"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "Explicit std/ and std\\ imports do not fall back to package resolution",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',

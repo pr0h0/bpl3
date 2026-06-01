@@ -3778,6 +3778,19 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
               },
             ],
           },
+          {
+            id: 48,
+            name: "Explicit std import JSON code mapping",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/48",
+            steps: [
+              {
+                name: "BPL_MODULE_NOT_FOUND Standard library module not found: std/missing.bpl",
+                conclusion: "failure",
+              },
+            ],
+          },
         ],
       },
       null,
@@ -3911,6 +3924,10 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     ciTriageReport.summary.failedJobs.find(
       (job) => job.name === "Wasm linker JSON code mapping",
     )?.localCommands ?? [];
+  const explicitStdImportCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Explicit std import JSON code mapping",
+    )?.localCommands ?? [];
   const expectedPackageArchiveCommands = [
     'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
     "bun test tests/PackageJsonFailureContracts.test.ts",
@@ -3921,12 +3938,20 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
     "bun index.ts doctor --json",
   ];
+  const expectedExplicitStdImportCommands = [
+    'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
+    'bun test tests/CLI.test.ts -t "missing explicit std"',
+    'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+  ];
   const missingCodeMappingCommands = [
     ...expectedPackageArchiveCommands.filter(
       (command) => !packageArchiveCommands.includes(command),
     ),
     ...expectedWasmLinkerCommands.filter(
       (command) => !wasmLinkerCommands.includes(command),
+    ),
+    ...expectedExplicitStdImportCommands.filter(
+      (command) => !explicitStdImportCommands.includes(command),
     ),
   ];
   if (missingCodeMappingCommands.length > 0) {

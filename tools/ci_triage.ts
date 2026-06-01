@@ -180,6 +180,17 @@ const PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const STD_IMPORT_ISOLATION_STEP_PATTERN = new RegExp(
+  [
+    "Standard library module not found",
+    "missing explicit std",
+    "std namespace isolation",
+    "Explicit std[/\\\\].*do not fall back",
+    "std[/\\\\].*BPL_MODULE_NOT_FOUND",
+    "BPL_MODULE_NOT_FOUND.*std[/\\\\]",
+  ].join("|"),
+  "i",
+);
 const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "ModuleResolver\\.test",
@@ -642,6 +653,21 @@ const TEST_CI_RUNNER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+
+const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    STD_IMPORT_ISOLATION_STEP_PATTERN,
+    'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
+  ],
+  [
+    STD_IMPORT_ISOLATION_STEP_PATTERN,
+    'bun test tests/CLI.test.ts -t "missing explicit std"',
+  ],
+  [
+    STD_IMPORT_ISOLATION_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+  ],
+];
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
@@ -1135,6 +1161,13 @@ export function summarizeWorkflowJobs(
 }
 
 export function localCommandsForStep(stepName: string): string[] {
+  const exclusiveCommands = EXCLUSIVE_STEP_REPRO_COMMANDS.filter(([pattern]) =>
+    pattern.test(stepName),
+  ).map(([, command]) => command);
+  if (exclusiveCommands.length > 0) {
+    return exclusiveCommands;
+  }
+
   return STEP_REPRO_COMMANDS.filter(([pattern]) => pattern.test(stepName)).map(
     ([, command]) => command,
   );
