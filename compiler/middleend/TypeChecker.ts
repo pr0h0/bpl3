@@ -11,6 +11,7 @@ import {
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
+  VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES } from "./TypeUtils";
 import { OverloadResolver } from "./OverloadResolver";
@@ -624,6 +625,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Parameter '${param.name}' cannot be of type 'void'`,
             "Parameters cannot be void. Use '*void' for void pointers.",
             param.location,
+            VOID_TYPE_INVALID_CODE,
           ),
         );
       }
@@ -1247,8 +1249,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           this.addError(
             new CompilerError(
               `Struct field '${member.name}' cannot be void.`,
-              "Struct fields cannot have type 'void'. Use '*void' for pointers.",
+              "Struct fields cannot have type 'void'. Use '*void' for void pointers.",
               member.location,
+              VOID_TYPE_INVALID_CODE,
             ),
           );
         }

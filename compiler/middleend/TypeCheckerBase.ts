@@ -32,12 +32,14 @@ export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
 export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
 export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
+export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   GENERIC_ARITY_MISMATCH_CODE,
   TYPE_NOT_FOUND_CODE,
+  VOID_TYPE_INVALID_CODE,
 ] as const;
 
 const PRIMITIVE_TYPE_NAMES = new Set([
@@ -286,6 +288,7 @@ export abstract class TypeCheckerBase {
                     `Generic type argument cannot be 'void'.`,
                     "Use '*void' for void pointers.",
                     type.location,
+                    VOID_TYPE_INVALID_CODE,
                   ),
                 );
               }

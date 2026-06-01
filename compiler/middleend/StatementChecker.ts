@@ -8,6 +8,7 @@ import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
+import { VOID_TYPE_INVALID_CODE } from "./TypeCheckerBase";
 
 function isUnsafeStackAddressSymbol(symbol: Symbol | undefined): boolean {
   if (!symbol || (symbol.kind !== "Variable" && symbol.kind !== "Parameter")) {
@@ -804,8 +805,9 @@ export function checkVariableDecl(
       this.addError(
         new CompilerError(
           `Variable '${decl.name}' cannot be void.`,
-          "Variables cannot have type 'void'. Use '*void' for pointers.",
+          "Variables cannot have type 'void'. Use '*void' for void pointers.",
           decl.location,
+          VOID_TYPE_INVALID_CODE,
         ),
       );
     }
@@ -947,6 +949,7 @@ export function checkVariableDecl(
       `Variable '${decl.name}' cannot be of type 'void'`,
       "Variables cannot be void. Use '*void' for void pointers.",
       decl.location,
+      VOID_TYPE_INVALID_CODE,
     );
   }
 
