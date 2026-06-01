@@ -191,6 +191,15 @@ const STD_IMPORT_ISOLATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "CLIJsonParseability\\.test.*timed out after",
+    "CLI JSON parseability.*timed out after",
+    "reports module path diagnostic codes.*timed out after",
+    "reports missing explicit std imports.*timed out after",
+  ].join("|"),
+  "i",
+);
 const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "ModuleResolver\\.test",
@@ -655,6 +664,15 @@ const TEST_CI_RUNNER_STEP_PATTERN = new RegExp(
 );
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
+  ],
+  [
+    CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN,
+    "bun test tests/CLIJsonParseability.test.ts",
+  ],
+  [CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN, "bun run check"],
   [
     STD_IMPORT_ISOLATION_STEP_PATTERN,
     'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',

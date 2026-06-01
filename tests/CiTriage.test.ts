@@ -1018,6 +1018,16 @@ describe("CI triage helper", () => {
       "BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm",
     ]);
 
+    expect(
+      localCommandsForStep(
+        "CLIJsonParseability.test reports module path diagnostic codes in JSON-mode check and build diagnostics timed out after 5000ms",
+      ),
+    ).toEqual([
+      'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
+      "bun test tests/CLIJsonParseability.test.ts",
+      "bun run check",
+    ]);
+
     expect(localCommandsForStep("Executable timed out after 5000ms")).toEqual([
       "bun test tests/BinaryRunner.test.ts",
       "BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts",
@@ -3408,6 +3418,18 @@ describe("CI triage helper", () => {
                 },
               ],
             },
+            {
+              id: 64,
+              name: "CLI JSON timeout",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "CLIJsonParseability.test reports module path diagnostic codes in JSON-mode check and build diagnostics timed out after 5000ms",
+                  conclusion: "failure",
+                },
+              ],
+            },
           ],
         }),
       );
@@ -3454,6 +3476,14 @@ describe("CI triage helper", () => {
         "bun test tests/CompilerSanitizerRuntime.test.ts",
         "bun index.ts doctor sanitizer --json",
       ]);
+      expect(
+        report.summary.failedJobs.find((job) => job.name === "CLI JSON timeout")
+          ?.localCommands,
+      ).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
+        "bun test tests/CLIJsonParseability.test.ts",
+        "bun run check",
+      ]);
 
       const textResult = spawnSync(
         "bun",
@@ -3467,11 +3497,15 @@ describe("CI triage helper", () => {
       expect(textResult.stdout).toContain("Compiler timeout");
       expect(textResult.stdout).toContain("Runtime timeout");
       expect(textResult.stdout).toContain("Sanitizer timeout");
+      expect(textResult.stdout).toContain("CLI JSON timeout");
       expect(textResult.stdout).toContain(
         "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
       );
       expect(textResult.stdout).toContain(
         "BPL_RUN_TIMEOUT_MS=30000 bun test tests/BinaryRunner.test.ts",
+      );
+      expect(textResult.stdout).toContain(
+        'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
       );
       expect(textResult.stdout).toContain(
         "bun test tests/CompilerSanitizerRuntime.test.ts",

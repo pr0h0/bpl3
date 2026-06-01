@@ -3740,6 +3740,19 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
             ],
           },
           {
+            id: 49,
+            name: "CLI JSON timeout metadata",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/49",
+            steps: [
+              {
+                name: "CLIJsonParseability.test reports module path diagnostic codes in JSON-mode check and build diagnostics timed out after 5000ms",
+                conclusion: "failure",
+              },
+            ],
+          },
+          {
             id: 45,
             name: "Root build no-input JSON",
             conclusion: "failure",
@@ -3883,6 +3896,28 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
         `${ciTriageTimeoutLabel} reported unexpected payload:`,
         "missing timeout commands:",
         ...missingPackageTimeoutCommands.map((command) => `- ${command}`),
+        `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+  const cliJsonTimeoutCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "CLI JSON timeout metadata",
+    )?.localCommands ?? [];
+  const expectedCliJsonTimeoutCommands = [
+    'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
+    "bun test tests/CLIJsonParseability.test.ts",
+    "bun run check",
+  ];
+  const missingCliJsonTimeoutCommands = expectedCliJsonTimeoutCommands.filter(
+    (command) => !cliJsonTimeoutCommands.includes(command),
+  );
+  if (missingCliJsonTimeoutCommands.length > 0) {
+    throw new Error(
+      [
+        `${ciTriageTimeoutLabel} reported unexpected payload:`,
+        "missing CLI JSON timeout commands:",
+        ...missingCliJsonTimeoutCommands.map((command) => `- ${command}`),
         `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
       ].join("\n"),
     );

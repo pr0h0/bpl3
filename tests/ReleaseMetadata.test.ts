@@ -437,9 +437,11 @@ describe("Release metadata", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI CI triage timeout JSON",
       "Package timeout metadata",
+      "CLI JSON timeout metadata",
       "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
       'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
       "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
     ]);
   });
 
