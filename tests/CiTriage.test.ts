@@ -972,6 +972,37 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps member access misuse diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerMemberAccessMisuse.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "member access misuse"',
+      'bun test tests/MarkdownDocs.test.ts -t "member access misuse"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_STATIC_MEMBER_NOT_FOUND",
+      "BPL_INSTANCE_METHOD_NOT_COMPATIBLE",
+      "BPL_TUPLE_INDEX_INVALID",
+      "BPL_MEMBER_NOT_FOUND",
+      "No static member 'x' found on type 'S'",
+      "No compatible instance method 'staticFunc' found on type 'S'",
+      "Invalid tuple index '2'",
+      "Cannot access member 'y' on type 'S'",
+      "Ensure the member is static (does not take 'this').",
+      "Static methods must be called on the type, not an instance.",
+      "Valid indices are 0-1",
+      "Check the type definition for available members.",
+      "Member access misuse failures use `BPL_STATIC_MEMBER_NOT_FOUND`",
+      "reports member access misuse failures in JSON-mode check and build diagnostics",
+      "docs document member access misuse diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -4935,6 +4966,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerIndexExpressionMisuse.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"',
         'bun test tests/MarkdownDocs.test.ts -t "index expression misuse"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints member access misuse repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-member-access-misuse-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 101,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/101",
+              steps: [
+                {
+                  name: "BPL_MEMBER_NOT_FOUND Cannot access member 'y' on type 'S'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerMemberAccessMisuse.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "member access misuse"',
+        'bun test tests/MarkdownDocs.test.ts -t "member access misuse"',
         "bun run check",
       ]);
     } finally {

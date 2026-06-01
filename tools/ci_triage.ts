@@ -511,6 +511,24 @@ const INDEX_EXPRESSION_MISUSE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const MEMBER_ACCESS_MISUSE_STEP_PATTERN = new RegExp(
+  [
+    "BPL_STATIC_MEMBER_NOT_FOUND",
+    "BPL_INSTANCE_METHOD_NOT_COMPATIBLE",
+    "BPL_TUPLE_INDEX_INVALID",
+    "BPL_MEMBER_NOT_FOUND",
+    "member access misuse",
+    "No static member '.*' found on type",
+    "No compatible instance method '.*' found on type",
+    "Invalid tuple index",
+    "Cannot access member '.*' on type",
+    "Ensure the member is static \\(does not take 'this'\\)",
+    "Static methods must be called on the type, not an instance",
+    "Valid indices are [0-9]+-[0-9]+",
+    "Check the type definition for available members",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1358,6 +1376,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "index expression misuse"',
   ],
   [INDEX_EXPRESSION_MISUSE_STEP_PATTERN, "bun run check"],
+  [
+    MEMBER_ACCESS_MISUSE_STEP_PATTERN,
+    "bun test tests/TypeCheckerMemberAccessMisuse.test.ts",
+  ],
+  [
+    MEMBER_ACCESS_MISUSE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "member access misuse"',
+  ],
+  [
+    MEMBER_ACCESS_MISUSE_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "member access misuse"',
+  ],
+  [MEMBER_ACCESS_MISUSE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
