@@ -43,6 +43,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   report `BPL_ARRAY_SIZE_INVALID` in compiler errors, `bpl check --json`,
   `bpl build --json`, and the public CLI JSON error-code registry. Dynamic
   slices such as `int[]` and positive fixed arrays remain valid.
+- **Return Type Mismatch Diagnostic Code** - Mismatched return expressions and
+  `return;` in non-void functions now report `BPL_RETURN_TYPE_MISMATCH` in
+  compiler errors, `bpl check --json`, `bpl build --json`, and the public CLI
+  JSON error-code registry. Valid returns remain valid; integer literal returns
+  that fit the declared type remain valid.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

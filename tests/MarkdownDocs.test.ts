@@ -1288,6 +1288,23 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document return type mismatch diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`",
+      "`Return type mismatch: expected i32, got *i8`",
+      "`Ensure the returned value matches the function's return type.`",
+      "mismatched return expressions and `return;` in non-void functions",
+      "integer literal returns that fit the declared type remain valid",
+      'bun test tests/TypeCheckerReturnTypeMismatch.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "return type mismatch"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

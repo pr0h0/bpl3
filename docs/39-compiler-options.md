@@ -687,6 +687,19 @@ bun test tests/TypeCheckerInvalidArraySizes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "invalid array size"
 ```
 
+Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`. This covers
+mismatched return expressions and `return;` in non-void functions. For example,
+`return "wrong";` from a function declared `ret int` reports
+`Return type mismatch: expected i32, got *i8` with the hint
+`Ensure the returned value matches the function's return type.`. Valid returns
+remain valid; integer literal returns that fit the declared type remain valid.
+Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerReturnTypeMismatch.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "return type mismatch"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
