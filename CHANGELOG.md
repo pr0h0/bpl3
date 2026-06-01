@@ -48,6 +48,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   compiler errors, `bpl check --json`, `bpl build --json`, and the public CLI
   JSON error-code registry. Valid returns remain valid; integer literal returns
   that fit the declared type remain valid.
+- **Assignment Type Mismatch Diagnostic Code** - Direct assignment statements
+  with incompatible value types now report `BPL_ASSIGNMENT_TYPE_MISMATCH` in
+  compiler errors, `bpl check --json`, `bpl build --json`, and the public CLI
+  JSON error-code registry. The update is scoped: variable initializer
+  mismatches keep the legacy `E001` code for compatibility.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

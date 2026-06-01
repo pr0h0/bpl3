@@ -1305,6 +1305,23 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document assignment type mismatch diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Assignment type mismatch failures use `BPL_ASSIGNMENT_TYPE_MISMATCH`",
+      "`Type mismatch in assignment: cannot assign string to i32`",
+      "`The assigned value is not compatible with the target variable's type.`",
+      "direct assignment statements such as `value = \"wrong\";`",
+      "variable initializer mismatches keep the legacy `E001` code",
+      'bun test tests/TypeCheckerAssignmentMismatch.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "assignment type mismatch"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

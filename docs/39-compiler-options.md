@@ -700,6 +700,21 @@ bun test tests/TypeCheckerReturnTypeMismatch.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "return type mismatch"
 ```
 
+Assignment type mismatch failures use `BPL_ASSIGNMENT_TYPE_MISMATCH`. This
+covers direct assignment statements such as `value = "wrong";` when the target
+and value types are incompatible. For example, assigning a string to an integer
+variable reports `Type mismatch in assignment: cannot assign string to i32` with
+the hint
+`The assigned value is not compatible with the target variable's type.`.
+The compatibility rule is explicit: variable initializer mismatches keep the
+legacy `E001` code for compatibility.
+Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerAssignmentMismatch.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "assignment type mismatch"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
