@@ -497,6 +497,20 @@ const UNARY_OPERATOR_MISUSE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const INDEX_EXPRESSION_MISUSE_STEP_PATTERN = new RegExp(
+  [
+    "BPL_ARRAY_INDEX_TYPE_MISMATCH",
+    "BPL_POINTER_INDEX_TYPE_MISMATCH",
+    "BPL_INDEX_TARGET_NOT_INDEXABLE",
+    "index expression misuse",
+    "Array index must be an integer",
+    "Pointer index must be an integer",
+    "Type '.*' is not indexable",
+    "Ensure the index expression evaluates to an integer",
+    "Only arrays, pointers, or types with __get__ operator can be indexed",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1331,6 +1345,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "unary operator misuse"',
   ],
   [UNARY_OPERATOR_MISUSE_STEP_PATTERN, "bun run check"],
+  [
+    INDEX_EXPRESSION_MISUSE_STEP_PATTERN,
+    "bun test tests/TypeCheckerIndexExpressionMisuse.test.ts",
+  ],
+  [
+    INDEX_EXPRESSION_MISUSE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"',
+  ],
+  [
+    INDEX_EXPRESSION_MISUSE_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "index expression misuse"',
+  ],
+  [INDEX_EXPRESSION_MISUSE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

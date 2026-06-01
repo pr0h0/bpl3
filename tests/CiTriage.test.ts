@@ -945,6 +945,33 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps index expression misuse diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerIndexExpressionMisuse.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"',
+      'bun test tests/MarkdownDocs.test.ts -t "index expression misuse"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_ARRAY_INDEX_TYPE_MISMATCH",
+      "BPL_POINTER_INDEX_TYPE_MISMATCH",
+      "BPL_INDEX_TARGET_NOT_INDEXABLE",
+      "Array index must be an integer, got float",
+      "Pointer index must be an integer, got bool",
+      "Type 'i32' is not indexable",
+      "Ensure the index expression evaluates to an integer.",
+      "Only arrays, pointers, or types with __get__ operator can be indexed.",
+      "Index expression misuse failures use `BPL_ARRAY_INDEX_TYPE_MISMATCH`",
+      "reports index expression misuse failures in JSON-mode check and build diagnostics",
+      "docs document index expression misuse diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -4842,6 +4869,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "unary operator misuse"',
         'bun test tests/MarkdownDocs.test.ts -t "unary operator misuse"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints index expression misuse repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-index-expression-misuse-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 100,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/100",
+              steps: [
+                {
+                  name: "BPL_INDEX_TARGET_NOT_INDEXABLE Type 'i32' is not indexable",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerIndexExpressionMisuse.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"',
+        'bun test tests/MarkdownDocs.test.ts -t "index expression misuse"',
         "bun run check",
       ]);
     } finally {
