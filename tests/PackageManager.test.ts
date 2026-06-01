@@ -338,6 +338,39 @@ describe("PackageManager", () => {
             (file) =>
               file.startsWith(".provenance-mode-pkg-1.0.0.tgz.bplmeta.json.") &&
               file.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    });
+
+    test("should preserve existing package archive permissions when rewriting", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const manifest = {
+        name: "archive-mode-pkg",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export first;");
+
+      const tarballPath = packageManager.pack(tempDir);
+      fs.chmodSync(tarballPath, 0o640);
+
+      fs.writeFileSync("index.bpl", "export second;");
+      expect(packageManager.pack(tempDir)).toBe(tarballPath);
+
+      expect(fs.statSync(tarballPath).mode & 0o777).toBe(0o640);
+      expect(fs.existsSync(`${tarballPath}.bplmeta.json`)).toBe(true);
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (file) =>
+              file.startsWith(".archive-mode-pkg-1.0.0.tgz.") &&
+              file.endsWith(".tmp"),
           ),
       ).toBe(false);
     });

@@ -2172,6 +2172,10 @@ export class PackageManager {
         }
 
         this.ensurePackageArchiveOutputFile(tarballPath, manifestPath);
+        this.preserveExistingPackageArchiveMode(
+          tempTarballPath,
+          tarballPath,
+        );
         fs.renameSync(tempTarballPath, tarballPath);
         return;
       } finally {
@@ -2190,6 +2194,16 @@ export class PackageManager {
         endColumn: 1,
       },
     );
+  }
+
+  private preserveExistingPackageArchiveMode(
+    tempArchivePath: string,
+    archivePath: string,
+  ): void {
+    const existingArchive = this.tryLstat(archivePath);
+    if (existingArchive?.isFile()) {
+      fs.chmodSync(tempArchivePath, existingArchive.mode & 0o777);
+    }
   }
 
   private ensurePackageOutputDirectory(
