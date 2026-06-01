@@ -203,6 +203,16 @@ bun test tests/PackageJsonFailureContracts.test.ts
 bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"
 ```
 
+Package docs smoke failures map to the focused package/import docs examples and
+package documentation checks. Use the JSON smoke when the failure mentions
+`CLIJsonParseability.test` or `package/import docs examples`; use the
+MarkdownDocs smoke when the failure mentions package docs smoke snippets:
+
+```bash
+bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"
+bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"
+```
+
 Release registry sync failures map to `bun run release:cli-registry`. Use
 `bun run release:cli-registry` before broader release smoke when `ci:triage`
 reports a stale CLI registry shim, because it checks the generated packed
