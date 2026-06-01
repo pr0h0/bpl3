@@ -239,6 +239,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl clean --json` validation codes now expose shared constant lists, and
   MarkdownDocs checks the build and clean JSON documentation contracts against
   those lists.
+- **Build No-Input JSON Code Audit** - The root `bpl --json` no-input build
+  failure now shares `BPL_BUILD_NO_INPUTS` through the build JSON validation
+  code list, and the docs describe that stdout failure alongside runner-level
+  build validation failures.
 - **CI Triage Build Validation Repros** - `bun run ci:triage` now maps
   `BPL_BUILD_*` and build validation failure logs to focused `bpl build --json`
   JSON contract repro commands.

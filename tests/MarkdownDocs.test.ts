@@ -18,6 +18,7 @@ import {
 } from "../compiler/middleend/ModuleResolver";
 import {
   BUILD_JSON_ERROR_CODES,
+  BUILD_NO_INPUTS_CODE,
 } from "../cli/CompilationRunner";
 import { BINDGEN_JSON_ERROR_CODES } from "../cli/commands/bindgen";
 import { COMPLETION_SHELL_UNSUPPORTED_CODE } from "../cli/commands/completion";
@@ -214,7 +215,8 @@ describe("Markdown documentation", () => {
       "### CLI JSON compatibility policy",
       "bpl build --json",
       "include `diagnostics` when the failure comes from compiler diagnostics",
-      "Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors",
+      "Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors",
+      'No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`',
       'Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`',
       "do not leave failed LLVM or executable artifacts behind",
       "bpl check --json",
@@ -911,6 +913,7 @@ describe("Markdown documentation", () => {
     for (const code of BUILD_JSON_ERROR_CODES) {
       expect(docs).toContain(code);
     }
+    expect(BUILD_JSON_ERROR_CODES).toContain(BUILD_NO_INPUTS_CODE);
     expect(docs).toContain("Build validation `errorCode` values");
     expect(docs).toContain("preserving the human-readable `error` text");
   });

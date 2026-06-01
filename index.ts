@@ -33,12 +33,12 @@ import {
   createJsonReport,
 } from "./compiler/common/JsonContracts";
 import { Logger } from "./compiler/common/Logger";
+import { BUILD_NO_INPUTS_CODE } from "./cli/CompilationRunner";
 
 const log = new Logger("CLI");
 
 const program = new Command();
 const packageJson = require("./package.json");
-const BUILD_NO_INPUTS_CODE = "BPL_BUILD_NO_INPUTS";
 
 handleJsonVersionRequest(process.argv, packageJson.version);
 
