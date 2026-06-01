@@ -742,6 +742,22 @@ bun test tests/TypeCheckerTernaryBranchMismatch.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"
 ```
 
+Switch mismatch failures use `BPL_SWITCH_VALUE_TYPE_MISMATCH` and
+`BPL_SWITCH_CASE_TYPE_MISMATCH`. This covers invalid switch value types and
+incompatible case pattern types. For example, switching on a `double` reports
+`Switch value must be an integer, string or enum type, got double` with the hint
+`Ensure the switch expression evaluates to an integer, string or enum.`, while
+using a string case pattern for an integer switch reports
+`Case pattern type string not compatible with switch value type i32` with the
+hint `Ensure case patterns match the switch value type.`. Valid integer and
+string switches remain accepted. Reproduce the type-checker and JSON contracts
+with:
+
+```bash
+bun test tests/TypeCheckerSwitchMismatch.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "switch type mismatch"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

@@ -1356,6 +1356,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document switch mismatch diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Switch mismatch failures use `BPL_SWITCH_VALUE_TYPE_MISMATCH` and `BPL_SWITCH_CASE_TYPE_MISMATCH`",
+      "`Switch value must be an integer, string or enum type, got double`",
+      "`Case pattern type string not compatible with switch value type i32`",
+      "`Ensure the switch expression evaluates to an integer, string or enum.`",
+      "`Ensure case patterns match the switch value type.`",
+      "invalid switch value types and incompatible case pattern types",
+      'bun test tests/TypeCheckerSwitchMismatch.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "switch type mismatch"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

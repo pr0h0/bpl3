@@ -3360,6 +3360,104 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports switch type mismatch failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "switch_value_type_mismatch",
+        code: "BPL_SWITCH_VALUE_TYPE_MISMATCH",
+        line: 3,
+        column: 13,
+        preview: "switch (value)",
+        message:
+          "Switch value must be an integer, string or enum type, got double",
+        hint:
+          "Ensure the switch expression evaluates to an integer, string or enum.",
+        source: [
+          "frame main() ret int {",
+          "    local value: float = 1.5;",
+          "    switch (value) {",
+          "        default: {",
+          "            return 0;",
+          "        }",
+          "    }",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "switch_case_type_mismatch",
+        code: "BPL_SWITCH_CASE_TYPE_MISMATCH",
+        line: 4,
+        column: 14,
+        preview: 'case "one"',
+        message:
+          "Case pattern type string not compatible with switch value type i32",
+        hint: "Ensure case patterns match the switch value type.",
+        source: [
+          "frame main() ret int {",
+          "    local value: int = 1;",
+          "    switch (value) {",
+          "        case \"one\": {",
+          "            return 1;",
+          "        }",
+          "        default: {",
+          "            return 0;",
+          "        }",
+          "    }",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

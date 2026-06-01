@@ -61,6 +61,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   incompatible branch types now report `BPL_TERNARY_BRANCH_TYPE_MISMATCH` in
   compiler errors, `bpl check --json`, `bpl build --json`, and the public CLI
   JSON error-code registry. Compatible branch types remain accepted.
+- **Switch Mismatch Diagnostic Codes** - Invalid switch value types now report
+  `BPL_SWITCH_VALUE_TYPE_MISMATCH`, and incompatible case pattern types now
+  report `BPL_SWITCH_CASE_TYPE_MISMATCH`, in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid integer and string switches remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
