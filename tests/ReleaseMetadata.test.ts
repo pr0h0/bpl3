@@ -1336,8 +1336,11 @@ describe("Release metadata", () => {
       [["--unknown"], "Unknown release manifest option: --unknown"],
       [["--out"], "Missing value for --out"],
       [["--out", "--pack-npm"], "Missing value for --out"],
+      [["--out="], "Missing value for --out"],
       [["--repo-root"], "Missing value for --repo-root"],
       [["--repo-root", "--pack-npm"], "Missing value for --repo-root"],
+      [["--repo-root="], "Missing value for --repo-root"],
+      [["--pack-npm=true"], "--pack-npm does not accept a value"],
     ];
 
     for (const [args, expectedError] of cases) {
@@ -1351,6 +1354,45 @@ describe("Release metadata", () => {
       expect(result.stderr).toContain(expectedError);
       expect(result.stderr).not.toContain("npm pack failed");
       expect(result.stderr).not.toContain("Release manifest written");
+    }
+  });
+
+  test("release manifest CLI accepts inline option values", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-manifest-inline-test-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const manifestPath = join(tempRoot, "dist", "inline-manifest.json");
+      const result = spawnSync(
+        "bun",
+        [
+          "tools/release_manifest.ts",
+          `--repo-root=${tempRoot}`,
+          `--out=${manifestPath}`,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain(
+        `Release manifest written to ${manifestPath}`,
+      );
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      expect(manifest.package).toMatchObject({
+        name: "bpl-v3",
+        version: "9.9.9",
+      });
+      expect(
+        manifest.artifacts.map((artifact: { path: string }) => artifact.path),
+      ).toContain("lib/runtime_wasm_host.ll");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
     }
   });
 

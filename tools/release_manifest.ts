@@ -514,14 +514,19 @@ function parseArgs(argv: string[]): {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--out") {
+    if (arg === "--out" || arg?.startsWith("--out=")) {
       outPath = takeRequiredOptionValue(argv, i, arg);
-      i++;
-    } else if (arg === "--pack-npm") {
+      if (arg === "--out") i++;
+    } else if (arg === "--pack-npm" || arg?.startsWith("--pack-npm=")) {
+      if (arg !== "--pack-npm") {
+        throw new CliUsageError(
+          "--pack-npm does not accept a value. Use --help for usage.",
+        );
+      }
       packNpm = true;
-    } else if (arg === "--repo-root") {
+    } else if (arg === "--repo-root" || arg?.startsWith("--repo-root=")) {
       repoRoot = resolve(takeRequiredOptionValue(argv, i, arg));
-      i++;
+      if (arg === "--repo-root") i++;
     } else {
       throw new CliUsageError(`Unknown release manifest option: ${arg}`);
     }
@@ -535,6 +540,16 @@ function takeRequiredOptionValue(
   index: number,
   flag: string,
 ): string {
+  const inlineSeparator = flag.indexOf("=");
+  if (inlineSeparator >= 0) {
+    const optionName = flag.slice(0, inlineSeparator);
+    const inlineValue = flag.slice(inlineSeparator + 1);
+    if (!inlineValue || inlineValue.startsWith("-")) {
+      throw new CliUsageError(`Missing value for ${optionName}`);
+    }
+    return inlineValue;
+  }
+
   const value = argv[index + 1];
   if (!value || value.startsWith("-")) {
     throw new CliUsageError(`Missing value for ${flag}`);
