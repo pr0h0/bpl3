@@ -9,6 +9,7 @@ import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
   SYMBOL_ALREADY_DEFINED_CODE,
+  TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES } from "./TypeUtils";
@@ -822,6 +823,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           `Struct '${decl.name}' cannot inherit from itself`,
           "Self-inheritance is not allowed. Remove the inheritance or use a different parent type.",
           parent.location || decl.location,
+          TYPE_RECURSION_CYCLE_CODE,
         );
       }
     }
@@ -833,6 +835,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         `Circular inheritance detected`,
         `Inheritance cycle: ${cyclePath}. Break the cycle by removing one inheritance relationship.`,
         decl.location,
+        TYPE_RECURSION_CYCLE_CODE,
       );
     }
 
@@ -867,6 +870,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         `Struct '${startName}' has infinite size due to recursive field types`,
         `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
         decl.location,
+        TYPE_RECURSION_CYCLE_CODE,
       );
     }
 
@@ -915,6 +919,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         `Enum '${startName}' has infinite size due to recursive variant types`,
         `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
         decl.location,
+        TYPE_RECURSION_CYCLE_CODE,
       );
     }
 

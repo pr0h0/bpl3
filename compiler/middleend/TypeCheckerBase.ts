@@ -29,8 +29,12 @@ function formatSymbolKind(kind: SymbolKind): string {
 }
 
 export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
+export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
 
-export const TYPE_CHECKER_FAILURE_CODES = [SYMBOL_ALREADY_DEFINED_CODE] as const;
+export const TYPE_CHECKER_FAILURE_CODES = [
+  SYMBOL_ALREADY_DEFINED_CODE,
+  TYPE_RECURSION_CYCLE_CODE,
+] as const;
 
 /**
  * Base class for TypeChecker with shared state and utility methods

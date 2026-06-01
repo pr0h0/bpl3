@@ -208,7 +208,7 @@ const CLI_JSON_ERROR_CODE_LISTS = [
   },
   {
     name: "type-checker",
-    codes: ["BPL_SYMBOL_ALREADY_DEFINED"],
+    codes: ["BPL_SYMBOL_ALREADY_DEFINED", "BPL_TYPE_RECURSION_CYCLE"],
   },
   {
     name: "run-script",
