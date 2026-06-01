@@ -426,6 +426,33 @@ describe("ModuleResolver", () => {
     ).toBe(stdModule);
   });
 
+  it("should resolve bare stdlib module names before same-name packages", () => {
+    const appDir = path.join(tempDir, "bare-stdlib-shadow-app");
+    const sourceDir = path.join(appDir, "src");
+    const stdLibDir = path.join(tempDir, "bare-stdlib-shadow-lib");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const stdMathPath = path.join(stdLibDir, "math.x");
+    const packageMathPath = path.join(packageDir, "index.bpl");
+    const mainPath = path.join(sourceDir, "main.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(stdLibDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(stdMathPath, "export stdMath;");
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(packageMathPath, "export packageMath;");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+
+    const resolver = new ModuleResolver({ stdLibPath: stdLibDir });
+
+    expect(resolver.resolveModulePath("math", mainPath)).toBe(stdMathPath);
+    expect(resolver.resolveModulePath("math", mainPath)).not.toBe(
+      packageMathPath,
+    );
+  });
+
   it("should not resolve missing explicit std imports from packages", () => {
     const appDir = path.join(tempDir, "std-package-shadow-app");
     const sourceDir = path.join(appDir, "src");
