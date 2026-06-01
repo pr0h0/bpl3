@@ -10,75 +10,107 @@ import {
 
 /**
  * Get the LLVM datalayout string for a given target triple.
- * Falls back to x86_64-linux if no specific layout is known.
+ * Rejects unknown target triples instead of silently using the host layout.
  */
-export function getDataLayoutForTarget(target?: string): string {
-  if (!target) {
+type TargetDataLayout = {
+  family: string;
+  matches: (normalizedTarget: string) => boolean;
+  layout: string;
+};
+
+const X86_64_LINUX_DATA_LAYOUT =
+  "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+
+const SUPPORTED_TARGET_DATA_LAYOUTS: TargetDataLayout[] = [
+  {
+    family: "x86_64 Linux",
+    matches: (target) => target.includes("x86_64") && target.includes("linux"),
+    layout: X86_64_LINUX_DATA_LAYOUT,
+  },
+  {
+    family: "x86_64 macOS",
+    matches: (target) =>
+      target.includes("x86_64") &&
+      (target.includes("darwin") || target.includes("macos")),
+    layout:
+      "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+  },
+  {
+    family: "AArch64 Linux",
+    matches: (target) =>
+      (target.includes("aarch64") || target.includes("arm64")) &&
+      target.includes("linux"),
+    layout: "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
+  },
+  {
+    family: "AArch64 macOS",
+    matches: (target) =>
+      (target.includes("aarch64") || target.includes("arm64")) &&
+      (target.includes("darwin") || target.includes("macos")),
+    layout: "e-m:o-i64:64-i128:128-n32:64-S128",
+  },
+  {
+    family: "i686 Linux",
+    matches: (target) => target.includes("i686") && target.includes("linux"),
+    layout:
+      "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128",
+  },
+  {
+    family: "x86_64 Windows",
+    matches: (target) =>
+      target.includes("x86_64") && target.includes("windows"),
+    layout:
+      "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+  },
+  {
+    family: "wasm32",
+    matches: (target) => target.includes("wasm32"),
+    layout: "e-m:e-p:32:32-i64:64-n32:64-S128",
+  },
+  {
+    family: "wasm64",
+    matches: (target) => target.includes("wasm64"),
+    layout: "e-m:e-p:64:64-i64:64-n32:64-S128",
+  },
+];
+
+export function getSupportedCodegenTargetFamilies(): string[] {
+  return SUPPORTED_TARGET_DATA_LAYOUTS.map((entry) => entry.family);
+}
+
+export function getSupportedCodegenTargetSummary(): string {
+  return getSupportedCodegenTargetFamilies().join(", ");
+}
+
+function resolveDataLayoutForTarget(target?: string): string | undefined {
+  if (target === undefined) {
     // Default to x86_64-linux-gnu
-    return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+    return X86_64_LINUX_DATA_LAYOUT;
   }
 
-  const normalizedTarget = target.toLowerCase();
+  const normalizedTarget = target.trim().toLowerCase();
+  if (!normalizedTarget) return undefined;
+  return SUPPORTED_TARGET_DATA_LAYOUTS.find((entry) =>
+    entry.matches(normalizedTarget),
+  )?.layout;
+}
 
-  // x86_64 Linux
-  if (
-    normalizedTarget.includes("x86_64") &&
-    normalizedTarget.includes("linux")
-  ) {
-    return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
-  }
+export function isSupportedCodegenTarget(target?: string): boolean {
+  return resolveDataLayoutForTarget(target) !== undefined;
+}
 
-  // x86_64 macOS (Darwin)
-  if (
-    normalizedTarget.includes("x86_64") &&
-    (normalizedTarget.includes("darwin") || normalizedTarget.includes("macos"))
-  ) {
-    return "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
-  }
+export function getUnsupportedCodegenTargetMessage(target: string): string {
+  return `Unsupported target triple "${target}". Supported target families: ${getSupportedCodegenTargetSummary()}.`;
+}
 
-  // ARM64/AArch64 Linux
-  if (
-    (normalizedTarget.includes("aarch64") ||
-      normalizedTarget.includes("arm64")) &&
-    normalizedTarget.includes("linux")
-  ) {
-    return "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
-  }
+export function getDataLayoutForTarget(target?: string): string {
+  const layout = resolveDataLayoutForTarget(target);
+  if (layout !== undefined) return layout;
+  return raiseUnsupportedTarget(target!);
+}
 
-  // ARM64/AArch64 macOS (Apple Silicon)
-  if (
-    (normalizedTarget.includes("aarch64") ||
-      normalizedTarget.includes("arm64")) &&
-    (normalizedTarget.includes("darwin") || normalizedTarget.includes("macos"))
-  ) {
-    return "e-m:o-i64:64-i128:128-n32:64-S128";
-  }
-
-  // x86 (32-bit) Linux
-  if (normalizedTarget.includes("i686") && normalizedTarget.includes("linux")) {
-    return "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128";
-  }
-
-  // Windows x86_64
-  if (
-    normalizedTarget.includes("x86_64") &&
-    normalizedTarget.includes("windows")
-  ) {
-    return "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
-  }
-
-  // WASM32
-  if (normalizedTarget.includes("wasm32")) {
-    return "e-m:e-p:32:32-i64:64-n32:64-S128";
-  }
-
-  // WASM64
-  if (normalizedTarget.includes("wasm64")) {
-    return "e-m:e-p:64:64-i64:64-n32:64-S128";
-  }
-
-  // Default fallback to x86_64-linux
-  return "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+function raiseUnsupportedTarget(target: string): never {
+  throw new Error(getUnsupportedCodegenTargetMessage(target));
 }
 
 /**
@@ -121,6 +153,9 @@ export class BaseCodeGenerator {
     this.stdLibPath = options.stdLibPath;
     this.useLinkOnceOdrForStdLib = options.useLinkOnceOdrForStdLib || false;
     this.target = options.target;
+    if (this.target !== undefined && !isSupportedCodegenTarget(this.target)) {
+      raiseUnsupportedTarget(this.target);
+    }
     this.generateDwarf = options.dwarf || false;
     this.skipRuntime = options.skipRuntime || false;
     const optimizationLevel = options.optimizationLevel ?? 0;

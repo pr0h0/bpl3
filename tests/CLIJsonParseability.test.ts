@@ -2384,6 +2384,24 @@ describe("CLI JSON parseability", () => {
         "Invalid jobs count",
         "BPL_BUILD_INVALID_JOBS",
       ],
+      [
+        [
+          "build",
+          validSource,
+          "--json",
+          "--emit",
+          "llvm",
+          "--target",
+          "mips64-unknown-bpl",
+        ],
+        "Unsupported target triple",
+        "BPL_BUILD_UNSUPPORTED_TARGET",
+      ],
+      [
+        ["build", validSource, "--json", "--emit", "llvm", "--target", ""],
+        'Unsupported target triple ""',
+        "BPL_BUILD_UNSUPPORTED_TARGET",
+      ],
     ];
 
     for (const [args, expectedError, expectedErrorCode] of validationCases) {

@@ -165,6 +165,22 @@ describe("CodeGenerator", () => {
     ).toThrow(/Invalid optimization level "4"/);
   });
 
+  it("rejects unsupported target triples before generating IR", () => {
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: "mips64-unknown-bpl",
+      }),
+    ).toThrow(/Unsupported target triple "mips64-unknown-bpl"/);
+  });
+
+  it("rejects empty target triples before generating IR", () => {
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: "",
+      }),
+    ).toThrow(/Unsupported target triple ""/);
+  });
+
   it("uses the selected compiler driver for DWARF producer metadata", () => {
     const previousBplCc = process.env.BPL_CC;
     process.env.BPL_CC = join(

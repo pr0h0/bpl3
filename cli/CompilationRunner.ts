@@ -33,6 +33,10 @@ import {
   getHostDefaults,
   writeFileAtomically,
 } from "./utils";
+import {
+  getUnsupportedCodegenTargetMessage,
+  isSupportedCodegenTarget,
+} from "../compiler/backend/codegen/BaseCodeGenerator";
 import type { CompileOptions } from "./types";
 import {
   CLI_JSON_CHECKS,
@@ -58,6 +62,7 @@ export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
 export const BUILD_INVALID_WASM_RUNTIME_CODE =
   "BPL_BUILD_INVALID_WASM_RUNTIME";
 export const BUILD_INVALID_JOBS_CODE = "BPL_BUILD_INVALID_JOBS";
+export const BUILD_UNSUPPORTED_TARGET_CODE = "BPL_BUILD_UNSUPPORTED_TARGET";
 export const BUILD_INPUT_NOT_FOUND_CODE = "BPL_BUILD_INPUT_NOT_FOUND";
 export const BUILD_INPUT_SYMLINK_CODE = "BPL_BUILD_INPUT_SYMLINK";
 export const BUILD_INPUT_NOT_FILE_CODE = "BPL_BUILD_INPUT_NOT_FILE";
@@ -298,6 +303,10 @@ function normalizeCompileOptions(options: CompileOptions): void {
     options.wasmRuntime = parseWasmRuntime(String(options.wasmRuntime));
   }
 
+  if (options.target !== undefined) {
+    validateTargetTriple(options.target);
+  }
+
   if (options.jobs !== undefined) {
     options.jobs = parseJobs(options.jobs);
   }
@@ -345,6 +354,15 @@ function parseWasmRuntime(
         BUILD_INVALID_WASM_RUNTIME_CODE,
       );
   }
+}
+
+function validateTargetTriple(value: string): void {
+  if (isSupportedCodegenTarget(value)) return;
+
+  throw new BuildValidationError(
+    getUnsupportedCodegenTargetMessage(value),
+    BUILD_UNSUPPORTED_TARGET_CODE,
+  );
 }
 
 function parseJobs(value: string | number): number {

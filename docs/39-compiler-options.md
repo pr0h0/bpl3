@@ -412,7 +412,7 @@ part of a command's validation path use stdout with `success: false` or
 | --- | --- |
 | `bpl --version --json` | Version report with `schemaVersion`, `check: "version"`, `success: true`, and `version`. |
 | `bpl bindgen <header> --json` | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures. |
-| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. |
+| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
 | `bpl completion [shell] --json` | Completion report with `schemaVersion`, `check: "completion"`, `success`, `shell`, and `script`; unsupported shells return `success: false`, `shell`, `error`, and `errorCode: "BPL_COMPLETION_SHELL_UNSUPPORTED"` on stdout. |
 | `bpl docs <file> --json` | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. The command always writes Markdown to `outputPath`, defaulting to `docs.md`. |
@@ -763,12 +763,21 @@ compiler emits target metadata and LLVM IR for each target. Native binary
 linking and execution still require an appropriate host toolchain, sysroot, C
 runtime, and runtime support for that platform.
 
+Unsupported target triples are rejected before LLVM IR is emitted, rather than
+falling back to an unrelated host data layout. JSON-mode build failures use
+`BPL_BUILD_UNSUPPORTED_TARGET`.
+
+Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64
+macOS, i686 Linux, x86_64 Windows, wasm32, wasm64.
+
 - `x86_64-pc-linux-gnu` (Linux x64)
 - `aarch64-unknown-linux-gnu` (Linux ARM64)
 - `arm64-apple-darwin` (macOS ARM64)
 - `x86_64-apple-darwin` (macOS x64)
+- `i686-unknown-linux-gnu` (Linux x86)
 - `x86_64-pc-windows-gnu` (Windows x64)
 - `wasm32-unknown-unknown` (WebAssembly 32-bit)
+- `wasm64-unknown-unknown` (WebAssembly 64-bit metadata and IR)
 
 **Examples:**
 

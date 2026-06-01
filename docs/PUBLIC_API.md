@@ -57,7 +57,8 @@ const result = compiler.compile(sourceCode);
 `optimizationLevel` accepts 0 through 3 and is forwarded to code generation,
 cached module compilation, and native linking where applicable. `jobs` controls
 parallel module compilation when incremental compilation is enabled with
-`useCache`.
+`useCache`. `target` must be one of the supported code generation target
+families; unsupported target triples are rejected before LLVM IR is emitted.
 
 #### Methods
 
@@ -209,6 +210,11 @@ file; when it is omitted, `BPL_DEBUG_IR` can still enable the same output, and
 callers. The compiler refuses debug IR destinations that are a symbolic link,
 have a symbolic link in their parent path, are not regular files, or use a
 missing parent directory.
+
+`target` selects the LLVM target metadata and data layout. Supported target
+families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux,
+x86_64 Windows, wasm32, wasm64. CodeGenerator rejects unsupported target triples
+instead of silently using an x86_64 Linux data layout.
 
 ---
 

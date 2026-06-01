@@ -238,7 +238,8 @@ describe("Markdown documentation", () => {
       "### CLI JSON compatibility policy",
       "bpl build --json",
       "include `diagnostics` when the failure comes from compiler diagnostics",
-      "Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, input path, and output path errors",
+      "Build validation failures such as invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors",
+      'Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`',
       "do not leave failed LLVM or executable artifacts behind",
       "bpl check --json",
       'check: "check"',
@@ -408,6 +409,27 @@ describe("Markdown documentation", () => {
       "invalid `jobs` counts",
       "Cached module linking now forwards `-O`",
       "bun test tests/CompilerOptions.test.ts tests/CodeGenerator.test.ts tests/Linker.test.ts tests/ModuleCache.test.ts",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
+  test("docs document supported target validation", () => {
+    const text = [
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("docs/PUBLIC_API.md", "utf8"),
+      readFileSync("CHANGELOG.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Unsupported target triples are rejected before LLVM IR is emitted",
+      "BPL_BUILD_UNSUPPORTED_TARGET",
+      "Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64",
+      "CodeGenerator rejects unsupported target triples instead of silently using an x86_64 Linux data layout",
+      'bun test tests/CodeGenerator.test.ts -t "target" && bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
     ];
 
     for (const snippet of requiredSnippets) {
