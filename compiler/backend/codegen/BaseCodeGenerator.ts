@@ -123,7 +123,13 @@ export class BaseCodeGenerator {
     this.target = options.target;
     this.generateDwarf = options.dwarf || false;
     this.skipRuntime = options.skipRuntime || false;
-    this.optimizationLevel = options.optimizationLevel || 0;
+    const optimizationLevel = options.optimizationLevel ?? 0;
+    if (![0, 1, 2, 3].includes(optimizationLevel)) {
+      throw new Error(
+        `Invalid optimization level "${optimizationLevel}". Use one of: 0, 1, 2, 3.`,
+      );
+    }
+    this.optimizationLevel = optimizationLevel;
     this.debugIrPath =
       options.debugIrPath !== undefined
         ? options.debugIrPath

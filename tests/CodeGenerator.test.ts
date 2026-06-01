@@ -159,6 +159,12 @@ describe("CodeGenerator", () => {
     }
   });
 
+  it("rejects invalid optimization levels before generating IR", () => {
+    expect(() =>
+      compile("frame main() { return; }", { optimizationLevel: 4 }),
+    ).toThrow(/Invalid optimization level "4"/);
+  });
+
   it("uses the selected compiler driver for DWARF producer metadata", () => {
     const previousBplCc = process.env.BPL_CC;
     process.env.BPL_CC = join(
