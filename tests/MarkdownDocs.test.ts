@@ -58,17 +58,7 @@ import {
   LINT_NO_INPUTS_CODE,
 } from "../cli/commands/lint";
 import {
-  RUN_SCRIPT_COMMAND_EMPTY_CODE,
-  RUN_SCRIPT_COMMAND_NOT_STRING_CODE,
-  RUN_SCRIPT_MANIFEST_INVALID_JSON_CODE,
-  RUN_SCRIPT_MANIFEST_NOT_FILE_CODE,
-  RUN_SCRIPT_MANIFEST_NOT_FOUND_CODE,
-  RUN_SCRIPT_MANIFEST_NOT_OBJECT_CODE,
-  RUN_SCRIPT_MANIFEST_PARENT_SYMLINK_CODE,
-  RUN_SCRIPT_MANIFEST_SYMLINK_CODE,
-  RUN_SCRIPT_NAME_EMPTY_CODE,
-  RUN_SCRIPT_NOT_FOUND_CODE,
-  RUN_SCRIPT_SCRIPTS_NOT_OBJECT_CODE,
+  RUN_SCRIPT_JSON_ERROR_CODES,
 } from "../cli/commands/runScript";
 
 function trackedMarkdownFiles(): string[] {
@@ -992,21 +982,7 @@ describe("Markdown documentation", () => {
     ]
       .join("\n")
       .replace(/\s+/g, " ");
-    const expectedCodes = [
-      RUN_SCRIPT_MANIFEST_NOT_FOUND_CODE,
-      RUN_SCRIPT_MANIFEST_SYMLINK_CODE,
-      RUN_SCRIPT_MANIFEST_NOT_FILE_CODE,
-      RUN_SCRIPT_MANIFEST_PARENT_SYMLINK_CODE,
-      RUN_SCRIPT_MANIFEST_INVALID_JSON_CODE,
-      RUN_SCRIPT_MANIFEST_NOT_OBJECT_CODE,
-      RUN_SCRIPT_SCRIPTS_NOT_OBJECT_CODE,
-      RUN_SCRIPT_NAME_EMPTY_CODE,
-      RUN_SCRIPT_COMMAND_NOT_STRING_CODE,
-      RUN_SCRIPT_COMMAND_EMPTY_CODE,
-      RUN_SCRIPT_NOT_FOUND_CODE,
-    ];
-
-    for (const code of expectedCodes) {
+    for (const code of RUN_SCRIPT_JSON_ERROR_CODES) {
       expect(docs).toContain(code);
     }
     expect(docs).toContain("Run-script validation `errorCode` values");

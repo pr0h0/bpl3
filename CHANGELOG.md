@@ -189,6 +189,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Run-Script JSON Errors** - `bpl run-script --json` now reports manifest and
   script validation failures as machine-readable `{ success, error }` JSON while
   preserving human-readable logger output without `--json`.
+- **Run-Script JSON Validation Code List** - `bpl run-script --json` and
+  `bpl run-script --list --json` validation codes now expose a shared constant
+  list, and MarkdownDocs checks the run-script JSON documentation contract
+  against that list.
 - **Run-Script JSON Validation Codes** - `bpl run-script --json` validation
   failures now include stable `BPL_RUN_SCRIPT_*` `errorCode` values for
   manifest lookup and parsing, script-table validation, and missing named
