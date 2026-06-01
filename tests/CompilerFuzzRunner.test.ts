@@ -1144,6 +1144,97 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("fuzz package wrappers reject malformed option values before delegation", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-wrapper-usage-"));
+    const cases: Array<{
+      script: string;
+      args: string[];
+      expectedError: string;
+      forbiddenOutput: string[];
+    }> = [
+      {
+        script: "fuzz",
+        args: [
+          "--minimize",
+          "maybe",
+          "--iterations",
+          "1",
+          "--crash-dir",
+          crashDir,
+        ],
+        expectedError: "minimize must be a boolean value",
+        forbiddenOutput: [
+          "Starting compiler fuzz campaign",
+          "requires a source checkout",
+        ],
+      },
+      {
+        script: "fuzz",
+        args: [
+          "--differential=maybe",
+          "--iterations",
+          "1",
+          "--crash-dir",
+          crashDir,
+        ],
+        expectedError: "differential must be a boolean value",
+        forbiddenOutput: [
+          "Starting compiler fuzz campaign",
+          "requires a source checkout",
+        ],
+      },
+      {
+        script: "fuzz",
+        args: ["--iterations="],
+        expectedError: "--iterations requires a non-empty value",
+        forbiddenOutput: [
+          "Starting compiler fuzz campaign",
+          "requires a source checkout",
+        ],
+      },
+      {
+        script: "fuzz:replay",
+        args: ["--minimize=true"],
+        expectedError: "--minimize does not accept a value",
+        forbiddenOutput: [
+          "Either sourcePath or metadataPath",
+          "No source artifact found",
+        ],
+      },
+      {
+        script: "fuzz:promote",
+        args: ["--force=true"],
+        expectedError: "--force does not accept a value",
+        forbiddenOutput: [
+          "Either --source or --metadata",
+          "No source artifact found",
+        ],
+      },
+    ];
+
+    try {
+      for (const testCase of cases) {
+        const result = spawnSync(
+          "bun",
+          ["run", testCase.script, "--", ...testCase.args],
+          {
+            cwd: join(import.meta.dir, ".."),
+            encoding: "utf8",
+          },
+        );
+
+        expect(result.status).toBe(2);
+        expect(result.stderr).toContain(testCase.expectedError);
+        for (const forbidden of testCase.forbiddenOutput) {
+          expect(result.stdout).not.toContain(forbidden);
+          expect(result.stderr).not.toContain(forbidden);
+        }
+      }
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
   test("replays downloaded crash artifacts when metadata source paths are stale", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-downloaded-"));
     const sourcePath = join(crashDir, "crash_seed-4444_iter-0_tokens.bpl");

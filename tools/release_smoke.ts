@@ -3927,6 +3927,48 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   );
 
   runExpectedFailureStep(
+    "check packed npm CLI fuzz runner boolean usage errors",
+    "npm",
+    [
+      "run",
+      "fuzz",
+      "--",
+      "--minimize",
+      "maybe",
+      "--iterations",
+      "1",
+      "--crash-dir",
+      "fuzz/crashes",
+    ],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "minimize must be a boolean value",
+      forbiddenOutputIncludes: [
+        "Starting compiler fuzz campaign",
+        "requires a source checkout",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
+    "check packed npm CLI fuzz runner empty value usage errors",
+    "npm",
+    ["run", "fuzz", "--", "--iterations="],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--iterations requires a non-empty value",
+      forbiddenOutputIncludes: [
+        "Starting compiler fuzz campaign",
+        "requires a source checkout",
+      ],
+    },
+  );
+
+  runExpectedFailureStep(
     "check packed npm CLI fuzz replay usage errors",
     "npm",
     ["run", "fuzz:replay", "--", "--metadata", "--mode", "parser"],

@@ -57,6 +57,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   flag values, empty option values, and mixed positional/`--input` artifact
   paths as status-2 usage errors before artifact discovery, with packed
   release-helper smoke coverage for the same diagnostics.
+- **Fuzz Script Wrapper Usage Validation** - Packed `fuzz` script wrappers now
+  reject malformed boolean values and empty required option values before
+  source-checkout delegation, keeping package-script failures classified as
+  usage errors.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

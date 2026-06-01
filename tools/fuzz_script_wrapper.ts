@@ -15,6 +15,17 @@ interface ScriptConfig {
 
 class CliUsageError extends Error {}
 
+const BOOLEAN_VALUES = new Set([
+  "0",
+  "1",
+  "false",
+  "no",
+  "off",
+  "on",
+  "true",
+  "yes",
+]);
+
 const SCRIPT_CONFIGS: Record<FuzzScript, ScriptConfig> = {
   run: {
     target: "fuzz/run_fuzz.ts",
@@ -125,8 +136,14 @@ function validateUsage(config: ScriptConfig, argv: string[]): boolean {
     }
 
     if (config.booleanOptions.has(rawKey)) {
+      if (inlineValue !== undefined) {
+        assertBooleanOptionValue(rawKey, inlineValue);
+        continue;
+      }
+
       const nextArg = argv[index + 1];
-      if (inlineValue === undefined && nextArg && !nextArg.startsWith("--")) {
+      if (nextArg && !nextArg.startsWith("--")) {
+        assertBooleanOptionValue(rawKey, nextArg);
         index++;
       }
       continue;
@@ -150,6 +167,11 @@ function validateUsage(config: ScriptConfig, argv: string[]): boolean {
         `--${rawKey} requires a value. Use --help for usage.`,
       );
     }
+    if (value.trim().length === 0) {
+      throw new CliUsageError(
+        `--${rawKey} requires a non-empty value. Use --help for usage.`,
+      );
+    }
   }
 
   if (positionals.length > 1) {
@@ -157,6 +179,21 @@ function validateUsage(config: ScriptConfig, argv: string[]): boolean {
   }
 
   return true;
+}
+
+function assertBooleanOptionValue(option: string, value: string): void {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.length === 0) {
+    throw new CliUsageError(
+      `--${option} requires a non-empty boolean value. Use --help for usage.`,
+    );
+  }
+
+  if (!BOOLEAN_VALUES.has(normalized)) {
+    throw new CliUsageError(
+      `${option} must be a boolean value, got '${value}'.`,
+    );
+  }
 }
 
 function resolveScript(command: string | undefined): {
