@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Missing Export Diagnostic Code** - Named imports that resolve a module but
+  request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
+  compiler errors, `bpl check --json`, `bpl build --json`, and the public
+  CLI JSON error-code registry.
 - **Stdlib Package Collision Docs** - Import and package docs now spell out
   that bare imports matching standard-library module basenames resolve to the
   standard library before package lookup, so packages named like `math` should

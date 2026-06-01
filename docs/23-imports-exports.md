@@ -176,6 +176,10 @@ entry files use `BPL_MODULE_FILE_NOT_FOUND`; directory entry paths use
 `BPL_MODULE_PATH_SYMLINK`; module candidates that differ only by filesystem
 casing use `BPL_MODULE_PATH_CASE_MISMATCH` with the requested and actual paths;
 and unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`.
+Missing named imports use `BPL_IMPORT_EXPORT_NOT_FOUND` after the imported
+module is resolved but the requested symbol is absent from its export list. For
+example, importing `packageMath` from the built-in `math` module reports
+`Module 'math' does not export 'packageMath'` with the missing-export code.
 Use the exact filesystem casing in imports so Linux, macOS, and Windows builds
 resolve the same module graph.
 

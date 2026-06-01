@@ -1138,6 +1138,21 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document missing imported-export diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/23-imports-exports.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Missing named imports use `BPL_IMPORT_EXPORT_NOT_FOUND`",
+      "`Module 'math' does not export 'packageMath'`",
+      'bun test tests/ImportHandler.test.ts -t "stable code"',
+      'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
