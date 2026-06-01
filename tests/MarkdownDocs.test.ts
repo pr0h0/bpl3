@@ -1168,6 +1168,8 @@ describe("Markdown documentation", () => {
       "malformed values are ignored with a warning",
       "auto-detected integration job count",
       "bun test tests/IntegrationRunner.test.ts",
+      "ci:triage maps `BPL_INTEGRATION_JOBS`",
+      "BPL_INTEGRATION_JOBS=4 bun run test:ci",
     ];
 
     expectDocsContainSnippets(normalizedText, requiredSnippets);

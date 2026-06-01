@@ -61,6 +61,10 @@ contract for that parsing is:
 bun test tests/IntegrationRunner.test.ts
 ```
 
+ci:triage maps `BPL_INTEGRATION_JOBS` and integration concurrency failures to
+that helper test, a bounded `BPL_INTEGRATION_JOBS=4 bun run test:ci` repro, and
+the full `bun run test:ci` suite.
+
 To reproduce just the wasm toolchain, runtime, playground linker, and
 compatibility coverage:
 
