@@ -21,6 +21,11 @@ export interface RunProcessFileError extends Error {
   killed?: boolean;
 }
 
+function isBenignStdinError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  return code === "EPIPE" || code === "ERR_STREAM_DESTROYED";
+}
+
 export function formatProcessCommand(command: string, args: string[]): string {
   return [command, ...args].map((arg) => JSON.stringify(arg)).join(" ");
 }
@@ -94,6 +99,11 @@ export function runProcessFile(
 
     child.stdout.on("data", (chunk) => appendOutput("stdout", chunk));
     child.stderr.on("data", (chunk) => appendOutput("stderr", chunk));
+    child.stdin.on("error", (error) => {
+      if (!isBenignStdinError(error)) {
+        fail(error);
+      }
+    });
     child.on("error", fail);
     child.on("close", (code, signal) => {
       if (settled) {
@@ -117,6 +127,12 @@ export function runProcessFile(
       reject(error);
     });
 
-    child.stdin.end(options.input ?? "");
+    try {
+      child.stdin.end(options.input ?? "");
+    } catch (error) {
+      if (!isBenignStdinError(error)) {
+        fail(error as Error);
+      }
+    }
   });
 }
