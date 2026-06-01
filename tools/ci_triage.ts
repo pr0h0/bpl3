@@ -318,6 +318,17 @@ const TYPE_NOT_FOUND_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const SYMBOL_NOT_FOUND_STEP_PATTERN = new RegExp(
+  [
+    "BPL_SYMBOL_NOT_FOUND",
+    "Undefined symbol ['\"][^'\"]+['\"]",
+    "undefined symbol",
+    "Ensure the variable or function is declared before use",
+    "Did you mean ['\"][^'\"]+['\"]\\?",
+    "value identifiers and missing callee identifiers",
+  ].join("|"),
+  "i",
+);
 const VOID_TYPE_INVALID_STEP_PATTERN = new RegExp(
   [
     "BPL_VOID_TYPE_INVALID",
@@ -1207,6 +1218,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
   ],
   [TYPE_NOT_FOUND_STEP_PATTERN, "bun run check"],
+  [
+    SYMBOL_NOT_FOUND_STEP_PATTERN,
+    "bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts",
+  ],
+  [
+    SYMBOL_NOT_FOUND_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "undefined symbol"',
+  ],
+  [
+    SYMBOL_NOT_FOUND_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "undefined symbol"',
+  ],
+  [SYMBOL_NOT_FOUND_STEP_PATTERN, "bun run check"],
   [
     VOID_TYPE_INVALID_STEP_PATTERN,
     "bun test tests/TypeCheckerVoidTypes.test.ts",

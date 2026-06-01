@@ -610,6 +610,30 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps undefined symbol diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "undefined symbol"',
+      'bun test tests/MarkdownDocs.test.ts -t "undefined symbol"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_SYMBOL_NOT_FOUND",
+      "Undefined symbol 'missingValue'",
+      "Undefined symbol 'missingCall'",
+      "Ensure the variable or function is declared before use.",
+      "Did you mean 'totalCount'?",
+      "value identifiers and missing callee identifiers",
+      "reports undefined symbol failures in JSON-mode check and build diagnostics",
+      "docs document undefined symbol diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps invalid void diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/TypeCheckerVoidTypes.test.ts",
@@ -4042,6 +4066,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerUndefinedTypes.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
         'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints undefined symbol repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-undefined-symbol-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 115,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/115",
+              steps: [
+                {
+                  name: "BPL_SYMBOL_NOT_FOUND Undefined symbol 'missingValue'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "undefined symbol"',
+        'bun test tests/MarkdownDocs.test.ts -t "undefined symbol"',
         "bun run check",
       ]);
     } finally {
