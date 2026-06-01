@@ -173,6 +173,11 @@ describe("CI triage helper", () => {
       'bun test tests/CLIJsonParseability.test.ts -t "package search directory"',
       'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
     ];
+    const globalSearchDirectoryCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "global package search directory failures"',
+      'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+      ...expectedCommands,
+    ];
 
     expect(localCommandsForStep("PackageResolver.test")).toEqual(
       expectedCommands,
@@ -183,6 +188,16 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("global package root failures in JSON-mode check"),
     ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "global package search directory failures in JSON-mode check",
+      ),
+    ).toEqual(globalSearchDirectoryCommands);
+    expect(
+      localCommandsForStep(
+        "check packed npm CLI package global search symlink JSON",
+      ),
+    ).toEqual(globalSearchDirectoryCommands.slice(0, 2));
     expect(localCommandsForStep("BPL_PACKAGE_IMPORT_INVALID")).toEqual(
       expectedCommands,
     );
@@ -1652,6 +1667,18 @@ describe("CI triage helper", () => {
                 },
               ],
             },
+            {
+              id: 63,
+              name: "Packed global package search symlink",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/63",
+              steps: [
+                {
+                  name: "check packed npm CLI package global search symlink JSON",
+                  conclusion: "failure",
+                },
+              ],
+            },
           ],
         }),
       );
@@ -1699,6 +1726,14 @@ describe("CI triage helper", () => {
       expect(releaseJob?.localCommands).toContain(
         'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       );
+
+      const globalSearchJob = report.summary.failedJobs.find(
+        (job) => job.name === "Packed global package search symlink",
+      );
+      expect(globalSearchJob?.localCommands).toEqual([
+        'bun test tests/CLIJsonParseability.test.ts -t "global package search directory failures"',
+        'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

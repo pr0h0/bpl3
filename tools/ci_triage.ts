@@ -156,6 +156,14 @@ const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_GLOBAL_SEARCH_DIR_STEP_PATTERN = new RegExp(
+  [
+    "global package search directory",
+    "Global package directory path is a symbolic link",
+    "package global search symlink JSON",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_IMPORT_DOCS_SMOKE_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*package/import docs examples",
@@ -764,6 +772,14 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     RELEASE_SMOKE_STEP_PATTERN,
     "cd <packed-bpl-v3-package> && npm run ci:triage -- --help",
+  ],
+  [
+    PACKAGE_GLOBAL_SEARCH_DIR_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "global package search directory failures"',
+  ],
+  [
+    PACKAGE_GLOBAL_SEARCH_DIR_STEP_PATTERN,
+    'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
   ],
   [PACKAGE_RESOLVER_STEP_PATTERN, "bun test tests/PackageResolver.test.ts"],
   [
