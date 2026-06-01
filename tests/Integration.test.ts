@@ -80,6 +80,10 @@ function prepareExampleArtifactOutput(example: string): string {
   return outputPath;
 }
 
+function readExampleMainSource(example: string): string {
+  return fs.readFileSync(path.join(EXAMPLES_DIR, example, "main.bpl"), "utf-8");
+}
+
 function cleanupExampleArtifactOutput(outputPath: string): void {
   fs.rmSync(path.dirname(outputPath), { recursive: true, force: true });
 }
@@ -143,6 +147,18 @@ describe("Integration Tests", () => {
 
   it("includes package dependency example coverage in CI-safe integration tests", () => {
     expect(examples).toContain("package_transitive_dependency/app");
+  });
+
+  it("keeps package dependency example explicit source-file import coverage", () => {
+    expect(readExampleMainSource("package_transitive_dependency/app")).toContain(
+      'import identity from "math-extra/features/direct.bpl";',
+    );
+  });
+
+  it("keeps package dependency example extensionless directory import coverage", () => {
+    expect(readExampleMainSource("package_transitive_dependency/app")).toContain(
+      'import increment from "math-extra/features/increment";',
+    );
   });
 
   it("keeps package dependency example artifacts outside the tracked examples tree", () => {
