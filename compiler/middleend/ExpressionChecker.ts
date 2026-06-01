@@ -337,6 +337,10 @@ export function checkIdentifier(
 ): AST.TypeNode | undefined {
   const symbol = this.currentScope.resolve(expr.name);
   if (!symbol) {
+    if (this.shouldSuppressUndefinedIdentifier(expr.name, expr.location)) {
+      return undefined;
+    }
+
     const similar = this.currentScope.findSimilar(expr.name);
     const hint = similar
       ? `Did you mean '${similar}'?`

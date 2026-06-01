@@ -5,7 +5,7 @@
  */
 
 import * as AST from "../common/AST";
-import { CompilerError } from "../common/CompilerError";
+import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
@@ -43,6 +43,7 @@ export abstract class TypeCheckerBase {
   public loopDepth: number = 0;
   public switchDepth: number = 0;
   public inDefer: boolean = false;
+  private failedImportSymbolsByFile: Map<string, Set<string>> = new Map();
 
   // Track type alias resolution to detect cycles
   private typeAliasResolutionStack: Set<string> = new Set();
@@ -1340,5 +1341,42 @@ export abstract class TypeCheckerBase {
 
   public addWarning(warning: CompilerError): void {
     this.warnings.push(warning);
+  }
+
+  public recordFailedImportSymbols(stmt: AST.ImportStmt): void {
+    const failedNames = new Set<string>();
+    if (stmt.namespace) {
+      failedNames.add(stmt.namespace);
+    }
+    for (const item of stmt.items) {
+      failedNames.add(item.alias || item.name);
+    }
+    if (failedNames.size === 0) {
+      return;
+    }
+
+    const file = stmt.location.file;
+    const existing = this.failedImportSymbolsByFile.get(file) ?? new Set();
+    for (const name of failedNames) {
+      existing.add(name);
+    }
+    this.failedImportSymbolsByFile.set(file, existing);
+  }
+
+  public clearFailedImportSymbolsForProgram(program: AST.Program): void {
+    const files = new Set<string>();
+    for (const stmt of program.statements) {
+      files.add(stmt.location.file);
+    }
+    for (const file of files) {
+      this.failedImportSymbolsByFile.delete(file);
+    }
+  }
+
+  public shouldSuppressUndefinedIdentifier(
+    name: string,
+    location: SourceLocation,
+  ): boolean {
+    return this.failedImportSymbolsByFile.get(location.file)?.has(name) ?? false;
   }
 }

@@ -416,6 +416,10 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     ? this.checkExpression(stmt.value)
     : this.makeVoidType();
 
+  if (stmt.value && !returnType) {
+    return;
+  }
+
   // Check if we are in a match arm block
   // We need to access the TypeChecker instance which has matchContext
   // Since 'this' is StatementCheckerContext, we might need to cast or add it to context

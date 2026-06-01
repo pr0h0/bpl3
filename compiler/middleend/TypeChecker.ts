@@ -90,6 +90,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     modulePath?: string,
     options?: { isEntryPoint?: boolean },
   ): void {
+    this.clearFailedImportSymbolsForProgram(program);
+
     const moduleScope = new SymbolTable(this.globalScope);
     this.currentScope = moduleScope;
 
@@ -104,6 +106,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           this.checkImport(stmt as AST.ImportStmt);
         } catch (e) {
           if (this.collectAllErrors && e instanceof CompilerError) {
+            this.recordFailedImportSymbols(stmt as AST.ImportStmt);
             this.errors.push(e);
             continue;
           }

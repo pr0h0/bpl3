@@ -505,6 +505,7 @@ describe("CLI Tests", () => {
   it("should not resolve missing explicit std imports from packages", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
     const sourceFile = path.join(tempDir, "main.bpl");
+    const unrelatedUndefinedFile = path.join(tempDir, "unrelated.bpl");
     const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
     fs.mkdirSync(stdPackageDir, { recursive: true });
     fs.writeFileSync(
@@ -529,6 +530,15 @@ describe("CLI Tests", () => {
         "}",
       ].join("\n"),
     );
+    fs.writeFileSync(
+      unrelatedUndefinedFile,
+      [
+        'import shadow from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return other();",
+        "}",
+      ].join("\n"),
+    );
 
     try {
       const textResult = runCLI(["check", sourceFile]);
@@ -537,6 +547,8 @@ describe("CLI Tests", () => {
         "Standard library module not found: std/missing.bpl",
       );
       expect(textResult.stderr).toContain("standard library");
+      expect(textResult.stderr).not.toContain("Undefined symbol 'shadow'");
+      expect(textResult.stderr).not.toContain("Return type mismatch");
 
       const jsonResult = runCLI(["check", "--json", sourceFile]);
       expect(jsonResult.status).toBe(1);
@@ -545,11 +557,39 @@ describe("CLI Tests", () => {
           diagnostics: Array<{ message: string; hint: string }>;
         }>;
       }>(jsonResult);
-      const diagnostic = report.files[0]?.diagnostics[0];
+      const diagnostics = report.files[0]?.diagnostics ?? [];
+      expect(diagnostics).toHaveLength(1);
+      const diagnostic = diagnostics[0];
       expect(diagnostic?.message).toContain(
         "Standard library module not found: std/missing.bpl",
       );
       expect(diagnostic?.hint).toContain("standard library");
+      expect(
+        diagnostics.some((item) =>
+          item.message.includes("Undefined symbol 'shadow'"),
+        ),
+      ).toBe(false);
+
+      const unrelatedJsonResult = runCLI([
+        "check",
+        "--json",
+        unrelatedUndefinedFile,
+      ]);
+      expect(unrelatedJsonResult.status).toBe(1);
+      const unrelatedReport = parseJsonObjectStdout<{
+        files: Array<{
+          diagnostics: Array<{ message: string }>;
+        }>;
+      }>(unrelatedJsonResult);
+      const unrelatedMessages =
+        unrelatedReport.files[0]?.diagnostics.map((item) => item.message) ?? [];
+      expect(
+        unrelatedMessages.some((message) =>
+          message.includes("Standard library module not found"),
+        ),
+      ).toBe(true);
+      expect(unrelatedMessages).toContain("Undefined symbol 'other'");
+      expect(unrelatedMessages).not.toContain("Undefined symbol 'shadow'");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

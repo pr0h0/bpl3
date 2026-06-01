@@ -46,6 +46,10 @@ export interface CheckerContext {
   // Error Handling
   addError(error: CompilerError): void;
   addWarning(warning: CompilerError): void;
+  shouldSuppressUndefinedIdentifier(
+    name: string,
+    location: SourceLocation,
+  ): boolean;
 
   // Symbol Management
   defineSymbol(
