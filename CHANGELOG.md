@@ -68,6 +68,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now supports `--help`, verifies the `release:cli-registry` package script,
   and rejects malformed inline values such as `--check=true` and
   `--write=true` with stable status-2 diagnostics.
+- **Playground Timeout Test Stability** - The native execution timeout test now
+  leaves enough scheduling headroom for stdout capture under the broad
+  CI-safe suite while still validating the configured timeout message.
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.

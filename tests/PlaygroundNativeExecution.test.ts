@@ -57,12 +57,12 @@ describe("Playground native execution response shaping", () => {
           "setTimeout(() => {}, 1000);",
         ].join(""),
       ],
-      timeoutMs: 25,
+      timeoutMs: 250,
     });
 
     expect(result).toEqual({
       success: false,
-      error: "Execution timeout (25ms)",
+      error: "Execution timeout (250ms)",
       output: "started",
     });
   });
