@@ -614,6 +614,17 @@ const STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const ENUM_VARIANT_FIELD_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_ENUM_VARIANT_FIELD_UNKNOWN",
+    "BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH",
+    "enum variant field diagnostics",
+    "enum variant field diagnostic",
+    "enum variant field semantic",
+    "Unknown field '.*' in variant",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1198,6 +1209,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "bun test tests/CLIJsonParseability.test.ts",
   ],
   [CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN, "bun run check"],
+  [
+    ENUM_VARIANT_FIELD_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts",
+  ],
+  [
+    ENUM_VARIANT_FIELD_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "enum variant field diagnostics"',
+  ],
+  [
+    ENUM_VARIANT_FIELD_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "enum variant field diagnostic"',
+  ],
+  [ENUM_VARIANT_FIELD_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     STD_IMPORT_ISOLATION_STEP_PATTERN,
     'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
