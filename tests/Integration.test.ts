@@ -10,6 +10,10 @@ import {
   getIntegrationJobs,
   runProcess,
 } from "./helpers/integrationRunner";
+import {
+  parseIntegrationExampleConfig,
+  validateIntegrationExampleConfig,
+} from "./helpers/integrationConfig";
 
 const EXAMPLES_DIR = path.join(process.cwd(), "examples");
 const BPL_CLI = path.join(process.cwd(), "index.ts");
@@ -24,30 +28,6 @@ const INTEGRATION_RUN_ARTIFACTS_DIR = path.join(
   `run-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 );
 const runLimited = createLimiter(getIntegrationJobs());
-const SUPPORTED_EXAMPLE_CONFIG_KEYS = new Set([
-  "args",
-  "description",
-  "env",
-  "exitCode",
-  "expectedOutput",
-  "input",
-  "name",
-  "note",
-  "resolution_demo",
-  "skip",
-  "skip_compilation",
-  "test_cases",
-  "timeout",
-]);
-const SUPPORTED_EXAMPLE_CONFIG_TEST_CASE_KEYS = new Set([
-  "args",
-  "env",
-  "exitCode",
-  "expectedOutput",
-  "input",
-  "name",
-  "timeout",
-]);
 
 // Helper to find example directories
 function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
@@ -104,41 +84,31 @@ function cleanupExampleArtifactOutput(outputPath: string): void {
   fs.rmSync(path.dirname(outputPath), { recursive: true, force: true });
 }
 
-function findUnsupportedExampleConfigKeys(examples: string[]): string[] {
-  const unsupportedKeys: string[] = [];
+function readExampleConfig(configFile: string) {
+  const rawConfig = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+  return parseIntegrationExampleConfig(
+    path.relative(process.cwd(), configFile),
+    rawConfig,
+  );
+}
+
+function findInvalidExampleConfigErrors(examples: string[]): string[] {
+  const errors: string[] = [];
 
   for (const example of examples) {
     const configFile = path.join(EXAMPLES_DIR, example, "test_config.json");
     if (!fs.existsSync(configFile)) continue;
 
     const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
-    for (const key of Object.keys(config)) {
-      if (!SUPPORTED_EXAMPLE_CONFIG_KEYS.has(key)) {
-        unsupportedKeys.push(
-          `${path.relative(process.cwd(), configFile)}:${key}`,
-        );
-      }
-    }
-
-    if (Array.isArray(config.test_cases)) {
-      config.test_cases.forEach((testCase: unknown, index: number) => {
-        if (!testCase || typeof testCase !== "object") return;
-
-        for (const key of Object.keys(testCase)) {
-          if (!SUPPORTED_EXAMPLE_CONFIG_TEST_CASE_KEYS.has(key)) {
-            unsupportedKeys.push(
-              `${path.relative(
-                process.cwd(),
-                configFile,
-              )}:test_cases[${index}].${key}`,
-            );
-          }
-        }
-      });
-    }
+    errors.push(
+      ...validateIntegrationExampleConfig(
+        path.relative(process.cwd(), configFile),
+        config,
+      ),
+    );
   }
 
-  return unsupportedKeys.sort();
+  return errors.sort();
 }
 
 function findExampleArtifactDirectoryCollisions(
@@ -210,8 +180,8 @@ describe("Integration Tests", () => {
     expect(findExampleArtifactDirectoryCollisions(examples)).toEqual([]);
   });
 
-  it("keeps example test configs on supported schema keys", () => {
-    expect(findUnsupportedExampleConfigKeys(examples)).toEqual([]);
+  it("keeps example test configs valid for the integration harness", () => {
+    expect(findInvalidExampleConfigErrors(examples)).toEqual([]);
   });
 
   it("reports colliding example names when artifact directories overlap", () => {
@@ -258,14 +228,13 @@ describe("Integration Tests", () => {
       fs.existsSync(path.join(exampleDir, "main.bpl")) &&
       fs.existsSync(configFile)
     ) {
-      const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+      const config = readExampleConfig(configFile);
 
-      // If testOnly is set, skip other tests
-      if (testOnly.length > 0 && !testOnly.includes(example)) {
-        config.skip_compilation = true;
-      }
+      const shouldSkip =
+        config.skipCompilation ||
+        (testOnly.length > 0 && !testOnly.includes(example));
 
-      if (config.skip_compilation) {
+      if (shouldSkip) {
         it.skip(`should run example: ${example}`, () => {});
         continue;
       }
@@ -296,7 +265,7 @@ describe("Integration Tests", () => {
             artifactOutputPath,
             "run",
             relativeMainFile,
-            ...(config.args || []),
+            ...config.args,
           ];
           const result = await (async () => {
             try {
@@ -305,9 +274,9 @@ describe("Integration Tests", () => {
                   env: {
                     ...process.env,
                     BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
-                    ...(config.env || {}),
+                    ...config.env,
                   },
-                  input: config.input || "",
+                  input: config.input,
                   timeout,
                 }),
               );
@@ -334,7 +303,7 @@ describe("Integration Tests", () => {
           // cmp.sh returns the exit code of the program
           // But if compilation fails, it returns 1.
           // We assume the example should compile and run successfully (exit code 0) unless specified otherwise in config
-          const exitCode = config.exitCode !== undefined ? config.exitCode : 0;
+          const exitCode = config.exitCode;
           if (result.status !== exitCode) {
             throw new Error(
               formatIntegrationExitCodeMismatch({

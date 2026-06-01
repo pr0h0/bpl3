@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Typed Integration Config Parsing** - Integration tests now parse
+  `test_config.json` through a typed validator with defaults and file-qualified
+  diagnostics for invalid `expectedOutput`, `exitCode`, `args`, `env`, `input`,
+  `timeout`, and skip fields.
 - **Integration Config Schema Guard** - Integration tests now reject unsupported
   `test_config.json` keys with file/key context, and legacy `expected_output`
   fixtures were migrated to `expectedOutput` so example stdout is asserted
