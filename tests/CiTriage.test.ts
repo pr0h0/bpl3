@@ -281,6 +281,31 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps executable output mode failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/BinaryRunner.test.ts -t "executable permissions"',
+      'bun test tests/Linker.test.ts -t "linked output permissions"',
+      'bun test tests/ModuleCache.test.ts -t "linked output permissions"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep(
+        "BinaryRunner > preserves existing executable permissions when replacing output",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "Linker linked output permissions expected 493 received 384",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "ModuleCache cached linked output mode preservation failed",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps bindgen JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',

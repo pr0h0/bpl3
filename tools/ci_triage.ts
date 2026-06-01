@@ -196,6 +196,20 @@ const PACKAGE_ATOMIC_MODE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const EXECUTABLE_OUTPUT_MODE_STEP_PATTERN = new RegExp(
+  [
+    "BinaryRunner.*executable permissions",
+    "Linker.*linked output permissions",
+    "ModuleCache.*linked output permissions",
+    "executable output mode",
+    "linked output mode",
+    "linked output permissions.*Expected:\\s*493.*Received:\\s*384",
+    "linked output permissions.*expected\\s+493.*received\\s+384",
+    "expected\\s+493.*received\\s+384.*(?:executable|linked)",
+    "(?:executable|linked).*expected\\s+493.*received\\s+384",
+  ].join("|"),
+  "i",
+);
 const BINDGEN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   [
     "bindgen JSON validation",
@@ -593,6 +607,19 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|global cache archive permissions"',
   ],
   [PACKAGE_ATOMIC_MODE_STEP_PATTERN, "bun run check"],
+  [
+    EXECUTABLE_OUTPUT_MODE_STEP_PATTERN,
+    'bun test tests/BinaryRunner.test.ts -t "executable permissions"',
+  ],
+  [
+    EXECUTABLE_OUTPUT_MODE_STEP_PATTERN,
+    'bun test tests/Linker.test.ts -t "linked output permissions"',
+  ],
+  [
+    EXECUTABLE_OUTPUT_MODE_STEP_PATTERN,
+    'bun test tests/ModuleCache.test.ts -t "linked output permissions"',
+  ],
+  [EXECUTABLE_OUTPUT_MODE_STEP_PATTERN, "bun run check"],
   [
     BINDGEN_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',
