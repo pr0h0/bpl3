@@ -166,7 +166,7 @@ export class SymbolIndex {
       }
     } catch (error) {
       // Silently fail on parse errors
-      console.error(`Failed to index ${filePath}:`, error);
+      debugLog(`[SymbolIndex] Failed to index ${filePath}:`, error);
     }
   }
 
