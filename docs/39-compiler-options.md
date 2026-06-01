@@ -568,6 +568,14 @@ Tooling that wants to inventory stable failure codes can import
 CLI API; those exports are guarded for non-empty `BPL_*` entries without
 per-list duplicates.
 
+```ts
+import { CLI_JSON_ERROR_CODE_LISTS } from "bpl-v3/cli";
+
+for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
+  console.log(`${name}: ${codes.join(", ")}`);
+}
+```
+
 Backward-compatible additions may add optional fields, new array/object members,
 or new command-specific reports under the same `schemaVersion` when existing
 field names, types, meanings, and stdout/stderr routing stay intact.

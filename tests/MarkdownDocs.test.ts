@@ -747,6 +747,12 @@ describe("Markdown documentation", () => {
     expect(missingCodes).toEqual([]);
     expect(docs).toContain("CLI_JSON_ERROR_CODE_LISTS");
     expect(docs).toContain("CLI_JSON_ERROR_CODES");
+    expect(docs).toContain(
+      'import { CLI_JSON_ERROR_CODE_LISTS } from "bpl-v3/cli";',
+    );
+    expect(docs).toContain(
+      "for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS)",
+    );
   });
 
   test("docs document version JSON contract", () => {
