@@ -4321,6 +4321,210 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports expression semantic guard failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "division_by_zero",
+        code: "BPL_DIVISION_BY_ZERO",
+        line: 2,
+        column: 16,
+        preview: "return 1 / 0",
+        message: "Division by zero",
+        hint: "divisor in a division operation cannot be zero",
+        source: [
+          "frame main() ret int {",
+          "    return 1 / 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "modulo_by_zero",
+        code: "BPL_DIVISION_BY_ZERO",
+        line: 2,
+        column: 16,
+        preview: "return 1 % 0",
+        message: "Division by zero",
+        hint: "divisor in a modulo operation cannot be zero",
+        source: [
+          "frame main() ret int {",
+          "    return 1 % 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "shift_count_negative",
+        code: "BPL_SHIFT_COUNT_INVALID",
+        line: 2,
+        column: 17,
+        preview: "return 1 << -1",
+        message: "Negative shift count",
+        hint: "Shift counts must be zero or greater.",
+        source: [
+          "frame main() ret int {",
+          "    return 1 << -1;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "shift_count_out_of_range",
+        code: "BPL_SHIFT_COUNT_INVALID",
+        line: 3,
+        column: 21,
+        preview: "return value << 8",
+        message: "Shift count 8 is out of range",
+        hint: "Use a shift count smaller than the width of the left operand.",
+        source: [
+          "frame main() ret int {",
+          "    local value: i8 = 1;",
+          "    return value << 8;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "address_of_constant",
+        code: "BPL_ADDRESS_OF_CONSTANT",
+        line: 3,
+        column: 23,
+        preview: "local ptr: *int = &value",
+        message: "Cannot take address of constant expression.",
+        hint: "does not support pointers to constants yet",
+        source: [
+          "frame main() ret int {",
+          "    local const value: int = 1;",
+          "    local ptr: *int = &value;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "address_of_target_invalid",
+        code: "BPL_ADDRESS_OF_TARGET_INVALID",
+        line: 2,
+        column: 23,
+        preview: "local ptr: *int = &(1, 2)",
+        message: "Cannot take address of",
+        hint: "Address-of requires an lvalue.",
+        source: [
+          "frame main() ret int {",
+          "    local ptr: *int = &(1, 2);",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "array_literal_type_mismatch",
+        code: "BPL_ARRAY_LITERAL_TYPE_MISMATCH",
+        line: 2,
+        column: 31,
+        preview: 'local values: int[] = [1, "two", 3]',
+        message: "Array literal has inconsistent element types",
+        hint: "All elements in an array literal must have the same type.",
+        source: [
+          "frame main() ret int {",
+          '    local values: int[] = [1, "two", 3];',
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "cast_integer_to_string",
+        code: "BPL_CAST_INTEGER_TO_STRING",
+        line: 3,
+        column: 26,
+        preview: "local text: string = cast<string>(value)",
+        message: "Cannot cast integer type 'i32' to 'string'",
+        hint: "Use .toString() or similar conversion methods.",
+        source: [
+          "frame main() ret int {",
+          "    local value: int = 123;",
+          "    local text: string = cast<string>(value);",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "cast_invalid",
+        code: "BPL_CAST_INVALID",
+        line: 5,
+        column: 22,
+        preview: "local box: Box = cast<Box>(1)",
+        message: "Cannot cast i32 to Box",
+        hint: "This cast is not allowed.",
+        source: [
+          "struct Box {",
+          "    value: int,",
+          "}",
+          "frame main() ret int {",
+          "    local box: Box = cast<Box>(1);",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "sizeof_void_invalid",
+        code: "BPL_SIZEOF_VOID_INVALID",
+        line: 2,
+        column: 22,
+        preview: "return cast<int>(sizeof<void>())",
+        message: "Cannot take size of void",
+        hint: "Void type has no size.",
+        source: [
+          "frame main() ret int {",
+          "    return cast<int>(sizeof<void>());",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

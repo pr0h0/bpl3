@@ -1533,6 +1533,34 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document expression semantic guard diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`, `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`, `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`, `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID`",
+      "`Division by zero`",
+      "`Negative shift count`",
+      "`Shift count 8 is out of range`",
+      "`Cannot take address of constant expression.`",
+      "`Cannot take address of (int, int)`",
+      "`Array literal has inconsistent element types`",
+      "`Cannot cast integer type 'i32' to 'string'`",
+      "`Cannot cast i32 to Box`",
+      "`Cannot take size of void`",
+      "`Shift counts must be zero or greater.`",
+      "`Address-of requires an lvalue.`",
+      "`All elements in an array literal must have the same type.`",
+      "`This cast is not allowed.`",
+      "`Void type has no size.`",
+      "compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`",
+      'bun test tests/TypeCheckerExpressionSemanticGuards.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

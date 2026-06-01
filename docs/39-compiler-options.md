@@ -840,6 +840,13 @@ bun test tests/TypeCheckerMemberAccessMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "member access misuse"
 ```
 
+Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`, `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`, `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`, `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID`. This covers compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`. Representative messages include `Division by zero`, `Negative shift count`, `Shift count 8 is out of range`, `Cannot take address of constant expression.`, `Cannot take address of (int, int)`, `Array literal has inconsistent element types`, `Cannot cast integer type 'i32' to 'string'`, `Cannot cast i32 to Box`, and `Cannot take size of void`. The corresponding hints include `Shift counts must be zero or greater.`, `Address-of requires an lvalue.`, `All elements in an array literal must have the same type.`, `This cast is not allowed.`, and `Void type has no size.`. Valid division/modulo, in-range shifts, mutable lvalue address-of, homogeneous array literals, allowed casts, and non-void `sizeof` remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerExpressionSemanticGuards.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

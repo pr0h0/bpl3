@@ -125,6 +125,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl build --json`, and the public CLI JSON error-code registry. Valid
   field, instance method, static method, tuple, and imported primitive-wrapper
   member access remain accepted.
+- **Expression Semantic Guard Diagnostic Codes** - Compile-time
+  division/modulo by zero, invalid constant shifts, address-of misuse, array
+  literal element mismatches, invalid casts, and `sizeof(void)` now report
+  `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`,
+  `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`,
+  `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`,
+  `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid division/modulo, in-range shifts, mutable lvalue address-of,
+  homogeneous array literals, allowed casts, and non-void `sizeof` remain
+  accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
