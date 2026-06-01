@@ -356,9 +356,7 @@ describe("Markdown documentation", () => {
       "bump `schemaVersion`",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
   test("public API docs document CompilerOptions optimization and jobs", () => {
@@ -1087,9 +1085,7 @@ describe("Markdown documentation", () => {
       "substring-only components such as `notwasi` or `notemscripten` stay freestanding",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
   test("compiler correctness docs document CI triage commands", () => {
@@ -1129,6 +1125,8 @@ describe("Markdown documentation", () => {
       "`SANITIZER_RUNTIME_TEST_TIMEOUT_MS` must be a positive integer; invalid values are ignored with a warning and the 30000ms default is used",
       'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
       "bun test tests/PackageJsonFailureContracts.test.ts",
+      "Release registry sync failures map to `bun run release:cli-registry`",
+      "Use `bun run release:cli-registry` before broader release smoke when `ci:triage` reports a stale CLI registry shim",
       "When the scheduled `Compiler Fuzz` workflow fails",
       "bun run fuzz:repro -- fuzz/crashes",
     ];

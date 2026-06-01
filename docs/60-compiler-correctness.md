@@ -149,6 +149,11 @@ bun test tests/PackageJsonFailureContracts.test.ts
 bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"
 ```
 
+Release registry sync failures map to `bun run release:cli-registry`. Use
+`bun run release:cli-registry` before broader release smoke when `ci:triage`
+reports a stale CLI registry shim, because it checks the generated packed
+`bpl-v3/cli` shim and declaration files against the implementation registry.
+
 The triage mapping is also guarded against the exported JSON error-code
 inventory. New `BPL_*` codes in the CLI registry must map to at least one local
 repro command, including package install option conflicts, direct archive path
