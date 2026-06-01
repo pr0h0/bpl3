@@ -310,6 +310,8 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain(
       "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND",
     );
+    expect(releaseSmokeSource).toContain("BPL_BUILD_UNSUPPORTED_TARGET");
+    expect(releaseSmokeSource).toContain("mips64-unknown-bpl");
     expect(releaseSmokeSource).toContain("parseBuildFailureReport");
     expect(releaseSmokeSource).toContain("--json");
     expect(releaseSmokeSource).toContain("--emit");

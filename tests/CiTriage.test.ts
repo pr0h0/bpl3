@@ -1490,7 +1490,7 @@ describe("CI triage helper", () => {
               html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/63",
               steps: [
                 {
-                  name: "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND in build --json",
+                  name: "BPL_BUILD_UNSUPPORTED_TARGET in build --json",
                   conclusion: "failure",
                 },
               ],

@@ -3112,7 +3112,7 @@ function runPackedBuildValidationJsonSmoke(installedBpl: string): void {
     join(tmpdir(), "bpl-release-build-validation-json-"),
   );
   const outputPath = join(tempDir, "missing", "build-validation-smoke");
-  const llvmPath = `${outputPath}.ll`;
+  const unsupportedTargetOutputPath = join(tempDir, "unsupported-target-smoke");
 
   try {
     writeFileSync(
@@ -3120,52 +3120,60 @@ function runPackedBuildValidationJsonSmoke(installedBpl: string): void {
       "frame main() ret int { return 0; }\n",
     );
 
-    console.log("release smoke: check packed npm CLI build validation JSON");
-    const result = spawnSync(
-      installedBpl,
-      ["build", "main.bpl", "--json", "--emit", "llvm", "-o", outputPath],
+    const validationCases = [
       {
-        cwd: tempDir,
-        encoding: "utf-8",
-        env: {
-          ...process.env,
-          BPL_HOME: undefined,
-          NO_COLOR: "1",
-        },
-        timeout: smokeTimeoutMs,
+        label: "check packed npm CLI build validation JSON",
+        args: [
+          "build",
+          "main.bpl",
+          "--json",
+          "--emit",
+          "llvm",
+          "-o",
+          outputPath,
+        ],
+        expectedError: "Output directory not found",
+        expectedErrorCode: "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND",
+        forbiddenArtifact: `${outputPath}.ll`,
       },
-    );
+      {
+        label: "check packed npm CLI unsupported target validation JSON",
+        args: [
+          "build",
+          "main.bpl",
+          "--json",
+          "--emit",
+          "llvm",
+          "--target",
+          "mips64-unknown-bpl",
+          "-o",
+          unsupportedTargetOutputPath,
+        ],
+        expectedError: 'Unsupported target triple "mips64-unknown-bpl"',
+        expectedErrorCode: "BPL_BUILD_UNSUPPORTED_TARGET",
+        forbiddenArtifact: `${unsupportedTargetOutputPath}.ll`,
+      },
+    ];
 
-    if (result.error) {
-      throw result.error;
-    }
-    if (result.status !== 1) {
-      throw new Error(
-        [
-          "Packed npm CLI build validation smoke did not fail as expected.",
-          `exit: ${result.status ?? "unknown"}`,
-          `stdout:\n${result.stdout}`,
-          `stderr:\n${result.stderr}`,
-        ].join("\n"),
+    for (const validationCase of validationCases) {
+      const result = runJsonFailureStep(
+        validationCase.label,
+        installedBpl,
+        validationCase.args,
+        { cwd: tempDir, bplHome: null, expectedStatus: 1 },
       );
-    }
-    if (result.stderr !== "") {
-      throw new Error(
-        `Packed npm CLI build validation smoke wrote stderr:\n${result.stderr}`,
-      );
-    }
-
-    const report = parseBuildFailureReport(result.stdout);
-    if (
-      report.success ||
-      report.file !== "main.bpl" ||
-      report.errorCode !== "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND" ||
-      !report.error.includes("Output directory not found") ||
-      existsSync(llvmPath)
-    ) {
-      throw new Error(
-        `Packed npm CLI build validation JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
-      );
+      const report = parseBuildFailureReport(result.stdout);
+      if (
+        report.success ||
+        report.file !== "main.bpl" ||
+        report.errorCode !== validationCase.expectedErrorCode ||
+        !report.error.includes(validationCase.expectedError) ||
+        existsSync(validationCase.forbiddenArtifact)
+      ) {
+        throw new Error(
+          `Packed npm CLI build validation JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+        );
+      }
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

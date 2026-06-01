@@ -68,6 +68,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Completion Target Drift Guard** - Shell completion target triples now come
   from a shared list that is compiled to LLVM metadata in tests, so advertised
   target suggestions cannot drift away from CodeGenerator support.
+- **Packed Target Validation Smoke** - Release smoke now checks that packed
+  `bpl build --json --target mips64-unknown-bpl` preserves
+  `BPL_BUILD_UNSUPPORTED_TARGET`, and CI triage maps that code to local build
+  validation repro commands.
 - **Packed Package Import Diagnostic Smoke** - Release smoke now checks that
   the packed npm CLI preserves package/import JSON diagnostic codes such as
   `BPL_PACKAGE_MANIFEST_MISSING`, with a focused metadata repro command for the
