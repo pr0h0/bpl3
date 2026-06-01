@@ -24,9 +24,10 @@ export type PlaygroundNativeExecutionResult =
       output: string;
     };
 
-function formatTimeoutDuration(timeoutMs: number): string {
+export function formatPlaygroundTimeoutDuration(timeoutMs: number): string {
   if (timeoutMs % 1000 === 0) {
-    return `${timeoutMs / 1000} seconds`;
+    const seconds = timeoutMs / 1000;
+    return seconds === 1 ? "1 second" : `${seconds} seconds`;
   }
 
   return `${timeoutMs}ms`;
@@ -57,7 +58,7 @@ export async function runPlaygroundNativeBinary(
     if (processError.killed) {
       return {
         success: false,
-        error: `Execution timeout (${formatTimeoutDuration(timeoutMs)})`,
+        error: `Execution timeout (${formatPlaygroundTimeoutDuration(timeoutMs)})`,
         output: processError.stdout || "",
       };
     }

@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { runPlaygroundNativeBinary } from "../playground/backend/nativeExecution";
+import {
+  formatPlaygroundTimeoutDuration,
+  runPlaygroundNativeBinary,
+} from "../playground/backend/nativeExecution";
 
 describe("Playground native execution response shaping", () => {
+  test("formats timeout durations for milliseconds and singular or plural seconds", () => {
+    expect(formatPlaygroundTimeoutDuration(25)).toBe("25ms");
+    expect(formatPlaygroundTimeoutDuration(1000)).toBe("1 second");
+    expect(formatPlaygroundTimeoutDuration(2000)).toBe("2 seconds");
+    expect(formatPlaygroundTimeoutDuration(5000)).toBe("5 seconds");
+  });
+
   test("combines stdout and stderr for successful runs", async () => {
     const result = await runPlaygroundNativeBinary(process.execPath, {
       args: [
