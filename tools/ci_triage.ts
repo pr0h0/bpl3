@@ -614,10 +614,31 @@ const INTEGRATION_CONFIG_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN = new RegExp(
+  [
+    "VS Code extension type check",
+    "VS Code extension test type-check",
+    "vscode extension type check",
+    "vscode-ext/src/test/.*TS(?:7006|2307)",
+    "vscode-ext/src/test/.*implicitly has an ['\"]any['\"] type",
+    "vscode-ext/src/test/.*Cannot find module",
+    "vscode-languageserver-textdocument",
+    "npm run compile:test --prefix vscode-ext",
+    "tsconfig\\.test\\.json",
+    "test:vscode-ext",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
   [/^Lint$/i, "bun run lint"],
+  [
+    VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN,
+    "npm run compile:test --prefix vscode-ext",
+  ],
+  [VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN, "npm test --prefix vscode-ext"],
+  [VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN, "bun run check"],
   [/Run Windows-safe codegen tests/i, "bun run test:codegen-cross-platform"],
   [WASM_TOOLCHAIN_STEP_PATTERN, "bun run test:wasm"],
   [WASM_TOOLCHAIN_STEP_PATTERN, "BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],

@@ -54,6 +54,28 @@ describe("CI triage helper", () => {
     ).toEqual(["bun run fuzz:differential"]);
   });
 
+  test("maps VS Code extension type-check failures to focused repro commands", () => {
+    const expectedCommands = [
+      "npm run compile:test --prefix vscode-ext",
+      "npm test --prefix vscode-ext",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("Run VS Code extension type check")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "vscode-ext/src/test/rename.test.ts(726,12): error TS7006: Parameter 'e' implicitly has an 'any' type.",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "Cannot find module 'vscode-languageserver-textdocument' or its corresponding type declarations.",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps wasm linker failure text to focused repro commands", () => {
     const expectedCommands = [
       "bun run test:wasm",
@@ -1658,6 +1680,72 @@ describe("CI triage helper", () => {
       expect(result.stderr).not.toContain("api.github.com");
       expect(result.stdout).toContain("Release CLI registry sync check");
       expect(result.stdout).toContain("bun run release:cli-registry");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints VS Code type-check repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-vscode-ts-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 64,
+              name: "VS Code extension type check",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "vscode-ext/src/test/todo-simple.test.ts(9,30): error TS2307: Cannot find module 'vscode-languageserver-textdocument' or its corresponding type declarations.",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const vscodeJob = report.summary.failedJobs.find(
+        (job) => job.name === "VS Code extension type check",
+      );
+      expect(vscodeJob?.localCommands).toEqual([
+        "npm run compile:test --prefix vscode-ext",
+        "npm test --prefix vscode-ext",
+        "bun run check",
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
