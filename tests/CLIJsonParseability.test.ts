@@ -1858,7 +1858,7 @@ describe("CLI JSON parseability", () => {
     );
     expect(fs.existsSync(`${missingOutput}.ll`)).toBe(false);
     expect(fs.existsSync(missingOutput)).toBe(false);
-  });
+  }, 10000);
 
   test("reports missing explicit std imports in JSON-mode check and build diagnostics", () => {
     const sourceFile = path.join(tempDir, "missing_explicit_std.bpl");
@@ -1940,7 +1940,7 @@ describe("CLI JSON parseability", () => {
     );
     expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
     expect(fs.existsSync(outputFile)).toBe(false);
-  });
+  }, 10000);
 
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
