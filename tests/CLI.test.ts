@@ -714,6 +714,58 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should explain explicit package source-file directory shadows in human diagnostics", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-package-source-shadow-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const packageDir = path.join(tempDir, "bpl_modules", "pkg-math");
+    const shadowDir = path.join(packageDir, "features", "shadow.bpl");
+    fs.mkdirSync(shadowDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "pkg-math",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(shadowDir, "index.bpl"), "export shadow;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import shadow from "pkg-math/features/shadow.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI(["check", sourceFile]);
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(
+        "Module not found: pkg-math/features/shadow.bpl",
+      );
+      expect(result.stderr).toContain(
+        "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+      );
+      expect(result.stderr).toContain(
+        "Import the extensionless directory path to allow index.bpl/index.x fallback",
+      );
+      expect(result.stderr).toContain(shadowDir);
+      expect(result.stderr).toContain("Searched paths:");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
