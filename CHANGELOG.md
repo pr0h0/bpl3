@@ -41,6 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI-Safe Run Locator Discovery Guard** - CI-safe runner tests now assert
   `tests/CiTriage.test.ts` still contains the run-locator usage diagnostic
   regression while remaining part of discovered CI-safe unit coverage.
+- **Release Manifest Usage Diagnostics** - `bun tools/release_manifest.ts`
+  now reports unknown options and missing `--out`/`--repo-root` values as
+  status-2 usage errors before running release manifest or npm pack work.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

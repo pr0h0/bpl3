@@ -57,6 +57,8 @@ interface PackageJson {
   files?: string[];
 }
 
+class CliUsageError extends Error {}
+
 export interface PackageScriptHelperReference {
   scriptName: string;
   helperPath: string;
@@ -512,18 +514,32 @@ function parseArgs(argv: string[]): {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--out" && argv[i + 1]) {
-      outPath = argv[++i]!;
+    if (arg === "--out") {
+      outPath = takeRequiredOptionValue(argv, i, arg);
+      i++;
     } else if (arg === "--pack-npm") {
       packNpm = true;
-    } else if (arg === "--repo-root" && argv[i + 1]) {
-      repoRoot = resolve(argv[++i]!);
+    } else if (arg === "--repo-root") {
+      repoRoot = resolve(takeRequiredOptionValue(argv, i, arg));
+      i++;
     } else {
-      throw new Error(`Unknown release manifest option: ${arg}`);
+      throw new CliUsageError(`Unknown release manifest option: ${arg}`);
     }
   }
 
   return { outPath: resolve(repoRoot, outPath), packNpm, repoRoot };
+}
+
+function takeRequiredOptionValue(
+  argv: string[],
+  index: number,
+  flag: string,
+): string {
+  const value = argv[index + 1];
+  if (!value || value.startsWith("-")) {
+    throw new CliUsageError(`Missing value for ${flag}`);
+  }
+  return value;
 }
 
 if (import.meta.main) {
@@ -564,6 +580,6 @@ if (import.meta.main) {
     console.log(`Release manifest written to ${outPath}`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    process.exit(error instanceof CliUsageError ? 2 : 1);
   }
 }

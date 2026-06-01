@@ -118,6 +118,10 @@ The release check builds and tests the standalone compiler, packed CLI, runtime
 artifacts, wasm runtime shims, shell completions, documentation, example
 configs, and VS Code extension. The manifest command writes
 `dist/release-manifest.json` with SHA-256 checksums for shipped artifacts.
+Release manifest usage errors, such as
+`Unknown release manifest option: --unknown`, `Missing value for --out`, or
+`Missing value for --repo-root`, exit with status 2 before running release
+manifest or npm pack work.
 
 Packed npm helper scripts supported from installed packages:
 

@@ -726,6 +726,14 @@ standalone compiler binary, native and wasm runtime shims, `lib/runtime_support.
 and the packed npm tarball. The npm artifact entry also includes the package
 integrity and shasum values emitted by `npm pack --json`, so downstream release
 jobs can compare the compiler package against the published archive.
+Release manifest usage errors, including
+`Unknown release manifest option: --unknown`, `Missing value for --out`, and
+`Missing value for --repo-root`, exit with status 2 before the helper writes a
+manifest or runs `npm pack`. Focus that contract with:
+
+```bash
+bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors"
+```
 
 For source packages, keep these checks together:
 

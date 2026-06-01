@@ -516,8 +516,12 @@ describe("Markdown documentation", () => {
 
   test("release docs document packed helper support and exclusions", () => {
     const readme = readFileSync("README.md", "utf8");
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
     const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${readme}\n${changelog}`.replace(/\s+/g, " ");
+    const combinedDocs = `${readme}\n${packageDocs}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
     const requiredSnippets = [
       "Packed npm helper scripts supported from installed packages",
       "npm run fuzz:repro -- --help",
@@ -542,6 +546,11 @@ describe("Markdown documentation", () => {
       "Packed package/import diagnostic smoke validates that the installed npm CLI keeps package import JSON diagnostics machine-readable",
       'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       "BPL_PACKAGE_MANIFEST_MISSING",
+      "Release manifest usage errors",
+      "Unknown release manifest option: --unknown",
+      "Missing value for --out",
+      "Missing value for --repo-root",
+      'bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors"',
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);

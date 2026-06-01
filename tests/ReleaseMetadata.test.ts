@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
 import { createHash } from "crypto";
 import {
   existsSync,
@@ -1299,6 +1300,27 @@ describe("Release metadata", () => {
       expect(workflow).toContain("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true");
       expect(workflow).toContain("actions/checkout@v6");
       expect(workflow).not.toContain("actions/checkout@v4");
+    }
+  });
+
+  test("release manifest CLI reports usage errors before running release steps", () => {
+    const cases: Array<[string[], string]> = [
+      [["--unknown"], "Unknown release manifest option: --unknown"],
+      [["--out"], "Missing value for --out"],
+      [["--repo-root"], "Missing value for --repo-root"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["tools/release_manifest.ts", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("npm pack failed");
+      expect(result.stderr).not.toContain("Release manifest written");
     }
   });
 });
