@@ -179,6 +179,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Markdown JSON Code-List Test Helpers** - MarkdownDocs now centralizes
   normalized documentation reads, snippet checks, and JSON code-list coverage
   assertions so future registry guards need less duplicate loop code.
+- **CI Triage Registry Group Decisions** - `ci:triage` now exports and tests an
+  explicit coverage decision for every `CLI_JSON_ERROR_CODE_LISTS` group, so
+  new JSON-code groups must be mapped or intentionally excluded with a reason.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

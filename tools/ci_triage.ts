@@ -90,6 +90,44 @@ const CI_TRIAGE_JSON_CHECK = "ci-triage";
 
 class CliUsageError extends Error {}
 
+export interface CiTriageJsonCodeGroupCoverageDecision {
+  groupName: string;
+  coverage: "mapped" | "excluded";
+  reason: string;
+}
+
+const MAPPED_JSON_CODE_GROUP_NAMES = [
+  "bindgen",
+  "build",
+  "check",
+  "clean",
+  "completion",
+  "docs",
+  "doctor",
+  "format",
+  "lint",
+  "project-new",
+  "package-init",
+  "package-uninstall",
+  "package-cache",
+  "package-install",
+  "package-archive",
+  "package-manifest",
+  "package-resolver",
+  "module-resolver",
+  "run-script",
+  "sanitizer-runtime",
+  "wasm-linker",
+] as const;
+
+export const CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS: readonly CiTriageJsonCodeGroupCoverageDecision[] =
+  MAPPED_JSON_CODE_GROUP_NAMES.map((groupName) => ({
+    groupName,
+    coverage: "mapped",
+    reason:
+      "Group codes are routed to focused local reproduction commands by localCommandsForStep.",
+  }));
+
 const RELEASE_SMOKE_STEP_PATTERN =
   /(?:ReleaseSmoke\.test|release smoke|release:smoke|package import diagnostic code JSON)/i;
 const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(

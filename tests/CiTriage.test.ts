@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import {
+  CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS,
   compareCheckoutToRun,
   formatTriageJsonReport,
   formatTriageSummary,
@@ -761,6 +762,41 @@ describe("CI triage helper", () => {
     }
 
     expect(unmappedCodes).toEqual([]);
+  });
+
+  test("records coverage decisions for each exported JSON error-code group", () => {
+    const registryGroupNames = CLI_JSON_ERROR_CODE_LISTS.map(
+      ({ name }) => name,
+    ).sort();
+    const decisionGroupNames = CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS.map(
+      ({ groupName }) => groupName,
+    ).sort();
+
+    expect(decisionGroupNames).toEqual(registryGroupNames);
+
+    const decisionsByGroup = new Map(
+      CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS.map((decision) => [
+        decision.groupName,
+        decision,
+      ]),
+    );
+
+    for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
+      const decision = decisionsByGroup.get(name);
+
+      expect(decision, `${name} has a triage coverage decision`).toBeDefined();
+      expect(decision?.reason.length ?? 0).toBeGreaterThan(20);
+
+      if (decision?.coverage === "mapped") {
+        const unmappedCodes = codes.filter(
+          (code) => localCommandsForStep(code).length === 0,
+        );
+
+        expect(unmappedCodes, `${name} mapped codes`).toEqual([]);
+      } else {
+        expect(decision?.coverage).toBe("excluded");
+      }
+    }
   });
 
   test("maps wasm runtime execution failures to focused repro commands", () => {

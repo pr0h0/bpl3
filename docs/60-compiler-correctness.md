@@ -153,6 +153,9 @@ The triage mapping is also guarded against the exported JSON error-code
 inventory. New `BPL_*` codes in the CLI registry must map to at least one local
 repro command, including package install option conflicts, direct archive path
 validation, package resolver diagnostics, and wasm linker diagnostics.
+Each registry group also has an explicit triage coverage decision, so a new
+group must either be mapped to focused repro commands or be deliberately
+excluded with a reason in the triage helper tests.
 
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.
 `BPL_RUNTIME_BUILD=release` compiles it with `-O2 -g`.
