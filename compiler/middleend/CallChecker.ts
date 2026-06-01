@@ -6,6 +6,13 @@ import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { TypeUtils } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
+import {
+  CALL_ARGUMENT_COUNT_MISMATCH_CODE,
+  CALL_ARGUMENT_TYPE_MISMATCH_CODE,
+  CALL_TARGET_NOT_CALLABLE_CODE,
+  ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
+  ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
+} from "./TypeCheckerBase";
 
 function withoutAliasShape(type: AST.BasicTypeNode): AST.BasicTypeNode {
   const result = { ...type };
@@ -207,6 +214,7 @@ export function checkCall(
       `Type '${this.typeToString(calleeType)}' is not callable`,
       "Only functions or types with __call__ operator can be called.",
       expr.location,
+      CALL_TARGET_NOT_CALLABLE_CODE,
     );
   }
 
@@ -509,6 +517,7 @@ function handleEnumVariantCall(
             .map((t: AST.TypeNode) => this.typeToString(t))
             .join(", ")})`,
           expr.location,
+          ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
         );
       }
 
@@ -526,6 +535,7 @@ function handleEnumVariantCall(
             )}, got ${this.typeToString(actualType)}`,
             "Check the variant definition and argument types.",
             expr.location,
+            ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
           );
         }
       }
@@ -535,6 +545,7 @@ function handleEnumVariantCall(
       `Unit variant '${variant.name}' does not take any arguments`,
       `Use: ${enumDecl.name}.${variant.name}`,
       expr.location,
+      ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
     );
   }
 
@@ -574,6 +585,7 @@ function validateFunctionCall(
       `Expected ${funcType.paramTypes.length} arguments, got ${expr.args.length}`,
       "Argument count mismatch.",
       expr.location,
+      CALL_ARGUMENT_COUNT_MISMATCH_CODE,
     );
   }
 
@@ -587,6 +599,7 @@ function validateFunctionCall(
         )}, got ${this.typeToString(argType)}`,
         "Ensure argument types match.",
         expr.args[i]!.location,
+        CALL_ARGUMENT_TYPE_MISMATCH_CODE,
       );
     }
   }

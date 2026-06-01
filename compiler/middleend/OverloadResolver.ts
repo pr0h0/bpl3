@@ -6,6 +6,10 @@
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import type { Symbol, SymbolTable } from "./SymbolTable";
+import {
+  CALL_ARGUMENT_COUNT_MISMATCH_CODE,
+  CALL_ARGUMENT_TYPE_MISMATCH_CODE,
+} from "./TypeCheckerBase";
 
 /**
  * Operator to method name mapping for operator overloading
@@ -169,6 +173,7 @@ export class OverloadResolver {
         }.`,
         `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
         location,
+        CALL_ARGUMENT_COUNT_MISMATCH_CODE,
       );
     }
 
@@ -373,6 +378,7 @@ export class OverloadResolver {
         `No matching function for call to '${name}' with provided argument types.`,
         `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
         location,
+        CALL_ARGUMENT_TYPE_MISMATCH_CODE,
       );
     }
 
