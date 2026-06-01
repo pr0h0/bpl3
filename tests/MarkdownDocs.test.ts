@@ -1322,6 +1322,23 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document condition type mismatch diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Condition type mismatch failures use `BPL_CONDITION_TYPE_MISMATCH`",
+      "`If condition must be boolean, got int`",
+      "`Loop condition must be boolean, got int`",
+      "`Ensure the condition evaluates to a boolean.`",
+      "non-boolean `if` and `loop` conditions",
+      'bun test tests/TypeCheckerConditionMismatch.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "condition type mismatch"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

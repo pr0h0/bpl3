@@ -715,6 +715,18 @@ bun test tests/TypeCheckerAssignmentMismatch.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "assignment type mismatch"
 ```
 
+Condition type mismatch failures use `BPL_CONDITION_TYPE_MISMATCH`. This covers
+non-boolean `if` and `loop` conditions. For example, `if (1) { ... }` reports
+`If condition must be boolean, got int`, and `loop (1) { ... }` reports
+`Loop condition must be boolean, got int`. These diagnostics use the hint
+`Ensure the condition evaluates to a boolean.`. Valid boolean conditions remain
+accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerConditionMismatch.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "condition type mismatch"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
