@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Offline Fixture Diagnostics** - `bun run ci:triage -- --jobs-json`
   now reports stable usage errors for missing, malformed, and wrong-shape
   offline GitHub jobs fixtures instead of raw filesystem or JSON parser output.
+- **Packed CI Triage Jobs JSON Smoke** - `tests/ReleaseHelperSmoke.test.ts`
+  now verifies installed-package `ci:triage --jobs-json` diagnostics for
+  missing and malformed offline fixture files without running full release
+  smoke.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

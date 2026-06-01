@@ -174,6 +174,61 @@ describe("Release helper smoke", () => {
       rmSync(tempRoot, { recursive: true, force: true });
     }
   });
+
+  test("prints packed ci:triage jobs-json diagnostics", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-jobs-json-smoke-"),
+    );
+
+    try {
+      const installDir = writePackedHelperInstallFixture(tempRoot, {
+        includePathSafety: true,
+      });
+      const packageDir = join(installDir, "node_modules", "bpl-v3");
+      writeFileSync(join(packageDir, "malformed-jobs.json"), "{bad json");
+
+      const cases: Array<{
+        args: string[];
+        expectedError: string;
+        forbiddenError: string;
+      }> = [
+        {
+          args: ["--jobs-json", "missing-jobs.json", "26695335269"],
+          expectedError:
+            "Unable to read --jobs-json file missing-jobs.json: file does not exist.",
+          forbiddenError: "ENOENT",
+        },
+        {
+          args: ["--jobs-json", "malformed-jobs.json", "26695335269"],
+          expectedError:
+            "Unable to parse --jobs-json file malformed-jobs.json:",
+          forbiddenError: "JSON Parse error",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const result = spawnSync(
+          "npm",
+          ["run", "--silent", "ci:triage", "--", ...testCase.args],
+          {
+            cwd: packageDir,
+            encoding: "utf8",
+            env: { ...process.env, NO_COLOR: "1" },
+            timeout: HELPER_SMOKE_TIMEOUT_MS,
+          },
+        );
+
+        expect(result.status).toBe(2);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain(testCase.expectedError);
+        expect(result.stderr).not.toContain(testCase.forbiddenError);
+        expect(result.stderr).not.toContain("GitHub API");
+        expect(result.stderr).not.toContain("release:smoke");
+      }
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 function writePackedHelperInstallFixture(
