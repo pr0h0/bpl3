@@ -4235,6 +4235,23 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("rejects invalid repo values before GitHub API calls", () => {
+    const result = spawnSync(
+      "bun",
+      ["run", "ci:triage", "--", "--repo", "bad", "26695335269"],
+      {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Expected --repo as owner/name, got bad");
+    expect(result.stderr).not.toContain("GitHub API");
+    expect(result.stderr).not.toContain("api.github.com");
+  });
+
   test("rejects unreadable and malformed jobs-json files before GitHub API calls", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-jobs-json-"));
 

@@ -23,6 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `tests/CiTriage.test.ts` remains in discovered unit-test coverage, and docs
   show the focused offline jobs-json diagnostic command next to `test:ci`
   guidance.
+- **CI Triage Repository Validation** - Invalid `bun run ci:triage -- --repo`
+  values now fail as usage errors before any GitHub API request, with a stable
+  `Expected --repo as owner/name` diagnostic.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

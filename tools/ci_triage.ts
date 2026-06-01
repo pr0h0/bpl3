@@ -1723,7 +1723,7 @@ function isWorkflowRunLike(value: unknown): value is GitHubWorkflowRun {
 function parseRepo(repo: string): [string, string] {
   const [owner, name] = repo.split("/");
   if (!owner || !name) {
-    throw new Error(`Expected repository as owner/name, got ${repo}`);
+    throw new CliUsageError(`Expected --repo as owner/name, got ${repo}`);
   }
   return [owner, name];
 }
