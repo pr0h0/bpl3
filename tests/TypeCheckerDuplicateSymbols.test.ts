@@ -73,6 +73,32 @@ describe("TypeChecker duplicate symbols", () => {
     expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
   });
 
+  test("codes duplicate function parameters as duplicate symbols", () => {
+    const source = `
+      frame pick(value: int, value: int) ret int {
+        return value;
+      }
+    `;
+
+    const error = expectCompilerError(source);
+
+    expect(error.message).toContain("Duplicate parameter name 'value'");
+    expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+  });
+
+  test("codes duplicate generic parameters as duplicate symbols", () => {
+    const source = `
+      frame identity<T, T>(value: T) ret T {
+        return value;
+      }
+    `;
+
+    const error = expectCompilerError(source);
+
+    expect(error.message).toContain("Duplicate generic type parameter 'T'");
+    expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+  });
+
   test("preserves valid function overloads", () => {
     const source = `
       frame pick(value: int) ret int { return value; }

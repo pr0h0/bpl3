@@ -7,7 +7,10 @@ import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
-import { TypeCheckerBase } from "./TypeCheckerBase";
+import {
+  SYMBOL_ALREADY_DEFINED_CODE,
+  TypeCheckerBase,
+} from "./TypeCheckerBase";
 import { KNOWN_TYPES } from "./TypeUtils";
 import { OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
@@ -562,6 +565,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Duplicate generic type parameter '${gp.name}'`,
             `The generic type parameter '${gp.name}' is declared multiple times in function '${decl.name}'.`,
             gp.location || decl.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
           ),
         );
       }
@@ -601,6 +605,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Duplicate parameter name '${param.name}'`,
             `The parameter '${param.name}' is declared multiple times in function '${decl.name}'.`,
             param.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
           ),
         );
       }
@@ -1117,6 +1122,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Duplicate generic type parameter '${gp.name}'`,
             `The generic type parameter '${gp.name}' is declared multiple times in struct '${decl.name}'.`,
             gp.location || decl.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
           ),
         );
       }
@@ -1335,6 +1341,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Duplicate generic type parameter '${gp.name}'`,
             `The generic type parameter '${gp.name}' is declared multiple times in enum '${decl.name}'.`,
             gp.location || decl.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
           ),
         );
       }
