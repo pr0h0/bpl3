@@ -735,6 +735,9 @@ function resolvePackageSourcePath(
   }
 
   const directStats = tryLstat(filePath);
+  if (!directStats) {
+    addEntryCandidate(trace, filePath);
+  }
   if (directStats) {
     if (directStats.isSymbolicLink()) {
       addEntryCandidate(trace, filePath);

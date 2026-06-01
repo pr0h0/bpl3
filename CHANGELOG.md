@@ -617,6 +617,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Resolver Candidate Traces** - Package import diagnostics now keep
   missing explicit `.bpl` and `.x` entrypoint/subpath candidates de-duplicated
   while preserving first-seen ordering.
+- **Package Resolver Extension Trace Ordering** - Extensionless package
+  entrypoint and subpath failures now list the exact requested path before
+  `.bpl` and `.x` fallback candidates.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.

@@ -379,6 +379,39 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("records extensionless package source candidates in probe order", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "missing" }),
+    );
+
+    const cases = [
+      {
+        name: "extensionless entrypoint",
+        details: resolvePackageImport("math", appDir),
+        baseCandidate: path.join(packageDir, "missing"),
+      },
+      {
+        name: "extensionless subpath",
+        details: resolvePackageImport("math/features/missing", appDir),
+        baseCandidate: path.join(featureDir, "missing"),
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      expect(testCase.details.result, testCase.name).toBeNull();
+      expect(testCase.details.trace.entryCandidates, testCase.name).toEqual([
+        testCase.baseCandidate,
+        `${testCase.baseCandidate}.bpl`,
+        `${testCase.baseCandidate}.x`,
+      ]);
+    }
+  });
+
   test("rejects invalid package import names before searching", () => {
     const appDir = path.join(tempDir, "app");
     fs.mkdirSync(path.join(appDir, "bpl_modules", "bad_name"), {
