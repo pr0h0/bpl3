@@ -1949,6 +1949,108 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports stdlib package-name collisions in JSON-mode check and build diagnostics", () => {
+    const homeDir = path.join(tempDir, "home");
+    const globalPackageDir = path.join(homeDir, ".bpl", "packages");
+    const mismatchedPackageDir = path.join(globalPackageDir, "Math-9.0.0");
+    const lowerPackageDir = path.join(globalPackageDir, "math-1.0.0");
+    const sourceFile = path.join(tempDir, "stdlib_package_collision.bpl");
+    const outputFile = path.join(tempDir, "stdlib-package-collision-app");
+    const entrySource = [
+      "frame packageMath() ret int {",
+      "    return 9;",
+      "}",
+      "export packageMath;",
+    ].join("\n");
+    writePackageFixture(mismatchedPackageDir, {
+      name: "math",
+      version: "9.0.0",
+      entrySource,
+    });
+    writePackageFixture(lowerPackageDir, {
+      name: "math",
+      version: "1.0.0",
+      entrySource,
+    });
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import packageMath from "math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile], {
+      env: { HOME: homeDir, USERPROFILE: homeDir },
+    });
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile);
+    expect(checkDiagnostic.code).not.toBe("BPL_PACKAGE_ROOT_CASE_MISMATCH");
+    expect(checkDiagnostic.source?.preview).toContain(
+      'import packageMath from "math";',
+    );
+    expect(checkDiagnostic.message).toContain(
+      "Module 'math' does not export 'packageMath'",
+    );
+    expect(checkDiagnostic.message).not.toContain(mismatchedPackageDir);
+    expect(checkDiagnostic.hint).toContain("Ensure the symbol is exported");
+    expect(checkDiagnostic.hint).not.toContain("package root casing");
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile], {
+      env: { HOME: homeDir, USERPROFILE: homeDir },
+    });
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [
+        {
+          location: {
+            file: sourceFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(buildReport.diagnostics[0]?.code).not.toBe(
+      "BPL_PACKAGE_ROOT_CASE_MISMATCH",
+    );
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Module 'math' does not export 'packageMath'",
+    );
+    expect(buildReport.diagnostics[0]?.message).not.toContain(
+      mismatchedPackageDir,
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Ensure the symbol is exported",
+    );
+    expect(buildReport.diagnostics[0]?.hint).not.toContain(
+      "package root casing",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
