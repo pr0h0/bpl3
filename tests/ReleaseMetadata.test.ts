@@ -32,6 +32,13 @@ function releaseSmokeSource(): string {
   );
 }
 
+function releaseSmokeTestSource(): string {
+  return readFileSync(
+    join(import.meta.dir, "ReleaseSmoke.test.ts"),
+    "utf8",
+  );
+}
+
 function expectSourceContainsSnippets(
   sourceLabel: string,
   source: string,
@@ -55,6 +62,14 @@ function expectReleaseSmokeSourceContains(snippets: readonly string[]): void {
   expectSourceContainsSnippets(
     "tools/release_smoke.ts",
     releaseSmokeSource(),
+    snippets,
+  );
+}
+
+function expectReleaseSmokeTestSourceContains(snippets: readonly string[]): void {
+  expectSourceContainsSnippets(
+    "tests/ReleaseSmoke.test.ts",
+    releaseSmokeTestSource(),
     snippets,
   );
 }
@@ -459,6 +474,13 @@ describe("Release metadata", () => {
       "pkg-math/features/increment",
       '["check", "--json", "main.bpl"]',
       "parseCheckReport",
+    ]);
+  });
+
+  test("release smoke stdout guards packed package subpath import labels", () => {
+    expectReleaseSmokeTestSourceContains([
+      "release smoke: check packed npm CLI package explicit source import JSON",
+      "release smoke: check packed npm CLI package directory index import JSON",
     ]);
   });
 
