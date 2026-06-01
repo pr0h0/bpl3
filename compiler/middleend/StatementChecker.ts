@@ -9,7 +9,11 @@ import { INTEGER_TYPES } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
 import {
+  BREAK_OUTSIDE_CONTEXT_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
+  CONTINUE_OUTSIDE_LOOP_CODE,
+  DEFER_RETURN_VALUE_INVALID_CODE,
+  FALLTHROUGH_OUTSIDE_SWITCH_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
@@ -416,6 +420,7 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
         "Return with value not allowed in defer block",
         "Defer blocks must return void. Use 'return;' to exit the defer block early.",
         stmt.location,
+        DEFER_RETURN_VALUE_INVALID_CODE,
       );
     }
     return;
@@ -650,6 +655,7 @@ export function checkBreak(this: CheckerContext, stmt: AST.BreakStmt): void {
       "'break' statement outside of loop or switch",
       "Break statements can only be used inside loops or switch statements.",
       stmt.location,
+      BREAK_OUTSIDE_CONTEXT_CODE,
     );
   }
 }
@@ -666,6 +672,7 @@ export function checkFallthrough(
       "'fallthrough' statement outside of switch",
       "Fallthrough statements can only be used inside switch statements.",
       stmt.location,
+      FALLTHROUGH_OUTSIDE_SWITCH_CODE,
     );
   }
 }
@@ -682,6 +689,7 @@ export function checkContinue(
       "'continue' statement outside of loop",
       "Continue statements can only be used inside loops.",
       stmt.location,
+      CONTINUE_OUTSIDE_LOOP_CODE,
     );
   }
 }
