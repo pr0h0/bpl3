@@ -17,6 +17,25 @@ export interface RunProcessResult {
   timedOut: boolean;
 }
 
+export interface IntegrationCommandContext {
+  example: string;
+  command: string;
+  args: string[];
+  stdout: string;
+  stderr: string;
+}
+
+export interface IntegrationExitCodeMismatch
+  extends IntegrationCommandContext {
+  expectedStatus: number;
+  actualStatus: number | null;
+  signal: NodeJS.Signals | null;
+}
+
+export interface IntegrationTimeout extends IntegrationCommandContext {
+  timeoutMs: number;
+}
+
 export function createLimiter(maxConcurrent: number) {
   const limit = Math.max(1, Math.floor(maxConcurrent));
   const queue: Array<() => void> = [];
@@ -45,6 +64,52 @@ export function createLimiter(maxConcurrent: number) {
       drain();
     });
   };
+}
+
+export function formatIntegrationExitCodeMismatch(
+  options: IntegrationExitCodeMismatch,
+): string {
+  return [
+    `Example "${options.example}" failed with an unexpected exit status.`,
+    `Expected exit status: ${options.expectedStatus}`,
+    `Actual exit status: ${formatProcessStatus(options.actualStatus)}`,
+    ...(options.signal ? [`Signal: ${options.signal}`] : []),
+    `Command: ${formatCommand(options.command, options.args)}`,
+    formatStreamSection("stdout", options.stdout),
+    formatStreamSection("stderr", options.stderr),
+  ].join("\n");
+}
+
+export function formatIntegrationTimeout(
+  options: IntegrationTimeout,
+): string {
+  return [
+    `Example "${options.example}" timed out after ${options.timeoutMs}ms.`,
+    `Command: ${formatCommand(options.command, options.args)}`,
+    formatStreamSection("stdout", options.stdout),
+    formatStreamSection("stderr", options.stderr),
+  ].join("\n");
+}
+
+function formatProcessStatus(status: number | null): string {
+  return status === null ? "null" : String(status);
+}
+
+function formatStreamSection(label: "stdout" | "stderr", value: string): string {
+  const trimmed = value.trimEnd();
+  return `${label}:\n${trimmed.length > 0 ? trimmed : "(empty)"}`;
+}
+
+function formatCommand(command: string, args: string[]): string {
+  return [command, ...args].map(formatCommandArg).join(" ");
+}
+
+function formatCommandArg(arg: string): string {
+  if (arg.length > 0 && /^[A-Za-z0-9_./:@%+=,-]+$/.test(arg)) {
+    return arg;
+  }
+
+  return JSON.stringify(arg);
 }
 
 function getDefaultIntegrationJobs(): number {

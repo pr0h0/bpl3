@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Integration Failure Diagnostics** - Example exit-code mismatches and
+  timeouts now include the example name, expected and actual status where
+  applicable, command line, stdout, and stderr so CI logs are actionable without
+  a local rerun.
 - **Import Handler Std Fallback Drift** - The TypeChecker import fallback now
   mirrors `ModuleResolver` for explicit `std/` and `std\` paths, including
   backslash subpaths, unsafe segment rejection, and the shared

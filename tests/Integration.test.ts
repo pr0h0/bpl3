@@ -5,6 +5,8 @@ import * as os from "os";
 import * as path from "path";
 import {
   createLimiter,
+  formatIntegrationExitCodeMismatch,
+  formatIntegrationTimeout,
   getIntegrationJobs,
   runProcess,
 } from "./helpers/integrationRunner";
@@ -178,29 +180,27 @@ describe("Integration Tests", () => {
           // Prepare command
           // Use the same CLI path as cmp.sh, but run it asynchronously so examples can overlap.
           const artifactOutputPath = prepareExampleArtifactOutput(example);
+          const command = process.execPath;
+          const args = [
+            BPL_CLI,
+            "-o",
+            artifactOutputPath,
+            "run",
+            relativeMainFile,
+            ...(config.args || []),
+          ];
           const result = await (async () => {
             try {
               return await runLimited(() =>
-                runProcess(
-                  process.execPath,
-                  [
-                    BPL_CLI,
-                    "-o",
-                    artifactOutputPath,
-                    "run",
-                    relativeMainFile,
-                    ...(config.args || []),
-                  ],
-                  {
-                    env: {
-                      ...process.env,
-                      BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
-                      ...(config.env || {}),
-                    },
-                    input: config.input || "",
-                    timeout,
+                runProcess(command, args, {
+                  env: {
+                    ...process.env,
+                    BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
+                    ...(config.env || {}),
                   },
-                ),
+                  input: config.input || "",
+                  timeout,
+                }),
               );
             } finally {
               cleanupExampleArtifactOutput(artifactOutputPath);
@@ -210,7 +210,14 @@ describe("Integration Tests", () => {
           const output = result.stdout + result.stderr;
           if (result.timedOut) {
             throw new Error(
-              `Example "${example}" timed out after ${timeout}ms\n${output}`,
+              formatIntegrationTimeout({
+                example,
+                timeoutMs: timeout,
+                command,
+                args,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }),
             );
           }
 
@@ -219,7 +226,20 @@ describe("Integration Tests", () => {
           // But if compilation fails, it returns 1.
           // We assume the example should compile and run successfully (exit code 0) unless specified otherwise in config
           const exitCode = config.exitCode !== undefined ? config.exitCode : 0;
-          expect(result.status).toBe(exitCode);
+          if (result.status !== exitCode) {
+            throw new Error(
+              formatIntegrationExitCodeMismatch({
+                example,
+                expectedStatus: exitCode,
+                actualStatus: result.status,
+                signal: result.signal,
+                command,
+                args,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }),
+            );
+          }
 
           // Check output
           // cmp.sh appends "Program exited with code X"
