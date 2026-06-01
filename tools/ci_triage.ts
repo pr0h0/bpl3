@@ -263,6 +263,11 @@ const DUPLICATE_SYMBOL_STEP_PATTERN = new RegExp(
     "duplicate symbol",
     "duplicate top-level symbols",
     "duplicate function signatures",
+    "duplicate function parameters",
+    "duplicate generic parameters",
+    "Duplicate parameter name",
+    "Duplicate generic type parameter",
+    "declared multiple times in function",
     "already defined in this scope",
     "with this signature is already defined",
     "Overloads must have different parameter types",
@@ -902,7 +907,7 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [
     DUPLICATE_SYMBOL_STEP_PATTERN,
-    'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures|duplicate top-level symbols"',
+    'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols"',
   ],
   [
     DUPLICATE_SYMBOL_STEP_PATTERN,

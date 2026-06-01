@@ -505,7 +505,7 @@ describe("CI triage helper", () => {
   test("maps duplicate-symbol diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
-      'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures|duplicate top-level symbols"',
+      'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols"',
       'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
       "bun run check",
     ];
@@ -516,8 +516,13 @@ describe("CI triage helper", () => {
       "Rename this struct or remove the earlier type alias declaration.",
       "Function 'pick' with this signature is already defined.",
       "Overloads must have different parameter types.",
+      "Duplicate parameter name 'value'",
+      "Duplicate generic type parameter 'T'",
+      "declared multiple times in function 'pick'",
       "reports duplicate top-level symbols in JSON-mode check and build diagnostics",
       "reports duplicate function signatures in JSON-mode check and build diagnostics",
+      "reports duplicate function parameters in JSON-mode check and build diagnostics",
+      "reports duplicate generic parameters in JSON-mode check and build diagnostics",
       "docs document duplicate-symbol diagnostic codes",
     ]) {
       expect(localCommandsForStep(stepName), stepName).toEqual(
@@ -2903,7 +2908,7 @@ describe("CI triage helper", () => {
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
-        'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures|duplicate top-level symbols"',
+        'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols"',
         'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
         "bun run check",
       ]);
@@ -2969,7 +2974,73 @@ describe("CI triage helper", () => {
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
-        'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures|duplicate top-level symbols"',
+        'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols"',
+        'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints duplicate parameter repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-duplicate-parameter-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 86,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/86",
+              steps: [
+                {
+                  name: "Duplicate parameter name 'value'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols"',
         'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
         "bun run check",
       ]);
