@@ -135,10 +135,11 @@ bun run release:check
 bun run release:manifest
 ```
 
-`release:check` validates the standalone compiler, packed npm CLI, runtime
-artifacts, shell completions, and VS Code language-server tests. The manifest
-step writes `dist/release-manifest.json` with SHA-256 hashes for the shipped
-compiler and runtime files.
+`release:check` type-checks the TypeScript code, verifies the generated
+`bpl-v3/cli` JSON registry shim is in sync, validates the standalone compiler,
+packed npm CLI, runtime artifacts, shell completions, and VS Code
+language-server tests. The manifest step writes `dist/release-manifest.json`
+with SHA-256 hashes for the shipped compiler and runtime files.
 
 ## Editor Setup
 

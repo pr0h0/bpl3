@@ -60,6 +60,9 @@ describe("Release metadata", () => {
     );
     expect(packageJson.scripts["release:check"]).toContain("bun run check");
     expect(packageJson.scripts["release:check"]).toContain(
+      "bun run release:cli-registry",
+    );
+    expect(packageJson.scripts["release:check"]).toContain(
       "tests/ReleaseMetadata.test.ts",
     );
     expect(packageJson.scripts["release:check"]).toContain(
@@ -70,6 +73,9 @@ describe("Release metadata", () => {
     );
     expect(packageJson.scripts["release:smoke"]).toBe(
       "bun tools/release_smoke.ts",
+    );
+    expect(packageJson.scripts["release:cli-registry"]).toBe(
+      "bun tools/cli_json_registry_shim.ts --check",
     );
     expect(packageJson.scripts["release:manifest"]).toBe(
       "bun tools/release_manifest.ts --out dist/release-manifest.json --pack-npm",
@@ -91,6 +97,7 @@ describe("Release metadata", () => {
       ["fuzz:promote", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
+      ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
     ]);
 
     expect(packageJson.files).toContain("tools");
@@ -124,12 +131,14 @@ describe("Release metadata", () => {
       ["fuzz:promote", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
+      ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
       ["release:manifest", "tools/release_manifest.ts"],
       ["release:smoke", "tools/release_smoke.ts"],
     ]);
 
     expect(discoverPackageScriptHelperFiles(repoRoot)).toEqual([
       "tools/ci_triage.ts",
+      "tools/cli_json_registry_shim.ts",
       "tools/fuzz_artifact_repro.ts",
       "tools/fuzz_script_wrapper.ts",
       "tools/release_manifest.ts",
@@ -759,6 +768,9 @@ describe("Release metadata", () => {
     );
     expect(packageJson.scripts["test:ci"]).not.toContain(
       "! -name 'ReleaseHelperSmoke.test.ts'",
+    );
+    expect(packageJson.scripts["release:check"]).toContain(
+      "bun run release:cli-registry",
     );
     expect(packageJson.scripts["release:check"]).toContain(
       "bun run release:smoke",

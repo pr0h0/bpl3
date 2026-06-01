@@ -281,6 +281,9 @@ describe("GitHub Actions workflows", () => {
       "bun tools/release_smoke.ts",
     );
     expect(packageJson.scripts["release:check"]).toContain(
+      "bun run release:cli-registry",
+    );
+    expect(packageJson.scripts["release:check"]).toContain(
       "bun run release:smoke",
     );
 

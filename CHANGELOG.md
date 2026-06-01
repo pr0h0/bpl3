@@ -203,6 +203,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Integration Example Artifact Isolation** - Integration example runs now
   pass a temporary `-o` output path to `bpl run`, keeping package dependency
   example binaries and LLVM IR outside the tracked `examples/` tree.
+- **Release CLI Registry Sync Gate** - `release:check` now runs
+  `bun run release:cli-registry`, which verifies the generated packed
+  `bpl-v3/cli` registry shim and declarations before release smoke starts.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.
