@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   duplicate generic parameters now use the same stable code. Duplicate struct
   fields and duplicate enum variants are covered by the same code in compiler
   errors and CLI JSON diagnostics.
+- **Recursive Type-Cycle Diagnostic Code** - Recursive struct field cycles,
+  recursive enum variant cycles, self-inheritance, and circular inheritance now
+  report `BPL_TYPE_RECURSION_CYCLE` in compiler errors, `bpl check --json`,
+  `bpl build --json`, and the public CLI JSON error-code registry.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

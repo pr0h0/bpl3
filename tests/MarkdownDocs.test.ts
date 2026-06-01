@@ -1185,6 +1185,25 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document recursive type-cycle diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Recursive type cycles use `BPL_TYPE_RECURSION_CYCLE`",
+      "`Struct 'Node' has infinite size due to recursive field types`",
+      "`Enum 'Tree' has infinite size due to recursive variant types`",
+      "`Struct 'Loop' cannot inherit from itself`",
+      "`Circular inheritance detected`",
+      "`Recursive cycle detected: Node -> Node`",
+      "`Inheritance cycle: A -> B -> A`",
+      'bun test tests/TypeCheckerRecursiveTypes.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

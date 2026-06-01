@@ -610,6 +610,21 @@ Duplicate struct fields and duplicate enum variants also use
 `Duplicate enum variant 'Red' in enum 'Color'`. Reproduce the JSON contracts with
 `bun test tests/CLIJsonParseability.test.ts -t "duplicate struct fields|duplicate enum variants"`.
 
+Recursive type cycles use `BPL_TYPE_RECURSION_CYCLE`. This covers infinite-size
+struct field cycles such as `Struct 'Node' has infinite size due to recursive
+field types`, infinite-size enum variant cycles such as `Enum 'Tree' has
+infinite size due to recursive variant types`, self-inheritance such as
+`Struct 'Loop' cannot inherit from itself`, and multi-struct inheritance cycles
+such as `Circular inheritance detected`. Hints include the concrete cycle, such
+as `Recursive cycle detected: Node -> Node` or
+`Inheritance cycle: A -> B -> A`. Reproduce the type-checker and JSON contracts
+with:
+
+```bash
+bun test tests/TypeCheckerRecursiveTypes.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
