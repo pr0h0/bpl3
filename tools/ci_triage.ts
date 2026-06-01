@@ -351,6 +351,15 @@ const ARRAY_SIZE_INVALID_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const RETURN_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
+  [
+    "BPL_RETURN_TYPE_MISMATCH",
+    "return type mismatch",
+    "Return type mismatch: expected",
+    "Ensure the returned value matches the function's return type",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1068,6 +1077,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "invalid fixed array size"',
   ],
   [ARRAY_SIZE_INVALID_STEP_PATTERN, "bun run check"],
+  [
+    RETURN_TYPE_MISMATCH_STEP_PATTERN,
+    "bun test tests/TypeCheckerReturnTypeMismatch.test.ts",
+  ],
+  [
+    RETURN_TYPE_MISMATCH_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "return type mismatch"',
+  ],
+  [
+    RETURN_TYPE_MISMATCH_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "return type mismatch"',
+  ],
+  [RETURN_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
