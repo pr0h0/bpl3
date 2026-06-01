@@ -1142,6 +1142,9 @@ describe("Markdown documentation", () => {
       "bun test tests/PackageJsonFailureContracts.test.ts",
       "Release registry sync failures map to `bun run release:cli-registry`",
       "Use `bun run release:cli-registry` before broader release smoke when `ci:triage` reports a stale CLI registry shim",
+      "No focused local repro command matched this job",
+      "Inspect the failed step logs",
+      "add a ci:triage mapping when the failure pattern is recurring",
       "When the scheduled `Compiler Fuzz` workflow fails",
       "bun run fuzz:repro -- fuzz/crashes",
     ];

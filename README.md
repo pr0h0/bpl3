@@ -882,6 +882,9 @@ bun test tests/ReleaseHelperSmoke.test.ts
 
 # Summarize a GitHub Actions run and print local repro commands for failed steps.
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
+# If a failed job prints "No focused local repro command matched this job",
+# inspect the failed step logs and add a ci:triage mapping when the failure
+# pattern is recurring.
 # Print versioned JSON from a saved GitHub jobs API response without network.
 bun run ci:triage -- --json --jobs-json jobs.json <run-id>
 # Print CI triage usage without making a GitHub API request.

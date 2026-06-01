@@ -81,6 +81,10 @@ instead of calling the network:
 bun run ci:triage -- --json --jobs-json jobs.json <run-id>
 ```
 
+When text triage output says `No focused local repro command matched this job`:
+Inspect the failed step logs first, and add a ci:triage mapping when the failure
+pattern is recurring so future runs print a focused local command.
+
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
 suite, the CI-required linker mode, and the local doctor report command. When
 no linker is installed, optional local runs report an optional prerequisite
