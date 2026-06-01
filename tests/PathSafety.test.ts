@@ -4,6 +4,7 @@ import * as os from "os";
 import * as path from "path";
 
 import {
+  findCaseMismatchPath,
   findNonDirectoryPathComponent,
   findSymlinkedParentPath,
   findSymlinkedPathComponent,
@@ -58,6 +59,30 @@ describe("Path safety helpers", () => {
       ).toBe(fileParent);
       expect(
         findNonDirectoryPathComponent(path.join(tempDir, "missing", "child")),
+      ).toBeNull();
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("finds existing paths that differ only by filesystem casing", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-path-safety-"));
+    const realDir = path.join(tempDir, "ActualDir");
+    const realFile = path.join(realDir, "Module.bpl");
+
+    try {
+      fs.mkdirSync(realDir, { recursive: true });
+      fs.writeFileSync(realFile, "export value;");
+
+      expect(findCaseMismatchPath(realFile)).toBeNull();
+      expect(
+        findCaseMismatchPath(path.join(tempDir, "actualdir", "Module.bpl")),
+      ).toBe(realDir);
+      expect(
+        findCaseMismatchPath(path.join(tempDir, "ActualDir", "module.bpl")),
+      ).toBe(realFile);
+      expect(
+        findCaseMismatchPath(path.join(tempDir, "missing", "module.bpl")),
       ).toBeNull();
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

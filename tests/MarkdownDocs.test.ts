@@ -12,6 +12,7 @@ import {
   IMPORT_STD_PATH_UNSAFE_CODE,
   MODULE_FILE_NOT_FOUND_CODE,
   MODULE_NOT_FOUND_CODE,
+  MODULE_PATH_CASE_MISMATCH_CODE,
   MODULE_PATH_NOT_FILE_CODE,
   MODULE_PATH_SYMLINK_CODE,
 } from "../compiler/middleend/ModuleResolver";
@@ -788,6 +789,9 @@ describe("Markdown documentation", () => {
       "unsafe `main` values report `unsafe entrypoint`",
       "symlinked entrypoint files report `entrypoint resolves to a symbolic link candidate`",
       "symlinked subpath parents report `subpath 'features/add' resolves to a symbolic link candidate`",
+      "case-insensitive development machines cannot silently accept an import that fails on Linux",
+      "Package search directories, package roots, manifests, entrypoints, and subpaths also reject case-only filesystem mismatches",
+      "use exact filesystem casing",
     ];
 
     for (const snippet of requiredSnippets) {
@@ -813,7 +817,25 @@ describe("Markdown documentation", () => {
         packageTrace("manifest-invalid", "package root is not a directory"),
       ),
       getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "package search directory casing does not match filesystem",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "package root casing does not match filesystem",
+        ),
+      ),
+      getPackageResolutionFailureCode(
         packageTrace("manifest-invalid", "missing bpl.json"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "manifest path casing does not match filesystem",
+        ),
       ),
       getPackageResolutionFailureCode(
         packageTrace("manifest-invalid", "invalid bpl.json"),
@@ -829,8 +851,20 @@ describe("Markdown documentation", () => {
       ),
       getPackageResolutionFailureCode(
         packageTrace(
+          "entrypoint-not-found",
+          "entrypoint casing does not match filesystem",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
           "subpath-not-found",
           "subpath 'features/add' resolves to a symbolic link candidate",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "subpath-not-found",
+          "subpath 'features/add' casing does not match filesystem",
         ),
       ),
     ].filter((code): code is string => typeof code === "string");
@@ -838,11 +872,16 @@ describe("Markdown documentation", () => {
     expect(expectedCodes).toEqual([
       "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
       "BPL_PACKAGE_ROOT_NOT_DIRECTORY",
+      "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
+      "BPL_PACKAGE_ROOT_CASE_MISMATCH",
       "BPL_PACKAGE_MANIFEST_MISSING",
+      "BPL_PACKAGE_MANIFEST_CASE_MISMATCH",
       "BPL_PACKAGE_MANIFEST_INVALID",
       "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
       "BPL_PACKAGE_ENTRYPOINT_SYMLINK",
+      "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH",
       "BPL_PACKAGE_SUBPATH_SYMLINK",
+      "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
     ]);
 
     for (const code of expectedCodes) {
@@ -865,6 +904,7 @@ describe("Markdown documentation", () => {
       MODULE_FILE_NOT_FOUND_CODE,
       MODULE_PATH_NOT_FILE_CODE,
       MODULE_PATH_SYMLINK_CODE,
+      MODULE_PATH_CASE_MISMATCH_CODE,
       IMPORT_STD_PATH_UNSAFE_CODE,
     ];
 
@@ -876,6 +916,9 @@ describe("Markdown documentation", () => {
     );
     expect(combinedDocs).toContain(
       "unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`",
+    );
+    expect(combinedDocs).toContain(
+      "Use the exact filesystem casing in imports",
     );
   });
 

@@ -58,6 +58,37 @@ export function findNonDirectoryPathComponent(targetPath: string): string | null
   return null;
 }
 
+export function findCaseMismatchPath(targetPath: string): string | null {
+  const absolutePath = path.resolve(targetPath);
+  const rootPath = path.parse(absolutePath).root;
+  const components = path
+    .relative(rootPath, absolutePath)
+    .split(/[\\/]+/)
+    .filter(Boolean);
+  let currentPath = rootPath;
+
+  for (const component of components) {
+    const entries = tryReadDirectory(currentPath);
+    if (!entries) return null;
+
+    if (entries.includes(component)) {
+      currentPath = path.join(currentPath, component);
+      continue;
+    }
+
+    const actualEntry = entries.find(
+      (entry) => entry.toLowerCase() === component.toLowerCase(),
+    );
+    if (actualEntry) {
+      return path.join(currentPath, actualEntry);
+    }
+
+    return null;
+  }
+
+  return null;
+}
+
 function pathComponents(absolutePath: string): string[] {
   const rootPath = path.parse(absolutePath).root;
   const components = path
@@ -115,6 +146,23 @@ function getTrustedPlatformSymlinkRoots(): readonly TrustedSymlinkRoot[] {
 function tryLstat(filePath: string): fs.Stats | null {
   try {
     return fs.lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function tryReadDirectory(directoryPath: string): string[] | null {
+  try {
+    return fs.readdirSync(directoryPath);
   } catch (error) {
     if (
       error &&

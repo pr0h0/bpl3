@@ -2,6 +2,8 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { findCaseMismatchPath } from "../common/PathSafety";
+
 export type PackageResolutionSource = "local" | "workspace" | "global";
 
 export type PackageResolutionFailureReason =
@@ -56,6 +58,7 @@ interface VersionedPackageRootCandidate extends PackageRootCandidate {
 
 type PackageRootCandidateClassification =
   | { status: "missing"; rootPath: string }
+  | { status: "case-mismatch"; rootPath: string; actualPath: string }
   | { status: "symlink"; rootPath: string }
   | { status: "non-directory"; rootPath: string }
   | { status: "directory"; rootPath: string };
@@ -159,6 +162,9 @@ export function formatPackageResolutionHint(
 
   if (primary?.failureMessage) {
     lines.push(primary.failureMessage);
+    if (primary.failureMessage.includes("casing does not match filesystem")) {
+      lines.push("Use the exact filesystem casing shown in the diagnostic.");
+    }
   } else {
     lines.push("Check if the module is installed or the import path is correct.");
   }
@@ -201,14 +207,26 @@ export function getPackageResolutionFailureCode(
     case "package-not-found":
       return "BPL_PACKAGE_NOT_FOUND";
     case "entrypoint-not-found":
+      if (message.includes("entrypoint casing does not match")) {
+        return "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH";
+      }
       return message.includes("symbolic link candidate")
         ? "BPL_PACKAGE_ENTRYPOINT_SYMLINK"
         : "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND";
     case "subpath-not-found":
+      if (message.includes("casing does not match")) {
+        return "BPL_PACKAGE_SUBPATH_CASE_MISMATCH";
+      }
       return message.includes("symbolic link candidate")
         ? "BPL_PACKAGE_SUBPATH_SYMLINK"
         : "BPL_PACKAGE_SUBPATH_NOT_FOUND";
     case "manifest-invalid":
+      if (message.includes("package search directory casing does not match")) {
+        return "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH";
+      }
+      if (message.includes("package root casing does not match")) {
+        return "BPL_PACKAGE_ROOT_CASE_MISMATCH";
+      }
       if (message.includes("package search directory is a symbolic link")) {
         return "BPL_PACKAGE_SEARCH_DIR_SYMLINK";
       }
@@ -223,6 +241,9 @@ export function getPackageResolutionFailureCode(
       }
       if (message.includes("manifest path is a symbolic link")) {
         return "BPL_PACKAGE_MANIFEST_SYMLINK";
+      }
+      if (message.includes("manifest path casing does not match")) {
+        return "BPL_PACKAGE_MANIFEST_CASE_MISMATCH";
       }
       if (message.includes("manifest path is not a file")) {
         return "BPL_PACKAGE_MANIFEST_NOT_FILE";
@@ -264,6 +285,16 @@ function resolvePackageFromBaseDir(
   const packageName = parts[0]!;
   trace.searchedPaths.push(baseDir);
 
+  const baseDirCaseMismatch = findCaseMismatchPath(baseDir);
+  if (baseDirCaseMismatch) {
+    failOnCaseMismatchedPackageSearchDirectory(
+      baseDir,
+      baseDirCaseMismatch,
+      trace,
+    );
+    return null;
+  }
+
   const baseStats = tryLstat(baseDir);
   if (baseStats?.isSymbolicLink()) {
     failOnSymlinkedPackageSearchDirectory(baseDir, trace);
@@ -283,6 +314,15 @@ function resolvePackageFromBaseDir(
 
     const classification = classifyPackageRootCandidate(packageRoot);
     if (classification.status === "missing") continue;
+    if (classification.status === "case-mismatch") {
+      trace.foundPackageRoot = classification.actualPath;
+      failOnCaseMismatchedPackageRoot(
+        classification.rootPath,
+        classification.actualPath,
+        trace,
+      );
+      return null;
+    }
     if (classification.status === "symlink") {
       trace.foundPackageRoot = classification.rootPath;
       failOnSymlinkedPackageRoot(classification.rootPath, trace);
@@ -299,6 +339,16 @@ function resolvePackageFromBaseDir(
     }
     const packageRootPath = classification.rootPath;
     const manifestPath = path.join(packageRootPath, "bpl.json");
+    const manifestCaseMismatchPath = findCaseMismatchPath(manifestPath);
+    if (manifestCaseMismatchPath) {
+      trace.foundPackageRoot = packageRootPath;
+      failOnCaseMismatchedPackageManifest(
+        manifestPath,
+        manifestCaseMismatchPath,
+        trace,
+      );
+      return null;
+    }
     if (!tryLstat(manifestPath)) {
       trace.foundPackageRoot = packageRootPath;
       failOnMissingPackageManifest(manifestPath, trace);
@@ -395,6 +445,15 @@ function getVersionedPackageRootCandidates(
 function classifyPackageRootCandidate(
   candidate: PackageRootCandidate,
 ): PackageRootCandidateClassification {
+  const caseMismatchPath = findCaseMismatchPath(candidate.rootPath);
+  if (caseMismatchPath) {
+    return {
+      status: "case-mismatch",
+      rootPath: candidate.rootPath,
+      actualPath: caseMismatchPath,
+    };
+  }
+
   const packageRootStats = tryLstat(candidate.rootPath);
   if (!packageRootStats) {
     return { status: "missing", rootPath: candidate.rootPath };
@@ -438,6 +497,14 @@ function compareSemverDesc(
 function readPackageManifest(
   manifestPath: string,
 ): PackageManifestReadResult {
+  const caseMismatchPath = findCaseMismatchPath(manifestPath);
+  if (caseMismatchPath) {
+    return {
+      ok: false,
+      message: `manifest path casing does not match filesystem path ${caseMismatchPath}`,
+    };
+  }
+
   const manifestStats = tryLstat(manifestPath);
   if (!manifestStats) {
     return { ok: false, message: "missing bpl.json" };
@@ -530,12 +597,30 @@ function failOnSymlinkedPackageRoot(
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: package root is a symbolic link.`;
 }
 
+function failOnCaseMismatchedPackageRoot(
+  requestedPackageRoot: string,
+  actualPackageRoot: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${requestedPackageRoot}: package root casing does not match filesystem path ${actualPackageRoot}.`;
+}
+
 function failOnSymlinkedPackageSearchDirectory(
   searchDirectory: string,
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory is a symbolic link.`;
+}
+
+function failOnCaseMismatchedPackageSearchDirectory(
+  requestedSearchDirectory: string,
+  actualSearchDirectory: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${requestedSearchDirectory}: package search directory casing does not match filesystem path ${actualSearchDirectory}.`;
 }
 
 function failOnInvalidPackageRoot(
@@ -553,6 +638,15 @@ function failOnMissingPackageManifest(
 ): void {
   trace.failureReason = "manifest-invalid";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid bpl.json at ${manifestPath}: missing bpl.json.`;
+}
+
+function failOnCaseMismatchedPackageManifest(
+  requestedManifestPath: string,
+  actualManifestPath: string,
+  trace: PackageResolutionTrace,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid bpl.json at ${requestedManifestPath}: manifest path casing does not match filesystem path ${actualManifestPath}.`;
 }
 
 function isValidPackageName(name: string): boolean {
@@ -605,6 +699,17 @@ function resolvePackageSourcePath(
     return null;
   }
 
+  const sourceCaseMismatchPath = findCaseMismatchPath(filePath);
+  if (sourceCaseMismatchPath) {
+    trace.entryCandidates.push(filePath);
+    failOnCaseMismatchedSourceCandidate(
+      filePath,
+      sourceCaseMismatchPath,
+      trace,
+    );
+    return null;
+  }
+
   const directStats = tryLstat(filePath);
   if (directStats) {
     if (directStats.isSymbolicLink()) {
@@ -620,6 +725,15 @@ function resolvePackageSourcePath(
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
         trace.entryCandidates.push(indexPath);
+        const indexCaseMismatchPath = findCaseMismatchPath(indexPath);
+        if (indexCaseMismatchPath) {
+          failOnCaseMismatchedSourceCandidate(
+            indexPath,
+            indexCaseMismatchPath,
+            trace,
+          );
+          return null;
+        }
         const indexStats = tryLstat(indexPath);
         if (indexStats?.isSymbolicLink()) {
           failOnSymlinkedSourceCandidate(indexPath, trace);
@@ -638,6 +752,15 @@ function resolvePackageSourcePath(
         ? filePath
         : filePath + ext;
     trace.entryCandidates.push(fullPath);
+    const fullPathCaseMismatchPath = findCaseMismatchPath(fullPath);
+    if (fullPathCaseMismatchPath) {
+      failOnCaseMismatchedSourceCandidate(
+        fullPath,
+        fullPathCaseMismatchPath,
+        trace,
+      );
+      return null;
+    }
     const stats = tryLstat(fullPath);
     if (stats?.isSymbolicLink()) {
       failOnSymlinkedSourceCandidate(fullPath, trace);
@@ -693,6 +816,21 @@ function failOnSymlinkedSourceCandidate(
 
   trace.failureReason = "entrypoint-not-found";
   trace.failureMessage = `Package '${trace.packageName}' entrypoint resolves to a symbolic link candidate: ${filePath}.`;
+}
+
+function failOnCaseMismatchedSourceCandidate(
+  requestedPath: string,
+  actualPath: string,
+  trace: PackageResolutionTrace,
+): void {
+  if (trace.subPath) {
+    trace.failureReason = "subpath-not-found";
+    trace.failureMessage = `Package '${trace.packageName}' subpath '${trace.subPath}' casing does not match filesystem: requested ${requestedPath}, actual ${actualPath}.`;
+    return;
+  }
+
+  trace.failureReason = "entrypoint-not-found";
+  trace.failureMessage = `Package '${trace.packageName}' entrypoint casing does not match filesystem: requested ${requestedPath}, actual ${actualPath}.`;
 }
 
 function findNearestPackageRoot(startDir: string): string | undefined {

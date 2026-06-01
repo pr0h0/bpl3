@@ -383,6 +383,11 @@ links. Symlinked package search directories such as `bpl_modules/`, workspace
 candidates are probed. Nested package source paths such as `src/index.bpl` and
 `features/add.bpl` reject symlinked parent directories before the child file is
 read.
+Package search directories, package roots, manifest files, entrypoints, and
+subpath source candidates must also match filesystem casing exactly. Case-only
+mismatches are rejected with diagnostics that include the requested path and the
+actual path, so case-insensitive development machines cannot silently accept an
+import that fails on Linux.
 Symlinked package search directories stop package resolution instead of falling
 through to lower-priority package roots: a symlinked local `bpl_modules/` stops
 resolution before workspace `packages/`, and a symlinked workspace `packages/`
@@ -406,17 +411,20 @@ In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the
 resolver can classify the failure. Source-safety failures use
 `BPL_PACKAGE_ENTRYPOINT_UNSAFE`, `BPL_PACKAGE_ENTRYPOINT_SYMLINK`, and
-`BPL_PACKAGE_SUBPATH_SYMLINK`. Package search and metadata failures use
-`BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_ROOT_NOT_DIRECTORY`,
-`BPL_PACKAGE_MANIFEST_MISSING`, and `BPL_PACKAGE_MANIFEST_INVALID`.
+`BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH`, `BPL_PACKAGE_SUBPATH_SYMLINK`, and
+`BPL_PACKAGE_SUBPATH_CASE_MISMATCH`. Package search and metadata failures use
+`BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH`,
+`BPL_PACKAGE_ROOT_NOT_DIRECTORY`, `BPL_PACKAGE_ROOT_CASE_MISMATCH`,
+`BPL_PACKAGE_MANIFEST_MISSING`, `BPL_PACKAGE_MANIFEST_CASE_MISMATCH`, and
+`BPL_PACKAGE_MANIFEST_INVALID`.
 
 Regular module import candidates use the same filesystem diagnostics: broken
 symlink candidates are reported as symlinks before extension fallback can import
 a lower-priority `.x` file, while valid symlink imports normalize to their real
 module path. Non-package import diagnostics use stable JSON `code` values too:
 `BPL_MODULE_NOT_FOUND`, `BPL_MODULE_FILE_NOT_FOUND`,
-`BPL_MODULE_PATH_NOT_FILE`, `BPL_MODULE_PATH_SYMLINK`, and
-`BPL_IMPORT_STD_PATH_UNSAFE`.
+`BPL_MODULE_PATH_NOT_FILE`, `BPL_MODULE_PATH_SYMLINK`,
+`BPL_MODULE_PATH_CASE_MISMATCH`, and `BPL_IMPORT_STD_PATH_UNSAFE`.
 
 Workspace packages are supported without installing an archive. If an ancestor
 directory contains `packages/<package-name>/bpl.json`, imports can resolve

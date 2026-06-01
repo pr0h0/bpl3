@@ -514,16 +514,24 @@ Package source-safety diagnostics stay in the same `bpl check --json` shape
 after package root resolution: unsafe `main` values report `unsafe entrypoint`,
 symlinked entrypoint files report `entrypoint resolves to a symbolic link
 candidate`, and symlinked subpath parents report `subpath 'features/add'
-resolves to a symbolic link candidate`. When the resolver can classify a
+resolves to a symbolic link candidate`. Package search directories, package
+roots, manifests, entrypoints, and subpaths also reject case-only filesystem
+mismatches with diagnostics that include the requested path, the actual path,
+and the instruction to use exact filesystem casing. When the resolver can
+classify a
 package import failure, the diagnostic includes a stable `code` such as
 `BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_ROOT_NOT_DIRECTORY`,
 `BPL_PACKAGE_MANIFEST_MISSING`, `BPL_PACKAGE_MANIFEST_INVALID`,
-`BPL_PACKAGE_ENTRYPOINT_UNSAFE`, `BPL_PACKAGE_ENTRYPOINT_SYMLINK`, or
-`BPL_PACKAGE_SUBPATH_SYMLINK`.
+`BPL_PACKAGE_ENTRYPOINT_UNSAFE`, `BPL_PACKAGE_ENTRYPOINT_SYMLINK`,
+`BPL_PACKAGE_SUBPATH_SYMLINK`, `BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH`,
+`BPL_PACKAGE_ROOT_CASE_MISMATCH`, `BPL_PACKAGE_MANIFEST_CASE_MISMATCH`,
+`BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH`, or
+`BPL_PACKAGE_SUBPATH_CASE_MISMATCH`.
 Non-package module and standard-library import failures also expose stable
 codes in the same diagnostic objects: `BPL_MODULE_NOT_FOUND`,
 `BPL_MODULE_FILE_NOT_FOUND`, `BPL_MODULE_PATH_NOT_FILE`,
-`BPL_MODULE_PATH_SYMLINK`, and `BPL_IMPORT_STD_PATH_UNSAFE`.
+`BPL_MODULE_PATH_SYMLINK`, `BPL_MODULE_PATH_CASE_MISMATCH`, and
+`BPL_IMPORT_STD_PATH_UNSAFE`.
 
 ### CLI JSON compatibility policy
 

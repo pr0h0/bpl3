@@ -1637,7 +1637,11 @@ describe("CLI JSON parseability", () => {
     const symlinkFile = path.join(symlinkDir, "main.bpl");
     const brokenCandidate = path.join(symlinkDir, "linked.bpl");
     const fallbackCandidate = path.join(symlinkDir, "linked.x");
+    const caseDir = path.join(tempDir, "case-mismatch-module");
+    const caseFile = path.join(caseDir, "main.bpl");
+    const realCaseModule = path.join(caseDir, "utils.bpl");
     fs.mkdirSync(symlinkDir, { recursive: true });
+    fs.mkdirSync(caseDir, { recursive: true });
 
     fs.writeFileSync(
       missingFile,
@@ -1668,6 +1672,16 @@ describe("CLI JSON parseability", () => {
     );
     fs.symlinkSync(path.join(symlinkDir, "missing-linked.bpl"), brokenCandidate);
     fs.writeFileSync(fallbackCandidate, "export value;\n");
+    fs.writeFileSync(
+      caseFile,
+      [
+        'import value from "./Utils";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(realCaseModule, "export value;\n");
 
     const missingCheck = runCli(["check", "--json", missingFile]);
     const missingDiagnostic = expectSingleCheckJsonDiagnostic(
@@ -1717,6 +1731,20 @@ describe("CLI JSON parseability", () => {
       "Use a real .bpl file path or repair the symlink target.",
     );
     expect(symlinkCheck.stderr).toBe("");
+
+    const caseCheck = runCli(["check", "--json", caseFile]);
+    const caseDiagnostic = expectSingleCheckJsonDiagnostic(caseCheck, caseFile);
+    expect(caseDiagnostic.code).toBe("BPL_MODULE_PATH_CASE_MISMATCH");
+    expect(caseDiagnostic.source?.preview).toContain(
+      'import value from "./Utils";',
+    );
+    expect(caseDiagnostic.message).toContain(
+      "Module path casing does not match",
+    );
+    expect(caseDiagnostic.message).toContain(path.join(caseDir, "Utils.bpl"));
+    expect(caseDiagnostic.message).toContain(realCaseModule);
+    expect(caseDiagnostic.hint).toContain("Use the exact filesystem casing");
+    expect(caseCheck.stderr).toBe("");
 
     const missingBuild = runCli([
       "build",
@@ -2064,6 +2092,44 @@ describe("CLI JSON parseability", () => {
     expect(diagnostic?.message).not.toContain(outsideEntrypoint);
     expect(diagnostic?.hint).toContain("unsafe entrypoint '../outside.bpl'");
     expect(diagnostic?.hint).not.toContain(outsideEntrypoint);
+    expect(result.stderr).toBe("");
+  });
+
+  test("reports package case-mismatch failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const sourceFile = path.join(sourceDir, "case_mismatch_import.bpl");
+    const realSubpath = path.join(packageDir, "features", "Add.bpl");
+    const requestedSubpath = path.join(packageDir, "features", "add.bpl");
+    fs.mkdirSync(path.dirname(realSubpath), { recursive: true });
+    fs.mkdirSync(sourceDir, { recursive: true });
+    writePackageFixture(packageDir, { entrySource: "export root;" });
+    fs.writeFileSync(realSubpath, "export value;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math/features/add";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_SUBPATH_CASE_MISMATCH");
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math/features/add";',
+    );
+    expect(diagnostic?.message).toContain(
+      "subpath 'features/add' casing does not match",
+    );
+    expect(diagnostic?.message).toContain(requestedSubpath);
+    expect(diagnostic?.message).toContain(realSubpath);
+    expect(diagnostic?.hint).toContain("Use the exact filesystem casing");
+    expect(diagnostic?.hint).toContain(requestedSubpath);
+    expect(diagnostic?.hint).toContain(realSubpath);
     expect(result.stderr).toBe("");
   });
 

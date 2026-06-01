@@ -512,6 +512,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Import Case-Mismatch Diagnostics** - Module and package import resolution now
+  rejects case-only filesystem mismatches before accepting a candidate or
+  falling back to lower-priority extensions. Diagnostics include stable codes
+  such as `BPL_MODULE_PATH_CASE_MISMATCH`,
+  `BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH`, and
+  `BPL_PACKAGE_SUBPATH_CASE_MISMATCH`, plus the requested and actual paths.
 - **Shared Target Triple Parsing** - `CodeGenerator`, `CompilerDriver`, and
   `BinaryRunner` now use `compiler/common/TargetTriple.ts` for strict
   component-aware target parsing, WebAssembly architecture detection, and hosted

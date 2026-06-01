@@ -369,6 +369,28 @@ describe("ModuleResolver", () => {
     expect(resolver.resolveModulePath("./ambiguous", mainPath)).toBe(bplIndex);
   });
 
+  it("should reject relative imports that only differ by filesystem casing", () => {
+    const sourceDir = path.join(tempDir, "case-mismatch-import");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    const mainPath = path.join(sourceDir, "main.bpl");
+    const realModule = path.join(sourceDir, "utils.bpl");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+    fs.writeFileSync(realModule, "export value;");
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({ stdLibPath: tempDir }).resolveModulePath(
+        "./Utils",
+        mainPath,
+      );
+    });
+
+    expect(error.message).toContain("Module path casing does not match");
+    expect(error.message).toContain(path.join(sourceDir, "Utils.bpl"));
+    expect(error.message).toContain(realModule);
+    expect(error.hint).toContain("Use the exact filesystem casing");
+    expect(error.code).toBe("BPL_MODULE_PATH_CASE_MISMATCH");
+  });
+
   it("should skip directory index candidates when resolving directory imports", () => {
     const sourceDir = path.join(tempDir, "directory-index-file-check");
     const moduleDir = path.join(sourceDir, "ambiguous");

@@ -18,6 +18,7 @@ import * as path from "path";
 import { getLibPath } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
+import { findCaseMismatchPath } from "../common/PathSafety";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { PackageManager } from "./PackageManager";
@@ -34,6 +35,8 @@ export const MODULE_NOT_FOUND_CODE = "BPL_MODULE_NOT_FOUND";
 export const MODULE_FILE_NOT_FOUND_CODE = "BPL_MODULE_FILE_NOT_FOUND";
 export const MODULE_PATH_NOT_FILE_CODE = "BPL_MODULE_PATH_NOT_FILE";
 export const MODULE_PATH_SYMLINK_CODE = "BPL_MODULE_PATH_SYMLINK";
+export const MODULE_PATH_CASE_MISMATCH_CODE =
+  "BPL_MODULE_PATH_CASE_MISMATCH";
 export const IMPORT_STD_PATH_UNSAFE_CODE = "BPL_IMPORT_STD_PATH_UNSAFE";
 
 export interface ModuleInfo {
@@ -125,6 +128,14 @@ export class ModuleResolver {
     candidatePath: string,
     options: { allowDirectoryIndex: boolean },
   ): string | null {
+    const caseMismatchPath = findCaseMismatchPath(candidatePath);
+    if (caseMismatchPath) {
+      throw this.createModuleCaseMismatchError(
+        candidatePath,
+        caseMismatchPath,
+      );
+    }
+
     const stat = this.tryLstat(candidatePath);
     if (!stat) {
       return null;
@@ -169,6 +180,24 @@ export class ModuleResolver {
     }
 
     return null;
+  }
+
+  private createModuleCaseMismatchError(
+    requestedPath: string,
+    actualPath: string,
+  ): CompilerError {
+    return new CompilerError(
+      `Module path casing does not match filesystem: requested ${requestedPath}, actual ${actualPath}`,
+      `Use the exact filesystem casing: ${actualPath}.`,
+      {
+        file: requestedPath,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+      MODULE_PATH_CASE_MISMATCH_CODE,
+    );
   }
 
   private tryResolveDirectoryIndex(directoryPath: string): string | null {

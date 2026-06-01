@@ -243,6 +243,59 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects package roots that only differ by filesystem casing", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "Pkg-Math");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "pkg-math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("pkg-math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "package root casing does not match",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(appDir, "bpl_modules", "pkg-math"),
+    );
+    expect(details.trace.failureMessage).toContain(packageDir);
+    expect(getPackageResolutionFailureCode(details.trace)).toBe(
+      "BPL_PACKAGE_ROOT_CASE_MISMATCH",
+    );
+  });
+
+  test("rejects package search directories that only differ by filesystem casing", () => {
+    const appDir = path.join(tempDir, "app");
+    const modulesDir = path.join(appDir, "Bpl_Modules");
+    const packageDir = path.join(modulesDir, "math");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "package search directory casing does not match",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(appDir, "bpl_modules"),
+    );
+    expect(details.trace.failureMessage).toContain(modulesDir);
+    expect(getPackageResolutionFailureCode(details.trace)).toBe(
+      "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
+    );
+  });
+
   test("does not follow symlinked package roots", () => {
     const appDir = path.join(tempDir, "app");
     const modulesDir = path.join(appDir, "bpl_modules");
@@ -578,6 +631,33 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("does not resolve package manifests that only differ by filesystem casing", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const actualManifestPath = path.join(packageDir, "BPL.JSON");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      actualManifestPath,
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureMessage).toContain(
+      "manifest path casing does not match",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(packageDir, "bpl.json"),
+    );
+    expect(details.trace.failureMessage).toContain(actualManifestPath);
+    expect(getPackageResolutionFailureCode(details.trace)).toBe(
+      "BPL_PACKAGE_MANIFEST_CASE_MISMATCH",
+    );
+  });
+
   test("reports stable failure codes for unreadable package manifest shapes", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");
@@ -735,6 +815,64 @@ describe("PackageResolver", () => {
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("unsafe entrypoint");
+  });
+
+  test("rejects package entrypoints that only differ by filesystem casing", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    fs.mkdirSync(path.join(packageDir, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "Src/Index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "src", "index.bpl"), "export add;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("entrypoint-not-found");
+    expect(details.trace.failureMessage).toContain(
+      "entrypoint casing does not match",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(packageDir, "Src"),
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(packageDir, "src"),
+    );
+    expect(getPackageResolutionFailureCode(details.trace)).toBe(
+      "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH",
+    );
+  });
+
+  test("rejects package subpaths that only differ by filesystem casing", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(featureDir, "Add.bpl"), "export add;");
+
+    const details = resolvePackageImport("math/features/add", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("subpath-not-found");
+    expect(details.trace.failureMessage).toContain(
+      "subpath 'features/add' casing does not match",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(featureDir, "add.bpl"),
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(featureDir, "Add.bpl"),
+    );
+    expect(getPackageResolutionFailureCode(details.trace)).toBe(
+      "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
+    );
   });
 
   test("does not normalize ambiguous package entrypoint segments", () => {

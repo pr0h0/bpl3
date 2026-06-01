@@ -158,8 +158,11 @@ that tooling can classify without parsing human text. Missing relative,
 absolute, package, or search-path modules use `BPL_MODULE_NOT_FOUND`; missing
 entry files use `BPL_MODULE_FILE_NOT_FOUND`; directory entry paths use
 `BPL_MODULE_PATH_NOT_FILE`; broken symlink module candidates or entry files use
-`BPL_MODULE_PATH_SYMLINK`; and unsafe explicit standard-library paths use
-`BPL_IMPORT_STD_PATH_UNSAFE`.
+`BPL_MODULE_PATH_SYMLINK`; module candidates that differ only by filesystem
+casing use `BPL_MODULE_PATH_CASE_MISMATCH` with the requested and actual paths;
+and unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`.
+Use the exact filesystem casing in imports so Linux, macOS, and Windows builds
+resolve the same module graph.
 
 Frontend-only outputs such as `bpl build --emit tokens`, `bpl build --emit ast`,
 and `bpl build --emit formatted` parse the source without loading imported
@@ -289,7 +292,11 @@ package search directories such as `bpl_modules/`, workspace `packages/`, and
 the global package directory are rejected before child package candidates are
 probed. Nested package source paths such as `src/index.bpl` and
 `features/add.bpl` reject symlinked parent directories before the child file is
-read. Existing malformed package roots, including symlinked roots,
+read. Package search directories, package roots, manifests, entrypoints, and
+subpath source candidates must also use exact filesystem casing; case-only
+mismatches are rejected with stable package diagnostic codes instead of relying
+on host filesystem behavior. Existing malformed package roots, including
+symlinked roots,
 non-directory package paths, and roots missing `bpl.json`, block same-name
 workspace/global fallback. Symlinked package entrypoint and subpath candidates
 also block lower-priority `.x` fallbacks for that package import, including
