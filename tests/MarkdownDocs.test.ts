@@ -290,6 +290,25 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("public API docs document CodeGenerator debug IR options", () => {
+    const text = readFileSync("docs/PUBLIC_API.md", "utf8").replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "interface CodeGeneratorOptions",
+      "optimizationLevel?: number",
+      "debugIrPath?: string | false",
+      "Debug IR write failures are surfaced to callers",
+      "symbolic link",
+      "missing parent directory",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("docs document doctor scope JSON error code", () => {
     const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
     const changelog = readFileSync("CHANGELOG.md", "utf8");
