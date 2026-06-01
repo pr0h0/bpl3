@@ -2279,6 +2279,128 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports duplicate function parameters in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "duplicate_function_parameter.bpl");
+    const outputFile = path.join(tempDir, "duplicate-function-parameter-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "frame pick(value: int, value: int) ret int {",
+        "    return value;",
+        "}",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    expect(check.status).toBe(1);
+    const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+    const checkDiagnostic = checkReport.files[0]?.diagnostics[0];
+    expect(checkDiagnostic?.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+    expect(checkDiagnostic?.source?.preview).toContain("frame pick");
+    expect(checkDiagnostic?.message).toContain(
+      "Duplicate parameter name 'value'",
+    );
+    expect(checkDiagnostic?.hint).toContain(
+      "declared multiple times in function 'pick'",
+    );
+    expect(checkDiagnostic?.location.start.line).toBe(1);
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_SYMBOL_ALREADY_DEFINED" }],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Duplicate parameter name 'value'",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "declared multiple times in function 'pick'",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
+  test("reports duplicate generic parameters in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "duplicate_generic_parameter.bpl");
+    const outputFile = path.join(tempDir, "duplicate-generic-parameter-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "frame identity<T, T>(value: T) ret T {",
+        "    return value;",
+        "}",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    expect(check.status).toBe(1);
+    const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+    const checkDiagnostic = checkReport.files[0]?.diagnostics[0];
+    expect(checkDiagnostic?.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+    expect(checkDiagnostic?.source?.preview).toContain("identity<T, T>");
+    expect(checkDiagnostic?.message).toContain(
+      "Duplicate generic type parameter 'T'",
+    );
+    expect(checkDiagnostic?.hint).toContain(
+      "declared multiple times in function 'identity'",
+    );
+    expect(checkDiagnostic?.location.start.line).toBe(1);
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_SYMBOL_ALREADY_DEFINED" }],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Duplicate generic type parameter 'T'",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "declared multiple times in function 'identity'",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
