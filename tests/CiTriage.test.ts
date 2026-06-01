@@ -535,6 +535,33 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps recursive type-cycle diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerRecursiveTypes.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"',
+      'bun test tests/MarkdownDocs.test.ts -t "recursive type-cycle"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_TYPE_RECURSION_CYCLE",
+      "recursive type-cycle",
+      "Struct 'Node' has infinite size due to recursive field types",
+      "Enum 'Tree' has infinite size due to recursive variant types",
+      "Struct 'Loop' cannot inherit from itself",
+      "Circular inheritance detected",
+      "Recursive cycle detected: Node -> Node",
+      "Inheritance cycle: A -> B -> A",
+      "reports recursive struct field cycles in JSON-mode check and build diagnostics",
+      "reports recursive enum variant cycles in JSON-mode check and build diagnostics",
+      "docs document recursive type-cycle diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -3178,6 +3205,138 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols|duplicate struct fields|duplicate enum variants"',
         'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints recursive struct cycle repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-recursive-struct-cycle-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 89,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/89",
+              steps: [
+                {
+                  name: "BPL_TYPE_RECURSION_CYCLE Struct 'Node' has infinite size due to recursive field types",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerRecursiveTypes.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"',
+        'bun test tests/MarkdownDocs.test.ts -t "recursive type-cycle"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints recursive inheritance cycle repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-recursive-inheritance-cycle-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 90,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/90",
+              steps: [
+                {
+                  name: "Circular inheritance detected Inheritance cycle: A -> B -> A",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerRecursiveTypes.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"',
+        'bun test tests/MarkdownDocs.test.ts -t "recursive type-cycle"',
         "bun run check",
       ]);
     } finally {

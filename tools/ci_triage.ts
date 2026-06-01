@@ -279,6 +279,21 @@ const DUPLICATE_SYMBOL_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const TYPE_RECURSION_CYCLE_STEP_PATTERN = new RegExp(
+  [
+    "BPL_TYPE_RECURSION_CYCLE",
+    "recursive type-cycle",
+    "recursive type cycle",
+    "recursive struct field cycles",
+    "recursive enum variant cycles",
+    "infinite size due to recursive (?:field|variant) types",
+    "Struct ['\"][^'\"]+['\"] cannot inherit from itself",
+    "Circular inheritance detected",
+    "Recursive cycle detected:",
+    "Inheritance cycle:",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -918,6 +933,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
   ],
   [DUPLICATE_SYMBOL_STEP_PATTERN, "bun run check"],
+  [
+    TYPE_RECURSION_CYCLE_STEP_PATTERN,
+    "bun test tests/TypeCheckerRecursiveTypes.test.ts",
+  ],
+  [
+    TYPE_RECURSION_CYCLE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"',
+  ],
+  [
+    TYPE_RECURSION_CYCLE_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "recursive type-cycle"',
+  ],
+  [TYPE_RECURSION_CYCLE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
