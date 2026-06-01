@@ -27,6 +27,18 @@ const INTEGRATION_RUN_ARTIFACTS_DIR = path.join(
   INTEGRATION_ARTIFACTS_DIR,
   `run-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 );
+const PACKAGE_DEPENDENCY_EXAMPLE = "package_transitive_dependency/app";
+const PACKAGE_DEPENDENCY_FIXTURE_FILES = [
+  "examples/package_transitive_dependency/app/main.bpl",
+  "examples/package_transitive_dependency/app/bpl.json",
+  "examples/package_transitive_dependency/app/test_config.json",
+  "examples/package_transitive_dependency/packages/math-core/bpl.json",
+  "examples/package_transitive_dependency/packages/math-core/index.bpl",
+  "examples/package_transitive_dependency/packages/math-extra/bpl.json",
+  "examples/package_transitive_dependency/packages/math-extra/index.bpl",
+  "examples/package_transitive_dependency/packages/math-extra/features/direct.bpl",
+  "examples/package_transitive_dependency/packages/math-extra/features/increment/index.bpl",
+] as const;
 const runLimited = createLimiter(getIntegrationJobs());
 
 // Helper to find example directories
@@ -81,7 +93,9 @@ function prepareExampleArtifactOutput(example: string): string {
 }
 
 function readExampleMainSource(example: string): string {
-  return fs.readFileSync(path.join(EXAMPLES_DIR, example, "main.bpl"), "utf-8");
+  const relativePath = path.join("examples", example, "main.bpl");
+  expectProjectFileExists(relativePath, `main source for ${example}`);
+  return fs.readFileSync(path.join(process.cwd(), relativePath), "utf-8");
 }
 
 function cleanupExampleArtifactOutput(outputPath: string): void {
@@ -93,6 +107,25 @@ function readExampleConfig(configFile: string) {
     configFile,
     path.relative(process.cwd(), configFile),
   );
+}
+
+function expectProjectFileExists(relativePath: string, context: string): void {
+  const normalizedPath = relativePath.split(path.sep).join("/");
+  expect(
+    fs.existsSync(path.join(process.cwd(), relativePath)),
+    `${context}: missing fixture file ${normalizedPath}`,
+  ).toBe(true);
+}
+
+function expectSourceImport(
+  source: string,
+  importLine: string,
+  importMode: string,
+): void {
+  expect(
+    source.includes(importLine),
+    `package dependency example must keep ${importMode} import: ${importLine}`,
+  ).toBe(true);
 }
 
 function findInvalidExampleConfigErrors(examples: string[]): string[] {
@@ -146,25 +179,33 @@ describe("Integration Tests", () => {
   });
 
   it("includes package dependency example coverage in CI-safe integration tests", () => {
-    expect(examples).toContain("package_transitive_dependency/app");
+    expect(examples).toContain(PACKAGE_DEPENDENCY_EXAMPLE);
+  });
+
+  it("keeps package dependency fixture files present", () => {
+    for (const relativePath of PACKAGE_DEPENDENCY_FIXTURE_FILES) {
+      expectProjectFileExists(relativePath, "package dependency integration");
+    }
   });
 
   it("keeps package dependency example explicit source-file import coverage", () => {
-    expect(readExampleMainSource("package_transitive_dependency/app")).toContain(
+    expectSourceImport(
+      readExampleMainSource(PACKAGE_DEPENDENCY_EXAMPLE),
       'import identity from "math-extra/features/direct.bpl";',
+      "explicit source-file",
     );
   });
 
   it("keeps package dependency example extensionless directory import coverage", () => {
-    expect(readExampleMainSource("package_transitive_dependency/app")).toContain(
+    expectSourceImport(
+      readExampleMainSource(PACKAGE_DEPENDENCY_EXAMPLE),
       'import increment from "math-extra/features/increment";',
+      "extensionless directory-index",
     );
   });
 
   it("keeps package dependency example artifacts outside the tracked examples tree", () => {
-    const outputPath = getExampleArtifactOutputPath(
-      "package_transitive_dependency/app",
-    );
+    const outputPath = getExampleArtifactOutputPath(PACKAGE_DEPENDENCY_EXAMPLE);
 
     expect(outputPath).toContain(
       path.join(os.tmpdir(), "bpl-integration-artifacts"),
@@ -174,9 +215,7 @@ describe("Integration Tests", () => {
   });
 
   it("uses a run-unique artifact root for integration outputs", () => {
-    const outputPath = getExampleArtifactOutputPath(
-      "package_transitive_dependency/app",
-    );
+    const outputPath = getExampleArtifactOutputPath(PACKAGE_DEPENDENCY_EXAMPLE);
 
     expect(outputPath).toContain(`run-${process.pid}-`);
   });
