@@ -1,4 +1,4 @@
-import { exec, execFile } from "child_process";
+import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
@@ -17,8 +17,8 @@ import {
   createPlaygroundWasmBuildEnv,
   resolvePlaygroundWasmLinker,
 } from "./wasmToolchain";
+import { formatProcessCommand, runProcessFile } from "./processRunner";
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 // ============================================================================
@@ -262,18 +262,11 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const sourceFile = path.join(tempDir, "main.bpl");
   const irFile = path.join(tempDir, "main.ll");
   const binFile = path.join(tempDir, "main");
-  const inputFile = path.join(tempDir, "input.txt");
 
   try {
     // Write source file
     fs.writeFileSync(sourceFile, req.code, "utf-8");
     logger.debug(`[${requestId}] Source file written: ${sourceFile}`);
-
-    // Write input file if provided
-    if (req.input) {
-      fs.writeFileSync(inputFile, req.input, "utf-8");
-      logger.debug(`[${requestId}] Input file written: ${inputFile}`);
-    }
 
     const warnings: string[] = [];
     let ast: AST.Program | undefined;
@@ -362,19 +355,28 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       // Add runtime.ll (core runtime functions)
       const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
       if (fs.existsSync(runtimeLLPath)) {
-        runtimeFiles.push(`"${runtimeLLPath}"`);
+        runtimeFiles.push(runtimeLLPath);
       }
 
       // Add runtime_support.o (C runtime support for stack traces, signals)
       const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
       if (fs.existsSync(runtimeSupportPath)) {
-        runtimeFiles.push(`"${runtimeSupportPath}"`);
+        runtimeFiles.push(runtimeSupportPath);
       }
 
-      const clangCmd = `clang -o "${binFile}" "${irFile}" ${runtimeFiles.join(" ")} -Wno-override-module -lm`;
-      logger.debug(`[${requestId}] Running clang: ${clangCmd}`);
+      const clangArgs = [
+        "-o",
+        binFile,
+        irFile,
+        ...runtimeFiles,
+        "-Wno-override-module",
+        "-lm",
+      ];
+      logger.debug(
+        `[${requestId}] Running clang: ${formatProcessCommand("clang", clangArgs)}`,
+      );
 
-      await execAsync(clangCmd);
+      await execFileAsync("clang", clangArgs);
       logger.debug(
         `[${requestId}] LLVM compilation completed in ${Date.now() - clangStart}ms`,
       );
@@ -397,13 +399,13 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
     try {
       const execStart = Date.now();
       const args = req.args || [];
-      const argsStr = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(" ");
-      const inputRedirect = req.input ? ` < "${inputFile}"` : "";
-      const cmd = `"${binFile}" ${argsStr}${inputRedirect}`;
 
-      logger.debug(`[${requestId}] Executing binary: ${cmd}`);
+      logger.debug(
+        `[${requestId}] Executing binary: ${formatProcessCommand(binFile, args)}`,
+      );
 
-      const { stdout, stderr } = await execAsync(cmd, {
+      const { stdout, stderr } = await runProcessFile(binFile, args, {
+        input: req.input,
         timeout: 5000, // 5 second timeout
         maxBuffer: 1024 * 1024, // 1MB buffer
       });
