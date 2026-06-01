@@ -1,6 +1,8 @@
 import { spawn } from "child_process";
 import * as os from "os";
 
+import { formatInvalidPositiveIntegerEnv } from "../../compiler/common/Env";
+
 export interface RunProcessOptions {
   env?: NodeJS.ProcessEnv;
   input?: string;
@@ -45,20 +47,40 @@ export function createLimiter(maxConcurrent: number) {
   };
 }
 
-export function getIntegrationJobs(
-  env: NodeJS.ProcessEnv = process.env,
-): number {
-  const requested = Number(env.BPL_INTEGRATION_JOBS);
-  if (Number.isFinite(requested) && requested > 0) {
-    return Math.floor(requested);
-  }
-
+function getDefaultIntegrationJobs(): number {
   const available =
     typeof os.availableParallelism === "function"
       ? os.availableParallelism()
       : os.cpus().length;
 
   return Math.max(1, Math.min(available, 8));
+}
+
+export function getIntegrationJobs(
+  env: NodeJS.ProcessEnv = process.env,
+  options: {
+    warn?: (message: string) => void;
+  } = { warn: console.warn },
+): number {
+  const fallbackJobs = getDefaultIntegrationJobs();
+  const raw = env.BPL_INTEGRATION_JOBS;
+  if (!raw) {
+    return fallbackJobs;
+  }
+
+  const requested = Number(raw);
+  if (Number.isSafeInteger(requested) && requested > 0) {
+    return requested;
+  }
+
+  options.warn?.(
+    formatInvalidPositiveIntegerEnv(
+      "BPL_INTEGRATION_JOBS",
+      raw,
+      `using ${fallbackJobs} integration job(s)`,
+    ),
+  );
+  return fallbackJobs;
 }
 
 export function runProcess(

@@ -1,23 +1,39 @@
-import { describe, expect, it } from "bun:test";
-import { createLimiter } from "./helpers/integrationRunner";
+import { describe, expect, test } from "bun:test";
 
-describe("Integration runner helpers", () => {
-  it("limits queued work to the requested concurrency", async () => {
-    const limit = createLimiter(2);
-    let active = 0;
-    let maxActive = 0;
+import { getIntegrationJobs } from "./helpers/integrationRunner";
 
-    const tasks = Array.from({ length: 6 }, (_, index) =>
-      limit(async () => {
-        active += 1;
-        maxActive = Math.max(maxActive, active);
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        active -= 1;
-        return index;
-      }),
-    );
+describe("integration runner helpers", () => {
+  test("honors positive integer BPL_INTEGRATION_JOBS values", () => {
+    const warnings: string[] = [];
 
-    await expect(Promise.all(tasks)).resolves.toEqual([0, 1, 2, 3, 4, 5]);
-    expect(maxActive).toBe(2);
+    expect(
+      getIntegrationJobs(
+        { BPL_INTEGRATION_JOBS: "3" } as NodeJS.ProcessEnv,
+        {
+          warn: (message) => warnings.push(message),
+        },
+      ),
+    ).toBe(3);
+    expect(warnings).toEqual([]);
+  });
+
+  test("rejects malformed BPL_INTEGRATION_JOBS values with fallback guidance", () => {
+    const fallbackJobs = getIntegrationJobs({} as NodeJS.ProcessEnv);
+
+    for (const raw of ["0", "1.5", "not-a-number"]) {
+      const warnings: string[] = [];
+
+      expect(
+        getIntegrationJobs(
+          { BPL_INTEGRATION_JOBS: raw } as NodeJS.ProcessEnv,
+          {
+            warn: (message) => warnings.push(message),
+          },
+        ),
+      ).toBe(fallbackJobs);
+      expect(warnings).toEqual([
+        `Ignoring invalid BPL_INTEGRATION_JOBS=${raw}; expected a positive integer; using ${fallbackJobs} integration job(s)`,
+      ]);
+    }
   });
 });

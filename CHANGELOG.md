@@ -617,6 +617,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Text Output Docs** - Compiler correctness docs now pin the
   `GitHub Actions triage:`, `Failed jobs:`, `failed steps:`, and `local repro:`
   text labels used by the CI triage helper.
+- **Integration Job Env Validation** - `BPL_INTEGRATION_JOBS` now accepts only
+  positive integers and reports the auto-detected fallback when malformed
+  values such as `0`, decimals, or non-numeric strings are provided.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their
