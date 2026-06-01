@@ -250,9 +250,16 @@ validation failures stay parseable on stdout with `success: false` and an
 `error` field. When the underlying package error has a stable compiler code, the
 report also includes `errorCode`, such as `BPL_LOCKFILE_UNSUPPORTED_VERSION` for
 malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
-`BPL_PACKAGE_INSTALL_*_CONFLICT` for project-mode option conflicts, and
-`BPL_PACKAGE_ARCHIVE_*` for direct archive paths that are symlinks, pass through
-symlinked parents, or are not files.
+`BPL_PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE`,
+`BPL_PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT`,
+`BPL_PACKAGE_INSTALL_GLOBAL_PROJECT_CONFLICT`,
+`BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT`, and
+`BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT` for project-mode option conflicts,
+and `BPL_PACKAGE_ARCHIVE_SYMLINK`,
+`BPL_PACKAGE_ARCHIVE_PARENT_SYMLINK`, and `BPL_PACKAGE_ARCHIVE_NOT_FILE` for
+direct archive paths that are symlinks, pass through symlinked parents, or are
+not files. Reproduce the focused option/archive JSON contracts with
+`bun test tests/PackageJsonFailureContracts.test.ts -t "package install option conflict|direct archive path"`.
 PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_*` codes: `BPL_PACKAGE_MANIFEST_MISSING`,
 `BPL_PACKAGE_MANIFEST_SYMLINK`, `BPL_PACKAGE_MANIFEST_NOT_FILE`,

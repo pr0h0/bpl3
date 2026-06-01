@@ -137,6 +137,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   codes now expose a shared PackageManager constant list, docs cover every
   emitted `BPL_PACKAGE_MANIFEST_*` validation code, and the focused package JSON
   failure contract verifies the list.
+- **Package Install/Archive JSON Validation Code Lists** - Package install
+  option-conflict and direct archive validation codes now expose shared
+  PackageManager constant lists, docs spell out each code, and the focused
+  package JSON failure contracts verify list coverage.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.

@@ -9,8 +9,10 @@ import {
   type PackageResolutionTrace,
 } from "../compiler/middleend/PackageResolver";
 import {
+  PACKAGE_ARCHIVE_JSON_ERROR_CODES,
   PACKAGE_CACHE_JSON_ERROR_CODES,
   PACKAGE_INIT_JSON_ERROR_CODES,
+  PACKAGE_INSTALL_JSON_ERROR_CODES,
   PACKAGE_MANIFEST_JSON_ERROR_CODES,
   PACKAGE_UNINSTALL_JSON_ERROR_CODES,
 } from "../compiler/middleend/PackageManager";
@@ -568,6 +570,31 @@ describe("Markdown documentation", () => {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
     }
     for (const code of PACKAGE_INIT_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
+    }
+  });
+
+  test("package docs document install and archive JSON error codes", () => {
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
+    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "project-mode option conflicts",
+      "direct archive paths",
+      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package install option conflict|direct archive path\"",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of [
+      ...PACKAGE_INSTALL_JSON_ERROR_CODES,
+      ...PACKAGE_ARCHIVE_JSON_ERROR_CODES,
+    ]) {
       expect(combinedDocs).toContain(code);
     }
   });

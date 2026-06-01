@@ -10,7 +10,11 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync, type SpawnSyncReturns } from "child_process";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
-import { PACKAGE_MANIFEST_JSON_ERROR_CODES } from "../compiler/middleend/PackageManager";
+import {
+  PACKAGE_ARCHIVE_JSON_ERROR_CODES,
+  PACKAGE_INSTALL_JSON_ERROR_CODES,
+  PACKAGE_MANIFEST_JSON_ERROR_CODES,
+} from "../compiler/middleend/PackageManager";
 
 const BPL_CLI = join(import.meta.dir, "..", "index.ts");
 
@@ -407,6 +411,10 @@ describe("Package JSON failure contracts", () => {
         },
       ];
 
+      expect(cases.map((testCase) => testCase.expectedCode).sort()).toEqual(
+        [...PACKAGE_INSTALL_JSON_ERROR_CODES].sort(),
+      );
+
       for (const testCase of cases) {
         const report = expectJsonStdoutReport(runCli(testCase.args, testCase.context), {
           status: 1,
@@ -463,6 +471,10 @@ describe("Package JSON failure contracts", () => {
           expectedError: "Package archive path is not a file",
         },
       ];
+
+      expect(cases.map((testCase) => testCase.expectedCode).sort()).toEqual(
+        [...PACKAGE_ARCHIVE_JSON_ERROR_CODES].sort(),
+      );
 
       for (const testCase of cases) {
         const report = expectJsonStdoutReport(

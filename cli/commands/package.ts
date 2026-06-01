@@ -40,6 +40,7 @@ import {
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
+import { PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE } from "../../compiler/middleend/PackageManager";
 
 const log = new Logger("Package");
 const PACKAGE_IR_VERIFY_TIMEOUT_MS =
@@ -195,7 +196,7 @@ export function registerPackageCommands(program: Command): void {
                 endLine: 1,
                 endColumn: 1,
               },
-              "BPL_PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE",
+              PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE,
             );
           }
 
