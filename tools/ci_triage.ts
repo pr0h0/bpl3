@@ -331,6 +331,16 @@ const VOID_TYPE_INVALID_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const BUILTIN_TYPE_REDEFINITION_STEP_PATTERN = new RegExp(
+  [
+    "BPL_BUILTIN_TYPE_REDEFINITION",
+    "builtin type redefinition",
+    "built-in type redefinition",
+    "Cannot redefine builtin type ['\"][^'\"]+['\"]",
+    "Builtin type names are reserved",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1022,6 +1032,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "invalid void type"',
   ],
   [VOID_TYPE_INVALID_STEP_PATTERN, "bun run check"],
+  [
+    BUILTIN_TYPE_REDEFINITION_STEP_PATTERN,
+    "bun test tests/TypeCheckerBuiltinRedefinition.test.ts",
+  ],
+  [
+    BUILTIN_TYPE_REDEFINITION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "builtin type redefinition"',
+  ],
+  [
+    BUILTIN_TYPE_REDEFINITION_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "builtin type redefinition"',
+  ],
+  [BUILTIN_TYPE_REDEFINITION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
