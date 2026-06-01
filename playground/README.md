@@ -208,6 +208,17 @@ Compiles and runs BPL code.
 }
 ```
 
+Native execution responses preserve the frontend-facing shape for both success
+and failure cases. On success, `success: true` is returned and `output` combines
+stdout and stderr, with stderr appended under a `STDERR:` section. Nonzero
+native exits return `success: false`, keep captured stdout in `output`, and set
+`error` to `Runtime error: <stderr-or-message>`. Runtime timeouts return
+`success: false`, keep any captured stdout in `output`, and use
+`Execution timeout (5 seconds)` for the default playground timeout. The focused
+contract tests are `tests/PlaygroundNativeExecution.test.ts` for payload
+shaping and `tests/PlaygroundProcessRunner.test.ts` for argv/stdin process
+execution.
+
 ## Usage Tips
 
 1. **Browse Examples**: Click examples in the sidebar to load them

@@ -1266,6 +1266,25 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("playground docs document native execution payload contract", () => {
+    const combinedDocs = [
+      readFileSync("playground/README.md", "utf8"),
+      readFileSync("playground/ARCHITECTURE.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Native execution responses",
+      "`success: true`",
+      "`output` combines stdout and stderr",
+      "`Runtime error: <stderr-or-message>`",
+      "`Execution timeout (5 seconds)`",
+      "`tests/PlaygroundNativeExecution.test.ts`",
+      "`tests/PlaygroundProcessRunner.test.ts`",
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("docs document CI-safe typed test runner", () => {
     const normalizedText = normalizedMarkdownText([
       "README.md",
