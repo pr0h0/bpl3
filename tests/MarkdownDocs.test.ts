@@ -399,6 +399,22 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("changelog documents compiler option validation hardening", () => {
+    const text = readFileSync("CHANGELOG.md", "utf8").replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Compiler API Option Validation Hardening",
+      "`Compiler`, `CodeGenerator`, `Linker`, and `ModuleCache` now reject",
+      "`optimizationLevel` values outside 0-3",
+      "invalid `jobs` counts",
+      "Cached module linking now forwards `-O`",
+      "bun test tests/CompilerOptions.test.ts tests/CodeGenerator.test.ts tests/Linker.test.ts tests/ModuleCache.test.ts",
+    ];
+
+    for (const snippet of requiredSnippets) {
+      expect(text).toContain(snippet.replace(/\s+/g, " "));
+    }
+  });
+
   test("package docs document strict manifest path rules", () => {
     const text = readFileSync("docs/25-package-management.md", "utf8").replace(
       /\s+/g,

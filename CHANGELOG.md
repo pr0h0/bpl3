@@ -505,6 +505,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Compiler API Option Validation Hardening** - `Compiler`, `CodeGenerator`,
+  `Linker`, and `ModuleCache` now reject `optimizationLevel` values outside 0-3
+  and invalid `jobs` counts before code generation, linking, cache worker
+  startup, or compiler driver invocation. Cached module linking now forwards
+  `-O` to the compiler driver so cached builds match non-cache link behavior.
+  Focused repro:
+  `bun test tests/CompilerOptions.test.ts tests/CodeGenerator.test.ts tests/Linker.test.ts tests/ModuleCache.test.ts`.
 - **Aggregate Addition Type Checking (BUG-148)** - Struct and tuple `+`
   expressions without an overload now fail in type checking instead of
   lowering to invalid LLVM aggregate `add` instructions.
