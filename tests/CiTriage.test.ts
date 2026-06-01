@@ -286,6 +286,11 @@ describe("CI triage helper", () => {
         "Explicit std/ and std\\ imports do not fall back to package resolution",
       ),
     ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "CLI Tests > should preserve unrelated undefined diagnostics with missing explicit std imports timed out after 5000ms",
+      ),
+    ).toEqual(expectedCommands);
   });
 
   test("maps build JSON validation failures to focused reproduction commands", () => {
@@ -1717,6 +1722,18 @@ describe("CI triage helper", () => {
                 },
               ],
             },
+            {
+              id: 64,
+              name: "Explicit std CLI timeout",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "CLI Tests > should preserve unrelated undefined diagnostics with missing explicit std imports timed out after 5000ms",
+                  conclusion: "failure",
+                },
+              ],
+            },
           ],
         }),
       );
@@ -1750,6 +1767,16 @@ describe("CI triage helper", () => {
       });
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
+        'bun test tests/CLI.test.ts -t "missing explicit std"',
+        'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
+        'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+      ]);
+      expect(
+        report.summary.failedJobs.find(
+          (job) => job.name === "Explicit std CLI timeout",
+        )?.localCommands,
+      ).toEqual([
         'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
         'bun test tests/CLI.test.ts -t "missing explicit std"',
         'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
