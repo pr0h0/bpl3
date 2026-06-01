@@ -14,9 +14,12 @@ import {
   CONTINUE_OUTSIDE_LOOP_CODE,
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
+  INTEGER_LITERAL_OVERFLOW_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
+  VARIABLE_REDECLARATION_CODE,
+  VARIABLE_TYPE_ANNOTATION_MISSING_CODE,
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
 
@@ -808,6 +811,7 @@ export function checkVariableDecl(
       `Missing type annotation for variable '${decl.name}'`,
       "Variables must have explicit type annotations. Add a type annotation like: local x: int = 1;",
       decl.location,
+      VARIABLE_TYPE_ANNOTATION_MISSING_CODE,
     );
   }
 
@@ -898,6 +902,7 @@ export function checkVariableDecl(
               )}`,
               `Ensure the value is within the range of ${this.typeToString(resolvedDecl)}.`,
               decl.location,
+              INTEGER_LITERAL_OVERFLOW_CODE,
             );
           } else if (!this.areTypesCompatible(resolvedDecl, resolvedInit)) {
             // Check for implicit pointer-to-value conversion for struct literals
@@ -965,6 +970,7 @@ export function checkVariableDecl(
       `Variable '${decl.name}' is already declared in this scope`,
       `Cannot redeclare '${decl.name}' in the same scope.`,
       decl.location,
+      VARIABLE_REDECLARATION_CODE,
     );
   }
 

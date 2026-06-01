@@ -8,10 +8,13 @@ import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
+  ASSIGNMENT_TARGET_CONSTANT_CODE,
+  ASSIGNMENT_TARGET_INVALID_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
+  TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
   VOID_TYPE_INVALID_CODE,
@@ -1555,6 +1558,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           `Cannot assign to constant '${id.name}'`,
           "Constants cannot be modified.",
           expr.location,
+          ASSIGNMENT_TARGET_CONSTANT_CODE,
         );
       }
     } else if (expr.kind === "Member") {
@@ -1598,6 +1602,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         "Invalid assignment target",
         "Left-hand side of assignment must be a variable, member, array element, pointer dereference, or tuple destructuring.",
         expr.assignee.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
       );
     }
 
@@ -1616,6 +1621,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             "Invalid assignment target in tuple destructuring",
             "Tuple elements in assignment must be valid l-values (variable, member, array element, or pointer dereference).",
             elem.location,
+            TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
           );
         }
       }
