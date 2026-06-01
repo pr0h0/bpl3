@@ -269,6 +269,7 @@ describe("CI triage helper", () => {
     const expectedCommands = [
       'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
       'bun test tests/CLI.test.ts -t "missing explicit std"',
+      'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
       'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
     ];
 
@@ -1678,6 +1679,72 @@ describe("CI triage helper", () => {
       expect(releaseJob?.localCommands).toContain(
         'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints explicit std import repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-explicit-std-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 63,
+              name: "Explicit std import diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/63",
+              steps: [
+                {
+                  name: "BPL_MODULE_NOT_FOUND Standard library module not found: std/missing.bpl",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
+        'bun test tests/CLI.test.ts -t "missing explicit std"',
+        'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
+        'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

@@ -466,6 +466,7 @@ describe("Release metadata", () => {
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
       'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
       'bun test tests/CLI.test.ts -t "missing explicit std"',
+      'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
       'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
     ]);
   });

@@ -3941,6 +3941,7 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   const expectedExplicitStdImportCommands = [
     'bun test tests/ModuleResolver.test.ts -t "missing explicit std"',
     'bun test tests/CLI.test.ts -t "missing explicit std"',
+    'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
     'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
   ];
   const missingCodeMappingCommands = [

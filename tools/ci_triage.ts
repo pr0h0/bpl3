@@ -665,6 +665,10 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [
     STD_IMPORT_ISOLATION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
+  ],
+  [
+    STD_IMPORT_ISOLATION_STEP_PATTERN,
     'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
   ],
 ];
