@@ -252,6 +252,116 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("records structured failure codes on package resolver traces", () => {
+    const appDir = path.join(tempDir, "structured-code-app");
+    const modulesDir = path.join(appDir, "bpl_modules");
+    fs.mkdirSync(modulesDir, { recursive: true });
+
+    const invalidImport = resolvePackageImport("math/../secret", appDir);
+    expect(invalidImport.trace.failureCode).toBe(
+      "BPL_PACKAGE_IMPORT_INVALID",
+    );
+    expect(getPackageResolutionFailureCode(invalidImport.trace)).toBe(
+      invalidImport.trace.failureCode,
+    );
+
+    const missingPackage = resolvePackageImport("missing-package", appDir);
+    expect(missingPackage.trace.failureCode).toBe("BPL_PACKAGE_NOT_FOUND");
+    expect(getPackageResolutionFailureCode(missingPackage.trace)).toBe(
+      missingPackage.trace.failureCode,
+    );
+
+    const entryMissingDir = path.join(modulesDir, "entry-missing");
+    fs.mkdirSync(entryMissingDir);
+    fs.writeFileSync(
+      path.join(entryMissingDir, "bpl.json"),
+      JSON.stringify({
+        name: "entry-missing",
+        version: "1.0.0",
+        main: "missing.bpl",
+      }),
+    );
+    const entryMissing = resolvePackageImport("entry-missing", appDir);
+    expect(entryMissing.trace.failureCode).toBe(
+      "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND",
+    );
+    expect(getPackageResolutionFailureCode(entryMissing.trace)).toBe(
+      entryMissing.trace.failureCode,
+    );
+
+    const unsafeMainDir = path.join(modulesDir, "unsafe-main");
+    fs.mkdirSync(unsafeMainDir);
+    fs.writeFileSync(
+      path.join(unsafeMainDir, "bpl.json"),
+      JSON.stringify({
+        name: "unsafe-main",
+        version: "1.0.0",
+        main: "../outside.bpl",
+      }),
+    );
+    const unsafeMain = resolvePackageImport("unsafe-main", appDir);
+    expect(unsafeMain.trace.failureCode).toBe(
+      "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
+    );
+    expect(getPackageResolutionFailureCode(unsafeMain.trace)).toBe(
+      unsafeMain.trace.failureCode,
+    );
+
+    const mathDir = path.join(modulesDir, "math");
+    const featureDir = path.join(mathDir, "features");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(mathDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(mathDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(featureDir, "Add.bpl"), "export add;");
+
+    const missingSubpath = resolvePackageImport("math/features/missing", appDir);
+    expect(missingSubpath.trace.failureCode).toBe(
+      "BPL_PACKAGE_SUBPATH_NOT_FOUND",
+    );
+    expect(getPackageResolutionFailureCode(missingSubpath.trace)).toBe(
+      missingSubpath.trace.failureCode,
+    );
+
+    const caseMismatch = resolvePackageImport("math/features/add", appDir);
+    expect(caseMismatch.trace.failureCode).toBe(
+      "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
+    );
+    expect(getPackageResolutionFailureCode(caseMismatch.trace)).toBe(
+      caseMismatch.trace.failureCode,
+    );
+
+    const linkedRoot = path.join(modulesDir, "linked-root");
+    const outsideRoot = path.join(tempDir, "outside-linked-root");
+    fs.mkdirSync(outsideRoot);
+    fs.symlinkSync(outsideRoot, linkedRoot, "dir");
+    const symlinkRoot = resolvePackageImport("linked-root", appDir);
+    expect(symlinkRoot.trace.failureCode).toBe("BPL_PACKAGE_ROOT_SYMLINK");
+    expect(getPackageResolutionFailureCode(symlinkRoot.trace)).toBe(
+      symlinkRoot.trace.failureCode,
+    );
+
+    const badManifestDir = path.join(modulesDir, "bad-manifest");
+    fs.mkdirSync(badManifestDir);
+    fs.writeFileSync(
+      path.join(badManifestDir, "bpl.json"),
+      JSON.stringify({
+        name: "other-name",
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
+    );
+    const badManifest = resolvePackageImport("bad-manifest", appDir);
+    expect(badManifest.trace.failureCode).toBe(
+      "BPL_PACKAGE_MANIFEST_INVALID",
+    );
+    expect(getPackageResolutionFailureCode(badManifest.trace)).toBe(
+      badManifest.trace.failureCode,
+    );
+  });
+
   test("keeps deterministic package subpath extension seeds stable", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");

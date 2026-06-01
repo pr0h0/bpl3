@@ -31,6 +31,7 @@ export interface PackageResolutionTrace {
   nearestPackageRoot?: string;
   foundPackageRoot?: string;
   failureReason?: PackageResolutionFailureReason;
+  failureCode?: PackageResolutionFailureCode;
   failureMessage?: string;
 }
 
@@ -42,6 +43,33 @@ export interface PackageResolutionDetails {
 export interface PackageResolutionOptions {
   globalPackageDir?: string;
 }
+
+export const PACKAGE_RESOLUTION_FAILURE_CODES = [
+  "BPL_PACKAGE_IMPORT_INVALID",
+  "BPL_PACKAGE_NOT_FOUND",
+  "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH",
+  "BPL_PACKAGE_ENTRYPOINT_SYMLINK",
+  "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND",
+  "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
+  "BPL_PACKAGE_SUBPATH_SYMLINK",
+  "BPL_PACKAGE_SUBPATH_NOT_FOUND",
+  "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
+  "BPL_PACKAGE_ROOT_CASE_MISMATCH",
+  "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+  "BPL_PACKAGE_ROOT_SYMLINK",
+  "BPL_PACKAGE_ROOT_NOT_DIRECTORY",
+  "BPL_PACKAGE_MANIFEST_MISSING",
+  "BPL_PACKAGE_MANIFEST_SYMLINK",
+  "BPL_PACKAGE_MANIFEST_CASE_MISMATCH",
+  "BPL_PACKAGE_MANIFEST_NOT_FILE",
+  "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+  "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
+  "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
+  "BPL_PACKAGE_MANIFEST_INVALID",
+] as const;
+
+export type PackageResolutionFailureCode =
+  (typeof PACKAGE_RESOLUTION_FAILURE_CODES)[number];
 
 const PACKAGE_NAME_PATTERN = /^[a-z0-9-]+$/;
 const PACKAGE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
@@ -89,6 +117,7 @@ export function resolvePackageImport(
     parts.some((part) => part.length === 0 || part === "." || part === "..")
   ) {
     trace.failureReason = "invalid-import";
+    trace.failureCode = "BPL_PACKAGE_IMPORT_INVALID";
     trace.failureMessage =
       "Package imports cannot contain empty, '.' or '..' path segments.";
     return { result: null, trace };
@@ -100,6 +129,7 @@ export function resolvePackageImport(
 
   if (!isValidPackageName(packageName)) {
     trace.failureReason = "invalid-import";
+    trace.failureCode = "BPL_PACKAGE_IMPORT_INVALID";
     trace.failureMessage =
       "Package import names must use lowercase letters, digits, and hyphens only.";
     return { result: null, trace };
@@ -141,6 +171,7 @@ export function resolvePackageImport(
 
   if (!trace.failureReason) {
     trace.failureReason = "package-not-found";
+    trace.failureCode = "BPL_PACKAGE_NOT_FOUND";
     trace.failureMessage = `Package '${trace.packageName}' was not found.`;
   }
 
@@ -195,33 +226,10 @@ export function formatPackageResolutionHint(
   return lines.join("\n");
 }
 
-export const PACKAGE_RESOLUTION_FAILURE_CODES = [
-  "BPL_PACKAGE_IMPORT_INVALID",
-  "BPL_PACKAGE_NOT_FOUND",
-  "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH",
-  "BPL_PACKAGE_ENTRYPOINT_SYMLINK",
-  "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND",
-  "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
-  "BPL_PACKAGE_SUBPATH_SYMLINK",
-  "BPL_PACKAGE_SUBPATH_NOT_FOUND",
-  "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
-  "BPL_PACKAGE_ROOT_CASE_MISMATCH",
-  "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
-  "BPL_PACKAGE_ROOT_SYMLINK",
-  "BPL_PACKAGE_ROOT_NOT_DIRECTORY",
-  "BPL_PACKAGE_MANIFEST_MISSING",
-  "BPL_PACKAGE_MANIFEST_SYMLINK",
-  "BPL_PACKAGE_MANIFEST_CASE_MISMATCH",
-  "BPL_PACKAGE_MANIFEST_NOT_FILE",
-  "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
-  "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
-  "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
-  "BPL_PACKAGE_MANIFEST_INVALID",
-] as const;
-
 export function getPackageResolutionFailureCode(
   trace: PackageResolutionTrace,
 ): string | undefined {
+  if (trace.failureCode) return trace.failureCode;
   if (!trace.failureReason) return undefined;
 
   const message = trace.failureMessage ?? "";
@@ -384,6 +392,9 @@ function resolvePackageFromBaseDir(
     const manifestRead = readPackageManifest(manifestPath);
     if (!manifestRead.ok) {
       trace.failureReason = "manifest-invalid";
+      trace.failureCode = getPackageManifestReadFailureCode(
+        manifestRead.message,
+      );
       trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: ${manifestRead.message}.`;
       return null;
     }
@@ -414,9 +425,11 @@ function resolvePackageFromBaseDir(
       return null;
     } else if (parts.length === 1) {
       trace.failureReason = "entrypoint-not-found";
+      trace.failureCode = "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND";
       trace.failureMessage = `Package '${packageName}' exists at ${packageRootPath}, but its entrypoint was not found.`;
     } else {
       trace.failureReason = "subpath-not-found";
+      trace.failureCode = "BPL_PACKAGE_SUBPATH_NOT_FOUND";
       trace.failureMessage = `Package '${packageName}' exists at ${packageRootPath}, but subpath '${parts.slice(1).join("/")}' was not found.`;
     }
   }
@@ -561,6 +574,27 @@ function readPackageManifest(
   return { ok: true, manifest: parsed as Record<string, unknown> };
 }
 
+function getPackageManifestReadFailureCode(
+  message: string,
+): PackageResolutionFailureCode {
+  switch (message) {
+    case "missing bpl.json":
+      return "BPL_PACKAGE_MANIFEST_MISSING";
+    case "manifest path is a symbolic link":
+      return "BPL_PACKAGE_MANIFEST_SYMLINK";
+    case "manifest path is not a file":
+      return "BPL_PACKAGE_MANIFEST_NOT_FILE";
+    case "manifest is not valid JSON":
+      return "BPL_PACKAGE_MANIFEST_PARSE_ERROR";
+    case "manifest must contain a JSON object":
+      return "BPL_PACKAGE_MANIFEST_NOT_OBJECT";
+    default:
+      return message.includes("manifest path casing does not match")
+        ? "BPL_PACKAGE_MANIFEST_CASE_MISMATCH"
+        : "BPL_PACKAGE_MANIFEST_INVALID";
+  }
+}
+
 function validatePackageManifestMatchesImport(
   packageRoot: string,
   manifest: Record<string, unknown>,
@@ -574,12 +608,14 @@ function validatePackageManifestMatchesImport(
     !isValidPackageName(manifest.name)
   ) {
     trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest name must use lowercase letters, digits, and hyphens only.`;
     return false;
   }
 
   if (manifest.name !== packageName) {
     trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest name '${String(
       manifest.name,
     )}' does not match requested package '${packageName}'.`;
@@ -591,6 +627,7 @@ function validatePackageManifestMatchesImport(
     !isValidPackageVersion(manifest.version)
   ) {
     trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest version must use X.Y.Z semantic version format.`;
     return false;
   }
@@ -603,6 +640,7 @@ function validatePackageManifestMatchesImport(
     const expectedVersion = versionedDirectory.join(".");
     if (manifest.version !== expectedVersion) {
       trace.failureReason = "manifest-invalid";
+      trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
       trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest version '${String(
         manifest.version,
       )}' does not match package directory version '${expectedVersion}'.`;
@@ -612,12 +650,14 @@ function validatePackageManifestMatchesImport(
 
   if (manifest.main !== undefined && typeof manifest.main !== "string") {
     trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest main must be a string when present.`;
     return false;
   }
 
   if (manifest.entry !== undefined && typeof manifest.entry !== "string") {
     trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest entry must be a string when present.`;
     return false;
   }
@@ -630,6 +670,7 @@ function failOnSymlinkedPackageRoot(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_ROOT_SYMLINK";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: package root is a symbolic link.`;
 }
 
@@ -639,6 +680,7 @@ function failOnCaseMismatchedPackageRoot(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_ROOT_CASE_MISMATCH";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${requestedPackageRoot}: package root casing does not match filesystem path ${actualPackageRoot}.`;
 }
 
@@ -647,6 +689,7 @@ function failOnSymlinkedPackageSearchDirectory(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_SYMLINK";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory is a symbolic link.`;
 }
 
@@ -656,6 +699,7 @@ function failOnCaseMismatchedPackageSearchDirectory(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${requestedSearchDirectory}: package search directory casing does not match filesystem path ${actualSearchDirectory}.`;
 }
 
@@ -665,6 +709,7 @@ function failOnInvalidPackageRoot(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_ROOT_NOT_DIRECTORY";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package root at ${packageRoot}: ${reason}.`;
 }
 
@@ -673,6 +718,7 @@ function failOnMissingPackageManifest(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_MANIFEST_MISSING";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid bpl.json at ${manifestPath}: missing bpl.json.`;
 }
 
@@ -682,6 +728,7 @@ function failOnCaseMismatchedPackageManifest(
   trace: PackageResolutionTrace,
 ): void {
   trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_MANIFEST_CASE_MISMATCH";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid bpl.json at ${requestedManifestPath}: manifest path casing does not match filesystem path ${actualManifestPath}.`;
 }
 
@@ -709,6 +756,7 @@ function resolvePackageEntryPoint(
 
   if (!isSafeManifestRelativePath(mainEntry)) {
     trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_ENTRYPOINT_UNSAFE";
     trace.failureMessage = `Package '${trace.packageName}' has an unsafe entrypoint '${mainEntry}' in bpl.json at ${path.join(
       packageRoot,
       "bpl.json",
@@ -838,6 +886,9 @@ function failOnExplicitSourceFileDirectory(
   trace.failureReason = trace.subPath
     ? "subpath-not-found"
     : "entrypoint-not-found";
+  trace.failureCode = trace.subPath
+    ? "BPL_PACKAGE_SUBPATH_NOT_FOUND"
+    : "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND";
   const guidance =
     "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes";
   trace.failureMessage = `Package '${trace.packageName}' exists at ${packageRoot}, but ${subject} was not found because it resolves to a directory at ${candidatePath}; ${guidance}. Import the extensionless directory path to allow index.bpl/index.x fallback, or create a source file at ${candidatePath}.`;
@@ -888,11 +939,13 @@ function failOnSymlinkedSourceCandidate(
 ): void {
   if (trace.subPath) {
     trace.failureReason = "subpath-not-found";
+    trace.failureCode = "BPL_PACKAGE_SUBPATH_SYMLINK";
     trace.failureMessage = `Package '${trace.packageName}' subpath '${trace.subPath}' resolves to a symbolic link candidate: ${filePath}.`;
     return;
   }
 
   trace.failureReason = "entrypoint-not-found";
+  trace.failureCode = "BPL_PACKAGE_ENTRYPOINT_SYMLINK";
   trace.failureMessage = `Package '${trace.packageName}' entrypoint resolves to a symbolic link candidate: ${filePath}.`;
 }
 
@@ -903,11 +956,13 @@ function failOnCaseMismatchedSourceCandidate(
 ): void {
   if (trace.subPath) {
     trace.failureReason = "subpath-not-found";
+    trace.failureCode = "BPL_PACKAGE_SUBPATH_CASE_MISMATCH";
     trace.failureMessage = `Package '${trace.packageName}' subpath '${trace.subPath}' casing does not match filesystem: requested ${requestedPath}, actual ${actualPath}.`;
     return;
   }
 
   trace.failureReason = "entrypoint-not-found";
+  trace.failureCode = "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH";
   trace.failureMessage = `Package '${trace.packageName}' entrypoint casing does not match filesystem: requested ${requestedPath}, actual ${actualPath}.`;
 }
 
