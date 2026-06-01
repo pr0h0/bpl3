@@ -483,8 +483,8 @@ describe("CI triage helper", () => {
 
   test("maps missing imported-export diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
-      'bun test tests/ImportHandler.test.ts -t "stable code"',
-      'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+      'bun test tests/ImportHandler.test.ts -t "stable code|available exports"',
+      'bun test tests/CLIJsonParseability.test.ts -t "available exports|stdlib package-name collisions"',
       'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
       "bun run check",
     ];
@@ -492,6 +492,7 @@ describe("CI triage helper", () => {
     for (const stepName of [
       "BPL_IMPORT_EXPORT_NOT_FOUND",
       "reports a stable code when a named import is not exported",
+      "Available exports: alpha, zeta.",
       "docs document missing imported-export diagnostic codes",
       "Module './helper.bpl' does not export 'missing'",
     ]) {
@@ -2768,12 +2769,12 @@ describe("CI triage helper", () => {
           jobs: [
             {
               id: 83,
-              name: "Missing imported export diagnostics",
+              name: "Compiler diagnostics regression",
               conclusion: "failure",
               html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/83",
               steps: [
                 {
-                  name: "BPL_IMPORT_EXPORT_NOT_FOUND Module './helper.bpl' does not export 'missing'",
+                  name: "Available exports: alpha, zeta.",
                   conclusion: "failure",
                 },
               ],
@@ -2811,8 +2812,8 @@ describe("CI triage helper", () => {
       });
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
-        'bun test tests/ImportHandler.test.ts -t "stable code"',
-        'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+        'bun test tests/ImportHandler.test.ts -t "stable code|available exports"',
+        'bun test tests/CLIJsonParseability.test.ts -t "available exports|stdlib package-name collisions"',
         'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
         "bun run check",
       ]);

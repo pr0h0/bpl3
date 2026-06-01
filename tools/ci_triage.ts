@@ -250,6 +250,7 @@ const IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN = new RegExp(
     "missing imported export",
     "named import is not exported",
     "stable code when a named import is not exported",
+    "Available exports:",
     "Module ['\"](?:\\./|\\.\\./|/|[A-Za-z]:[\\\\/])[^'\"]+['\"] does not export",
   ].join("|"),
   "i",
@@ -869,11 +870,11 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [STDLIB_PACKAGE_COLLISION_STEP_PATTERN, "bun run check"],
   [
     IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN,
-    'bun test tests/ImportHandler.test.ts -t "stable code"',
+    'bun test tests/ImportHandler.test.ts -t "stable code|available exports"',
   ],
   [
     IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN,
-    'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+    'bun test tests/CLIJsonParseability.test.ts -t "available exports|stdlib package-name collisions"',
   ],
   [
     IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN,
