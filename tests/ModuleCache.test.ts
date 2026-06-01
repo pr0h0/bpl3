@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { describe, expect, it } from "bun:test";
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -9,6 +10,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "fs";
@@ -581,6 +583,49 @@ describe("ModuleCache", () => {
         "simulated cached link failure",
       );
       expect(readFileSync(outputPath, "utf-8")).toBe("existing executable\n");
+      expect(
+        readdirSync(dir).some(
+          (entry) => entry.startsWith(".app.") && entry.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves existing linked output permissions when replacing cached output", () => {
+    if (process.platform === "win32") {
+      return;
+    }
+
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-link-mode-"));
+    const previousBplCc = process.env.BPL_CC;
+    const outputPath = join(dir, "app");
+    const objectPath = join(dir, "module.o");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "linked replacement\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      writeFileSync(objectPath, "object\n");
+      writeFileSync(outputPath, "existing executable\n");
+      chmodSync(outputPath, 0o755);
+
+      const cache = new ModuleCache(dir);
+      cache.linkModules([objectPath], outputPath);
+
+      expect(readFileSync(outputPath, "utf-8")).toBe("linked replacement\n");
+      expect(statSync(outputPath).mode & 0o777).toBe(0o755);
       expect(
         readdirSync(dir).some(
           (entry) => entry.startsWith(".app.") && entry.endsWith(".tmp"),

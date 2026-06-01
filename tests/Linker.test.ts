@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "fs";
@@ -298,6 +300,62 @@ describe("Linker", () => {
         process.env.BPL_CC = previousBplCc;
       }
       console.error = originalError;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves existing linked output permissions when replacing", () => {
+    if (process.platform === "win32") {
+      return;
+    }
+
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-mode-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const previousBplCc = process.env.BPL_CC;
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+    writeFileSync(outputPath, "existing executable\n");
+    chmodSync(outputPath, 0o755);
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "linked replacement\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-Wno-override-module"],
+      });
+
+      expect(ok).toBe(true);
+      expect(readFileSync(outputPath, "utf-8")).toBe("linked replacement\n");
+      expect(statSync(outputPath).mode & 0o777).toBe(0o755);
+      expect(
+        readdirSync(dir).some(
+          (entry) => entry.startsWith(".main.") && entry.endsWith(".tmp"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
       rmSync(dir, { recursive: true, force: true });
     }
   });

@@ -564,6 +564,7 @@ export class Linker {
       try {
         this.validateOutputPath(tempOutputPath);
         this.validateOutputPath(options.outputPath);
+        this.preserveExistingOutputMode(tempOutputPath, options.outputPath);
         fs.renameSync(tempOutputPath, options.outputPath);
       } catch (error) {
         compilerLog.error(
@@ -615,6 +616,16 @@ export class Linker {
         endColumn: 0,
       },
     );
+  }
+
+  private preserveExistingOutputMode(
+    tempOutputPath: string,
+    outputPath: string,
+  ): void {
+    const existingOutput = this.tryLstat(outputPath);
+    if (existingOutput?.isFile()) {
+      fs.chmodSync(tempOutputPath, existingOutput.mode & 0o777);
+    }
   }
 
   private removeBestEffort(filePath: string | undefined): void {

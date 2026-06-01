@@ -1101,6 +1101,7 @@ export class ModuleCache {
     try {
       this.assertWritableLinkOutputPath(tempOutputPath);
       this.assertWritableLinkOutputPath(outputPath);
+      this.preserveExistingLinkOutputMode(tempOutputPath, outputPath);
       fs.renameSync(tempOutputPath, outputPath);
     } catch (error) {
       this.removeCacheTempFile(tempOutputPath);
@@ -1115,6 +1116,16 @@ export class ModuleCache {
           endColumn: 0,
         },
       );
+    }
+  }
+
+  private preserveExistingLinkOutputMode(
+    tempOutputPath: string,
+    outputPath: string,
+  ): void {
+    const existingOutput = this.tryLstat(outputPath);
+    if (existingOutput?.isFile()) {
+      fs.chmodSync(tempOutputPath, existingOutput.mode & 0o777);
     }
   }
 
