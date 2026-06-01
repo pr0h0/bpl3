@@ -360,6 +360,15 @@ const RETURN_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
+  [
+    "BPL_ASSIGNMENT_TYPE_MISMATCH",
+    "assignment type mismatch",
+    "Type mismatch in assignment",
+    "The assigned value is not compatible with the target variable's type",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1090,6 +1099,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "return type mismatch"',
   ],
   [RETURN_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
+  [
+    ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN,
+    "bun test tests/TypeCheckerAssignmentMismatch.test.ts",
+  ],
+  [
+    ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "assignment type mismatch"',
+  ],
+  [
+    ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "assignment type mismatch"',
+  ],
+  [ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
