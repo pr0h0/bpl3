@@ -192,6 +192,12 @@ export function formatPackageResolutionHint(
   const lines: string[] = [];
 
   if (primary?.failureMessage) {
+    if (isGlobalPackageDirectorySymlinkFailure(primary.failureMessage)) {
+      lines.push(
+        "Move the symlink out of the way or choose a real package root directory.",
+      );
+      return lines.join("\n");
+    }
     lines.push(primary.failureMessage);
     if (primary.failureMessage.includes("casing does not match filesystem")) {
       lines.push("Use the exact filesystem casing shown in the diagnostic.");
@@ -259,7 +265,10 @@ export function getPackageResolutionFailureCode(
       if (message.includes("package root casing does not match")) {
         return "BPL_PACKAGE_ROOT_CASE_MISMATCH";
       }
-      if (message.includes("package search directory is a symbolic link")) {
+      if (
+        message.includes("package search directory is a symbolic link") ||
+        isGlobalPackageDirectorySymlinkFailure(message)
+      ) {
         return "BPL_PACKAGE_SEARCH_DIR_SYMLINK";
       }
       if (message.includes("package root is a symbolic link")) {
@@ -329,7 +338,11 @@ function resolvePackageFromBaseDir(
 
   const baseStats = tryLstat(baseDir);
   if (baseStats?.isSymbolicLink()) {
-    failOnSymlinkedPackageSearchDirectory(baseDir, trace);
+    failOnSymlinkedPackageSearchDirectory(
+      baseDir,
+      trace,
+      source === "global" ? "Global package directory" : undefined,
+    );
     return null;
   }
   if (baseStats && !baseStats.isDirectory()) {
@@ -687,10 +700,19 @@ function failOnCaseMismatchedPackageRoot(
 function failOnSymlinkedPackageSearchDirectory(
   searchDirectory: string,
   trace: PackageResolutionTrace,
+  label?: string,
 ): void {
   trace.failureReason = "manifest-invalid";
   trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_SYMLINK";
+  if (label) {
+    trace.failureMessage = `${label} path is a symbolic link: ${searchDirectory}`;
+    return;
+  }
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory is a symbolic link.`;
+}
+
+function isGlobalPackageDirectorySymlinkFailure(message: string): boolean {
+  return message.includes("Global package directory path is a symbolic link");
 }
 
 function failOnCaseMismatchedPackageSearchDirectory(

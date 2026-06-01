@@ -855,8 +855,9 @@ describe("PackageResolver", () => {
 
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe("BPL_PACKAGE_SEARCH_DIR_SYMLINK");
     expect(details.trace.failureMessage).toContain(
-      "package search directory is a symbolic link",
+      "Global package directory path is a symbolic link",
     );
     expect(details.trace.failureMessage).toContain(linkedGlobalPackageDir);
     expect(details.trace.searchedPaths).not.toContain(realPackageDir);
