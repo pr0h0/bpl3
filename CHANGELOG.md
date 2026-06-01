@@ -107,6 +107,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl build --json`, and the public CLI JSON error-code registry. Valid
   pointer dereference, logical-not, bitwise-not, and numeric negation forms
   remain accepted; primitive unary plus remains rejected as a no-op.
+- **Index Expression Misuse Diagnostic Codes** - Array index type mismatches,
+  pointer index type mismatches, and indexing non-indexable targets now report
+  `BPL_ARRAY_INDEX_TYPE_MISMATCH`, `BPL_POINTER_INDEX_TYPE_MISMATCH`, and
+  `BPL_INDEX_TARGET_NOT_INDEXABLE` in compiler errors, `bpl check --json`,
+  `bpl build --json`, and the public CLI JSON error-code registry. Valid
+  array, pointer, alias-pointer, and `__get__` indexing remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

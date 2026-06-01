@@ -819,6 +819,13 @@ bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "unary operator misuse"
 ```
 
+Index expression misuse failures use `BPL_ARRAY_INDEX_TYPE_MISMATCH`, `BPL_POINTER_INDEX_TYPE_MISMATCH`, and `BPL_INDEX_TARGET_NOT_INDEXABLE`. This covers array index type mismatches, pointer index type mismatches, and indexing non-indexable targets. Representative messages include `Array index must be an integer, got float`, `Pointer index must be an integer, got bool`, and `Type 'i32' is not indexable`. The corresponding hints include `Ensure the index expression evaluates to an integer.` and `Only arrays, pointers, or types with __get__ operator can be indexed.`. Valid array, pointer, alias-pointer, and `__get__` indexing remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerIndexExpressionMisuse.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

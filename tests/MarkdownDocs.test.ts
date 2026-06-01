@@ -1474,6 +1474,25 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document index expression misuse diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Index expression misuse failures use `BPL_ARRAY_INDEX_TYPE_MISMATCH`, `BPL_POINTER_INDEX_TYPE_MISMATCH`, and `BPL_INDEX_TARGET_NOT_INDEXABLE`",
+      "`Array index must be an integer, got float`",
+      "`Pointer index must be an integer, got bool`",
+      "`Type 'i32' is not indexable`",
+      "`Ensure the index expression evaluates to an integer.`",
+      "`Only arrays, pointers, or types with __get__ operator can be indexed.`",
+      "array index type mismatches, pointer index type mismatches, and indexing non-indexable targets",
+      'bun test tests/TypeCheckerIndexExpressionMisuse.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
