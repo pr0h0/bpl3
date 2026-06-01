@@ -181,6 +181,14 @@ describe("CodeGenerator", () => {
     ).toThrow(/Unsupported target triple ""/);
   });
 
+  it("rejects whitespace-padded target triples before generating IR", () => {
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: " x86_64-pc-linux-gnu ",
+      }),
+    ).toThrow(/Unsupported target triple " x86_64-pc-linux-gnu "/);
+  });
+
   it("uses the selected compiler driver for DWARF producer metadata", () => {
     const previousBplCc = process.env.BPL_CC;
     process.env.BPL_CC = join(

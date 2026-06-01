@@ -515,9 +515,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Compiler Target Validation Hardening** - `Compiler`, `CodeGenerator`, and
   `bpl build` now reject unsupported target triples before LLVM IR is emitted
   instead of silently using an x86_64 Linux data layout for unknown targets.
-  JSON-mode build failures report `BPL_BUILD_UNSUPPORTED_TARGET`. Supported
-  target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS,
-  i686 Linux, x86_64 Windows, wasm32, wasm64. Focused repro:
+  It also rejects empty or whitespace-padded target triples, so accepted target
+  strings exactly match the metadata emitted to LLVM and forwarded to
+  toolchains. JSON-mode build failures report `BPL_BUILD_UNSUPPORTED_TARGET`.
+  Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux,
+  AArch64 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64. Focused repro:
   `bun test tests/CodeGenerator.test.ts -t "target" && bun test tests/CLIJsonParseability.test.ts -t "build validation failures"`.
 - **Aggregate Addition Type Checking (BUG-148)** - Struct and tuple `+`
   expressions without an overload now fail in type checking instead of

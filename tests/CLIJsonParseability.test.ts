@@ -2402,6 +2402,19 @@ describe("CLI JSON parseability", () => {
         'Unsupported target triple ""',
         "BPL_BUILD_UNSUPPORTED_TARGET",
       ],
+      [
+        [
+          "build",
+          validSource,
+          "--json",
+          "--emit",
+          "llvm",
+          "--target",
+          " x86_64-pc-linux-gnu ",
+        ],
+        'Unsupported target triple " x86_64-pc-linux-gnu "',
+        "BPL_BUILD_UNSUPPORTED_TARGET",
+      ],
     ];
 
     for (const [args, expectedError, expectedErrorCode] of validationCases) {

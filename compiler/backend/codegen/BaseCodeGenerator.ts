@@ -88,8 +88,10 @@ function resolveDataLayoutForTarget(target?: string): string | undefined {
     return X86_64_LINUX_DATA_LAYOUT;
   }
 
-  const normalizedTarget = target.trim().toLowerCase();
-  if (!normalizedTarget) return undefined;
+  const trimmedTarget = target.trim();
+  if (!trimmedTarget || trimmedTarget !== target) return undefined;
+
+  const normalizedTarget = trimmedTarget.toLowerCase();
   return SUPPORTED_TARGET_DATA_LAYOUTS.find((entry) =>
     entry.matches(normalizedTarget),
   )?.layout;
