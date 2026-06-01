@@ -587,6 +587,7 @@ export abstract class TypeCheckerBase {
               `Function '${name}' with this signature is already defined.`,
               "Overloads must have different parameter types.",
               node.location,
+              SYMBOL_ALREADY_DEFINED_CODE,
             );
           }
         }

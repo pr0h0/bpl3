@@ -15,6 +15,17 @@ function check(source: string) {
   if (error) throw error;
 }
 
+function expectCompilerError(source: string): CompilerError {
+  try {
+    check(source);
+  } catch (error) {
+    expect(error).toBeInstanceOf(CompilerError);
+    return error as CompilerError;
+  }
+
+  throw new Error("Expected type checking to fail");
+}
+
 describe("TypeChecker duplicate symbols", () => {
   test("rejects duplicate top-level non-function symbols in the same scope", () => {
     const source = `
@@ -42,6 +53,24 @@ describe("TypeChecker duplicate symbols", () => {
 
     expect(() => check(source)).toThrow(CompilerError);
     expect(() => check(source)).toThrow("already defined in this scope");
+  });
+
+  test("codes duplicate function signatures as duplicate symbols", () => {
+    const source = `
+      frame pick(value: int) ret int { return value; }
+      frame pick(value: int) ret int { return value + 1; }
+
+      frame main() ret int {
+        return pick(1);
+      }
+    `;
+
+    const error = expectCompilerError(source);
+
+    expect(error.message).toContain(
+      "Function 'pick' with this signature is already defined.",
+    );
+    expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
   });
 
   test("preserves valid function overloads", () => {
