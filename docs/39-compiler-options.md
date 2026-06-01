@@ -783,6 +783,28 @@ bun test tests/TypeCheckerCallSiteMismatch.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"
 ```
 
+Control-flow misuse failures use `BPL_BREAK_OUTSIDE_CONTEXT`,
+`BPL_CONTINUE_OUTSIDE_LOOP`, `BPL_FALLTHROUGH_OUTSIDE_SWITCH`, and
+`BPL_DEFER_RETURN_VALUE_INVALID`. This covers break outside loop/switch,
+continue outside loop, fallthrough outside switch, and return-with-value inside
+defer. For example, `break;` outside a loop or switch reports
+`'break' statement outside of loop or switch` with the hint
+`Break statements can only be used inside loops or switch statements.`,
+`continue;` outside a loop reports `'continue' statement outside of loop` with
+the hint `Continue statements can only be used inside loops.`, and
+`fallthrough;` outside a switch reports
+`'fallthrough' statement outside of switch` with the hint
+`Fallthrough statements can only be used inside switch statements.`. A defer
+block that returns a value reports `Return with value not allowed in defer block`
+with the hint `Defer blocks must return void.`. Valid loop `break`, loop
+`continue`, switch `fallthrough`, and bare `return;` from a defer block remain
+accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerControlFlowMisuse.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

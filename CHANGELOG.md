@@ -76,6 +76,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Valid function, lambda, callable object, and enum variant calls
   remain accepted.
+- **Control-Flow Misuse Diagnostic Codes** - `break` outside loops/switches,
+  `continue` outside loops, `fallthrough` outside switches, and returning a
+  value from a defer block now report `BPL_BREAK_OUTSIDE_CONTEXT`,
+  `BPL_CONTINUE_OUTSIDE_LOOP`, `BPL_FALLTHROUGH_OUTSIDE_SWITCH`, and
+  `BPL_DEFER_RETURN_VALUE_INVALID` in compiler errors, `bpl check --json`,
+  `bpl build --json`, and the public CLI JSON error-code registry. Valid loop
+  `break`, loop `continue`, switch `fallthrough`, and bare `return;` from defer
+  blocks remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

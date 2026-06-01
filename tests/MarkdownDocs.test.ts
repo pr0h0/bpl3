@@ -1397,6 +1397,28 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document control-flow misuse diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Control-flow misuse failures use `BPL_BREAK_OUTSIDE_CONTEXT`, `BPL_CONTINUE_OUTSIDE_LOOP`, `BPL_FALLTHROUGH_OUTSIDE_SWITCH`, and `BPL_DEFER_RETURN_VALUE_INVALID`",
+      "`'break' statement outside of loop or switch`",
+      "`'continue' statement outside of loop`",
+      "`'fallthrough' statement outside of switch`",
+      "`Return with value not allowed in defer block`",
+      "`Break statements can only be used inside loops or switch statements.`",
+      "`Continue statements can only be used inside loops.`",
+      "`Fallthrough statements can only be used inside switch statements.`",
+      "`Defer blocks must return void.`",
+      "break outside loop/switch, continue outside loop, fallthrough outside switch, and return-with-value inside defer",
+      'bun test tests/TypeCheckerControlFlowMisuse.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

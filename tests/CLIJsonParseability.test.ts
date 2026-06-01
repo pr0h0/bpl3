@@ -3597,6 +3597,121 @@ describe("CLI JSON parseability", () => {
     }
   }, 10000);
 
+  test("reports control-flow misuse failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "break_outside_context",
+        code: "BPL_BREAK_OUTSIDE_CONTEXT",
+        line: 2,
+        column: 5,
+        preview: "break;",
+        message: "'break' statement outside of loop or switch",
+        hint: "Break statements can only be used inside loops or switch statements.",
+        source: [
+          "frame main() ret int {",
+          "    break;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "continue_outside_loop",
+        code: "BPL_CONTINUE_OUTSIDE_LOOP",
+        line: 2,
+        column: 5,
+        preview: "continue;",
+        message: "'continue' statement outside of loop",
+        hint: "Continue statements can only be used inside loops.",
+        source: [
+          "frame main() ret int {",
+          "    continue;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "fallthrough_outside_switch",
+        code: "BPL_FALLTHROUGH_OUTSIDE_SWITCH",
+        line: 2,
+        column: 5,
+        preview: "fallthrough;",
+        message: "'fallthrough' statement outside of switch",
+        hint: "Fallthrough statements can only be used inside switch statements.",
+        source: [
+          "frame main() ret int {",
+          "    fallthrough;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "defer_return_value_invalid",
+        code: "BPL_DEFER_RETURN_VALUE_INVALID",
+        line: 3,
+        column: 9,
+        preview: "return 1;",
+        message: "Return with value not allowed in defer block",
+        hint: "Defer blocks must return void.",
+        source: [
+          "frame main() ret int {",
+          "    defer {",
+          "        return 1;",
+          "    }",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
