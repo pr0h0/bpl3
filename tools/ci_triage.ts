@@ -1522,14 +1522,34 @@ async function fetchGitHubJson<T>(url: string): Promise<T> {
 }
 
 function readWorkflowDataFromJson(filePath: string): GitHubWorkflowData {
-  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as
+  let source: string;
+  try {
+    source = readFileSync(filePath, "utf8");
+  } catch (error) {
+    throw new CliUsageError(
+      `Unable to read --jobs-json file ${filePath}: ${formatReadFileError(error)}.`,
+    );
+  }
+
+  let parsed:
     | GitHubWorkflowJobsResponse
     | GitHubWorkflowData
     | GitHubWorkflowJob[];
+  try {
+    parsed = JSON.parse(source) as
+      | GitHubWorkflowJobsResponse
+      | GitHubWorkflowData
+      | GitHubWorkflowJob[];
+  } catch (error) {
+    throw new CliUsageError(
+      `Unable to parse --jobs-json file ${filePath}: ${formatJsonParseError(error)}.`,
+    );
+  }
+
   const jobs = Array.isArray(parsed) ? parsed : parsed.jobs;
   if (!Array.isArray(jobs)) {
-    throw new Error(
-      `Expected ${filePath} to contain a GitHub jobs API response with a jobs array.`,
+    throw new CliUsageError(
+      `Expected --jobs-json file ${filePath} to contain a GitHub jobs API response with a jobs array.`,
     );
   }
   return {
@@ -1541,6 +1561,28 @@ function readWorkflowDataFromJson(filePath: string): GitHubWorkflowData {
         ? parsed.run
         : undefined,
   };
+}
+
+function formatReadFileError(error: unknown): string {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : undefined;
+  if (code === "ENOENT") {
+    return "file does not exist";
+  }
+  if (code === "EACCES" || code === "EPERM") {
+    return "permission denied";
+  }
+  return error instanceof Error && error.message
+    ? error.message
+    : String(error);
+}
+
+function formatJsonParseError(error: unknown): string {
+  const message =
+    error instanceof Error && error.message ? error.message : String(error);
+  return message.replace(/^JSON Parse error:\s*/i, "");
 }
 
 async function main(): Promise<void> {

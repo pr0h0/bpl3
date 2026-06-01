@@ -4207,4 +4207,58 @@ describe("CI triage helper", () => {
       expect(result.stderr).not.toContain("api.github.com");
     }
   });
+
+  test("rejects unreadable and malformed jobs-json files before GitHub API calls", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-jobs-json-"));
+
+    try {
+      const missingPath = join(tempDir, "missing-jobs.json");
+      const malformedPath = join(tempDir, "malformed-jobs.json");
+      const wrongShapePath = join(tempDir, "wrong-shape-jobs.json");
+      writeFileSync(malformedPath, "{bad json");
+      writeFileSync(wrongShapePath, JSON.stringify({ jobs: "bad" }) + "\n");
+
+      const cases: Array<{
+        args: string[];
+        expectedError: string;
+        forbiddenError: string;
+      }> = [
+        {
+          args: ["--jobs-json", missingPath, "26695335269"],
+          expectedError: `Unable to read --jobs-json file ${missingPath}: file does not exist.`,
+          forbiddenError: "ENOENT",
+        },
+        {
+          args: ["--jobs-json", malformedPath, "26695335269"],
+          expectedError: `Unable to parse --jobs-json file ${malformedPath}:`,
+          forbiddenError: "JSON Parse error",
+        },
+        {
+          args: ["--jobs-json", wrongShapePath, "26695335269"],
+          expectedError: `Expected --jobs-json file ${wrongShapePath} to contain a GitHub jobs API response with a jobs array.`,
+          forbiddenError: "TypeError",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const result = spawnSync(
+          "bun",
+          ["run", "ci:triage", "--", ...testCase.args],
+          {
+            cwd: join(import.meta.dir, ".."),
+            encoding: "utf8",
+          },
+        );
+
+        expect(result.status).toBe(2);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain(testCase.expectedError);
+        expect(result.stderr).not.toContain(testCase.forbiddenError);
+        expect(result.stderr).not.toContain("GitHub API");
+        expect(result.stderr).not.toContain("api.github.com");
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
