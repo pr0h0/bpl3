@@ -122,6 +122,24 @@ steps and print focused local commands:
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 ```
 
+Accepted run locators are a numeric run ID, a GitHub Actions run URL, or a
+GitHub Actions job URL:
+
+```bash
+bun run ci:triage -- <run-id>
+bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>/job/<job-id>
+```
+
+Malformed run IDs, malformed URLs, non-GitHub URLs, non-actions URLs, and
+invalid job URL IDs report usage errors before any GitHub API request. Common
+local validation diagnostics include `Invalid GitHub Actions run id: <value>`,
+`Expected a numeric GitHub Actions run id or github.com Actions run URL, got <value>`,
+and `Invalid GitHub Actions job id in <url>`. Focus that validation path with:
+
+```bash
+bun test tests/CiTriage.test.ts -t "invalid run locators"
+```
+
 `--repo` must be `owner/name` when triaging a repository other than the
 default. Invalid repository values report
 `Expected --repo as owner/name, got <value>`. Repository validation is a usage

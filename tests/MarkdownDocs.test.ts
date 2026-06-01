@@ -1193,6 +1193,13 @@ describe("Markdown documentation", () => {
     const normalizedText = combinedDocs.replace(/\s+/g, " ");
     const requiredSnippets = [
       "bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>",
+      "Accepted run locators are a numeric run ID, a GitHub Actions run URL, or a GitHub Actions job URL",
+      "bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>/job/<job-id>",
+      "Malformed run IDs, malformed URLs, non-GitHub URLs, non-actions URLs, and invalid job URL IDs report usage errors before any GitHub API request",
+      "Invalid GitHub Actions run id: <value>",
+      "Expected a numeric GitHub Actions run id or github.com Actions run URL, got <value>",
+      "Invalid GitHub Actions job id in <url>",
+      'bun test tests/CiTriage.test.ts -t "invalid run locators"',
       "bun run ci:triage -- --json --jobs-json jobs.json <run-id>",
       "`--repo` must be `owner/name`",
       "Invalid repository values report `Expected --repo as owner/name, got <value>`",
