@@ -568,6 +568,30 @@ const EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const STATEMENT_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
+  [
+    "BPL_VARIABLE_TYPE_ANNOTATION_MISSING",
+    "BPL_VARIABLE_REDECLARATION",
+    "BPL_INTEGER_LITERAL_OVERFLOW",
+    "BPL_ASSIGNMENT_TARGET_CONSTANT",
+    "BPL_ASSIGNMENT_TARGET_INVALID",
+    "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID",
+    "statement semantic guard",
+    "Missing type annotation for variable",
+    "Variable '.*' is already declared in this scope",
+    "Integer overflow: value .* does not fit in type",
+    "Cannot assign to constant",
+    "Invalid assignment target",
+    "Invalid assignment target in tuple destructuring",
+    "Variables must have explicit type annotations",
+    "Cannot redeclare '.*' in the same scope",
+    "Ensure the value is within the range of",
+    "Constants cannot be modified",
+    "Left-hand side of assignment must be a variable",
+    "Tuple elements in assignment must be valid l-values",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1454,6 +1478,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "expression semantic guard"',
   ],
   [EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN, "bun run check"],
+  [
+    STATEMENT_SEMANTIC_GUARD_STEP_PATTERN,
+    "bun test tests/TypeCheckerStatementSemanticGuards.test.ts",
+  ],
+  [
+    STATEMENT_SEMANTIC_GUARD_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"',
+  ],
+  [
+    STATEMENT_SEMANTIC_GUARD_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "statement semantic guard"',
+  ],
+  [STATEMENT_SEMANTIC_GUARD_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
