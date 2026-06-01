@@ -448,6 +448,12 @@ directory contains `packages/<package-name>/bpl.json`, imports can resolve
 through that workspace before falling back to global packages. The runnable
 example in `examples/package_transitive_dependency/app/main.bpl` demonstrates a
 workspace package, a transitive dependency, and a subpath import.
+The package/import docs examples are smoke-tested with
+`bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"`:
+the workspace success path checks
+`examples/package_transitive_dependency/app/main.bpl`, and the invalid
+`pkg-math/../secret` package import checks the JSON diagnostic code
+`BPL_PACKAGE_IMPORT_INVALID`.
 
 ## Dependency Resolution
 

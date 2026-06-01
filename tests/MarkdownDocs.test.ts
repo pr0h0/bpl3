@@ -404,6 +404,22 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("package docs document package/import docs smoke fixtures", () => {
+    const combinedDocs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "package/import docs examples",
+      "examples/package_transitive_dependency/app/main.bpl",
+      "pkg-math/../secret",
+      "BPL_PACKAGE_IMPORT_INVALID",
+      'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
+    ];
+
+    expectDocsContainSnippets(combinedDocs, requiredSnippets);
+  });
+
   test("release docs document packed helper support and exclusions", () => {
     const readme = readFileSync("README.md", "utf8");
     const changelog = readFileSync("CHANGELOG.md", "utf8");

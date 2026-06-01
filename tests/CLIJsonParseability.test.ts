@@ -210,6 +210,46 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps package/import docs examples covered by JSON smoke fixtures", () => {
+    const documentedExample = path.join(
+      process.cwd(),
+      "examples/package_transitive_dependency/app/main.bpl",
+    );
+    const success = runCli(["check", "--json", documentedExample]);
+
+    expectJsonStdoutReport(success, {
+      status: 0,
+      check: "check",
+      success: true,
+    });
+
+    const appDir = path.join(tempDir, "docs-package-import");
+    const sourceFile = path.join(appDir, "main.bpl");
+    fs.mkdirSync(appDir, { recursive: true });
+    writePackageFixture(path.join(appDir, "bpl_modules", "pkg-math"));
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math/../secret";',
+        "frame main() ret int { return 0; }",
+        "",
+      ].join("\n"),
+    );
+
+    const invalidImport = runCli(["check", "--json", sourceFile], {
+      cwd: appDir,
+    });
+    const diagnostic = expectSingleCheckJsonDiagnostic(
+      invalidImport,
+      sourceFile,
+    );
+
+    expect(diagnostic.code).toBe("BPL_PACKAGE_IMPORT_INVALID");
+    expect(diagnostic.message).toContain(
+      "Package imports cannot contain empty, '.' or '..' path segments.",
+    );
+  });
+
   test("keeps check and lint JSON input validation failures parseable with error codes", () => {
     const sourceDir = path.join(tempDir, "source-dir");
     const realSource = path.join(tempDir, "main.bpl");

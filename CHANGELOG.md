@@ -185,6 +185,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed Helper Dependency Import Audit** - Release metadata tests now cover
   helper dependency imports with explicit extensions and directory `index`
   specifiers, and missing dependency imports report both importer and dependency.
+- **Package Import Docs Smoke Fixtures** - Package docs now identify the
+  JSON-mode smoke that checks the workspace/transitive package example and the
+  documented invalid `pkg-math/../secret` import diagnostic.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.
