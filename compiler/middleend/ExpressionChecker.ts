@@ -12,7 +12,10 @@ import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
-import { CONDITION_TYPE_MISMATCH_CODE } from "./TypeCheckerBase";
+import {
+  CONDITION_TYPE_MISMATCH_CODE,
+  TERNARY_BRANCH_TYPE_MISMATCH_CODE,
+} from "./TypeCheckerBase";
 
 function isGenericParameterType(
   context: CheckerContext,
@@ -1146,6 +1149,7 @@ export function checkTernary(
       )} vs ${this.typeToString(elseType)}`,
       "Both branches must return the same type.",
       expr.location,
+      TERNARY_BRANCH_TYPE_MISMATCH_CODE,
     );
   }
 
