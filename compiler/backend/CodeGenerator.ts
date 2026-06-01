@@ -371,13 +371,7 @@ export class CodeGenerator extends StatementGenerator {
       `\n${this.getLlvmAttributeGroupOutput()}\n`;
 
     if (this.debugIrPath) {
-      try {
-        this.writeDebugIr(result);
-      } catch (e) {
-        codeGenLog.debug("Failed to write debug IR file:", {
-          error: String(e),
-        });
-      }
+      this.writeDebugIr(result);
     }
 
     return result;
@@ -408,7 +402,22 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     const debugIrParent = path.dirname(path.resolve(this.debugIrPath));
-    const parentPath = fs.lstatSync(debugIrParent);
+    let parentPath: fs.Stats;
+    try {
+      parentPath = fs.lstatSync(debugIrParent);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
+      ) {
+        throw new Error(
+          `Debug IR parent path does not exist: ${debugIrParent}`,
+        );
+      }
+      throw error;
+    }
     if (parentPath.isSymbolicLink()) {
       throw new Error(
         `Debug IR parent path is a symbolic link: ${debugIrParent}`,

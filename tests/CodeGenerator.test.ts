@@ -84,7 +84,9 @@ describe("CodeGenerator", () => {
       writeFileSync(targetPath, "original\n");
       symlinkSync(targetPath, debugIrPath, "file");
 
-      compile("frame main() { return; }", { debugIrPath });
+      expect(() =>
+        compile("frame main() { return; }", { debugIrPath }),
+      ).toThrow(/Debug IR path is a symbolic link/);
 
       expect(readFileSync(targetPath, "utf8")).toBe("original\n");
     } finally {
@@ -105,7 +107,9 @@ describe("CodeGenerator", () => {
       mkdirSync(realParent);
       symlinkSync(realParent, linkedParent, "dir");
 
-      compile("frame main() { return; }", { debugIrPath });
+      expect(() =>
+        compile("frame main() { return; }", { debugIrPath }),
+      ).toThrow(/Debug IR parent path is a symbolic link/);
 
       expect(existsSync(join(realParent, "debug.ll"))).toBe(false);
     } finally {
@@ -127,9 +131,28 @@ describe("CodeGenerator", () => {
       mkdirSync(realNested, { recursive: true });
       symlinkSync(realRoot, linkedRoot, "dir");
 
-      compile("frame main() { return; }", { debugIrPath });
+      expect(() =>
+        compile("frame main() { return; }", { debugIrPath }),
+      ).toThrow(/Debug IR parent path contains a symbolic link/);
 
       expect(existsSync(join(realNested, "debug.ll"))).toBe(false);
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports missing debug IR parent directories", () => {
+    const cwd = process.cwd();
+    const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));
+    const debugIrPath = join(dir, "missing", "debug.ll");
+
+    try {
+      process.chdir(dir);
+
+      expect(() =>
+        compile("frame main() { return; }", { debugIrPath }),
+      ).toThrow(/Debug IR parent path does not exist/);
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
