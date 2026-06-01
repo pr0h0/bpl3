@@ -13,18 +13,26 @@ import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
+  ADDRESS_OF_TARGET_INVALID_CODE,
   ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
+  ARRAY_LITERAL_TYPE_MISMATCH_CODE,
   BINARY_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
+  CAST_INTEGER_TO_STRING_CODE,
+  CAST_INVALID_CODE,
   COMPARISON_TYPE_MISMATCH_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
   DEREFERENCE_TARGET_INVALID_CODE,
+  DIVISION_BY_ZERO_CODE,
   LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
   LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
   MODULO_OPERAND_TYPE_MISMATCH_CODE,
   POINTER_ARITHMETIC_VOID_CODE,
   POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
+  SHIFT_COUNT_INVALID_CODE,
+  SIZEOF_VOID_INVALID_CODE,
   SYMBOL_NOT_FOUND_CODE,
   STRING_CONCAT_UNSUPPORTED_CODE,
   TERNARY_BRANCH_TYPE_MISMATCH_CODE,
@@ -668,6 +676,7 @@ export function checkBinary(
             "Negative shift count",
             "Shift counts must be zero or greater.",
             expr.right.location,
+            SHIFT_COUNT_INVALID_CODE,
           );
         }
 
@@ -682,6 +691,7 @@ export function checkBinary(
             )}`,
             "Use a shift count smaller than the width of the left operand.",
             expr.right.location,
+            SHIFT_COUNT_INVALID_CODE,
           );
         }
       }
@@ -711,6 +721,7 @@ export function checkBinary(
         "Division by zero",
         "The divisor in a modulo operation cannot be zero.",
         expr.right.location,
+        DIVISION_BY_ZERO_CODE,
       );
     }
   }
@@ -753,6 +764,7 @@ export function checkBinary(
           "Division by zero",
           "The divisor in a division operation cannot be zero.",
           expr.right.location,
+          DIVISION_BY_ZERO_CODE,
         );
       }
     }
@@ -830,6 +842,7 @@ export function checkUnary(
           "Cannot take address of constant expression.",
           "BPL does not support pointers to constants yet. Taking the address would allow modification of the constant.",
           expr.location,
+          ADDRESS_OF_CONSTANT_CODE,
         );
       }
 
@@ -866,6 +879,7 @@ export function checkUnary(
       `Cannot take address of ${this.typeToString(operandType)}`,
       "Address-of requires an lvalue.",
       expr.location,
+      ADDRESS_OF_TARGET_INVALID_CODE,
     );
   }
 
@@ -979,6 +993,7 @@ export function checkArrayLiteral(
         )} vs ${this.typeToString(elemType)}`,
         "All elements in an array literal must have the same type.",
         expr.elements[i]!.location,
+        ARRAY_LITERAL_TYPE_MISMATCH_CODE,
       );
     }
   }
@@ -1212,6 +1227,7 @@ export function checkCast(
           `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
           "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
           expr.location,
+          CAST_INTEGER_TO_STRING_CODE,
         );
       }
     }
@@ -1225,6 +1241,7 @@ export function checkCast(
         `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
         "This cast is not allowed.",
         expr.location,
+        CAST_INVALID_CODE,
       );
     }
   }
@@ -1289,6 +1306,7 @@ export function checkSizeof(
       "Cannot take size of void",
       "Void type has no size.",
       expr.location,
+      SIZEOF_VOID_INVALID_CODE,
     );
   }
 
@@ -1629,6 +1647,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
           `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
           "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
           expr.location,
+          CAST_INTEGER_TO_STRING_CODE,
         );
       }
     }
@@ -1642,6 +1661,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
         `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
         "This cast is not allowed.",
         expr.location,
+        CAST_INVALID_CODE,
       );
     }
   }
