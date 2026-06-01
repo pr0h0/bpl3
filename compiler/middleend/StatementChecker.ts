@@ -11,6 +11,8 @@ import type { Symbol } from "./SymbolTable";
 import {
   CONDITION_TYPE_MISMATCH_CODE,
   RETURN_TYPE_MISMATCH_CODE,
+  SWITCH_CASE_TYPE_MISMATCH_CODE,
+  SWITCH_VALUE_TYPE_MISMATCH_CODE,
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
 
@@ -545,6 +547,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
           )}`,
           "Ensure the switch expression evaluates to an integer, string or enum.",
           stmt.expression.location,
+          SWITCH_VALUE_TYPE_MISMATCH_CODE,
         );
       }
     }
@@ -564,6 +567,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
           )} not compatible with switch value type ${this.typeToString(valueType)}`,
           "Ensure case patterns match the switch value type.",
           caseItem.value.location,
+          SWITCH_CASE_TYPE_MISMATCH_CODE,
         );
       }
 
