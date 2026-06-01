@@ -4002,6 +4002,75 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     },
   );
 
+  const testCiHelp = runStep(
+    "check packed npm CLI test:ci help",
+    "npm",
+    ["run", "--silent", "test:ci", "--", "--help"],
+    { cwd: packageDir, bplHome: null },
+  );
+  assertOutputContains(testCiHelp.stdout, [
+    "Usage: bun tools/test_ci.ts",
+    "--list, --dry-run",
+    "--json",
+  ]);
+
+  const testCiList = runStep(
+    "check packed npm CLI test:ci list",
+    "npm",
+    ["run", "--silent", "test:ci", "--", "--list"],
+    { cwd: packageDir, bplHome: null },
+  );
+  assertOutputContains(testCiList.stdout, [
+    "# Build runtime support",
+    "bun run build:runtime",
+    "# Check generated CLI registry shim",
+    "bun run release:cli-registry",
+  ]);
+
+  const testCiJson = runStep(
+    "check packed npm CLI test:ci JSON",
+    "npm",
+    ["run", "--silent", "test:ci", "--", "--json"],
+    { cwd: packageDir, bplHome: null },
+  );
+  const testCiPlan = JSON.parse(testCiJson.stdout) as {
+    schemaVersion?: unknown;
+    check?: unknown;
+    plan?: Array<{ name?: unknown; command?: unknown; args?: unknown }>;
+  };
+  const testCiStepNames = testCiPlan.plan?.map((step) => step.name) ?? [];
+  if (
+    testCiPlan.schemaVersion !== 1 ||
+    testCiPlan.check !== "test-ci" ||
+    JSON.stringify(testCiStepNames) !==
+      JSON.stringify([
+        "Build runtime support",
+        "Run integration and playground examples",
+        "Run VS Code extension tests",
+        "Check generated CLI registry shim",
+      ])
+  ) {
+    throw new Error(
+      `Packed npm CLI test:ci JSON reported unexpected payload:\n${JSON.stringify(testCiPlan, null, 2)}`,
+    );
+  }
+
+  runExpectedFailureStep(
+    "check packed npm CLI test:ci flag value usage errors",
+    "npm",
+    ["run", "--silent", "test:ci", "--", "--dry-run=true"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--dry-run does not accept a value",
+      forbiddenOutputIncludes: [
+        "Build runtime support",
+        "Run CI-safe unit tests",
+      ],
+    },
+  );
+
   const ciTriage = runStep(
     "check packed npm CLI CI triage helper",
     "npm",

@@ -1,5 +1,5 @@
 import { spawnSync } from "child_process";
-import { readdirSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { basename, join } from "path";
 
 export const CI_SAFE_FIXED_TEST_FILES = [
@@ -44,6 +44,10 @@ const EXCLUDED_TEST_FILE_SET = new Set<string>(CI_SAFE_EXCLUDED_TEST_FILES);
 export function discoverCiSafeUnitTestFiles(
   testsDir = join(process.cwd(), "tests"),
 ): string[] {
+  if (!existsSync(testsDir)) {
+    return [];
+  }
+
   return readdirSync(testsDir)
     .filter((name) => name.endsWith(".test.ts"))
     .filter((name) => !EXCLUDED_TEST_FILE_SET.has(name))
@@ -54,7 +58,7 @@ export function discoverCiSafeUnitTestFiles(
 export function createTestCiPlan(options: TestCiPlanOptions = {}): TestCiStep[] {
   const ciSafeUnitTests = discoverCiSafeUnitTestFiles(options.testsDir);
 
-  return [
+  const plan: TestCiStep[] = [
     {
       name: "Build runtime support",
       command: "bun",
@@ -75,12 +79,17 @@ export function createTestCiPlan(options: TestCiPlanOptions = {}): TestCiStep[] 
       command: "bun",
       args: ["run", "release:cli-registry"],
     },
-    {
+  ];
+
+  if (ciSafeUnitTests.length > 0) {
+    plan.push({
       name: "Run CI-safe unit tests",
       command: "bun",
       args: ["test", ...ciSafeUnitTests],
-    },
-  ];
+    });
+  }
+
+  return plan;
 }
 
 function quoteShellArg(arg: string): string {

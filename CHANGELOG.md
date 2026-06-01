@@ -60,6 +60,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   malformed flag values such as `--json=true`, `--list=true`,
   `--dry-run=true`, and `--help=true` as status-2 usage errors before planning
   or running the CI-safe suite.
+- **Packed Test CI Helper Smoke** - Release helper smoke now exercises the
+  installed-package `test:ci` helper for `--help`, `--list`, `--json`, and
+  malformed inline flag values without requiring a source-checkout `tests/`
+  directory.
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.

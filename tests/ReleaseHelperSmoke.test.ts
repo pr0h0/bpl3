@@ -346,6 +346,7 @@ function writePackedHelperInstallFixture(
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
+          "test:ci": "bun tools/test_ci.ts",
         },
       },
       null,
@@ -357,6 +358,7 @@ function writePackedHelperInstallFixture(
     "tools/ci_triage.ts",
     "tools/fuzz_artifact_repro.ts",
     "tools/fuzz_script_wrapper.ts",
+    "tools/test_ci.ts",
   ]) {
     cpSync(join(repoRoot, helperPath), join(packageDir, helperPath));
   }

@@ -124,6 +124,27 @@ describe("CI-safe test runner", () => {
     expect(packageJson.scripts["test:ci"]).toBe("bun tools/test_ci.ts");
   });
 
+  test("plans without unit tests when the tests directory is absent", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-missing-tests-"));
+
+    try {
+      const missingTestsDir = join(tempRoot, "tests");
+      expect(discoverCiSafeUnitTestFiles(missingTestsDir)).toEqual([]);
+      expect(
+        createTestCiPlan({ testsDir: missingTestsDir }).map(
+          (step) => step.name,
+        ),
+      ).toEqual([
+        "Build runtime support",
+        "Run integration and playground examples",
+        "Run VS Code extension tests",
+        "Check generated CLI registry shim",
+      ]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("keeps CLI help on stdout and usage failures on stderr", () => {
     const help = spawnSync("bun", ["tools/test_ci.ts", "--help"], {
       cwd: join(import.meta.dir, ".."),
