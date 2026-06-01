@@ -1105,6 +1105,39 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps struct literal diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"',
+      'bun test tests/MarkdownDocs.test.ts -t "struct literal diagnostic"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_STRUCT_LITERAL_UNKNOWN_STRUCT",
+      "BPL_STRUCT_LITERAL_FIELD_MISSING",
+      "BPL_STRUCT_LITERAL_FIELD_UNKNOWN",
+      "BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH",
+      "Unknown struct 'Missing'",
+      "Generic type 'Box' expects 1 arguments, but got 2",
+      "Missing field 'y' in struct literal for 'Point'",
+      "Unknown field 'z' in struct 'Point'",
+      "Type mismatch for field 'x': expected i32, got *i8",
+      "Ensure the struct is defined.",
+      "Provide the correct number of generic arguments.",
+      "Field 'y' is required.",
+      "Check the struct definition for valid fields.",
+      "Field value must match the declared type.",
+      "Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`",
+      "reports struct literal diagnostics failures in JSON-mode check and build diagnostics",
+      "docs document struct literal diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -5332,6 +5365,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerStatementSemanticGuards.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"',
         'bun test tests/MarkdownDocs.test.ts -t "statement semantic guard"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints struct literal diagnostic repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-struct-literal-diagnostics-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 104,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/104",
+              steps: [
+                {
+                  name: "BPL_STRUCT_LITERAL_FIELD_UNKNOWN Unknown field 'z' in struct 'Point'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"',
+        'bun test tests/MarkdownDocs.test.ts -t "struct literal diagnostic"',
         "bun run check",
       ]);
     } finally {

@@ -592,6 +592,28 @@ const STATEMENT_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_STRUCT_LITERAL_UNKNOWN_STRUCT",
+    "BPL_STRUCT_LITERAL_FIELD_MISSING",
+    "BPL_STRUCT_LITERAL_FIELD_UNKNOWN",
+    "BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH",
+    "struct literal diagnostics",
+    "struct literal diagnostic",
+    "struct literal semantic",
+    "Unknown struct",
+    "Generic type '.*' expects [0-9]+ arguments, but got [0-9]+",
+    "Missing field '.*' in struct literal",
+    "Unknown field '.*' in struct",
+    "Type mismatch for field",
+    "Ensure the struct is defined",
+    "Provide the correct number of generic arguments",
+    "Field '.*' is required",
+    "Check the struct definition for valid fields",
+    "Field value must match the declared type",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1491,6 +1513,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "statement semantic guard"',
   ],
   [STATEMENT_SEMANTIC_GUARD_STEP_PATTERN, "bun run check"],
+  [
+    STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts",
+  ],
+  [
+    STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"',
+  ],
+  [
+    STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "struct literal diagnostic"',
+  ],
+  [STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
