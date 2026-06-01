@@ -854,6 +854,13 @@ bun test tests/TypeCheckerStatementSemanticGuards.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"
 ```
 
+Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got *i8`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

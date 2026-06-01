@@ -147,6 +147,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   registry. Valid typed locals, unique declarations, in-range integer literals,
   mutable assignments, valid assignment targets, and valid tuple destructuring
   remain accepted.
+- **Struct Literal Diagnostic Codes** - Unknown struct names, generic arity
+  mismatches, missing fields, unknown fields, and field type mismatches in
+  struct literals now report `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`,
+  `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`,
+  `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and
+  `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid concrete and generic struct literals remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

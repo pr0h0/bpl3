@@ -4672,6 +4672,152 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports struct literal diagnostics failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "struct_literal_unknown_struct",
+        code: "BPL_STRUCT_LITERAL_UNKNOWN_STRUCT",
+        preview: "local value: int = Missing { value: 1 }",
+        message: "Unknown struct 'Missing'",
+        hint: "Ensure the struct is defined.",
+        source: [
+          "frame main() ret int {",
+          "    local value: int = Missing { value: 1 };",
+          "    return value;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "struct_literal_generic_arity",
+        code: "BPL_GENERIC_ARITY_MISMATCH",
+        preview: "local box: Box<i32> = Box<i32, bool> { value: 1 }",
+        message: "Generic type 'Box' expects 1 arguments, but got 2",
+        hint: "Provide the correct number of generic arguments.",
+        source: [
+          "struct Box<T> {",
+          "    value: T,",
+          "}",
+          "frame main() ret int {",
+          "    local box: Box<i32> = Box<i32, bool> { value: 1 };",
+          "    return box.value;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "struct_literal_field_missing",
+        code: "BPL_STRUCT_LITERAL_FIELD_MISSING",
+        preview: "local point: Point = Point { x: 1 }",
+        message: "Missing field 'y' in struct literal for 'Point'",
+        hint: "Field 'y' is required.",
+        source: [
+          "struct Point {",
+          "    x: i32,",
+          "    y: i32,",
+          "}",
+          "frame main() ret int {",
+          "    local point: Point = Point { x: 1 };",
+          "    return point.x;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "struct_literal_field_unknown",
+        code: "BPL_STRUCT_LITERAL_FIELD_UNKNOWN",
+        preview: "local point: Point = Point { x: 1, y: 2, z: 3 }",
+        message: "Unknown field 'z' in struct 'Point'",
+        hint: "Check the struct definition for valid fields.",
+        source: [
+          "struct Point {",
+          "    x: i32,",
+          "    y: i32,",
+          "}",
+          "frame main() ret int {",
+          "    local point: Point = Point { x: 1, y: 2, z: 3 };",
+          "    return point.x;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "struct_literal_field_type_mismatch",
+        code: "BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH",
+        preview: 'local point: Point = Point { x: "wrong", y: 2 }',
+        message: "Type mismatch for field 'x': expected i32, got",
+        hint: "Field value must match the declared type.",
+        source: [
+          "struct Point {",
+          "    x: i32,",
+          "    y: i32,",
+          "}",
+          "frame main() ret int {",
+          '    local point: Point = Point { x: "wrong", y: 2 };',
+          "    return point.x;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      expect(check.status).toBe(1);
+      const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+      expect(checkReport).toMatchObject({
+        schemaVersion: 1,
+        check: "check",
+        success: false,
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: sourceFile,
+            success: false,
+          },
+        ],
+      });
+      const checkDiagnostic = checkReport.files[0]?.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(checkDiagnostic).toBeDefined();
+      expect(checkDiagnostic?.code).toBe(testCase.code);
+      expect(checkDiagnostic?.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic?.message).toContain(testCase.message);
+      expect(checkDiagnostic?.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+      });
+      const buildDiagnostic = buildReport.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(buildDiagnostic).toBeDefined();
+      expect(buildDiagnostic?.message).toContain(testCase.message);
+      expect(buildDiagnostic?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

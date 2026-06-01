@@ -1587,6 +1587,30 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document struct literal diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`",
+      "`Unknown struct 'Missing'`",
+      "`Generic type 'Box' expects 1 arguments, but got 2`",
+      "`Missing field 'y' in struct literal for 'Point'`",
+      "`Unknown field 'z' in struct 'Point'`",
+      "`Type mismatch for field 'x': expected i32, got",
+      "`Ensure the struct is defined.`",
+      "`Provide the correct number of generic arguments.`",
+      "`Field 'y' is required.`",
+      "`Check the struct definition for valid fields.`",
+      "`Field value must match the declared type.`",
+      "unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches",
+      'bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
