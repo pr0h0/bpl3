@@ -21,6 +21,25 @@ import {
 
 const log = new Logger("Format");
 
+export const FORMAT_JSON_REQUIRES_CHECK_CODE =
+  "BPL_FORMAT_JSON_REQUIRES_CHECK";
+export const FORMAT_NO_INPUTS_CODE = "BPL_FORMAT_NO_INPUTS";
+export const FORMAT_WRITE_CHECK_CONFLICT_CODE =
+  "BPL_FORMAT_WRITE_CHECK_CONFLICT";
+export const FORMAT_INPUT_NOT_FOUND_CODE = "BPL_FORMAT_INPUT_NOT_FOUND";
+export const FORMAT_INPUT_NOT_FILE_CODE = "BPL_FORMAT_INPUT_NOT_FILE";
+export const FORMAT_NOT_FORMATTED_CODE = "BPL_FORMAT_NOT_FORMATTED";
+export const FORMAT_PROCESSING_ERROR_CODE = "BPL_FORMAT_PROCESSING_ERROR";
+export const FORMAT_JSON_ERROR_CODES = [
+  FORMAT_JSON_REQUIRES_CHECK_CODE,
+  FORMAT_NO_INPUTS_CODE,
+  FORMAT_WRITE_CHECK_CONFLICT_CODE,
+  FORMAT_INPUT_NOT_FOUND_CODE,
+  FORMAT_INPUT_NOT_FILE_CODE,
+  FORMAT_NOT_FORMATTED_CODE,
+  FORMAT_PROCESSING_ERROR_CODE,
+] as const;
+
 interface FormatFileReport {
   file: string;
   success: boolean;
@@ -59,7 +78,7 @@ export function registerFormatCommand(program: Command): void {
               errorCount: 1,
               files: [],
               error: "--json is supported for format checks only.",
-              errorCode: "BPL_FORMAT_JSON_REQUIRES_CHECK",
+              errorCode: FORMAT_JSON_REQUIRES_CHECK_CODE,
             }),
           );
         }
@@ -75,7 +94,7 @@ export function registerFormatCommand(program: Command): void {
                 errorCount: 1,
                 files: [],
                 error: "No files specified.",
-                errorCode: "BPL_FORMAT_NO_INPUTS",
+                errorCode: FORMAT_NO_INPUTS_CODE,
               }),
             );
           }
@@ -93,7 +112,7 @@ export function registerFormatCommand(program: Command): void {
                 errorCount: 1,
                 files: [],
                 error: "Cannot use --write and --check together.",
-                errorCode: "BPL_FORMAT_WRITE_CHECK_CONFLICT",
+                errorCode: FORMAT_WRITE_CHECK_CONFLICT_CODE,
               }),
             );
           }
@@ -120,7 +139,7 @@ export function registerFormatCommand(program: Command): void {
                   formatFileFailure(
                     filePath,
                     "File not found",
-                    "BPL_FORMAT_INPUT_NOT_FOUND",
+                    FORMAT_INPUT_NOT_FOUND_CODE,
                   ),
                 );
               }
@@ -134,7 +153,7 @@ export function registerFormatCommand(program: Command): void {
                   formatFileFailure(
                     filePath,
                     "Input path is not a file",
-                    "BPL_FORMAT_INPUT_NOT_FILE",
+                    FORMAT_INPUT_NOT_FILE_CODE,
                   ),
                 );
               }
@@ -163,7 +182,7 @@ export function registerFormatCommand(program: Command): void {
                     formatted: false,
                     changed: true,
                     error: "File is not formatted",
-                    errorCode: "BPL_FORMAT_NOT_FORMATTED",
+                    errorCode: FORMAT_NOT_FORMATTED_CODE,
                   });
                 } else {
                   log.error(`${filePath} is not formatted`);
@@ -199,7 +218,7 @@ export function registerFormatCommand(program: Command): void {
                 formatFileFailure(
                   filePath,
                   `Error processing ${filePath}: ${message}`,
-                  "BPL_FORMAT_PROCESSING_ERROR",
+                  FORMAT_PROCESSING_ERROR_CODE,
                 ),
               );
             } else {

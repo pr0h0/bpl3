@@ -36,6 +36,7 @@ import {
   DOCTOR_SCOPE_UNKNOWN_CODE,
   WASM_LINKER_UNAVAILABLE_CODE,
 } from "../cli/commands/doctor";
+import { FORMAT_JSON_ERROR_CODES } from "../cli/commands/format";
 import {
   CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
   CLEAN_WORKDIR_SYMLINK_CODE,
@@ -628,18 +629,14 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Format JSON reports",
       'check: "format"',
-      "BPL_FORMAT_JSON_REQUIRES_CHECK",
-      "BPL_FORMAT_NO_INPUTS",
-      "BPL_FORMAT_WRITE_CHECK_CONFLICT",
-      "BPL_FORMAT_INPUT_NOT_FOUND",
-      "BPL_FORMAT_INPUT_NOT_FILE",
-      "BPL_FORMAT_NOT_FORMATTED",
-      "BPL_FORMAT_PROCESSING_ERROR",
       "bun test tests/CLI.test.ts -t \"format check results and validation failures as JSON\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of FORMAT_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
