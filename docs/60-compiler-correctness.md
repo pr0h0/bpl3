@@ -122,6 +122,12 @@ steps and print focused local commands:
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 ```
 
+`--repo` must be `owner/name` when triaging a repository other than the
+default. Invalid repository values report
+`Expected --repo as owner/name, got <value>`. Repository validation is a usage
+error before any GitHub API request, so it is different from authentication,
+rate-limit, or missing-run failures from GitHub.
+
 Text output uses stable labels for the run summary, failed jobs, failed steps,
 and local repro commands:
 

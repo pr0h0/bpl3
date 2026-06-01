@@ -1194,6 +1194,9 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>",
       "bun run ci:triage -- --json --jobs-json jobs.json <run-id>",
+      "`--repo` must be `owner/name`",
+      "Invalid repository values report `Expected --repo as owner/name, got <value>`",
+      "Repository validation is a usage error before any GitHub API request",
       "`--jobs-json` diagnostics are usage errors reported before any GitHub API request",
       "Missing offline jobs files report `Unable to read --jobs-json file <path>: file does not exist.`",
       "Malformed offline jobs files report `Unable to parse --jobs-json file <path>:`",
