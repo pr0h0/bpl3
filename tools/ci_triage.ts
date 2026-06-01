@@ -390,6 +390,19 @@ const TERNARY_BRANCH_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const SWITCH_MISMATCH_STEP_PATTERN = new RegExp(
+  [
+    "BPL_SWITCH_VALUE_TYPE_MISMATCH",
+    "BPL_SWITCH_CASE_TYPE_MISMATCH",
+    "switch type mismatch",
+    "switch mismatch",
+    "Switch value must be an integer, string or enum type",
+    "Case pattern type .* not compatible with switch value type",
+    "Ensure the switch expression evaluates to an integer, string or enum",
+    "Ensure case patterns match the switch value type",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1159,6 +1172,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "ternary branch mismatch"',
   ],
   [TERNARY_BRANCH_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
+  [
+    SWITCH_MISMATCH_STEP_PATTERN,
+    "bun test tests/TypeCheckerSwitchMismatch.test.ts",
+  ],
+  [
+    SWITCH_MISMATCH_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "switch type mismatch"',
+  ],
+  [
+    SWITCH_MISMATCH_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "switch mismatch"',
+  ],
+  [SWITCH_MISMATCH_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
