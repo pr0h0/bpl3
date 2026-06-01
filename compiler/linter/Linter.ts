@@ -113,10 +113,20 @@ export class Linter {
         const varDecl = node as AST.VariableDecl;
         if (varDecl.initializer) this.visit(varDecl.initializer, context);
         break;
+      case "InterpolatedString":
+        const interpolated = node as AST.InterpolatedStringExpr;
+        for (const part of interpolated.parts) {
+          this.visit(part, context);
+        }
+        if (interpolated.desugared) this.visit(interpolated.desugared, context);
+        break;
       case "Binary":
         const binExpr = node as AST.BinaryExpr;
         this.visit(binExpr.left, context);
         this.visit(binExpr.right, context);
+        break;
+      case "Unary":
+        this.visit((node as AST.UnaryExpr).operand, context);
         break;
       case "Call":
         const callExpr = node as AST.CallExpr;
@@ -124,6 +134,110 @@ export class Linter {
         for (const arg of callExpr.args) {
           this.visit(arg, context);
         }
+        break;
+      case "Member":
+        this.visit((node as AST.MemberExpr).object, context);
+        break;
+      case "Index":
+        const indexExpr = node as AST.IndexExpr;
+        this.visit(indexExpr.object, context);
+        this.visit(indexExpr.index, context);
+        break;
+      case "ArrayLiteral":
+        for (const element of (node as AST.ArrayLiteralExpr).elements) {
+          this.visit(element, context);
+        }
+        break;
+      case "StructLiteral":
+        for (const field of (node as AST.StructLiteralExpr).fields) {
+          this.visit(field.value, context);
+        }
+        break;
+      case "TupleLiteral":
+        for (const element of (node as AST.TupleLiteralExpr).elements) {
+          this.visit(element, context);
+        }
+        break;
+      case "EnumStructVariant":
+        for (const field of (node as AST.EnumStructVariantExpr).fields) {
+          this.visit(field.value, context);
+        }
+        break;
+      case "Cast":
+        this.visit((node as AST.CastExpr).expression, context);
+        break;
+      case "Sizeof":
+        this.visit((node as AST.SizeofExpr).target, context);
+        break;
+      case "TypeOf":
+        this.visit((node as AST.TypeOfExpr).target, context);
+        break;
+      case "TypeMatch":
+        const typeMatch = node as AST.TypeMatchExpr;
+        this.visit(typeMatch.targetType, context);
+        this.visit(typeMatch.value, context);
+        break;
+      case "Match":
+        const matchExpr = node as AST.MatchExpr;
+        this.visit(matchExpr.value, context);
+        for (const arm of matchExpr.arms) {
+          this.visit(arm, context);
+        }
+        break;
+      case "MatchArm":
+        const matchArm = node as AST.MatchArm;
+        this.visit(matchArm.pattern, context);
+        if (matchArm.guard) this.visit(matchArm.guard, context);
+        this.visit(matchArm.body, context);
+        break;
+      case "PatternLiteral":
+        this.visit((node as AST.PatternLiteral).value, context);
+        break;
+      case "PatternTuple":
+        for (const pattern of (node as AST.PatternTuple).patterns) {
+          this.visit(pattern, context);
+        }
+        break;
+      case "PatternEnumTuple":
+        for (const binding of (node as AST.PatternEnumTuple).bindings) {
+          this.visit(binding, context);
+        }
+        break;
+      case "Assignment":
+        const assignment = node as AST.AssignmentExpr;
+        this.visit(assignment.assignee, context);
+        this.visit(assignment.value, context);
+        break;
+      case "Ternary":
+        const ternary = node as AST.TernaryExpr;
+        this.visit(ternary.condition, context);
+        this.visit(ternary.trueExpr, context);
+        this.visit(ternary.falseExpr, context);
+        break;
+      case "GenericInstantiation":
+        const genericInstantiation = node as AST.GenericInstantiationExpr;
+        this.visit(genericInstantiation.base, context);
+        for (const genericArg of genericInstantiation.genericArgs) {
+          this.visit(genericArg, context);
+        }
+        break;
+      case "LambdaExpression":
+        const lambda = node as AST.LambdaExpr;
+        for (const param of lambda.params) {
+          this.visit(param, context);
+        }
+        if (lambda.returnType) this.visit(lambda.returnType, context);
+        this.visit(lambda.body, context);
+        break;
+      case "Is":
+        const isExpr = node as AST.IsExpr;
+        this.visit(isExpr.expression, context);
+        this.visit(isExpr.type, context);
+        break;
+      case "As":
+        const asExpr = node as AST.AsExpr;
+        this.visit(asExpr.expression, context);
+        this.visit(asExpr.type, context);
         break;
       case "Group":
         this.visit((node as AST.GroupExpr).expression, context);

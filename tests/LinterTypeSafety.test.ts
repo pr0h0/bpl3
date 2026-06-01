@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
 
 import * as AST from "../compiler/common/AST";
+import { Token } from "../compiler/frontend/Token";
+import { TokenType } from "../compiler/frontend/TokenType";
 import { Linter, type LintRule } from "../compiler/linter/Linter";
 
 const location = {
@@ -20,6 +22,15 @@ const intType: AST.BasicTypeNode = {
   arrayDimensions: [],
   location,
 };
+
+const equalToken = new Token(
+  TokenType.Equal,
+  "=",
+  null,
+  location.startLine,
+  location.startColumn,
+  location.file,
+);
 
 function identifier(name: string): AST.IdentifierExpr {
   return {
@@ -85,6 +96,38 @@ function functionWithBodyStatement(statement: AST.Statement): AST.Program {
   const [func] = program.statements as [AST.FunctionDecl];
   func.body.statements.push(statement);
   return program;
+}
+
+function functionWithExpression(expression: AST.Expression): AST.Program {
+  return functionWithBodyStatement(expressionStatement(expression));
+}
+
+function collectVisitedNames(expression: AST.Expression): string[] {
+  const rule: LintRule = {
+    code: "TEXPR",
+    name: "expression-child-visitor-test",
+    check(node, context) {
+      if (node.kind === "Identifier") {
+        context.report(
+          `identifier:${(node as AST.IdentifierExpr).name}`,
+          node,
+          undefined,
+          "TEXPR",
+        );
+      } else if (node.kind === "LambdaParameter") {
+        context.report(
+          `lambda-param:${(node as AST.LambdaParameter).name}`,
+          node,
+          undefined,
+          "TEXPR",
+        );
+      }
+    },
+  };
+
+  return new Linter([rule])
+    .lint(functionWithExpression(expression))
+    .map((error) => error.message);
 }
 
 describe("linter type-safety guards", () => {
@@ -245,5 +288,175 @@ describe("linter type-safety guards", () => {
     expect(messages).toHaveLength(2);
     expect(messages).toContain("saw variable loopInit");
     expect(messages).toContain("saw identifier loopStep");
+  });
+
+  test("visits aggregate expression children", () => {
+    const messages = collectVisitedNames({
+      kind: "ArrayLiteral",
+      elements: [
+        {
+          kind: "Member",
+          object: identifier("memberObject"),
+          property: "field",
+          location,
+        },
+        {
+          kind: "Index",
+          object: identifier("indexObject"),
+          index: identifier("indexValue"),
+          location,
+        },
+        {
+          kind: "StructLiteral",
+          structName: "Point",
+          fields: [{ name: "x", value: identifier("fieldValue") }],
+          location,
+        },
+        {
+          kind: "TupleLiteral",
+          elements: [identifier("tupleValue")],
+          location,
+        },
+        {
+          kind: "EnumStructVariant",
+          enumName: "Result",
+          variantName: "Ok",
+          fields: [{ name: "value", value: identifier("enumField") }],
+          location,
+        },
+        {
+          kind: "InterpolatedString",
+          parts: [identifier("interpolation")],
+          location,
+        },
+      ],
+      location,
+    });
+
+    expect(messages).toHaveLength(7);
+    expect(messages).toContain("identifier:memberObject");
+    expect(messages).toContain("identifier:indexObject");
+    expect(messages).toContain("identifier:indexValue");
+    expect(messages).toContain("identifier:fieldValue");
+    expect(messages).toContain("identifier:tupleValue");
+    expect(messages).toContain("identifier:enumField");
+    expect(messages).toContain("identifier:interpolation");
+  });
+
+  test("visits operator and type expression children", () => {
+    const messages = collectVisitedNames({
+      kind: "ArrayLiteral",
+      elements: [
+        {
+          kind: "Unary",
+          operator: equalToken,
+          operand: identifier("unaryOperand"),
+          isPrefix: true,
+          location,
+        },
+        {
+          kind: "Assignment",
+          assignee: identifier("assignmentTarget"),
+          operator: equalToken,
+          value: identifier("assignmentValue"),
+          location,
+        },
+        {
+          kind: "Ternary",
+          condition: identifier("ternaryCondition"),
+          trueExpr: identifier("ternaryTrue"),
+          falseExpr: identifier("ternaryFalse"),
+          location,
+        },
+        {
+          kind: "Cast",
+          targetType: intType,
+          expression: identifier("castValue"),
+          location,
+        },
+        {
+          kind: "As",
+          expression: identifier("asValue"),
+          type: intType,
+          location,
+        },
+        {
+          kind: "Is",
+          expression: identifier("isValue"),
+          type: intType,
+          location,
+        },
+        {
+          kind: "GenericInstantiation",
+          base: identifier("genericBase"),
+          genericArgs: [intType],
+          location,
+        },
+      ],
+      location,
+    });
+
+    expect(messages).toHaveLength(10);
+    expect(messages).toContain("identifier:unaryOperand");
+    expect(messages).toContain("identifier:assignmentTarget");
+    expect(messages).toContain("identifier:assignmentValue");
+    expect(messages).toContain("identifier:ternaryCondition");
+    expect(messages).toContain("identifier:ternaryTrue");
+    expect(messages).toContain("identifier:ternaryFalse");
+    expect(messages).toContain("identifier:castValue");
+    expect(messages).toContain("identifier:asValue");
+    expect(messages).toContain("identifier:isValue");
+    expect(messages).toContain("identifier:genericBase");
+  });
+
+  test("visits lambda and match expression children", () => {
+    const messages = collectVisitedNames({
+      kind: "ArrayLiteral",
+      elements: [
+        {
+          kind: "LambdaExpression",
+          params: [
+            {
+              kind: "LambdaParameter",
+              name: "lambdaArg",
+              type: intType,
+              location,
+            },
+          ],
+          returnType: intType,
+          body: {
+            kind: "Block",
+            statements: [expressionStatement(identifier("lambdaBody"))],
+            location,
+          },
+          location,
+        },
+        {
+          kind: "Match",
+          value: identifier("matchValue"),
+          arms: [
+            {
+              kind: "MatchArm",
+              pattern: {
+                kind: "PatternWildcard",
+                location,
+              },
+              guard: identifier("matchGuard"),
+              body: identifier("matchBody"),
+              location,
+            },
+          ],
+          location,
+        },
+      ],
+      location,
+    });
+
+    expect(messages).toHaveLength(5);
+    expect(messages).toContain("lambda-param:lambdaArg");
+    expect(messages).toContain("identifier:lambdaBody");
+    expect(messages).toContain("identifier:matchValue");
+    expect(messages).toContain("identifier:matchGuard");
+    expect(messages).toContain("identifier:matchBody");
   });
 });
