@@ -2401,6 +2401,128 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports duplicate struct fields in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "duplicate_struct_field.bpl");
+    const outputFile = path.join(tempDir, "duplicate-struct-field-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "struct Point {",
+        "    x: int,",
+        "    x: int,",
+        "}",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    expect(check.status).toBe(1);
+    const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+    const checkDiagnostic = checkReport.files[0]?.diagnostics[0];
+    expect(checkDiagnostic?.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+    expect(checkDiagnostic?.source?.preview).toContain("x: int");
+    expect(checkDiagnostic?.message).toContain(
+      "Duplicate field 'x' in struct 'Point'",
+    );
+    expect(checkDiagnostic?.hint).toContain(
+      "defined multiple times in struct 'Point'",
+    );
+    expect(checkDiagnostic?.location.start.line).toBe(3);
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_SYMBOL_ALREADY_DEFINED" }],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Duplicate field 'x' in struct 'Point'",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "defined multiple times in struct 'Point'",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
+  test("reports duplicate enum variants in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "duplicate_enum_variant.bpl");
+    const outputFile = path.join(tempDir, "duplicate-enum-variant-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "enum Color {",
+        "    Red,",
+        "    Red,",
+        "}",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    expect(check.status).toBe(1);
+    const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+    const checkDiagnostic = checkReport.files[0]?.diagnostics[0];
+    expect(checkDiagnostic?.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+    expect(checkDiagnostic?.source?.preview).toContain("Red");
+    expect(checkDiagnostic?.message).toContain(
+      "Duplicate enum variant 'Red' in enum 'Color'",
+    );
+    expect(checkDiagnostic?.hint).toContain("Enum variants must be unique.");
+    expect(checkDiagnostic?.location.start.line).toBe(3);
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_SYMBOL_ALREADY_DEFINED" }],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Duplicate enum variant 'Red' in enum 'Color'",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Enum variants must be unique.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
