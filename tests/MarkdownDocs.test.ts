@@ -4,6 +4,7 @@ import { dirname, join, normalize } from "path";
 import { spawnSync } from "child_process";
 import { TIMEOUT_ENV_DEFAULTS } from "../compiler/common/Env";
 import {
+  PACKAGE_RESOLUTION_FAILURE_CODES,
   getPackageResolutionFailureCode,
   type PackageResolutionFailureReason,
   type PackageResolutionTrace,
@@ -821,6 +822,12 @@ describe("Markdown documentation", () => {
       .replace(/\s+/g, " ");
     const expectedCodes = [
       getPackageResolutionFailureCode(
+        packageTrace("invalid-import", "invalid package import"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("package-not-found", "package not found"),
+      ),
+      getPackageResolutionFailureCode(
         packageTrace(
           "manifest-invalid",
           "package search directory is a symbolic link",
@@ -828,6 +835,9 @@ describe("Markdown documentation", () => {
       ),
       getPackageResolutionFailureCode(
         packageTrace("manifest-invalid", "package root is not a directory"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "package root is a symbolic link"),
       ),
       getPackageResolutionFailureCode(
         packageTrace(
@@ -845,6 +855,9 @@ describe("Markdown documentation", () => {
         packageTrace("manifest-invalid", "missing bpl.json"),
       ),
       getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "manifest path is a symbolic link"),
+      ),
+      getPackageResolutionFailureCode(
         packageTrace(
           "manifest-invalid",
           "manifest path casing does not match filesystem",
@@ -854,7 +867,22 @@ describe("Markdown documentation", () => {
         packageTrace("manifest-invalid", "invalid bpl.json"),
       ),
       getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "manifest path is not a file"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("manifest-invalid", "manifest is not valid JSON"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "manifest must contain a JSON object",
+        ),
+      ),
+      getPackageResolutionFailureCode(
         packageTrace("manifest-invalid", "unsafe entrypoint '../outside.bpl'"),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("entrypoint-not-found", "entrypoint is missing"),
       ),
       getPackageResolutionFailureCode(
         packageTrace(
@@ -867,6 +895,9 @@ describe("Markdown documentation", () => {
           "entrypoint-not-found",
           "entrypoint casing does not match filesystem",
         ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace("subpath-not-found", "subpath is missing"),
       ),
       getPackageResolutionFailureCode(
         packageTrace(
@@ -882,20 +913,9 @@ describe("Markdown documentation", () => {
       ),
     ].filter((code): code is string => typeof code === "string");
 
-    expect(expectedCodes).toEqual([
-      "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
-      "BPL_PACKAGE_ROOT_NOT_DIRECTORY",
-      "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
-      "BPL_PACKAGE_ROOT_CASE_MISMATCH",
-      "BPL_PACKAGE_MANIFEST_MISSING",
-      "BPL_PACKAGE_MANIFEST_CASE_MISMATCH",
-      "BPL_PACKAGE_MANIFEST_INVALID",
-      "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
-      "BPL_PACKAGE_ENTRYPOINT_SYMLINK",
-      "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH",
-      "BPL_PACKAGE_SUBPATH_SYMLINK",
-      "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
-    ]);
+    expect(expectedCodes.sort()).toEqual(
+      [...PACKAGE_RESOLUTION_FAILURE_CODES].sort(),
+    );
 
     for (const code of expectedCodes) {
       expect(combinedDocs).toContain(code);
