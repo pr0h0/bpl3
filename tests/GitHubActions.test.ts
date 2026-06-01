@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
+import {
+  CI_SAFE_EXCLUDED_TEST_FILES,
+  CI_SAFE_FIXED_TEST_FILES,
+  createTestCiPlan,
+} from "../tools/test_ci";
 
 const WORKFLOW_DIR = join(import.meta.dir, "../.github/workflows");
 const MAINTAINED_ACTION_MAJOR_VERSIONS: Record<string, number> = {
@@ -237,36 +242,47 @@ describe("GitHub Actions workflows", () => {
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
     );
 
-    expect(packageJson.scripts["test:ci"]).toContain("bun run build:runtime");
-    expect(packageJson.scripts["test:ci"]).toContain("Integration.test.ts");
-    expect(packageJson.scripts["test:ci"]).toContain(
-      "PlaygroundExamples.test.ts",
+    expect(packageJson.scripts["test:ci"]).toBe("bun tools/test_ci.ts");
+    expect(CI_SAFE_FIXED_TEST_FILES).toEqual([
+      "tests/Integration.test.ts",
+      "tests/PlaygroundExamples.test.ts",
+    ]);
+    expect(
+      createTestCiPlan().map((step) => [step.command, ...step.args]),
+    ).toEqual(
+      expect.arrayContaining([
+        ["bun", "run", "build:runtime"],
+        [
+          "bun",
+          "test",
+          "tests/Integration.test.ts",
+          "tests/PlaygroundExamples.test.ts",
+        ],
+        ["bun", "run", "test:vscode-ext"],
+      ]),
     );
-    expect(packageJson.scripts["test:ci"]).toContain("bun run test:vscode-ext");
     expect(packageJson.scripts["test:vscode-ext"]).toBe(
       "npm test --prefix vscode-ext",
     );
-    expect(packageJson.scripts["test:ci"]).toContain("! -name 'fuzz.test.ts'");
-    expect(packageJson.scripts["test:ci"]).toContain(
-      "! -name 'CompilerCorrectnessCorpus.test.ts'",
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain("fuzz.test.ts");
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain(
+      "CompilerCorrectnessCorpus.test.ts",
     );
-    expect(packageJson.scripts["test:ci"]).toContain(
-      "! -name 'FuzzDifferentialRegressionCorpus.test.ts'",
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain(
+      "FuzzDifferentialRegressionCorpus.test.ts",
     );
-    expect(packageJson.scripts["test:ci"]).toContain(
-      "! -name 'CompilerSanitizerRuntime.test.ts'",
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain(
+      "CompilerSanitizerRuntime.test.ts",
     );
-    expect(packageJson.scripts["test:ci"]).toContain(
-      "! -name 'ReleaseSmoke.test.ts'",
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain("ReleaseSmoke.test.ts");
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain(
+      "ReleaseHelperSmoke.test.ts",
     );
-    expect(packageJson.scripts["test:ci"]).not.toContain(
-      "! -name 'ReleaseHelperSmoke.test.ts'",
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain(
+      "PackageHelperJsonContracts.test.ts",
     );
-    expect(packageJson.scripts["test:ci"]).not.toContain(
-      "! -name 'PackageHelperJsonContracts.test.ts'",
-    );
-    expect(packageJson.scripts["test:ci"]).not.toContain(
-      "! -name 'PackageJsonFailureContracts.test.ts'",
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain(
+      "PackageJsonFailureContracts.test.ts",
     );
     expect(
       existsSync(join(import.meta.dir, "ReleaseHelperSmoke.test.ts")),

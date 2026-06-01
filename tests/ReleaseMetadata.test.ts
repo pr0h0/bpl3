@@ -24,6 +24,7 @@ import {
   assertStandaloneCompilerArtifact,
   discoverDedicatedWasmExampleFiles,
 } from "../tools/release_smoke";
+import { CI_SAFE_EXCLUDED_TEST_FILES } from "../tools/test_ci";
 
 function releaseSmokeSource(): string {
   return readFileSync(
@@ -166,6 +167,7 @@ describe("Release metadata", () => {
       ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
       ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
+      ["test:ci", "tools/test_ci.ts"],
     ]);
 
     expect(packageJson.files).toContain("tools");
@@ -202,6 +204,7 @@ describe("Release metadata", () => {
       ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
       ["release:manifest", "tools/release_manifest.ts"],
       ["release:smoke", "tools/release_smoke.ts"],
+      ["test:ci", "tools/test_ci.ts"],
     ]);
 
     expect(discoverPackageScriptHelperFiles(repoRoot)).toEqual([
@@ -211,6 +214,7 @@ describe("Release metadata", () => {
       "tools/fuzz_script_wrapper.ts",
       "tools/release_manifest.ts",
       "tools/release_smoke.ts",
+      "tools/test_ci.ts",
     ]);
 
     const unpackedHelpers = helperReferences.filter(
@@ -694,11 +698,10 @@ describe("Release metadata", () => {
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
     );
 
-    expect(packageJson.scripts["test:ci"]).toContain(
-      "! -name 'ReleaseSmoke.test.ts'",
-    );
-    expect(packageJson.scripts["test:ci"]).not.toContain(
-      "! -name 'ReleaseHelperSmoke.test.ts'",
+    expect(packageJson.scripts["test:ci"]).toBe("bun tools/test_ci.ts");
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain("ReleaseSmoke.test.ts");
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain(
+      "ReleaseHelperSmoke.test.ts",
     );
     expect(packageJson.scripts["release:check"]).toContain(
       "bun run release:cli-registry",
