@@ -267,6 +267,10 @@ describe("Release metadata", () => {
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),
     );
+    const releaseManifestSource = readFileSync(
+      join(repoRoot, "tools/release_manifest.ts"),
+      "utf8",
+    );
 
     expect(PACKAGE_HELPER_DEPENDENCIES).toEqual([
       {
@@ -285,6 +289,10 @@ describe("Release metadata", () => {
     expect(packageJson.files).toContain("compiler/common/PathSafety.ts");
     expect(packageJson.files).not.toContain("compiler");
     expect(packageJson.files).not.toContain("compiler/common");
+    expect(releaseManifestSource).toContain("formatReleaseManifestHelp");
+    expect(releaseManifestSource).not.toContain("../compiler/backend");
+    expect(releaseManifestSource).not.toContain("../compiler/frontend");
+    expect(releaseManifestSource).not.toContain("../compiler/middleend");
   });
 
   test("release smoke keeps playground helper assets source-only", () => {

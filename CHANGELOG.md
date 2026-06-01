@@ -50,6 +50,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI-Safe Runner Usage Streams** - `bun tools/test_ci.ts` now keeps `--help`
   on stdout while reporting unknown-option usage failures on stderr with empty
   stdout.
+- **Release Manifest Payload Guard** - Release metadata tests now explicitly
+  assert the `release_manifest` help path stays within the narrow packed-helper
+  dependency policy instead of pulling broad compiler sources into the package.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,
