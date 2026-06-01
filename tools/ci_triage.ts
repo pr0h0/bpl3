@@ -375,6 +375,7 @@ const CONDITION_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
     "condition type mismatch",
     "If condition must be boolean",
     "Loop condition must be boolean",
+    "Ternary condition must be boolean",
     "Ensure the condition evaluates to a boolean",
   ].join("|"),
   "i",
