@@ -161,6 +161,34 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package docs smoke failures to focused reproduction commands", () => {
+    const packageImportDocsCommands = [
+      'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
+    ];
+    const packageDocsCommands = [
+      'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
+    ];
+
+    expect(
+      localCommandsForStep(
+        "CLIJsonParseability.test keeps package/import docs examples covered by JSON smoke fixtures",
+      ),
+    ).toEqual(packageImportDocsCommands);
+    expect(localCommandsForStep("package/import docs examples")).toEqual(
+      packageImportDocsCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "MarkdownDocs.test package docs document package/import docs smoke fixtures",
+      ),
+    ).toEqual(packageDocsCommands);
+    expect(
+      localCommandsForStep(
+        "PACKAGE_DOCS_SMOKE_DOCUMENTATION_SNIPPETS missing package docs snippet",
+      ),
+    ).toEqual(packageDocsCommands);
+  });
+
   test("maps import resolver failures to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/ModuleResolver.test.ts",

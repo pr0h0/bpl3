@@ -149,11 +149,26 @@ const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
     "PackageResolver\\.test",
     "Package resolver",
     "package/import resolver",
-    "CLIJsonParseability\\.test",
     "package resolver",
     "package search directory",
     "global package root failures",
     "BPL_PACKAGE_(IMPORT_INVALID|NOT_FOUND|ENTRYPOINT_|SUBPATH_|SEARCH_DIR_|ROOT_)",
+  ].join("|"),
+  "i",
+);
+const PACKAGE_IMPORT_DOCS_SMOKE_STEP_PATTERN = new RegExp(
+  [
+    "CLIJsonParseability\\.test.*package/import docs examples",
+    "package/import docs examples",
+    "keeps package/import docs examples covered by JSON smoke fixtures",
+  ].join("|"),
+  "i",
+);
+const PACKAGE_DOCS_SMOKE_DOCUMENTATION_STEP_PATTERN = new RegExp(
+  [
+    "MarkdownDocs\\.test.*package docs document package/import docs smoke fixtures",
+    "package docs document package/import docs smoke fixtures",
+    "PACKAGE_DOCS_SMOKE_DOCUMENTATION_SNIPPETS",
   ].join("|"),
   "i",
 );
@@ -673,6 +688,14 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     PACKAGE_RESOLVER_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
+  ],
+  [
+    PACKAGE_IMPORT_DOCS_SMOKE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
+  ],
+  [
+    PACKAGE_DOCS_SMOKE_DOCUMENTATION_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
   ],
   [
     PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN,
