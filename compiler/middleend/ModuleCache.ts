@@ -325,10 +325,30 @@ export class ModuleCache {
   }
 
   private normalizeJobs(jobs: number | undefined): number {
-    if (!Number.isInteger(jobs) || jobs === undefined || jobs <= 0) {
+    if (jobs === undefined) {
       return 1;
     }
+    if (!Number.isInteger(jobs) || jobs <= 0) {
+      throw this.createOptionError(
+        `Invalid jobs count "${jobs}". Use a positive integer greater than zero.`,
+      );
+    }
+    if (!Number.isSafeInteger(jobs)) {
+      throw this.createOptionError(
+        `Invalid jobs count "${jobs}". Use a safe positive integer.`,
+      );
+    }
     return jobs;
+  }
+
+  private createOptionError(message: string): CompilerError {
+    return new CompilerError(message, "Adjust ModuleCache options and retry.", {
+      file: this.cacheDir,
+      startLine: 0,
+      startColumn: 0,
+      endLine: 0,
+      endColumn: 0,
+    });
   }
 
   resetStats(jobs: number | undefined = 1): void {

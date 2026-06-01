@@ -848,6 +848,50 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects invalid async module job counts before invoking the compiler", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-invalid-jobs-"));
+    const previousBplCc = process.env.BPL_CC;
+    const markerPath = join(dir, "driver-invoked");
+
+    try {
+      process.env.BPL_CC = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.writeFileSync(${JSON.stringify(markerPath)}, "invoked\\n");`,
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        'if (args[outputIndex]) fs.writeFileSync(args[outputIndex], "object\\n");',
+      ]);
+
+      const cache = new ModuleCache(dir);
+      let thrown: unknown;
+      try {
+        await cache.compileModules(
+          [
+            {
+              modulePath: "main.bpl",
+              content: "frame main() ret int { return 0; }",
+              llvmIR: EMPTY_MAIN_IR,
+            },
+          ],
+          { jobs: 0 },
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toContain('Invalid jobs count "0"');
+      expect(existsSync(markerPath)).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("handles identical module objects in the same parallel batch", async () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-identical-"));
 
