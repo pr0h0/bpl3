@@ -932,6 +932,31 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps integration config validation failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/IntegrationConfig.test.ts",
+      'bun test tests/Integration.test.ts -t "example test configs valid"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("IntegrationConfig.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "examples/generics_map/test_config.json: unsupported key expected_output",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("invalid JSON in test_config.json"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "keeps example test configs valid for the integration harness",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {
@@ -1655,6 +1680,74 @@ describe("CI triage helper", () => {
         "bun test tests/IntegrationRunner.test.ts",
         "BPL_INTEGRATION_JOBS=4 bun run test:ci",
         "bun run test:ci",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints integration config repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-integration-config-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 66,
+              name: "Integration config schema",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/66",
+              steps: [
+                {
+                  name: "examples/generics_map/test_config.json: unsupported key expected_output",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const integrationJob = report.summary.failedJobs.find(
+        (job) => job.name === "Integration config schema",
+      );
+      expect(integrationJob?.localCommands).toEqual([
+        "bun test tests/IntegrationConfig.test.ts",
+        'bun test tests/Integration.test.ts -t "example test configs valid"',
+        "bun run check",
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

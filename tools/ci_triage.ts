@@ -579,6 +579,18 @@ const INTEGRATION_JOBS_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const INTEGRATION_CONFIG_STEP_PATTERN = new RegExp(
+  [
+    "IntegrationConfig\\.test",
+    "integration example config parser",
+    "example test configs valid",
+    "test_config\\.json: unsupported key",
+    "invalid JSON in test_config\\.json",
+    "expectedOutput\\[\\d+\\] must be a string",
+    "skip_compilation must be a boolean",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
@@ -598,6 +610,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "BPL_INTEGRATION_JOBS=4 bun run test:ci",
   ],
   [INTEGRATION_JOBS_STEP_PATTERN, "bun run test:ci"],
+  [
+    INTEGRATION_CONFIG_STEP_PATTERN,
+    "bun test tests/IntegrationConfig.test.ts",
+  ],
+  [
+    INTEGRATION_CONFIG_STEP_PATTERN,
+    'bun test tests/Integration.test.ts -t "example test configs valid"',
+  ],
+  [INTEGRATION_CONFIG_STEP_PATTERN, "bun run check"],
   [COMPILER_TIMEOUT_STEP_PATTERN, "bun index.ts doctor --json"],
   [COMPILER_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [
