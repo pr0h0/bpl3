@@ -1194,6 +1194,10 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>",
       "bun run ci:triage -- --json --jobs-json jobs.json <run-id>",
+      "`--jobs-json` diagnostics are usage errors reported before any GitHub API request",
+      "Missing offline jobs files report `Unable to read --jobs-json file <path>: file does not exist.`",
+      "Malformed offline jobs files report `Unable to parse --jobs-json file <path>:`",
+      "Wrong-shape offline jobs fixtures report `Expected --jobs-json file <path> to contain a GitHub jobs API response with a jobs array.`",
       'check: "ci-triage"',
       "`run`, `checkout`, and `summary`",
       "`run.headSha`",

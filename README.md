@@ -912,6 +912,8 @@ bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 # pattern is recurring.
 # Print versioned JSON from a saved GitHub jobs API response without network.
 bun run ci:triage -- --json --jobs-json jobs.json <run-id>
+# Missing, malformed, or wrong-shape --jobs-json fixtures fail before any
+# GitHub API request and name the fixture path in the usage error.
 # Print CI triage usage without making a GitHub API request.
 bun run ci:triage -- --help
 # Wasm/toolchain failures include required-linker mode and doctor diagnostics.

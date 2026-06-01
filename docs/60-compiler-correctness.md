@@ -143,6 +143,13 @@ instead of calling the network:
 bun run ci:triage -- --json --jobs-json jobs.json <run-id>
 ```
 
+`--jobs-json` diagnostics are usage errors reported before any GitHub API
+request. Missing offline jobs files report
+`Unable to read --jobs-json file <path>: file does not exist.` Malformed
+offline jobs files report `Unable to parse --jobs-json file <path>:` followed
+by the parser reason. Wrong-shape offline jobs fixtures report
+`Expected --jobs-json file <path> to contain a GitHub jobs API response with a jobs array.`
+
 When text triage output says `No focused local repro command matched this job`:
 Inspect the failed step logs first, and add a ci:triage mapping when the failure
 pattern is recurring so future runs print a focused local command.
