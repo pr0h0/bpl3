@@ -261,6 +261,7 @@ export class ModuleCache {
           flag: "wx",
         });
         createdTemp = true;
+        this.preserveExistingManifestMode(tempManifestPath);
         fs.renameSync(tempManifestPath, this.manifestPath);
         return;
       } catch (error) {
@@ -287,6 +288,13 @@ export class ModuleCache {
         endColumn: 0,
       },
     );
+  }
+
+  private preserveExistingManifestMode(tempManifestPath: string): void {
+    const existingManifest = this.tryLstat(this.manifestPath);
+    if (existingManifest?.isFile()) {
+      fs.chmodSync(tempManifestPath, existingManifest.mode & 0o777);
+    }
   }
 
   private getManifestTempPath(attempt: number): string {

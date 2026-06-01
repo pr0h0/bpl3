@@ -144,6 +144,49 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("preserves existing manifest permissions when rewriting", () => {
+    if (process.platform === "win32") {
+      return;
+    }
+
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-manifest-mode-"));
+    const previousBplCc = process.env.BPL_CC;
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "object\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+
+      const cache = new ModuleCache(dir);
+      cache.clearCache();
+      const manifestPath = join(dir, ".bpl-cache", "manifest.json");
+      chmodSync(manifestPath, 0o640);
+
+      cache.compileModule(
+        "main.bpl",
+        "frame main() ret int { return 0; }",
+        EMPTY_MAIN_IR,
+        false,
+        undefined,
+        0,
+      );
+
+      expect(statSync(manifestPath).mode & 0o777).toBe(0o640);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects cache manifests whose entry path does not match the key", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-path-mismatch-"));
 
