@@ -605,6 +605,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Linter Block Traversal** - The linter visitor now matches the typed AST
   `Block` node kind, allowing custom rules to traverse statements inside
   function bodies.
+- **Linter Statement Traversal** - Custom linter rules now see expression
+  statement children, deferred statements, and C-style loop init/step children
+  through normal visitor traversal.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.

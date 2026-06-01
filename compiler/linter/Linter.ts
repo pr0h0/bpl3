@@ -94,12 +94,20 @@ export class Linter {
         break;
       case "Loop":
         const loopStmt = node as AST.LoopStmt;
+        if (loopStmt.init) this.visit(loopStmt.init, context);
         if (loopStmt.condition) this.visit(loopStmt.condition, context);
         this.visit(loopStmt.body, context);
+        if (loopStmt.step) this.visit(loopStmt.step, context);
         break;
       case "Return":
         const retStmt = node as AST.ReturnStmt;
         if (retStmt.value) this.visit(retStmt.value, context);
+        break;
+      case "Defer":
+        this.visit((node as AST.DeferStmt).statement, context);
+        break;
+      case "ExpressionStmt":
+        this.visit((node as AST.ExpressionStmt).expression, context);
         break;
       case "VariableDecl":
         const varDecl = node as AST.VariableDecl;

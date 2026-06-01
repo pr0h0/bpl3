@@ -21,6 +21,33 @@ const intType: AST.BasicTypeNode = {
   location,
 };
 
+function identifier(name: string): AST.IdentifierExpr {
+  return {
+    kind: "Identifier",
+    name,
+    location,
+  };
+}
+
+function expressionStatement(expression: AST.Expression): AST.ExpressionStmt {
+  return {
+    kind: "ExpressionStmt",
+    expression,
+    location,
+  };
+}
+
+function variableDecl(name: string): AST.VariableDecl {
+  return {
+    kind: "VariableDecl",
+    isGlobal: false,
+    isConst: false,
+    name,
+    typeAnnotation: intType,
+    location,
+  };
+}
+
 function functionWithParameter(name: string): AST.Program {
   return {
     kind: "Program",
@@ -119,5 +146,104 @@ describe("linter type-safety guards", () => {
     const [error] = errors;
     expect(error).toBeDefined();
     expect(error!.code).toBe("T002");
+  });
+
+  test("visits expressions contained by expression statements", () => {
+    const rule: LintRule = {
+      code: "T003",
+      name: "expression-statement-visitor-test",
+      check(node, context) {
+        if (node.kind !== "Identifier") return;
+
+        context.report(
+          `saw identifier ${(node as AST.IdentifierExpr).name}`,
+          node,
+          undefined,
+          "T003",
+        );
+      },
+    };
+
+    const errors = new Linter([rule]).lint(
+      functionWithBodyStatement(expressionStatement(identifier("sideEffect"))),
+    );
+
+    expect(errors).toHaveLength(1);
+    const [error] = errors;
+    expect(error).toBeDefined();
+    expect(error!.message).toContain("saw identifier sideEffect");
+  });
+
+  test("visits statements contained by defer statements", () => {
+    const rule: LintRule = {
+      code: "T004",
+      name: "defer-statement-visitor-test",
+      check(node, context) {
+        if (node.kind !== "Identifier") return;
+
+        context.report(
+          `saw deferred identifier ${(node as AST.IdentifierExpr).name}`,
+          node,
+          undefined,
+          "T004",
+        );
+      },
+    };
+
+    const errors = new Linter([rule]).lint(
+      functionWithBodyStatement({
+        kind: "Defer",
+        statement: expressionStatement(identifier("cleanup")),
+        location,
+      }),
+    );
+
+    expect(errors).toHaveLength(1);
+    const [error] = errors;
+    expect(error).toBeDefined();
+    expect(error!.message).toContain("saw deferred identifier cleanup");
+  });
+
+  test("visits loop init and step children", () => {
+    const rule: LintRule = {
+      code: "T005",
+      name: "loop-child-visitor-test",
+      check(node, context) {
+        if (node.kind === "VariableDecl") {
+          context.report(
+            `saw variable ${(node as AST.VariableDecl).name}`,
+            node,
+            undefined,
+            "T005",
+          );
+        } else if (node.kind === "Identifier") {
+          context.report(
+            `saw identifier ${(node as AST.IdentifierExpr).name}`,
+            node,
+            undefined,
+            "T005",
+          );
+        }
+      },
+    };
+
+    const errors = new Linter([rule]).lint(
+      functionWithBodyStatement({
+        kind: "Loop",
+        init: variableDecl("loopInit"),
+        step: identifier("loopStep"),
+        body: {
+          kind: "Block",
+          statements: [],
+          location,
+        },
+        location,
+      }),
+    );
+
+    const messages = errors.map((error) => error.message);
+    expect(messages).toHaveLength(2);
+    expect(messages).toContain("saw variable loopInit");
+    expect(messages).toContain("saw identifier loopStep");
   });
 });
