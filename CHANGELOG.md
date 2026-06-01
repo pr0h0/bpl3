@@ -182,6 +182,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Registry Group Decisions** - `ci:triage` now exports and tests an
   explicit coverage decision for every `CLI_JSON_ERROR_CODE_LISTS` group, so
   new JSON-code groups must be mapped or intentionally excluded with a reason.
+- **Packed Helper Dependency Import Audit** - Release metadata tests now cover
+  helper dependency imports with explicit extensions and directory `index`
+  specifiers, and missing dependency imports report both importer and dependency.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

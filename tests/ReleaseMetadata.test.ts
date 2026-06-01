@@ -168,6 +168,92 @@ describe("Release metadata", () => {
     expect(packageJson.files).not.toContain("compiler/common");
   });
 
+  test("package helper dependency discovery accepts extension and index import forms", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-helper-deps-test-"));
+
+    try {
+      mkdirSync(join(tempRoot, "tools"), { recursive: true });
+      mkdirSync(join(tempRoot, "compiler", "common"), { recursive: true });
+      mkdirSync(join(tempRoot, "shared"), { recursive: true });
+      writeFileSync(
+        join(tempRoot, "package.json"),
+        JSON.stringify(
+          {
+            scripts: {
+              explicit: "bun tools/explicit.ts",
+              index: "bun tools/index_user.ts",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      writeFileSync(
+        join(tempRoot, "tools", "explicit.ts"),
+        'import "../compiler/common/PathSafety.ts";\n',
+      );
+      writeFileSync(
+        join(tempRoot, "tools", "index_user.ts"),
+        'import { helper } from "../shared";\n',
+      );
+      writeFileSync(join(tempRoot, "compiler", "common", "PathSafety.ts"), "");
+      writeFileSync(join(tempRoot, "shared", "index.ts"), "");
+
+      expect(
+        discoverPackageHelperDependencyFiles(
+          tempRoot,
+          ["tools/explicit.ts", "tools/index_user.ts"],
+          [
+            {
+              importedBy: ["tools/explicit.ts"],
+              path: "compiler/common/PathSafety.ts",
+              reason: "explicit extension fixture",
+            },
+            {
+              importedBy: ["tools/index_user.ts"],
+              path: "shared/index.ts",
+              reason: "directory index fixture",
+            },
+          ],
+        ),
+      ).toEqual(["compiler/common/PathSafety.ts", "shared/index.ts"]);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("package helper dependency discovery reports importer and dependency for missing imports", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-helper-deps-missing-"));
+
+    try {
+      mkdirSync(join(tempRoot, "tools"), { recursive: true });
+      mkdirSync(join(tempRoot, "shared"), { recursive: true });
+      writeFileSync(
+        join(tempRoot, "tools", "bad.ts"),
+        'import "./other";\n',
+      );
+      writeFileSync(join(tempRoot, "shared", "index.ts"), "");
+
+      expect(() =>
+        discoverPackageHelperDependencyFiles(
+          tempRoot,
+          ["tools/bad.ts"],
+          [
+            {
+              importedBy: ["tools/bad.ts"],
+              path: "shared/index.ts",
+              reason: "missing import fixture",
+            },
+          ],
+        ),
+      ).toThrow(
+        /Package helper dependency importer does not import the declared dependency\.[\s\S]*dependency: shared\/index\.ts[\s\S]*importer: tools\/bad\.ts[\s\S]*expected import:/,
+      );
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("release smoke discovers package script helper files dynamically", async () => {
     const releaseSmoke = (await import("../tools/release_smoke")) as {
       discoverPackageScriptHelperFiles?: (repoRoot: string) => string[];

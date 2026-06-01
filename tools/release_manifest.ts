@@ -194,11 +194,13 @@ export function discoverPackageHelperDependencyFiles(
   packageHelperFiles: readonly string[] = discoverPackageScriptHelperFiles(
     repoRoot,
   ),
+  packageHelperDependencies: readonly PackageHelperDependency[] =
+    PACKAGE_HELPER_DEPENDENCIES,
 ): string[] {
   const packageHelperFileSet = new Set(packageHelperFiles);
   const dependencyFiles = new Set<string>();
 
-  for (const dependency of PACKAGE_HELPER_DEPENDENCIES) {
+  for (const dependency of packageHelperDependencies) {
     const dependencyStats = tryLstat(join(repoRoot, dependency.path));
     if (!dependencyStats?.isFile()) {
       throw new Error(
@@ -302,11 +304,10 @@ function assertPackageHelperImportsDependency(
   }
 
   const source = readFileSync(importerPath, "utf-8");
-  const importSpecifier = packageImportSpecifier(importer, dependencyPath);
-  const importSpecifiers = [importSpecifier, `${importSpecifier}.ts`];
+  const importSpecifiers = packageImportSpecifiers(importer, dependencyPath);
+  const sourceImportSpecifiers = importedModuleSpecifiers(source);
   const importsDependency = importSpecifiers.some(
-    (specifier) =>
-      source.includes(`"${specifier}"`) || source.includes(`'${specifier}'`),
+    (specifier) => sourceImportSpecifiers.has(specifier),
   );
   if (!importsDependency) {
     throw new Error(
@@ -314,10 +315,35 @@ function assertPackageHelperImportsDependency(
         "Package helper dependency importer does not import the declared dependency.",
         `dependency: ${dependencyPath}`,
         `importer: ${importer}`,
-        `expected import: ${importSpecifier}`,
+        `expected import: ${importSpecifiers.join(" or ")}`,
       ].join("\n"),
     );
   }
+}
+
+function packageImportSpecifiers(
+  importer: string,
+  dependencyPath: string,
+): string[] {
+  const specifier = packageImportSpecifier(importer, dependencyPath);
+  const specifiers = new Set([
+    specifier,
+    `${specifier}.ts`,
+    `${specifier}.js`,
+  ]);
+
+  if (basename(dependencyPath) === "index.ts") {
+    const directorySpecifier = packageImportSpecifier(
+      importer,
+      dirname(dependencyPath),
+    );
+    specifiers.add(directorySpecifier);
+    specifiers.add(`${directorySpecifier}/index`);
+    specifiers.add(`${directorySpecifier}/index.ts`);
+    specifiers.add(`${directorySpecifier}/index.js`);
+  }
+
+  return [...specifiers];
 }
 
 function packageImportSpecifier(importer: string, dependencyPath: string): string {
@@ -330,6 +356,27 @@ function packageImportSpecifier(importer: string, dependencyPath: string): strin
   return relativeSpecifier.endsWith(".ts")
     ? relativeSpecifier.slice(0, -".ts".length)
     : relativeSpecifier;
+}
+
+function importedModuleSpecifiers(source: string): Set<string> {
+  const specifiers = new Set<string>();
+  const patterns = [
+    /\bimport\s+(?:[^"'()]*?\s+from\s+)?["']([^"']+)["']/g,
+    /\bexport\s+[^"']*?\s+from\s+["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const specifier = match[1];
+      if (specifier) {
+        specifiers.add(specifier);
+      }
+    }
+  }
+
+  return specifiers;
 }
 
 function assertWritableManifestPath(outPath: string): void {
