@@ -200,6 +200,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   examples now live in a typed test inventory shared by MarkdownDocs and the
   CLI JSON parseability smoke, keeping the documented success and failure
   examples aligned.
+- **Integration Example Artifact Isolation** - Integration example runs now
+  pass a temporary `-o` output path to `bpl run`, keeping package dependency
+  example binaries and LLVM IR outside the tracked `examples/` tree.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

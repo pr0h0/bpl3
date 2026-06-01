@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import {
   createLimiter,
@@ -11,6 +12,10 @@ const EXAMPLES_DIR = path.join(process.cwd(), "examples");
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 const DEFAULT_EXAMPLE_TIMEOUT_MS = 30_000;
 const INTEGRATION_TEST_TIMEOUT_MS = 30 * 60 * 1000;
+const INTEGRATION_ARTIFACTS_DIR = path.join(
+  os.tmpdir(),
+  "bpl-integration-artifacts",
+);
 const runLimited = createLimiter(getIntegrationJobs());
 
 // Helper to find example directories
@@ -43,12 +48,41 @@ function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
   return results.sort();
 }
 
+function getExampleArtifactOutputPath(example: string): string {
+  const safeExampleName = example.replace(/[^A-Za-z0-9._-]+/g, "_");
+  return path.join(INTEGRATION_ARTIFACTS_DIR, safeExampleName, "main");
+}
+
+function prepareExampleArtifactOutput(example: string): string {
+  const outputPath = getExampleArtifactOutputPath(example);
+  const outputDir = path.dirname(outputPath);
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  return outputPath;
+}
+
+function cleanupExampleArtifactOutput(outputPath: string): void {
+  fs.rmSync(path.dirname(outputPath), { recursive: true, force: true });
+}
+
 describe("Integration Tests", () => {
   const examples = getExampleDirectories();
   const testOnly: string[] = [""].filter(Boolean); // Specify example names to test only
 
   it("includes package dependency example coverage in CI-safe integration tests", () => {
     expect(examples).toContain("package_transitive_dependency/app");
+  });
+
+  it("keeps package dependency example artifacts outside the tracked examples tree", () => {
+    const outputPath = getExampleArtifactOutputPath(
+      "package_transitive_dependency/app",
+    );
+
+    expect(outputPath).toContain(
+      path.join(os.tmpdir(), "bpl-integration-artifacts"),
+    );
+    expect(path.relative(EXAMPLES_DIR, outputPath).startsWith("..")).toBe(true);
+    expect(path.basename(outputPath)).toBe("main");
   });
 
   for (const example of examples) {
@@ -93,21 +127,35 @@ describe("Integration Tests", () => {
 
           // Prepare command
           // Use the same CLI path as cmp.sh, but run it asynchronously so examples can overlap.
-          const result = await runLimited(() =>
-            runProcess(
-              process.execPath,
-              [BPL_CLI, "run", relativeMainFile, ...(config.args || [])],
-              {
-                env: {
-                  ...process.env,
-                  BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
-                  ...(config.env || {}),
-                },
-                input: config.input || "",
-                timeout,
-              },
-            ),
-          );
+          const artifactOutputPath = prepareExampleArtifactOutput(example);
+          const result = await (async () => {
+            try {
+              return await runLimited(() =>
+                runProcess(
+                  process.execPath,
+                  [
+                    BPL_CLI,
+                    "-o",
+                    artifactOutputPath,
+                    "run",
+                    relativeMainFile,
+                    ...(config.args || []),
+                  ],
+                  {
+                    env: {
+                      ...process.env,
+                      BPL_HOME: process.cwd(), // Set BPL_HOME to current directory for stdlib resolution
+                      ...(config.env || {}),
+                    },
+                    input: config.input || "",
+                    timeout,
+                  },
+                ),
+              );
+            } finally {
+              cleanupExampleArtifactOutput(artifactOutputPath);
+            }
+          })();
 
           const output = result.stdout + result.stderr;
           if (result.timedOut) {
