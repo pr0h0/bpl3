@@ -316,6 +316,19 @@ export class ModuleResolver {
       if (result) {
         return result;
       }
+
+      throw new CompilerError(
+        `Standard library module not found: ${importSource} (resolved to ${stdPath})`,
+        `Check that the module exists inside the configured standard library at ${this.stdLibPath}. Explicit std/ and std\\ imports do not fall back to package resolution.`,
+        {
+          file: fromFile,
+          startLine: 0,
+          startColumn: 0,
+          endLine: 0,
+          endColumn: 0,
+        },
+        MODULE_NOT_FOUND_CODE,
+      );
     }
 
     // Try to resolve as a package import

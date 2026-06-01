@@ -502,6 +502,59 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should not resolve missing explicit std imports from packages", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
+    fs.mkdirSync(stdPackageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(stdPackageDir, "bpl.json"),
+      JSON.stringify({ name: "std", version: "1.0.0", main: "missing.bpl" }),
+    );
+    fs.writeFileSync(
+      path.join(stdPackageDir, "missing.bpl"),
+      [
+        "frame shadow() ret int {",
+        "    return 42;",
+        "}",
+        "export shadow;",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import shadow from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return shadow();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const textResult = runCLI(["check", sourceFile]);
+      expect(textResult.status).toBe(1);
+      expect(textResult.stderr).toContain(
+        "Standard library module not found: std/missing.bpl",
+      );
+      expect(textResult.stderr).toContain("standard library");
+
+      const jsonResult = runCLI(["check", "--json", sourceFile]);
+      expect(jsonResult.status).toBe(1);
+      const report = parseJsonObjectStdout<{
+        files: Array<{
+          diagnostics: Array<{ message: string; hint: string }>;
+        }>;
+      }>(jsonResult);
+      const diagnostic = report.files[0]?.diagnostics[0];
+      expect(diagnostic?.message).toContain(
+        "Standard library module not found: std/missing.bpl",
+      );
+      expect(diagnostic?.hint).toContain("standard library");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should preserve missing relative import diagnostics across CLI modes", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-missing-import-"),

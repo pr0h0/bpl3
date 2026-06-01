@@ -426,6 +426,35 @@ describe("ModuleResolver", () => {
     ).toBe(stdModule);
   });
 
+  it("should not resolve missing explicit std imports from packages", () => {
+    const appDir = path.join(tempDir, "std-package-shadow-app");
+    const sourceDir = path.join(appDir, "src");
+    const stdPackageDir = path.join(appDir, "bpl_modules", "std");
+    const stdLibDir = path.join(tempDir, "std-package-shadow-lib");
+    const mainPath = path.join(sourceDir, "main.bpl");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(stdPackageDir, { recursive: true });
+    fs.mkdirSync(stdLibDir, { recursive: true });
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+    fs.writeFileSync(
+      path.join(stdPackageDir, "bpl.json"),
+      JSON.stringify({ name: "std", version: "1.0.0", main: "missing.bpl" }),
+    );
+    fs.writeFileSync(path.join(stdPackageDir, "missing.bpl"), "export shadow;");
+
+    const resolver = new ModuleResolver({ stdLibPath: stdLibDir });
+    const error = captureCompilerError(() => {
+      resolver.resolveModulePath("std/missing.bpl", mainPath);
+    });
+
+    expect(error.message).toContain(
+      "Standard library module not found: std/missing.bpl",
+    );
+    expect(error.message).toContain(stdLibDir);
+    expect(error.hint).toContain("standard library");
+    expect(error.code).toBe("BPL_MODULE_NOT_FOUND");
+  });
+
   it("should reject unsafe explicit std import path segments", () => {
     const stdLibDir = path.join(tempDir, "unsafe-std-lib");
     const outsideStdLib = path.join(tempDir, "outside-std-lib.bpl");
