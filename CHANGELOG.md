@@ -512,6 +512,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Shared Target Triple Parsing** - `CodeGenerator`, `CompilerDriver`, and
+  `BinaryRunner` now use `compiler/common/TargetTriple.ts` for strict
+  component-aware target parsing, WebAssembly architecture detection, and hosted
+  wasm runtime defaults. This keeps target rejection, compiler-driver selection,
+  and runtime-mode selection aligned on one parser. Focused repro:
+  `bun test tests/TargetTriple.test.ts tests/CompilerDriver.test.ts tests/BinaryRunner.test.ts tests/CodeGenerator.test.ts -t "target|wasm|triple|CodeGenerator"`.
 - **Compiler Driver Wasm Target Detection** - Compiler driver selection now
   treats only `wasm32` and `wasm64` target architectures as WebAssembly, so
   substring-only targets such as `notwasm32-unknown-unknown` do not select

@@ -1,13 +1,13 @@
 import { Logger } from "./Logger";
 import { getPositiveIntegerEnv, TIMEOUT_ENV_DEFAULTS } from "./Env";
+import { isWasmTargetArch } from "./TargetTriple";
 
 const compilerDriverLog = new Logger("CompilerDriver");
 const COMPILE_DRIVER_TIMEOUT_MS =
   TIMEOUT_ENV_DEFAULTS.BPL_COMPILE_DRIVER_TIMEOUT_MS;
 
 export function isWasmTarget(target?: string): boolean {
-  const arch = target?.toLowerCase().split("-")[0] ?? "";
-  return arch === "wasm32" || arch === "wasm64";
+  return isWasmTargetArch(target);
 }
 
 export function getCompilerDriver(target?: string): string {

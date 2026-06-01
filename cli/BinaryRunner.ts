@@ -22,6 +22,7 @@ import { getOptionalPositiveIntegerEnv } from "../compiler/common/Env";
 import { Logger } from "../compiler/common/Logger";
 import { getBplHome } from "../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
+import { hasHostedWasmRuntimeComponent } from "../compiler/common/TargetTriple";
 import {
   formatCommandSpawnFailure,
   getProcessErrorCode,
@@ -60,21 +61,11 @@ export function getWasmRuntimeMode(
     return "freestanding";
   }
 
-  if (targetHasHostedWasmRuntimeComponent(target)) {
+  if (hasHostedWasmRuntimeComponent(target)) {
     return "host";
   }
 
   return "freestanding";
-}
-
-function targetHasHostedWasmRuntimeComponent(target?: string): boolean {
-  const components = target?.toLowerCase().split("-").filter(Boolean) ?? [];
-  return components.some(
-    (component) =>
-      component === "emscripten" ||
-      component === "wasi" ||
-      /^wasip\d+$/.test(component),
-  );
 }
 
 function isEnvFlagEnabled(value: string | undefined): boolean {

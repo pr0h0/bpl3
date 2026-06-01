@@ -7,6 +7,12 @@ import {
   createDivisionByZeroErrorDecl,
   createNullAccessErrorDecl,
 } from "../../middleend/BuiltinTypes";
+import {
+  parseTargetTriple,
+  targetHasAnyComponent,
+  targetHasComponent,
+  type ParsedTargetTriple,
+} from "../../common/TargetTriple";
 
 /**
  * Get the LLVM datalayout string for a given target triple.
@@ -18,25 +24,21 @@ type TargetDataLayout = {
   layout: string;
 };
 
-type ParsedTargetTriple = {
-  arch: string;
-  components: Set<string>;
-};
-
 const X86_64_LINUX_DATA_LAYOUT =
   "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
 
 const SUPPORTED_TARGET_DATA_LAYOUTS: TargetDataLayout[] = [
   {
     family: "x86_64 Linux",
-    matches: (target) => target.arch === "x86_64" && hasComponent(target, "linux"),
+    matches: (target) =>
+      target.arch === "x86_64" && targetHasComponent(target, "linux"),
     layout: X86_64_LINUX_DATA_LAYOUT,
   },
   {
     family: "x86_64 macOS",
     matches: (target) =>
       target.arch === "x86_64" &&
-      hasAnyComponent(target, ["darwin", "macos"]),
+      targetHasAnyComponent(target, ["darwin", "macos"]),
     layout:
       "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
   },
@@ -44,26 +46,27 @@ const SUPPORTED_TARGET_DATA_LAYOUTS: TargetDataLayout[] = [
     family: "AArch64 Linux",
     matches: (target) =>
       (target.arch === "aarch64" || target.arch === "arm64") &&
-      hasComponent(target, "linux"),
+      targetHasComponent(target, "linux"),
     layout: "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
   },
   {
     family: "AArch64 macOS",
     matches: (target) =>
       (target.arch === "aarch64" || target.arch === "arm64") &&
-      hasAnyComponent(target, ["darwin", "macos"]),
+      targetHasAnyComponent(target, ["darwin", "macos"]),
     layout: "e-m:o-i64:64-i128:128-n32:64-S128",
   },
   {
     family: "i686 Linux",
-    matches: (target) => target.arch === "i686" && hasComponent(target, "linux"),
+    matches: (target) =>
+      target.arch === "i686" && targetHasComponent(target, "linux"),
     layout:
       "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128",
   },
   {
     family: "x86_64 Windows",
     matches: (target) =>
-      target.arch === "x86_64" && hasComponent(target, "windows"),
+      target.arch === "x86_64" && targetHasComponent(target, "windows"),
     layout:
       "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
   },
@@ -87,40 +90,13 @@ export function getSupportedCodegenTargetSummary(): string {
   return getSupportedCodegenTargetFamilies().join(", ");
 }
 
-function parseTargetTriple(
-  normalizedTarget: string,
-): ParsedTargetTriple | undefined {
-  const parts = normalizedTarget.split("-");
-  if (parts.some((part) => part.length === 0)) return undefined;
-
-  return {
-    arch: parts[0] ?? "",
-    components: new Set(parts),
-  };
-}
-
-function hasComponent(target: ParsedTargetTriple, component: string): boolean {
-  return target.components.has(component);
-}
-
-function hasAnyComponent(
-  target: ParsedTargetTriple,
-  components: string[],
-): boolean {
-  return components.some((component) => hasComponent(target, component));
-}
-
 function resolveDataLayoutForTarget(target?: string): string | undefined {
   if (target === undefined) {
     // Default to x86_64-linux-gnu
     return X86_64_LINUX_DATA_LAYOUT;
   }
 
-  const trimmedTarget = target.trim();
-  if (!trimmedTarget || trimmedTarget !== target) return undefined;
-
-  const normalizedTarget = trimmedTarget.toLowerCase();
-  const parsedTarget = parseTargetTriple(normalizedTarget);
+  const parsedTarget = parseTargetTriple(target);
   if (!parsedTarget) return undefined;
 
   return SUPPORTED_TARGET_DATA_LAYOUTS.find((entry) =>
