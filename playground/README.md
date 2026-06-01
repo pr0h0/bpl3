@@ -219,6 +219,20 @@ contract tests are `tests/PlaygroundNativeExecution.test.ts` for payload
 shaping and `tests/PlaygroundProcessRunner.test.ts` for argv/stdin process
 execution.
 
+When `/compile` native execution fails in CI, start with `bun run ci:triage`.
+The mapping covers failures that mention
+`playground/backend/nativeExecution.ts`,
+`playground/backend/processRunner.ts`, `PlaygroundNativeExecution.test`,
+`PlaygroundProcessRunner.test`, and argv-vector playground example failures.
+Use the focused repro commands before broad suites:
+
+```bash
+bun test tests/PlaygroundNativeExecution.test.ts
+bun test tests/PlaygroundProcessRunner.test.ts
+bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"
+bun test tests/TutorialExamples.test.ts -t "argv-vector execution"
+```
+
 ## Usage Tips
 
 1. **Browse Examples**: Click examples in the sidebar to load them

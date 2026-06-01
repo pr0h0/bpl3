@@ -1285,6 +1285,28 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("playground docs document backend execution CI triage path", () => {
+    const combinedDocs = [
+      readFileSync("playground/README.md", "utf8"),
+      readFileSync("playground/ARCHITECTURE.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "When `/compile` native execution fails in CI, start with `bun run ci:triage`",
+      "`playground/backend/nativeExecution.ts`",
+      "`playground/backend/processRunner.ts`",
+      "`PlaygroundNativeExecution.test`",
+      "`PlaygroundProcessRunner.test`",
+      "argv-vector playground example failures",
+      "bun test tests/PlaygroundNativeExecution.test.ts",
+      "bun test tests/PlaygroundProcessRunner.test.ts",
+      'bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"',
+      'bun test tests/TutorialExamples.test.ts -t "argv-vector execution"',
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("docs document CI-safe typed test runner", () => {
     const normalizedText = normalizedMarkdownText([
       "README.md",

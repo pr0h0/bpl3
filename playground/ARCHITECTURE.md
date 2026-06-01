@@ -154,6 +154,20 @@ timeouts into the stable payload documented in `playground/README.md`. The
 contract is guarded by `tests/PlaygroundNativeExecution.test.ts` and
 `tests/PlaygroundProcessRunner.test.ts`.
 
+CI triage keeps that execution boundary narrow. When `/compile` native
+execution fails in CI, start with `bun run ci:triage`; failures mentioning
+`playground/backend/nativeExecution.ts`,
+`playground/backend/processRunner.ts`, `PlaygroundNativeExecution.test`,
+`PlaygroundProcessRunner.test`, or argv-vector playground example failures map
+to focused local repro commands:
+
+```bash
+bun test tests/PlaygroundNativeExecution.test.ts
+bun test tests/PlaygroundProcessRunner.test.ts
+bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"
+bun test tests/TutorialExamples.test.ts -t "argv-vector execution"
+```
+
 ## Key Components
 
 ### Frontend Components
