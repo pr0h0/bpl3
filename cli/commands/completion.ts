@@ -17,7 +17,8 @@ import {
 } from "../../compiler/common/JsonContracts";
 
 const log = new Logger("Completion");
-const COMPLETION_SHELL_UNSUPPORTED_CODE = "BPL_COMPLETION_SHELL_UNSUPPORTED";
+export const COMPLETION_SHELL_UNSUPPORTED_CODE =
+  "BPL_COMPLETION_SHELL_UNSUPPORTED";
 
 /**
  * Register the completion command

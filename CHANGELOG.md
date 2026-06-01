@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Command JSON Validation Drift Guard** - Markdown docs now compare
+  command-level JSON validation codes for completion, doctor, wasm linker, and
+  sanitizer reports against exported implementation constants instead of relying
+  on literal-only documentation checks.
 - **Package Resolver Fuzz Seeds** - Added deterministic package import seed
   coverage for empty, `.`, `..`, backslash-separated, symlink-looking, and
   mixed-extension subpath shapes. Focused repro:

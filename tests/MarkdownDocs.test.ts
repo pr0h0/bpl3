@@ -31,10 +31,16 @@ import {
   BUILD_OUTPUT_PARENT_SYMLINK_CODE,
   BUILD_OUTPUT_SYMLINK_CODE,
 } from "../cli/CompilationRunner";
+import { COMPLETION_SHELL_UNSUPPORTED_CODE } from "../cli/commands/completion";
+import {
+  DOCTOR_SCOPE_UNKNOWN_CODE,
+  WASM_LINKER_UNAVAILABLE_CODE,
+} from "../cli/commands/doctor";
 import {
   CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
   CLEAN_WORKDIR_SYMLINK_CODE,
 } from "../cli/commands/clean";
+import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
 import {
   CHECK_INPUT_NOT_FILE_CODE,
   CHECK_INPUT_NOT_FOUND_CODE,
@@ -712,6 +718,30 @@ describe("Markdown documentation", () => {
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
     }
+  });
+
+  test("docs document command-level JSON validation constants", () => {
+    const docs = [
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("docs/60-compiler-correctness.md", "utf8"),
+      readFileSync("CHANGELOG.md", "utf8"),
+    ]
+      .join("\n")
+      .replace(/\s+/g, " ");
+    const expectedCodes = [
+      COMPLETION_SHELL_UNSUPPORTED_CODE,
+      DOCTOR_SCOPE_UNKNOWN_CODE,
+      WASM_LINKER_UNAVAILABLE_CODE,
+      SANITIZER_RUNTIME_UNAVAILABLE_CODE,
+    ];
+
+    for (const code of expectedCodes) {
+      expect(docs).toContain(code);
+    }
+    expect(docs).toContain("unsupported shells return `success: false`");
+    expect(docs).toContain("Unknown doctor scopes");
+    expect(docs).toContain("The `wasm linker` check reports");
+    expect(docs).toContain("The focused sanitizer scope reports");
   });
 
   test("docs document version JSON contract", () => {

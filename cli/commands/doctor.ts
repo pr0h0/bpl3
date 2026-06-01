@@ -50,8 +50,8 @@ const WASM_RUNTIME_HINT =
   "Run `bpl doctor` to inspect runtime assets, then reinstall BPL or restore the missing wasm runtime IR from the release package.";
 const WASM_LINKER_HINT =
   "Install LLVM lld or set WASM_LD to a working wasm-ld binary before building wasm targets. When BPL_REQUIRE_WASM_LD is unset, missing wasm linker support is an optional prerequisite skip, not a successful wasm execution. Set BPL_REQUIRE_WASM_LD=1 when you want missing wasm linker support to fail instead of skipping runtime execution.";
-const WASM_LINKER_UNAVAILABLE_CODE = "BPL_WASM_LINKER_UNAVAILABLE";
-const DOCTOR_SCOPE_UNKNOWN_CODE = "BPL_DOCTOR_SCOPE_UNKNOWN";
+export const WASM_LINKER_UNAVAILABLE_CODE = "BPL_WASM_LINKER_UNAVAILABLE";
+export const DOCTOR_SCOPE_UNKNOWN_CODE = "BPL_DOCTOR_SCOPE_UNKNOWN";
 
 interface DoctorCheck {
   id?: string;
