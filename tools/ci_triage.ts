@@ -369,6 +369,16 @@ const ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const CONDITION_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
+  [
+    "BPL_CONDITION_TYPE_MISMATCH",
+    "condition type mismatch",
+    "If condition must be boolean",
+    "Loop condition must be boolean",
+    "Ensure the condition evaluates to a boolean",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1112,6 +1122,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "assignment type mismatch"',
   ],
   [ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
+  [
+    CONDITION_TYPE_MISMATCH_STEP_PATTERN,
+    "bun test tests/TypeCheckerConditionMismatch.test.ts",
+  ],
+  [
+    CONDITION_TYPE_MISMATCH_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "condition type mismatch"',
+  ],
+  [
+    CONDITION_TYPE_MISMATCH_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "condition type mismatch"',
+  ],
+  [CONDITION_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
