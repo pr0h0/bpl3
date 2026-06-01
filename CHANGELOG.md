@@ -188,6 +188,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Import Docs Smoke Fixtures** - Package docs now identify the
   JSON-mode smoke that checks the workspace/transitive package example and the
   documented invalid `pkg-math/../secret` import diagnostic.
+- **Generated CLI JSON Registry Shim** - The packed `bpl-v3/cli` registry shim
+  now has a renderer/check command, and tests compare `cli/index.js` plus
+  `cli/index.d.ts` against `CLI_JSON_ERROR_CODE_LISTS` so the npm subpath
+  cannot drift silently from implementation exports.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

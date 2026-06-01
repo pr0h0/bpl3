@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "fs";
+import { spawnSync } from "child_process";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 import {
   CLI_JSON_ERROR_CODE_LISTS,
   CLI_JSON_ERROR_CODES,
 } from "../cli/JsonErrorCodes";
+import {
+  renderCliJsonRegistryShim,
+  renderCliJsonRegistryTypes,
+} from "../tools/cli_json_registry_shim";
 
 interface JsonErrorCodeListShape {
   name: string;
@@ -75,5 +80,31 @@ describe("CLI JSON error-code list exports", () => {
     expect(packedCliRegistry.CLI_JSON_ERROR_CODES).toEqual([
       ...CLI_JSON_ERROR_CODES,
     ]);
+  });
+
+  test("keeps checked-in packed npm CLI registry files generated from implementation exports", () => {
+    const cliRegistryShimPath = join(import.meta.dir, "../cli/index.js");
+    const cliRegistryTypesPath = join(import.meta.dir, "../cli/index.d.ts");
+
+    expect(readFileSync(cliRegistryShimPath, "utf8")).toBe(
+      renderCliJsonRegistryShim(CLI_JSON_ERROR_CODE_LISTS),
+    );
+    expect(readFileSync(cliRegistryTypesPath, "utf8")).toBe(
+      renderCliJsonRegistryTypes(),
+    );
+  });
+
+  test("runs packed npm CLI registry sync check command", () => {
+    const result = spawnSync(
+      "bun",
+      ["tools/cli_json_registry_shim.ts", "--check"],
+      {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout).toContain("CLI registry shim is in sync");
   });
 });
