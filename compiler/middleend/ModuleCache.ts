@@ -71,6 +71,7 @@ export interface ModuleLinkOptions {
   libraryPaths?: string[];
   sysroot?: string;
   clangFlags?: string[];
+  optimizationLevel?: number;
 }
 
 export class ModuleCache {
@@ -1062,6 +1063,9 @@ export class ModuleCache {
     }
     if (options.sysroot) {
       clangArgs.unshift(`--sysroot=${options.sysroot}`);
+    }
+    if (options.optimizationLevel !== undefined) {
+      clangArgs.push(`-O${options.optimizationLevel}`);
     }
 
     const compilerCommand = getCompilerDriver(target);

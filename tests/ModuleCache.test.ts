@@ -684,6 +684,42 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("forwards optimization levels when linking cached module objects", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-link-opt-"));
+    const previousBplCc = process.env.BPL_CC;
+    const outputPath = join(dir, "app");
+    const objectPath = join(dir, "module.o");
+    const argsPath = join(dir, "args.json");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.writeFileSync(${JSON.stringify(argsPath)}, JSON.stringify(args));`,
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "linked executable\\n");',
+      ]);
+      process.env.BPL_CC = fakeCompiler;
+      writeFileSync(objectPath, "object\n");
+
+      const cache = new ModuleCache(dir);
+      cache.linkModules([objectPath], outputPath, false, undefined, {
+        optimizationLevel: 3,
+      });
+
+      const args = JSON.parse(readFileSync(argsPath, "utf-8")) as string[];
+      expect(args).toContain("-O3");
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects cached link outputs through symlinked ancestors before invoking the compiler", () => {
     const dir = mkdtempSync(
       join(tmpdir(), "bpl-module-cache-link-ancestor-"),

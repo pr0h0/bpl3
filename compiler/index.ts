@@ -598,6 +598,7 @@ export class Compiler {
           libraryPaths: this.options.libraryPaths,
           sysroot: this.options.sysroot,
           clangFlags: this.options.clangFlags,
+          optimizationLevel: this.options.optimizationLevel,
         },
       );
 
@@ -707,6 +708,7 @@ export class Compiler {
           libraryPaths: this.options.libraryPaths,
           sysroot: this.options.sysroot,
           clangFlags: this.options.clangFlags,
+          optimizationLevel: this.options.optimizationLevel,
         },
       );
 
