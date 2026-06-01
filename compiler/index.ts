@@ -139,6 +139,14 @@ export class Compiler {
    */
   compile(sourceCode: string): CompilationResult {
     try {
+      const optionError = this.validateOptions();
+      if (optionError) {
+        return {
+          success: false,
+          errors: [optionError],
+        };
+      }
+
       // Check if we should use cached compilation
       if (this.options.useCache) {
         return this.compileWithCache();
@@ -297,6 +305,14 @@ export class Compiler {
    * Async compilation entry point for backends that can run parallel work.
    */
   async compileAsync(sourceCode: string): Promise<CompilationResult> {
+    const optionError = this.validateOptions();
+    if (optionError) {
+      return {
+        success: false,
+        errors: [optionError],
+      };
+    }
+
     if (this.options.useCache && this.normalizeJobs(this.options.jobs) > 1) {
       return await this.compileWithCacheAsync();
     }
@@ -968,6 +984,49 @@ export class Compiler {
       return 1;
     }
     return jobs;
+  }
+
+  private validateOptions(): CompilerError | undefined {
+    const optimizationLevel = this.options.optimizationLevel;
+    if (
+      optimizationLevel !== undefined &&
+      ![0, 1, 2, 3].includes(optimizationLevel)
+    ) {
+      return this.createOptionError(
+        `Invalid optimization level "${optimizationLevel}". Use one of: 0, 1, 2, 3.`,
+      );
+    }
+
+    const jobs = this.options.jobs;
+    if (jobs !== undefined) {
+      if (!Number.isInteger(jobs) || jobs <= 0) {
+        return this.createOptionError(
+          `Invalid jobs count "${jobs}". Use a positive integer greater than zero.`,
+        );
+      }
+
+      if (!Number.isSafeInteger(jobs)) {
+        return this.createOptionError(
+          `Invalid jobs count "${jobs}". Use a safe positive integer.`,
+        );
+      }
+    }
+
+    return undefined;
+  }
+
+  private createOptionError(message: string): CompilerError {
+    return new CompilerError(
+      message,
+      "Adjust CompilerOptions before compiling.",
+      {
+        file: this.options.filePath,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 0,
+      },
+    );
   }
 
   /**

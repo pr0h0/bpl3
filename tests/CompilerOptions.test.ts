@@ -27,4 +27,31 @@ describe("Compiler options", () => {
     expect(result.success).toBe(true);
     expect(result.output).toContain("define i32 @helper_()");
   });
+
+  it("rejects invalid direct optimization levels before compiling", () => {
+    const compiler = new Compiler({
+      filePath: "test.bpl",
+      optimizationLevel: 4,
+    });
+
+    const result = compiler.compile("frame main() ret int { return 0; }");
+
+    expect(result.success).toBe(false);
+    expect(result.errors?.[0]?.message).toContain(
+      'Invalid optimization level "4"',
+    );
+  });
+
+  it("rejects invalid direct jobs before cached compilation reads files", () => {
+    const compiler = new Compiler({
+      filePath: "missing-cache-entry.bpl",
+      useCache: true,
+      jobs: 0,
+    });
+
+    const result = compiler.compile("frame main() ret int { return 0; }");
+
+    expect(result.success).toBe(false);
+    expect(result.errors?.[0]?.message).toContain('Invalid jobs count "0"');
+  });
 });
