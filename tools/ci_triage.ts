@@ -117,6 +117,7 @@ const MAPPED_JSON_CODE_GROUP_NAMES = [
   "package-manifest",
   "package-resolver",
   "module-resolver",
+  "import-handler",
   "run-script",
   "sanitizer-runtime",
   "wasm-linker",
@@ -239,6 +240,17 @@ const STDLIB_PACKAGE_COLLISION_STEP_PATTERN = new RegExp(
     "Module ['\"]math['\"] does not export ['\"]packageMath['\"]",
     "package named `math` is shadowed",
     "package named math is shadowed",
+  ].join("|"),
+  "i",
+);
+const IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN = new RegExp(
+  [
+    "BPL_IMPORT_EXPORT_NOT_FOUND",
+    "missing imported-export",
+    "missing imported export",
+    "named import is not exported",
+    "stable code when a named import is not exported",
+    "Module ['\"](?:\\./|\\.\\./|/|[A-Za-z]:[\\\\/])[^'\"]+['\"] does not export",
   ].join("|"),
   "i",
 );
@@ -855,6 +867,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
   ],
   [STDLIB_PACKAGE_COLLISION_STEP_PATTERN, "bun run check"],
+  [
+    IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN,
+    'bun test tests/ImportHandler.test.ts -t "stable code"',
+  ],
+  [
+    IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+  ],
+  [
+    IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
+  ],
+  [IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

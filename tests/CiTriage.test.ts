@@ -481,6 +481,26 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps missing imported-export diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/ImportHandler.test.ts -t "stable code"',
+      'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+      'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_IMPORT_EXPORT_NOT_FOUND",
+      "reports a stable code when a named import is not exported",
+      "docs document missing imported-export diagnostic codes",
+      "Module './helper.bpl' does not export 'missing'",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -2728,6 +2748,72 @@ describe("CI triage helper", () => {
         'bun test tests/MarkdownDocs.test.ts -t "bare stdlib import precedence"',
         'bun test tests/ModuleResolver.test.ts -t "bare stdlib module names"',
         'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints missing imported-export repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-missing-imported-export-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 83,
+              name: "Missing imported export diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/83",
+              steps: [
+                {
+                  name: "BPL_IMPORT_EXPORT_NOT_FOUND Module './helper.bpl' does not export 'missing'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/ImportHandler.test.ts -t "stable code"',
+        'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+        'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
         "bun run check",
       ]);
     } finally {
