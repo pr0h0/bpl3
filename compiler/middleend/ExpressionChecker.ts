@@ -13,7 +13,16 @@ import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
 import {
+  ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
+  BINARY_OPERAND_TYPE_MISMATCH_CODE,
+  BITWISE_OPERAND_TYPE_MISMATCH_CODE,
+  COMPARISON_TYPE_MISMATCH_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
+  LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
+  MODULO_OPERAND_TYPE_MISMATCH_CODE,
+  POINTER_ARITHMETIC_VOID_CODE,
+  POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
+  STRING_CONCAT_UNSUPPORTED_CODE,
   TERNARY_BRANCH_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
 
@@ -521,6 +530,7 @@ export function checkBinary(
         "Cannot perform pointer arithmetic on void pointer",
         "Void pointers have no size, so pointer arithmetic is undefined. Cast to a sized pointer type first (e.g., *u8).",
         expr.location,
+        POINTER_ARITHMETIC_VOID_CODE,
       );
     }
 
@@ -541,6 +551,7 @@ export function checkBinary(
           )} and ${this.typeToString(rightType)}`,
           "Pointer subtraction requires compatible pointee types.",
           expr.location,
+          POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
         );
       }
 
@@ -576,6 +587,7 @@ export function checkBinary(
       "String concatenation with '+' is not supported.",
       "Use 'string_concat(a, b)' or similar helper functions.",
       expr.location,
+      STRING_CONCAT_UNSUPPORTED_CODE,
     );
   }
 
@@ -591,6 +603,7 @@ export function checkBinary(
         )} and ${this.typeToString(rightType)}`,
         "Ensure both operands are boolean expressions.",
         expr.location,
+        LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     return leftType;
@@ -604,6 +617,7 @@ export function checkBinary(
         `Cannot compare ${this.typeToString(leftType)} and ${this.typeToString(rightType)}`,
         "Operands must be of compatible types.",
         expr.location,
+        COMPARISON_TYPE_MISMATCH_CODE,
       );
     }
     return {
@@ -636,6 +650,7 @@ export function checkBinary(
         )} and ${this.typeToString(rightType)}`,
         "Ensure both operands are integers.",
         expr.location,
+        BITWISE_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     if (op === TokenType.LessLess || op === TokenType.GreaterGreater) {
@@ -679,6 +694,7 @@ export function checkBinary(
         )} and ${this.typeToString(rightType)}`,
         "Ensure both operands are integers.",
         expr.location,
+        MODULO_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
 
@@ -698,6 +714,7 @@ export function checkBinary(
       `Type mismatch: ${this.typeToString(leftType)} and ${this.typeToString(rightType)}`,
       "Ensure operands have compatible types.",
       expr.location,
+      BINARY_OPERAND_TYPE_MISMATCH_CODE,
     );
   }
 
@@ -717,6 +734,7 @@ export function checkBinary(
         )}' and '${this.typeToString(rightType)}'`,
         "Arithmetic operators require numeric types.",
         expr.location,
+        ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
 
