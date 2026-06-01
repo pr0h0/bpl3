@@ -586,6 +586,30 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps undefined type diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerUndefinedTypes.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
+      'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_TYPE_NOT_FOUND",
+      "Undefined type 'MissingThing'",
+      "The type is not defined.",
+      "variable undefined-type failures",
+      "struct field undefined-type failures",
+      "reports variable undefined-type failures in JSON-mode check and build diagnostics",
+      "reports struct field undefined-type failures in JSON-mode check and build diagnostics",
+      "docs document undefined type diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -3493,6 +3517,138 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerGenericArity.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "generic type arity|generic alias arity"',
         'bun test tests/MarkdownDocs.test.ts -t "generic arity"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints variable undefined-type repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-variable-undefined-type-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 93,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/93",
+              steps: [
+                {
+                  name: "BPL_TYPE_NOT_FOUND Undefined type 'MissingThing'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerUndefinedTypes.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
+        'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints struct field undefined-type repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-struct-field-undefined-type-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 94,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/94",
+              steps: [
+                {
+                  name: "reports struct field undefined-type failures in JSON-mode check and build diagnostics",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerUndefinedTypes.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
+        'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
         "bun run check",
       ]);
     } finally {
