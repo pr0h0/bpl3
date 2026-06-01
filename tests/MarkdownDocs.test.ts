@@ -36,6 +36,7 @@ import {
   DOCTOR_SCOPE_UNKNOWN_CODE,
   WASM_LINKER_UNAVAILABLE_CODE,
 } from "../cli/commands/doctor";
+import { DOCS_JSON_ERROR_CODES } from "../cli/commands/docs";
 import { FORMAT_JSON_ERROR_CODES } from "../cli/commands/format";
 import {
   CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
@@ -679,22 +680,14 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Documentation JSON reports",
       'check: "docs"',
-      "BPL_DOCS_INPUT_NOT_FOUND",
-      "BPL_DOCS_INPUT_SYMLINK",
-      "BPL_DOCS_INPUT_NOT_FILE",
-      "BPL_DOCS_INPUT_PARENT_SYMLINK",
-      "BPL_DOCS_OUTPUT_SYMLINK",
-      "BPL_DOCS_OUTPUT_DIRECTORY",
-      "BPL_DOCS_OUTPUT_NOT_FILE",
-      "BPL_DOCS_OUTPUT_PARENT_NOT_FOUND",
-      "BPL_DOCS_OUTPUT_PARENT_SYMLINK",
-      "BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY",
-      "BPL_DOCS_FAILED",
       "bun test tests/CLI.test.ts -t \"documentation generation success and validation failures as JSON\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of DOCS_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 

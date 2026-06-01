@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Docs JSON Validation Code List** - `bpl docs <file> --json` validation
+  codes now expose a shared constant list, and MarkdownDocs checks the
+  documentation contract against that list.
 - **Format JSON Validation Constants** - `bpl format --check --json` validation
   codes now use exported implementation constants, and MarkdownDocs checks the
   documented format JSON contract against that shared list.
