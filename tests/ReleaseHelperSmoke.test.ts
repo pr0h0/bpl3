@@ -268,6 +268,61 @@ describe("Release helper smoke", () => {
       rmSync(tempRoot, { recursive: true, force: true });
     }
   });
+
+  test("prints packed ci:triage run locator diagnostics", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-run-smoke-"),
+    );
+
+    try {
+      const installDir = writePackedHelperInstallFixture(tempRoot, {
+        includePathSafety: true,
+      });
+      const packageDir = join(installDir, "node_modules", "bpl-v3");
+      const cases: Array<{
+        args: string[];
+        expectedError: string;
+        forbiddenError: string;
+      }> = [
+        {
+          args: ["not-a-url"],
+          expectedError:
+            "Expected a numeric GitHub Actions run id or github.com Actions run URL, got not-a-url",
+          forbiddenError: "cannot be parsed as a URL",
+        },
+        {
+          args: [
+            "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/not-a-job",
+          ],
+          expectedError:
+            "Invalid GitHub Actions job id in https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/not-a-job",
+          forbiddenError: "api.github.com",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const result = spawnSync(
+          "npm",
+          ["run", "--silent", "ci:triage", "--", ...testCase.args],
+          {
+            cwd: packageDir,
+            encoding: "utf8",
+            env: { ...process.env, NO_COLOR: "1" },
+            timeout: HELPER_SMOKE_TIMEOUT_MS,
+          },
+        );
+
+        expect(result.status).toBe(2);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain(testCase.expectedError);
+        expect(result.stderr).not.toContain(testCase.forbiddenError);
+        expect(result.stderr).not.toContain("GitHub API");
+        expect(result.stderr).not.toContain("release:smoke");
+      }
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 function writePackedHelperInstallFixture(
