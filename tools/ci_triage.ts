@@ -605,6 +605,8 @@ const PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN = new RegExp(
   [
     "PlaygroundNativeExecution\\.test",
     "PlaygroundProcessRunner\\.test",
+    "playground/backend/nativeExecution\\.ts",
+    "playground/backend/processRunner\\.ts",
     "PlaygroundExamples\\.test.*(?:shell metacharacter args|argv-vector execution)",
     "TutorialExamples\\.test.*argv-vector execution",
     "Playground native execution response shaping",

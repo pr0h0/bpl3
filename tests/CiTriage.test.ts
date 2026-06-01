@@ -1909,6 +1909,92 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("prints playground process execution repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-playground-process-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 59,
+              name: "Playground backend process execution",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/59",
+              steps: [
+                {
+                  name: "playground/backend/nativeExecution.ts output-limit handling failed",
+                  conclusion: "failure",
+                },
+              ],
+            },
+            {
+              id: 60,
+              name: "Playground backend argv execution",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/60",
+              steps: [
+                {
+                  name: "playground/backend/processRunner.ts shell argv regression",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const expectedCommands = [
+        "bun test tests/PlaygroundNativeExecution.test.ts",
+        "bun test tests/PlaygroundProcessRunner.test.ts",
+        'bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"',
+        'bun test tests/TutorialExamples.test.ts -t "argv-vector execution"',
+        "bun run check",
+      ];
+
+      expect(report.summary.failedJobs).toHaveLength(2);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual(
+        expectedCommands,
+      );
+      expect(report.summary.failedJobs[1]?.localCommands).toEqual(
+        expectedCommands,
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prints module diagnostic and packed smoke repro commands from an offline jobs fixture", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-import-codes-"));
     const jobsPath = join(tempDir, "jobs.json");
