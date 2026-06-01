@@ -12,6 +12,8 @@ import {
   ASSIGNMENT_TARGET_INVALID_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
+  ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
+  ENUM_VARIANT_FIELD_UNKNOWN_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
@@ -1722,6 +1724,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           `Unknown field '${field.name}' in variant '${expr.variantName}'`,
           "Check the variant definition.",
           field.value.location,
+          ENUM_VARIANT_FIELD_UNKNOWN_CODE,
         );
       }
 
@@ -1734,6 +1737,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           )}, got ${this.typeToString(valueType)}`,
           "Field value must match the declared type.",
           field.value.location,
+          ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
         );
       }
     }
@@ -2265,6 +2269,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Unknown field '${field.fieldName}' in variant '${pattern.variantName}'`,
             "Check the variant definition.",
             pattern.location,
+            ENUM_VARIANT_FIELD_UNKNOWN_CODE,
           );
         }
 
