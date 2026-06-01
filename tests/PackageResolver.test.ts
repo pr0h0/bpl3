@@ -1101,6 +1101,58 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects package manifest entry fields with non-string values", () => {
+    const cases = [
+      {
+        name: "main-number",
+        field: "main",
+        manifestPatch: { main: 42 },
+        expectedMessage: "manifest main must be a string when present",
+      },
+      {
+        name: "entry-array",
+        field: "entry",
+        manifestPatch: { entry: ["index.bpl"] },
+        expectedMessage: "manifest entry must be a string when present",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const appDir = path.join(tempDir, `app-${testCase.name}`);
+      const packageDir = path.join(appDir, "bpl_modules", "math");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "math",
+            version: "1.0.0",
+            ...testCase.manifestPatch,
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result, testCase.name).toBeNull();
+      expect(details.trace.failureReason, testCase.name).toBe(
+        "manifest-invalid",
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.expectedMessage,
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.field,
+      );
+      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
+        "BPL_PACKAGE_MANIFEST_INVALID",
+      );
+    }
+  });
+
   test("does not fall back after unsafe manifest main paths", () => {
     const cases = [
       { name: "parent", main: "../outside.bpl" },

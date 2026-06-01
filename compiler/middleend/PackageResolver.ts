@@ -610,6 +610,18 @@ function validatePackageManifestMatchesImport(
     }
   }
 
+  if (manifest.main !== undefined && typeof manifest.main !== "string") {
+    trace.failureReason = "manifest-invalid";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest main must be a string when present.`;
+    return false;
+  }
+
+  if (manifest.entry !== undefined && typeof manifest.entry !== "string") {
+    trace.failureReason = "manifest-invalid";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest entry must be a string when present.`;
+    return false;
+  }
+
   return true;
 }
 
