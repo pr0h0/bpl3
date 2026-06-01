@@ -3712,6 +3712,194 @@ describe("CLI JSON parseability", () => {
     }
   }, 10000);
 
+  test("reports binary operator misuse failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "string_concat_unsupported",
+        code: "BPL_STRING_CONCAT_UNSUPPORTED",
+        line: 2,
+        column: 27,
+        preview: 'local value: string = "left" + "right"',
+        message: "String concatenation with '+' is not supported.",
+        hint: "Use 'string_concat(a, b)' or similar helper functions.",
+        source: [
+          "frame main() ret int {",
+          '    local value: string = "left" + "right";',
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "logical_operand_type_mismatch",
+        code: "BPL_LOGICAL_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 26,
+        preview: "local result: bool = true && 1",
+        message: "Logical operators require boolean operands",
+        hint: "Ensure both operands are boolean expressions.",
+        source: [
+          "frame main() ret int {",
+          "    local result: bool = true && 1;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "comparison_type_mismatch",
+        code: "BPL_COMPARISON_TYPE_MISMATCH",
+        line: 2,
+        column: 26,
+        preview: 'local result: bool = 1 < "wrong"',
+        message: "Cannot compare int and string",
+        hint: "Operands must be of compatible types.",
+        source: [
+          "frame main() ret int {",
+          '    local result: bool = 1 < "wrong";',
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "bitwise_operand_type_mismatch",
+        code: "BPL_BITWISE_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 12,
+        preview: "return 1 & 1.5",
+        message: "Bitwise operators require integer operands",
+        hint: "Ensure both operands are integers.",
+        source: [
+          "frame main() ret int {",
+          "    return 1 & 1.5;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "modulo_operand_type_mismatch",
+        code: "BPL_MODULO_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 12,
+        preview: "return 1 % 1.5",
+        message: "Modulo operator requires integer operands",
+        hint: "Ensure both operands are integers.",
+        source: [
+          "frame main() ret int {",
+          "    return 1 % 1.5;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "binary_operand_type_mismatch",
+        code: "BPL_BINARY_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 12,
+        preview: 'return 1 + "wrong"',
+        message: "Type mismatch: int and string",
+        hint: "Ensure operands have compatible types.",
+        source: [
+          "frame main() ret int {",
+          '    return 1 + "wrong";',
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "arithmetic_operand_type_mismatch",
+        code: "BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 32,
+        preview: "local result: (int, int) = (1, 2) + (3, 4)",
+        message: "Operator '+' cannot be applied to types",
+        hint: "Arithmetic operators require numeric types.",
+        source: [
+          "frame main() ret int {",
+          "    local result: (int, int) = (1, 2) + (3, 4);",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "pointer_arithmetic_void",
+        code: "BPL_POINTER_ARITHMETIC_VOID",
+        line: 3,
+        column: 25,
+        preview: "local next: *void = ptr + 1",
+        message: "Cannot perform pointer arithmetic on void pointer",
+        hint: "Cast to a sized pointer type first",
+        source: [
+          "frame main() ret int {",
+          "    local ptr: *void = nullptr;",
+          "    local next: *void = ptr + 1;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "pointer_difference_type_mismatch",
+        code: "BPL_POINTER_DIFFERENCE_TYPE_MISMATCH",
+        line: 4,
+        column: 23,
+        preview: "local diff: i64 = left - right",
+        message: "Cannot compare pointer difference between",
+        hint: "Pointer subtraction requires compatible pointee types.",
+        source: [
+          "frame main() ret int {",
+          "    local left: *int = nullptr;",
+          "    local right: *float = nullptr;",
+          "    local diff: i64 = left - right;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

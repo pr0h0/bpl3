@@ -1419,6 +1419,37 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document binary operator misuse diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Binary operator misuse failures use `BPL_POINTER_ARITHMETIC_VOID`, `BPL_POINTER_DIFFERENCE_TYPE_MISMATCH`, `BPL_STRING_CONCAT_UNSUPPORTED`, `BPL_LOGICAL_OPERAND_TYPE_MISMATCH`, `BPL_COMPARISON_TYPE_MISMATCH`, `BPL_BITWISE_OPERAND_TYPE_MISMATCH`, `BPL_MODULO_OPERAND_TYPE_MISMATCH`, `BPL_BINARY_OPERAND_TYPE_MISMATCH`, and `BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH`",
+      "`Cannot perform pointer arithmetic on void pointer`",
+      "`Cannot compare pointer difference between`",
+      "`String concatenation with '+' is not supported.`",
+      "`Logical operators require boolean operands`",
+      "`Cannot compare int and string`",
+      "`Bitwise operators require integer operands`",
+      "`Modulo operator requires integer operands`",
+      "`Type mismatch: int and string`",
+      "`Operator '+' cannot be applied to types`",
+      "`Cast to a sized pointer type first`",
+      "`Pointer subtraction requires compatible pointee types.`",
+      "`Use 'string_concat(a, b)' or similar helper functions.`",
+      "`Ensure both operands are boolean expressions.`",
+      "`Operands must be of compatible types.`",
+      "`Ensure both operands are integers.`",
+      "`Ensure operands have compatible types.`",
+      "`Arithmetic operators require numeric types.`",
+      "unsupported string concatenation, invalid logical/comparison/bitwise/modulo operands, incompatible binary/arithmetic operands, void pointer arithmetic, and incompatible pointer subtraction",
+      'bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

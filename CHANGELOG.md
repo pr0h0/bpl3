@@ -84,6 +84,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl build --json`, and the public CLI JSON error-code registry. Valid loop
   `break`, loop `continue`, switch `fallthrough`, and bare `return;` from defer
   blocks remain accepted.
+- **Binary Operator Misuse Diagnostic Codes** - Unsupported string
+  concatenation, invalid logical/comparison/bitwise/modulo operands,
+  incompatible binary/arithmetic operands, void pointer arithmetic, and
+  incompatible pointer subtraction now report `BPL_POINTER_ARITHMETIC_VOID`,
+  `BPL_POINTER_DIFFERENCE_TYPE_MISMATCH`, `BPL_STRING_CONCAT_UNSUPPORTED`,
+  `BPL_LOGICAL_OPERAND_TYPE_MISMATCH`, `BPL_COMPARISON_TYPE_MISMATCH`,
+  `BPL_BITWISE_OPERAND_TYPE_MISMATCH`, `BPL_MODULO_OPERAND_TYPE_MISMATCH`,
+  `BPL_BINARY_OPERAND_TYPE_MISMATCH`, and
+  `BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid numeric, boolean, integer, pointer, and pointer-difference
+  operators remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
