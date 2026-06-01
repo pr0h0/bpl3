@@ -129,10 +129,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `package-init` reports with manifest paths on success and stable
   `BPL_PACKAGE_INIT_NAME_INVALID` and `BPL_PACKAGE_INIT_MANIFEST_EXISTS`
   `errorCode` values for validation failures.
+- **Project Creation JSON Validation Code List** - `bpl new <name> --json`
+  validation codes now expose a shared constant list, and MarkdownDocs checks
+  the project creation JSON documentation contract against that list.
 - **Project Creation JSON Contract** - `bpl new <name> --json` now emits
   `project-new` reports with scaffold paths on success and stable
-  `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, and
-  `BPL_NEW_PATH_EXISTS_DIRECTORY` `errorCode` values for validation failures.
+  `BPL_NEW_NAME_PATH`, `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`,
+  `BPL_NEW_PATH_EXISTS_DIRECTORY`, `BPL_NEW_PATH_EXISTS_SYMLINK`, and
+  `BPL_NEW_PATH_EXISTS_NOT_DIRECTORY` `errorCode` values for validation
+  failures.
 - **Format JSON Contract** - `bpl format --check --json` now emits `format`
   reports with per-file formatted/changed status and stable
   `BPL_FORMAT_*` `errorCode` values including

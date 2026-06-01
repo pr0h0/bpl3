@@ -20,6 +20,24 @@ import { writeFileAtomically } from "../utils";
 
 const log = new Logger("New");
 
+export const NEW_PROJECT_NAME_PATH_CODE = "BPL_NEW_NAME_PATH";
+export const NEW_PROJECT_NAME_INVALID_CODE = "BPL_NEW_NAME_INVALID";
+export const NEW_PROJECT_TEMPLATE_INVALID_CODE = "BPL_NEW_TEMPLATE_INVALID";
+export const NEW_PROJECT_PATH_EXISTS_DIRECTORY_CODE =
+  "BPL_NEW_PATH_EXISTS_DIRECTORY";
+export const NEW_PROJECT_PATH_EXISTS_SYMLINK_CODE =
+  "BPL_NEW_PATH_EXISTS_SYMLINK";
+export const NEW_PROJECT_PATH_EXISTS_NOT_DIRECTORY_CODE =
+  "BPL_NEW_PATH_EXISTS_NOT_DIRECTORY";
+export const NEW_PROJECT_JSON_ERROR_CODES = [
+  NEW_PROJECT_NAME_PATH_CODE,
+  NEW_PROJECT_NAME_INVALID_CODE,
+  NEW_PROJECT_TEMPLATE_INVALID_CODE,
+  NEW_PROJECT_PATH_EXISTS_DIRECTORY_CODE,
+  NEW_PROJECT_PATH_EXISTS_SYMLINK_CODE,
+  NEW_PROJECT_PATH_EXISTS_NOT_DIRECTORY_CODE,
+] as const;
+
 type NewTemplate = "app" | "library";
 
 interface NewCommandOptions {
@@ -394,7 +412,7 @@ function validateProjectName(name: string): void {
   ) {
     throw new NewCommandError(
       "Invalid project name. Use a package name, not a path.",
-      "BPL_NEW_NAME_PATH",
+      NEW_PROJECT_NAME_PATH_CODE,
       null,
     );
   }
@@ -402,7 +420,7 @@ function validateProjectName(name: string): void {
   if (!/^[a-z0-9-]+$/.test(name)) {
     throw new NewCommandError(
       `Invalid project name: ${name} (use lowercase letters, numbers, and hyphens only).`,
-      "BPL_NEW_NAME_INVALID",
+      NEW_PROJECT_NAME_INVALID_CODE,
       null,
     );
   }
@@ -415,7 +433,7 @@ function validateTemplate(template: string, projectPath: string): NewTemplate {
 
   throw new NewCommandError(
     "Unsupported template. Use 'app' or 'library'.",
-    "BPL_NEW_TEMPLATE_INVALID",
+    NEW_PROJECT_TEMPLATE_INVALID_CODE,
     projectPath,
   );
 }
@@ -427,7 +445,7 @@ function assertProjectPathAvailable(projectPath: string): void {
   if (existingPath.isDirectory()) {
     throw new NewCommandError(
       `Directory already exists: ${projectPath}`,
-      "BPL_NEW_PATH_EXISTS_DIRECTORY",
+      NEW_PROJECT_PATH_EXISTS_DIRECTORY_CODE,
       projectPath,
     );
   }
@@ -435,14 +453,14 @@ function assertProjectPathAvailable(projectPath: string): void {
   if (existingPath.isSymbolicLink()) {
     throw new NewCommandError(
       `Project path already exists as a symbolic link: ${projectPath}`,
-      "BPL_NEW_PATH_EXISTS_SYMLINK",
+      NEW_PROJECT_PATH_EXISTS_SYMLINK_CODE,
       projectPath,
     );
   }
 
   throw new NewCommandError(
     `Project path already exists and is not a directory: ${projectPath}`,
-    "BPL_NEW_PATH_EXISTS_NOT_DIRECTORY",
+    NEW_PROJECT_PATH_EXISTS_NOT_DIRECTORY_CODE,
     projectPath,
   );
 }

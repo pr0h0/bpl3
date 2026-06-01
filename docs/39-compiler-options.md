@@ -174,9 +174,16 @@ Successful scaffolds emit `schemaVersion: 1`, `check: "project-new"`,
 `success: true`, `name`, `template`, `projectPath`, `manifestPath`,
 `entrypoint`, and whether git was initialized. JSON-mode validation failures
 stay on stdout with `success: false`, `name`, `template`, `projectPath`,
-`error`, and stable `errorCode` values including `BPL_NEW_NAME_INVALID`,
-`BPL_NEW_TEMPLATE_INVALID`, and `BPL_NEW_PATH_EXISTS_DIRECTORY`. Reproduce the
-focused JSON contract with
+`error`, and stable `errorCode` values:
+
+- `BPL_NEW_NAME_PATH`
+- `BPL_NEW_NAME_INVALID`
+- `BPL_NEW_TEMPLATE_INVALID`
+- `BPL_NEW_PATH_EXISTS_DIRECTORY`
+- `BPL_NEW_PATH_EXISTS_SYMLINK`
+- `BPL_NEW_PATH_EXISTS_NOT_DIRECTORY`
+
+Reproduce the focused JSON contract with
 `bun test tests/CLI.test.ts -t "new project success and failures as JSON"`.
 
 ### `bpl install`
@@ -420,7 +427,7 @@ part of a command's validation path use stdout with `success: false` or
 | `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
 | `bpl doctor --json` / `bpl doctor sanitizer --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands when compiler-rt/libclang_rt probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, `error`, and `errorCode: "BPL_DOCTOR_SCOPE_UNKNOWN"`. |
 | `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. Invalid lockfile issues use `kind: "invalid-lockfile"` plus stable `BPL_LOCKFILE_*` codes for malformed JSON, unsupported versions, bad package maps or entries, non-file paths, and symlinked lockfiles. |
-| `bpl new <name> --json` | Project creation report with `schemaVersion`, `check: "project-new"`, `success`, `name`, `template`, `projectPath`, `manifestPath`, `entrypoint`, and `gitInitialized`; validation failures return `success: false`, `name`, `template`, `projectPath`, `error`, and stable `errorCode` values such as `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, and `BPL_NEW_PATH_EXISTS_DIRECTORY`. |
+| `bpl new <name> --json` | Project creation report with `schemaVersion`, `check: "project-new"`, `success`, `name`, `template`, `projectPath`, `manifestPath`, `entrypoint`, and `gitInitialized`; validation failures return `success: false`, `name`, `template`, `projectPath`, `error`, and stable `errorCode` values such as `BPL_NEW_NAME_PATH`, `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, `BPL_NEW_PATH_EXISTS_DIRECTORY`, `BPL_NEW_PATH_EXISTS_SYMLINK`, and `BPL_NEW_PATH_EXISTS_NOT_DIRECTORY`. |
 | `bpl init [name] --json` | Init report with `schemaVersion`, `check: "package-init"`, `success`, `package`, `version`, and `manifestPath`; validation failures return `success: false`, `package`, `manifestPath`, `error`, and stable `errorCode` values such as `BPL_PACKAGE_INIT_NAME_INVALID` and `BPL_PACKAGE_INIT_MANIFEST_EXISTS`. |
 | `bpl install [package] --json` | Install report with `schemaVersion`, `check: "package-install"`, `success`, `mode`, `target`, `global`, `locked`, `update`, and `repairLock`; validation failures such as missing manifests, incompatible lock flags, locked verification failures, direct archive path failures, and package arguments with project-only modes return `success: false` and `error` on stdout without logger text on stderr. When a package failure has a stable compiler code, the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or PackageManager manifest-loading failures like `BPL_PACKAGE_MANIFEST_MISSING`, `BPL_PACKAGE_MANIFEST_SYMLINK`, `BPL_PACKAGE_MANIFEST_NOT_FILE`, `BPL_PACKAGE_MANIFEST_PARSE_ERROR`, `BPL_PACKAGE_MANIFEST_NOT_OBJECT`, `BPL_PACKAGE_MANIFEST_NAME_MISSING`, `BPL_PACKAGE_MANIFEST_NAME_INVALID`, `BPL_PACKAGE_MANIFEST_VERSION_MISSING`, `BPL_PACKAGE_MANIFEST_VERSION_INVALID`, `BPL_PACKAGE_MANIFEST_MAIN_INVALID`, and `BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID`. |
 | `bpl pack [dir] --json` | Pack report with `schemaVersion`, `check: "package-pack"`, `success`, `package`, `version`, `packageDir`, `outputDir`, and `archivePath`; validation failures return `success: false`, `packageDir`, `outputDir`, `error`, and stable PackageManager `errorCode` values when available. |

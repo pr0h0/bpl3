@@ -8,6 +8,14 @@ import {
   parseJsonObjectStdout,
 } from "./helpers/cliJson";
 import { writeNodeCommandShim } from "./helpers/executableShim";
+import {
+  NEW_PROJECT_NAME_INVALID_CODE,
+  NEW_PROJECT_NAME_PATH_CODE,
+  NEW_PROJECT_PATH_EXISTS_DIRECTORY_CODE,
+  NEW_PROJECT_PATH_EXISTS_NOT_DIRECTORY_CODE,
+  NEW_PROJECT_PATH_EXISTS_SYMLINK_CODE,
+  NEW_PROJECT_TEMPLATE_INVALID_CODE,
+} from "../cli/commands/new";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 
@@ -2799,7 +2807,14 @@ describe("CLI Tests", () => {
   it("should report new project success and failures as JSON", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-json-"));
     const existingProject = path.join(tempDir, "existing-project");
+    const existingFile = path.join(tempDir, "existing-file");
+    const existingLink = path.join(tempDir, "existing-link");
+    const pathLikeProjectName = `../${path.basename(tempDir)}-outside`;
+    const outsideProject = path.resolve(tempDir, pathLikeProjectName);
     fs.mkdirSync(existingProject);
+    fs.writeFileSync(existingFile, "not a project directory");
+    fs.symlinkSync(path.join(tempDir, "missing-target"), existingLink, "file");
+    fs.rmSync(outsideProject, { recursive: true, force: true });
 
     try {
       const success = spawnSync(
@@ -2845,6 +2860,37 @@ describe("CLI Tests", () => {
         true,
       );
 
+      const pathLikeName = spawnSync(
+        "bun",
+        [BPL_CLI, "new", pathLikeProjectName, "--no-git", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const pathLikeNameReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: null;
+        error: string;
+        errorCode: string;
+      }>(pathLikeName, {
+        status: 1,
+        check: "project-new",
+        success: false,
+      });
+      expect(pathLikeNameReport).toMatchObject({
+        name: pathLikeProjectName,
+        template: "app",
+        projectPath: null,
+        error: expect.stringContaining("Use a package name, not a path"),
+        errorCode: NEW_PROJECT_NAME_PATH_CODE,
+      });
+      expect(fs.existsSync(outsideProject)).toBe(false);
+
       const badName = spawnSync(
         "bun",
         [BPL_CLI, "new", "Bad_Name", "--no-git", "--json"],
@@ -2872,7 +2918,7 @@ describe("CLI Tests", () => {
         template: "app",
         projectPath: null,
         error: expect.stringContaining("Invalid project name"),
-        errorCode: "BPL_NEW_NAME_INVALID",
+        errorCode: NEW_PROJECT_NAME_INVALID_CODE,
       });
       expect(fs.existsSync(path.join(tempDir, "Bad_Name"))).toBe(false);
 
@@ -2903,7 +2949,7 @@ describe("CLI Tests", () => {
         template: "bad",
         projectPath: path.join(tempDir, "bad-template"),
         error: expect.stringContaining("Unsupported template"),
-        errorCode: "BPL_NEW_TEMPLATE_INVALID",
+        errorCode: NEW_PROJECT_TEMPLATE_INVALID_CODE,
       });
       expect(fs.existsSync(path.join(tempDir, "bad-template"))).toBe(false);
 
@@ -2934,9 +2980,70 @@ describe("CLI Tests", () => {
         template: "app",
         projectPath: existingProject,
         error: expect.stringContaining("Directory already exists"),
-        errorCode: "BPL_NEW_PATH_EXISTS_DIRECTORY",
+        errorCode: NEW_PROJECT_PATH_EXISTS_DIRECTORY_CODE,
+      });
+
+      const existingFileResult = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "existing-file", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const existingFileReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: string;
+        error: string;
+        errorCode: string;
+      }>(existingFileResult, {
+        status: 1,
+        check: "project-new",
+        success: false,
+      });
+      expect(existingFileReport).toMatchObject({
+        name: "existing-file",
+        template: "app",
+        projectPath: existingFile,
+        error: expect.stringContaining("not a directory"),
+        errorCode: NEW_PROJECT_PATH_EXISTS_NOT_DIRECTORY_CODE,
+      });
+
+      const existingLinkResult = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "existing-link", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const existingLinkReport = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        name: string;
+        template: string;
+        projectPath: string;
+        error: string;
+        errorCode: string;
+      }>(existingLinkResult, {
+        status: 1,
+        check: "project-new",
+        success: false,
+      });
+      expect(existingLinkReport).toMatchObject({
+        name: "existing-link",
+        template: "app",
+        projectPath: existingLink,
+        error: expect.stringContaining("symbolic link"),
+        errorCode: NEW_PROJECT_PATH_EXISTS_SYMLINK_CODE,
       });
     } finally {
+      fs.rmSync(outsideProject, { recursive: true, force: true });
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });

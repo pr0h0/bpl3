@@ -39,6 +39,7 @@ import {
 } from "../cli/commands/doctor";
 import { DOCS_JSON_ERROR_CODES } from "../cli/commands/docs";
 import { FORMAT_JSON_ERROR_CODES } from "../cli/commands/format";
+import { NEW_PROJECT_JSON_ERROR_CODES } from "../cli/commands/new";
 import {
   CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
   CLEAN_WORKDIR_SYMLINK_CODE,
@@ -610,14 +611,14 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Project creation JSON reports",
       'check: "project-new"',
-      "BPL_NEW_NAME_INVALID",
-      "BPL_NEW_TEMPLATE_INVALID",
-      "BPL_NEW_PATH_EXISTS_DIRECTORY",
       "bun test tests/CLI.test.ts -t \"new project success and failures as JSON\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of NEW_PROJECT_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
