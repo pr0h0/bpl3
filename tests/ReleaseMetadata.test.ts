@@ -314,6 +314,25 @@ describe("Release metadata", () => {
     );
   });
 
+  test("release helper smoke validates packed CI JSON-code mapping repro contracts", () => {
+    const releaseSmokeSource = readFileSync(
+      join(import.meta.dir, "../tools/release_smoke.ts"),
+      "utf8",
+    );
+
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI CI triage JSON-code mappings",
+    );
+    expect(releaseSmokeSource).toContain("BPL_PACKAGE_ARCHIVE_NOT_FILE");
+    expect(releaseSmokeSource).toContain("BPL_WASM_LINKER_UNAVAILABLE");
+    expect(releaseSmokeSource).toContain(
+      "bun test tests/PackageJsonFailureContracts.test.ts",
+    );
+    expect(releaseSmokeSource).toContain(
+      "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+    );
+  });
+
   test("release smoke validates packed package import diagnostic codes", () => {
     const releaseSmokeSource = readFileSync(
       join(import.meta.dir, "../tools/release_smoke.ts"),

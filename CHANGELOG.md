@@ -163,6 +163,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   packed helper references from `package.json` scripts, checks that each
   `bun tools/*.ts` helper is included in package files, and reports missing
   helper files with the referencing script name.
+- **Packed CI Triage Code-Mapping Smoke** - Packed helper smoke now exercises
+  representative `ci:triage` JSON-code mappings for package archive validation
+  and wasm linker diagnostics from the installed npm package path.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.

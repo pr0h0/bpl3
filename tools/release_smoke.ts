@@ -3532,6 +3532,32 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
               },
             ],
           },
+          {
+            id: 46,
+            name: "Package archive JSON code mapping",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/46",
+            steps: [
+              {
+                name: "BPL_PACKAGE_ARCHIVE_NOT_FILE in package install JSON",
+                conclusion: "failure",
+              },
+            ],
+          },
+          {
+            id: 47,
+            name: "Wasm linker JSON code mapping",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/47",
+            steps: [
+              {
+                name: "BPL_WASM_LINKER_UNAVAILABLE",
+                conclusion: "failure",
+              },
+            ],
+          },
         ],
       },
       null,
@@ -3645,6 +3671,46 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
         `${ciTriageSanitizerLabel} reported unexpected payload:`,
         "missing sanitizer commands:",
         ...missingSanitizerCommands.map((command) => `- ${command}`),
+        `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+
+  const ciTriageCodeMappingLabel =
+    "check packed npm CLI CI triage JSON-code mappings";
+  console.log(`release smoke: ${ciTriageCodeMappingLabel}`);
+  const packageArchiveCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Package archive JSON code mapping",
+    )?.localCommands ?? [];
+  const wasmLinkerCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Wasm linker JSON code mapping",
+    )?.localCommands ?? [];
+  const expectedPackageArchiveCommands = [
+    'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
+    "bun test tests/PackageJsonFailureContracts.test.ts",
+    'bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"',
+  ];
+  const expectedWasmLinkerCommands = [
+    "bun run test:wasm",
+    "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+    "bun index.ts doctor --json",
+  ];
+  const missingCodeMappingCommands = [
+    ...expectedPackageArchiveCommands.filter(
+      (command) => !packageArchiveCommands.includes(command),
+    ),
+    ...expectedWasmLinkerCommands.filter(
+      (command) => !wasmLinkerCommands.includes(command),
+    ),
+  ];
+  if (missingCodeMappingCommands.length > 0) {
+    throw new Error(
+      [
+        `${ciTriageCodeMappingLabel} reported unexpected payload:`,
+        "missing JSON-code mapping commands:",
+        ...missingCodeMappingCommands.map((command) => `- ${command}`),
         `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
       ].join("\n"),
     );

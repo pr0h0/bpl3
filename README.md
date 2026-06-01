@@ -149,6 +149,9 @@ BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR
 BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts
 ```
 
+It also validates representative JSON-code mapping repros from the packed
+helper path, including package archive validation and wasm linker diagnostics.
+
 Packed `ci:triage` smoke also validates sanitizer runtime repro contracts:
 
 ```bash
