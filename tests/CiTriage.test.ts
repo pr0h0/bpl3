@@ -1027,6 +1027,47 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps expression semantic guard diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerExpressionSemanticGuards.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"',
+      'bun test tests/MarkdownDocs.test.ts -t "expression semantic guard"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_DIVISION_BY_ZERO",
+      "BPL_SHIFT_COUNT_INVALID",
+      "BPL_ADDRESS_OF_CONSTANT",
+      "BPL_ADDRESS_OF_TARGET_INVALID",
+      "BPL_ARRAY_LITERAL_TYPE_MISMATCH",
+      "BPL_CAST_INTEGER_TO_STRING",
+      "BPL_CAST_INVALID",
+      "BPL_SIZEOF_VOID_INVALID",
+      "Division by zero",
+      "Negative shift count",
+      "Shift count 8 is out of range",
+      "Cannot take address of constant expression.",
+      "Cannot take address of (int, int)",
+      "Array literal has inconsistent element types",
+      "Cannot cast integer type 'i32' to 'string'",
+      "Cannot cast i32 to Box",
+      "Cannot take size of void",
+      "Shift counts must be zero or greater.",
+      "Address-of requires an lvalue.",
+      "All elements in an array literal must have the same type.",
+      "This cast is not allowed.",
+      "Void type has no size.",
+      "Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`",
+      "reports expression semantic guard failures in JSON-mode check and build diagnostics",
+      "docs document expression semantic guard diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -5122,6 +5163,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerMemberAccessMisuse.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "member access misuse"',
         'bun test tests/MarkdownDocs.test.ts -t "member access misuse"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints expression semantic guard repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-expression-semantic-guard-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 102,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/102",
+              steps: [
+                {
+                  name: "BPL_CAST_INVALID Cannot cast i32 to Box",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerExpressionSemanticGuards.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"',
+        'bun test tests/MarkdownDocs.test.ts -t "expression semantic guard"',
         "bun run check",
       ]);
     } finally {

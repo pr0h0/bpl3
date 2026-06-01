@@ -540,6 +540,34 @@ const MEMBER_ACCESS_MISUSE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
+  [
+    "BPL_DIVISION_BY_ZERO",
+    "BPL_SHIFT_COUNT_INVALID",
+    "BPL_ADDRESS_OF_CONSTANT",
+    "BPL_ADDRESS_OF_TARGET_INVALID",
+    "BPL_ARRAY_LITERAL_TYPE_MISMATCH",
+    "BPL_CAST_INTEGER_TO_STRING",
+    "BPL_CAST_INVALID",
+    "BPL_SIZEOF_VOID_INVALID",
+    "expression semantic guard",
+    "Division by zero",
+    "Negative shift count",
+    "Shift count [0-9]+ is out of range",
+    "Cannot take address of constant expression",
+    "Cannot take address of \\([^)]*\\)",
+    "Array literal has inconsistent element types",
+    "Cannot cast integer type .* to ['\"]string['\"]",
+    "Cannot cast .* to .*",
+    "Cannot take size of void",
+    "Shift counts must be zero or greater",
+    "Address-of requires an lvalue",
+    "All elements in an array literal must have the same type",
+    "This cast is not allowed",
+    "Void type has no size",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1413,6 +1441,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "member access misuse"',
   ],
   [MEMBER_ACCESS_MISUSE_STEP_PATTERN, "bun run check"],
+  [
+    EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN,
+    "bun test tests/TypeCheckerExpressionSemanticGuards.test.ts",
+  ],
+  [
+    EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"',
+  ],
+  [
+    EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "expression semantic guard"',
+  ],
+  [EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
