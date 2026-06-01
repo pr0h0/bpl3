@@ -544,6 +544,11 @@ function parseCliOptions(argv: string[]): CliOptions {
     }
 
     if (CLI_FLAG_OPTIONS.has(rawKey)) {
+      if (inlineValue !== undefined) {
+        throw new CliUsageError(
+          `--${rawKey} does not accept a value. Use --help for usage.`,
+        );
+      }
       flags.add(rawKey);
       continue;
     }
@@ -559,6 +564,11 @@ function parseCliOptions(argv: string[]): CliOptions {
         `--${rawKey} requires a value. Use --help for usage.`,
       );
     }
+    if (value.trim().length === 0) {
+      throw new CliUsageError(
+        `--${rawKey} requires a non-empty value. Use --help for usage.`,
+      );
+    }
 
     values.set(rawKey, value);
   }
@@ -566,6 +576,11 @@ function parseCliOptions(argv: string[]): CliOptions {
   if (positionals.length > 1) {
     throw new CliUsageError(
       "Expected at most one artifact path positional argument.",
+    );
+  }
+  if (values.has("input") && positionals.length > 0) {
+    throw new CliUsageError(
+      "Pass artifact path either positionally or with --input, not both.",
     );
   }
 

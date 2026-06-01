@@ -306,6 +306,31 @@ describe("Fuzz artifact repro helper", () => {
     }
   });
 
+  test("rejects malformed CLI option values before artifact discovery", () => {
+    const cases: Array<[string[], string]> = [
+      [["--json=true", "fuzz/crashes"], "--json does not accept a value"],
+      [["--input="], "--input requires a non-empty value"],
+      [["--repo-root=", "fuzz/crashes"], "--repo-root requires a non-empty value"],
+      [
+        ["--input", "fuzz/crashes", "other-artifacts"],
+        "Pass artifact path either positionally or with --input, not both.",
+      ],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "fuzz:repro", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("Fuzz artifact path does not exist");
+      expect(result.stderr).not.toContain("No fuzz artifact metadata found");
+      expect(result.stdout).toBe("");
+    }
+  });
+
   test("rejects unknown CLI options as usage errors", () => {
     const cases: Array<[string[], string]> = [
       [["--unknown", "value", "fuzz/crashes"], "Unknown option --unknown"],
