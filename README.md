@@ -124,6 +124,24 @@ Release manifest usage errors, such as
 manifest or npm pack work. Use `bun tools/release_manifest.ts --help` to print
 the release manifest helper usage without writing artifacts.
 
+Helper CLI inline value forms are supported for automation that prefers
+single-token options:
+
+```bash
+bun run ci:triage -- --json --jobs-json=jobs.json --run=<run-id> --repo=owner/repo
+bun tools/release_manifest.ts --out=dist/release-manifest.json --repo-root=.
+```
+
+Malformed inline values remain status 2 usage errors before network or release
+work starts. `ci:triage` rejects `--json=true` and `--jobs-json=` before any
+GitHub API request; `release_manifest` rejects `--pack-npm=true` and `--out=`
+before writing manifests or running `npm pack`. Focus those contracts with:
+
+```bash
+bun test tests/CiTriage.test.ts -t "inline option values|malformed inline option values"
+bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|release manifest CLI accepts inline option values"
+```
+
 Packed npm helper scripts supported from installed packages:
 
 ```bash

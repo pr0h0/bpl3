@@ -182,6 +182,19 @@ offline jobs files report `Unable to parse --jobs-json file <path>:` followed
 by the parser reason. Wrong-shape offline jobs fixtures report
 `Expected --jobs-json file <path> to contain a GitHub jobs API response with a jobs array.`
 
+`ci:triage` also accepts inline values for automation:
+
+```bash
+bun run ci:triage -- --json --jobs-json=jobs.json --run=<run-id> --repo=owner/repo
+```
+
+Malformed inline values such as `--json=true` and `--jobs-json=` fail with
+status 2 before any GitHub API request. Focus that parser contract with:
+
+```bash
+bun test tests/CiTriage.test.ts -t "inline option values|malformed inline option values"
+```
+
 When text triage output says `No focused local repro command matched this job`:
 Inspect the failed step logs first, and add a ci:triage mapping when the failure
 pattern is recurring so future runs print a focused local command.

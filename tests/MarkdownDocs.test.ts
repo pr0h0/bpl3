@@ -573,6 +573,32 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(text, requiredSnippets);
   });
 
+  test("markdown docs document helper CLI inline value diagnostics", () => {
+    const readme = readFileSync("README.md", "utf8");
+    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
+    const correctnessDocs = readFileSync(
+      "docs/60-compiler-correctness.md",
+      "utf8",
+    );
+    const combinedDocs = `${readme}\n${packageDocs}\n${correctnessDocs}`.replace(
+      /\s+/g,
+      " ",
+    );
+    const requiredSnippets = [
+      "Helper CLI inline value forms",
+      "bun run ci:triage -- --json --jobs-json=jobs.json --run=<run-id> --repo=owner/repo",
+      "`--json=true`",
+      "`--jobs-json=`",
+      "bun tools/release_manifest.ts --out=dist/release-manifest.json --repo-root=.",
+      "`--pack-npm=true`",
+      "`--out=`",
+      'bun test tests/CiTriage.test.ts -t "inline option values|malformed inline option values"',
+      'bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|release manifest CLI accepts inline option values"',
+    ];
+
+    expectDocsContainSnippets(combinedDocs, requiredSnippets);
+  });
+
   test("docs document supported target validation", () => {
     const text = [
       readFileSync("docs/39-compiler-options.md", "utf8"),

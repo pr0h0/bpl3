@@ -53,6 +53,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release Manifest Inline Options** - `bun tools/release_manifest.ts` now
   accepts `--out=file` and `--repo-root=dir`, while rejecting `--out=`,
   `--repo-root=`, and `--pack-npm=true` before release work starts.
+- **Helper CLI Inline Value Docs** - README and release/correctness docs now
+  show inline helper option forms and focused tests for malformed inline usage
+  diagnostics.
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.

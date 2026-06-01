@@ -737,6 +737,20 @@ with:
 bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors"
 ```
 
+The helper also accepts inline value forms for scripted release jobs:
+
+```bash
+bun tools/release_manifest.ts --out=dist/release-manifest.json --repo-root=.
+```
+
+Malformed inline values such as `--out=`, `--repo-root=`, and
+`--pack-npm=true` fail with status 2 before manifest writes or `npm pack`.
+Focus both separated and inline value handling with:
+
+```bash
+bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|release manifest CLI accepts inline option values"
+```
+
 For source packages, keep these checks together:
 
 ```bash
