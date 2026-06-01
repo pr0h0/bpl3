@@ -419,6 +419,8 @@ describe("Release metadata", () => {
       "bun run fuzz -- --iterations",
       "check packed npm CLI CI triage helper",
       "check packed npm CLI CI triage JSON",
+      "bun test tests/TestCiRunner.test.ts",
+      "bun tools/test_ci.ts --list",
       "check packed npm CLI CI triage root build no-input JSON",
       "check packed npm CLI registry subpath import",
       "check packed npm CLI registry TypeScript declarations",

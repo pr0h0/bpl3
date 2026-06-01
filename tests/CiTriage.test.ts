@@ -39,6 +39,8 @@ describe("CI triage helper", () => {
 
   test("maps known CI steps to local reproduction commands", () => {
     expect(localCommandsForStep("Run CI-safe test suite")).toEqual([
+      "bun test tests/TestCiRunner.test.ts",
+      "bun tools/test_ci.ts --list",
       "bun run test:ci",
     ]);
     expect(localCommandsForStep("Run WebAssembly runtime tests")).toEqual([
@@ -52,6 +54,27 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("Run deterministic differential compiler fuzz"),
     ).toEqual(["bun run fuzz:differential"]);
+  });
+
+  test("maps CI-safe typed runner failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/TestCiRunner.test.ts",
+      "bun tools/test_ci.ts --list",
+      "bun run test:ci",
+    ];
+
+    expect(localCommandsForStep("CI-safe test runner failed")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("tools/test_ci.ts --list failed")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("Run CI-safe unit tests")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep('check: "test-ci" JSON mismatch')).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps VS Code extension type-check failures to focused repro commands", () => {
@@ -1048,7 +1071,11 @@ describe("CI triage helper", () => {
 
     const summary = summarizeWorkflowJobs(jobs);
     expect(summary.failedJobs).toHaveLength(1);
-    expect(summary.failedJobs[0]?.localCommands).toEqual(["bun run test:ci"]);
+    expect(summary.failedJobs[0]?.localCommands).toEqual([
+      "bun test tests/TestCiRunner.test.ts",
+      "bun tools/test_ci.ts --list",
+      "bun run test:ci",
+    ]);
 
     const formatted = formatTriageSummary(
       { owner: "pr0h0", repo: "bpl3", runId: 1 },
@@ -1349,6 +1376,8 @@ describe("CI triage helper", () => {
         },
       });
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TestCiRunner.test.ts",
+        "bun tools/test_ci.ts --list",
         "bun run test:ci",
       ]);
     } finally {

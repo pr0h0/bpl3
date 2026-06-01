@@ -3807,8 +3807,12 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     ciTriageReport.checkout.status !== "unknown" ||
     ciTriageReport.checkout.reason !== "local checkout SHA unavailable" ||
     ciTriageReport.summary.missingJobIds.length !== 0 ||
-    ciTriageReport.summary.failedJobs[0]?.localCommands[0] !==
-      "bun run test:ci"
+    JSON.stringify(ciTriageReport.summary.failedJobs[0]?.localCommands) !==
+      JSON.stringify([
+        "bun test tests/TestCiRunner.test.ts",
+        "bun tools/test_ci.ts --list",
+        "bun run test:ci",
+      ])
   ) {
     throw new Error(
       `Packed npm CLI CI triage JSON reported unexpected payload:\n${JSON.stringify(ciTriageReport, null, 2)}`,

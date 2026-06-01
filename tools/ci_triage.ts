@@ -617,6 +617,7 @@ const INTEGRATION_CONFIG_STEP_PATTERN = new RegExp(
 const VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN = new RegExp(
   [
     "VS Code extension type check",
+    "Run VS Code extension tests",
     "VS Code extension test type-check",
     "vscode extension type check",
     "vscode-ext/src/test/.*TS(?:7006|2307)",
@@ -626,6 +627,18 @@ const VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN = new RegExp(
     "npm run compile:test --prefix vscode-ext",
     "tsconfig\\.test\\.json",
     "test:vscode-ext",
+  ].join("|"),
+  "i",
+);
+const TEST_CI_RUNNER_STEP_PATTERN = new RegExp(
+  [
+    "Run CI-safe test suite",
+    "CI-safe test runner",
+    "Run CI-safe unit tests",
+    "tools/test_ci\\.ts",
+    "test_ci\\.ts",
+    "bun tools/test_ci\\.ts",
+    "check: ['\"]test-ci['\"]",
   ].join("|"),
   "i",
 );
@@ -647,7 +660,9 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     WASM_LINKER_TIMEOUT_STEP_PATTERN,
     "BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm",
   ],
-  [/Run CI-safe test suite/i, "bun run test:ci"],
+  [TEST_CI_RUNNER_STEP_PATTERN, "bun test tests/TestCiRunner.test.ts"],
+  [TEST_CI_RUNNER_STEP_PATTERN, "bun tools/test_ci.ts --list"],
+  [TEST_CI_RUNNER_STEP_PATTERN, "bun run test:ci"],
   [INTEGRATION_JOBS_STEP_PATTERN, "bun test tests/IntegrationRunner.test.ts"],
   [
     INTEGRATION_JOBS_STEP_PATTERN,
