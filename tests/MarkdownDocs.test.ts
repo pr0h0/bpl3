@@ -732,6 +732,14 @@ describe("Markdown documentation", () => {
     expect(docs).toContain(
       "for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS)",
     );
+    expectDocsContainSnippets(docs, [
+      "narrow data registry subpath",
+      "does not expose compiler internals",
+      "ESM consumers can import the registry",
+      "CommonJS consumers can require the same subpath",
+      'const { CLI_JSON_ERROR_CODE_LISTS, CLI_JSON_ERROR_CODES } = require("bpl-v3/cli");',
+      "type CliJsonErrorCodeList",
+    ]);
   });
 
   test("docs document version JSON contract", () => {

@@ -206,6 +206,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release CLI Registry Sync Gate** - `release:check` now runs
   `bun run release:cli-registry`, which verifies the generated packed
   `bpl-v3/cli` registry shim and declarations before release smoke starts.
+- **CLI Registry Consumer Docs** - Public API docs now show both ESM imports
+  and CommonJS `require("bpl-v3/cli")` usage, and clarify that the subpath is a
+  narrow data registry rather than a compiler-internals API.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

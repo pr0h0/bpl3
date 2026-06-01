@@ -12,14 +12,33 @@ Source Code → Lexer → Parser → TypeChecker → CodeGenerator → LLVM IR
 
 Compiler pipeline exports are available from `./compiler/index.ts`. Tooling
 that consumes the packed npm package can import the stable CLI JSON diagnostic
-code registry from `bpl-v3/cli`.
+code registry from `bpl-v3/cli`. Use it as a narrow data registry subpath; it
+does not expose compiler internals, command handlers, or release helper scripts.
+
+```typescript
+import {
+  CLI_JSON_ERROR_CODE_LISTS,
+  CLI_JSON_ERROR_CODES,
+  type CliJsonErrorCodeList,
+} from "bpl-v3/cli";
+
+const registry: readonly CliJsonErrorCodeList[] = CLI_JSON_ERROR_CODE_LISTS;
+
+for (const { name, codes } of registry) {
+  console.log(name, codes.length);
+}
+```
+
+ESM consumers can import the registry with named imports:
 
 ```typescript
 import { CLI_JSON_ERROR_CODE_LISTS } from "bpl-v3/cli";
+```
 
-for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
-  console.log(name, codes.length);
-}
+CommonJS consumers can require the same subpath:
+
+```javascript
+const { CLI_JSON_ERROR_CODE_LISTS, CLI_JSON_ERROR_CODES } = require("bpl-v3/cli");
 ```
 
 ---
