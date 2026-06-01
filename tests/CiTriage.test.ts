@@ -4194,6 +4194,77 @@ describe("CI triage helper", () => {
     expect(result.stderr).not.toContain("Expected a GitHub Actions run URL");
   });
 
+  test("accepts inline option values before GitHub API calls", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-inline-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          run: {
+            id: 26695335269,
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+            head_branch: "master",
+            head_sha: "1234567890abcdef1234567890abcdef12345678",
+            status: "completed",
+            conclusion: "failure",
+          },
+          jobs: [
+            {
+              id: 42,
+              name: "CI-safe suite",
+              conclusion: "failure",
+              steps: [
+                { name: "Run CI-safe test suite", conclusion: "failure" },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--repo=pr0h0/bpl3",
+          `--jobs-json=${jobsPath}`,
+          "--run=26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        locator: { owner: string; repo: string; runId: number };
+        summary: { failedJobs: Array<{ localCommands: string[] }> };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+      expect(report.locator).toMatchObject({
+        owner: "pr0h0",
+        repo: "bpl3",
+        runId: 26695335269,
+      });
+      expect(report.summary.failedJobs[0]?.localCommands).toContain(
+        "bun run test:ci",
+      );
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("api.github.com");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("rejects missing option values before GitHub API calls", () => {
     const cases: Array<[string[], string]> = [
       [["--repo", "--run", "26695335269"], "Missing value for --repo"],
@@ -4201,6 +4272,29 @@ describe("CI triage helper", () => {
         ["--run", "--repo", "pr0h0/bpl3"],
         "Missing value for --run",
       ],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["run", "ci:triage", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("api.github.com");
+    }
+  });
+
+  test("rejects malformed inline option values before GitHub API calls", () => {
+    const cases: Array<[string[], string]> = [
+      [["--json=true", "26695335269"], "--json does not accept a value"],
+      [["--help=true"], "--help does not accept a value"],
+      [["--jobs-json=", "26695335269"], "Missing value for --jobs-json"],
+      [["--repo=", "26695335269"], "Missing value for --repo"],
+      [["--run="], "Missing value for --run"],
     ];
 
     for (const [args, expectedError] of cases) {

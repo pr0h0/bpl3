@@ -1753,14 +1753,35 @@ function uniqueStrings(values: string[]): string[] {
 
 function takeFlag(args: string[], flag: string): boolean {
   const index = args.indexOf(flag);
-  if (index < 0) return false;
-  args.splice(index, 1);
-  return true;
+  if (index >= 0) {
+    args.splice(index, 1);
+    return true;
+  }
+
+  const inlineIndex = args.findIndex((arg) => arg.startsWith(`${flag}=`));
+  if (inlineIndex >= 0) {
+    throw new CliUsageError(
+      `${flag} does not accept a value. Use --help for usage.`,
+    );
+  }
+
+  return false;
 }
 
 function takeOption(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
-  if (index < 0) return undefined;
+  if (index < 0) {
+    const inlineIndex = args.findIndex((arg) => arg.startsWith(`${flag}=`));
+    if (inlineIndex < 0) return undefined;
+
+    const value = args[inlineIndex]!.slice(flag.length + 1);
+    if (!value || value.startsWith("-")) {
+      throw new CliUsageError(`Missing value for ${flag}`);
+    }
+
+    args.splice(inlineIndex, 1);
+    return value;
+  }
 
   const value = args[index + 1];
   if (!value || value.startsWith("-")) {
