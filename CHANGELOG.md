@@ -44,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release Manifest Usage Diagnostics** - `bun tools/release_manifest.ts`
   now reports unknown options and missing `--out`/`--repo-root` values as
   status-2 usage errors before running release manifest or npm pack work.
+- **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
+  prints usage without writing release artifacts or running `npm pack`, and
+  tests cover flag-looking values after `--out` and `--repo-root`.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

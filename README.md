@@ -121,7 +121,8 @@ configs, and VS Code extension. The manifest command writes
 Release manifest usage errors, such as
 `Unknown release manifest option: --unknown`, `Missing value for --out`, or
 `Missing value for --repo-root`, exit with status 2 before running release
-manifest or npm pack work.
+manifest or npm pack work. Use `bun tools/release_manifest.ts --help` to print
+the release manifest helper usage without writing artifacts.
 
 Packed npm helper scripts supported from installed packages:
 

@@ -542,9 +542,29 @@ function takeRequiredOptionValue(
   return value;
 }
 
+function formatReleaseManifestHelp(): string {
+  return [
+    "Usage: bun tools/release_manifest.ts [--out file] [--repo-root dir] [--pack-npm]",
+    "",
+    "Create a checksum manifest for BPL release artifacts.",
+    "",
+    "Options:",
+    "  --out file        Output manifest path. Defaults to dist/release-manifest.json.",
+    "  --repo-root dir   Repository root to inspect. Defaults to this checkout.",
+    "  --pack-npm        Run npm pack and include package integrity metadata.",
+    "  -h, --help        Show this help without running release steps.",
+  ].join("\n");
+}
+
 if (import.meta.main) {
   try {
-    const { outPath, packNpm, repoRoot } = parseArgs(process.argv.slice(2));
+    const argv = process.argv.slice(2);
+    if (argv.includes("--help") || argv.includes("-h")) {
+      console.log(formatReleaseManifestHelp());
+      process.exit(0);
+    }
+
+    const { outPath, packNpm, repoRoot } = parseArgs(argv);
     let npmPackage: CreateReleaseManifestOptions["npmPackage"];
 
     if (packNpm) {

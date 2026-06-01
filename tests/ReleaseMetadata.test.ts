@@ -1307,7 +1307,9 @@ describe("Release metadata", () => {
     const cases: Array<[string[], string]> = [
       [["--unknown"], "Unknown release manifest option: --unknown"],
       [["--out"], "Missing value for --out"],
+      [["--out", "--pack-npm"], "Missing value for --out"],
       [["--repo-root"], "Missing value for --repo-root"],
+      [["--repo-root", "--pack-npm"], "Missing value for --repo-root"],
     ];
 
     for (const [args, expectedError] of cases) {
@@ -1322,6 +1324,24 @@ describe("Release metadata", () => {
       expect(result.stderr).not.toContain("npm pack failed");
       expect(result.stderr).not.toContain("Release manifest written");
     }
+  });
+
+  test("release manifest CLI prints help without running release steps", () => {
+    const result = spawnSync("bun", ["tools/release_manifest.ts", "--help"], {
+      cwd: join(import.meta.dir, ".."),
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      "Usage: bun tools/release_manifest.ts [--out file] [--repo-root dir] [--pack-npm]",
+    );
+    expect(result.stdout).toContain("--out file");
+    expect(result.stdout).toContain("--repo-root dir");
+    expect(result.stdout).toContain("--pack-npm");
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("Release manifest written");
+    expect(result.stderr).not.toContain("npm pack failed");
   });
 });
 
