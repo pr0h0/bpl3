@@ -9,6 +9,7 @@ import { INTEGER_TYPES } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
 import {
+  CONDITION_TYPE_MISMATCH_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
@@ -302,6 +303,7 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
       `If condition must be boolean, got ${this.typeToString(condType)}`,
       "Ensure the condition evaluates to a boolean.",
       stmt.condition.location,
+      CONDITION_TYPE_MISMATCH_CODE,
     );
   }
 
@@ -347,6 +349,7 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
         `Loop condition must be boolean, got ${this.typeToString(condType)}`,
         "Ensure the condition evaluates to a boolean.",
         stmt.condition.location,
+        CONDITION_TYPE_MISMATCH_CODE,
       );
     }
   }
