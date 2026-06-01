@@ -117,6 +117,8 @@ describe("Package helper JSON contracts", () => {
       });
       expect(triage.summary.missingJobIds).toEqual([]);
       expect(triage.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TestCiRunner.test.ts",
+        "bun tools/test_ci.ts --list",
         "bun run test:ci",
       ]);
     } finally {
