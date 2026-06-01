@@ -208,6 +208,14 @@ describe("Markdown documentation", () => {
     expect(message).not.toContain("SECRET_FULL_CORPUS_SENTINEL");
   });
 
+  test("docs-wide snippet assertions use concise helper diagnostics", () => {
+    const testSource = readFileSync("tests/MarkdownDocs.test.ts", "utf8");
+    const rawSnippetLoopPattern =
+      /expect\([^\n]+\)\.toContain\(snippet\.replace\(/g;
+
+    expect(testSource.match(rawSnippetLoopPattern) ?? []).toEqual([]);
+  });
+
   test("local markdown links resolve", () => {
     const files = trackedMarkdownFiles();
     const allTrackedFiles = trackedFiles();
@@ -393,9 +401,7 @@ describe("Markdown documentation", () => {
       "missing parent directory",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(codeGeneratorSection).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(codeGeneratorSection, requiredSnippets);
   });
 
   test("docs document doctor scope JSON error code", () => {
@@ -408,9 +414,7 @@ describe("Markdown documentation", () => {
       "bun test tests/CLIJsonParseability.test.ts -t \"doctor scope failures\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(combinedDocs, requiredSnippets);
   });
 
   test("package docs document import safety rules", () => {
@@ -431,9 +435,7 @@ describe("Markdown documentation", () => {
       "package metadata instead of silently importing a different package",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(combinedDocs, requiredSnippets);
   });
 
   test("package docs document package/import docs smoke fixtures", () => {
@@ -475,9 +477,7 @@ describe("Markdown documentation", () => {
       "BPL_PACKAGE_MANIFEST_MISSING",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(combinedDocs, requiredSnippets);
   });
 
   test("changelog documents compiler option validation hardening", () => {
@@ -492,9 +492,7 @@ describe("Markdown documentation", () => {
       "bun test tests/CompilerOptions.test.ts tests/CodeGenerator.test.ts tests/Linker.test.ts tests/ModuleCache.test.ts",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(text, requiredSnippets);
   });
 
   test("docs document supported target validation", () => {
@@ -519,9 +517,7 @@ describe("Markdown documentation", () => {
       'bun test tests/CodeGenerator.test.ts -t "target" && bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(text, requiredSnippets);
   });
 
   test("package docs document strict manifest path rules", () => {
@@ -536,9 +532,7 @@ describe("Markdown documentation", () => {
       "`bin/tool.bpl`",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(text, requiredSnippets);
   });
 
   test("package docs document package manager manifest JSON error codes", () => {
@@ -802,9 +796,7 @@ describe("Markdown documentation", () => {
       "`~/.bpl/packages/math-9.0.0`",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(text, requiredSnippets);
   });
 
   test("docs document package search directory JSON diagnostics", () => {
@@ -1040,9 +1032,7 @@ describe("Markdown documentation", () => {
       "standard library root",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(text, requiredSnippets);
   });
 
   test("imports docs document diagnostic mode policy", () => {
@@ -1059,9 +1049,7 @@ describe("Markdown documentation", () => {
       "Use `bpl check` or a normal build when you need import resolution diagnostics",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(text, requiredSnippets);
   });
 
   test("wasm docs document optional and required compatibility matrix runs", () => {
@@ -1131,9 +1119,7 @@ describe("Markdown documentation", () => {
       "bun run fuzz:repro -- fuzz/crashes",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
   test("docs document timeout environment fallback diagnostics", () => {
@@ -1157,9 +1143,7 @@ describe("Markdown documentation", () => {
       "Text `bpl doctor` prints a `Timeouts:` section",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(normalizedText).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
   test("sanitizer timeout docs match the shared default", () => {
