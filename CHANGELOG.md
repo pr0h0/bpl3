@@ -156,6 +156,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CiTriage.test.ts -t "package docs smoke failures"`,
   `bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"`,
   and `bun test vscode-ext/src/test/diagnostics.test.ts vscode-ext/src/test/imports.test.ts`.
+- **VS Code Extension Validation** - The extension now has a dedicated
+  `npm run compile:test --prefix vscode-ext` guard for strict TypeScript checks
+  over `vscode-ext/src/test`, and `npm test --prefix vscode-ext` runs that guard
+  before Bun language-server tests. Production extension compilation remains
+  covered by `npm run compile --prefix vscode-ext`. VS Code type-check failures
+  map to these focused commands in `bun run ci:triage`, including missing
+  `vscode-languageserver-textdocument` declarations and implicit-any diagnostics.
 - **Module Resolver Diagnostic Code List** - Non-package module and explicit
   standard-library import diagnostics now expose a shared code list, and
   MarkdownDocs checks the docs inventory against the ModuleResolver constants.

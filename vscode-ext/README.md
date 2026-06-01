@@ -107,12 +107,25 @@ show warnings and errors.
 
 ### Running Tests
 
-The extension has a comprehensive test suite:
+The extension has a comprehensive test suite. From the repository root, run:
 
 ```bash
-cd vscode-ext
-bun test
+npm run compile:test --prefix vscode-ext
+npm test --prefix vscode-ext
+npm run compile --prefix vscode-ext
 ```
+
+`npm run compile:test --prefix vscode-ext` type-checks `src/test` under strict
+settings. `npm test --prefix vscode-ext` runs that type-check first and then
+executes the Bun language-server tests. `npm run compile --prefix vscode-ext`
+checks the production extension build used for packaging.
+
+VS Code type-check failures map to these same focused commands in `bun run
+ci:triage`, including missing `vscode-languageserver-textdocument` declarations
+and implicit-any diagnostics in extension tests.
+
+When already inside `vscode-ext/`, run `npm test` for the same type-check plus
+Bun test path.
 
 Tests cover:
 
@@ -127,7 +140,7 @@ Tests cover:
 - ✅ Chained member access
 - ✅ Nested scope handling
 
-Run `bun test` in `vscode-ext/` for the current pass count.
+Run `npm test` in `vscode-ext/` for the current pass count.
 
 ## Structure
 

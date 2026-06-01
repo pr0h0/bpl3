@@ -496,6 +496,23 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document VS Code extension validation commands", () => {
+    const normalizedText = normalizedMarkdownText([
+      "docs/49-vscode-extension.md",
+      "vscode-ext/README.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(normalizedText, [
+      "VS Code Extension Validation",
+      "npm run compile:test --prefix vscode-ext",
+      "npm test --prefix vscode-ext",
+      "npm run compile --prefix vscode-ext",
+      "VS Code type-check failures map to",
+      "bun run ci:triage",
+    ]);
+  });
+
   test("release docs document packed helper support and exclusions", () => {
     const readme = readFileSync("README.md", "utf8");
     const changelog = readFileSync("CHANGELOG.md", "utf8");

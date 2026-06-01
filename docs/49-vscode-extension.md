@@ -205,11 +205,28 @@ vscode-ext/
 
 ### Testing
 
-Run the test suite:
+From the repository root, run the full extension validation path:
 
 ```bash
-cd vscode-ext
-bun test
+npm run compile:test --prefix vscode-ext
+npm test --prefix vscode-ext
+npm run compile --prefix vscode-ext
+```
+
+`npm run compile:test --prefix vscode-ext` type-checks the extension test
+sources under `vscode-ext/src/test` with strict settings before CI. `npm test
+--prefix vscode-ext` runs that type-check first and then runs the Bun language
+server tests. `npm run compile --prefix vscode-ext` remains the production
+extension compile used for packaging.
+
+VS Code type-check failures map to these same focused commands in `bun run
+ci:triage`, including missing `vscode-languageserver-textdocument` declarations
+and implicit-any diagnostics in extension tests.
+
+When already inside `vscode-ext/`, the equivalent full test command is:
+
+```bash
+npm test
 ```
 
 Tests cover:
@@ -247,7 +264,7 @@ Contributions to the extension are welcome! Please:
 
 1. Fork the repository
 2. Make changes in the `vscode-ext/` directory
-3. Run tests: `bun test`
+3. Run tests: `npm test --prefix vscode-ext`
 4. Test manually in Extension Development Host
 5. Submit a pull request
 
