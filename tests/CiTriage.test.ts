@@ -835,6 +835,37 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps control-flow misuse diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerControlFlowMisuse.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"',
+      'bun test tests/MarkdownDocs.test.ts -t "control-flow misuse"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_BREAK_OUTSIDE_CONTEXT",
+      "BPL_CONTINUE_OUTSIDE_LOOP",
+      "BPL_FALLTHROUGH_OUTSIDE_SWITCH",
+      "BPL_DEFER_RETURN_VALUE_INVALID",
+      "'break' statement outside of loop or switch",
+      "'continue' statement outside of loop",
+      "'fallthrough' statement outside of switch",
+      "Return with value not allowed in defer block",
+      "Break statements can only be used inside loops or switch statements.",
+      "Continue statements can only be used inside loops.",
+      "Fallthrough statements can only be used inside switch statements.",
+      "Defer blocks must return void.",
+      "Control-flow misuse failures use `BPL_BREAK_OUTSIDE_CONTEXT`",
+      "reports control-flow misuse failures in JSON-mode check and build diagnostics",
+      "docs document control-flow misuse diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -4534,6 +4565,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerCallSiteMismatch.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"',
         'bun test tests/MarkdownDocs.test.ts -t "call-site mismatch"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints control-flow misuse repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-control-flow-misuse-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 100,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/100",
+              steps: [
+                {
+                  name: "BPL_FALLTHROUGH_OUTSIDE_SWITCH 'fallthrough' statement outside of switch",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerControlFlowMisuse.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"',
+        'bun test tests/MarkdownDocs.test.ts -t "control-flow misuse"',
         "bun run check",
       ]);
     } finally {

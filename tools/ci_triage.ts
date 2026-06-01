@@ -426,6 +426,24 @@ const CALL_SITE_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const CONTROL_FLOW_MISUSE_STEP_PATTERN = new RegExp(
+  [
+    "BPL_BREAK_OUTSIDE_CONTEXT",
+    "BPL_CONTINUE_OUTSIDE_LOOP",
+    "BPL_FALLTHROUGH_OUTSIDE_SWITCH",
+    "BPL_DEFER_RETURN_VALUE_INVALID",
+    "control-flow misuse",
+    "'break' statement outside of loop or switch",
+    "'continue' statement outside of loop",
+    "'fallthrough' statement outside of switch",
+    "Return with value not allowed in defer block",
+    "Break statements can only be used inside loops or switch statements",
+    "Continue statements can only be used inside loops",
+    "Fallthrough statements can only be used inside switch statements",
+    "Defer blocks must return void",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1221,6 +1239,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "call-site mismatch"',
   ],
   [CALL_SITE_MISMATCH_STEP_PATTERN, "bun run check"],
+  [
+    CONTROL_FLOW_MISUSE_STEP_PATTERN,
+    "bun test tests/TypeCheckerControlFlowMisuse.test.ts",
+  ],
+  [
+    CONTROL_FLOW_MISUSE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"',
+  ],
+  [
+    CONTROL_FLOW_MISUSE_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "control-flow misuse"',
+  ],
+  [CONTROL_FLOW_MISUSE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
