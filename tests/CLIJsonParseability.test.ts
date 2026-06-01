@@ -1694,20 +1694,9 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(packageVersionOutput)).toBe(false);
   });
 
-  test("reports module path diagnostic codes in JSON-mode check and build diagnostics", () => {
+  test("reports missing module path diagnostic codes in JSON-mode check and build diagnostics", () => {
     const missingFile = path.join(tempDir, "missing_module_import.bpl");
     const missingOutput = path.join(tempDir, "missing-module-app");
-    const unsafeStdFile = path.join(tempDir, "unsafe_std_check.bpl");
-    const symlinkDir = path.join(tempDir, "broken-module-symlink");
-    const symlinkFile = path.join(symlinkDir, "main.bpl");
-    const brokenCandidate = path.join(symlinkDir, "linked.bpl");
-    const fallbackCandidate = path.join(symlinkDir, "linked.x");
-    const caseDir = path.join(tempDir, "case-mismatch-module");
-    const caseFile = path.join(caseDir, "main.bpl");
-    const realCaseModule = path.join(caseDir, "utils.bpl");
-    fs.mkdirSync(symlinkDir, { recursive: true });
-    fs.mkdirSync(caseDir, { recursive: true });
-
     fs.writeFileSync(
       missingFile,
       [
@@ -1717,37 +1706,6 @@ describe("CLI JSON parseability", () => {
         "}",
       ].join("\n"),
     );
-    fs.writeFileSync(
-      unsafeStdFile,
-      [
-        'import escaped from "std/../outside-std-lib.bpl";',
-        "frame main() ret int {",
-        "    return 0;",
-        "}",
-      ].join("\n"),
-    );
-    fs.writeFileSync(
-      symlinkFile,
-      [
-        'import value from "./linked";',
-        "frame main() ret int {",
-        "    return 0;",
-        "}",
-      ].join("\n"),
-    );
-    fs.symlinkSync(path.join(symlinkDir, "missing-linked.bpl"), brokenCandidate);
-    fs.writeFileSync(fallbackCandidate, "export value;\n");
-    fs.writeFileSync(
-      caseFile,
-      [
-        'import value from "./Utils";',
-        "frame main() ret int {",
-        "    return 0;",
-        "}",
-      ].join("\n"),
-    );
-    fs.writeFileSync(realCaseModule, "export value;\n");
-
     const missingCheck = runCli(["check", "--json", missingFile]);
     const missingDiagnostic = expectSingleCheckJsonDiagnostic(
       missingCheck,
@@ -1761,55 +1719,6 @@ describe("CLI JSON parseability", () => {
     expect(missingDiagnostic.message).toContain("./does_not_exist.bpl");
     expect(missingDiagnostic.hint).toContain("Check if the file exists.");
     expect(missingCheck.stderr).toBe("");
-
-    const unsafeStdCheck = runCli(["check", "--json", unsafeStdFile]);
-    const unsafeStdDiagnostic = expectSingleCheckJsonDiagnostic(
-      unsafeStdCheck,
-      unsafeStdFile,
-    );
-    expect(unsafeStdDiagnostic.code).toBe("BPL_IMPORT_STD_PATH_UNSAFE");
-    expect(unsafeStdDiagnostic.source?.preview).toContain(
-      'import escaped from "std/../outside-std-lib.bpl";',
-    );
-    expect(unsafeStdDiagnostic.message).toContain(
-      "Unsafe standard library import: std/../outside-std-lib.bpl",
-    );
-    expect(unsafeStdDiagnostic.hint).toContain(
-      "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
-    );
-    expect(unsafeStdCheck.stderr).toBe("");
-
-    const symlinkCheck = runCli(["check", "--json", symlinkFile]);
-    const symlinkDiagnostic = expectSingleCheckJsonDiagnostic(
-      symlinkCheck,
-      symlinkFile,
-    );
-    expect(symlinkDiagnostic.code).toBe("BPL_MODULE_PATH_SYMLINK");
-    expect(symlinkDiagnostic.source?.preview).toContain(
-      'import value from "./linked";',
-    );
-    expect(symlinkDiagnostic.message).toContain(
-      "Module path is a symbolic link",
-    );
-    expect(symlinkDiagnostic.message).toContain(brokenCandidate);
-    expect(symlinkDiagnostic.hint).toContain(
-      "Use a real .bpl file path or repair the symlink target.",
-    );
-    expect(symlinkCheck.stderr).toBe("");
-
-    const caseCheck = runCli(["check", "--json", caseFile]);
-    const caseDiagnostic = expectSingleCheckJsonDiagnostic(caseCheck, caseFile);
-    expect(caseDiagnostic.code).toBe("BPL_MODULE_PATH_CASE_MISMATCH");
-    expect(caseDiagnostic.source?.preview).toContain(
-      'import value from "./Utils";',
-    );
-    expect(caseDiagnostic.message).toContain(
-      "Module path casing does not match",
-    );
-    expect(caseDiagnostic.message).toContain(path.join(caseDir, "Utils.bpl"));
-    expect(caseDiagnostic.message).toContain(realCaseModule);
-    expect(caseDiagnostic.hint).toContain("Use the exact filesystem casing");
-    expect(caseCheck.stderr).toBe("");
 
     const missingBuild = runCli([
       "build",
@@ -1858,7 +1767,105 @@ describe("CLI JSON parseability", () => {
     );
     expect(fs.existsSync(`${missingOutput}.ll`)).toBe(false);
     expect(fs.existsSync(missingOutput)).toBe(false);
-  }, 10000);
+  });
+
+  test("reports unsafe std module path diagnostic codes in JSON-mode check diagnostics", () => {
+    const unsafeStdFile = path.join(tempDir, "unsafe_std_check.bpl");
+    fs.writeFileSync(
+      unsafeStdFile,
+      [
+        'import escaped from "std/../outside-std-lib.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const unsafeStdCheck = runCli(["check", "--json", unsafeStdFile]);
+    const unsafeStdDiagnostic = expectSingleCheckJsonDiagnostic(
+      unsafeStdCheck,
+      unsafeStdFile,
+    );
+    expect(unsafeStdDiagnostic.code).toBe("BPL_IMPORT_STD_PATH_UNSAFE");
+    expect(unsafeStdDiagnostic.source?.preview).toContain(
+      'import escaped from "std/../outside-std-lib.bpl";',
+    );
+    expect(unsafeStdDiagnostic.message).toContain(
+      "Unsafe standard library import: std/../outside-std-lib.bpl",
+    );
+    expect(unsafeStdDiagnostic.hint).toContain(
+      "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
+    );
+    expect(unsafeStdCheck.stderr).toBe("");
+  });
+
+  test("reports symlink module path diagnostic codes in JSON-mode check diagnostics", () => {
+    const symlinkDir = path.join(tempDir, "broken-module-symlink");
+    const symlinkFile = path.join(symlinkDir, "main.bpl");
+    const brokenCandidate = path.join(symlinkDir, "linked.bpl");
+    const fallbackCandidate = path.join(symlinkDir, "linked.x");
+    fs.mkdirSync(symlinkDir, { recursive: true });
+    fs.writeFileSync(
+      symlinkFile,
+      [
+        'import value from "./linked";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.symlinkSync(path.join(symlinkDir, "missing-linked.bpl"), brokenCandidate);
+    fs.writeFileSync(fallbackCandidate, "export value;\n");
+
+    const symlinkCheck = runCli(["check", "--json", symlinkFile]);
+    const symlinkDiagnostic = expectSingleCheckJsonDiagnostic(
+      symlinkCheck,
+      symlinkFile,
+    );
+    expect(symlinkDiagnostic.code).toBe("BPL_MODULE_PATH_SYMLINK");
+    expect(symlinkDiagnostic.source?.preview).toContain(
+      'import value from "./linked";',
+    );
+    expect(symlinkDiagnostic.message).toContain(
+      "Module path is a symbolic link",
+    );
+    expect(symlinkDiagnostic.message).toContain(brokenCandidate);
+    expect(symlinkDiagnostic.hint).toContain(
+      "Use a real .bpl file path or repair the symlink target.",
+    );
+    expect(symlinkCheck.stderr).toBe("");
+  });
+
+  test("reports case-mismatch module path diagnostic codes in JSON-mode check diagnostics", () => {
+    const caseDir = path.join(tempDir, "case-mismatch-module");
+    const caseFile = path.join(caseDir, "main.bpl");
+    const realCaseModule = path.join(caseDir, "utils.bpl");
+    fs.mkdirSync(caseDir, { recursive: true });
+    fs.writeFileSync(
+      caseFile,
+      [
+        'import value from "./Utils";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(realCaseModule, "export value;\n");
+
+    const caseCheck = runCli(["check", "--json", caseFile]);
+    const caseDiagnostic = expectSingleCheckJsonDiagnostic(caseCheck, caseFile);
+    expect(caseDiagnostic.code).toBe("BPL_MODULE_PATH_CASE_MISMATCH");
+    expect(caseDiagnostic.source?.preview).toContain(
+      'import value from "./Utils";',
+    );
+    expect(caseDiagnostic.message).toContain(
+      "Module path casing does not match",
+    );
+    expect(caseDiagnostic.message).toContain(path.join(caseDir, "Utils.bpl"));
+    expect(caseDiagnostic.message).toContain(realCaseModule);
+    expect(caseDiagnostic.hint).toContain("Use the exact filesystem casing");
+    expect(caseCheck.stderr).toBe("");
+  });
 
   test("reports missing explicit std imports in JSON-mode check and build diagnostics", () => {
     const sourceFile = path.join(tempDir, "missing_explicit_std.bpl");
