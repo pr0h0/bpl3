@@ -602,6 +602,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **MarkdownDocs Snippet Diagnostics** - Remaining docs-wide snippet checks now
   use concise helper diagnostics so a missing snippet reports the missing text
   without dumping whole Markdown files into CI logs.
+- **MarkdownDocs Code-List Diagnostics** - Documentation coverage failures for
+  CLI JSON code-list registries now report compact `list:code` entries instead
+  of generic array diffs.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their

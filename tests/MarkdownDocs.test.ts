@@ -177,17 +177,24 @@ function expectDocsCoverCodeLists(
   docs: string,
   codeLists: readonly MarkdownCodeList[],
 ): void {
-  const missingCodes: string[] = [];
+  const missingEntries: string[] = [];
 
   for (const { name, codes } of codeLists) {
     for (const code of codes) {
       if (!docs.includes(code)) {
-        missingCodes.push(`${name}:${code}`);
+        missingEntries.push(`${name}:${code}`);
       }
     }
   }
 
-  expect(missingCodes).toEqual([]);
+  if (missingEntries.length > 0) {
+    throw new Error(
+      [
+        "Missing Markdown documentation code-list entries:",
+        ...missingEntries.map((entry) => `- ${entry}`),
+      ].join("\n"),
+    );
+  }
 }
 
 describe("Markdown documentation", () => {
@@ -214,6 +221,26 @@ describe("Markdown documentation", () => {
       /expect\([^\n]+\)\.toContain\(snippet\.replace\(/g;
 
     expect(testSource.match(rawSnippetLoopPattern) ?? []).toEqual([]);
+  });
+
+  test("code-list helper reports concise missing-code diagnostics", () => {
+    let thrown: unknown;
+
+    try {
+      expectDocsCoverCodeLists("short docs SECRET_FULL_CORPUS_SENTINEL", [
+        {
+          name: "ExampleList",
+          codes: ["BPL_EXAMPLE_MISSING"],
+        },
+      ]);
+    } catch (error) {
+      thrown = error;
+    }
+
+    const message = String(thrown);
+    expect(message).toContain("Missing Markdown documentation code-list entries");
+    expect(message).toContain("ExampleList:BPL_EXAMPLE_MISSING");
+    expect(message).not.toContain("SECRET_FULL_CORPUS_SENTINEL");
   });
 
   test("local markdown links resolve", () => {
