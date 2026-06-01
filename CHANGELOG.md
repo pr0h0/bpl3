@@ -129,6 +129,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `package-init` reports with manifest paths on success and stable
   `BPL_PACKAGE_INIT_NAME_INVALID` and `BPL_PACKAGE_INIT_MANIFEST_EXISTS`
   `errorCode` values for validation failures.
+- **Package Small JSON Validation Code Lists** - Package init, uninstall, and
+  package-cache validation codes now expose shared PackageManager constant
+  lists, and MarkdownDocs checks those package JSON documentation contracts
+  against the lists.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.

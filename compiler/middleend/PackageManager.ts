@@ -43,6 +43,33 @@ export function getPackageArchiveToolTimeoutMs(): number {
   );
 }
 
+export const PACKAGE_INIT_NAME_INVALID_CODE =
+  "BPL_PACKAGE_INIT_NAME_INVALID";
+export const PACKAGE_INIT_MANIFEST_EXISTS_CODE =
+  "BPL_PACKAGE_INIT_MANIFEST_EXISTS";
+export const PACKAGE_INIT_JSON_ERROR_CODES = [
+  PACKAGE_INIT_NAME_INVALID_CODE,
+  PACKAGE_INIT_MANIFEST_EXISTS_CODE,
+] as const;
+
+export const PACKAGE_UNINSTALL_NAME_INVALID_CODE =
+  "BPL_PACKAGE_UNINSTALL_NAME_INVALID";
+export const PACKAGE_UNINSTALL_NOT_INSTALLED_CODE =
+  "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED";
+export const PACKAGE_UNINSTALL_JSON_ERROR_CODES = [
+  PACKAGE_UNINSTALL_NAME_INVALID_CODE,
+  PACKAGE_UNINSTALL_NOT_INSTALLED_CODE,
+] as const;
+
+export const PACKAGE_CACHE_VERSION_INVALID_CODE =
+  "BPL_PACKAGE_CACHE_VERSION_INVALID";
+export const PACKAGE_CACHE_NAME_INVALID_CODE =
+  "BPL_PACKAGE_CACHE_NAME_INVALID";
+export const PACKAGE_CACHE_JSON_ERROR_CODES = [
+  PACKAGE_CACHE_VERSION_INVALID_CODE,
+  PACKAGE_CACHE_NAME_INVALID_CODE,
+] as const;
+
 export interface PackageManifest {
   name: string;
   version: string;
@@ -3336,7 +3363,7 @@ export class PackageManager {
     validatePackageName(
       packageName,
       location,
-      "BPL_PACKAGE_UNINSTALL_NAME_INVALID",
+      PACKAGE_UNINSTALL_NAME_INVALID_CODE,
     );
 
     const targetDir = options.global
@@ -3358,7 +3385,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
-        "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
+        PACKAGE_UNINSTALL_NOT_INSTALLED_CODE,
       );
     }
 
@@ -3374,7 +3401,7 @@ export class PackageManager {
           endLine: 1,
           endColumn: 1,
         },
-        "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
+        PACKAGE_UNINSTALL_NOT_INSTALLED_CODE,
       );
     }
 
@@ -4358,7 +4385,7 @@ export class PackageManager {
         `bpl.json already exists in ${dir}`,
         "Delete the existing bpl.json if you want to re-initialize.",
         location,
-        "BPL_PACKAGE_INIT_MANIFEST_EXISTS",
+        PACKAGE_INIT_MANIFEST_EXISTS_CODE,
       );
     }
 
@@ -4367,7 +4394,7 @@ export class PackageManager {
     validatePackageName(
       packageName,
       location,
-      "BPL_PACKAGE_INIT_NAME_INVALID",
+      PACKAGE_INIT_NAME_INVALID_CODE,
     );
 
     const manifest: PackageManifest = {
@@ -4413,7 +4440,7 @@ function validatePackageCacheVersionFilter(version: string | undefined): void {
         endLine: 1,
         endColumn: 1,
       },
-      "BPL_PACKAGE_CACHE_VERSION_INVALID",
+      PACKAGE_CACHE_VERSION_INVALID_CODE,
     );
   }
 }
@@ -4432,7 +4459,7 @@ function validatePackageCachePackageNameFilter(
       endLine: 1,
       endColumn: 1,
     },
-    "BPL_PACKAGE_CACHE_NAME_INVALID",
+    PACKAGE_CACHE_NAME_INVALID_CODE,
   );
 }
 

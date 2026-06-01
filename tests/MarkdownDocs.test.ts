@@ -9,6 +9,11 @@ import {
   type PackageResolutionTrace,
 } from "../compiler/middleend/PackageResolver";
 import {
+  PACKAGE_CACHE_JSON_ERROR_CODES,
+  PACKAGE_INIT_JSON_ERROR_CODES,
+  PACKAGE_UNINSTALL_JSON_ERROR_CODES,
+} from "../compiler/middleend/PackageManager";
+import {
   IMPORT_STD_PATH_UNSAFE_CODE,
   MODULE_FILE_NOT_FOUND_CODE,
   MODULE_NOT_FOUND_CODE,
@@ -477,13 +482,15 @@ describe("Markdown documentation", () => {
     );
     const requiredSnippets = [
       "Package-cache validation failures",
-      "BPL_PACKAGE_CACHE_VERSION_INVALID",
       "clean and repair validation failures",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache version filter\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of PACKAGE_CACHE_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
@@ -496,13 +503,15 @@ describe("Markdown documentation", () => {
       " ",
     );
     const requiredSnippets = [
-      "BPL_PACKAGE_CACHE_NAME_INVALID",
       "package-cache package filters",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache package filter\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of PACKAGE_CACHE_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
@@ -516,13 +525,14 @@ describe("Markdown documentation", () => {
     );
     const requiredSnippets = [
       "Package uninstall JSON reports",
-      "BPL_PACKAGE_UNINSTALL_NAME_INVALID",
-      "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
       "bun test tests/PackageManagerCLI.test.ts -t \"uninstall success and failures as JSON\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of PACKAGE_UNINSTALL_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
@@ -557,13 +567,14 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package init JSON reports",
       'check: "package-init"',
-      "BPL_PACKAGE_INIT_NAME_INVALID",
-      "BPL_PACKAGE_INIT_MANIFEST_EXISTS",
       "bun test tests/PackageManagerCLI.test.ts -t \"init success and failures as JSON\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of PACKAGE_INIT_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
