@@ -26,6 +26,7 @@ import {
   CONDITION_TYPE_MISMATCH_CODE,
   DEREFERENCE_TARGET_INVALID_CODE,
   DIVISION_BY_ZERO_CODE,
+  GENERIC_ARITY_MISMATCH_CODE,
   LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
   LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
   MODULO_OPERAND_TYPE_MISMATCH_CODE,
@@ -33,6 +34,10 @@ import {
   POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
   SHIFT_COUNT_INVALID_CODE,
   SIZEOF_VOID_INVALID_CODE,
+  STRUCT_LITERAL_FIELD_MISSING_CODE,
+  STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
+  STRUCT_LITERAL_FIELD_UNKNOWN_CODE,
+  STRUCT_LITERAL_UNKNOWN_STRUCT_CODE,
   SYMBOL_NOT_FOUND_CODE,
   STRING_CONCAT_UNSUPPORTED_CODE,
   TERNARY_BRANCH_TYPE_MISMATCH_CODE,
@@ -1059,6 +1064,7 @@ export function checkStructLiteral(
       `Unknown struct '${expr.structName}'`,
       "Ensure the struct is defined.",
       expr.location,
+      STRUCT_LITERAL_UNKNOWN_STRUCT_CODE,
     );
   }
 
@@ -1075,6 +1081,7 @@ export function checkStructLiteral(
           `Generic type '${expr.structName}' expects ${decl.genericParams.length} arguments, but got ${providedArgs.length}`,
           "Provide the correct number of generic arguments.",
           expr.location,
+          GENERIC_ARITY_MISMATCH_CODE,
         );
       }
       for (let i = 0; i < decl.genericParams.length; i++) {
@@ -1092,6 +1099,7 @@ export function checkStructLiteral(
           `Missing field '${member.name}' in struct literal for '${expr.structName}'`,
           `Field '${member.name}' is required.`,
           expr.location,
+          STRUCT_LITERAL_FIELD_MISSING_CODE,
         );
       }
     }
@@ -1104,6 +1112,7 @@ export function checkStructLiteral(
         `Unknown field '${field.name}' in struct '${expr.structName}'`,
         "Check the struct definition for valid fields.",
         field.value.location,
+        STRUCT_LITERAL_FIELD_UNKNOWN_CODE,
       );
     }
 
@@ -1127,6 +1136,7 @@ export function checkStructLiteral(
           )}, got ${this.typeToString(valueType)}`,
           "Field value must match the declared type.",
           field.value.location,
+          STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
         );
       }
     }
