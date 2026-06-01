@@ -958,6 +958,35 @@ describe("CI triage helper", () => {
     expect(formatted).toContain("bun run test:ci");
   });
 
+  test("formats no-match guidance for failed jobs without local repro commands", () => {
+    const summary = summarizeWorkflowJobs([
+      {
+        id: 21,
+        name: "Unexpected integration job",
+        conclusion: "failure",
+        steps: [
+          {
+            name: "Run opaque integration step",
+            conclusion: "failure",
+          },
+        ],
+      },
+    ]);
+
+    expect(summary.failedJobs[0]?.localCommands).toEqual([]);
+
+    const formatted = formatTriageSummary(
+      { owner: "pr0h0", repo: "bpl3", runId: 1 },
+      summary,
+    );
+
+    expect(formatted).toContain("Unexpected integration job");
+    expect(formatted).toContain("Run opaque integration step");
+    expect(formatted).toContain(
+      "No focused local repro command matched this job. Inspect the failed step logs and add a ci:triage mapping when the failure pattern is recurring.",
+    );
+  });
+
   test("classifies local checkout state against the workflow run head", () => {
     const run = {
       id: 1,

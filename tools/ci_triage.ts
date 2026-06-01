@@ -87,6 +87,8 @@ export interface TriageJsonReport {
 const DEFAULT_REPO = "pr0h0/bpl3";
 const CI_TRIAGE_JSON_SCHEMA_VERSION = 1;
 const CI_TRIAGE_JSON_CHECK = "ci-triage";
+const NO_LOCAL_REPRO_GUIDANCE =
+  "No focused local repro command matched this job. Inspect the failed step logs and add a ci:triage mapping when the failure pattern is recurring.";
 
 class CliUsageError extends Error {}
 
@@ -1074,6 +1076,8 @@ export function formatTriageSummary(
       for (const command of job.localCommands) {
         lines.push(`  - ${command}`);
       }
+    } else {
+      lines.push(`  local repro: ${NO_LOCAL_REPRO_GUIDANCE}`);
     }
   }
 

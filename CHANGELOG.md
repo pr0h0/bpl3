@@ -611,6 +611,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Release Registry Fixtures** - Offline `ci:triage --jobs-json`
   fixtures now route release CLI registry sync job names to
   `bun run release:cli-registry`.
+- **CI Triage No-Match Guidance** - Text `ci:triage` output now explicitly
+  marks failed jobs that do not match a focused local repro command, so unknown
+  failure patterns are not silently ambiguous.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their
