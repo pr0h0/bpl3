@@ -137,7 +137,11 @@ is present. The package intentionally excludes source-only files such as
 broad compiler sources. The playground browser wasm helper assets are local
 playground files, not npm package payload:
 `playground/frontend/wasmHostAdapter.js` and
-`playground/frontend/browserWasmRuntime.js`. The narrow exception is
+`playground/frontend/browserWasmRuntime.js`. The playground backend helper
+modules used by the local web server are also source-only:
+`playground/backend/processRunner.ts`,
+`playground/backend/nativeExecution.ts`, and
+`playground/backend/wasmToolchain.ts`. The narrow exception is
 `compiler/common/PathSafety.ts`, which is shipped because packed helper scripts
 share its symlink-safe path validation.
 Release metadata checks derive the helper inventory from `package.json` scripts

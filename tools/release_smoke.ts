@@ -524,6 +524,9 @@ function runPackedPackageSmoke(): void {
       "playground/examples/70-browser-wasm-showcase.json",
       "playground/frontend/wasmHostAdapter.js",
       "playground/frontend/browserWasmRuntime.js",
+      "playground/backend/processRunner.ts",
+      "playground/backend/nativeExecution.ts",
+      "playground/backend/wasmToolchain.ts",
     ]);
     assertPackedFileAllowlist(
       packEntry,

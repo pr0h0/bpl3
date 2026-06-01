@@ -286,7 +286,7 @@ describe("Release metadata", () => {
     expect(packageJson.files).not.toContain("compiler/common");
   });
 
-  test("release smoke keeps playground browser wasm helper assets source-only", () => {
+  test("release smoke keeps playground helper assets source-only", () => {
     const repoRoot = join(import.meta.dir, "..");
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),
@@ -294,6 +294,9 @@ describe("Release metadata", () => {
     const sourceOnlyHelperFiles = [
       "playground/frontend/wasmHostAdapter.js",
       "playground/frontend/browserWasmRuntime.js",
+      "playground/backend/processRunner.ts",
+      "playground/backend/nativeExecution.ts",
+      "playground/backend/wasmToolchain.ts",
     ];
 
     for (const helperFile of sourceOnlyHelperFiles) {
@@ -306,6 +309,9 @@ describe("Release metadata", () => {
     expectReleaseSmokeSourceContains([
       "playground/frontend/wasmHostAdapter.js",
       "playground/frontend/browserWasmRuntime.js",
+      "playground/backend/processRunner.ts",
+      "playground/backend/nativeExecution.ts",
+      "playground/backend/wasmToolchain.ts",
       "npm tarball includes source-only files",
     ]);
   });
