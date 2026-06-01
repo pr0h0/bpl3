@@ -294,6 +294,18 @@ const TYPE_RECURSION_CYCLE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const GENERIC_ARITY_STEP_PATTERN = new RegExp(
+  [
+    "BPL_GENERIC_ARITY_MISMATCH",
+    "generic arity",
+    "generic type arity",
+    "generic alias arity",
+    "Generic type ['\"][^'\"]+['\"] expects \\d+ type arguments, but got \\d+",
+    "Generic alias ['\"][^'\"]+['\"] expects \\d+ type arguments, but got \\d+",
+    "Check generic argument count",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -946,6 +958,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "recursive type-cycle"',
   ],
   [TYPE_RECURSION_CYCLE_STEP_PATTERN, "bun run check"],
+  [
+    GENERIC_ARITY_STEP_PATTERN,
+    "bun test tests/TypeCheckerGenericArity.test.ts",
+  ],
+  [
+    GENERIC_ARITY_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "generic type arity|generic alias arity"',
+  ],
+  [
+    GENERIC_ARITY_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "generic arity"',
+  ],
+  [GENERIC_ARITY_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
