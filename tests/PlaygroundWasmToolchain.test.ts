@@ -81,6 +81,8 @@ describe("Playground wasm toolchain", () => {
       error: [
         "BPL_REQUIRE_WASM_LD=1 requires a wasm linker.",
         `Checked candidates: ${missingLinker}`,
+        "Reproduce required-linker failures: BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+        "Inspect toolchain state: bun index.ts doctor --json",
         "Install LLVM lld or set WASM_LD to a working wasm-ld binary.",
       ].join("\n"),
     });

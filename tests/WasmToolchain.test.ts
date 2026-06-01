@@ -68,12 +68,20 @@ describe("Wasm toolchain helpers", () => {
   });
 
   test("formats required-linker failures with checked candidates", () => {
-    expect(
-      formatRequiredWasmLinkerError([
-        "/opt/llvm/bin/wasm-ld-custom",
-        "wasm-ld",
-      ]),
-    ).toContain("Checked candidates: /opt/llvm/bin/wasm-ld-custom, wasm-ld");
+    const message = formatRequiredWasmLinkerError([
+      "/opt/llvm/bin/wasm-ld-custom",
+      "wasm-ld",
+    ]);
+
+    expect(message).toContain(
+      "Checked candidates: /opt/llvm/bin/wasm-ld-custom, wasm-ld",
+    );
+    expect(message).toContain(
+      "Reproduce required-linker failures: BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+    );
+    expect(message).toContain(
+      "Inspect toolchain state: bun index.ts doctor --json",
+    );
   });
 
   test("formats optional wasm runtime skip diagnostics with next steps", () => {
@@ -93,6 +101,12 @@ describe("Wasm toolchain helpers", () => {
     );
     expect(message).toContain("Set BPL_REQUIRE_WASM_LD=1");
     expect(message).toContain("set WASM_LD");
+    expect(message).toContain(
+      "Reproduce as a hard failure: BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
+    );
+    expect(message).toContain(
+      "Inspect toolchain state: bun index.ts doctor --json",
+    );
   });
 
   test("finds the first usable wasm linker and skips missing candidates", () => {
