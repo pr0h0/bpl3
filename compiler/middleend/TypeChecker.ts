@@ -8,6 +8,7 @@ import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
+  ASSIGNMENT_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
@@ -1639,6 +1640,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           )} to ${this.typeToString(targetType)}`,
           "The assigned value is not compatible with the target variable's type.",
           expr.location,
+          ASSIGNMENT_TYPE_MISMATCH_CODE,
         );
       }
     }
