@@ -505,6 +505,8 @@ function runPackedPackageSmoke(): void {
       "package.json",
       "README.md",
       "LICENSE",
+      "cli/index.d.ts",
+      "cli/index.js",
       "completions/_bpl",
       "completions/bpl-completion.bash",
       "docs/39-compiler-options.md",
@@ -564,6 +566,7 @@ function runPackedPackageSmoke(): void {
         ? join(installDir, "node_modules", ".bin", "bpl.cmd")
         : join(installDir, "node_modules", ".bin", "bpl");
 
+    runPackedCliRegistrySmoke(installDir);
     runPackedVersionJsonSmoke(installedBpl, installDir, packEntry.version);
     runPackedHelpSmoke(installedBpl, installDir);
     runPackedJsonColorPuritySmoke(installedBpl, installDir, packEntry.version);
@@ -740,6 +743,48 @@ function runPackedHelpSmoke(installedBpl: string, installDir: string): void {
       ...helpCase.snippets,
     ]);
   }
+}
+
+export function runPackedCliRegistrySmoke(installDir: string): void {
+  const smokePath = join(installDir, "check-cli-registry.mjs");
+  writeFileSync(
+    smokePath,
+    [
+      'import { CLI_JSON_ERROR_CODE_LISTS, CLI_JSON_ERROR_CODES } from "bpl-v3/cli";',
+      "",
+      "if (!Array.isArray(CLI_JSON_ERROR_CODE_LISTS)) {",
+      '  throw new Error("CLI_JSON_ERROR_CODE_LISTS is not an array");',
+      "}",
+      "if (!Array.isArray(CLI_JSON_ERROR_CODES)) {",
+      '  throw new Error("CLI_JSON_ERROR_CODES is not an array");',
+      "}",
+      "",
+      'const listNames = CLI_JSON_ERROR_CODE_LISTS.map((list) => list.name);',
+      'if (!listNames.includes("package-resolver")) {',
+      '  throw new Error("package-resolver registry list is missing");',
+      "}",
+      'if (!CLI_JSON_ERROR_CODES.includes("BPL_PACKAGE_NOT_FOUND")) {',
+      '  throw new Error("flattened registry is missing BPL_PACKAGE_NOT_FOUND");',
+      "}",
+      "",
+      "for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {",
+      "  if (!Array.isArray(codes) || codes.length === 0) {",
+      '    throw new Error(`${name} has no exported codes`);',
+      "  }",
+      "  for (const code of codes) {",
+      "    if (!/^BPL_[A-Z0-9_]+$/.test(code)) {",
+      '      throw new Error(`${name} has invalid registry code ${code}`);',
+      "    }",
+      "  }",
+      "}",
+      "",
+    ].join("\n"),
+  );
+
+  runStep("check packed npm CLI registry subpath import", "bun", [smokePath], {
+    cwd: installDir,
+    bplHome: null,
+  });
 }
 
 function runPackedVersionJsonSmoke(
@@ -3925,6 +3970,8 @@ function assertPackedFileAllowlist(
   const allowedPaths = [
     "bpl",
     "bpl-wrapper.sh",
+    "cli/index.d.ts",
+    "cli/index.js",
     "package.json",
     "README.md",
     "LICENSE",

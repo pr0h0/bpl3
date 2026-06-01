@@ -10,7 +10,17 @@ The BPL compiler is organized as a pipeline with distinct phases:
 Source Code → Lexer → Parser → TypeChecker → CodeGenerator → LLVM IR
 ```
 
-All public exports are available from `./compiler/index.ts`.
+Compiler pipeline exports are available from `./compiler/index.ts`. Tooling
+that consumes the packed npm package can import the stable CLI JSON diagnostic
+code registry from `bpl-v3/cli`.
+
+```typescript
+import { CLI_JSON_ERROR_CODE_LISTS } from "bpl-v3/cli";
+
+for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
+  console.log(name, codes.length);
+}
+```
 
 ---
 

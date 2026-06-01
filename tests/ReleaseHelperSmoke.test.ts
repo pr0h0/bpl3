@@ -9,7 +9,10 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { runPackedHelperScriptSmoke } from "../tools/release_smoke";
+import {
+  runPackedCliRegistrySmoke,
+  runPackedHelperScriptSmoke,
+} from "../tools/release_smoke";
 
 const HELPER_SMOKE_TIMEOUT_MS = 60 * 1000;
 
@@ -57,6 +60,18 @@ describe("Release helper smoke", () => {
       "bun run release:smoke",
     );
   });
+
+  test("exercises packed CLI registry subpath import", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-cli-registry-smoke-"));
+
+    try {
+      const installDir = writePackedCliRegistryInstallFixture(tempRoot);
+
+      runPackedCliRegistrySmoke(installDir);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 function writePackedHelperInstallFixture(
@@ -101,6 +116,39 @@ function writePackedHelperInstallFixture(
       join(repoRoot, "compiler", "common", "PathSafety.ts"),
       join(packageDir, "compiler", "common", "PathSafety.ts"),
     );
+  }
+
+  return installDir;
+}
+
+function writePackedCliRegistryInstallFixture(tempRoot: string): string {
+  const repoRoot = join(import.meta.dir, "..");
+  const installDir = join(tempRoot, "installed");
+  const packageDir = join(installDir, "node_modules", "bpl-v3");
+
+  mkdirSync(join(packageDir, "cli"), { recursive: true });
+  writeFileSync(
+    join(packageDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "bpl-v3",
+        private: true,
+        exports: {
+          "./cli": {
+            types: "./cli/index.d.ts",
+            import: "./cli/index.js",
+            require: "./cli/index.js",
+            default: "./cli/index.js",
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  for (const registryPath of ["cli/index.d.ts", "cli/index.js"]) {
+    cpSync(join(repoRoot, registryPath), join(packageDir, registryPath));
   }
 
   return installDir;

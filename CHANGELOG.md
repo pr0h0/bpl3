@@ -172,6 +172,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CLI JSON Registry Docs Example** - Compiler options docs now include a
   short TypeScript example for consuming `CLI_JSON_ERROR_CODE_LISTS`, and
   MarkdownDocs guards the example text.
+- **Packed CLI JSON Registry Export** - The npm package now exposes
+  `bpl-v3/cli` as a narrow registry subpath with TypeScript declarations, and
+  release smoke verifies the packed import works without shipping broad
+  compiler sources.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

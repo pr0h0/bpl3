@@ -5,9 +5,19 @@
   "bin": {
     "bpl": "./bpl"
   },
+  "exports": {
+    "./cli": {
+      "types": "./cli/index.d.ts",
+      "import": "./cli/index.js",
+      "require": "./cli/index.js",
+      "default": "./cli/index.js"
+    }
+  },
   "files": [
     "bpl",
     "bpl-wrapper.sh",
+    "cli/index.d.ts",
+    "cli/index.js",
     "completions",
     "compiler/common/PathSafety.ts",
     "docs",

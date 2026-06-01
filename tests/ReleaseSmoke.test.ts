@@ -129,6 +129,9 @@ describe("Release smoke", () => {
       );
       expect(result.stdout).toContain("release smoke: install packed npm CLI");
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI registry subpath import",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI version JSON",
       );
       expect(result.stdout).toContain(

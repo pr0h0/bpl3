@@ -36,10 +36,18 @@ describe("Release metadata", () => {
     expect(packageJson.license).toBe("Apache-2.0");
     expect(packageJson.main).toBeUndefined();
     expect(packageJson.bin).toEqual({ bpl: "./bpl" });
+    expect(packageJson.exports?.["./cli"]).toEqual({
+      types: "./cli/index.d.ts",
+      import: "./cli/index.js",
+      require: "./cli/index.js",
+      default: "./cli/index.js",
+    });
     expect(packageJson.files).toEqual(
       expect.arrayContaining([
         "bpl",
         "bpl-wrapper.sh",
+        "cli/index.d.ts",
+        "cli/index.js",
         "completions",
         "compiler/common/PathSafety.ts",
         "docs",
@@ -256,6 +264,9 @@ describe("Release metadata", () => {
     );
     expect(releaseSmokeSource).toContain(
       "check packed npm CLI CI triage root build no-input JSON",
+    );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI registry subpath import",
     );
     expect(releaseSmokeSource).toContain("BPL_BUILD_NO_INPUTS");
     expect(releaseSmokeSource).toContain(
