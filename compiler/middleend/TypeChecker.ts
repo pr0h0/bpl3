@@ -1089,6 +1089,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Duplicate field '${member.name}' in struct '${decl.name}'`,
             `The field '${member.name}' is defined multiple times in struct '${decl.name}'.`,
             loc,
+            SYMBOL_ALREADY_DEFINED_CODE,
           );
         }
         if (methodNames.has(member.name)) {
@@ -1323,6 +1324,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Duplicate enum variant '${variant.name}' in enum '${decl.name}'`,
             "Enum variants must be unique.",
             variant.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
           ),
         );
       }

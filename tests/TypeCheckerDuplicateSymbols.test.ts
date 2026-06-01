@@ -99,6 +99,34 @@ describe("TypeChecker duplicate symbols", () => {
     expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
   });
 
+  test("codes duplicate struct fields as duplicate symbols", () => {
+    const source = `
+      struct Point {
+        x: int,
+        x: int,
+      }
+    `;
+
+    const error = expectCompilerError(source);
+
+    expect(error.message).toContain("Duplicate field 'x' in struct 'Point'");
+    expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+  });
+
+  test("codes duplicate enum variants as duplicate symbols", () => {
+    const source = `
+      enum Color {
+        Red,
+        Red,
+      }
+    `;
+
+    const error = expectCompilerError(source);
+
+    expect(error.message).toContain("Duplicate enum variant 'Red'");
+    expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+  });
+
   test("preserves valid function overloads", () => {
     const source = `
       frame pick(value: int) ret int { return value; }
