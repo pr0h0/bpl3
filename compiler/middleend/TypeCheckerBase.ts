@@ -24,6 +24,10 @@ import {
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 
+function formatSymbolKind(kind: SymbolKind): string {
+  return kind === "TypeAlias" ? "type alias" : kind.toLowerCase();
+}
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -542,10 +546,26 @@ export abstract class TypeCheckerBase {
   ): void {
     const existing = this.currentScope.getInCurrentScope(name);
 
-    if (
+    const isFunctionOverload =
       existing &&
       existing.kind === "Function" &&
       kind === "Function" &&
+      type &&
+      type.kind === "FunctionType";
+    const isDeclarationScope =
+      this.currentScope === this.globalScope ||
+      this.currentScope.getParent() === this.globalScope;
+
+    if (existing && !isFunctionOverload && isDeclarationScope) {
+      throw new CompilerError(
+        `Symbol '${name}' is already defined in this scope`,
+        `Rename this ${formatSymbolKind(kind)} or remove the earlier ${formatSymbolKind(existing.kind)} declaration.`,
+        node.location,
+      );
+    }
+
+    if (
+      isFunctionOverload &&
       type &&
       type.kind === "FunctionType"
     ) {
