@@ -1561,6 +1561,32 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document statement semantic guard diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Statement semantic guard failures use `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`, `BPL_VARIABLE_REDECLARATION`, `BPL_INTEGER_LITERAL_OVERFLOW`, `BPL_ASSIGNMENT_TARGET_CONSTANT`, `BPL_ASSIGNMENT_TARGET_INVALID`, and `BPL_TUPLE_DESTRUCTURE_TARGET_INVALID`",
+      "`Missing type annotation for variable 'value'`",
+      "`Variable 'value' is already declared in this scope`",
+      "`Integer overflow: value 128 does not fit in type i8`",
+      "`Cannot assign to constant 'value'`",
+      "`Invalid assignment target`",
+      "`Invalid assignment target in tuple destructuring`",
+      "`Variables must have explicit type annotations.`",
+      "`Cannot redeclare 'value' in the same scope.`",
+      "`Ensure the value is within the range of i8.`",
+      "`Constants cannot be modified.`",
+      "`Left-hand side of assignment must be a variable",
+      "`Tuple elements in assignment must be valid l-values",
+      "missing local type annotations, duplicate local declarations, integer literal overflow, const assignment, invalid assignment targets, and invalid tuple destructuring targets",
+      'bun test tests/TypeCheckerStatementSemanticGuards.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

@@ -136,6 +136,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   registry. Valid division/modulo, in-range shifts, mutable lvalue address-of,
   homogeneous array literals, allowed casts, and non-void `sizeof` remain
   accepted.
+- **Statement Semantic Guard Diagnostic Codes** - Missing local type
+  annotations, duplicate local declarations, integer literal overflow, const
+  assignment, invalid assignment targets, and invalid tuple destructuring
+  targets now report `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`,
+  `BPL_VARIABLE_REDECLARATION`, `BPL_INTEGER_LITERAL_OVERFLOW`,
+  `BPL_ASSIGNMENT_TARGET_CONSTANT`, `BPL_ASSIGNMENT_TARGET_INVALID`, and
+  `BPL_TUPLE_DESTRUCTURE_TARGET_INVALID` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid typed locals, unique declarations, in-range integer literals,
+  mutable assignments, valid assignment targets, and valid tuple destructuring
+  remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

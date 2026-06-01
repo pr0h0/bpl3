@@ -847,6 +847,13 @@ bun test tests/TypeCheckerExpressionSemanticGuards.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"
 ```
 
+Statement semantic guard failures use `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`, `BPL_VARIABLE_REDECLARATION`, `BPL_INTEGER_LITERAL_OVERFLOW`, `BPL_ASSIGNMENT_TARGET_CONSTANT`, `BPL_ASSIGNMENT_TARGET_INVALID`, and `BPL_TUPLE_DESTRUCTURE_TARGET_INVALID`. This covers missing local type annotations, duplicate local declarations, integer literal overflow, const assignment, invalid assignment targets, and invalid tuple destructuring targets. Representative messages include `Missing type annotation for variable 'value'`, `Variable 'value' is already declared in this scope`, `Integer overflow: value 128 does not fit in type i8`, `Cannot assign to constant 'value'`, `Invalid assignment target`, and `Invalid assignment target in tuple destructuring`. The corresponding hints include `Variables must have explicit type annotations.`, `Cannot redeclare 'value' in the same scope.`, `Ensure the value is within the range of i8.`, `Constants cannot be modified.`, `Left-hand side of assignment must be a variable, member, array element, pointer dereference, or tuple destructuring.`, and `Tuple elements in assignment must be valid l-values (variable, member, array element, or pointer dereference).`. Valid typed locals, unique declarations, in-range integer literals, mutable assignments, valid assignment targets, and valid tuple destructuring remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerStatementSemanticGuards.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

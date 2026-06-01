@@ -4525,6 +4525,153 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports statement semantic guard failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "variable_type_annotation_missing",
+        code: "BPL_VARIABLE_TYPE_ANNOTATION_MISSING",
+        preview: "local value = []",
+        message: "Missing type annotation for variable 'value'",
+        hint: "Variables must have explicit type annotations.",
+        source: [
+          "frame main() ret int {",
+          "    local value = [];",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "variable_redeclaration",
+        code: "BPL_VARIABLE_REDECLARATION",
+        preview: "local value: int = 2",
+        message: "Variable 'value' is already declared in this scope",
+        hint: "Cannot redeclare 'value' in the same scope.",
+        source: [
+          "frame main() ret int {",
+          "    local value: int = 1;",
+          "    local value: int = 2;",
+          "    return value;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "integer_literal_overflow",
+        code: "BPL_INTEGER_LITERAL_OVERFLOW",
+        preview: "local value: i8 = 128",
+        message: "Integer overflow: value 128 does not fit in type i8",
+        hint: "Ensure the value is within the range of i8.",
+        source: [
+          "frame main() ret int {",
+          "    local value: i8 = 128;",
+          "    return cast<int>(value);",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "assignment_target_constant",
+        code: "BPL_ASSIGNMENT_TARGET_CONSTANT",
+        preview: "value = 2",
+        message: "Cannot assign to constant 'value'",
+        hint: "Constants cannot be modified.",
+        source: [
+          "frame main() ret int {",
+          "    local const value: int = 1;",
+          "    value = 2;",
+          "    return value;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "assignment_target_invalid",
+        code: "BPL_ASSIGNMENT_TARGET_INVALID",
+        preview: "(1 + 2) = 3",
+        message: "Invalid assignment target",
+        hint: "Left-hand side of assignment must be",
+        source: [
+          "frame main() ret int {",
+          "    (1 + 2) = 3;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "tuple_destructure_target_invalid",
+        code: "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID",
+        preview: "(a, 1) = (2, 3)",
+        message: "Invalid assignment target in tuple destructuring",
+        hint: "Tuple elements in assignment must be valid l-values",
+        source: [
+          "frame main() ret int {",
+          "    local a: int = 1;",
+          "    (a, 1) = (2, 3);",
+          "    return a;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      expect(check.status).toBe(1);
+      const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+      expect(checkReport).toMatchObject({
+        schemaVersion: 1,
+        check: "check",
+        success: false,
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: sourceFile,
+            success: false,
+          },
+        ],
+      });
+      const checkDiagnostic = checkReport.files[0]?.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(checkDiagnostic).toBeDefined();
+      expect(checkDiagnostic?.code).toBe(testCase.code);
+      expect(checkDiagnostic?.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic?.message).toContain(testCase.message);
+      expect(checkDiagnostic?.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+      });
+      const buildDiagnostic = buildReport.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(buildDiagnostic).toBeDefined();
+      expect(buildDiagnostic?.message).toContain(testCase.message);
+      expect(buildDiagnostic?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
