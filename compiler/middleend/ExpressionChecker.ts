@@ -12,6 +12,7 @@ import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
+import { CONDITION_TYPE_MISMATCH_CODE } from "./TypeCheckerBase";
 
 function isGenericParameterType(
   context: CheckerContext,
@@ -1131,6 +1132,7 @@ export function checkTernary(
       `Ternary condition must be boolean, got ${this.typeToString(condType)}`,
       "Ensure the condition evaluates to a boolean.",
       expr.condition.location,
+      CONDITION_TYPE_MISMATCH_CODE,
     );
   }
 

@@ -32,7 +32,7 @@ function expectConditionMismatch(
 }
 
 describe("TypeChecker condition type mismatch diagnostics", () => {
-  test("codes non-boolean if and loop conditions", () => {
+  test("codes non-boolean if, loop, and ternary conditions", () => {
     expectConditionMismatch(
       `
         frame main() ret int {
@@ -56,6 +56,15 @@ describe("TypeChecker condition type mismatch diagnostics", () => {
       `,
       "Loop condition must be boolean, got int",
     );
+
+    expectConditionMismatch(
+      `
+        frame main() ret int {
+          return 1 ? 1 : 0;
+        }
+      `,
+      "Ternary condition must be boolean, got int",
+    );
   });
 
   test("preserves valid boolean conditions", () => {
@@ -69,7 +78,7 @@ describe("TypeChecker condition type mismatch diagnostics", () => {
           value = value + 1;
           break;
         }
-        return value;
+        return (value < 3) ? value : 3;
       }
     `;
 
