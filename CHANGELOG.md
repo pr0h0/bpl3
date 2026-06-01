@@ -599,6 +599,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Linter Rule Injection** - `Linter` now accepts optional extra rules in its
+  constructor so tests and tooling can exercise visitor coverage without
+  mutating private state.
+- **Linter Block Traversal** - The linter visitor now matches the typed AST
+  `Block` node kind, allowing custom rules to traverse statements inside
+  function bodies.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.

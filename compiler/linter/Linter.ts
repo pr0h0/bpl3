@@ -20,8 +20,9 @@ export class Linter {
   private rules: LintRule[] = [];
   private errors: CompilerError[] = [];
 
-  constructor() {
+  constructor(extraRules: LintRule[] = []) {
     this.registerRules();
+    this.rules.push(...extraRules);
   }
 
   private registerRules() {
@@ -80,7 +81,7 @@ export class Linter {
           this.visit(member, context);
         }
         break;
-      case "BlockStmt":
+      case "Block":
         for (const stmt of (node as AST.BlockStmt).statements) {
           this.visit(stmt, context);
         }
