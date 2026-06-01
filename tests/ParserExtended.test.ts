@@ -24,6 +24,14 @@ describe("Parser - Extended Tests", () => {
       expect(program.statements.length).toBe(1);
     });
 
+    it("should parse prefix unary plus for semantic diagnostics", () => {
+      const source = "frame test() { local x: int = +5; }";
+      const tokens = lexWithGrammar(source, "test.bpl");
+      const parser = new Parser(source, "test.bpl", tokens);
+      const program = parser.parse();
+      expect(program.statements.length).toBe(1);
+    });
+
     it("should parse ternary operator", () => {
       const source = "frame test() { local x: int = true ? 1 : 0; }";
       const tokens = lexWithGrammar(source, "test.bpl");

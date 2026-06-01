@@ -91,7 +91,7 @@ Relational = Shift (('<' | '<=' | '>' | '>=') Shift)*;
 Shift = Additive (('<<' | '>>') Additive)*;
 Additive = Multiplicative (('+' | '-') Multiplicative)*;
 Multiplicative = Unary (('*' | '/' | '%') Unary)*;
-Unary = ('!' | '-' | '~' | '*' | '&' | '++' | '--') Unary | Postfix;
+Unary = ('!' | '-' | '+' | '~' | '*' | '&' | '++' | '--') Unary | Postfix;
 Postfix = Primary ( '[' Expression ']' | '.' Identifier | GenericFunctionCall | '(' (Expression (',' Expression)*)? ')' )*;
 GenericFunctionCall = GenericArgs '(' (Expression (',' Expression)*)? ')';
 TupleLiteral = '(' Expression (',' Expression)+ ','? ')';
@@ -108,5 +108,4 @@ MatchExpression = 'match' '<' Type '>' '(' (Expression | Type) ')';
 # Program entry
 Program = (Statement | SingleLineComment | MultiLineComment)* EOF;
 EOF = '<EOF>';
-
 

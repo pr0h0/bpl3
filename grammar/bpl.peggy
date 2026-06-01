@@ -1056,7 +1056,7 @@ Unary
   / Postfix
 
 UnaryOperator
-  = op:("++" / "--" / "!" / "~" / "*" / "&" / "-") { return { op, loc: location() }; }
+  = op:("++" / "--" / "!" / "~" / "*" / "&" / "-" / "+") { return { op, loc: location() }; }
 
 Postfix
   = primary:Primary postfixes:PostfixTail* {

@@ -16,14 +16,19 @@ import {
   ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
   BINARY_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
+  BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
   COMPARISON_TYPE_MISMATCH_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
+  DEREFERENCE_TARGET_INVALID_CODE,
+  LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
   LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
   MODULO_OPERAND_TYPE_MISMATCH_CODE,
   POINTER_ARITHMETIC_VOID_CODE,
   POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
   STRING_CONCAT_UNSUPPORTED_CODE,
   TERNARY_BRANCH_TYPE_MISMATCH_CODE,
+  UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
+  UNARY_PLUS_UNSUPPORTED_CODE,
 } from "./TypeCheckerBase";
 
 function isGenericParameterType(
@@ -888,6 +893,7 @@ export function checkUnary(
       `Cannot dereference non-pointer type ${this.typeToString(operandType)}`,
       "Dereference requires a pointer type.",
       expr.location,
+      DEREFERENCE_TARGET_INVALID_CODE,
     );
   }
 
@@ -898,6 +904,7 @@ export function checkUnary(
         `Logical not requires boolean operand, got ${this.typeToString(operandType)}`,
         "Ensure the operand is a boolean expression.",
         expr.location,
+        LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     return operandType;
@@ -910,6 +917,7 @@ export function checkUnary(
         `Bitwise not requires integer operand, got ${this.typeToString(operandType)}`,
         "Ensure the operand is an integer.",
         expr.location,
+        BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     return operandType;
@@ -927,6 +935,7 @@ export function checkUnary(
         `Unary operator '-' cannot be applied to type '${this.typeToString(operandType)}'`,
         "Negation requires a numeric type.",
         expr.location,
+        UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     return operandType;
@@ -938,6 +947,7 @@ export function checkUnary(
       "Unary plus operator '+' is not supported",
       "The unary plus operator is a no-op and has been intentionally excluded. Simply remove the '+' prefix.",
       expr.location,
+      UNARY_PLUS_UNSUPPORTED_CODE,
     );
   }
 
