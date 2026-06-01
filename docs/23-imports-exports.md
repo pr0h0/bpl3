@@ -119,7 +119,8 @@ bpl run main.bpl
 BPL resolves imports in this order:
 
 1. Relative paths such as `./utils.bpl` and `../shared.bpl`
-2. Standard library paths under `std/`
+2. Standard library modules, including bare module names such as `math` and
+   explicit paths under `std/`
 3. Local packages in `bpl_modules/`
 4. Global packages in `~/.bpl/packages/`
 
@@ -139,6 +140,13 @@ import [String] from "std/string.bpl";
 import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 ```
+
+Bare imports that match standard-library module basenames resolve to the
+standard library before package lookup. A package named `math` is shadowed by
+the built-in `math` module when imported as `"math"`, so package names that
+collide with standard-library module basenames are not reachable through bare
+imports. Use a non-stdlib package name such as `math-extra`, or use explicit
+relative imports for local project files.
 
 Explicit `std/` and `std\` paths must be normalized subpaths inside the
 standard library. They cannot contain empty, `.`, or `..` path segments, so

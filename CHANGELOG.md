@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Stdlib Package Collision Docs** - Import and package docs now spell out
+  that bare imports matching standard-library module basenames resolve to the
+  standard library before package lookup, so packages named like `math` should
+  use non-stdlib names such as `math-extra`.
 - **CI Triage Offline Fixture Diagnostics** - `bun run ci:triage -- --jobs-json`
   now reports stable usage errors for missing, malformed, and wrong-shape
   offline GitHub jobs fixtures instead of raw filesystem or JSON parser output.

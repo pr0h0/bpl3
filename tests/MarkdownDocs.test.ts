@@ -927,6 +927,21 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(docs, requiredSnippets);
   });
 
+  test("docs document bare stdlib import precedence over packages", () => {
+    const docs = normalizedMarkdownText([
+      "docs/23-imports-exports.md",
+      "docs/25-package-management.md",
+    ]);
+    const requiredSnippets = [
+      "Bare imports that match standard-library module basenames resolve to the standard library before package lookup",
+      "A package named `math` is shadowed by the built-in `math` module when imported as `\"math\"`",
+      "Use a non-stdlib package name such as `math-extra`",
+      "package names that collide with standard-library module basenames are not reachable through bare imports",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("docs document package search directory JSON diagnostics", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",

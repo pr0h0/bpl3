@@ -356,6 +356,13 @@ directory and walks upward, so `src/main.bpl` can import packages installed at
 the project root even when `bpl check /path/to/project/src/main.bpl` is run from
 another working directory.
 
+Package names that collide with standard-library module basenames are not
+reachable through bare imports. Bare imports that match standard-library module
+basenames resolve to the standard library before package lookup; for example, a
+package named `math` is shadowed by the built-in `math` module when imported as
+`"math"`. Use a non-stdlib package name such as `math-extra` for packages that
+should be imported by name.
+
 During package resolution, the requested package name must use the same
 lowercase package-name format as package manifests. The package directory name
 and manifest must agree: `bpl_modules/my-package/bpl.json` must declare
