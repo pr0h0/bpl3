@@ -197,6 +197,10 @@ error under sanitizers is different from missing compiler-rt support: runtime
 errors mean the sanitizer-backed binary ran and exposed a compiler/runtime
 behavior issue, while missing compiler-rt means the local toolchain cannot build
 the sanitizer binary yet.
+When compiler-rt is unavailable, `CompilerSanitizerRuntime.test` reports Bun
+skipped tests instead of counting the sanitizer runtime assertions as successful
+execution. That skip is an optional prerequisite skip, not a successful
+sanitizer-backed runtime run.
 
 A Bun test timeout in `CompilerSanitizerRuntime.test` means the sanitizer
 harness exceeded its test budget; it is not fixed by `BPL_RUN_TIMEOUT_MS`.

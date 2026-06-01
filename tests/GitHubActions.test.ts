@@ -346,6 +346,13 @@ describe("GitHub Actions workflows", () => {
 
     expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS");
     expect(sanitizerTest).toContain("getSanitizerRuntimeTestTimeoutMs");
+    expect(sanitizerTest).toContain(
+      "const sanitizerSupport = checkBplSanitizerSupport();",
+    );
+    expect(sanitizerTest).toContain(
+      "const sanitizerTest = sanitizerSupport.supported ? test : test.skip;",
+    );
+    expect(sanitizerTest).toContain("sanitizerTest(");
     expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS,\n  );");
     expect(timeoutEnv).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS: 30000");
   });

@@ -1209,6 +1209,8 @@ describe("Markdown documentation", () => {
       "Sanitizer-backed runtime failures are separate from BPL runtime execution timeouts",
       "Use this order for sanitizer CI failures: run `bun run ci:triage`, inspect `bpl doctor sanitizer --json`, then reproduce with `bun run test:sanitizers`",
       "`BPL_SANITIZER_RUNTIME_UNAVAILABLE` in the doctor report means the local compiler could not link ASan/UBSan with compiler-rt/libclang_rt",
+      "When compiler-rt is unavailable, `CompilerSanitizerRuntime.test` reports Bun skipped tests instead of counting the sanitizer runtime assertions as successful execution",
+      "That skip is an optional prerequisite skip, not a successful sanitizer-backed runtime run",
       "A BPL runtime error under sanitizers is different from missing compiler-rt support",
       "bun run test:sanitizers",
       "bun test tests/CompilerSanitizerRuntime.test.ts",

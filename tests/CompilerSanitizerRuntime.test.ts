@@ -6,17 +6,13 @@ import {
 } from "./helpers/compilerCorrectness";
 
 const SANITIZER_RUNTIME_TEST_TIMEOUT_MS = getSanitizerRuntimeTestTimeoutMs();
+const sanitizerSupport = checkBplSanitizerSupport();
+const sanitizerTest = sanitizerSupport.supported ? test : test.skip;
 
 describe("Compiler sanitizer-backed runtime tests", () => {
-  test(
+  sanitizerTest(
     "runs representative safe runtime behavior under ASan and UBSan",
     () => {
-      const support = checkBplSanitizerSupport();
-      if (!support.supported) {
-        expect(support.reason).toContain("libclang_rt");
-        return;
-      }
-
       const source = `
       extern printf(fmt: string, ...);
 
@@ -57,15 +53,9 @@ describe("Compiler sanitizer-backed runtime tests", () => {
     SANITIZER_RUNTIME_TEST_TIMEOUT_MS,
   );
 
-  test(
+  sanitizerTest(
     "routes checked runtime failures through BPL errors under ASan and UBSan",
     () => {
-      const support = checkBplSanitizerSupport();
-      if (!support.supported) {
-        expect(support.reason).toContain("libclang_rt");
-        return;
-      }
-
       const cases = [
         {
           name: "division by zero",
