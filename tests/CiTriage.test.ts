@@ -1027,6 +1027,28 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps scheduled fuzz artifact failures to replay and validation guidance", () => {
+    const expectedCommands = [
+      "bun run fuzz:repro -- fuzz/crashes",
+      "bun run fuzz:validate-artifacts",
+      "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json",
+      "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json --mode parser,typecheck,codegen,runtime,differential,sanitizer",
+      "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json --minimize --out fuzz/crashes/<artifact>.min.bpl",
+    ];
+
+    expect(localCommandsForStep("compiler-fuzz-crashes artifact")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "fuzz/crashes/crash_seed-cafe_iter-1_tokens.json",
+      ),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("Upload fuzz crash artifacts")).toEqual(
+      expectedCommands,
+    );
+  });
+
   test("maps timeout failure text to focused repro commands", () => {
     expect(
       localCommandsForStep("compiler driver timed out after 600000ms"),
@@ -3698,6 +3720,72 @@ describe("CI triage helper", () => {
         "bun run test:sanitizers",
         "bun test tests/CompilerSanitizerRuntime.test.ts",
         "bun index.ts doctor sanitizer --json",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints fuzz artifact repro guidance from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-fuzz-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 41,
+              name: "Deterministic compiler fuzz",
+              conclusion: "failure",
+              html_url:
+                "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/41",
+              steps: [
+                {
+                  name: "compiler-fuzz-crashes artifact includes fuzz/crashes/crash_seed-cafe_iter-1_tokens.json",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs).toHaveLength(1);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun run fuzz:repro -- fuzz/crashes",
+        "bun run fuzz:validate-artifacts",
+        "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json",
+        "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json --mode parser,typecheck,codegen,runtime,differential,sanitizer",
+        "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json --minimize --out fuzz/crashes/<artifact>.min.bpl",
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

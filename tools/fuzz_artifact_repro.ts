@@ -271,6 +271,7 @@ function buildCommands(options: {
       .filter((part): part is string => part !== undefined)
       .join(" "),
   );
+  commands.push("bun run fuzz:validate-artifacts");
 
   return commands;
 }

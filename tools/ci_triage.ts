@@ -680,8 +680,37 @@ const TEST_CI_RUNNER_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const FUZZ_ARTIFACT_REPRO_STEP_PATTERN = new RegExp(
+  [
+    "compiler-fuzz-crashes",
+    "fuzz/crashes/[^\\s]+\\.json",
+    "Upload fuzz crash artifacts",
+    "fuzz crash artifacts",
+  ].join("|"),
+  "i",
+);
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
+    "bun run fuzz:repro -- fuzz/crashes",
+  ],
+  [
+    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
+    "bun run fuzz:validate-artifacts",
+  ],
+  [
+    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
+    "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json",
+  ],
+  [
+    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
+    "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json --mode parser,typecheck,codegen,runtime,differential,sanitizer",
+  ],
+  [
+    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
+    "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json --minimize --out fuzz/crashes/<artifact>.min.bpl",
+  ],
   [
     CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "module path diagnostic codes|missing explicit std imports"',
