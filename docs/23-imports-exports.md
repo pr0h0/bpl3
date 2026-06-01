@@ -180,6 +180,9 @@ Missing named imports use `BPL_IMPORT_EXPORT_NOT_FOUND` after the imported
 module is resolved but the requested symbol is absent from its export list. For
 example, importing `packageMath` from the built-in `math` module reports
 `Module 'math' does not export 'packageMath'` with the missing-export code.
+When the imported module has exported names, the hint includes
+`Available exports:` with the known names sorted for deterministic output, such
+as `Available exports: alpha, zeta.`.
 Use the exact filesystem casing in imports so Linux, macOS, and Windows builds
 resolve the same module graph.
 

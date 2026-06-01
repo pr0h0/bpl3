@@ -1148,7 +1148,10 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(docs, [
       "Missing named imports use `BPL_IMPORT_EXPORT_NOT_FOUND`",
       "`Module 'math' does not export 'packageMath'`",
+      "When the imported module has exported names, the hint includes `Available exports:`",
+      "`Available exports: alpha, zeta.`",
       'bun test tests/ImportHandler.test.ts -t "stable code"',
+      'bun test tests/CLIJsonParseability.test.ts -t "available exports"',
       'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
     ]);
   });

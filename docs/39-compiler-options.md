@@ -564,11 +564,14 @@ the ModuleResolver constants so new resolver codes do not silently miss docs.
 Resolved imports that ask for a symbol the module does not export use
 `BPL_IMPORT_EXPORT_NOT_FOUND`; for example, a same-name package hidden by the
 built-in `math` module can report `Module 'math' does not export 'packageMath'`
-with that code in both `bpl check --json` and `bpl build --json`. Reproduce
-that contract with:
+with that code in both `bpl check --json` and `bpl build --json`. When the
+imported module has exported names, the hint includes `Available exports:` with
+those names sorted for deterministic JSON output. Reproduce those contracts
+with:
 
 ```bash
 bun test tests/ImportHandler.test.ts -t "stable code"
+bun test tests/CLIJsonParseability.test.ts -t "available exports"
 bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"
 ```
 
