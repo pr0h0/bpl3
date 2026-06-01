@@ -1204,6 +1204,22 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document generic arity diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Generic arity mismatches use `BPL_GENERIC_ARITY_MISMATCH`",
+      "`Generic type 'Box' expects 1 type arguments, but got 2.`",
+      "`Generic type 'Alias' expects 1 type arguments, but got 2.`",
+      "`Check generic argument count.`",
+      'bun test tests/TypeCheckerGenericArity.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "generic type arity|generic alias arity"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

@@ -625,6 +625,18 @@ bun test tests/TypeCheckerRecursiveTypes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"
 ```
 
+Generic arity mismatches use `BPL_GENERIC_ARITY_MISMATCH`. This covers generic
+type argument-count failures such as `Generic type 'Box' expects 1 type
+arguments, but got 2.` and generic type-alias argument-count failures such as
+`Generic type 'Alias' expects 1 type arguments, but got 2.`. Both use the hint
+`Check generic argument count.`. Reproduce the type-checker and JSON contracts
+with:
+
+```bash
+bun test tests/TypeCheckerGenericArity.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "generic type arity|generic alias arity"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

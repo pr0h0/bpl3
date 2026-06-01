@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   recursive enum variant cycles, self-inheritance, and circular inheritance now
   report `BPL_TYPE_RECURSION_CYCLE` in compiler errors, `bpl check --json`,
   `bpl build --json`, and the public CLI JSON error-code registry.
+- **Generic Arity Diagnostic Code** - Generic type and type-alias
+  argument-count mismatches now report `BPL_GENERIC_ARITY_MISMATCH` in compiler
+  errors, `bpl check --json`, `bpl build --json`, and the public CLI JSON
+  error-code registry.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
