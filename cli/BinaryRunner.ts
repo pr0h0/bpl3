@@ -60,15 +60,21 @@ export function getWasmRuntimeMode(
     return "freestanding";
   }
 
-  const normalizedTarget = target?.toLowerCase() ?? "";
-  if (
-    normalizedTarget.includes("wasi") ||
-    normalizedTarget.includes("emscripten")
-  ) {
+  if (targetHasHostedWasmRuntimeComponent(target)) {
     return "host";
   }
 
   return "freestanding";
+}
+
+function targetHasHostedWasmRuntimeComponent(target?: string): boolean {
+  const components = target?.toLowerCase().split("-").filter(Boolean) ?? [];
+  return components.some(
+    (component) =>
+      component === "emscripten" ||
+      component === "wasi" ||
+      /^wasip\d+$/.test(component),
+  );
 }
 
 function isEnvFlagEnabled(value: string | undefined): boolean {

@@ -3,7 +3,11 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { compileToBinary, runExecutable } from "../cli/BinaryRunner";
+import {
+  compileToBinary,
+  getWasmRuntimeMode,
+  runExecutable,
+} from "../cli/BinaryRunner";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("BinaryRunner", () => {
@@ -18,6 +22,28 @@ describe("BinaryRunner", () => {
   const originalWasmLinkerProbeTimeout =
     process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
   const originalRunTimeout = process.env.BPL_RUN_TIMEOUT_MS;
+
+  test("selects wasm runtime mode from target components and explicit overrides", () => {
+    expect(getWasmRuntimeMode({}, "wasm32-unknown-unknown")).toBe(
+      "freestanding",
+    );
+    expect(getWasmRuntimeMode({}, "wasm32-wasi")).toBe("host");
+    expect(getWasmRuntimeMode({}, "wasm32-wasip1")).toBe("host");
+    expect(getWasmRuntimeMode({}, "wasm32-unknown-emscripten")).toBe("host");
+    expect(
+      getWasmRuntimeMode({ wasmRuntime: "host" }, "wasm32-unknown-unknown"),
+    ).toBe("host");
+    expect(
+      getWasmRuntimeMode({ wasmRuntime: "freestanding" }, "wasm32-wasi"),
+    ).toBe("freestanding");
+  });
+
+  test("does not select hosted wasm runtime mode from substring-only components", () => {
+    expect(getWasmRuntimeMode({}, "wasm32-notwasi")).toBe("freestanding");
+    expect(getWasmRuntimeMode({}, "wasm32-unknown-notemscripten")).toBe(
+      "freestanding",
+    );
+  });
 
   afterEach(() => {
     if (originalBplHome === undefined) {
@@ -495,6 +521,64 @@ describe("BinaryRunner", () => {
       const args = fs.readFileSync(argsLogPath, "utf-8").split("\n");
       expect(args).toContain("-target");
       expect(args).toContain("wasm32-unknown-unknown");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("links hosted wasm runtime only when target defaults or options require it", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-wasm-runtime-mode-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const libDir = path.join(bplHome, "lib");
+    const irPath = path.join(tempDir, "program.ll");
+    const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
+    const runtimeWasmPath = path.join(libDir, "runtime_wasm.ll");
+    const runtimeWasmHostPath = path.join(libDir, "runtime_wasm_host.ll");
+
+    try {
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.writeFileSync(runtimeWasmPath, "wasm runtime ir\n");
+      fs.writeFileSync(runtimeWasmHostPath, "hosted wasm runtime ir\n");
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+
+      process.env.BPL_HOME = bplHome;
+      process.env.WASM_LD = writeNodeCommandShim(
+        path.join(tempDir, "fake-wasm-ld"),
+        ["console.log('LLD 18.0.0');"],
+      );
+      process.env.BPL_WASM_CC = writeNodeCommandShim(
+        path.join(tempDir, "fake-wasm-cc"),
+        [
+          'const fs = require("fs");',
+          "const args = process.argv.slice(2);",
+          `fs.writeFileSync(${JSON.stringify(argsLogPath)}, args.join("\\n"));`,
+          'const outputIndex = args.lastIndexOf("-o") + 1;',
+          "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+          'fs.writeFileSync(args[outputIndex], "wasm-bytes\\n");',
+        ],
+      );
+
+      const defaultResult = compileToBinary(irPath, {
+        target: "wasm32-wasi",
+      });
+
+      expect(defaultResult.success).toBe(true);
+      let args = fs.readFileSync(argsLogPath, "utf-8").split("\n");
+      expect(args).toContain(runtimeWasmPath);
+      expect(args).toContain(runtimeWasmHostPath);
+
+      const freestandingResult = compileToBinary(irPath, {
+        output: path.join(tempDir, "freestanding.wasm"),
+        target: "wasm32-wasi",
+        wasmRuntime: "freestanding",
+      });
+
+      expect(freestandingResult.success).toBe(true);
+      args = fs.readFileSync(argsLogPath, "utf-8").split("\n");
+      expect(args).toContain(runtimeWasmPath);
+      expect(args).not.toContain(runtimeWasmHostPath);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

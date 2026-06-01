@@ -1034,6 +1034,8 @@ describe("Markdown documentation", () => {
       "Use `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` after doctor output to reproduce CI's required-linker behavior locally",
       "tests/helpers/wasmCompatibilityMatrix.ts",
       "`wasm-freestanding`, `wasm-hosted`, `blocked-by-host-api`, or `native-only`",
+      "`wasm32-wasi`, `wasm32-wasip1`, and target triples with an `emscripten` component select hosted mode by default",
+      "substring-only components such as `notwasi` or `notemscripten` stay freestanding",
     ];
 
     for (const snippet of requiredSnippets) {

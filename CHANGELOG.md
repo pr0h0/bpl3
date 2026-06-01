@@ -508,6 +508,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Wasm Runtime Mode Component Matching** - Default hosted wasm runtime
+  selection now matches target components such as `wasi`, `wasip1`, and
+  `emscripten` instead of substrings, so targets like `wasm32-notwasi` remain
+  freestanding unless `--wasm-runtime host` is explicit.
 - **Compiler API Option Validation Hardening** - `Compiler`, `CodeGenerator`,
   `Linker`, and `ModuleCache` now reject `optimizationLevel` values outside 0-3
   plus invalid `emitType` values and invalid `jobs` counts before code

@@ -929,10 +929,12 @@ their leading `%` so output remains predictable. Edge cases are also stable:
 null `%s` arguments print `(null)`; a dangling `%` prints as `%`;
 unsupported specifiers do not consume varargs. Use native targets or a richer
 host/runtime adapter for full libc formatting such as widths, floating point,
-or long integer modifiers. `wasm32-wasi` and
-Emscripten-flavored target triples select hosted mode by default;
+or long integer modifiers. `wasm32-wasi`, `wasm32-wasip1`, and target triples
+with an `emscripten` component select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
-provided.
+provided. Hosted defaults match target components, so substring-only components
+such as `notwasi` or `notemscripten` stay freestanding unless
+`--wasm-runtime host` is explicit.
 
 Programs that depend on full operating-system APIs such as files, sockets,
 process calls, or platform-specific inline assembly still need a richer
