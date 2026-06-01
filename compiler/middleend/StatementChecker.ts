@@ -8,7 +8,10 @@ import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES } from "./TypeUtils";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
-import { VOID_TYPE_INVALID_CODE } from "./TypeCheckerBase";
+import {
+  RETURN_TYPE_MISMATCH_CODE,
+  VOID_TYPE_INVALID_CODE,
+} from "./TypeCheckerBase";
 
 function isUnsafeStackAddressSymbol(symbol: Symbol | undefined): boolean {
   if (!symbol || (symbol.kind !== "Variable" && symbol.kind !== "Parameter")) {
@@ -462,6 +465,7 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
         )}, got ${this.typeToString(resolvedActual)}`,
         "Ensure the returned value matches the function's return type.",
         stmt.location,
+        RETURN_TYPE_MISMATCH_CODE,
       );
     }
 
