@@ -231,6 +231,17 @@ const STD_IMPORT_ISOLATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const STDLIB_PACKAGE_COLLISION_STEP_PATTERN = new RegExp(
+  [
+    "stdlib package-name collisions",
+    "bare stdlib module names before same-name packages",
+    "bare stdlib import precedence",
+    "Module ['\"]math['\"] does not export ['\"]packageMath['\"]",
+    "package named `math` is shadowed",
+    "package named math is shadowed",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -831,6 +842,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     STD_IMPORT_ISOLATION_STEP_PATTERN,
     'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
   ],
+  [
+    STDLIB_PACKAGE_COLLISION_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "bare stdlib import precedence"',
+  ],
+  [
+    STDLIB_PACKAGE_COLLISION_STEP_PATTERN,
+    'bun test tests/ModuleResolver.test.ts -t "bare stdlib module names"',
+  ],
+  [
+    STDLIB_PACKAGE_COLLISION_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+  ],
+  [STDLIB_PACKAGE_COLLISION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

@@ -460,6 +460,27 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps stdlib package-name collision diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/MarkdownDocs.test.ts -t "bare stdlib import precedence"',
+      'bun test tests/ModuleResolver.test.ts -t "bare stdlib module names"',
+      'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "reports stdlib package-name collisions in JSON-mode check and build diagnostics",
+      "should resolve bare stdlib module names before same-name packages",
+      "docs document bare stdlib import precedence over packages",
+      "Module 'math' does not export 'packageMath'",
+      "package named `math` is shadowed by the built-in `math` module",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -2641,6 +2662,72 @@ describe("CI triage helper", () => {
         'bun test tests/PackageResolver.test.ts -t "casing|case-mismatched global versioned"',
         'bun test tests/ModuleResolver.test.ts -t "case-mismatched global versioned|filesystem casing"',
         'bun test tests/CLIJsonParseability.test.ts -t "package search directory|module path diagnostic codes|JSON-mode build failures"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints stdlib package collision repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-stdlib-package-collision-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 82,
+              name: "Stdlib package collision diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/82",
+              steps: [
+                {
+                  name: "Module 'math' does not export 'packageMath'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/MarkdownDocs.test.ts -t "bare stdlib import precedence"',
+        'bun test tests/ModuleResolver.test.ts -t "bare stdlib module names"',
+        'bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"',
         "bun run check",
       ]);
     } finally {
