@@ -2133,6 +2133,66 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports seeded package import path failures in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    writePackageFixture(packageDir, { entrySource: "export root;" });
+    fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "features", "add.bpl"),
+      "export value;",
+    );
+
+    const seeds = [
+      {
+        name: "empty subpath segment",
+        importPath: "pkg-math//feature",
+        expectedCode: "BPL_PACKAGE_IMPORT_INVALID",
+        expectedMessage: "Package imports cannot contain empty",
+      },
+      {
+        name: "dot-dot subpath segment",
+        importPath: "pkg-math/../secret",
+        expectedCode: "BPL_PACKAGE_IMPORT_INVALID",
+        expectedMessage: "Package imports cannot contain empty",
+      },
+      {
+        name: "mixed extension path through file",
+        importPath: "pkg-math/features/add.bpl/child",
+        expectedCode: "BPL_PACKAGE_SUBPATH_NOT_FOUND",
+        expectedMessage: "subpath 'features/add.bpl/child' was not found",
+      },
+    ] as const;
+
+    for (const seed of seeds) {
+      const sourceFile = path.join(
+        sourceDir,
+        `${seed.name.replace(/[^a-z0-9]+/g, "_")}.bpl`,
+      );
+      fs.writeFileSync(
+        sourceFile,
+        [
+          `import value from "${seed.importPath}";`,
+          "frame main() ret int {",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      );
+
+      const result = runCli(["check", "--json", sourceFile]);
+      const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+      expect(diagnostic.code, seed.name).toBe(seed.expectedCode);
+      expect(diagnostic.source?.preview, seed.name).toContain(
+        `import value from "${seed.importPath}";`,
+      );
+      expect(diagnostic.message, seed.name).toContain(seed.expectedMessage);
+      expect(diagnostic.hint, seed.name).toContain(seed.expectedMessage);
+      expect(result.stderr, seed.name).toBe("");
+    }
+  });
+
   test("reports package manifest symlink failures in JSON-mode check diagnostics", () => {
     const appDir = path.join(tempDir, "app");
     const sourceDir = path.join(appDir, "src");

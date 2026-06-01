@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Resolver Fuzz Seeds** - Added deterministic package import seed
+  coverage for empty, `.`, `..`, backslash-separated, symlink-looking, and
+  mixed-extension subpath shapes. Focused repro:
+  `bun test tests/PackageResolver.test.ts -t "deterministic" && bun test tests/CLIJsonParseability.test.ts -t "seeded package import path"`.
 - **Version JSON Contract** - `bpl --version --json` and
   `bpl --json --version` now emit a stable `version` report with
   `schemaVersion`, `check`, `success`, and `version` fields. Focused repro:

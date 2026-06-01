@@ -219,6 +219,117 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("keeps deterministic unsafe package import path seeds stable", () => {
+    const appDir = path.join(tempDir, "app");
+    fs.mkdirSync(path.join(appDir, "bpl_modules", "math"), { recursive: true });
+
+    const unsafeImportSeeds = [
+      { name: "empty import", importPath: "" },
+      { name: "absolute-looking package", importPath: "/math" },
+      { name: "trailing empty segment", importPath: "math/" },
+      { name: "middle empty segment", importPath: "math//feature" },
+      { name: "windows empty segment", importPath: "math\\\\feature" },
+      { name: "single dot package", importPath: "." },
+      { name: "single dot-dot package", importPath: ".." },
+      { name: "dot subpath segment", importPath: "math/./feature" },
+      { name: "dot-dot subpath segment", importPath: "math/../secret" },
+      { name: "windows dot subpath", importPath: "math\\.\\feature" },
+      { name: "windows dot-dot subpath", importPath: "math\\..\\secret" },
+    ] as const;
+
+    for (const seed of unsafeImportSeeds) {
+      const details = resolvePackageImport(seed.importPath, appDir);
+
+      expect(details.result, seed.name).toBeNull();
+      expect(details.trace.failureReason, seed.name).toBe("invalid-import");
+      expect(details.trace.failureMessage, seed.name).toContain(
+        "Package imports cannot contain empty, '.' or '..' path segments.",
+      );
+      expect(details.trace.searchedPaths, seed.name).toEqual([]);
+      expect(getPackageResolutionFailureCode(details.trace), seed.name).toBe(
+        "BPL_PACKAGE_IMPORT_INVALID",
+      );
+    }
+  });
+
+  test("keeps deterministic package subpath extension seeds stable", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(featureDir, "add.bpl"), "export add;");
+    fs.writeFileSync(path.join(featureDir, "legacy.x"), "export legacy;");
+    fs.writeFileSync(path.join(featureDir, "link.x"), "export link;");
+
+    const resolvingSeeds = [
+      {
+        name: "extensionless bpl subpath",
+        importPath: "math/features/add",
+        expectedPath: path.join(featureDir, "add.bpl"),
+      },
+      {
+        name: "explicit bpl subpath",
+        importPath: "math/features/add.bpl",
+        expectedPath: path.join(featureDir, "add.bpl"),
+      },
+      {
+        name: "extensionless legacy x subpath",
+        importPath: "math/features/legacy",
+        expectedPath: path.join(featureDir, "legacy.x"),
+      },
+      {
+        name: "explicit legacy x subpath",
+        importPath: "math/features/legacy.x",
+        expectedPath: path.join(featureDir, "legacy.x"),
+      },
+    ] as const;
+
+    for (const seed of resolvingSeeds) {
+      const details = resolvePackageImport(seed.importPath, appDir);
+
+      expect(details.result?.filePath, seed.name).toBe(seed.expectedPath);
+      expect(details.result?.packageName, seed.name).toBe("math");
+      expect(details.result?.source, seed.name).toBe("local");
+      expect(details.trace.failureReason, seed.name).toBeUndefined();
+    }
+
+    const missingSubpathSeeds = [
+      {
+        name: "mixed extension path through bpl file",
+        importPath: "math/features/add.bpl/child",
+      },
+      {
+        name: "symlink-looking missing subpath",
+        importPath: "math/features/linked-child",
+      },
+      {
+        name: "symlink-looking path through x file",
+        importPath: "math/features/link.x/child",
+      },
+    ] as const;
+
+    for (const seed of missingSubpathSeeds) {
+      const details = resolvePackageImport(seed.importPath, appDir);
+
+      expect(details.result, seed.name).toBeNull();
+      expect(details.trace.failureReason, seed.name).toBe("subpath-not-found");
+      expect(details.trace.failureMessage, seed.name).toContain(
+        `subpath '${seed.importPath.slice("math/".length)}' was not found`,
+      );
+      expect(details.trace.entryCandidates.length, seed.name).toBeGreaterThan(
+        0,
+      );
+      expect(getPackageResolutionFailureCode(details.trace), seed.name).toBe(
+        "BPL_PACKAGE_SUBPATH_NOT_FOUND",
+      );
+    }
+  });
+
   test("rejects invalid package import names before searching", () => {
     const appDir = path.join(tempDir, "app");
     fs.mkdirSync(path.join(appDir, "bpl_modules", "bad_name"), {
