@@ -387,6 +387,14 @@ For package subpaths, BPL searches for a file or directory entry under the
 package root. The example above resolves to either
 `bpl_modules/math-extra/features/increment.bpl` or
 `bpl_modules/math-extra/features/increment/index.bpl`.
+Extensionless package directory imports such as `math-extra/features/increment`
+may resolve to `features/increment/index.bpl`, which makes them useful for small
+submodule facades. Explicit package source-file imports such as
+`math-extra/features/increment.bpl` require a file at that exact path; explicit
+package source-file imports ending in `.bpl` or `.x` do not fall back to
+directory indexes. If `features/increment.bpl` is a directory, import
+`math-extra/features/increment` to allow `index.bpl`/`index.x` fallback, or
+create a real `features/increment.bpl` source file.
 The resolver does not follow symlinked package search directories, package
 roots, manifests, source parent directories, entry files, or subpath entries, so
 package imports cannot escape the installed package root through filesystem

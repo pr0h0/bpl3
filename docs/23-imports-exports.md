@@ -302,6 +302,11 @@ non-directory package paths, and roots missing `bpl.json`, block same-name
 workspace/global fallback. Symlinked package entrypoint and subpath candidates
 also block lower-priority `.x` fallbacks for that package import, including
 package directory `index.bpl` candidates before `index.x`.
+Extensionless package directory imports such as `math-extra/features/increment`
+may resolve to `features/increment/index.bpl`. Explicit package source-file
+imports such as `math-extra/features/increment.bpl` require a file at that
+exact path; explicit package source-file imports ending in `.bpl` or `.x` do
+not fall back to directory indexes.
 
 Entry module paths and import candidates are checked before parsing. Missing
 files, directories, and broken symlink paths produce distinct diagnostics.

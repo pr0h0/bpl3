@@ -1011,6 +1011,9 @@ Start with `bpl doctor --json` to see the same
 commands that the wasm tests report when linker probing fails. Use
 `BPL_REQUIRE_WASM_LD=1 bun run test:wasm` after doctor output to reproduce CI's
 required-linker behavior locally.
+Reproduce the hard failure with `BPL_REQUIRE_WASM_LD=1 bun run test:wasm`.
+Inspect the same linker probe with `bun index.ts doctor --json` when you want
+the repository-local CLI entry point instead of an installed `bpl` binary.
 
 ## Complete Examples
 
