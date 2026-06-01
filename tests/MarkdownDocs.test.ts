@@ -126,6 +126,53 @@ function headingSlug(text: string): string {
     .replace(/\s+/g, "-");
 }
 
+interface MarkdownCodeList {
+  name: string;
+  codes: readonly string[];
+}
+
+function normalizedMarkdownText(files: readonly string[]): string {
+  return files
+    .map((file) => readFileSync(file, "utf8"))
+    .join("\n")
+    .replace(/\s+/g, " ");
+}
+
+function expectDocsContainSnippets(
+  docs: string,
+  snippets: readonly string[],
+): void {
+  for (const snippet of snippets) {
+    expect(docs).toContain(snippet.replace(/\s+/g, " "));
+  }
+}
+
+function expectDocsContainCodes(
+  docs: string,
+  codes: readonly string[],
+): void {
+  for (const code of codes) {
+    expect(docs).toContain(code);
+  }
+}
+
+function expectDocsCoverCodeLists(
+  docs: string,
+  codeLists: readonly MarkdownCodeList[],
+): void {
+  const missingCodes: string[] = [];
+
+  for (const { name, codes } of codeLists) {
+    for (const code of codes) {
+      if (!docs.includes(code)) {
+        missingCodes.push(`${name}:${code}`);
+      }
+    }
+  }
+
+  expect(missingCodes).toEqual([]);
+}
+
 describe("Markdown documentation", () => {
   test("local markdown links resolve", () => {
     const files = trackedMarkdownFiles();
@@ -451,98 +498,72 @@ describe("Markdown documentation", () => {
   });
 
   test("package docs document package manager manifest JSON error codes", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "PackageManager manifest-loading failures",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package manifest error codes\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of PACKAGE_MANIFEST_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, PACKAGE_MANIFEST_JSON_ERROR_CODES);
   });
 
   test("package docs document package-cache validation JSON error codes", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Package-cache validation failures",
       "clean and repair validation failures",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache version filter\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of PACKAGE_CACHE_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, PACKAGE_CACHE_JSON_ERROR_CODES);
   });
 
   test("package docs document package-cache package filter JSON error codes", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "package-cache package filters",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache package filter\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of PACKAGE_CACHE_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, PACKAGE_CACHE_JSON_ERROR_CODES);
   });
 
   test("package docs document uninstall JSON error codes", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Package uninstall JSON reports",
       "bun test tests/PackageManagerCLI.test.ts -t \"uninstall success and failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of PACKAGE_UNINSTALL_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, PACKAGE_UNINSTALL_JSON_ERROR_CODES);
   });
 
   test("package docs document pack JSON contract", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Package pack JSON reports",
       'check: "package-pack"',
@@ -550,150 +571,110 @@ describe("Markdown documentation", () => {
       "bun test tests/PackageManagerCLI.test.ts -t \"pack success and failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
   });
 
   test("package docs document init JSON contract", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Package init JSON reports",
       'check: "package-init"',
       "bun test tests/PackageManagerCLI.test.ts -t \"init success and failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of PACKAGE_INIT_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, PACKAGE_INIT_JSON_ERROR_CODES);
   });
 
   test("package docs document install and archive JSON error codes", () => {
-    const packageDocs = readFileSync("docs/25-package-management.md", "utf8");
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${packageDocs}\n${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "project-mode option conflicts",
       "direct archive paths",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package install option conflict|direct archive path\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of [
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, [
       ...PACKAGE_INSTALL_JSON_ERROR_CODES,
       ...PACKAGE_ARCHIVE_JSON_ERROR_CODES,
-    ]) {
-      expect(combinedDocs).toContain(code);
-    }
+    ]);
   });
 
   test("docs document project creation JSON contract", () => {
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const readme = readFileSync("README.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${readme}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "README.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Project creation JSON reports",
       'check: "project-new"',
       "bun test tests/CLI.test.ts -t \"new project success and failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of NEW_PROJECT_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, NEW_PROJECT_JSON_ERROR_CODES);
   });
 
   test("docs document format JSON contract", () => {
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Format JSON reports",
       'check: "format"',
       "bun test tests/CLI.test.ts -t \"format check results and validation failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of FORMAT_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, FORMAT_JSON_ERROR_CODES);
   });
 
   test("docs document bindgen JSON contract", () => {
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Bindgen JSON reports",
       'check: "bindgen"',
       "bun test tests/CLI.test.ts -t \"bindgen success and validation failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of BINDGEN_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, BINDGEN_JSON_ERROR_CODES);
   });
 
   test("docs document docs JSON contract", () => {
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Documentation JSON reports",
       'check: "docs"',
       "bun test tests/CLI.test.ts -t \"documentation generation success and validation failures as JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
-    for (const code of DOCS_JSON_ERROR_CODES) {
-      expect(combinedDocs).toContain(code);
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, DOCS_JSON_ERROR_CODES);
   });
 
   test("docs document completion JSON contract", () => {
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Completion JSON reports",
       'check: "completion"',
@@ -701,19 +682,15 @@ describe("Markdown documentation", () => {
       "bun test tests/CLIJsonParseability.test.ts -t \"completion JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
   });
 
   test("docs document command-level JSON validation constants", () => {
-    const docs = [
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-      readFileSync("docs/60-compiler-correctness.md", "utf8"),
-      readFileSync("CHANGELOG.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "docs/60-compiler-correctness.md",
+      "CHANGELOG.md",
+    ]);
     const expectedCodes = [
       COMPLETION_SHELL_UNSUPPORTED_CODE,
       DOCTOR_SCOPE_UNKNOWN_CODE,
@@ -721,9 +698,7 @@ describe("Markdown documentation", () => {
       SANITIZER_RUNTIME_UNAVAILABLE_CODE,
     ];
 
-    for (const code of expectedCodes) {
-      expect(docs).toContain(code);
-    }
+    expectDocsContainCodes(docs, expectedCodes);
     expect(docs).toContain("unsupported shells return `success: false`");
     expect(docs).toContain("Unknown doctor scopes");
     expect(docs).toContain("The `wasm linker` check reports");
@@ -734,17 +709,8 @@ describe("Markdown documentation", () => {
     const docs = trackedMarkdownFiles()
       .map((file) => readFileSync(file, "utf8"))
       .join("\n");
-    const missingCodes: string[] = [];
 
-    for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
-      for (const code of codes) {
-        if (!docs.includes(code)) {
-          missingCodes.push(`${name}:${code}`);
-        }
-      }
-    }
-
-    expect(missingCodes).toEqual([]);
+    expectDocsCoverCodeLists(docs, CLI_JSON_ERROR_CODE_LISTS);
     expect(docs).toContain("CLI_JSON_ERROR_CODE_LISTS");
     expect(docs).toContain("CLI_JSON_ERROR_CODES");
     expect(docs).toContain(
@@ -756,12 +722,10 @@ describe("Markdown documentation", () => {
   });
 
   test("docs document version JSON contract", () => {
-    const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
-    const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
     const requiredSnippets = [
       "Version JSON reports",
       "bpl --version --json",
@@ -770,9 +734,7 @@ describe("Markdown documentation", () => {
       "bun test tests/CLIJsonParseability.test.ts -t \"version JSON\"",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
   });
 
   test("package docs document global versioned root validation", () => {
@@ -794,12 +756,10 @@ describe("Markdown documentation", () => {
   });
 
   test("docs document package search directory JSON diagnostics", () => {
-    const combinedDocs = [
-      readFileSync("docs/25-package-management.md", "utf8"),
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+    ]);
     const requiredSnippets = [
       "Symlinked package search directories stop package resolution instead of falling through to lower-priority package roots",
       "a symlinked local `bpl_modules/` stops resolution before workspace `packages/`",
@@ -809,18 +769,14 @@ describe("Markdown documentation", () => {
       "global package cache symlinks report `Global package directory path is a symbolic link`",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
   });
 
   test("docs document package source safety JSON diagnostics", () => {
-    const combinedDocs = [
-      readFileSync("docs/25-package-management.md", "utf8"),
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+    ]);
     const requiredSnippets = [
       "After a package root has been accepted, package source failures are terminal too",
       "unsafe manifest entrypoint values such as `../outside.bpl`",
@@ -835,18 +791,14 @@ describe("Markdown documentation", () => {
       "use exact filesystem casing",
     ];
 
-    for (const snippet of requiredSnippets) {
-      expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
-    }
+    expectDocsContainSnippets(docs, requiredSnippets);
   });
 
   test("docs document package import diagnostic codes from resolver contract", () => {
-    const combinedDocs = [
-      readFileSync("docs/25-package-management.md", "utf8"),
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+    ]);
     const expectedCodes = [
       getPackageResolutionFailureCode(
         packageTrace("invalid-import", "invalid package import"),
@@ -944,21 +896,17 @@ describe("Markdown documentation", () => {
       [...PACKAGE_RESOLUTION_FAILURE_CODES].sort(),
     );
 
-    for (const code of expectedCodes) {
-      expect(combinedDocs).toContain(code);
-    }
-    expect(combinedDocs).toContain("include a stable `code`");
-    expect(combinedDocs).toContain("the normal diagnostic object shape");
+    expectDocsContainCodes(docs, expectedCodes);
+    expect(docs).toContain("include a stable `code`");
+    expect(docs).toContain("the normal diagnostic object shape");
   });
 
   test("docs document module import diagnostic codes from resolver constants", () => {
-    const combinedDocs = [
-      readFileSync("docs/23-imports-exports.md", "utf8"),
-      readFileSync("docs/25-package-management.md", "utf8"),
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
+    const docs = normalizedMarkdownText([
+      "docs/23-imports-exports.md",
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+    ]);
     const expectedCodes = [
       MODULE_NOT_FOUND_CODE,
       MODULE_FILE_NOT_FOUND_CODE,
@@ -972,76 +920,58 @@ describe("Markdown documentation", () => {
       [...MODULE_RESOLUTION_FAILURE_CODES].sort(),
     );
 
-    for (const code of expectedCodes) {
-      expect(combinedDocs).toContain(code);
-    }
-    expect(combinedDocs).toContain(
+    expectDocsContainCodes(docs, expectedCodes);
+    expect(docs).toContain(
       "JSON diagnostics include stable `code` values for import-resolution failures",
     );
-    expect(combinedDocs).toContain(
+    expect(docs).toContain(
       "unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`",
     );
-    expect(combinedDocs).toContain(
+    expect(docs).toContain(
       "Use the exact filesystem casing in imports",
     );
   });
 
   test("docs document build validation error codes from runner constants", () => {
-    const docs = [
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-      readFileSync("CHANGELOG.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
-    for (const code of BUILD_JSON_ERROR_CODES) {
-      expect(docs).toContain(code);
-    }
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    expectDocsContainCodes(docs, BUILD_JSON_ERROR_CODES);
     expect(BUILD_JSON_ERROR_CODES).toContain(BUILD_NO_INPUTS_CODE);
     expect(docs).toContain("Build validation `errorCode` values");
     expect(docs).toContain("preserving the human-readable `error` text");
   });
 
   test("docs document clean validation error codes from command constants", () => {
-    const docs = [
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-      readFileSync("CHANGELOG.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
-    for (const code of CLEAN_JSON_ERROR_CODES) {
-      expect(docs).toContain(code);
-    }
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    expectDocsContainCodes(docs, CLEAN_JSON_ERROR_CODES);
     expect(docs).toContain("Clean validation `errorCode` values");
     expect(docs).toContain("preserving the human-readable `error` text");
   });
 
   test("docs document run-script validation error codes from command constants", () => {
-    const docs = [
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-      readFileSync("CHANGELOG.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
-    for (const code of RUN_SCRIPT_JSON_ERROR_CODES) {
-      expect(docs).toContain(code);
-    }
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    expectDocsContainCodes(docs, RUN_SCRIPT_JSON_ERROR_CODES);
     expect(docs).toContain("Run-script validation `errorCode` values");
     expect(docs).toContain("preserving the human-readable `error` text");
   });
 
   test("docs document check and lint input validation error codes from command constants", () => {
-    const docs = [
-      readFileSync("docs/39-compiler-options.md", "utf8"),
-      readFileSync("CHANGELOG.md", "utf8"),
-    ]
-      .join("\n")
-      .replace(/\s+/g, " ");
-    for (const code of [
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    expectDocsContainCodes(docs, [
       ...CHECK_JSON_ERROR_CODES,
       ...LINT_JSON_ERROR_CODES,
-    ]) {
-      expect(docs).toContain(code);
-    }
+    ]);
     expect(docs).toContain("Check and lint input validation `errorCode` values");
     expect(docs).toContain("per-file JSON failure entries");
   });

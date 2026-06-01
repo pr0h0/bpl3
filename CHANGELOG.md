@@ -176,6 +176,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl-v3/cli` as a narrow registry subpath with TypeScript declarations, and
   release smoke verifies the packed import works without shipping broad
   compiler sources.
+- **Markdown JSON Code-List Test Helpers** - MarkdownDocs now centralizes
+  normalized documentation reads, snippet checks, and JSON code-list coverage
+  assertions so future registry guards need less duplicate loop code.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.
