@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import {
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   type Stats,
   writeFileSync,
@@ -53,6 +54,7 @@ interface PackageJson {
   version: string;
   license: string;
   scripts?: Record<string, string>;
+  files?: string[];
 }
 
 export interface PackageScriptHelperReference {
@@ -227,6 +229,55 @@ export function discoverPackageHelperDependencyFiles(
   return [...dependencyFiles].sort();
 }
 
+export function discoverPackedToolPayloadFiles(repoRoot: string): string[] {
+  const packageJson = JSON.parse(
+    readFileSync(join(repoRoot, "package.json"), "utf-8"),
+  ) as PackageJson;
+  const toolsDir = join(repoRoot, "tools");
+
+  if (!tryLstat(toolsDir)?.isDirectory()) {
+    return [];
+  }
+
+  return readdirSync(toolsDir)
+    .filter((name) => name.endsWith(".ts"))
+    .map((name) => `tools/${name}`)
+    .filter((toolPath) =>
+      isIncludedInPackageFiles(toolPath, packageJson.files ?? []),
+    )
+    .sort();
+}
+
+export function findUnaccountedPackedToolPayloadFiles(
+  repoRoot: string,
+  explicitlyOwnedToolFiles: readonly string[] = PACKAGE_HELPER_DEPENDENCIES.map(
+    ({ path }) => path,
+  ).filter((path) => path.startsWith("tools/")),
+): string[] {
+  const ownedToolFiles = new Set([
+    ...discoverPackageScriptHelperFiles(repoRoot),
+    ...explicitlyOwnedToolFiles,
+  ]);
+
+  return discoverPackedToolPayloadFiles(repoRoot).filter(
+    (toolPath) => !ownedToolFiles.has(toolPath),
+  );
+}
+
+export function formatUnaccountedPackedToolPayloadDiagnostics(
+  unaccountedToolFiles: readonly string[],
+): string {
+  if (unaccountedToolFiles.length === 0) {
+    return "";
+  }
+
+  return [
+    "Unaccounted packed tools payload:",
+    ...[...unaccountedToolFiles].sort().map((toolPath) => `- ${toolPath}`),
+    "Move test-only helpers under tests/helpers or add an explicit release ownership rule.",
+  ].join("\n");
+}
+
 export function writeReleaseManifest(
   outPath: string,
   options: CreateReleaseManifestOptions,
@@ -277,6 +328,15 @@ function findBunToolScriptPaths(script: string): string[] {
   }
 
   return helperFiles;
+}
+
+function isIncludedInPackageFiles(
+  filePath: string,
+  packageFiles: readonly string[],
+): boolean {
+  return packageFiles.some(
+    (entry) => filePath === entry || filePath.startsWith(`${entry}/`),
+  );
 }
 
 function unquoteShellToken(token: string): string {

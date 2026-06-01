@@ -18,6 +18,9 @@ import {
   discoverPackageHelperDependencyFiles,
   discoverPackageScriptHelperReferences,
   discoverPackageScriptHelperFiles,
+  discoverPackedToolPayloadFiles,
+  findUnaccountedPackedToolPayloadFiles,
+  formatUnaccountedPackedToolPayloadDiagnostics,
   writeReleaseManifest,
 } from "../tools/release_manifest";
 import {
@@ -222,6 +225,40 @@ describe("Release metadata", () => {
         !isIncludedInPackageFiles(helperPath, packageJson.files),
     );
     expect(unpackedHelpers).toEqual([]);
+  });
+
+  test("packed tools payload stays owned by package helper scripts", () => {
+    const repoRoot = join(import.meta.dir, "..");
+
+    expect(discoverPackedToolPayloadFiles(repoRoot)).toEqual([
+      "tools/ci_triage.ts",
+      "tools/cli_json_registry_shim.ts",
+      "tools/fuzz_artifact_repro.ts",
+      "tools/fuzz_script_wrapper.ts",
+      "tools/release_manifest.ts",
+      "tools/release_smoke.ts",
+      "tools/test_ci.ts",
+    ]);
+
+    const unaccounted = findUnaccountedPackedToolPayloadFiles(repoRoot);
+
+    expect(formatUnaccountedPackedToolPayloadDiagnostics(unaccounted)).toBe("");
+  });
+
+  test("packed tools payload diagnostics name unowned files", () => {
+    expect(
+      formatUnaccountedPackedToolPayloadDiagnostics([
+        "tools/test_only_helper.ts",
+        "tools/local_debug_probe.ts",
+      ]),
+    ).toBe(
+      [
+        "Unaccounted packed tools payload:",
+        "- tools/local_debug_probe.ts",
+        "- tools/test_only_helper.ts",
+        "Move test-only helpers under tests/helpers or add an explicit release ownership rule.",
+      ].join("\n"),
+    );
   });
 
   test("package helper dependency inventory is explicit and narrow", () => {
