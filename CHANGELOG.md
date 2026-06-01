@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Integration Config Schema Guard** - Integration tests now reject unsupported
+  `test_config.json` keys with file/key context, and legacy `expected_output`
+  fixtures were migrated to `expectedOutput` so example stdout is asserted
+  instead of silently skipped.
 - **Integration Artifact Uniqueness Guard** - Integration tests now assert every
   discovered example maps to a unique temporary artifact directory, and the guard
   reports the colliding example names if a future nested/flat name conflict is

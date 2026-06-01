@@ -1,9 +1,5 @@
 {
-  "test_cases": [
-    {
-      "input": "",
-      "expected_output": ["0: 1", "1: 2", "2: 3"],
-      "args": []
-    }
-  ]
+  "input": "",
+  "expectedOutput": ["0: 1", "1: 2", "2: 3"],
+  "args": []
 }

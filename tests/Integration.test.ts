@@ -24,6 +24,30 @@ const INTEGRATION_RUN_ARTIFACTS_DIR = path.join(
   `run-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 );
 const runLimited = createLimiter(getIntegrationJobs());
+const SUPPORTED_EXAMPLE_CONFIG_KEYS = new Set([
+  "args",
+  "description",
+  "env",
+  "exitCode",
+  "expectedOutput",
+  "input",
+  "name",
+  "note",
+  "resolution_demo",
+  "skip",
+  "skip_compilation",
+  "test_cases",
+  "timeout",
+]);
+const SUPPORTED_EXAMPLE_CONFIG_TEST_CASE_KEYS = new Set([
+  "args",
+  "env",
+  "exitCode",
+  "expectedOutput",
+  "input",
+  "name",
+  "timeout",
+]);
 
 // Helper to find example directories
 function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
@@ -78,6 +102,43 @@ function prepareExampleArtifactOutput(example: string): string {
 
 function cleanupExampleArtifactOutput(outputPath: string): void {
   fs.rmSync(path.dirname(outputPath), { recursive: true, force: true });
+}
+
+function findUnsupportedExampleConfigKeys(examples: string[]): string[] {
+  const unsupportedKeys: string[] = [];
+
+  for (const example of examples) {
+    const configFile = path.join(EXAMPLES_DIR, example, "test_config.json");
+    if (!fs.existsSync(configFile)) continue;
+
+    const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+    for (const key of Object.keys(config)) {
+      if (!SUPPORTED_EXAMPLE_CONFIG_KEYS.has(key)) {
+        unsupportedKeys.push(
+          `${path.relative(process.cwd(), configFile)}:${key}`,
+        );
+      }
+    }
+
+    if (Array.isArray(config.test_cases)) {
+      config.test_cases.forEach((testCase: unknown, index: number) => {
+        if (!testCase || typeof testCase !== "object") return;
+
+        for (const key of Object.keys(testCase)) {
+          if (!SUPPORTED_EXAMPLE_CONFIG_TEST_CASE_KEYS.has(key)) {
+            unsupportedKeys.push(
+              `${path.relative(
+                process.cwd(),
+                configFile,
+              )}:test_cases[${index}].${key}`,
+            );
+          }
+        }
+      });
+    }
+  }
+
+  return unsupportedKeys.sort();
 }
 
 function findExampleArtifactDirectoryCollisions(
@@ -147,6 +208,10 @@ describe("Integration Tests", () => {
 
   it("keeps artifact directories unique across all discovered examples", () => {
     expect(findExampleArtifactDirectoryCollisions(examples)).toEqual([]);
+  });
+
+  it("keeps example test configs on supported schema keys", () => {
+    expect(findUnsupportedExampleConfigKeys(examples)).toEqual([]);
   });
 
   it("reports colliding example names when artifact directories overlap", () => {

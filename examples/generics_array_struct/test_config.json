@@ -1,6 +1,6 @@
 {
   "description": "Generic Array<T> struct with methods",
-  "expected_output": [
+  "expectedOutput": [
     "Poped first value: 10",
     "Error: Array is empty",
     "Original: 1 2 3 4 5 ",
