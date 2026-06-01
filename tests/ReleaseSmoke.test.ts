@@ -213,6 +213,15 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package global search symlink JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package local search non-directory JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package workspace search non-directory JSON",
+      );
+      expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package global search non-directory JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package import malformed manifest JSON",
       );
       expect(result.stdout).toContain(

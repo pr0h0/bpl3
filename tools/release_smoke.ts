@@ -2610,6 +2610,104 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
       rmSync(globalSymlinkTempDir, { recursive: true, force: true });
     }
 
+    const searchNotDirectoryTempDir = mkdtempSync(
+      join(tmpdir(), "bpl-release-package-search-file-"),
+    );
+    try {
+      const homeDir = join(searchNotDirectoryTempDir, "home");
+      const globalPackageDir = join(homeDir, ".bpl", "packages");
+
+      const localSearchAppDir = join(searchNotDirectoryTempDir, "local-app");
+      const localSearchDir = join(localSearchAppDir, "bpl_modules");
+      mkdirSync(localSearchAppDir, { recursive: true });
+      writeFileSync(localSearchDir, "not a package search directory");
+      writePackedPackageImportMain(localSearchAppDir);
+      writePackedPackageRoot(
+        join(localSearchAppDir, "packages", "pkg-math"),
+        "1.0.0",
+      );
+      writePackedPackageRoot(
+        join(globalPackageDir, "pkg-math-9.0.0"),
+        "9.0.0",
+      );
+      const localSearchResult = runJsonFailureStep(
+        "check packed npm CLI package local search non-directory JSON",
+        installedBpl,
+        ["check", "--json", "main.bpl"],
+        {
+          cwd: localSearchAppDir,
+          bplHome: null,
+          expectedStatus: 1,
+          env: { HOME: homeDir, USERPROFILE: homeDir },
+        },
+      );
+      assertPackageSearchDirectoryNotDirectoryReport(
+        parseCheckReport(localSearchResult.stdout),
+        "Packed npm CLI package local search non-directory JSON",
+        "package search directory is not a directory",
+        localSearchDir,
+      );
+
+      const workspaceSearchAppDir = join(
+        searchNotDirectoryTempDir,
+        "workspace-app",
+      );
+      const workspaceSearchDir = join(workspaceSearchAppDir, "packages");
+      mkdirSync(workspaceSearchAppDir, { recursive: true });
+      writeFileSync(workspaceSearchDir, "not a package search directory");
+      writePackedPackageImportMain(workspaceSearchAppDir);
+      const workspaceSearchResult = runJsonFailureStep(
+        "check packed npm CLI package workspace search non-directory JSON",
+        installedBpl,
+        ["check", "--json", "main.bpl"],
+        {
+          cwd: workspaceSearchAppDir,
+          bplHome: null,
+          expectedStatus: 1,
+          env: { HOME: homeDir, USERPROFILE: homeDir },
+        },
+      );
+      assertPackageSearchDirectoryNotDirectoryReport(
+        parseCheckReport(workspaceSearchResult.stdout),
+        "Packed npm CLI package workspace search non-directory JSON",
+        "package search directory is not a directory",
+        workspaceSearchDir,
+      );
+
+      const globalSearchAppDir = join(
+        searchNotDirectoryTempDir,
+        "global-app",
+      );
+      const globalSearchHomeDir = join(
+        searchNotDirectoryTempDir,
+        "global-home",
+      );
+      const globalSearchDir = join(globalSearchHomeDir, ".bpl", "packages");
+      mkdirSync(globalSearchAppDir, { recursive: true });
+      mkdirSync(join(globalSearchHomeDir, ".bpl"), { recursive: true });
+      writeFileSync(globalSearchDir, "not a package search directory");
+      writePackedPackageImportMain(globalSearchAppDir);
+      const globalSearchResult = runJsonFailureStep(
+        "check packed npm CLI package global search non-directory JSON",
+        installedBpl,
+        ["check", "--json", "main.bpl"],
+        {
+          cwd: globalSearchAppDir,
+          bplHome: null,
+          expectedStatus: 1,
+          env: { HOME: globalSearchHomeDir, USERPROFILE: globalSearchHomeDir },
+        },
+      );
+      assertPackageSearchDirectoryNotDirectoryReport(
+        parseCheckReport(globalSearchResult.stdout),
+        "Packed npm CLI package global search non-directory JSON",
+        "Global package directory path is not a directory",
+        globalSearchDir,
+      );
+    } finally {
+      rmSync(searchNotDirectoryTempDir, { recursive: true, force: true });
+    }
+
     writeFileSync(join(packageDir, "bpl.json"), "{not-json");
 
     const malformedResult = runJsonFailureStep(
@@ -2743,6 +2841,62 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function writePackedPackageImportMain(appDir: string): void {
+  writeFileSync(
+    join(appDir, "main.bpl"),
+    [
+      'import value from "pkg-math";',
+      "frame main() ret int {",
+      "    return 0;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+}
+
+function writePackedPackageRoot(packageDir: string, version: string): void {
+  mkdirSync(packageDir, { recursive: true });
+  writeFileSync(
+    join(packageDir, "bpl.json"),
+    JSON.stringify(
+      {
+        name: "pkg-math",
+        version,
+        main: "index.bpl",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+}
+
+function assertPackageSearchDirectoryNotDirectoryReport(
+  report: CheckReport,
+  label: string,
+  expectedMessage: string,
+  expectedPath: string,
+): void {
+  const fileReport = report.files[0];
+  const diagnostic = fileReport?.diagnostics?.[0];
+  if (
+    report.success ||
+    report.totalFiles !== 1 ||
+    report.errorCount !== 1 ||
+    report.files.length !== 1 ||
+    fileReport?.file !== "main.bpl" ||
+    fileReport.success ||
+    diagnostic?.code !== "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY" ||
+    typeof diagnostic.message !== "string" ||
+    !diagnostic.message.includes(expectedMessage) ||
+    !diagnostic.message.includes(expectedPath)
+  ) {
+    throw new Error(
+      `${label} reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+    );
   }
 }
 
