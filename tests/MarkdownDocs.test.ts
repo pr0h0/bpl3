@@ -1340,6 +1340,22 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document ternary branch mismatch diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Ternary branch type mismatch failures use `BPL_TERNARY_BRANCH_TYPE_MISMATCH`",
+      "`Ternary branches must have compatible types: int vs string`",
+      "`Both branches must return the same type.`",
+      "incompatible ternary branch types",
+      'bun test tests/TypeCheckerTernaryBranchMismatch.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

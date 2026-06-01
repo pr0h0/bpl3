@@ -57,6 +57,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ternary conditions now report `BPL_CONDITION_TYPE_MISMATCH` in compiler
   errors, `bpl check --json`, `bpl build --json`, and the public CLI JSON
   error-code registry. Valid boolean conditions remain accepted.
+- **Ternary Branch Type Mismatch Diagnostic Code** - Ternary expressions with
+  incompatible branch types now report `BPL_TERNARY_BRANCH_TYPE_MISMATCH` in
+  compiler errors, `bpl check --json`, `bpl build --json`, and the public CLI
+  JSON error-code registry. Compatible branch types remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

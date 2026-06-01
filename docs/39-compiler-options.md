@@ -729,6 +729,19 @@ bun test tests/TypeCheckerConditionMismatch.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "condition type mismatch"
 ```
 
+Ternary branch type mismatch failures use
+`BPL_TERNARY_BRANCH_TYPE_MISMATCH`. This covers incompatible ternary branch
+types after the condition has been checked as boolean. For example,
+`true ? 1 : "wrong"` reports
+`Ternary branches must have compatible types: int vs string` with the hint
+`Both branches must return the same type.`. Compatible branch types remain
+accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerTernaryBranchMismatch.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
