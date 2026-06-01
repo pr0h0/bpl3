@@ -265,8 +265,12 @@ const DUPLICATE_SYMBOL_STEP_PATTERN = new RegExp(
     "duplicate function signatures",
     "duplicate function parameters",
     "duplicate generic parameters",
+    "duplicate struct fields",
+    "duplicate enum variants",
     "Duplicate parameter name",
     "Duplicate generic type parameter",
+    "Duplicate field ['\"][^'\"]+['\"] in struct",
+    "Duplicate enum variant ['\"][^'\"]+['\"] in enum",
     "declared multiple times in function",
     "already defined in this scope",
     "with this signature is already defined",
@@ -907,7 +911,7 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [
     DUPLICATE_SYMBOL_STEP_PATTERN,
-    'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols"',
+    'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters|duplicate function signatures|duplicate top-level symbols|duplicate struct fields|duplicate enum variants"',
   ],
   [
     DUPLICATE_SYMBOL_STEP_PATTERN,
