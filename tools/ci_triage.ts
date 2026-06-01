@@ -130,8 +130,18 @@ export const CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS: readonly CiTriageJson
 
 const RELEASE_SMOKE_STEP_PATTERN =
   /(?:ReleaseSmoke\.test|release smoke|release:smoke|package import diagnostic code JSON)/i;
-const RELEASE_CLI_REGISTRY_STEP_PATTERN =
-  /(?:release:cli-registry|release cli-registry|CLI registry shim|cli_json_registry_shim|bpl-v3\/cli registry)/i;
+const RELEASE_CLI_REGISTRY_STEP_PATTERN = new RegExp(
+  [
+    "release:cli-registry",
+    "release cli-registry",
+    "release CLI registry",
+    "CLI registry shim",
+    "registry sync check",
+    "cli_json_registry_shim",
+    "bpl-v3/cli registry",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "PackageResolver\\.test",

@@ -1491,6 +1491,59 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("prints release cli-registry repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-release-registry-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 63,
+              name: "Release CLI registry sync check",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/63",
+              steps: [
+                {
+                  name: "Run packed registry sync check",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("api.github.com");
+      expect(result.stdout).toContain("Release CLI registry sync check");
+      expect(result.stdout).toContain("bun run release:cli-registry");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prints package import manifest repro commands from an offline jobs fixture", () => {
     const tempDir = mkdtempSync(
       join(tmpdir(), "bpl-ci-triage-package-import-manifest-"),

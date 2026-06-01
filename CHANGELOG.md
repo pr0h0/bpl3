@@ -608,6 +608,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **ReleaseMetadata Source Diagnostics** - Release smoke source coverage checks
   now use compact source-snippet diagnostics so missing packed-helper coverage
   does not dump the full helper source in CI logs.
+- **CI Triage Release Registry Fixtures** - Offline `ci:triage --jobs-json`
+  fixtures now route release CLI registry sync job names to
+  `bun run release:cli-registry`.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their
