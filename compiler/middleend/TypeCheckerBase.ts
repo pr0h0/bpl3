@@ -94,6 +94,12 @@ export const POINTER_INDEX_TYPE_MISMATCH_CODE =
   "BPL_POINTER_INDEX_TYPE_MISMATCH";
 export const INDEX_TARGET_NOT_INDEXABLE_CODE =
   "BPL_INDEX_TARGET_NOT_INDEXABLE";
+export const STATIC_MEMBER_NOT_FOUND_CODE =
+  "BPL_STATIC_MEMBER_NOT_FOUND";
+export const INSTANCE_METHOD_NOT_COMPATIBLE_CODE =
+  "BPL_INSTANCE_METHOD_NOT_COMPATIBLE";
+export const TUPLE_INDEX_INVALID_CODE = "BPL_TUPLE_INDEX_INVALID";
+export const MEMBER_NOT_FOUND_CODE = "BPL_MEMBER_NOT_FOUND";
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   SYMBOL_ALREADY_DEFINED_CODE,
@@ -135,6 +141,10 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   ARRAY_INDEX_TYPE_MISMATCH_CODE,
   POINTER_INDEX_TYPE_MISMATCH_CODE,
   INDEX_TARGET_NOT_INDEXABLE_CODE,
+  STATIC_MEMBER_NOT_FOUND_CODE,
+  INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+  TUPLE_INDEX_INVALID_CODE,
+  MEMBER_NOT_FOUND_CODE,
 ] as const;
 
 export const RESERVED_BUILTIN_TYPE_NAMES = new Set([
@@ -644,6 +654,22 @@ export abstract class TypeCheckerBase {
     return this.warnings;
   }
 
+  protected isStandardLibraryRuntimeTypeDeclaration(
+    name: string,
+    location?: SourceLocation,
+  ): boolean {
+    if (!location) return false;
+
+    const sourceFile = location.file.replace(/\\/g, "/");
+    const isTypeModule = /(^|\/)lib\/type\.bpl$/.test(sourceFile);
+    const isReflectionModule = /(^|\/)lib\/reflection\.bpl$/.test(sourceFile);
+
+    return (
+      (name === "TypeInfo" && isReflectionModule) ||
+      ((name === "Type" || name === "Any") && isTypeModule)
+    );
+  }
+
   // ========== Initialization ==========
 
   protected initializeBuiltins(): void {
@@ -759,8 +785,15 @@ export abstract class TypeCheckerBase {
     const isDeclarationScope =
       this.currentScope === this.globalScope ||
       this.currentScope.getParent() === this.globalScope;
+    const isStdlibRuntimeType =
+      this.isStandardLibraryRuntimeTypeDeclaration(name, node.location);
 
-    if (existing && !isFunctionOverload && isDeclarationScope) {
+    if (
+      existing &&
+      !isFunctionOverload &&
+      isDeclarationScope &&
+      !isStdlibRuntimeType
+    ) {
       throw new CompilerError(
         `Symbol '${name}' is already defined in this scope`,
         `Rename this ${formatSymbolKind(kind)} or remove the earlier ${formatSymbolKind(existing.kind)} declaration.`,

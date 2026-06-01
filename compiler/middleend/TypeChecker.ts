@@ -347,6 +347,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       return;
     }
 
+    if (this.isStandardLibraryRuntimeTypeDeclaration(name, location)) {
+      return;
+    }
+
     throw new CompilerError(
       `Cannot redefine builtin type '${name}'`,
       "Builtin type names are reserved. Choose a different name for this type declaration.",

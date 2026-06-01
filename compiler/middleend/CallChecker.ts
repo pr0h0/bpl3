@@ -14,7 +14,11 @@ import {
   ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
   ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
   INDEX_TARGET_NOT_INDEXABLE_CODE,
+  INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+  MEMBER_NOT_FOUND_CODE,
   POINTER_INDEX_TYPE_MISMATCH_CODE,
+  STATIC_MEMBER_NOT_FOUND_CODE,
+  TUPLE_INDEX_INVALID_CODE,
 } from "./TypeCheckerBase";
 
 function withoutAliasShape(type: AST.BasicTypeNode): AST.BasicTypeNode {
@@ -883,6 +887,7 @@ export function checkMember(
           `No static member '${expr.property}' found on type '${innerType.name}'`,
           "Ensure the member is static (does not take 'this').",
           expr.location,
+          STATIC_MEMBER_NOT_FOUND_CODE,
         );
       }
     }
@@ -1009,6 +1014,7 @@ export function checkMember(
             )}'`,
             "Static methods must be called on the type, not an instance.",
             expr.location,
+            INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
           );
         }
 
@@ -1107,6 +1113,7 @@ export function checkMember(
       `Invalid tuple index '${expr.property}'`,
       `Valid indices are 0-${effectiveObjectType.types.length - 1}`,
       expr.location,
+      TUPLE_INDEX_INVALID_CODE,
     );
   }
 
@@ -1114,6 +1121,7 @@ export function checkMember(
     `Cannot access member '${expr.property}' on type '${this.typeToString(effectiveObjectType)}'`,
     "Check the type definition for available members.",
     expr.location,
+    MEMBER_NOT_FOUND_CODE,
   );
 }
 
