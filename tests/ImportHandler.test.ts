@@ -16,6 +16,7 @@ interface ImportHandlerInternals {
     resolveModulePath(importSource: string, fromFile: string): string;
   };
   resolveImportPath(stmt: AST.ImportStmt): { importPath: string };
+  checkImport(stmt: AST.ImportStmt): void;
 }
 
 function makeLocation(file: string) {
@@ -33,6 +34,22 @@ function makeImport(source: string, file: string): AST.ImportStmt {
     kind: "Import",
     items: [],
     source,
+    location: makeLocation(file),
+  };
+}
+
+function makeProgram(statements: AST.Statement[], file: string): AST.Program {
+  return {
+    kind: "Program",
+    statements,
+    location: makeLocation(file),
+  };
+}
+
+function makeExport(items: string[], file: string): AST.ExportStmt {
+  return {
+    kind: "Export",
+    items: items.map((name) => ({ name, isType: false })),
     location: makeLocation(file),
   };
 }
@@ -56,6 +73,24 @@ function makeHandlerWithFallbackResolver(): ImportHandlerInternals {
     },
   };
   return handler;
+}
+
+function makeHandlerWithPreloadedModule(
+  modulePath: string,
+  moduleAst: AST.Program,
+): ImportHandlerInternals {
+  const globalScope = new SymbolTable();
+  const context: ImportHandlerContext = {
+    modules: new Map(),
+    preLoadedModules: new Map([[modulePath, moduleAst]]),
+    skipImportResolution: true,
+    currentScope: globalScope,
+    globalScope,
+    hoistDeclaration: () => {},
+    checkStatement: () => {},
+    defineSymbol: () => {},
+  };
+  return new ImportHandler(context) as unknown as ImportHandlerInternals;
 }
 
 function withTemporaryBplHome<T>(bplHome: string, fn: () => T): T {
@@ -130,5 +165,35 @@ describe("ImportHandler", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("reports a stable code when a named import is not exported", () => {
+    const sourceFile = path.join(os.tmpdir(), "import-handler-main.bpl");
+    const modulePath = path.join(os.tmpdir(), "import-handler-module.bpl");
+    const moduleAst = makeProgram(
+      [makeExport(["available"], modulePath)],
+      modulePath,
+    );
+    const importStmt = makeImport("./import-handler-module.bpl", sourceFile);
+    importStmt.items = [{ name: "missing", isType: false }];
+
+    const handler = makeHandlerWithPreloadedModule(modulePath, moduleAst);
+    let caught: unknown;
+
+    try {
+      handler.checkImport(importStmt);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(CompilerError);
+    const compilerError = caught as CompilerError;
+    expect(compilerError.message).toBe(
+      "Module './import-handler-module.bpl' does not export 'missing'",
+    );
+    expect(compilerError.hint).toBe(
+      "Ensure the symbol is exported (or defined) in the module.",
+    );
+    expect(compilerError.code).toBe("BPL_IMPORT_EXPORT_NOT_FOUND");
   });
 });

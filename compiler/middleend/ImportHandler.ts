@@ -21,6 +21,12 @@ import {
   ModuleResolver,
 } from "./ModuleResolver";
 
+export const IMPORT_EXPORT_NOT_FOUND_CODE = "BPL_IMPORT_EXPORT_NOT_FOUND";
+
+export const IMPORT_HANDLER_FAILURE_CODES = [
+  IMPORT_EXPORT_NOT_FOUND_CODE,
+] as const;
+
 /**
  * Import handler context
  */
@@ -457,6 +463,7 @@ export class ImportHandler {
         `Module '${stmt.source}' does not export '${item.name}'`,
         "Ensure the symbol is exported (or defined) in the module.",
         stmt.location,
+        IMPORT_EXPORT_NOT_FOUND_CODE,
       );
     }
 
