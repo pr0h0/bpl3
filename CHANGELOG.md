@@ -152,6 +152,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `CLI_JSON_ERROR_CODE_LISTS` and `CLI_JSON_ERROR_CODES` for tooling that wants
   a stable inventory of documented JSON and diagnostic codes, with a focused
   guard against empty lists, duplicates, and non-`BPL_*` entries.
+- **Package JSON Code List Shape Guard** - PackageManager JSON code lists now
+  have a focused failure-contract check for non-empty lists, per-list
+  duplicates, and stable `BPL_*` code spelling.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.

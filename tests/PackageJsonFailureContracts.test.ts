@@ -12,8 +12,11 @@ import { spawnSync, type SpawnSyncReturns } from "child_process";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
 import {
   PACKAGE_ARCHIVE_JSON_ERROR_CODES,
+  PACKAGE_CACHE_JSON_ERROR_CODES,
+  PACKAGE_INIT_JSON_ERROR_CODES,
   PACKAGE_INSTALL_JSON_ERROR_CODES,
   PACKAGE_MANIFEST_JSON_ERROR_CODES,
+  PACKAGE_UNINSTALL_JSON_ERROR_CODES,
 } from "../compiler/middleend/PackageManager";
 
 const BPL_CLI = join(import.meta.dir, "..", "index.ts");
@@ -24,6 +27,31 @@ type CommandContext = {
 };
 
 describe("Package JSON failure contracts", () => {
+  test("keeps PackageManager JSON error-code lists stable", () => {
+    const lists = [
+      { name: "package-init", codes: PACKAGE_INIT_JSON_ERROR_CODES },
+      { name: "package-uninstall", codes: PACKAGE_UNINSTALL_JSON_ERROR_CODES },
+      { name: "package-cache", codes: PACKAGE_CACHE_JSON_ERROR_CODES },
+      { name: "package-install", codes: PACKAGE_INSTALL_JSON_ERROR_CODES },
+      { name: "package-archive", codes: PACKAGE_ARCHIVE_JSON_ERROR_CODES },
+      { name: "package-manifest", codes: PACKAGE_MANIFEST_JSON_ERROR_CODES },
+    ];
+
+    for (const { name, codes } of lists) {
+      expect(codes.length, `${name} exports at least one code`).toBeGreaterThan(
+        0,
+      );
+      expect([...new Set(codes)], `${name} has no duplicate codes`).toEqual([
+        ...codes,
+      ]);
+      for (const code of codes) {
+        expect(code, `${name} uses stable BPL_* codes`).toMatch(
+          /^BPL_[A-Z0-9_]+$/,
+        );
+      }
+    }
+  });
+
   test("inventories package command empty failure shapes", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-json-failures-"));
 
