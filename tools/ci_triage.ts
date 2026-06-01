@@ -444,6 +444,38 @@ const CONTROL_FLOW_MISUSE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const BINARY_OPERATOR_MISUSE_STEP_PATTERN = new RegExp(
+  [
+    "BPL_POINTER_ARITHMETIC_VOID",
+    "BPL_POINTER_DIFFERENCE_TYPE_MISMATCH",
+    "BPL_STRING_CONCAT_UNSUPPORTED",
+    "BPL_LOGICAL_OPERAND_TYPE_MISMATCH",
+    "BPL_COMPARISON_TYPE_MISMATCH",
+    "BPL_BITWISE_OPERAND_TYPE_MISMATCH",
+    "BPL_MODULO_OPERAND_TYPE_MISMATCH",
+    "BPL_BINARY_OPERAND_TYPE_MISMATCH",
+    "BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH",
+    "binary operator misuse",
+    "Cannot perform pointer arithmetic on void pointer",
+    "Cannot compare pointer difference between",
+    "String concatenation with '\\+' is not supported",
+    "Logical operators require boolean operands",
+    "Cannot compare int and string",
+    "Bitwise operators require integer operands",
+    "Modulo operator requires integer operands",
+    "Type mismatch: int and string",
+    "Operator '.*' cannot be applied to types",
+    "Cast to a sized pointer type first",
+    "Pointer subtraction requires compatible pointee types",
+    "Use 'string_concat\\(a, b\\)' or similar helper functions",
+    "Ensure both operands are boolean expressions",
+    "Operands must be of compatible types",
+    "Ensure both operands are integers",
+    "Ensure operands have compatible types",
+    "Arithmetic operators require numeric types",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1252,6 +1284,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "control-flow misuse"',
   ],
   [CONTROL_FLOW_MISUSE_STEP_PATTERN, "bun run check"],
+  [
+    BINARY_OPERATOR_MISUSE_STEP_PATTERN,
+    "bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts",
+  ],
+  [
+    BINARY_OPERATOR_MISUSE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"',
+  ],
+  [
+    BINARY_OPERATOR_MISUSE_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "binary operator misuse"',
+  ],
+  [BINARY_OPERATOR_MISUSE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

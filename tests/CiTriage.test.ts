@@ -866,6 +866,51 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps binary operator misuse diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"',
+      'bun test tests/MarkdownDocs.test.ts -t "binary operator misuse"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_POINTER_ARITHMETIC_VOID",
+      "BPL_POINTER_DIFFERENCE_TYPE_MISMATCH",
+      "BPL_STRING_CONCAT_UNSUPPORTED",
+      "BPL_LOGICAL_OPERAND_TYPE_MISMATCH",
+      "BPL_COMPARISON_TYPE_MISMATCH",
+      "BPL_BITWISE_OPERAND_TYPE_MISMATCH",
+      "BPL_MODULO_OPERAND_TYPE_MISMATCH",
+      "BPL_BINARY_OPERAND_TYPE_MISMATCH",
+      "BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH",
+      "Cannot perform pointer arithmetic on void pointer",
+      "Cannot compare pointer difference between",
+      "String concatenation with '+' is not supported.",
+      "Logical operators require boolean operands",
+      "Cannot compare int and string",
+      "Bitwise operators require integer operands",
+      "Modulo operator requires integer operands",
+      "Type mismatch: int and string",
+      "Operator '+' cannot be applied to types",
+      "Cast to a sized pointer type first",
+      "Pointer subtraction requires compatible pointee types.",
+      "Use 'string_concat(a, b)' or similar helper functions.",
+      "Ensure both operands are boolean expressions.",
+      "Operands must be of compatible types.",
+      "Ensure both operands are integers.",
+      "Ensure operands have compatible types.",
+      "Arithmetic operators require numeric types.",
+      "Binary operator misuse failures use `BPL_POINTER_ARITHMETIC_VOID`",
+      "reports binary operator misuse failures in JSON-mode check and build diagnostics",
+      "docs document binary operator misuse diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -4631,6 +4676,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerControlFlowMisuse.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"',
         'bun test tests/MarkdownDocs.test.ts -t "control-flow misuse"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints binary operator misuse repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-binary-operator-misuse-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 100,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/100",
+              steps: [
+                {
+                  name: "BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH Operator '+' cannot be applied to types",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"',
+        'bun test tests/MarkdownDocs.test.ts -t "binary operator misuse"',
         "bun run check",
       ]);
     } finally {
