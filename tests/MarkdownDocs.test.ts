@@ -480,6 +480,22 @@ describe("Markdown documentation", () => {
     );
   });
 
+  test("changelog documents package DX parity smoke coverage", () => {
+    const changelog = normalizedMarkdownText(["CHANGELOG.md"]);
+
+    expectDocsContainSnippets(changelog, [
+      "Package Import DX Parity Smoke",
+      "math-extra/features/direct.bpl",
+      "math-extra/features/increment",
+      'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
+      'bun test tests/Integration.test.ts -t "package dependency example"',
+      'bun test tests/Integration.test.ts -t "package_transitive_dependency/app"',
+      'bun test tests/CiTriage.test.ts -t "package docs smoke failures"',
+      'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
+      "bun test vscode-ext/src/test/diagnostics.test.ts vscode-ext/src/test/imports.test.ts",
+    ]);
+  });
+
   test("release docs document packed helper support and exclusions", () => {
     const readme = readFileSync("README.md", "utf8");
     const changelog = readFileSync("CHANGELOG.md", "utf8");

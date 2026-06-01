@@ -145,6 +145,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   diagnostics now expose a shared `BPL_PACKAGE_*` code list, docs cover every
   resolver code, and MarkdownDocs checks representative resolver traces against
   the documented inventory.
+- **Package Import DX Parity Smoke** - Package docs, integration, LSP, and
+  CI-triage smoke coverage now lock in both explicit source-file package
+  imports such as `math-extra/features/direct.bpl` and extensionless
+  directory-index imports such as `math-extra/features/increment`. Focused
+  repro commands:
+  `bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"`,
+  `bun test tests/Integration.test.ts -t "package dependency example"`,
+  `bun test tests/Integration.test.ts -t "package_transitive_dependency/app"`,
+  `bun test tests/CiTriage.test.ts -t "package docs smoke failures"`,
+  `bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"`,
+  and `bun test vscode-ext/src/test/diagnostics.test.ts vscode-ext/src/test/imports.test.ts`.
 - **Module Resolver Diagnostic Code List** - Non-package module and explicit
   standard-library import diagnostics now expose a shared code list, and
   MarkdownDocs checks the docs inventory against the ModuleResolver constants.
