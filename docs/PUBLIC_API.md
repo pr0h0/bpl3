@@ -214,7 +214,9 @@ missing parent directory.
 `target` selects the LLVM target metadata and data layout. Supported target
 families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux,
 x86_64 Windows, wasm32, wasm64. CodeGenerator rejects unsupported target triples
-instead of silently using an x86_64 Linux data layout.
+instead of silently using an x86_64 Linux data layout. Target matching uses
+triple components, so substring-only matches such as `notlinux` and `notwasm32`
+are rejected.
 
 ---
 

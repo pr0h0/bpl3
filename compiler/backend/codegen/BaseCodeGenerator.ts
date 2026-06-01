@@ -14,8 +14,13 @@ import {
  */
 type TargetDataLayout = {
   family: string;
-  matches: (normalizedTarget: string) => boolean;
+  matches: (target: ParsedTargetTriple) => boolean;
   layout: string;
+};
+
+type ParsedTargetTriple = {
+  arch: string;
+  components: Set<string>;
 };
 
 const X86_64_LINUX_DATA_LAYOUT =
@@ -24,52 +29,52 @@ const X86_64_LINUX_DATA_LAYOUT =
 const SUPPORTED_TARGET_DATA_LAYOUTS: TargetDataLayout[] = [
   {
     family: "x86_64 Linux",
-    matches: (target) => target.includes("x86_64") && target.includes("linux"),
+    matches: (target) => target.arch === "x86_64" && hasComponent(target, "linux"),
     layout: X86_64_LINUX_DATA_LAYOUT,
   },
   {
     family: "x86_64 macOS",
     matches: (target) =>
-      target.includes("x86_64") &&
-      (target.includes("darwin") || target.includes("macos")),
+      target.arch === "x86_64" &&
+      hasAnyComponent(target, ["darwin", "macos"]),
     layout:
       "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
   },
   {
     family: "AArch64 Linux",
     matches: (target) =>
-      (target.includes("aarch64") || target.includes("arm64")) &&
-      target.includes("linux"),
+      (target.arch === "aarch64" || target.arch === "arm64") &&
+      hasComponent(target, "linux"),
     layout: "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
   },
   {
     family: "AArch64 macOS",
     matches: (target) =>
-      (target.includes("aarch64") || target.includes("arm64")) &&
-      (target.includes("darwin") || target.includes("macos")),
+      (target.arch === "aarch64" || target.arch === "arm64") &&
+      hasAnyComponent(target, ["darwin", "macos"]),
     layout: "e-m:o-i64:64-i128:128-n32:64-S128",
   },
   {
     family: "i686 Linux",
-    matches: (target) => target.includes("i686") && target.includes("linux"),
+    matches: (target) => target.arch === "i686" && hasComponent(target, "linux"),
     layout:
       "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128",
   },
   {
     family: "x86_64 Windows",
     matches: (target) =>
-      target.includes("x86_64") && target.includes("windows"),
+      target.arch === "x86_64" && hasComponent(target, "windows"),
     layout:
       "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
   },
   {
     family: "wasm32",
-    matches: (target) => target.includes("wasm32"),
+    matches: (target) => target.arch === "wasm32",
     layout: "e-m:e-p:32:32-i64:64-n32:64-S128",
   },
   {
     family: "wasm64",
-    matches: (target) => target.includes("wasm64"),
+    matches: (target) => target.arch === "wasm64",
     layout: "e-m:e-p:64:64-i64:64-n32:64-S128",
   },
 ];
@@ -82,6 +87,25 @@ export function getSupportedCodegenTargetSummary(): string {
   return getSupportedCodegenTargetFamilies().join(", ");
 }
 
+function parseTargetTriple(normalizedTarget: string): ParsedTargetTriple {
+  const parts = normalizedTarget.split("-").filter(Boolean);
+  return {
+    arch: parts[0] ?? "",
+    components: new Set(parts),
+  };
+}
+
+function hasComponent(target: ParsedTargetTriple, component: string): boolean {
+  return target.components.has(component);
+}
+
+function hasAnyComponent(
+  target: ParsedTargetTriple,
+  components: string[],
+): boolean {
+  return components.some((component) => hasComponent(target, component));
+}
+
 function resolveDataLayoutForTarget(target?: string): string | undefined {
   if (target === undefined) {
     // Default to x86_64-linux-gnu
@@ -92,8 +116,9 @@ function resolveDataLayoutForTarget(target?: string): string | undefined {
   if (!trimmedTarget || trimmedTarget !== target) return undefined;
 
   const normalizedTarget = trimmedTarget.toLowerCase();
+  const parsedTarget = parseTargetTriple(normalizedTarget);
   return SUPPORTED_TARGET_DATA_LAYOUTS.find((entry) =>
-    entry.matches(normalizedTarget),
+    entry.matches(parsedTarget),
   )?.layout;
 }
 

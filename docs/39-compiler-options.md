@@ -765,7 +765,9 @@ runtime, and runtime support for that platform.
 
 Unsupported target triples are rejected before LLVM IR is emitted, rather than
 falling back to an unrelated host data layout. JSON-mode build failures use
-`BPL_BUILD_UNSUPPORTED_TARGET`.
+`BPL_BUILD_UNSUPPORTED_TARGET`. Target matching uses full triple components, so
+names that only contain supported components as substrings, such as
+`x86_64-unknown-notlinux-gnu` or `notwasm32-unknown-unknown`, are rejected.
 
 Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64
 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64.

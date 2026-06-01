@@ -431,6 +431,9 @@ describe("Markdown documentation", () => {
       "Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64",
       "`Compiler`, `CodeGenerator`, and `bpl build` now reject unsupported target triples",
       "empty or whitespace-padded target triples",
+      "Target family matching is component-aware",
+      "Target matching uses full triple components",
+      "substring-only matches such as `notlinux` and `notwasm32` are rejected",
       "CodeGenerator rejects unsupported target triples instead of silently using an x86_64 Linux data layout",
       'bun test tests/CodeGenerator.test.ts -t "target" && bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
     ];

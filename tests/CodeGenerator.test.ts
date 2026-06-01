@@ -189,6 +189,20 @@ describe("CodeGenerator", () => {
     ).toThrow(/Unsupported target triple " x86_64-pc-linux-gnu "/);
   });
 
+  it("rejects target triples that only contain supported components as substrings", () => {
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: "x86_64-unknown-notlinux-gnu",
+      }),
+    ).toThrow(/Unsupported target triple "x86_64-unknown-notlinux-gnu"/);
+
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: "notwasm32-unknown-unknown",
+      }),
+    ).toThrow(/Unsupported target triple "notwasm32-unknown-unknown"/);
+  });
+
   it("uses the selected compiler driver for DWARF producer metadata", () => {
     const previousBplCc = process.env.BPL_CC;
     process.env.BPL_CC = join(
