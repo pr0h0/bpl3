@@ -1236,6 +1236,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document undefined symbol diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Undefined symbol failures use `BPL_SYMBOL_NOT_FOUND`",
+      "`Undefined symbol 'missingValue'`",
+      "`Undefined symbol 'missingCall'`",
+      "`Ensure the variable or function is declared before use.`",
+      "`Did you mean 'totalCount'?`",
+      "value identifiers and missing callee identifiers",
+      'bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "undefined symbol"',
+    ]);
+  });
+
   test("docs document invalid void type diagnostic codes", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

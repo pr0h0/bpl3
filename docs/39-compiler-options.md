@@ -647,6 +647,13 @@ bun test tests/TypeCheckerUndefinedTypes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "undefined-type"
 ```
 
+Undefined symbol failures use `BPL_SYMBOL_NOT_FOUND`. This covers value identifiers and missing callee identifiers that are not declared in the current scope or imports. Representative messages include `Undefined symbol 'missingValue'` and `Undefined symbol 'missingCall'`. The default hint is `Ensure the variable or function is declared before use.`, and similar in-scope names keep the `Did you mean 'totalCount'?` hint. Valid local, parameter, global, function, method, and imported symbol resolution remains accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "undefined symbol"
+```
+
 Invalid bare void type failures use `BPL_VOID_TYPE_INVALID`. This covers bare
 `void` in variable declarations, parameters, struct fields, and generic type
 arguments. For example, `local _value: void;` reports

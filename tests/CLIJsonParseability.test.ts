@@ -2875,6 +2875,83 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports undefined symbol failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "undefined_value_symbol",
+        preview: "return missingValue",
+        message: "Undefined symbol 'missingValue'",
+        source: [
+          "frame main() ret int {",
+          "    return missingValue;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "undefined_call_symbol",
+        preview: "return missingCall()",
+        message: "Undefined symbol 'missingCall'",
+        source: [
+          "frame main() ret int {",
+          "    return missingCall();",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: 2,
+          column: 12,
+        },
+      );
+      expect(checkDiagnostic.code).toBe("BPL_SYMBOL_NOT_FOUND");
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(
+        "Ensure the variable or function is declared before use.",
+      );
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: "BPL_SYMBOL_NOT_FOUND" }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(
+        "Ensure the variable or function is declared before use.",
+      );
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 20000);
+
   test("reports invalid void type failures in JSON-mode check and build diagnostics", () => {
     const sourceFile = path.join(tempDir, "invalid_void_type.bpl");
     const outputFile = path.join(tempDir, "invalid-void-type-app");
