@@ -812,6 +812,13 @@ bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"
 ```
 
+Unary operator misuse failures use `BPL_DEREFERENCE_TARGET_INVALID`, `BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH`, `BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH`, `BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH`, and `BPL_UNARY_PLUS_UNSUPPORTED`. This covers invalid dereference targets, non-boolean logical-not operands, non-integer bitwise-not operands, non-numeric negation operands, and unsupported primitive unary plus. Representative messages include `Cannot dereference non-pointer type int`, `Logical not requires boolean operand`, `Bitwise not requires integer operand`, `Unary operator '-' cannot be applied to type 'string'`, and `Unary plus operator '+' is not supported`. The corresponding hints include `Dereference requires a pointer type.`, `Ensure the operand is a boolean expression.`, `Ensure the operand is an integer.`, `Negation requires a numeric type.`, and `Simply remove the '+' prefix.`. Valid pointer dereference, logical-not, bitwise-not, and numeric negation forms remain accepted; primitive unary plus remains rejected as a no-op. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "unary operator misuse"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

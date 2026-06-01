@@ -3900,6 +3900,130 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports unary operator misuse failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "dereference_target_invalid",
+        code: "BPL_DEREFERENCE_TARGET_INVALID",
+        line: 2,
+        column: 12,
+        preview: "return *1",
+        message: "Cannot dereference non-pointer type int",
+        hint: "Dereference requires a pointer type.",
+        source: [
+          "frame main() ret int {",
+          "    return *1;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "logical_not_operand_type_mismatch",
+        code: "BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 26,
+        preview: "local result: bool = !1",
+        message: "Logical not requires boolean operand",
+        hint: "Ensure the operand is a boolean expression.",
+        source: [
+          "frame main() ret int {",
+          "    local result: bool = !1;",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "bitwise_not_operand_type_mismatch",
+        code: "BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 12,
+        preview: "return ~1.5",
+        message: "Bitwise not requires integer operand",
+        hint: "Ensure the operand is an integer.",
+        source: [
+          "frame main() ret int {",
+          "    return ~1.5;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "unary_negation_operand_type_mismatch",
+        code: "BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH",
+        line: 2,
+        column: 12,
+        preview: 'return -"wrong"',
+        message: "Unary operator '-' cannot be applied to type 'string'",
+        hint: "Negation requires a numeric type.",
+        source: [
+          "frame main() ret int {",
+          '    return -"wrong";',
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "unary_plus_unsupported",
+        code: "BPL_UNARY_PLUS_UNSUPPORTED",
+        line: 2,
+        column: 12,
+        preview: "return +1",
+        message: "Unary plus operator '+' is not supported",
+        hint: "Simply remove the '+' prefix.",
+        source: [
+          "frame main() ret int {",
+          "    return +1;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

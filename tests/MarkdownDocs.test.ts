@@ -1450,6 +1450,30 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document unary operator misuse diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Unary operator misuse failures use `BPL_DEREFERENCE_TARGET_INVALID`, `BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH`, `BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH`, `BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH`, and `BPL_UNARY_PLUS_UNSUPPORTED`",
+      "`Cannot dereference non-pointer type int`",
+      "`Logical not requires boolean operand`",
+      "`Bitwise not requires integer operand`",
+      "`Unary operator '-' cannot be applied to type 'string'`",
+      "`Unary plus operator '+' is not supported`",
+      "`Dereference requires a pointer type.`",
+      "`Ensure the operand is a boolean expression.`",
+      "`Ensure the operand is an integer.`",
+      "`Negation requires a numeric type.`",
+      "`Simply remove the '+' prefix.`",
+      "invalid dereference targets, non-boolean logical-not operands, non-integer bitwise-not operands, non-numeric negation operands, and unsupported primitive unary plus",
+      'bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "unary operator misuse"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

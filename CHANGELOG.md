@@ -96,6 +96,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Valid numeric, boolean, integer, pointer, and pointer-difference
   operators remain accepted.
+- **Unary Operator Misuse Diagnostic Codes** - Invalid dereference targets,
+  non-boolean logical-not operands, non-integer bitwise-not operands,
+  non-numeric negation operands, and unsupported primitive unary plus now
+  report `BPL_DEREFERENCE_TARGET_INVALID`,
+  `BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH`,
+  `BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH`,
+  `BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH`, and
+  `BPL_UNARY_PLUS_UNSUPPORTED` in compiler errors, `bpl check --json`,
+  `bpl build --json`, and the public CLI JSON error-code registry. Valid
+  pointer dereference, logical-not, bitwise-not, and numeric negation forms
+  remain accepted; primitive unary plus remains rejected as a no-op.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
