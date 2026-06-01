@@ -132,6 +132,18 @@ export const CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS: readonly CiTriageJson
 
 const RELEASE_SMOKE_STEP_PATTERN =
   /(?:ReleaseSmoke\.test|release smoke|release:smoke|package import diagnostic code JSON)/i;
+const RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN = new RegExp(
+  [
+    "npm tarball includes paths outside the release allowlist",
+    "npm tarball includes development-only paths",
+    "npm tarball includes source-only files",
+    "Source tree is missing required source-only files",
+    "Unaccounted packed tools payload",
+    "validate packed npm file allowlist",
+    "validate source-only release files",
+  ].join("|"),
+  "i",
+);
 const RELEASE_CLI_REGISTRY_STEP_PATTERN = new RegExp(
   [
     "release:cli-registry",
@@ -708,6 +720,15 @@ const FUZZ_ARTIFACT_REPRO_STEP_PATTERN = new RegExp(
 );
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN,
+    'bun test tests/ReleaseMetadata.test.ts -t "packed tools payload|playground browser wasm helper assets|package helper script inventory"',
+  ],
+  [
+    RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN,
+    "bun test tests/ReleaseSmoke.test.ts",
+  ],
+  [RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN, "bun run release:smoke"],
   [
     PLAYGROUND_BROWSER_WASM_STEP_PATTERN,
     "bun test tests/PlaygroundBrowserWasmRuntime.test.ts tests/PlaygroundWasmHostAdapter.test.ts tests/PlaygroundStaticAssets.test.ts tests/WasmHostImportContract.test.ts",

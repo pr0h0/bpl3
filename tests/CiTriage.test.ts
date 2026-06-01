@@ -226,6 +226,29 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps release package allowlist failures to focused metadata commands", () => {
+    const expectedCommands = [
+      'bun test tests/ReleaseMetadata.test.ts -t "packed tools payload|playground browser wasm helper assets|package helper script inventory"',
+      "bun test tests/ReleaseSmoke.test.ts",
+      "bun run release:smoke",
+    ];
+
+    expect(
+      localCommandsForStep(
+        "npm tarball includes paths outside the release allowlist",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("npm tarball includes development-only paths"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("npm tarball includes source-only files"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("Unaccounted packed tools payload"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps release cli-registry failures to the focused sync check", () => {
     const expectedCommands = ["bun run release:cli-registry"];
 
