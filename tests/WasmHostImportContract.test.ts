@@ -87,14 +87,21 @@ describe("Hosted wasm env import contract", () => {
     const indexHtml = readFileSync(PLAYGROUND_INDEX, "utf8");
     const server = readFileSync(PLAYGROUND_SERVER, "utf8");
     const adapterScript = 'src="wasmHostAdapter.js"';
+    const runtimeScript = 'src="browserWasmRuntime.js"';
     const appScript = 'src="app.js"';
 
     expect(indexHtml).toContain(adapterScript);
+    expect(indexHtml).toContain(runtimeScript);
     expect(indexHtml.indexOf(adapterScript)).toBeLessThan(
+      indexHtml.indexOf(runtimeScript),
+    );
+    expect(indexHtml.indexOf(runtimeScript)).toBeLessThan(
       indexHtml.indexOf(appScript),
     );
     expect(server).toContain('url.pathname === "/wasmHostAdapter.js"');
     expect(server).toContain("../frontend/wasmHostAdapter.js");
+    expect(server).toContain('url.pathname === "/browserWasmRuntime.js"');
+    expect(server).toContain("../frontend/browserWasmRuntime.js");
   });
 
   test("documents every required hosted wasm env import", () => {

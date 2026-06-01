@@ -786,6 +786,16 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === "/browserWasmRuntime.js") {
+      const js = fs.readFileSync(
+        path.join(__dirname, "../frontend/browserWasmRuntime.js"),
+        "utf-8",
+      );
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
+      });
+    }
+
     if (url.pathname === "/tutorial.js") {
       const js = fs.readFileSync(
         path.join(__dirname, "../frontend/tutorial.js"),

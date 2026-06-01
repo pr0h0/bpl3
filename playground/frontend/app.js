@@ -8,7 +8,16 @@ const wasmHostAdapter = window.BplWasmHostAdapter;
 if (!wasmHostAdapter) {
   throw new Error("BPL wasm host adapter script must load before app.js");
 }
+const browserWasmRuntime = window.BplBrowserWasmRuntime;
+if (!browserWasmRuntime) {
+  throw new Error("BPL browser wasm runtime script must load before app.js");
+}
 const { runHostedWasmInBrowser } = wasmHostAdapter;
+const {
+  compileAndRunBplInBrowser,
+  detectBrowserWasmCapabilities,
+  formatBrowserWasmCapabilitySummary,
+} = browserWasmRuntime;
 
 require.config({
   paths: {
@@ -453,6 +462,9 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
   const argsInput = document.getElementById("args-input").value;
   const args = argsInput ? argsInput.split(/\s+/).filter((a) => a) : [];
   const startTime = Date.now();
+  const browserCapabilities = detectBrowserWasmCapabilities();
+  const browserCapabilitySummary =
+    formatBrowserWasmCapabilitySummary(browserCapabilities);
 
   document.getElementById("loading").style.display = "flex";
   document.getElementById("loading-status").textContent =
@@ -460,13 +472,65 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
   activateTab("wasm");
 
   const wasmContent = document.getElementById("wasm-content");
-  wasmContent.textContent = "Compiling hosted wasm module...";
+  wasmContent.textContent = [
+    browserCapabilitySummary,
+    "",
+    browserCapabilities.canCompileBplInBrowser
+      ? "Compiling BPL to hosted wasm in this browser..."
+      : "Compiling BPL to hosted wasm with the playground backend; execution stays in this browser.",
+  ].join("\n");
   document.getElementById("exec-time").textContent = "...";
   document.getElementById("output-size").textContent = "...";
   document.getElementById("exec-status").textContent = "Wasm";
   document.getElementById("exec-status").style.color = "var(--info)";
 
   try {
+    if (browserCapabilities.canCompileBplInBrowser) {
+      const browserResult = await compileAndRunBplInBrowser(code, args);
+      const duration = Date.now() - startTime;
+
+      if (!browserResult.success || !browserResult.runResult) {
+        wasmContent.textContent = [
+          browserCapabilitySummary,
+          "",
+          browserResult.error || "Browser wasm run failed.",
+        ].join("\n");
+        wasmContent.className = "error";
+        document.getElementById("exec-status").textContent = "Wasm failed";
+        document.getElementById("exec-status").style.color = "var(--error)";
+        showToast("Browser WebAssembly run failed", "error");
+        return;
+      }
+
+      const runResult = browserResult.runResult;
+      wasmContent.className = runResult.trapped ? "error" : "success";
+      wasmContent.textContent = [
+        "Compile mode: browser",
+        browserCapabilitySummary,
+        "",
+        `Return code: ${runResult.returnCode}`,
+        "",
+        "stdout:",
+        runResult.stdout || "(empty)",
+        "",
+        "stderr:",
+        runResult.stderr || "(empty)",
+        runResult.error ? `\ntrap:\n${runResult.error}` : "",
+      ]
+        .filter((line) => line !== "")
+        .join("\n");
+      document.getElementById("exec-time").textContent = duration + "ms";
+      document.getElementById("output-size").textContent = "browser bundle";
+      document.getElementById("exec-status").textContent = runResult.trapped
+        ? "Wasm trapped"
+        : "Wasm success";
+      document.getElementById("exec-status").style.color = runResult.trapped
+        ? "var(--error)"
+        : "var(--success)";
+      showToast("WebAssembly executed in browser", "success");
+      return;
+    }
+
     const response = await fetch(`${API_BASE}/wasm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -493,6 +557,9 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
 
     wasmContent.className = runResult.trapped ? "error" : "success";
     wasmContent.textContent = [
+      "Compile mode: backend /wasm",
+      browserCapabilitySummary,
+      "",
       `Return code: ${runResult.returnCode}`,
       `Wasm bytes: ${result.wasmBytes}`,
       imports ? `Imports:\n${imports}` : "Imports: none",
@@ -521,7 +588,16 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
       : "var(--success)";
     showToast("WebAssembly executed in browser", "success");
   } catch (error) {
-    wasmContent.textContent = `WebAssembly run failed: ${error.message}`;
+    const browserFallback = await compileAndRunBplInBrowser(code, args);
+    wasmContent.textContent = [
+      `WebAssembly run failed: ${error.message}`,
+      "",
+      browserCapabilitySummary,
+      "",
+      `Browser-only fallback: ${
+        browserFallback.error || "failed without an error message"
+      }`,
+    ].join("\n");
     wasmContent.className = "error";
     document.getElementById("exec-status").textContent = "Wasm failed";
     document.getElementById("exec-status").style.color = "var(--error)";

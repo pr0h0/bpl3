@@ -31,7 +31,7 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 - **LLVM IR Tab**: View generated intermediate representation
 - **AST Tab**: Explore the Abstract Syntax Tree
 - **Tokens Tab**: Examine lexer tokens
-- **Wasm Tab**: Compile hosted WebAssembly and execute it directly in the browser
+- **Wasm Tab**: Build hosted WebAssembly and execute it through the browser runtime adapter
 
 📥 **Input & Arguments**
 
@@ -45,6 +45,11 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
 - Real-time compilation and execution
 - Detailed error messages with line numbers
 - Hosted wasm builds use `wasm-ld`/LLVM lld and the playground runs the module through browser `WebAssembly.instantiate`
+- The Wasm tab reports browser runtime capability separately from BPL
+  compilation. The default playground uses the backend `/wasm` endpoint for
+  compilation, then runs the module in the browser. If a future
+  `BplBrowserCompiler.compileToHostedWasm` bundle is loaded, the same UI can
+  compile and run without the backend.
 
 ## Quick Start
 
@@ -310,6 +315,9 @@ Create a new JSON file in `tutorials/`:
 - Verify Clang/LLVM is installed: `clang --version`
 - Check file permissions in `/tmp`
 - Look at browser console for detailed errors
+- In the Wasm tab, "Browser BPL compiler: unavailable" means browser execution
+  is available but BPL-to-wasm compilation is still delegated to the backend
+  `/wasm` endpoint.
 
 **Examples not loading:**
 
