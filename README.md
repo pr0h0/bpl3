@@ -888,6 +888,9 @@ bun run test:ci
 bun tools/test_ci.ts --list
 bun tools/test_ci.ts --dry-run
 bun tools/test_ci.ts --json
+# CI-safe unit discovery includes tests/CiTriage.test.ts, including offline
+# jobs-json diagnostics. Focus that path directly when needed:
+bun test tests/CiTriage.test.ts -t "unreadable and malformed jobs-json"
 # Run the generated packed CLI registry shim check directly.
 bun run release:cli-registry
 # Limit integration/example concurrency. BPL_INTEGRATION_JOBS must be a

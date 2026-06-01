@@ -1329,6 +1329,8 @@ describe("Markdown documentation", () => {
       "runs the VS Code extension suite",
       "checks the generated `bpl-v3/cli` registry shim with `bun run release:cli-registry`",
       "then runs discovered top-level CI-safe unit tests",
+      "CI-safe unit discovery includes `tests/CiTriage.test.ts`, so offline jobs-json diagnostics run in the broad suite",
+      'bun test tests/CiTriage.test.ts -t "unreadable and malformed jobs-json"',
       "bun run release:cli-registry",
       "correctness corpora, long fuzz, sanitizer runtime, golden LLVM shape, and full release smoke suites remain in their dedicated scripts",
     ];

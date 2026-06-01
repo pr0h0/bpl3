@@ -39,6 +39,12 @@ with `bun run release:cli-registry`, then runs discovered top-level CI-safe unit
 tests. It intentionally excludes the full correctness corpora, long fuzz
 runners, sanitizer runtime suite, golden LLVM shape suite, and full release
 smoke suite because those have dedicated scripts and CI jobs.
+CI-safe unit discovery includes `tests/CiTriage.test.ts`, so offline jobs-json
+diagnostics run in the broad suite. Focus that path directly with:
+
+```bash
+bun test tests/CiTriage.test.ts -t "unreadable and malformed jobs-json"
+```
 
 Every matrix leg still runs `bun run check`, `bun run test:correctness`,
 `bun run fuzz:validate-artifacts`, and `bun run test:sanitizers`.

@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now assert text output for playground backend/native execution failures lists
   the focused native execution, process runner, playground example, tutorial
   example, and check repro commands.
+- **CI-Safe Jobs JSON Discovery Guard** - CI-safe runner tests now assert
+  `tests/CiTriage.test.ts` remains in discovered unit-test coverage, and docs
+  show the focused offline jobs-json diagnostic command next to `test:ci`
+  guidance.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

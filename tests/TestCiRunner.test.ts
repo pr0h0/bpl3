@@ -56,6 +56,13 @@ describe("CI-safe test runner", () => {
     expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain("ReleaseSmoke.test.ts");
   });
 
+  test("keeps ci:triage jobs-json diagnostics in CI-safe discovery", () => {
+    const ciSafeUnitTests = discoverCiSafeUnitTestFiles();
+
+    expect(ciSafeUnitTests).toContain("tests/CiTriage.test.ts");
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain("CiTriage.test.ts");
+  });
+
   test("plans runtime build, integration, registry sync, and CI-safe unit steps in order", () => {
     withTempTests(["Beta.test.ts", "Alpha.test.ts"], (testsDir) => {
       const plan = createTestCiPlan({ testsDir });
