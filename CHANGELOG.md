@@ -155,6 +155,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH` in compiler errors,
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Valid concrete and generic struct literals remain accepted.
+- **Enum Variant Field Diagnostic Codes** - Unknown enum struct variant
+  construction fields, unknown enum struct pattern fields, and enum struct
+  variant field type mismatches now report `BPL_ENUM_VARIANT_FIELD_UNKNOWN`
+  and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid enum struct variant construction and pattern matching remain
+  accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

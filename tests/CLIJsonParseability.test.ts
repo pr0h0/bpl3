@@ -4818,6 +4818,122 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports enum variant field diagnostics failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "enum_variant_field_unknown_construction",
+        code: "BPL_ENUM_VARIANT_FIELD_UNKNOWN",
+        preview: "local event: Event = Event.MouseMove { x: 1, y: 2, z: 3 }",
+        message: "Unknown field 'z' in variant 'MouseMove'",
+        hint: "Check the variant definition.",
+        source: [
+          "enum Event {",
+          "    MouseMove { x: int, y: int },",
+          "}",
+          "frame main() ret int {",
+          "    local event: Event = Event.MouseMove { x: 1, y: 2, z: 3 };",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "enum_variant_field_type_mismatch",
+        code: "BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH",
+        preview: 'local event: Event = Event.MouseMove { x: "bad", y: 2 }',
+        message: "Type mismatch for field 'x': expected int, got",
+        hint: "Field value must match the declared type.",
+        source: [
+          "enum Event {",
+          "    MouseMove { x: int, y: int },",
+          "}",
+          "frame main() ret int {",
+          '    local event: Event = Event.MouseMove { x: "bad", y: 2 };',
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "enum_variant_field_unknown_pattern",
+        code: "BPL_ENUM_VARIANT_FIELD_UNKNOWN",
+        preview: "Event.MouseMove { x: px, z: pz } => px",
+        message: "Unknown field 'z' in variant 'MouseMove'",
+        hint: "Check the variant definition.",
+        source: [
+          "enum Event {",
+          "    MouseMove { x: int, y: int },",
+          "}",
+          "frame main() ret int {",
+          "    local event: Event = Event.MouseMove { x: 1, y: 2 };",
+          "    return match (event) {",
+          "        Event.MouseMove { x: px, z: pz } => px,",
+          "    };",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      expect(check.status).toBe(1);
+      const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+      expect(checkReport).toMatchObject({
+        schemaVersion: 1,
+        check: "check",
+        success: false,
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: sourceFile,
+            success: false,
+          },
+        ],
+      });
+      const checkDiagnostic = checkReport.files[0]?.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(checkDiagnostic).toBeDefined();
+      expect(checkDiagnostic?.code).toBe(testCase.code);
+      expect(checkDiagnostic?.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic?.message).toContain(testCase.message);
+      expect(checkDiagnostic?.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+      });
+      const buildDiagnostic = buildReport.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(buildDiagnostic).toBeDefined();
+      expect(buildDiagnostic?.message).toContain(testCase.message);
+      expect(buildDiagnostic?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

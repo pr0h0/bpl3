@@ -1611,6 +1611,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document enum variant field diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Enum variant field semantic failures use `BPL_ENUM_VARIANT_FIELD_UNKNOWN` and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH`",
+      "`Unknown field 'z' in variant 'MouseMove'`",
+      "`Type mismatch for field 'x': expected int, got",
+      "`Check the variant definition.`",
+      "`Field value must match the declared type.`",
+      "unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches",
+      'bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "enum variant field diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

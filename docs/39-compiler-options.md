@@ -861,6 +861,13 @@ bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"
 ```
 
+Enum variant field semantic failures use `BPL_ENUM_VARIANT_FIELD_UNKNOWN` and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH`. This covers unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches. Representative messages include `Unknown field 'z' in variant 'MouseMove'` and `Type mismatch for field 'x': expected int, got *i8`. The corresponding hints include `Check the variant definition.` and `Field value must match the declared type.`. Valid enum struct variant construction and struct-pattern matching remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "enum variant field diagnostics"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
