@@ -12,7 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   declarations now fail before symbol-table overwrite with
   `BPL_SYMBOL_ALREADY_DEFINED` in compiler errors, `bpl check --json`,
   `bpl build --json`, and the public CLI JSON error-code registry. Duplicate
-  same-signature function overloads now use the same stable code.
+  same-signature function overloads, duplicate function parameters, and
+  duplicate generic parameters now use the same stable code.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

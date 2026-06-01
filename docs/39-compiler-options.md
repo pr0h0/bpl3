@@ -595,6 +595,14 @@ For example, two `frame pick(value: int) ret int` declarations report
 `Overloads must have different parameter types.`. Reproduce the JSON contract
 with `bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures"`.
 
+Duplicate function parameters and duplicate generic parameters also use
+`BPL_SYMBOL_ALREADY_DEFINED`. For example, `frame pick(value: int, value: int)`
+reports `Duplicate parameter name 'value'` with the hint
+`The parameter 'value' is declared multiple times in function 'pick'.`, and
+duplicate generic names report `Duplicate generic type parameter 'T'`.
+Reproduce the JSON contracts with
+`bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters"`.
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

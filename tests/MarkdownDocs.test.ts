@@ -1170,9 +1170,14 @@ describe("Markdown documentation", () => {
       "Same-signature function overloads also use `BPL_SYMBOL_ALREADY_DEFINED`",
       "`Function 'pick' with this signature is already defined.`",
       "`Overloads must have different parameter types.`",
+      "Duplicate function parameters and duplicate generic parameters also use `BPL_SYMBOL_ALREADY_DEFINED`",
+      "`Duplicate parameter name 'value'`",
+      "`Duplicate generic type parameter 'T'`",
+      "`The parameter 'value' is declared multiple times in function 'pick'.`",
       'bun test tests/TypeCheckerDuplicateSymbols.test.ts',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures"',
+      'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters"',
     ]);
   });
 
