@@ -38,6 +38,8 @@ interface CompilerOptions {
   clangFlags?: string[];
   dwarf?: boolean;
   collectAllErrors?: boolean;
+  optimizationLevel?: number;
+  jobs?: number;
   requireEntryPoint?: boolean;
 }
 
@@ -51,6 +53,11 @@ interface CompilationResult {
 const compiler = new Compiler(options);
 const result = compiler.compile(sourceCode);
 ```
+
+`optimizationLevel` accepts 0 through 3 and is forwarded to code generation,
+cached module compilation, and native linking where applicable. `jobs` controls
+parallel module compilation when incremental compilation is enabled with
+`useCache`.
 
 #### Methods
 

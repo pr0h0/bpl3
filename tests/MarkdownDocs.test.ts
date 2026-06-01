@@ -290,6 +290,22 @@ describe("Markdown documentation", () => {
     }
   });
 
+  test("public API docs document CompilerOptions optimization and jobs", () => {
+    const text = readFileSync("docs/PUBLIC_API.md", "utf8");
+    const match = /interface CompilerOptions \{[\s\S]*?\n\}/.exec(text);
+    const optionsBlock = match?.[0] ?? "";
+    const details = text.replace(/\s+/g, " ");
+
+    expect(optionsBlock).toContain("optimizationLevel?: number");
+    expect(optionsBlock).toContain("jobs?: number");
+    expect(details).toContain(
+      "`optimizationLevel` accepts 0 through 3".replace(/\s+/g, " "),
+    );
+    expect(details).toContain(
+      "`jobs` controls parallel module compilation".replace(/\s+/g, " "),
+    );
+  });
+
   test("public API docs document CodeGenerator debug IR options", () => {
     const text = readFileSync("docs/PUBLIC_API.md", "utf8").replace(
       /\s+/g,
