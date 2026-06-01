@@ -68,6 +68,20 @@ steps and print focused local commands:
 bun run ci:triage -- https://github.com/pr0h0/bpl3/actions/runs/<run-id>
 ```
 
+Text output uses stable labels for the run summary, failed jobs, failed steps,
+and local repro commands:
+
+```text
+GitHub Actions triage: pr0h0/bpl3 run <run-id>
+
+Failed jobs:
+- Ubuntu system clang release (job <job-id>)
+  failed steps:
+  - Run CI-safe test suite
+  local repro:
+  - bun run test:ci
+```
+
 Use `--json` for automation. The JSON report is versioned with
 `schemaVersion: 1`, `check: "ci-triage"`, `success`, `locator`, `run`,
 `checkout`, and `summary`. Use `run.headSha` to identify the exact commit that

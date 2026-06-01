@@ -614,6 +614,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage No-Match Guidance** - Text `ci:triage` output now explicitly
   marks failed jobs that do not match a focused local repro command, so unknown
   failure patterns are not silently ambiguous.
+- **CI Triage Text Output Docs** - Compiler correctness docs now pin the
+  `GitHub Actions triage:`, `Failed jobs:`, `failed steps:`, and `local repro:`
+  text labels used by the CI triage helper.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their
