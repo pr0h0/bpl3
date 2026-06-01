@@ -137,6 +137,9 @@ is present. The package intentionally excludes source-only files such as
 broad compiler sources. The narrow exception is
 `compiler/common/PathSafety.ts`, which is shipped because packed helper scripts
 share its symlink-safe path validation.
+Release metadata checks derive the helper inventory from `package.json` scripts
+so new `bun tools/*.ts` npm scripts must be shipped or fail with the referencing
+script name.
 Packed `ci:triage` smoke also validates timeout repro contracts for package
 tooling, package IR verification, and object symbol parsing:
 

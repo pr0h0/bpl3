@@ -16,6 +16,8 @@ import {
   PACKAGE_HELPER_DEPENDENCIES,
   createReleaseManifest,
   discoverPackageHelperDependencyFiles,
+  discoverPackageScriptHelperReferences,
+  discoverPackageScriptHelperFiles,
   writeReleaseManifest,
 } from "../tools/release_manifest";
 import {
@@ -92,6 +94,45 @@ describe("Release metadata", () => {
       expect(packageJson.scripts[scriptName]).toContain(helperPath);
       expect(existsSync(join(repoRoot, helperPath))).toBe(true);
     }
+  });
+
+  test("package helper script inventory stays aligned with package files", () => {
+    const repoRoot = join(import.meta.dir, "..");
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    );
+    const helperReferences = discoverPackageScriptHelperReferences(repoRoot);
+
+    expect(
+      helperReferences.map(({ scriptName, helperPath }) => [
+        scriptName,
+        helperPath,
+      ]),
+    ).toEqual([
+      ["ci:triage", "tools/ci_triage.ts"],
+      ["fuzz", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:differential", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:long", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:promote", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
+      ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
+      ["release:manifest", "tools/release_manifest.ts"],
+      ["release:smoke", "tools/release_smoke.ts"],
+    ]);
+
+    expect(discoverPackageScriptHelperFiles(repoRoot)).toEqual([
+      "tools/ci_triage.ts",
+      "tools/fuzz_artifact_repro.ts",
+      "tools/fuzz_script_wrapper.ts",
+      "tools/release_manifest.ts",
+      "tools/release_smoke.ts",
+    ]);
+
+    const unpackedHelpers = helperReferences.filter(
+      ({ helperPath }) =>
+        !isIncludedInPackageFiles(helperPath, packageJson.files),
+    );
+    expect(unpackedHelpers).toEqual([]);
   });
 
   test("package helper dependency inventory is explicit and narrow", () => {
@@ -187,7 +228,7 @@ describe("Release metadata", () => {
       expect(() =>
         releaseSmoke.discoverPackageScriptHelperFiles(tempRoot),
       ).toThrow(
-        "Package script helper file is missing or not a file: tools/missing_helper.ts",
+        "Package script helper file is missing or not a file: tools/missing_helper.ts (referenced by script missing:helper)",
       );
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
@@ -1155,6 +1196,15 @@ describe("Release metadata", () => {
     }
   });
 });
+
+function isIncludedInPackageFiles(
+  filePath: string,
+  packageFiles: readonly string[],
+): boolean {
+  return packageFiles.some(
+    (entry) => filePath === entry || filePath.startsWith(`${entry}/`),
+  );
+}
 
 function writeReleaseFixture(tempRoot: string): void {
   mkdirSync(join(tempRoot, "lib"), { recursive: true });

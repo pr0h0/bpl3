@@ -55,6 +55,12 @@ interface PackageJson {
   scripts?: Record<string, string>;
 }
 
+export interface PackageScriptHelperReference {
+  scriptName: string;
+  helperPath: string;
+  script: string;
+}
+
 export interface PackageHelperDependency {
   path: string;
   importedBy: readonly string[];
@@ -146,24 +152,41 @@ export function createReleaseManifest(
 }
 
 export function discoverPackageScriptHelperFiles(repoRoot: string): string[] {
+  return [
+    ...new Set(
+      discoverPackageScriptHelperReferences(repoRoot).map(
+        (reference) => reference.helperPath,
+      ),
+    ),
+  ].sort();
+}
+
+export function discoverPackageScriptHelperReferences(
+  repoRoot: string,
+): PackageScriptHelperReference[] {
   const packageJson = JSON.parse(
     readFileSync(join(repoRoot, "package.json"), "utf-8"),
   ) as PackageJson;
-  const helperFiles = new Set<string>();
+  const references: PackageScriptHelperReference[] = [];
 
-  for (const script of Object.values(packageJson.scripts ?? {})) {
+  for (const [scriptName, script] of Object.entries(packageJson.scripts ?? {})) {
     for (const helperPath of findBunToolScriptPaths(script)) {
       const stats = tryLstat(join(repoRoot, helperPath));
       if (!stats?.isFile()) {
         throw new Error(
-          `Package script helper file is missing or not a file: ${helperPath}`,
+          `Package script helper file is missing or not a file: ${helperPath} (referenced by script ${scriptName})`,
         );
       }
-      helperFiles.add(helperPath);
+      references.push({ scriptName, helperPath, script });
     }
   }
 
-  return [...helperFiles].sort();
+  return references.sort((left, right) => {
+    const scriptOrder = left.scriptName.localeCompare(right.scriptName);
+    return scriptOrder === 0
+      ? left.helperPath.localeCompare(right.helperPath)
+      : scriptOrder;
+  });
 }
 
 export function discoverPackageHelperDependencyFiles(

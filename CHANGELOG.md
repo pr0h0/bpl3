@@ -159,6 +159,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   are now checked against the exported JSON error-code inventory, covering
   package install option conflicts, direct archive path validation, package
   resolver diagnostics, and wasm linker diagnostics.
+- **Release Helper Script Inventory Guard** - Release metadata now derives
+  packed helper references from `package.json` scripts, checks that each
+  `bun tools/*.ts` helper is included in package files, and reports missing
+  helper files with the referencing script name.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.
