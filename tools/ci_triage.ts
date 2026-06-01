@@ -101,6 +101,7 @@ const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
     "package resolver",
     "package search directory",
     "global package root failures",
+    "BPL_PACKAGE_(IMPORT_INVALID|NOT_FOUND|ENTRYPOINT_|SUBPATH_|SEARCH_DIR_|ROOT_)",
   ].join("|"),
   "i",
 );
@@ -367,6 +368,8 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
     "package-install",
     "package install JSON",
     "BPL_LOCKFILE_",
+    "BPL_PACKAGE_INSTALL_",
+    "BPL_PACKAGE_ARCHIVE_",
   ].join("|"),
   "i",
 );
@@ -436,6 +439,7 @@ const WASM_TOOLCHAIN_STEP_PATTERN = new RegExp(
   [
     "Run WebAssembly runtime tests",
     "BPL_REQUIRE_WASM_LD=1 requires a wasm linker",
+    "BPL_WASM_LINKER_UNAVAILABLE",
     "wasm-ld is required",
     "wasm linker",
     "Skipping wasm runtime execution",

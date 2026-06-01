@@ -13,6 +13,7 @@ import {
   summarizeWorkflowJobs,
   type GitHubWorkflowJob,
 } from "../tools/ci_triage";
+import { CLI_JSON_ERROR_CODE_LISTS } from "../cli/JsonErrorCodes";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
 
 describe("CI triage helper", () => {
@@ -62,9 +63,12 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("BPL_REQUIRE_WASM_LD=1 requires a wasm linker"),
     ).toEqual(expectedCommands);
-    expect(localCommandsForStep("wasm-ld is required for compiler correctness CI")).toEqual(
+    expect(localCommandsForStep("BPL_WASM_LINKER_UNAVAILABLE")).toEqual(
       expectedCommands,
     );
+    expect(
+      localCommandsForStep("wasm-ld is required for compiler correctness CI"),
+    ).toEqual(expectedCommands);
     expect(localCommandsForStep("WASM_LD selected linker failed")).toEqual(
       expectedCommands,
     );
@@ -114,6 +118,15 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("global package root failures in JSON-mode check"),
     ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_PACKAGE_IMPORT_INVALID")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_PACKAGE_ENTRYPOINT_SYMLINK")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_PACKAGE_ROOT_SYMLINK")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps import resolver failures to focused reproduction commands", () => {
@@ -596,6 +609,12 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("BPL_LOCKFILE_UNSUPPORTED_VERSION in packages JSON"),
     ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("BPL_PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT"),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_PACKAGE_ARCHIVE_NOT_FILE")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps package manifest JSON failures to focused reproduction commands", () => {
@@ -728,6 +747,20 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("project-new JSON contract failure")).toEqual(
       expectedCommands,
     );
+  });
+
+  test("maps exported JSON error-code inventory to local repro commands", () => {
+    const unmappedCodes: string[] = [];
+
+    for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
+      for (const code of codes) {
+        if (localCommandsForStep(code).length === 0) {
+          unmappedCodes.push(`${name}:${code}`);
+        }
+      }
+    }
+
+    expect(unmappedCodes).toEqual([]);
   });
 
   test("maps wasm runtime execution failures to focused repro commands", () => {

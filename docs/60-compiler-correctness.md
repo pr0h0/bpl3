@@ -149,6 +149,11 @@ bun test tests/PackageJsonFailureContracts.test.ts
 bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"
 ```
 
+The triage mapping is also guarded against the exported JSON error-code
+inventory. New `BPL_*` codes in the CLI registry must map to at least one local
+repro command, including package install option conflicts, direct archive path
+validation, package resolver diagnostics, and wasm linker diagnostics.
+
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.
 `BPL_RUNTIME_BUILD=release` compiles it with `-O2 -g`.
 

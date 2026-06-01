@@ -155,6 +155,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package JSON Code List Shape Guard** - PackageManager JSON code lists now
   have a focused failure-contract check for non-empty lists, per-list
   duplicates, and stable `BPL_*` code spelling.
+- **CI Triage JSON Code Inventory Guard** - `bun run ci:triage` repro mappings
+  are now checked against the exported JSON error-code inventory, covering
+  package install option conflicts, direct archive path validation, package
+  resolver diagnostics, and wasm linker diagnostics.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.
