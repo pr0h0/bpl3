@@ -118,6 +118,7 @@ const MAPPED_JSON_CODE_GROUP_NAMES = [
   "package-resolver",
   "module-resolver",
   "import-handler",
+  "type-checker",
   "run-script",
   "sanitizer-runtime",
   "wasm-linker",
@@ -252,6 +253,17 @@ const IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN = new RegExp(
     "stable code when a named import is not exported",
     "Available exports:",
     "Module ['\"](?:\\./|\\.\\./|/|[A-Za-z]:[\\\\/])[^'\"]+['\"] does not export",
+  ].join("|"),
+  "i",
+);
+const DUPLICATE_SYMBOL_STEP_PATTERN = new RegExp(
+  [
+    "BPL_SYMBOL_ALREADY_DEFINED",
+    "duplicate-symbol",
+    "duplicate symbol",
+    "duplicate top-level symbols",
+    "already defined in this scope",
+    "remove the earlier .* declaration",
   ].join("|"),
   "i",
 );
@@ -881,6 +893,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
   ],
   [IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN, "bun run check"],
+  [
+    DUPLICATE_SYMBOL_STEP_PATTERN,
+    "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
+  ],
+  [
+    DUPLICATE_SYMBOL_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"',
+  ],
+  [
+    DUPLICATE_SYMBOL_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
+  ],
+  [DUPLICATE_SYMBOL_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
