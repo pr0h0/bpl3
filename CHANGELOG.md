@@ -32,6 +32,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Usage Output Guard** - Focused `ci:triage` validation tests now
   assert missing option values, unknown options, invalid repositories, and
   offline jobs-json failures keep stdout empty and avoid GitHub API wording.
+- **CI Triage Run Locator Validation** - `bun run ci:triage` now reports
+  malformed run IDs, malformed URLs, non-GitHub URLs, non-actions URLs, and
+  invalid job URL IDs as status-2 usage errors before any GitHub API request.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

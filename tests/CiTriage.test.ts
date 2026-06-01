@@ -4254,6 +4254,74 @@ describe("CI triage helper", () => {
     expect(result.stderr).not.toContain("api.github.com");
   });
 
+  test("rejects invalid run locators before GitHub API calls", () => {
+    const cases: Array<{
+      args: string[];
+      expectedError: string;
+      forbiddenError: string;
+    }> = [
+      {
+        args: ["0"],
+        expectedError: "Invalid GitHub Actions run id: 0",
+        forbiddenError: "actions/runs/0",
+      },
+      {
+        args: ["9007199254740993"],
+        expectedError: "Invalid GitHub Actions run id: 9007199254740993",
+        forbiddenError: "api.github.com",
+      },
+      {
+        args: ["not-a-url"],
+        expectedError:
+          "Expected a numeric GitHub Actions run id or github.com Actions run URL, got not-a-url",
+        forbiddenError: "cannot be parsed as a URL",
+      },
+      {
+        args: ["https://example.com/pr0h0/bpl3/actions/runs/26695335269"],
+        expectedError:
+          "Expected a github.com Actions run URL, got https://example.com/pr0h0/bpl3/actions/runs/26695335269",
+        forbiddenError: "api.github.com",
+      },
+      {
+        args: ["https://github.com/pr0h0/bpl3/pull/1"],
+        expectedError:
+          "Expected a GitHub Actions run URL, got https://github.com/pr0h0/bpl3/pull/1",
+        forbiddenError: "GitHub API",
+      },
+      {
+        args: ["https://github.com/pr0h0/bpl3/actions/runs/not-a-run"],
+        expectedError:
+          "Invalid GitHub Actions run id in https://github.com/pr0h0/bpl3/actions/runs/not-a-run",
+        forbiddenError: "api.github.com",
+      },
+      {
+        args: [
+          "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/not-a-job",
+        ],
+        expectedError:
+          "Invalid GitHub Actions job id in https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/not-a-job",
+        forbiddenError: "api.github.com",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const result = spawnSync(
+        "bun",
+        ["run", "ci:triage", "--", ...testCase.args],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(testCase.expectedError);
+      expect(result.stderr).not.toContain(testCase.forbiddenError);
+      expect(result.stderr).not.toContain("api.github.com");
+    }
+  });
+
   test("rejects unreadable and malformed jobs-json files before GitHub API calls", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-jobs-json-"));
 

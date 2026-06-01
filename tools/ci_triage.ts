@@ -1262,38 +1262,57 @@ export function parseGitHubRunLocator(
 ): GitHubRunLocator {
   const trimmed = input.trim();
   if (/^\d+$/.test(trimmed)) {
+    const runId = Number(trimmed);
+    if (!Number.isSafeInteger(runId) || runId <= 0) {
+      throw new CliUsageError(`Invalid GitHub Actions run id: ${trimmed}`);
+    }
     const [owner, repo] = parseRepo(defaultRepo);
-    return { owner, repo, runId: Number(trimmed) };
+    return { owner, repo, runId };
   }
 
-  const url = new URL(trimmed);
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new CliUsageError(
+      `Expected a numeric GitHub Actions run id or github.com Actions run URL, got ${trimmed}`,
+    );
+  }
+
   if (url.hostname !== "github.com") {
-    throw new Error(`Expected a github.com Actions run URL, got ${url.href}`);
+    throw new CliUsageError(
+      `Expected a github.com Actions run URL, got ${url.href}`,
+    );
   }
 
   const parts = url.pathname.split("/").filter(Boolean);
   const actionsIndex = parts.indexOf("actions");
   const runsIndex = parts.indexOf("runs");
   if (parts.length < 5 || actionsIndex !== 2 || runsIndex !== 3) {
-    throw new Error(`Expected a GitHub Actions run URL, got ${url.href}`);
+    throw new CliUsageError(
+      `Expected a GitHub Actions run URL, got ${url.href}`,
+    );
   }
 
   const owner = parts[0]!;
   const repo = parts[1]!;
   const runId = Number(parts[4]);
   if (!Number.isSafeInteger(runId) || runId <= 0) {
-    throw new Error(`Invalid GitHub Actions run id in ${url.href}`);
+    throw new CliUsageError(`Invalid GitHub Actions run id in ${url.href}`);
   }
 
   const jobIndex = parts.indexOf("job");
-  const jobId =
-    jobIndex >= 0 && parts[jobIndex + 1]
-      ? Number(parts[jobIndex + 1])
-      : undefined;
+  let jobId: number | undefined;
+  if (jobIndex >= 0) {
+    jobId = Number(parts[jobIndex + 1]);
+    if (!Number.isSafeInteger(jobId) || jobId <= 0) {
+      throw new CliUsageError(`Invalid GitHub Actions job id in ${url.href}`);
+    }
+  }
 
-  return Number.isSafeInteger(jobId) && jobId! > 0
-    ? { owner, repo, runId, jobId }
-    : { owner, repo, runId };
+  return jobId === undefined
+    ? { owner, repo, runId }
+    : { owner, repo, runId, jobId };
 }
 
 export function summarizeWorkflowJobs(
