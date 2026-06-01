@@ -412,6 +412,40 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("does not resolve explicit source-file imports through directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    const explicitBplDir = path.join(featureDir, "add.bpl");
+    const explicitXDir = path.join(featureDir, "legacy.x");
+    fs.mkdirSync(explicitBplDir, { recursive: true });
+    fs.mkdirSync(explicitXDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(explicitBplDir, "index.bpl"), "export add;");
+    fs.writeFileSync(path.join(explicitXDir, "index.bpl"), "export legacy;");
+
+    for (const [importPath, explicitDir] of [
+      ["math/features/add.bpl", explicitBplDir],
+      ["math/features/legacy.x", explicitXDir],
+    ] as const) {
+      const details = resolvePackageImport(importPath, appDir);
+
+      expect(details.result, importPath).toBeNull();
+      expect(details.trace.failureReason, importPath).toBe("subpath-not-found");
+      expect(details.trace.failureMessage, importPath).toContain(
+        `subpath '${importPath.slice("math/".length)}' was not found`,
+      );
+      expect(details.trace.entryCandidates, importPath).toContain(explicitDir);
+      expect(details.trace.entryCandidates, importPath).not.toContain(
+        path.join(explicitDir, "index.bpl"),
+      );
+    }
+  });
+
   test("rejects invalid package import names before searching", () => {
     const appDir = path.join(tempDir, "app");
     fs.mkdirSync(path.join(appDir, "bpl_modules", "bad_name"), {

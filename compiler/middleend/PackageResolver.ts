@@ -760,7 +760,7 @@ function resolvePackageSourcePath(
       addEntryCandidate(trace, filePath);
       return filePath;
     }
-    if (directStats.isDirectory()) {
+    if (directStats.isDirectory() && !hasPackageSourceExtension(filePath)) {
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
         addEntryCandidate(trace, indexPath);
@@ -811,6 +811,10 @@ function resolvePackageSourcePath(
   }
 
   return null;
+}
+
+function hasPackageSourceExtension(filePath: string): boolean {
+  return filePath.endsWith(".bpl") || filePath.endsWith(".x");
 }
 
 function addEntryCandidate(
