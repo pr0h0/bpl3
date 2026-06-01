@@ -179,6 +179,16 @@ export const RESERVED_BUILTIN_TYPE_NAMES = new Set([
   "Any",
 ]);
 
+const STANDARD_LIBRARY_RUNTIME_ERROR_TYPES = new Set([
+  "NullAccessError",
+  "IndexOutOfBoundsError",
+  "DivisionByZeroError",
+]);
+
+const STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES = new Set(
+  Object.values(PRIMITIVE_STRUCT_MAP),
+);
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -663,10 +673,15 @@ export abstract class TypeCheckerBase {
     const sourceFile = location.file.replace(/\\/g, "/");
     const isTypeModule = /(^|\/)lib\/type\.bpl$/.test(sourceFile);
     const isReflectionModule = /(^|\/)lib\/reflection\.bpl$/.test(sourceFile);
+    const isErrorsModule = /(^|\/)lib\/errors\.bpl$/.test(sourceFile);
+    const isPrimitivesModule = /(^|\/)lib\/primitives\.bpl$/.test(sourceFile);
 
     return (
       (name === "TypeInfo" && isReflectionModule) ||
-      ((name === "Type" || name === "Any") && isTypeModule)
+      ((name === "Type" || name === "Any") && isTypeModule) ||
+      (STANDARD_LIBRARY_RUNTIME_ERROR_TYPES.has(name) && isErrorsModule) ||
+      (STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES.has(name) &&
+        isPrimitivesModule)
     );
   }
 

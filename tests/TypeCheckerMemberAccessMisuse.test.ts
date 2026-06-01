@@ -120,4 +120,18 @@ describe("TypeChecker member access misuse diagnostics", () => {
 
     expect(errors).toEqual([]);
   });
+
+  test("preserves imported primitive wrapper member access", () => {
+    const errors = collectErrors(`
+      import [Int] from "std/primitives.bpl";
+
+      frame main() ret int {
+        local boxed: Int;
+        boxed.value = 7;
+        return boxed.value + boxed.popCount();
+      }
+    `);
+
+    expect(errors).toEqual([]);
+  });
 });
