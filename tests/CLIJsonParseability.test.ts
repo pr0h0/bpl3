@@ -2051,6 +2051,88 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports available exports for missing named imports in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "missing_named_export.bpl");
+    const helperFile = path.join(tempDir, "missing_named_export_helper.bpl");
+    const outputFile = path.join(tempDir, "missing-named-export-app");
+    fs.writeFileSync(
+      helperFile,
+      [
+        "frame zeta() ret int {",
+        "    return 2;",
+        "}",
+        "frame alpha() ret int {",
+        "    return 1;",
+        "}",
+        "export zeta;",
+        "export alpha;",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import missing from "./missing_named_export_helper.bpl";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile);
+    expect(checkDiagnostic.code).toBe("BPL_IMPORT_EXPORT_NOT_FOUND");
+    expect(checkDiagnostic.message).toContain(
+      "Module './missing_named_export_helper.bpl' does not export 'missing'",
+    );
+    expect(checkDiagnostic.hint).toContain(
+      "Ensure the symbol is exported (or defined) in the module.",
+    );
+    expect(checkDiagnostic.hint).toContain("Available exports: alpha, zeta.");
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [
+        {
+          code: "BPL_IMPORT_EXPORT_NOT_FOUND",
+          location: {
+            file: sourceFile,
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Module './missing_named_export_helper.bpl' does not export 'missing'",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Available exports: alpha, zeta.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
