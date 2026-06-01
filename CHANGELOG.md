@@ -680,6 +680,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Documentation
 
+- Documented the integration example `test_config.json` schema, including
+  canonical `expectedOutput` behavior, supported execution fields, unsupported
+  key handling, and focused validation commands.
 - Refreshed `TODO.md` and `PLAN.md` so recommended next steps reflect current
   compiler-stability, wasm, package-manager, CI, and documentation priorities
   instead of completed feature work.

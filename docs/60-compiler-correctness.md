@@ -65,6 +65,29 @@ ci:triage maps `BPL_INTEGRATION_JOBS` and integration concurrency failures to
 that helper test, a bounded `BPL_INTEGRATION_JOBS=4 bun run test:ci` repro, and
 the full `bun run test:ci` suite.
 
+Integration examples use `examples/**/test_config.json` to declare expected
+runtime behavior. The harness validates these files before running examples.
+Unsupported keys fail with the config file path instead of being silently
+ignored. Supported execution fields are:
+
+- `expectedOutput`: string or string array. Each listed line must appear in the
+  combined stdout/stderr stream.
+- `exitCode`: expected process exit status. Omit it for the default `0`.
+- `args`: string array appended after the example path.
+- `env`: object of string environment overrides.
+- `input`: stdin string passed to the example.
+- `timeout`: positive integer timeout in milliseconds.
+- `skip_compilation`: boolean that skips the example in the integration suite.
+
+Use canonical camelCase keys. Legacy `expected_output` is rejected because older
+configs with that key were ignored by the harness and skipped their output
+assertions. Focused config validation commands:
+
+```bash
+bun test tests/IntegrationConfig.test.ts
+bun test tests/Integration.test.ts -t "valid for the integration harness"
+```
+
 To reproduce just the wasm toolchain, runtime, playground linker, and
 compatibility coverage:
 

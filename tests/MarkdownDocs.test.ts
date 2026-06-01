@@ -1175,6 +1175,29 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("docs document integration example config schema", () => {
+    const normalizedText = normalizedMarkdownText([
+      "docs/60-compiler-correctness.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "test_config.json",
+      "`expectedOutput`",
+      "`exitCode`",
+      "`args`",
+      "`env`",
+      "`input`",
+      "`timeout`",
+      "`skip_compilation`",
+      "Unsupported keys",
+      "legacy `expected_output`",
+      "bun test tests/IntegrationConfig.test.ts",
+      'bun test tests/Integration.test.ts -t "valid for the integration harness"',
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("docs document timeout environment fallback diagnostics", () => {
     const combinedDocs = [
       readFileSync("docs/25-package-management.md", "utf8"),
