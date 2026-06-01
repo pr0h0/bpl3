@@ -185,6 +185,17 @@ const PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_IMPORT_CASING_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_(ROOT|SEARCH_DIR|ENTRYPOINT|SUBPATH)_CASE_MISMATCH",
+    "package root casing does not match",
+    "package search directory casing does not match",
+    "entrypoint casing does not match filesystem",
+    "subpath .* casing does not match filesystem",
+    "case-mismatched global versioned package",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_IMPORT_DOCS_SMOKE_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*package/import docs examples",
@@ -832,6 +843,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
   ],
+  [
+    PACKAGE_IMPORT_CASING_STEP_PATTERN,
+    'bun test tests/PackageResolver.test.ts -t "casing|case-mismatched global versioned"',
+  ],
+  [
+    PACKAGE_IMPORT_CASING_STEP_PATTERN,
+    'bun test tests/ModuleResolver.test.ts -t "case-mismatched global versioned|filesystem casing"',
+  ],
+  [
+    PACKAGE_IMPORT_CASING_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package search directory|module path diagnostic codes|JSON-mode build failures"',
+  ],
+  [PACKAGE_IMPORT_CASING_STEP_PATTERN, "bun run check"],
 ];
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [

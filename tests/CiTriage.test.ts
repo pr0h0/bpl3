@@ -348,6 +348,31 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package import casing diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageResolver.test.ts -t "casing|case-mismatched global versioned"',
+      'bun test tests/ModuleResolver.test.ts -t "case-mismatched global versioned|filesystem casing"',
+      'bun test tests/CLIJsonParseability.test.ts -t "package search directory|module path diagnostic codes|JSON-mode build failures"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_PACKAGE_ROOT_CASE_MISMATCH",
+      "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
+      "BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH",
+      "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
+      "package root casing does not match filesystem path",
+      "package search directory casing does not match filesystem path",
+      "entrypoint casing does not match filesystem",
+      "subpath 'features/add' casing does not match filesystem",
+      "case-mismatched global versioned package diagnostics",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps package docs smoke failures to focused reproduction commands", () => {
     const packageImportDocsCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
@@ -2550,6 +2575,72 @@ describe("CI triage helper", () => {
         'bun test tests/CLIJsonParseability.test.ts -t "malformed package manifests|package manifest symlink|missing package manifests"',
         'bun test tests/PackageResolver.test.ts -t "manifest"',
         'bun test tests/ModuleResolver.test.ts -t "manifest"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package import casing repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-package-import-casing-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 79,
+              name: "Package import casing diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/79",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_ROOT_CASE_MISMATCH while importing math",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageResolver.test.ts -t "casing|case-mismatched global versioned"',
+        'bun test tests/ModuleResolver.test.ts -t "case-mismatched global versioned|filesystem casing"',
+        'bun test tests/CLIJsonParseability.test.ts -t "package search directory|module path diagnostic codes|JSON-mode build failures"',
         "bun run check",
       ]);
     } finally {
