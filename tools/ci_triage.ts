@@ -601,6 +601,22 @@ const PLAYGROUND_BROWSER_WASM_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN = new RegExp(
+  [
+    "PlaygroundProcessRunner\\.test",
+    "PlaygroundExamples\\.test.*(?:shell metacharacter args|argv-vector execution)",
+    "TutorialExamples\\.test.*argv-vector execution",
+    "Playground process runner",
+    "playground process execution",
+    "playground backend execution",
+    "backend server runs compiled programs through argv-vector execution",
+    "passes shell metacharacter args literally and preserves stdin",
+    "does not surface stdin pipe errors after a successful child exit",
+    "runProcessFile\\(binFile, args",
+    "runProcessFile",
+  ].join("|"),
+  "i",
+);
 const SANITIZER_RUNTIME_STEP_PATTERN = new RegExp(
   [
     "Run sanitizer-backed runtime tests",
@@ -735,6 +751,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run test:wasm"],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run check"],
+  [
+    PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN,
+    "bun test tests/PlaygroundProcessRunner.test.ts",
+  ],
+  [
+    PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN,
+    'bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"',
+  ],
+  [
+    PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN,
+    'bun test tests/TutorialExamples.test.ts -t "argv-vector execution"',
+  ],
+  [PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN, "bun run check"],
   [
     FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
     "bun run fuzz:repro -- fuzz/crashes",

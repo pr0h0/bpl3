@@ -1115,6 +1115,37 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps playground process execution failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/PlaygroundProcessRunner.test.ts",
+      'bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"',
+      'bun test tests/TutorialExamples.test.ts -t "argv-vector execution"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("PlaygroundProcessRunner.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "Playground process runner > does not surface stdin pipe errors after a successful child exit",
+      ),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("runProcessFile(binFile, args")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "passes shell metacharacter args literally and preserves stdin",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "backend server runs compiled programs through argv-vector execution",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps sanitizer runtime failures to focused repro commands", () => {
     const expectedCommands = [
       "bun run test:sanitizers",
