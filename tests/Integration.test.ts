@@ -11,8 +11,8 @@ import {
   runProcess,
 } from "./helpers/integrationRunner";
 import {
-  parseIntegrationExampleConfig,
-  validateIntegrationExampleConfig,
+  readIntegrationExampleConfig,
+  validateIntegrationExampleConfigFile,
 } from "./helpers/integrationConfig";
 
 const EXAMPLES_DIR = path.join(process.cwd(), "examples");
@@ -85,10 +85,9 @@ function cleanupExampleArtifactOutput(outputPath: string): void {
 }
 
 function readExampleConfig(configFile: string) {
-  const rawConfig = JSON.parse(fs.readFileSync(configFile, "utf-8"));
-  return parseIntegrationExampleConfig(
+  return readIntegrationExampleConfig(
+    configFile,
     path.relative(process.cwd(), configFile),
-    rawConfig,
   );
 }
 
@@ -99,11 +98,10 @@ function findInvalidExampleConfigErrors(examples: string[]): string[] {
     const configFile = path.join(EXAMPLES_DIR, example, "test_config.json");
     if (!fs.existsSync(configFile)) continue;
 
-    const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
     errors.push(
-      ...validateIntegrationExampleConfig(
+      ...validateIntegrationExampleConfigFile(
+        configFile,
         path.relative(process.cwd(), configFile),
-        config,
       ),
     );
   }

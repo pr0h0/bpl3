@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 import {
   parseIntegrationExampleConfig,
+  readIntegrationExampleConfig,
   validateIntegrationExampleConfig,
 } from "./helpers/integrationConfig";
 
@@ -73,5 +77,19 @@ describe("integration example config parser", () => {
       "examples/bad/test_config.json: timeout must be a positive integer",
       "examples/bad/test_config.json: skip_compilation must be a boolean",
     ]);
+  });
+
+  test("reports malformed JSON with config file context", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-integration-config-"));
+    const configFile = join(tempDir, "test_config.json");
+    writeFileSync(configFile, "{ invalid json");
+
+    try {
+      expect(() => readIntegrationExampleConfig(configFile)).toThrow(
+        `${configFile}: invalid JSON in test_config.json`,
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

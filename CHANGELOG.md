@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Integration Config Parse Errors** - Malformed example `test_config.json`
+  files now report the config file path before the JSON parse detail, and the
+  integration harness uses the shared config reader for validation and example
+  execution.
 - **Typed Integration Config Parsing** - Integration tests now parse
   `test_config.json` through a typed validator with defaults and file-qualified
   diagnostics for invalid `expectedOutput`, `exitCode`, `args`, `env`, `input`,

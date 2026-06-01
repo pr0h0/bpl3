@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+
 export interface IntegrationExampleConfig {
   expectedOutput?: string | string[];
   exitCode: number;
@@ -45,6 +47,28 @@ export function parseIntegrationExampleConfig(
   };
 }
 
+export function readIntegrationExampleConfig(
+  configFile: string,
+  displayPath: string = configFile,
+): IntegrationExampleConfig {
+  const value = readIntegrationExampleConfigJson(configFile, displayPath);
+  return parseIntegrationExampleConfig(displayPath, value);
+}
+
+export function validateIntegrationExampleConfigFile(
+  configFile: string,
+  displayPath: string = configFile,
+): string[] {
+  let value: unknown;
+  try {
+    value = readIntegrationExampleConfigJson(configFile, displayPath);
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+
+  return validateIntegrationExampleConfig(displayPath, value);
+}
+
 export function validateIntegrationExampleConfig(
   configFile: string,
   value: unknown,
@@ -78,6 +102,20 @@ export function validateIntegrationExampleConfig(
   validateBooleanField(configFile, "skip", value.skip, errors);
 
   return errors;
+}
+
+function readIntegrationExampleConfigJson(
+  configFile: string,
+  displayPath: string,
+): unknown {
+  const source = readFileSync(configFile, "utf-8");
+
+  try {
+    return JSON.parse(source);
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(`${displayPath}: invalid JSON in test_config.json${detail}`);
+  }
 }
 
 function validateExpectedOutput(
