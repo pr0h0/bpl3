@@ -21,8 +21,7 @@ import { compilerLog } from "../common/Logger";
 import { findCaseMismatchPath } from "../common/PathSafety";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
-import { PackageManager } from "./PackageManager";
-import type { PackageManagerOptions } from "./PackageManager";
+import { PackageManager, type PackageManagerOptions } from "./PackageManager";
 import {
   formatPackageResolutionHint,
   getPackageResolutionFailureCode,
