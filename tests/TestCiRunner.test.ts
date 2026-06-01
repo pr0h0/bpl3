@@ -56,7 +56,7 @@ describe("CI-safe test runner", () => {
     expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain("ReleaseSmoke.test.ts");
   });
 
-  test("plans runtime build, integration, VS Code, and CI-safe unit steps in order", () => {
+  test("plans runtime build, integration, registry sync, and CI-safe unit steps in order", () => {
     withTempTests(["Beta.test.ts", "Alpha.test.ts"], (testsDir) => {
       const plan = createTestCiPlan({ testsDir });
 
@@ -64,6 +64,7 @@ describe("CI-safe test runner", () => {
         "Build runtime support",
         "Run integration and playground examples",
         "Run VS Code extension tests",
+        "Check generated CLI registry shim",
         "Run CI-safe unit tests",
       ]);
       expect(plan.map((step) => [step.command, ...step.args])).toEqual([
@@ -75,6 +76,7 @@ describe("CI-safe test runner", () => {
           "tests/PlaygroundExamples.test.ts",
         ],
         ["bun", "run", "test:vscode-ext"],
+        ["bun", "run", "release:cli-registry"],
         [
           "bun",
           "test",
@@ -95,6 +97,8 @@ describe("CI-safe test runner", () => {
         "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
       );
       expect(text).toContain("bun run test:vscode-ext");
+      expect(text).toContain("# Check generated CLI registry shim");
+      expect(text).toContain("bun run release:cli-registry");
       expect(text).toContain("bun test tests/Alpha.test.ts");
     });
 
@@ -108,7 +112,7 @@ describe("CI-safe test runner", () => {
         createTestCiPlan({ testsDir }),
       );
 
-      expect(summary).toBe("==> CI-safe validation passed (4 steps)");
+      expect(summary).toBe("==> CI-safe validation passed (5 steps)");
     });
   });
 

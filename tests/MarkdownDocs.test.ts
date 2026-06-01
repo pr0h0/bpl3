@@ -1301,7 +1301,9 @@ describe("Markdown documentation", () => {
       "The runner builds runtime support first",
       "runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`",
       "runs the VS Code extension suite",
+      "checks the generated `bpl-v3/cli` registry shim with `bun run release:cli-registry`",
       "then runs discovered top-level CI-safe unit tests",
+      "bun run release:cli-registry",
       "correctness corpora, long fuzz, sanitizer runtime, golden LLVM shape, and full release smoke suites remain in their dedicated scripts",
     ];
 

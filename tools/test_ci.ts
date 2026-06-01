@@ -71,6 +71,11 @@ export function createTestCiPlan(options: TestCiPlanOptions = {}): TestCiStep[] 
       args: ["run", "test:vscode-ext"],
     },
     {
+      name: "Check generated CLI registry shim",
+      command: "bun",
+      args: ["run", "release:cli-registry"],
+    },
+    {
       name: "Run CI-safe unit tests",
       command: "bun",
       args: ["test", ...ciSafeUnitTests],
