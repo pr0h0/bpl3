@@ -130,6 +130,8 @@ export const CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS: readonly CiTriageJson
 
 const RELEASE_SMOKE_STEP_PATTERN =
   /(?:ReleaseSmoke\.test|release smoke|release:smoke|package import diagnostic code JSON)/i;
+const RELEASE_CLI_REGISTRY_STEP_PATTERN =
+  /(?:release:cli-registry|release cli-registry|CLI registry shim|cli_json_registry_shim|bpl-v3\/cli registry)/i;
 const PACKAGE_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "PackageResolver\\.test",
@@ -575,6 +577,7 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     COMPILER_TIMEOUT_STEP_PATTERN,
     "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
   ],
+  [RELEASE_CLI_REGISTRY_STEP_PATTERN, "bun run release:cli-registry"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun run release:smoke"],
   [RELEASE_SMOKE_STEP_PATTERN, "bun test tests/ReleaseSmoke.test.ts"],
   [

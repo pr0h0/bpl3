@@ -215,6 +215,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Compact MarkdownDocs Failures** - Markdown documentation snippet and code
   helpers now report concise missing-item lists instead of dumping the entire
   Markdown corpus into CI logs.
+- **CI Triage Release Registry Mapping** - `ci:triage` now maps
+  `release:cli-registry` and stale CLI registry shim failures to the focused
+  `bun run release:cli-registry` repro command.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

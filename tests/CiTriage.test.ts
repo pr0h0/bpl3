@@ -103,6 +103,20 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps release cli-registry failures to the focused sync check", () => {
+    const expectedCommands = ["bun run release:cli-registry"];
+
+    expect(localCommandsForStep("Run release:cli-registry")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("CLI registry shim is stale")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("tools/cli_json_registry_shim.ts --check failed"),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package resolver JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/PackageResolver.test.ts",
