@@ -146,6 +146,12 @@ imports such as `std//array.bpl`, `std/./array.bpl`, `std/../array.bpl`, and
 `std\..\array.bpl` are rejected before the compiler resolves them against the
 standard library root.
 
+Explicit `std/` and `std\` imports are reserved for the configured standard
+library. A missing normalized `std/...` module fails with
+`BPL_MODULE_NOT_FOUND` and a `Standard library module not found` diagnostic;
+the resolver does not fall back to local packages, workspace packages, global
+packages, or extra search paths, even if a package is named `std`.
+
 ### Import Diagnostics
 
 Normal `bpl check`, `bpl build`, and cached builds preserve resolver-specific

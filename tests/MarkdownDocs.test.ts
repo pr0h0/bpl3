@@ -1098,6 +1098,24 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(text, requiredSnippets);
   });
 
+  test("imports docs document std namespace isolation from packages", () => {
+    const importDocs = readFileSync(
+      "docs/23-imports-exports.md",
+      "utf8",
+    ).replace(/\s+/g, " ");
+    const readme = readFileSync("README.md", "utf8").replace(/\s+/g, " ");
+
+    expectDocsContainSnippets(importDocs, [
+      "Explicit `std/` and `std\\` imports are reserved for the configured standard library",
+      "A missing normalized `std/...` module fails with `BPL_MODULE_NOT_FOUND` and a `Standard library module not found` diagnostic",
+      "the resolver does not fall back to local packages, workspace packages, global packages, or extra search paths, even if a package is named `std`",
+    ]);
+    expectDocsContainSnippets(readme, [
+      "`std/` and `std\\` imports are reserved for the configured standard library",
+      "do not fall back to packages or extra search paths",
+    ]);
+  });
+
   test("imports docs document diagnostic mode policy", () => {
     const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
       /\s+/g,

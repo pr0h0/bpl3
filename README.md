@@ -736,6 +736,10 @@ BPL includes a comprehensive standard library:
 | `std/option.bpl` | Optional values         | `Option<T>.Some(val)` |
 | `std/result.bpl` | Error handling          | `Result<T, E>`        |
 
+`std/` and `std\` imports are reserved for the configured standard library and
+do not fall back to packages or extra search paths when a normalized standard
+library module is missing.
+
 See the [Standard Library documentation](docs/28-stdlib-io.md) for complete API reference.
 
 ## 📁 Project Structure
