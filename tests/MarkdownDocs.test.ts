@@ -24,6 +24,7 @@ import {
   MODULE_PATH_CASE_MISMATCH_CODE,
   MODULE_PATH_NOT_FILE_CODE,
   MODULE_PATH_SYMLINK_CODE,
+  MODULE_RESOLUTION_FAILURE_CODES,
 } from "../compiler/middleend/ModuleResolver";
 import {
   BUILD_JSON_ERROR_CODES,
@@ -940,6 +941,10 @@ describe("Markdown documentation", () => {
       MODULE_PATH_CASE_MISMATCH_CODE,
       IMPORT_STD_PATH_UNSAFE_CODE,
     ];
+
+    expect(expectedCodes.sort()).toEqual(
+      [...MODULE_RESOLUTION_FAILURE_CODES].sort(),
+    );
 
     for (const code of expectedCodes) {
       expect(combinedDocs).toContain(code);

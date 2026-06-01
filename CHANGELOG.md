@@ -145,6 +145,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   diagnostics now expose a shared `BPL_PACKAGE_*` code list, docs cover every
   resolver code, and MarkdownDocs checks representative resolver traces against
   the documented inventory.
+- **Module Resolver Diagnostic Code List** - Non-package module and explicit
+  standard-library import diagnostics now expose a shared code list, and
+  MarkdownDocs checks the docs inventory against the ModuleResolver constants.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.

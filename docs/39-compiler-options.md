@@ -555,7 +555,8 @@ Non-package module and standard-library import failures also expose stable
 codes in the same diagnostic objects: `BPL_MODULE_NOT_FOUND`,
 `BPL_MODULE_FILE_NOT_FOUND`, `BPL_MODULE_PATH_NOT_FILE`,
 `BPL_MODULE_PATH_SYMLINK`, `BPL_MODULE_PATH_CASE_MISMATCH`, and
-`BPL_IMPORT_STD_PATH_UNSAFE`.
+`BPL_IMPORT_STD_PATH_UNSAFE`. The documentation inventory is guarded against
+the ModuleResolver constants so new resolver codes do not silently miss docs.
 
 ### CLI JSON compatibility policy
 
