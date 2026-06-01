@@ -4210,6 +4210,7 @@ describe("CI triage helper", () => {
       });
 
       expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
       expect(result.stderr).toContain(expectedError);
       expect(result.stderr).not.toContain("GitHub API");
       expect(result.stderr).not.toContain("api.github.com");
@@ -4229,6 +4230,7 @@ describe("CI triage helper", () => {
       });
 
       expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
       expect(result.stderr).toContain(expectedError);
       expect(result.stderr).not.toContain("GitHub API");
       expect(result.stderr).not.toContain("api.github.com");

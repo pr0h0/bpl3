@@ -29,6 +29,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Repo Validation Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now verifies installed-package `ci:triage --repo bad` reports the same usage
   diagnostic without running full release smoke.
+- **CI Triage Usage Output Guard** - Focused `ci:triage` validation tests now
+  assert missing option values, unknown options, invalid repositories, and
+  offline jobs-json failures keep stdout empty and avoid GitHub API wording.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,
