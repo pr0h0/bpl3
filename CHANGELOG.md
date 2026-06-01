@@ -207,6 +207,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl lint --json` per-file input validation failures now include stable
   `BPL_CHECK_INPUT_*` and `BPL_LINT_INPUT_*` `errorCode` values for missing,
   symlinked, and non-file source inputs.
+- **Check/Lint JSON Validation Code Lists** - `bpl check --json` and
+  `bpl lint --json` validation codes now expose shared constant lists, and
+  MarkdownDocs checks the source-analysis JSON documentation contract against
+  those lists.
 - **CI Triage Check/Lint Validation Repros** - `bun run ci:triage` now maps
   `BPL_CHECK_INPUT_*` and `BPL_LINT_INPUT_*` failures to focused source-analysis
   JSON contract repro commands.

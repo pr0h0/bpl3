@@ -45,18 +45,8 @@ import {
   CLEAN_WORKDIR_SYMLINK_CODE,
 } from "../cli/commands/clean";
 import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
-import {
-  CHECK_INPUT_NOT_FILE_CODE,
-  CHECK_INPUT_NOT_FOUND_CODE,
-  CHECK_INPUT_SYMLINK_CODE,
-  CHECK_NO_INPUTS_CODE,
-} from "../cli/commands/check";
-import {
-  LINT_INPUT_NOT_FILE_CODE,
-  LINT_INPUT_NOT_FOUND_CODE,
-  LINT_INPUT_SYMLINK_CODE,
-  LINT_NO_INPUTS_CODE,
-} from "../cli/commands/lint";
+import { CHECK_JSON_ERROR_CODES } from "../cli/commands/check";
+import { LINT_JSON_ERROR_CODES } from "../cli/commands/lint";
 import {
   RUN_SCRIPT_JSON_ERROR_CODES,
 } from "../cli/commands/runScript";
@@ -996,18 +986,10 @@ describe("Markdown documentation", () => {
     ]
       .join("\n")
       .replace(/\s+/g, " ");
-    const expectedCodes = [
-      CHECK_INPUT_NOT_FOUND_CODE,
-      CHECK_INPUT_SYMLINK_CODE,
-      CHECK_INPUT_NOT_FILE_CODE,
-      CHECK_NO_INPUTS_CODE,
-      LINT_INPUT_NOT_FOUND_CODE,
-      LINT_INPUT_SYMLINK_CODE,
-      LINT_INPUT_NOT_FILE_CODE,
-      LINT_NO_INPUTS_CODE,
-    ];
-
-    for (const code of expectedCodes) {
+    for (const code of [
+      ...CHECK_JSON_ERROR_CODES,
+      ...LINT_JSON_ERROR_CODES,
+    ]) {
       expect(docs).toContain(code);
     }
     expect(docs).toContain("Check and lint input validation `errorCode` values");
