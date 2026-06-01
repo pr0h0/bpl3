@@ -507,10 +507,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Compiler API Option Validation Hardening** - `Compiler`, `CodeGenerator`,
   `Linker`, and `ModuleCache` now reject `optimizationLevel` values outside 0-3
-  and invalid `jobs` counts before code generation, linking, cache worker
-  startup, or compiler driver invocation. Cached module linking now forwards
-  `-O` to the compiler driver so cached builds match non-cache link behavior.
-  Focused repro:
+  plus invalid `emitType` values and invalid `jobs` counts before code
+  generation, linking, cache worker startup, or compiler driver invocation.
+  Cached module linking now forwards `-O` to the compiler driver so cached
+  builds match non-cache link behavior. Focused repro:
   `bun test tests/CompilerOptions.test.ts tests/CodeGenerator.test.ts tests/Linker.test.ts tests/ModuleCache.test.ts`.
 - **Compiler Target Validation Hardening** - `Compiler`, `CodeGenerator`, and
   `bpl build` now reject unsupported target triples before LLVM IR is emitted

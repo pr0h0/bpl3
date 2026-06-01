@@ -1003,6 +1003,16 @@ export class Compiler {
       );
     }
 
+    const emitType = this.options.emitType;
+    if (
+      emitType !== undefined &&
+      !["llvm", "ast", "tokens", "formatted"].includes(emitType)
+    ) {
+      return this.createOptionError(
+        `Invalid emit type "${emitType}". Use one of: llvm, ast, tokens, formatted.`,
+      );
+    }
+
     const target = this.options.target;
     if (target !== undefined && !isSupportedCodegenTarget(target)) {
       return this.createOptionError(getUnsupportedCodegenTargetMessage(target));

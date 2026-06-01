@@ -406,6 +406,7 @@ describe("Markdown documentation", () => {
       "Compiler API Option Validation Hardening",
       "`Compiler`, `CodeGenerator`, `Linker`, and `ModuleCache` now reject",
       "`optimizationLevel` values outside 0-3",
+      "invalid `emitType` values",
       "invalid `jobs` counts",
       "Cached module linking now forwards `-O`",
       "bun test tests/CompilerOptions.test.ts tests/CodeGenerator.test.ts tests/Linker.test.ts tests/ModuleCache.test.ts",

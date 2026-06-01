@@ -82,4 +82,18 @@ describe("Compiler options", () => {
       'Unsupported target triple ""',
     );
   });
+
+  it("rejects invalid direct emit types before compiling", () => {
+    const compiler = new Compiler({
+      filePath: "test.bpl",
+      emitType: "bytecode" as any,
+    });
+
+    const result = compiler.compile("frame main() ret int { return 0; }");
+
+    expect(result.success).toBe(false);
+    expect(result.errors?.[0]?.message).toContain(
+      'Invalid emit type "bytecode"',
+    );
+  });
 });
