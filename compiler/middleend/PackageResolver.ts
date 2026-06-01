@@ -760,7 +760,13 @@ function resolvePackageSourcePath(
       addEntryCandidate(trace, filePath);
       return filePath;
     }
-    if (directStats.isDirectory() && !hasPackageSourceExtension(filePath)) {
+    if (directStats.isDirectory()) {
+      if (hasPackageSourceExtension(filePath)) {
+        addEntryCandidate(trace, filePath);
+        failOnExplicitSourceFileDirectory(filePath, packageRoot, trace);
+        return null;
+      }
+
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
         addEntryCandidate(trace, indexPath);
@@ -815,6 +821,26 @@ function resolvePackageSourcePath(
 
 function hasPackageSourceExtension(filePath: string): boolean {
   return filePath.endsWith(".bpl") || filePath.endsWith(".x");
+}
+
+function failOnExplicitSourceFileDirectory(
+  candidatePath: string,
+  packageRoot: string,
+  trace: PackageResolutionTrace,
+): void {
+  const relativePath = path
+    .relative(packageRoot, candidatePath)
+    .split(path.sep)
+    .join("/");
+  const subject = trace.subPath
+    ? `subpath '${trace.subPath}'`
+    : `entrypoint '${relativePath}'`;
+  trace.failureReason = trace.subPath
+    ? "subpath-not-found"
+    : "entrypoint-not-found";
+  const guidance =
+    "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes";
+  trace.failureMessage = `Package '${trace.packageName}' exists at ${packageRoot}, but ${subject} was not found because it resolves to a directory at ${candidatePath}; ${guidance}. Import the extensionless directory path to allow index.bpl/index.x fallback, or create a source file at ${candidatePath}.`;
 }
 
 function addEntryCandidate(

@@ -2182,12 +2182,22 @@ describe("CLI JSON parseability", () => {
     const appDir = path.join(tempDir, "app");
     const sourceDir = path.join(appDir, "src");
     const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const explicitSourceFileDirectory = path.join(
+      packageDir,
+      "features",
+      "shadow.bpl",
+    );
     fs.mkdirSync(sourceDir, { recursive: true });
     writePackageFixture(packageDir, { entrySource: "export root;" });
     fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "features", "add.bpl"),
       "export value;",
+    );
+    fs.mkdirSync(explicitSourceFileDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(explicitSourceFileDirectory, "index.bpl"),
+      "export shadowed;",
     );
 
     const seeds = [
@@ -2208,6 +2218,13 @@ describe("CLI JSON parseability", () => {
         importPath: "pkg-math/features/add.bpl/child",
         expectedCode: "BPL_PACKAGE_SUBPATH_NOT_FOUND",
         expectedMessage: "subpath 'features/add.bpl/child' was not found",
+      },
+      {
+        name: "explicit source file shadowed by directory",
+        importPath: "pkg-math/features/shadow.bpl",
+        expectedCode: "BPL_PACKAGE_SUBPATH_NOT_FOUND",
+        expectedMessage:
+          "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
       },
     ] as const;
 

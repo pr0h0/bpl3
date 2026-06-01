@@ -439,6 +439,9 @@ describe("PackageResolver", () => {
       expect(details.trace.failureMessage, importPath).toContain(
         `subpath '${importPath.slice("math/".length)}' was not found`,
       );
+      expect(details.trace.failureMessage, importPath).toContain(
+        "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+      );
       expect(details.trace.entryCandidates, importPath).toContain(explicitDir);
       expect(details.trace.entryCandidates, importPath).not.toContain(
         path.join(explicitDir, "index.bpl"),
