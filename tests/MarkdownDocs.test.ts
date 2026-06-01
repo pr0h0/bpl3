@@ -1236,6 +1236,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document invalid void type diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Invalid bare void type failures use `BPL_VOID_TYPE_INVALID`",
+      "`Variable '_value' cannot be void.`",
+      "`Generic type argument cannot be 'void'.`",
+      "`Use '*void' for void pointers.`",
+      "bare `void` in variable declarations, parameters, struct fields, and generic type arguments",
+      "`ret void` and `*void` remain valid",
+      'bun test tests/TypeCheckerVoidTypes.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "invalid void type"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

@@ -647,6 +647,20 @@ bun test tests/TypeCheckerUndefinedTypes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "undefined-type"
 ```
 
+Invalid bare void type failures use `BPL_VOID_TYPE_INVALID`. This covers bare
+`void` in variable declarations, parameters, struct fields, and generic type
+arguments. For example, `local _value: void;` reports
+`Variable '_value' cannot be void.`, and `Box<void>` reports
+`Generic type argument cannot be 'void'.`. These diagnostics use the hint
+`Use '*void' for void pointers.`. `ret void` and `*void` remain valid for
+function returns and pointer-shaped types. Reproduce the type-checker and JSON
+contracts with:
+
+```bash
+bun test tests/TypeCheckerVoidTypes.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "invalid void type"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

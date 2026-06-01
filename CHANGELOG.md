@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   declarations and struct fields now report `BPL_TYPE_NOT_FOUND` in compiler
   errors, `bpl check --json`, `bpl build --json`, and the public CLI JSON
   error-code registry.
+- **Invalid Bare Void Diagnostic Code** - Bare `void` in value-bearing type
+  positions now reports `BPL_VOID_TYPE_INVALID` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. The diagnostic covers variable declarations, parameters, struct
+  fields, and generic type arguments while keeping `ret void` and `*void`
+  valid.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public
