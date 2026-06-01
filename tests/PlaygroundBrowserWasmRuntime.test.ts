@@ -15,6 +15,24 @@ type BrowserWasmRuntime = {
     canCompileBplInBrowser: boolean;
     missing: string[];
   }): string;
+  formatHostedWasmRunReport(options: {
+    compileMode: string;
+    capabilitySummary: string;
+    wasmBytes?: number;
+    imports?: Array<{ module: string; name: string }>;
+    runResult: {
+      stdout: string;
+      stderr: string;
+      returnCode: number | null;
+      trapped: boolean;
+      error: string;
+    };
+  }): string;
+  formatBrowserWasmFailureReport(options: {
+    errorMessage: string;
+    capabilitySummary: string;
+    fallbackError?: string;
+  }): string;
   compileAndRunBplInBrowser(
     code: string,
     args?: string[],
@@ -110,6 +128,102 @@ describe("Playground browser wasm runtime", () => {
       phase: "compile",
       error: browserWasmRuntime.BROWSER_COMPILER_UNAVAILABLE_MESSAGE,
     });
+  });
+
+  test("formats backend and browser compiler wasm run output without DOM state", () => {
+    const backendReport = browserWasmRuntime.formatHostedWasmRunReport({
+      compileMode: "backend /wasm",
+      capabilitySummary:
+        "Browser wasm runtime: available\nBrowser BPL compiler: unavailable",
+      wasmBytes: 1234,
+      imports: [{ module: "env", name: "__bpl_host_write" }],
+      runResult: {
+        stdout: "ok\n",
+        stderr: "",
+        returnCode: 0,
+        trapped: false,
+        error: "",
+      },
+    });
+
+    expect(backendReport).toBe(
+      [
+        "Compile mode: backend /wasm",
+        "Browser wasm runtime: available\nBrowser BPL compiler: unavailable",
+        "",
+        "Return code: 0",
+        "Wasm bytes: 1234",
+        "Imports:\nenv.__bpl_host_write",
+        "",
+        "stdout:",
+        "ok\n",
+        "",
+        "stderr:",
+        "(empty)",
+      ].join("\n"),
+    );
+
+    const browserReport = browserWasmRuntime.formatHostedWasmRunReport({
+      compileMode: "browser",
+      capabilitySummary:
+        "Browser wasm runtime: available\nBrowser BPL compiler: available",
+      runResult: {
+        stdout: "from browser",
+        stderr: "warn",
+        returnCode: 7,
+        trapped: false,
+        error: "",
+      },
+    });
+
+    expect(browserReport).toBe(
+      [
+        "Compile mode: browser",
+        "Browser wasm runtime: available\nBrowser BPL compiler: available",
+        "",
+        "Return code: 7",
+        "",
+        "stdout:",
+        "from browser",
+        "",
+        "stderr:",
+        "warn",
+      ].join("\n"),
+    );
+  });
+
+  test("formats browser fallback and trapped wasm output without DOM state", () => {
+    expect(
+      browserWasmRuntime.formatBrowserWasmFailureReport({
+        errorMessage: "Failed to fetch",
+        capabilitySummary:
+          "Browser wasm runtime: available\nBrowser BPL compiler: unavailable",
+        fallbackError:
+          browserWasmRuntime.BROWSER_COMPILER_UNAVAILABLE_MESSAGE,
+      }),
+    ).toBe(
+      [
+        "WebAssembly run failed: Failed to fetch",
+        "",
+        "Browser wasm runtime: available\nBrowser BPL compiler: unavailable",
+        "",
+        `Browser-only fallback: ${browserWasmRuntime.BROWSER_COMPILER_UNAVAILABLE_MESSAGE}`,
+      ].join("\n"),
+    );
+
+    expect(
+      browserWasmRuntime.formatHostedWasmRunReport({
+        compileMode: "backend /wasm",
+        capabilitySummary: "Browser wasm runtime: available",
+        runResult: {
+          stdout: "",
+          stderr: "before trap",
+          returnCode: null,
+          trapped: true,
+          error: "unreachable",
+        },
+      }),
+    ).toContain("trap:\nunreachable");
   });
 
   test("uses an injected browser compiler bundle and host adapter when both are available", async () => {

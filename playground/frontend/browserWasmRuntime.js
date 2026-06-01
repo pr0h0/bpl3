@@ -72,6 +72,51 @@
     return lines.join("\n");
   }
 
+  function formatHostedWasmRunReport(options) {
+    const runResult = options.runResult;
+    const imports =
+      options.imports === undefined
+        ? undefined
+        : options.imports
+            .map((entry) => `${entry.module}.${entry.name}`)
+            .join("\n");
+    return [
+      `Compile mode: ${options.compileMode}`,
+      options.capabilitySummary,
+      "",
+      `Return code: ${runResult.returnCode}`,
+      options.wasmBytes === undefined
+        ? undefined
+        : `Wasm bytes: ${options.wasmBytes}`,
+      imports === undefined
+        ? undefined
+        : imports
+          ? `Imports:\n${imports}`
+          : "Imports: none",
+      "",
+      "stdout:",
+      runResult.stdout || "(empty)",
+      "",
+      "stderr:",
+      runResult.stderr || "(empty)",
+      runResult.error ? `\ntrap:\n${runResult.error}` : undefined,
+    ]
+      .filter((line) => line !== undefined)
+      .join("\n");
+  }
+
+  function formatBrowserWasmFailureReport(options) {
+    return [
+      `WebAssembly run failed: ${options.errorMessage}`,
+      "",
+      options.capabilitySummary,
+      "",
+      `Browser-only fallback: ${
+        options.fallbackError || "failed without an error message"
+      }`,
+    ].join("\n");
+  }
+
   async function compileAndRunBplInBrowser(code, args = [], options = {}) {
     const globalObject = options.globalObject || global;
     const hostAdapter = options.hostAdapter || getHostAdapter(globalObject);
@@ -137,6 +182,8 @@
     BROWSER_COMPILER_UNAVAILABLE_MESSAGE,
     detectBrowserWasmCapabilities,
     formatBrowserWasmCapabilitySummary,
+    formatHostedWasmRunReport,
+    formatBrowserWasmFailureReport,
     compileAndRunBplInBrowser,
   };
 

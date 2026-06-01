@@ -16,7 +16,9 @@ const { runHostedWasmInBrowser } = wasmHostAdapter;
 const {
   compileAndRunBplInBrowser,
   detectBrowserWasmCapabilities,
+  formatBrowserWasmFailureReport,
   formatBrowserWasmCapabilitySummary,
+  formatHostedWasmRunReport,
 } = browserWasmRuntime;
 
 require.config({
@@ -504,21 +506,11 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
 
       const runResult = browserResult.runResult;
       wasmContent.className = runResult.trapped ? "error" : "success";
-      wasmContent.textContent = [
-        "Compile mode: browser",
-        browserCapabilitySummary,
-        "",
-        `Return code: ${runResult.returnCode}`,
-        "",
-        "stdout:",
-        runResult.stdout || "(empty)",
-        "",
-        "stderr:",
-        runResult.stderr || "(empty)",
-        runResult.error ? `\ntrap:\n${runResult.error}` : "",
-      ]
-        .filter((line) => line !== "")
-        .join("\n");
+      wasmContent.textContent = formatHostedWasmRunReport({
+        compileMode: "browser",
+        capabilitySummary: browserCapabilitySummary,
+        runResult,
+      });
       document.getElementById("exec-time").textContent = duration + "ms";
       document.getElementById("output-size").textContent = "browser bundle";
       document.getElementById("exec-status").textContent = runResult.trapped
@@ -551,28 +543,15 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
       "Instantiating in browser...";
     const runResult = await runHostedWasmInBrowser(result.wasmBase64, args);
     const duration = Date.now() - startTime;
-    const imports = (result.imports || [])
-      .map((entry) => `${entry.module}.${entry.name}`)
-      .join("\n");
 
     wasmContent.className = runResult.trapped ? "error" : "success";
-    wasmContent.textContent = [
-      "Compile mode: backend /wasm",
-      browserCapabilitySummary,
-      "",
-      `Return code: ${runResult.returnCode}`,
-      `Wasm bytes: ${result.wasmBytes}`,
-      imports ? `Imports:\n${imports}` : "Imports: none",
-      "",
-      "stdout:",
-      runResult.stdout || "(empty)",
-      "",
-      "stderr:",
-      runResult.stderr || "(empty)",
-      runResult.error ? `\ntrap:\n${runResult.error}` : "",
-    ]
-      .filter((line) => line !== "")
-      .join("\n");
+    wasmContent.textContent = formatHostedWasmRunReport({
+      compileMode: "backend /wasm",
+      capabilitySummary: browserCapabilitySummary,
+      wasmBytes: result.wasmBytes,
+      imports: result.imports || [],
+      runResult,
+    });
 
     if (result.ir) {
       document.getElementById("ir-content").textContent = result.ir;
@@ -589,15 +568,11 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
     showToast("WebAssembly executed in browser", "success");
   } catch (error) {
     const browserFallback = await compileAndRunBplInBrowser(code, args);
-    wasmContent.textContent = [
-      `WebAssembly run failed: ${error.message}`,
-      "",
-      browserCapabilitySummary,
-      "",
-      `Browser-only fallback: ${
-        browserFallback.error || "failed without an error message"
-      }`,
-    ].join("\n");
+    wasmContent.textContent = formatBrowserWasmFailureReport({
+      errorMessage: error.message,
+      capabilitySummary: browserCapabilitySummary,
+      fallbackError: browserFallback.error,
+    });
     wasmContent.className = "error";
     document.getElementById("exec-status").textContent = "Wasm failed";
     document.getElementById("exec-status").style.color = "var(--error)";
