@@ -96,7 +96,8 @@ export function formatTestCiPlanText(plan: TestCiStep[]): string {
 }
 
 export function formatTestCiSuccessSummary(plan: TestCiStep[]): string {
-  return `==> CI-safe validation passed (${plan.length} steps)`;
+  const stepLabel = plan.length === 1 ? "step" : "steps";
+  return `==> CI-safe validation passed (${plan.length} ${stepLabel})`;
 }
 
 export function formatTestCiFailureSummary(

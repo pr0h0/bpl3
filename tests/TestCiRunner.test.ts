@@ -165,7 +165,7 @@ describe("CI-safe test runner", () => {
 
       expect(exitCode).toBe(0);
       expect(logs.join("\n")).toContain(
-        "==> CI-safe validation passed (1 steps)",
+        "==> CI-safe validation passed (1 step)",
       );
     } finally {
       console.log = originalLog;
