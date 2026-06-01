@@ -610,6 +610,29 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps invalid void diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerVoidTypes.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "invalid void type"',
+      'bun test tests/MarkdownDocs.test.ts -t "invalid void type"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_VOID_TYPE_INVALID",
+      "Invalid bare void type failures use `BPL_VOID_TYPE_INVALID`",
+      "Variable '_value' cannot be void.",
+      "Generic type argument cannot be 'void'.",
+      "Use '*void' for void pointers.",
+      "reports invalid void type failures in JSON-mode check and build diagnostics",
+      "docs document invalid void type diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -3649,6 +3672,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerUndefinedTypes.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
         'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints invalid void repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-invalid-void-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 95,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/95",
+              steps: [
+                {
+                  name: "BPL_VOID_TYPE_INVALID Variable '_value' cannot be void.",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerVoidTypes.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "invalid void type"',
+        'bun test tests/MarkdownDocs.test.ts -t "invalid void type"',
         "bun run check",
       ]);
     } finally {

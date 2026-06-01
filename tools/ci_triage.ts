@@ -318,6 +318,19 @@ const TYPE_NOT_FOUND_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const VOID_TYPE_INVALID_STEP_PATTERN = new RegExp(
+  [
+    "BPL_VOID_TYPE_INVALID",
+    "invalid void",
+    "Invalid bare void type",
+    "Variable ['\"][^'\"]+['\"] cannot be void",
+    "Parameter ['\"][^'\"]+['\"] cannot be of type ['\"]void['\"]",
+    "Struct field ['\"][^'\"]+['\"] cannot be void",
+    "Generic type argument cannot be ['\"]void['\"]",
+    "Use ['\"]\\*void['\"] for void pointers",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -996,6 +1009,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "undefined type"',
   ],
   [TYPE_NOT_FOUND_STEP_PATTERN, "bun run check"],
+  [
+    VOID_TYPE_INVALID_STEP_PATTERN,
+    "bun test tests/TypeCheckerVoidTypes.test.ts",
+  ],
+  [
+    VOID_TYPE_INVALID_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "invalid void type"',
+  ],
+  [
+    VOID_TYPE_INVALID_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "invalid void type"',
+  ],
+  [VOID_TYPE_INVALID_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
