@@ -332,7 +332,9 @@ export class ModuleResolver {
     }
 
     // Try to resolve as a package import
-    const packageManager = new PackageManager();
+    const packageManager = new PackageManager(undefined, {
+      ensureDirectories: false,
+    });
     const packageTraces: PackageResolutionTrace[] = [];
     try {
       // Prefer the importing file's package tree so absolute builds from an

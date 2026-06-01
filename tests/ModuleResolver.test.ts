@@ -561,6 +561,39 @@ describe("ModuleResolver", () => {
     }
   });
 
+  it("should not create package directories while probing missing package imports", () => {
+    const appDir = path.join(tempDir, "read-only-package-app");
+    const sourceDir = path.join(appDir, "src");
+    const cwdDir = path.join(tempDir, "read-only-package-cwd");
+    const cwdModulesDir = path.join(cwdDir, "bpl_modules");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(cwdDir, { recursive: true });
+
+    const mainPath = path.join(sourceDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "missing-package";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(cwdDir);
+      const error = captureCompilerError(() => {
+        new ModuleResolver({ stdLibPath: tempDir }).resolveModules(mainPath);
+      });
+
+      expect(error.message).toContain("Module not found: missing-package");
+      expect(fs.existsSync(cwdModulesDir)).toBe(false);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it("should not fall back to cwd packages after malformed project package metadata", () => {
     const appDir = path.join(tempDir, "malformed-package-app");
     const sourceDir = path.join(appDir, "src");
