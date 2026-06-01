@@ -637,6 +637,16 @@ bun test tests/TypeCheckerGenericArity.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "generic type arity|generic alias arity"
 ```
 
+Undefined type-name failures use `BPL_TYPE_NOT_FOUND`. This covers unresolved
+type names in variable declarations and struct fields. For example, `MissingThing`
+reports `Undefined type 'MissingThing'` with the hint
+`The type is not defined.`. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerUndefinedTypes.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "undefined-type"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

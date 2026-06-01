@@ -1220,6 +1220,22 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document undefined type diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Undefined type-name failures use `BPL_TYPE_NOT_FOUND`",
+      "`Undefined type 'MissingThing'`",
+      "`The type is not defined.`",
+      "variable declarations and struct fields",
+      'bun test tests/TypeCheckerUndefinedTypes.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
