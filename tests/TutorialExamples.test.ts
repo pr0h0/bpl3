@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
 
 import { Compiler } from "../compiler/index";
+import { runProcessFile } from "../playground/backend/processRunner";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 interface CodeSection {
   type: "code";
@@ -96,9 +97,16 @@ async function compileAndRunCode(code: string): Promise<CompileResponse> {
     try {
       const runtimePath = path.resolve("lib/runtime.ll");
       const runtimeSupportPath = path.resolve("lib/runtime_support.o");
-      await execAsync(
-        `clang -o "${binFile}" "${irFile}" "${runtimePath}" "${runtimeSupportPath}" -Wno-override-module -lm -rdynamic`,
-      );
+      await execFileAsync("clang", [
+        "-o",
+        binFile,
+        irFile,
+        runtimePath,
+        runtimeSupportPath,
+        "-Wno-override-module",
+        "-lm",
+        "-rdynamic",
+      ]);
     } catch (e: any) {
       return {
         success: false,
@@ -109,7 +117,7 @@ async function compileAndRunCode(code: string): Promise<CompileResponse> {
 
     // Run the binary
     try {
-      const { stdout, stderr } = await execAsync(`"${binFile}"`, {
+      const { stdout, stderr } = await runProcessFile(binFile, [], {
         timeout: 5000,
       });
 
@@ -245,6 +253,14 @@ describe("BPL Tutorial Examples", () => {
     console.log(
       `\n📈 Results: ${passed} passed, ${failed} failed out of ${testableCode.length}`,
     );
+  });
+
+  it("uses argv-vector execution instead of tutorial runtime shell strings", () => {
+    const source = fs.readFileSync(import.meta.path, "utf8");
+
+    expect(source).not.toMatch(/promisify\s*\(\s*exec\s*\)/);
+    expect(source).not.toMatch(/execAsync\s*\(/);
+    expect(source).not.toMatch(/`"\$\{binFile\}"`/);
   });
 
   testableCode.forEach((item, index) => {
