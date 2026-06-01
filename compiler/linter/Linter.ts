@@ -70,7 +70,7 @@ export class Linter {
       case "FunctionDecl":
         const func = node as AST.FunctionDecl;
         for (const param of func.params) {
-          this.visit({ ...param, kind: (param as any).kind || "" }, context);
+          this.visit(param, context);
         }
         if (func.body) this.visit(func.body, context);
         break;
