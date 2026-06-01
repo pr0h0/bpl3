@@ -181,6 +181,21 @@ const ATOMIC_WRITE_PERMISSION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_ATOMIC_MODE_STEP_PATTERN = new RegExp(
+  [
+    "PackageManager.*(?:lockfile|package provenance|global cache archive).*permissions",
+    "PackageManagerCLI.*(?:lockfile|global cache archive).*mode",
+    "PackageManager.*(?:bpl\\.lock|bplmeta|global cache archive).*mode",
+    "copyFileAtomically.*mode",
+    "package atomic mode",
+    "global cache archive permissions",
+    "package provenance permissions",
+    "lockfile permissions",
+    "Expected:\\s*416",
+    "Received:\\s*384",
+  ].join("|"),
+  "i",
+);
 const BINDGEN_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   [
     "bindgen JSON validation",
@@ -569,6 +584,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     ATOMIC_WRITE_PERMISSION_STEP_PATTERN,
     'bun test tests/CLI.test.ts -t "format files in write mode atomically"',
   ],
+  [
+    PACKAGE_ATOMIC_MODE_STEP_PATTERN,
+    'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|global cache archive permissions"',
+  ],
+  [
+    PACKAGE_ATOMIC_MODE_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|global cache archive permissions"',
+  ],
+  [PACKAGE_ATOMIC_MODE_STEP_PATTERN, "bun run check"],
   [
     BINDGEN_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',

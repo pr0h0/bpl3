@@ -257,6 +257,30 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package atomic mode failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|global cache archive permissions"',
+      'bun test tests/PackageManagerCLI.test.ts -t "lockfile permissions|global cache archive permissions"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep(
+        "PackageManager > should preserve existing global cache archive permissions when replacing",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "expected 416 received 384 in package provenance permissions",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "PackageManagerCLI global cache archive mode preservation failed",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps bindgen JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',
