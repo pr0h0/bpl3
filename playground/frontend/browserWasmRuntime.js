@@ -118,6 +118,7 @@
   }
 
   async function compileAndRunBplInBrowser(code, args = [], options = {}) {
+    const argv = [...args];
     const globalObject = options.globalObject || global;
     const hostAdapter = options.hostAdapter || getHostAdapter(globalObject);
     const capabilities = detectBrowserWasmCapabilities(globalObject);
@@ -138,7 +139,10 @@
       };
     }
 
-    const compileResult = await compiler.compileToHostedWasm({ code, args });
+    const compileResult = await compiler.compileToHostedWasm({
+      code,
+      args: [...argv],
+    });
     if (!compileResult || compileResult.success === false) {
       return {
         success: false,
@@ -169,7 +173,7 @@
 
     const runResult = await hostAdapter.runHostedWasmInBrowser(
       compileResult.wasmBase64,
-      args,
+      [...argv],
     );
     return {
       success: !runResult.trapped,

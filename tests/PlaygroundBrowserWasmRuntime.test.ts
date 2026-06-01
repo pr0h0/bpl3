@@ -284,6 +284,44 @@ describe("Playground browser wasm runtime", () => {
     });
   });
 
+  test("protects host argv from browser compiler hook mutation", async () => {
+    const originalArgs = ["alpha", "beta"];
+    let hostArgv: string[] = [];
+    const globalObject = makeBrowserGlobal({
+      BplBrowserCompiler: {
+        async compileToHostedWasm(request: { code: string; args: string[] }) {
+          request.args.push("mutated-by-compiler");
+          return {
+            success: true,
+            wasmBase64: "AGFzbQ==",
+          };
+        },
+      },
+    });
+    const hostAdapter = {
+      async runHostedWasmInBrowser(wasmBase64: string, argv: string[]) {
+        hostArgv = [...argv];
+        return {
+          stdout: `${wasmBase64}:${argv.join(",")}`,
+          stderr: "",
+          returnCode: 0,
+          trapped: false,
+          error: "",
+        };
+      },
+    };
+
+    const result = await browserWasmRuntime.compileAndRunBplInBrowser(
+      "source",
+      originalArgs,
+      { globalObject, hostAdapter },
+    );
+
+    expect(originalArgs).toEqual(["alpha", "beta"]);
+    expect(hostArgv).toEqual(["alpha", "beta"]);
+    expect(result.runResult?.stdout).toBe("AGFzbQ==:alpha,beta");
+  });
+
   test("handles documented browser compiler failure and malformed success responses", async () => {
     const compileFailure = await browserWasmRuntime.compileAndRunBplInBrowser(
       "bad source",
