@@ -212,19 +212,39 @@ describe("CLI JSON parseability", () => {
   });
 
   test("keeps package/import docs examples covered by JSON smoke fixtures", () => {
-    const { invalidImport, success: successExample } =
-      PACKAGE_DOCS_SMOKE_EXAMPLES;
-    const documentedExample = path.join(
-      process.cwd(),
-      successExample.sourcePath,
-    );
-    const successResult = runCli(["check", "--json", documentedExample]);
+    const { invalidImport, successExamples } = PACKAGE_DOCS_SMOKE_EXAMPLES;
 
-    expectJsonStdoutReport(successResult, {
-      status: 0,
-      check: "check",
-      success: true,
-    });
+    expect(successExamples?.map((example) => example.importPath)).toEqual([
+      "math-extra/features/direct.bpl",
+      "math-extra/features/increment",
+    ]);
+
+    for (const successExample of successExamples ?? []) {
+      const documentedExample = path.join(
+        process.cwd(),
+        successExample.sourcePath,
+      );
+      const documentedSource = fs.readFileSync(documentedExample, "utf8");
+      const expectedResolvedPath = path.join(
+        process.cwd(),
+        successExample.expectedResolvedPath,
+      );
+
+      expect(documentedSource, successExample.name).toContain(
+        `"${successExample.importPath}"`,
+      );
+      expect(fs.existsSync(expectedResolvedPath), successExample.name).toBe(
+        true,
+      );
+
+      const successResult = runCli(["check", "--json", documentedExample]);
+
+      expectJsonStdoutReport(successResult, {
+        status: 0,
+        check: "check",
+        success: true,
+      });
+    }
 
     const appDir = path.join(tempDir, invalidImport.workspaceDirName);
     const sourceFile = path.join(appDir, "main.bpl");

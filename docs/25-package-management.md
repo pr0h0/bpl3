@@ -459,8 +459,13 @@ workspace package, a transitive dependency, and a subpath import.
 The package/import docs examples are smoke-tested with
 `bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"`:
 the workspace success path checks
-`examples/package_transitive_dependency/app/main.bpl`, and the invalid
-`pkg-math/../secret` package import checks the JSON diagnostic code
+`examples/package_transitive_dependency/app/main.bpl`, including the explicit
+package source-file import `math-extra/features/direct.bpl` that resolves to
+`examples/package_transitive_dependency/packages/math-extra/features/direct.bpl`
+and the extensionless directory-index import `math-extra/features/increment`
+that resolves to
+`examples/package_transitive_dependency/packages/math-extra/features/increment/index.bpl`.
+The invalid `pkg-math/../secret` package import checks the JSON diagnostic code
 `BPL_PACKAGE_IMPORT_INVALID`.
 
 ## Dependency Resolution

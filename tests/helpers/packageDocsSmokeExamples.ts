@@ -1,6 +1,8 @@
 export interface PackageDocsSmokeSuccessExample {
   name: string;
   sourcePath: string;
+  importPath: string;
+  expectedResolvedPath: string;
 }
 
 export interface PackageDocsSmokeInvalidImportExample {
@@ -13,16 +15,28 @@ export interface PackageDocsSmokeInvalidImportExample {
 }
 
 export interface PackageDocsSmokeExamples {
-  success: PackageDocsSmokeSuccessExample;
+  successExamples: ReadonlyArray<PackageDocsSmokeSuccessExample>;
   invalidImport: PackageDocsSmokeInvalidImportExample;
   focusedTestCommand: string;
 }
 
 export const PACKAGE_DOCS_SMOKE_EXAMPLES = {
-  success: {
-    name: "transitive package workspace app",
-    sourcePath: "examples/package_transitive_dependency/app/main.bpl",
-  },
+  successExamples: [
+    {
+      name: "explicit package source-file import",
+      sourcePath: "examples/package_transitive_dependency/app/main.bpl",
+      importPath: "math-extra/features/direct.bpl",
+      expectedResolvedPath:
+        "examples/package_transitive_dependency/packages/math-extra/features/direct.bpl",
+    },
+    {
+      name: "extensionless package directory-index import",
+      sourcePath: "examples/package_transitive_dependency/app/main.bpl",
+      importPath: "math-extra/features/increment",
+      expectedResolvedPath:
+        "examples/package_transitive_dependency/packages/math-extra/features/increment/index.bpl",
+    },
+  ],
   invalidImport: {
     name: "invalid package parent segment import",
     workspaceDirName: "docs-package-import",
@@ -38,7 +52,11 @@ export const PACKAGE_DOCS_SMOKE_EXAMPLES = {
 
 export const PACKAGE_DOCS_SMOKE_DOCUMENTATION_SNIPPETS = [
   "package/import docs examples",
-  PACKAGE_DOCS_SMOKE_EXAMPLES.success.sourcePath,
+  ...PACKAGE_DOCS_SMOKE_EXAMPLES.successExamples.flatMap((example) => [
+    example.sourcePath,
+    example.importPath,
+    example.expectedResolvedPath,
+  ]),
   PACKAGE_DOCS_SMOKE_EXAMPLES.invalidImport.importPath,
   PACKAGE_DOCS_SMOKE_EXAMPLES.invalidImport.expectedDiagnosticCode,
   PACKAGE_DOCS_SMOKE_EXAMPLES.focusedTestCommand,
