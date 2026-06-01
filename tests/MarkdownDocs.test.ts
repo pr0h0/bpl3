@@ -3,6 +3,7 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, normalize } from "path";
 import { spawnSync } from "child_process";
 import { TIMEOUT_ENV_DEFAULTS } from "../compiler/common/Env";
+import { CLI_JSON_ERROR_CODE_LISTS } from "../cli/JsonErrorCodes";
 import {
   PACKAGE_RESOLUTION_FAILURE_CODES,
   getPackageResolutionFailureCode,
@@ -727,6 +728,25 @@ describe("Markdown documentation", () => {
     expect(docs).toContain("Unknown doctor scopes");
     expect(docs).toContain("The `wasm linker` check reports");
     expect(docs).toContain("The focused sanitizer scope reports");
+  });
+
+  test("docs cover the CLI JSON error-code registry", () => {
+    const docs = trackedMarkdownFiles()
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
+    const missingCodes: string[] = [];
+
+    for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {
+      for (const code of codes) {
+        if (!docs.includes(code)) {
+          missingCodes.push(`${name}:${code}`);
+        }
+      }
+    }
+
+    expect(missingCodes).toEqual([]);
+    expect(docs).toContain("CLI_JSON_ERROR_CODE_LISTS");
+    expect(docs).toContain("CLI_JSON_ERROR_CODES");
   });
 
   test("docs document version JSON contract", () => {

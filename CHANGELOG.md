@@ -166,6 +166,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Code-Mapping Smoke** - Packed helper smoke now exercises
   representative `ci:triage` JSON-code mappings for package archive validation
   and wasm linker diagnostics from the installed npm package path.
+- **CLI JSON Registry Docs Guard** - MarkdownDocs now checks all codes from
+  `CLI_JSON_ERROR_CODE_LISTS` against the tracked Markdown corpus so documented
+  JSON/diagnostic code coverage cannot drift from the central registry.
 - **Project Creation JSON Validation Code List** - `bpl new <name> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the project creation JSON documentation contract against that list.
