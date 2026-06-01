@@ -1237,6 +1237,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Check member methods and fields
     for (const member of decl.members) {
       if (member.kind === "StructField") {
+        this.ensureKnownType(member.type);
         const fieldType = this.resolveType(member.type);
         if (
           fieldType.kind === "BasicType" &&

@@ -791,80 +791,8 @@ export function checkVariableDecl(
     );
   }
 
+  this.ensureKnownType(decl.typeAnnotation);
   const declaredType = this.resolveType(decl.typeAnnotation);
-
-  // BUG-125: Check for undefined types in variable declarations
-  if (decl.typeAnnotation.kind === "BasicType") {
-    const typeName = (decl.typeAnnotation as AST.BasicTypeNode).name;
-    let symbol = this.currentScope.resolve(typeName);
-
-    // Handle qualified names (e.g., "Lib.Point", "std.Option")
-    if (!symbol && typeName.includes(".")) {
-      const parts = typeName.split(".");
-      let currentScope = this.currentScope;
-      let currentSymbol: Symbol | undefined;
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i]!;
-        currentSymbol = currentScope.resolve(part);
-        if (!currentSymbol) {
-          break;
-        }
-
-        if (i < parts.length - 1) {
-          if (currentSymbol.moduleScope) {
-            currentScope = currentSymbol.moduleScope;
-          } else {
-            currentSymbol = undefined;
-            break;
-          }
-        }
-      }
-      symbol = currentSymbol;
-    }
-
-    const PRIMITIVE_TYPES = new Set([
-      "i1",
-      "i8",
-      "u8",
-      "i16",
-      "u16",
-      "i32",
-      "u32",
-      "i64",
-      "u64",
-      "double",
-      "void",
-      "null",
-      "nullptr",
-      "int",
-      "uint",
-      "float",
-      "bool",
-      "char",
-      "uchar",
-      "short",
-      "ushort",
-      "long",
-      "ulong",
-      "string",
-      "f32",
-      "f64",
-      "Self",
-      "TypeInfo",
-      "Any",
-    ]);
-    // Skip single uppercase letters (generic params like T, U, V)
-    const looksLikeGenericParam =
-      typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
-    if (!symbol && !PRIMITIVE_TYPES.has(typeName) && !looksLikeGenericParam) {
-      throw new CompilerError(
-        `Undefined type '${typeName}'`,
-        "The type is not defined. Make sure it's declared as a struct, enum, type alias, or imported from another module.",
-        decl.typeAnnotation.location,
-      );
-    }
-  }
 
   // Check for void type (BUG-060)
   if (declaredType) {

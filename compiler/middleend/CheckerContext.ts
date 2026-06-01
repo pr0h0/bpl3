@@ -31,6 +31,7 @@ export interface CheckerContext {
 
   // Type Resolution & Compatibility
   resolveType(type: AST.TypeNode, checkConstraints?: boolean): AST.TypeNode;
+  ensureKnownType(type: AST.TypeNode): void;
   areTypesCompatible(
     t1: AST.TypeNode,
     t2: AST.TypeNode,

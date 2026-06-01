@@ -31,12 +31,46 @@ function formatSymbolKind(kind: SymbolKind): string {
 export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
 export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
 export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
+export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   GENERIC_ARITY_MISMATCH_CODE,
+  TYPE_NOT_FOUND_CODE,
 ] as const;
+
+const PRIMITIVE_TYPE_NAMES = new Set([
+  "i1",
+  "i8",
+  "u8",
+  "i16",
+  "u16",
+  "i32",
+  "u32",
+  "i64",
+  "u64",
+  "double",
+  "void",
+  "null",
+  "nullptr",
+  "int",
+  "uint",
+  "float",
+  "bool",
+  "char",
+  "uchar",
+  "short",
+  "ushort",
+  "long",
+  "ulong",
+  "string",
+  "f32",
+  "f64",
+  "Self",
+  "TypeInfo",
+  "Any",
+]);
 
 /**
  * Base class for TypeChecker with shared state and utility methods
@@ -78,6 +112,65 @@ export abstract class TypeCheckerBase {
 
   public getCurrentScope(): SymbolTable {
     return this.currentScope;
+  }
+
+  public ensureKnownType(type: AST.TypeNode): void {
+    if (type.kind !== "BasicType") {
+      return;
+    }
+
+    for (const genericArg of type.genericArgs) {
+      this.ensureKnownType(genericArg);
+    }
+
+    const typeName = type.name;
+    const looksLikeGenericParam =
+      typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
+
+    if (
+      this.resolveTypeSymbol(typeName) ||
+      PRIMITIVE_TYPE_NAMES.has(typeName) ||
+      looksLikeGenericParam
+    ) {
+      return;
+    }
+
+    throw new CompilerError(
+      `Undefined type '${typeName}'`,
+      "The type is not defined. Make sure it's declared as a struct, enum, type alias, or imported from another module.",
+      type.location,
+      TYPE_NOT_FOUND_CODE,
+    );
+  }
+
+  private resolveTypeSymbol(typeName: string): Symbol | undefined {
+    const symbol = this.currentScope.resolve(typeName);
+    if (symbol || !typeName.includes(".")) {
+      return symbol;
+    }
+
+    const parts = typeName.split(".");
+    let currentScope = this.currentScope;
+    let currentSymbol: Symbol | undefined;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]!;
+      currentSymbol = currentScope.resolve(part);
+      if (!currentSymbol) {
+        break;
+      }
+
+      if (i < parts.length - 1) {
+        if (currentSymbol.moduleScope) {
+          currentScope = currentSymbol.moduleScope;
+        } else {
+          currentSymbol = undefined;
+          break;
+        }
+      }
+    }
+
+    return currentSymbol;
   }
 
   // ========== Abstract methods - implemented by checker modules ==========
