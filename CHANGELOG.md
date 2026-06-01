@@ -66,6 +66,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   report `BPL_SWITCH_CASE_TYPE_MISMATCH`, in compiler errors,
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Valid integer and string switches remain accepted.
+- **Call-Site Mismatch Diagnostic Codes** - Non-callable targets now report
+  `BPL_CALL_TARGET_NOT_CALLABLE`, function and first-class callable argument
+  count and type mismatches now report `BPL_CALL_ARGUMENT_COUNT_MISMATCH` and
+  `BPL_CALL_ARGUMENT_TYPE_MISMATCH`, and enum variant constructor argument
+  count and type mismatches now report
+  `BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH` and
+  `BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Valid function, lambda, callable object, and enum variant calls
+  remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

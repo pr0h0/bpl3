@@ -3458,6 +3458,145 @@ describe("CLI JSON parseability", () => {
     }
   }, 10000);
 
+  test("reports call-site mismatch failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "call_target_not_callable",
+        code: "BPL_CALL_TARGET_NOT_CALLABLE",
+        line: 4,
+        column: 5,
+        preview: "box()",
+        message: "Type 'Box' is not callable",
+        hint: "Only functions or types with __call__ operator can be called.",
+        source: [
+          "struct Box {}",
+          "frame main() ret int {",
+          "    local box: Box;",
+          "    box();",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "call_argument_count_mismatch",
+        code: "BPL_CALL_ARGUMENT_COUNT_MISMATCH",
+        line: 3,
+        column: 12,
+        preview: "take()",
+        message: "No matching function for call to 'take' with 0 arguments.",
+        hint: "Available overloads:",
+        source: [
+          "frame take(value: int) ret int { return value; }",
+          "frame main() ret int {",
+          "    return take();",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "call_argument_type_mismatch",
+        code: "BPL_CALL_ARGUMENT_TYPE_MISMATCH",
+        line: 3,
+        column: 12,
+        preview: 'take("wrong")',
+        message:
+          "No matching function for call to 'take' with provided argument types.",
+        hint: "Available overloads:",
+        source: [
+          "frame take(value: int) ret int { return value; }",
+          "frame main() ret int {",
+          '    return take("wrong");',
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "enum_variant_argument_count_mismatch",
+        code: "BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH",
+        line: 6,
+        column: 26,
+        preview: "Message.Move(1)",
+        message: "Enum variant 'Move' expects 2 arguments, but got 1",
+        hint: "Usage: Message.Move(",
+        source: [
+          "enum Message {",
+          "    Move(int, int),",
+          "    Quit,",
+          "}",
+          "frame main() ret int {",
+          "    local msg: Message = Message.Move(1);",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "enum_variant_argument_type_mismatch",
+        code: "BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH",
+        line: 6,
+        column: 26,
+        preview: 'Message.Move(1, "wrong")',
+        message: "Type mismatch for argument 2 of 'Move': expected",
+        hint: "Check the variant definition and argument types.",
+        source: [
+          "enum Message {",
+          "    Move(int, int),",
+          "    Quit,",
+          "}",
+          "frame main() ret int {",
+          '    local msg: Message = Message.Move(1, "wrong");',
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

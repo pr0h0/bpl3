@@ -1374,6 +1374,29 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document call-site mismatch diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Call-site mismatch failures use `BPL_CALL_TARGET_NOT_CALLABLE`, `BPL_CALL_ARGUMENT_COUNT_MISMATCH`, `BPL_CALL_ARGUMENT_TYPE_MISMATCH`, `BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH`, and `BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH`",
+      "`Type 'Box' is not callable`",
+      "`No matching function for call to 'take' with 0 arguments.`",
+      "`No matching function for call to 'take' with provided argument types.`",
+      "`Enum variant 'Move' expects 2 arguments, but got 1`",
+      "`Type mismatch for argument 2 of 'Move': expected i32, got string`",
+      "`Only functions or types with __call__ operator can be called.`",
+      "`Available overloads:`",
+      "`Usage: Message.Move(`",
+      "`Check the variant definition and argument types.`",
+      "non-callable targets, function argument count and type mismatches, and enum variant argument count and type mismatches",
+      'bun test tests/TypeCheckerCallSiteMismatch.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

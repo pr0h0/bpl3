@@ -758,6 +758,31 @@ bun test tests/TypeCheckerSwitchMismatch.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "switch type mismatch"
 ```
 
+Call-site mismatch failures use `BPL_CALL_TARGET_NOT_CALLABLE`,
+`BPL_CALL_ARGUMENT_COUNT_MISMATCH`, `BPL_CALL_ARGUMENT_TYPE_MISMATCH`,
+`BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH`, and
+`BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH`. This covers non-callable targets,
+function argument count and type mismatches, and enum variant argument count and
+type mismatches. For example, calling a plain struct value reports
+`Type 'Box' is not callable` with the hint
+`Only functions or types with __call__ operator can be called.`, calling
+`take()` when `take` requires one parameter reports
+`No matching function for call to 'take' with 0 arguments.`, and calling
+`take("wrong")` reports
+`No matching function for call to 'take' with provided argument types.`. Direct
+function overload failures include `Available overloads:` in the hint. Enum
+constructor calls report `Enum variant 'Move' expects 2 arguments, but got 1`
+with a `Usage: Message.Move(` hint for count mismatches, and
+`Type mismatch for argument 2 of 'Move': expected i32, got string` with the hint
+`Check the variant definition and argument types.` for argument type
+mismatches. Valid function, lambda, callable object, and enum variant calls
+remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerCallSiteMismatch.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
