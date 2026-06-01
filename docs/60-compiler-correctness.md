@@ -32,10 +32,12 @@ It delegates to the typed runner in `tools/test_ci.ts`, which keeps the suite
 order and heavyweight exclusions out of `package.json`. Use
 `bun tools/test_ci.ts --list` or `bun tools/test_ci.ts --dry-run` to inspect the
 planned commands without executing them; use `bun tools/test_ci.ts --json` when
-automation needs the versioned plan. The runner builds runtime support first,
-runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`, runs
-the VS Code extension suite, checks the generated `bpl-v3/cli` registry shim
-with `bun run release:cli-registry`, then runs discovered top-level CI-safe unit
+automation needs the versioned plan. `bun tools/test_ci.ts --help` prints usage
+on stdout. Unknown test_ci options exit with status 2 on stderr while stdout
+stays empty. The runner builds runtime support first, runs
+`tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`, runs the VS
+Code extension suite, checks the generated `bpl-v3/cli` registry shim with
+`bun run release:cli-registry`, then runs discovered top-level CI-safe unit
 tests. It intentionally excludes the full correctness corpora, long fuzz
 runners, sanitizer runtime suite, golden LLVM shape suite, and full release
 smoke suite because those have dedicated scripts and CI jobs.

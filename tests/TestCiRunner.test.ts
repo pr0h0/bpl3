@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -121,6 +122,27 @@ describe("CI-safe test runner", () => {
 
     const packageJson = require("../package.json");
     expect(packageJson.scripts["test:ci"]).toBe("bun tools/test_ci.ts");
+  });
+
+  test("keeps CLI help on stdout and usage failures on stderr", () => {
+    const help = spawnSync("bun", ["tools/test_ci.ts", "--help"], {
+      cwd: join(import.meta.dir, ".."),
+      encoding: "utf8",
+    });
+
+    expect(help.status).toBe(0);
+    expect(help.stdout).toContain("Usage: bun tools/test_ci.ts");
+    expect(help.stdout).toContain("--list, --dry-run");
+    expect(help.stderr).toBe("");
+
+    const unknown = spawnSync("bun", ["tools/test_ci.ts", "--unknown"], {
+      cwd: join(import.meta.dir, ".."),
+      encoding: "utf8",
+    });
+
+    expect(unknown.status).toBe(2);
+    expect(unknown.stdout).toBe("");
+    expect(unknown.stderr).toContain("Unknown option '--unknown'");
   });
 
   test("formats concise success summaries for completed CI-safe runs", () => {

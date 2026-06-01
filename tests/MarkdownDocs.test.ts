@@ -1345,6 +1345,8 @@ describe("Markdown documentation", () => {
       "bun tools/test_ci.ts --list",
       "bun tools/test_ci.ts --dry-run",
       "bun tools/test_ci.ts --json",
+      "bun tools/test_ci.ts --help",
+      "Unknown test_ci options exit with status 2 on stderr while stdout stays empty",
       "The runner builds runtime support first",
       "runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`",
       "runs the VS Code extension suite",

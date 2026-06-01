@@ -893,6 +893,8 @@ bun run test:ci
 bun tools/test_ci.ts --list
 bun tools/test_ci.ts --dry-run
 bun tools/test_ci.ts --json
+bun tools/test_ci.ts --help
+# Unknown test_ci options exit with status 2 on stderr while stdout stays empty.
 # CI-safe unit discovery includes tests/CiTriage.test.ts, including offline
 # jobs-json diagnostics. Focus that path directly when needed:
 bun test tests/CiTriage.test.ts -t "unreadable and malformed jobs-json"

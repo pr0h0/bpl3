@@ -47,6 +47,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.
+- **CI-Safe Runner Usage Streams** - `bun tools/test_ci.ts` now keeps `--help`
+  on stdout while reporting unknown-option usage failures on stderr with empty
+  stdout.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

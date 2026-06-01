@@ -205,8 +205,12 @@ function main(argv: string[]): number {
     options = parseArgs(argv);
   } catch (error) {
     if (error instanceof UsageError) {
-      console.log(error.message);
-      return error.message.startsWith("Usage:") ? 0 : 2;
+      if (error.message.startsWith("Usage:")) {
+        console.log(error.message);
+        return 0;
+      }
+      console.error(error.message);
+      return 2;
     }
     throw error;
   }
