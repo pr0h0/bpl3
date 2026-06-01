@@ -103,9 +103,31 @@ function renderCliJsonRegistryList(list: CliJsonErrorCodeList): string[] {
   return lines;
 }
 
+function formatCliJsonRegistryUsage(): string {
+  return "Usage: bun tools/cli_json_registry_shim.ts [--check|--write]";
+}
+
 function runCli(args: readonly string[]): number {
   const repoRoot = resolve(process.cwd());
   const mode = args[0] ?? "--check";
+
+  if (args.length > 1) {
+    console.error(`Unexpected argument ${args[1]}`);
+    console.error(formatCliJsonRegistryUsage());
+    return 2;
+  }
+
+  for (const flag of ["--check", "--write", "--help"] as const) {
+    if (mode.startsWith(`${flag}=`)) {
+      console.error(`${flag} does not accept a value. Use --help for usage.`);
+      return 2;
+    }
+  }
+
+  if (mode === "--help" || mode === "-h") {
+    console.log(formatCliJsonRegistryUsage());
+    return 0;
+  }
 
   if (mode === "--write") {
     writeCliJsonRegistryShim(repoRoot);
@@ -127,7 +149,12 @@ function runCli(args: readonly string[]): number {
     return 1;
   }
 
-  console.error("Usage: bun tools/cli_json_registry_shim.ts [--check|--write]");
+  if (mode.startsWith("-")) {
+    console.error(`Unknown option ${mode.split("=", 1)[0]}`);
+  } else {
+    console.error(`Unexpected argument ${mode}`);
+  }
+  console.error(formatCliJsonRegistryUsage());
   return 2;
 }
 

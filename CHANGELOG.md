@@ -64,6 +64,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   installed-package `test:ci` helper for `--help`, `--list`, `--json`, and
   malformed inline flag values without requiring a source-checkout `tests/`
   directory.
+- **CLI Registry Shim Usage Diagnostics** - `bun tools/cli_json_registry_shim.ts`
+  now supports `--help`, verifies the `release:cli-registry` package script,
+  and rejects malformed inline values such as `--check=true` and
+  `--write=true` with stable status-2 diagnostics.
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.
