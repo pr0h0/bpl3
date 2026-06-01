@@ -22,6 +22,12 @@ function check(source: string) {
   return program;
 }
 
+function collectErrorMessages(source: string, filePath = "test.bpl") {
+  const typeChecker = new TypeChecker({ collectAllErrors: true });
+  typeChecker.checkProgram(parseProgram(source, filePath), filePath);
+  return typeChecker.getErrors().map((error) => error.message);
+}
+
 describe("TypeChecker", () => {
   it("should clear failed import recovery state when reusing a checker", () => {
     const checker = new TypeChecker({ collectAllErrors: true });
@@ -66,6 +72,89 @@ describe("TypeChecker", () => {
     );
     const sameFileMessages = checker.getErrors().map((error) => error.message);
     expect(sameFileMessages).toContain("Undefined symbol 'shadow'");
+  });
+
+  it("should not cascade unknown failed import expression types", () => {
+    const cases = [
+      {
+        name: "return",
+        source: [
+          'import shadow from "std/missing.bpl";',
+          "frame main() ret int {",
+          "  return shadow();",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "initializer",
+        source: [
+          'import shadow from "std/missing.bpl";',
+          "frame main() ret int {",
+          "  local _value: int = shadow();",
+          "  return 0;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "assignment",
+        source: [
+          'import shadow from "std/missing.bpl";',
+          "frame main() ret int {",
+          "  local value: int = 1;",
+          "  value = shadow();",
+          "  return value;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const messages = collectErrorMessages(
+        testCase.source,
+        `${testCase.name}.bpl`,
+      );
+      expect(
+        messages.some((message) =>
+          message.includes("Standard library module not found: std/missing.bpl"),
+        ),
+      ).toBe(true);
+      expect(messages).not.toContain("Undefined symbol 'shadow'");
+      expect(
+        messages.some((message) => message.includes("Return type mismatch")),
+      ).toBe(false);
+      expect(
+        messages.some((message) =>
+          message.includes("Type mismatch: cannot assign"),
+        ),
+      ).toBe(false);
+    }
+
+    const mismatchMessages = collectErrorMessages(
+      [
+        'import shadow from "std/missing.bpl";',
+        "frame main() ret int {",
+        '  local _value: int = "wrong";',
+        "  return shadow();",
+        "}",
+      ].join("\n"),
+      "independent-mismatch.bpl",
+    );
+    expect(
+      mismatchMessages.some((message) =>
+        message.includes("Standard library module not found: std/missing.bpl"),
+      ),
+    ).toBe(true);
+    expect(
+      mismatchMessages.some((message) =>
+        message.includes("Type mismatch: cannot assign"),
+      ),
+    ).toBe(true);
+    expect(mismatchMessages).not.toContain("Undefined symbol 'shadow'");
+    expect(
+      mismatchMessages.some((message) =>
+        message.includes("Return type mismatch"),
+      ),
+    ).toBe(false);
   });
 
   it("should pass for valid struct method access", () => {

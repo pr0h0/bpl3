@@ -505,8 +505,6 @@ describe("CLI Tests", () => {
   it("should not resolve missing explicit std imports from packages", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
     const sourceFile = path.join(tempDir, "main.bpl");
-    const aliasSourceFile = path.join(tempDir, "alias.bpl");
-    const namespaceSourceFile = path.join(tempDir, "namespace.bpl");
     const unrelatedUndefinedFile = path.join(tempDir, "unrelated.bpl");
     const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
     fs.mkdirSync(stdPackageDir, { recursive: true });
@@ -529,24 +527,6 @@ describe("CLI Tests", () => {
         'import shadow from "std/missing.bpl";',
         "frame main() ret int {",
         "    return shadow();",
-        "}",
-      ].join("\n"),
-    );
-    fs.writeFileSync(
-      aliasSourceFile,
-      [
-        'import shadow as localShadow from "std/missing.bpl";',
-        "frame main() ret int {",
-        "    return localShadow();",
-        "}",
-      ].join("\n"),
-    );
-    fs.writeFileSync(
-      namespaceSourceFile,
-      [
-        'import * as ShadowStd from "std/missing.bpl";',
-        "frame main() ret int {",
-        "    return ShadowStd.shadow();",
         "}",
       ].join("\n"),
     );
@@ -614,25 +594,6 @@ describe("CLI Tests", () => {
         "Undefined symbol 'shadow'",
         "Return type mismatch",
       ]);
-      expectMissingStdOnlyText(aliasSourceFile, [
-        "Undefined symbol 'localShadow'",
-        "Return type mismatch",
-      ]);
-      expectMissingStdOnlyJson(aliasSourceFile, [
-        "Undefined symbol 'localShadow'",
-        "Return type mismatch",
-      ]);
-      expectMissingStdOnlyText(namespaceSourceFile, [
-        "Undefined symbol 'ShadowStd'",
-        "has no member",
-        "Return type mismatch",
-      ]);
-      expectMissingStdOnlyJson(namespaceSourceFile, [
-        "Undefined symbol 'ShadowStd'",
-        "has no member",
-        "Return type mismatch",
-      ]);
-
       const unrelatedJsonResult = runCLI([
         "check",
         "--json",
@@ -653,6 +614,108 @@ describe("CLI Tests", () => {
       ).toBe(true);
       expect(unrelatedMessages).toContain("Undefined symbol 'other'");
       expect(unrelatedMessages).not.toContain("Undefined symbol 'shadow'");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should keep alias and namespace missing explicit std import diagnostics focused", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
+    const aliasSourceFile = path.join(tempDir, "alias.bpl");
+    const namespaceSourceFile = path.join(tempDir, "namespace.bpl");
+    const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
+    fs.mkdirSync(stdPackageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(stdPackageDir, "bpl.json"),
+      JSON.stringify({ name: "std", version: "1.0.0", main: "missing.bpl" }),
+    );
+    fs.writeFileSync(
+      path.join(stdPackageDir, "missing.bpl"),
+      [
+        "frame shadow() ret int {",
+        "    return 42;",
+        "}",
+        "export shadow;",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      aliasSourceFile,
+      [
+        'import shadow as localShadow from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return localShadow();",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      namespaceSourceFile,
+      [
+        'import * as ShadowStd from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return ShadowStd.shadow();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const expectMissingStdOnlyJson = (
+        file: string,
+        absentMessages: string[],
+      ) => {
+        const result = runCLI(["check", "--json", file]);
+        expect(result.status).toBe(1);
+        const report = parseJsonObjectStdout<{
+          files: Array<{
+            diagnostics: Array<{ message: string; hint: string }>;
+          }>;
+        }>(result);
+        const diagnostics = report.files[0]?.diagnostics ?? [];
+        expect(diagnostics).toHaveLength(1);
+        const diagnostic = diagnostics[0];
+        expect(diagnostic?.message).toContain(
+          "Standard library module not found: std/missing.bpl",
+        );
+        expect(diagnostic?.hint).toContain("standard library");
+        for (const message of absentMessages) {
+          expect(
+            diagnostics.some((item) => item.message.includes(message)),
+          ).toBe(false);
+        }
+      };
+
+      const expectMissingStdOnlyText = (
+        file: string,
+        absentMessages: string[],
+      ) => {
+        const result = runCLI(["check", file]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "Standard library module not found: std/missing.bpl",
+        );
+        expect(result.stderr).toContain("standard library");
+        for (const message of absentMessages) {
+          expect(result.stderr).not.toContain(message);
+        }
+      };
+
+      expectMissingStdOnlyText(aliasSourceFile, [
+        "Undefined symbol 'localShadow'",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyJson(aliasSourceFile, [
+        "Undefined symbol 'localShadow'",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyText(namespaceSourceFile, [
+        "Undefined symbol 'ShadowStd'",
+        "has no member",
+        "Return type mismatch",
+      ]);
+      expectMissingStdOnlyJson(namespaceSourceFile, [
+        "Undefined symbol 'ShadowStd'",
+        "has no member",
+        "Return type mismatch",
+      ]);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
