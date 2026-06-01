@@ -75,6 +75,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rejects global versioned package directories whose package-name prefix only
   differs by filesystem casing, instead of falling back to lower-priority
   package roots.
+- **ModuleResolver Package Lookup Injection** - Module resolution can now use
+  explicit package-manager directories for deterministic diagnostics in tests
+  and embedded compiler hosts while preserving the default CLI package paths.
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.

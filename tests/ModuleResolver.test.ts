@@ -667,6 +667,61 @@ describe("ModuleResolver", () => {
     }
   });
 
+  it("should surface case-mismatched global versioned package diagnostics", () => {
+    const appDir = path.join(tempDir, "global-version-case-app");
+    const globalPackageDir = path.join(
+      tempDir,
+      "global-version-case-packages",
+    );
+    const mismatchedPackageDir = path.join(globalPackageDir, "Math-9.0.0");
+    const requestedMismatchedPackageDir = path.join(
+      globalPackageDir,
+      "math-9.0.0",
+    );
+    const lowerPackageDir = path.join(globalPackageDir, "math-1.0.0");
+    fs.mkdirSync(appDir, { recursive: true });
+    fs.mkdirSync(mismatchedPackageDir, { recursive: true });
+    fs.mkdirSync(lowerPackageDir, { recursive: true });
+
+    for (const [packageDir, version] of [
+      [mismatchedPackageDir, "9.0.0"],
+      [lowerPackageDir, "1.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    }
+
+    const mainPath = path.join(appDir, "main.bpl");
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import value from "math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const error = captureCompilerError(() => {
+      new ModuleResolver({
+        stdLibPath: tempDir,
+        packageManagerOptions: { globalPackageDir },
+      }).resolveModules(mainPath);
+    });
+
+    expect(error.code).toBe("BPL_PACKAGE_ROOT_CASE_MISMATCH");
+    expect(error.message).toContain("package root casing does not match");
+    expect(error.message).toContain(requestedMismatchedPackageDir);
+    expect(error.message).toContain(mismatchedPackageDir);
+    expect(error.hint).toContain("Use the exact filesystem casing");
+    expect(error.hint).toContain(requestedMismatchedPackageDir);
+    expect(error.hint).toContain(mismatchedPackageDir);
+    expect(error.hint).not.toContain(lowerPackageDir);
+  });
+
   it("should report searched package paths for unresolved package imports", () => {
     const appDir = path.join(tempDir, "diagnostic-app");
     const sourceDir = path.join(appDir, "src");

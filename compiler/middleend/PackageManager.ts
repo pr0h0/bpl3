@@ -363,6 +363,8 @@ export interface PackageDoctorReport {
 
 export interface PackageManagerOptions {
   ensureDirectories?: boolean;
+  globalPackageDir?: string;
+  globalBinDir?: string;
 }
 
 interface ResolvedDependencySource {
@@ -383,8 +385,10 @@ export class PackageManager {
 
   constructor(projectRoot?: string, options: PackageManagerOptions = {}) {
     // Global packages in ~/.bpl/packages
-    this.globalPackageDir = path.join(os.homedir(), ".bpl", "packages");
-    this.globalBinDir = path.join(os.homedir(), ".bpl", "bin");
+    this.globalPackageDir =
+      options.globalPackageDir ?? path.join(os.homedir(), ".bpl", "packages");
+    this.globalBinDir =
+      options.globalBinDir ?? path.join(os.homedir(), ".bpl", "bin");
 
     // Local packages in project's node_modules equivalent
     const root = projectRoot || process.cwd();

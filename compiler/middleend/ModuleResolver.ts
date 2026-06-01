@@ -22,6 +22,7 @@ import { findCaseMismatchPath } from "../common/PathSafety";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { PackageManager } from "./PackageManager";
+import type { PackageManagerOptions } from "./PackageManager";
 import {
   formatPackageResolutionHint,
   getPackageResolutionFailureCode,
@@ -79,17 +80,25 @@ export class ModuleResolver {
 
   /** Module search paths */
   private searchPaths: string[] = [];
+  private packageManagerOptions: PackageManagerOptions = {};
 
   /** Supported file extensions */
   private readonly SUPPORTED_EXTENSIONS = [".bpl", ".x", ""];
 
-  constructor(options: { stdLibPath?: string; searchPaths?: string[] } = {}) {
+  constructor(
+    options: {
+      stdLibPath?: string;
+      searchPaths?: string[];
+      packageManagerOptions?: PackageManagerOptions;
+    } = {},
+  ) {
     // Use PathResolver to get the standard library path from BPL_HOME
     this.stdLibPath = options.stdLibPath || getLibPath();
     if (!this.stdLibPath) {
       compilerLog.error("stdLibPath is undefined!");
     }
     this.searchPaths = options.searchPaths || [];
+    this.packageManagerOptions = options.packageManagerOptions || {};
   }
 
   /**
@@ -333,6 +342,7 @@ export class ModuleResolver {
 
     // Try to resolve as a package import
     const packageManager = new PackageManager(undefined, {
+      ...this.packageManagerOptions,
       ensureDirectories: false,
     });
     const packageTraces: PackageResolutionTrace[] = [];
