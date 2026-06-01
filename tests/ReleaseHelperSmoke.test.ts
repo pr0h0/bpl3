@@ -229,6 +229,45 @@ describe("Release helper smoke", () => {
       rmSync(tempRoot, { recursive: true, force: true });
     }
   });
+
+  test("prints packed ci:triage repo validation diagnostics", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-repo-smoke-"),
+    );
+
+    try {
+      const installDir = writePackedHelperInstallFixture(tempRoot, {
+        includePathSafety: true,
+      });
+      const packageDir = join(installDir, "node_modules", "bpl-v3");
+      const result = spawnSync(
+        "npm",
+        [
+          "run",
+          "--silent",
+          "ci:triage",
+          "--",
+          "--repo",
+          "bad",
+          "26695335269",
+        ],
+        {
+          cwd: packageDir,
+          encoding: "utf8",
+          env: { ...process.env, NO_COLOR: "1" },
+          timeout: HELPER_SMOKE_TIMEOUT_MS,
+        },
+      );
+
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Expected --repo as owner/name, got bad");
+      expect(result.stderr).not.toContain("GitHub API");
+      expect(result.stderr).not.toContain("release:smoke");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 function writePackedHelperInstallFixture(
