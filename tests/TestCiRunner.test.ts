@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -56,11 +56,21 @@ describe("CI-safe test runner", () => {
     expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain("ReleaseSmoke.test.ts");
   });
 
-  test("keeps ci:triage jobs-json diagnostics in CI-safe discovery", () => {
+  test("keeps ci:triage usage diagnostics in CI-safe discovery", () => {
     const ciSafeUnitTests = discoverCiSafeUnitTestFiles();
+    const ciTriageTests = readFileSync(
+      join(import.meta.dir, "CiTriage.test.ts"),
+      "utf8",
+    );
 
     expect(ciSafeUnitTests).toContain("tests/CiTriage.test.ts");
     expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain("CiTriage.test.ts");
+    expect(ciTriageTests).toContain(
+      'test("rejects invalid run locators before GitHub API calls"',
+    );
+    expect(ciTriageTests).toContain(
+      'test("rejects unreadable and malformed jobs-json files before GitHub API calls"',
+    );
   });
 
   test("plans runtime build, integration, registry sync, and CI-safe unit steps in order", () => {

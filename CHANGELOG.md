@@ -38,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Run Locator Smoke** -
   `tests/ReleaseHelperSmoke.test.ts` now verifies installed-package
   `ci:triage` run locator usage diagnostics without running full release smoke.
+- **CI-Safe Run Locator Discovery Guard** - CI-safe runner tests now assert
+  `tests/CiTriage.test.ts` still contains the run-locator usage diagnostic
+  regression while remaining part of discovered CI-safe unit coverage.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,
