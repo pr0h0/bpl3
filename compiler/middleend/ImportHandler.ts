@@ -461,7 +461,7 @@ export class ImportHandler {
     if (!isExported || !exportedSymbol) {
       throw new CompilerError(
         `Module '${stmt.source}' does not export '${item.name}'`,
-        "Ensure the symbol is exported (or defined) in the module.",
+        this.createMissingExportHint(ast),
         stmt.location,
         IMPORT_EXPORT_NOT_FOUND_CODE,
       );
@@ -469,5 +469,28 @@ export class ImportHandler {
 
     // Define in current scope
     this.defineImportedSymbol(item.alias || item.name, exportedSymbol);
+  }
+
+  private createMissingExportHint(ast: AST.Program | undefined): string {
+    const baseHint = "Ensure the symbol is exported (or defined) in the module.";
+    const exportedNames = this.collectExportedNames(ast);
+    if (exportedNames.length === 0) return baseHint;
+
+    return `${baseHint}\nAvailable exports: ${exportedNames.join(", ")}.`;
+  }
+
+  private collectExportedNames(ast: AST.Program | undefined): string[] {
+    if (!ast) return [];
+
+    const names = new Set<string>();
+    for (const statement of ast.statements) {
+      if (statement.kind !== "Export") continue;
+      const exportStmt = statement as AST.ExportStmt;
+      for (const item of exportStmt.items) {
+        names.add(item.name);
+      }
+    }
+
+    return [...names].sort((left, right) => left.localeCompare(right));
   }
 }

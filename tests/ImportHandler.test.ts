@@ -167,11 +167,11 @@ describe("ImportHandler", () => {
     }
   });
 
-  it("reports a stable code when a named import is not exported", () => {
+  it("reports a stable code and available exports when a named import is not exported", () => {
     const sourceFile = path.join(os.tmpdir(), "import-handler-main.bpl");
     const modulePath = path.join(os.tmpdir(), "import-handler-module.bpl");
     const moduleAst = makeProgram(
-      [makeExport(["available"], modulePath)],
+      [makeExport(["zeta", "available"], modulePath)],
       modulePath,
     );
     const importStmt = makeImport("./import-handler-module.bpl", sourceFile);
@@ -191,9 +191,46 @@ describe("ImportHandler", () => {
     expect(compilerError.message).toBe(
       "Module './import-handler-module.bpl' does not export 'missing'",
     );
+    expect(compilerError.hint).toContain(
+      "Ensure the symbol is exported (or defined) in the module.",
+    );
+    expect(compilerError.hint).toContain(
+      "Available exports: available, zeta.",
+    );
+    expect(compilerError.code).toBe("BPL_IMPORT_EXPORT_NOT_FOUND");
+  });
+
+  it("omits available exports when a missing import has no export list", () => {
+    const sourceFile = path.join(
+      os.tmpdir(),
+      "import-handler-no-exports-main.bpl",
+    );
+    const modulePath = path.join(
+      os.tmpdir(),
+      "import-handler-no-exports-module.bpl",
+    );
+    const moduleAst = makeProgram([], modulePath);
+    const importStmt = makeImport(
+      "./import-handler-no-exports-module.bpl",
+      sourceFile,
+    );
+    importStmt.items = [{ name: "missing", isType: false }];
+
+    const handler = makeHandlerWithPreloadedModule(modulePath, moduleAst);
+    let caught: unknown;
+
+    try {
+      handler.checkImport(importStmt);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(CompilerError);
+    const compilerError = caught as CompilerError;
     expect(compilerError.hint).toBe(
       "Ensure the symbol is exported (or defined) in the module.",
     );
+    expect(compilerError.hint).not.toContain("Available exports:");
     expect(compilerError.code).toBe("BPL_IMPORT_EXPORT_NOT_FOUND");
   });
 });
