@@ -2537,6 +2537,79 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
       );
     }
 
+    const globalSymlinkTempDir = mkdtempSync(
+      join(tmpdir(), "bpl-release-package-global-symlink-"),
+    );
+    try {
+      const appDir = join(globalSymlinkTempDir, "app");
+      const homeDir = join(globalSymlinkTempDir, "home");
+      const bplHomeDir = join(homeDir, ".bpl");
+      const linkedGlobalPackageDir = join(bplHomeDir, "packages");
+      const realGlobalPackageDir = join(
+        globalSymlinkTempDir,
+        "outside-global-packages",
+      );
+      mkdirSync(appDir, { recursive: true });
+      mkdirSync(bplHomeDir, { recursive: true });
+      mkdirSync(realGlobalPackageDir, { recursive: true });
+      symlinkSync(realGlobalPackageDir, linkedGlobalPackageDir, "dir");
+      writeFileSync(
+        join(appDir, "main.bpl"),
+        [
+          'import value from "pkg-math";',
+          "frame main() ret int {",
+          "    return 0;",
+          "}",
+          "",
+        ].join("\n"),
+      );
+
+      const globalSymlinkResult = runJsonFailureStep(
+        "check packed npm CLI package global search symlink JSON",
+        installedBpl,
+        ["check", "--json", "main.bpl"],
+        {
+          cwd: appDir,
+          bplHome: null,
+          expectedStatus: 1,
+          env: { HOME: homeDir, USERPROFILE: homeDir },
+        },
+      );
+      const globalSymlinkReport = parseCheckReport(
+        globalSymlinkResult.stdout,
+      );
+      const globalSymlinkFileReport = globalSymlinkReport.files[0];
+      const globalSymlinkDiagnostic =
+        globalSymlinkFileReport?.diagnostics?.[0];
+      if (
+        globalSymlinkReport.success ||
+        globalSymlinkReport.totalFiles !== 1 ||
+        globalSymlinkReport.errorCount !== 1 ||
+        globalSymlinkReport.files.length !== 1 ||
+        globalSymlinkFileReport?.file !== "main.bpl" ||
+        globalSymlinkFileReport.success ||
+        globalSymlinkDiagnostic?.code !==
+          "BPL_PACKAGE_SEARCH_DIR_SYMLINK" ||
+        typeof globalSymlinkDiagnostic.message !== "string" ||
+        !globalSymlinkDiagnostic.message.includes(
+          "Global package directory path is a symbolic link",
+        ) ||
+        !globalSymlinkDiagnostic.message.includes(linkedGlobalPackageDir) ||
+        typeof globalSymlinkDiagnostic.hint !== "string" ||
+        !globalSymlinkDiagnostic.hint.includes(
+          "Move the symlink out of the way",
+        ) ||
+        globalSymlinkDiagnostic.hint.includes(linkedGlobalPackageDir) ||
+        globalSymlinkDiagnostic.hint.includes(realGlobalPackageDir)
+      ) {
+        throw new Error(
+          `Packed npm CLI package global search symlink JSON reported unexpected payload:\n${JSON.stringify(globalSymlinkReport, null, 2)}`,
+        );
+      }
+    } finally {
+      rmSync(globalSymlinkTempDir, { recursive: true, force: true });
+    }
+
     writeFileSync(join(packageDir, "bpl.json"), "{not-json");
 
     const malformedResult = runJsonFailureStep(

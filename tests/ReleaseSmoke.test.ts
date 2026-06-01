@@ -210,6 +210,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package import diagnostic code JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package global search symlink JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package import malformed manifest JSON",
       );
       expect(result.stdout).toContain(
