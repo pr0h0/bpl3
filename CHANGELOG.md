@@ -620,6 +620,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Integration Job Env Validation** - `BPL_INTEGRATION_JOBS` now accepts only
   positive integers and reports the auto-detected fallback when malformed
   values such as `0`, decimals, or non-numeric strings are provided.
+- **CI Triage Integration Concurrency Mapping** - `ci:triage` now maps
+  `BPL_INTEGRATION_JOBS` and integration concurrency failures to
+  `tests/IntegrationRunner.test.ts`, a bounded `BPL_INTEGRATION_JOBS=4`
+  CI-safe repro, and the full CI-safe suite.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their

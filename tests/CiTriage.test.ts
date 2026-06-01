@@ -912,6 +912,26 @@ describe("CI triage helper", () => {
     ]);
   });
 
+  test("maps integration concurrency failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/IntegrationRunner.test.ts",
+      "BPL_INTEGRATION_JOBS=4 bun run test:ci",
+      "bun run test:ci",
+    ];
+
+    expect(localCommandsForStep("IntegrationRunner.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep(
+        "Ignoring invalid BPL_INTEGRATION_JOBS=1.5; expected a positive integer",
+      ),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("integration job concurrency")).toEqual(
+      expectedCommands,
+    );
+  });
+
   test("summarizes failed jobs and formats local repro guidance", () => {
     const jobs: GitHubWorkflowJob[] = [
       {
@@ -1568,6 +1588,74 @@ describe("CI triage helper", () => {
       expect(result.stderr).not.toContain("api.github.com");
       expect(result.stdout).toContain("Release CLI registry sync check");
       expect(result.stdout).toContain("bun run release:cli-registry");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints integration concurrency repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-integration-jobs-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 65,
+              name: "Integration concurrency",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/65",
+              steps: [
+                {
+                  name: "Ignoring invalid BPL_INTEGRATION_JOBS=1.5; expected a positive integer",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      const integrationJob = report.summary.failedJobs.find(
+        (job) => job.name === "Integration concurrency",
+      );
+      expect(integrationJob?.localCommands).toEqual([
+        "bun test tests/IntegrationRunner.test.ts",
+        "BPL_INTEGRATION_JOBS=4 bun run test:ci",
+        "bun run test:ci",
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

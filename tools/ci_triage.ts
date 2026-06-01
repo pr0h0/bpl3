@@ -570,6 +570,15 @@ const RUNTIME_TIMEOUT_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const INTEGRATION_JOBS_STEP_PATTERN = new RegExp(
+  [
+    "IntegrationRunner\\.test",
+    "integration job concurrency",
+    "integration jobs",
+    "BPL_INTEGRATION_JOBS",
+  ].join("|"),
+  "i",
+);
 
 const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [/^Type check$/i, "bun run check"],
@@ -583,6 +592,12 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "BPL_WASM_LINKER_PROBE_TIMEOUT_MS=5000 bun run test:wasm",
   ],
   [/Run CI-safe test suite/i, "bun run test:ci"],
+  [INTEGRATION_JOBS_STEP_PATTERN, "bun test tests/IntegrationRunner.test.ts"],
+  [
+    INTEGRATION_JOBS_STEP_PATTERN,
+    "BPL_INTEGRATION_JOBS=4 bun run test:ci",
+  ],
+  [INTEGRATION_JOBS_STEP_PATTERN, "bun run test:ci"],
   [COMPILER_TIMEOUT_STEP_PATTERN, "bun index.ts doctor --json"],
   [COMPILER_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [
