@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Integration Artifact Uniqueness Guard** - Integration tests now assert every
+  discovered example maps to a unique temporary artifact directory, and the guard
+  reports the colliding example names if a future nested/flat name conflict is
+  introduced.
 - **Integration Failure Diagnostics** - Example exit-code mismatches and
   timeouts now include the example name, expected and actual status where
   applicable, command line, stdout, and stderr so CI logs are actionable without

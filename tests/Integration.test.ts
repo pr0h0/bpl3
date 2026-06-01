@@ -80,6 +80,27 @@ function cleanupExampleArtifactOutput(outputPath: string): void {
   fs.rmSync(path.dirname(outputPath), { recursive: true, force: true });
 }
 
+function findExampleArtifactDirectoryCollisions(
+  examples: string[],
+  getOutputPath: (example: string) => string = getExampleArtifactOutputPath,
+): string[] {
+  const examplesByArtifactDir = new Map<string, string[]>();
+
+  for (const example of examples) {
+    const artifactDir = path.dirname(getOutputPath(example));
+    const mappedExamples = examplesByArtifactDir.get(artifactDir) || [];
+    mappedExamples.push(example);
+    examplesByArtifactDir.set(artifactDir, mappedExamples);
+  }
+
+  return [...examplesByArtifactDir.entries()]
+    .filter(([, mappedExamples]) => mappedExamples.length > 1)
+    .map(
+      ([artifactDir, mappedExamples]) =>
+        `${artifactDir}: ${mappedExamples.join(", ")}`,
+    );
+}
+
 describe("Integration Tests", () => {
   const examples = getExampleDirectories();
   const testOnly: string[] = [""].filter(Boolean); // Specify example names to test only
@@ -122,6 +143,29 @@ describe("Integration Tests", () => {
     expect(getExampleArtifactOutputPath("enum_imports/wildcard")).not.toBe(
       getExampleArtifactOutputPath("enum_imports_wildcard"),
     );
+  });
+
+  it("keeps artifact directories unique across all discovered examples", () => {
+    expect(findExampleArtifactDirectoryCollisions(examples)).toEqual([]);
+  });
+
+  it("reports colliding example names when artifact directories overlap", () => {
+    const collisions = findExampleArtifactDirectoryCollisions(
+      ["enum_imports/destructuring", "enum_imports_destructuring"],
+      (example) =>
+        path.join(
+          INTEGRATION_RUN_ARTIFACTS_DIR,
+          example.replace(/[^A-Za-z0-9._-]+/g, "_"),
+          "main",
+        ),
+    );
+
+    expect(collisions).toEqual([
+      `${path.join(
+        INTEGRATION_RUN_ARTIFACTS_DIR,
+        "enum_imports_destructuring",
+      )}: enum_imports/destructuring, enum_imports_destructuring`,
+    ]);
   });
 
   it("cleans prepared integration artifact directories", () => {
