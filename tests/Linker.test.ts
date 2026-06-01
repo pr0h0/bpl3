@@ -64,6 +64,51 @@ describe("Linker", () => {
     }
   });
 
+  it("rejects invalid optimization levels before invoking the compiler driver", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-invalid-opt-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const markerPath = join(dir, "driver-invoked");
+    const previousBplCc = process.env.BPL_CC;
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+
+    try {
+      process.env.BPL_CC = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.writeFileSync(${JSON.stringify(markerPath)}, "invoked\\n");`,
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        'if (args[outputIndex]) fs.writeFileSync(args[outputIndex], "linked\\n");',
+      ]);
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        optimizationLevel: 4,
+      });
+
+      expect(ok).toBe(false);
+      expect(existsSync(markerPath)).toBe(false);
+      expect(existsSync(outputPath)).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("does not clobber an output sibling .ll file while linking", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-linker-no-clobber-"));
     const irPath = join(dir, "input.ll");

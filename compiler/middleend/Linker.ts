@@ -73,6 +73,10 @@ export class Linker {
         compilerLog.info("Starting linking process...");
       }
 
+      if (!this.validateOptimizationLevel(options.optimizationLevel)) {
+        return false;
+      }
+
       this.validateOutputPath(options.outputPath);
       this.validateObjectFiles(options.objectFiles || []);
       this.validateDirectoryInputs(options);
@@ -129,6 +133,20 @@ export class Linker {
       compilerLog.error(`Linker error: ${e}`);
       return false;
     }
+  }
+
+  private validateOptimizationLevel(optimizationLevel: number | undefined): boolean {
+    if (
+      optimizationLevel === undefined ||
+      [0, 1, 2, 3].includes(optimizationLevel)
+    ) {
+      return true;
+    }
+
+    compilerLog.error(
+      `Invalid optimization level "${optimizationLevel}". Use one of: 0, 1, 2, 3.`,
+    );
+    return false;
   }
 
   private validateDirectoryInputs(options: LinkOptions): void {
