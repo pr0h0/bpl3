@@ -493,15 +493,61 @@ function getVersionedPackageRootCandidates(
   return fs
     .readdirSync(baseDir)
     .map((entry) => {
-      const version = parseVersionedPackageDirectory(packageName, entry);
-      if (!version) return null;
+      const candidate = parseVersionedPackageDirectoryCandidate(
+        packageName,
+        entry,
+      );
+      if (!candidate) return null;
+
+      const { directoryName, version } = candidate;
       return {
-        rootPath: path.join(baseDir, entry),
+        rootPath: path.join(baseDir, directoryName),
         version,
       };
     })
     .filter((entry): entry is VersionedPackageRootCandidate => entry !== null)
     .sort((left, right) => compareSemverDesc(left.version, right.version));
+}
+
+function parseVersionedPackageDirectoryCandidate(
+  packageName: string,
+  directoryName: string,
+): { directoryName: string; version: SemanticVersion } | null {
+  const prefix = `${packageName}-`;
+  const exactVersion = parseVersionedPackageDirectory(packageName, directoryName);
+  if (exactVersion) {
+    return { directoryName, version: exactVersion };
+  }
+
+  if (!directoryName.toLowerCase().startsWith(prefix)) {
+    return null;
+  }
+
+  const versionText = directoryName.slice(prefix.length);
+  const version = parseSemanticVersion(versionText);
+  if (!version) return null;
+
+  return {
+    directoryName: `${packageName}-${versionText}`,
+    version,
+  };
+}
+
+function parseVersionedPackageDirectory(
+  packageName: string,
+  directoryName: string,
+): SemanticVersion | null {
+  const prefix = `${packageName}-`;
+  if (!directoryName.startsWith(prefix)) return null;
+
+  return parseSemanticVersion(directoryName.slice(prefix.length));
+}
+
+function parseSemanticVersion(version: string): SemanticVersion | null {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) return null;
+
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
 function classifyPackageRootCandidate(
@@ -528,20 +574,6 @@ function classifyPackageRootCandidate(
   }
 
   return { status: "directory", rootPath: candidate.rootPath };
-}
-
-function parseVersionedPackageDirectory(
-  packageName: string,
-  directoryName: string,
-): SemanticVersion | null {
-  const prefix = `${packageName}-`;
-  if (!directoryName.startsWith(prefix)) return null;
-
-  const version = directoryName.slice(prefix.length);
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
-  if (!match) return null;
-
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
 function compareSemverDesc(

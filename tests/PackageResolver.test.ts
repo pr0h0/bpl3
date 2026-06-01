@@ -154,6 +154,47 @@ describe("PackageResolver", () => {
     expect(details.trace.searchedPaths).not.toContain(lowerPackageDir);
   });
 
+  test("rejects global versioned package roots that only differ by package-name casing", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const mismatchedPackageDir = path.join(globalPackageDir, "Math-9.0.0");
+    const requestedMismatchedPackageDir = path.join(
+      globalPackageDir,
+      "math-9.0.0",
+    );
+    const lowerPackageDir = path.join(globalPackageDir, "math-1.0.0");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(mismatchedPackageDir, { recursive: true });
+    fs.mkdirSync(lowerPackageDir, { recursive: true });
+
+    for (const [packageDir, version] of [
+      [mismatchedPackageDir, "9.0.0"],
+      [lowerPackageDir, "1.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe("BPL_PACKAGE_ROOT_CASE_MISMATCH");
+    expect(details.trace.failureMessage).toContain(
+      "package root casing does not match",
+    );
+    expect(details.trace.failureMessage).toContain(
+      requestedMismatchedPackageDir,
+    );
+    expect(details.trace.failureMessage).toContain(mismatchedPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(lowerPackageDir);
+  });
+
   test("does not ignore non-directory global versioned package roots", () => {
     const appDir = path.join(tempDir, "app");
     const globalPackageDir = path.join(tempDir, "global-packages");
