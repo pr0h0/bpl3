@@ -403,6 +403,29 @@ const SWITCH_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const CALL_SITE_MISMATCH_STEP_PATTERN = new RegExp(
+  [
+    "BPL_CALL_TARGET_NOT_CALLABLE",
+    "BPL_CALL_ARGUMENT_COUNT_MISMATCH",
+    "BPL_CALL_ARGUMENT_TYPE_MISMATCH",
+    "BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH",
+    "BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH",
+    "call-site mismatch",
+    "call target not callable",
+    "Type '.*' is not callable",
+    "Only functions or types with __call__ operator can be called",
+    "No matching function for call to .* with [0-9]+ arguments",
+    "No matching function for call to .* with provided argument types",
+    "Available overloads:",
+    "Enum variant '.*' expects [0-9]+ arguments, but got [0-9]+",
+    "Unit variant '.*' does not take any arguments",
+    "Usage: [A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?\\(",
+    "Use: [A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?",
+    "Type mismatch for argument [0-9]+ of '.*': expected",
+    "Check the variant definition and argument types",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1185,6 +1208,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "switch mismatch"',
   ],
   [SWITCH_MISMATCH_STEP_PATTERN, "bun run check"],
+  [
+    CALL_SITE_MISMATCH_STEP_PATTERN,
+    "bun test tests/TypeCheckerCallSiteMismatch.test.ts",
+  ],
+  [
+    CALL_SITE_MISMATCH_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"',
+  ],
+  [
+    CALL_SITE_MISMATCH_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "call-site mismatch"',
+  ],
+  [CALL_SITE_MISMATCH_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

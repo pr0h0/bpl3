@@ -802,6 +802,39 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps call-site mismatch diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerCallSiteMismatch.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"',
+      'bun test tests/MarkdownDocs.test.ts -t "call-site mismatch"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_CALL_TARGET_NOT_CALLABLE",
+      "BPL_CALL_ARGUMENT_COUNT_MISMATCH",
+      "BPL_CALL_ARGUMENT_TYPE_MISMATCH",
+      "BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH",
+      "BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH",
+      "Type 'Box' is not callable",
+      "Only functions or types with __call__ operator can be called.",
+      "No matching function for call to 'take' with 0 arguments.",
+      "No matching function for call to 'take' with provided argument types.",
+      "Available overloads:",
+      "Enum variant 'Move' expects 2 arguments, but got 1",
+      "Usage: Message.Move(",
+      "Type mismatch for argument 2 of 'Move': expected i32, got string",
+      "Check the variant definition and argument types.",
+      "Call-site mismatch failures use `BPL_CALL_TARGET_NOT_CALLABLE`",
+      "reports call-site mismatch failures in JSON-mode check and build diagnostics",
+      "docs document call-site mismatch diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -4435,6 +4468,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerSwitchMismatch.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "switch type mismatch"',
         'bun test tests/MarkdownDocs.test.ts -t "switch mismatch"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints call-site mismatch repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-call-site-mismatch-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 100,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/100",
+              steps: [
+                {
+                  name: "BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH Type mismatch for argument 2 of 'Move': expected i32, got string",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerCallSiteMismatch.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"',
+        'bun test tests/MarkdownDocs.test.ts -t "call-site mismatch"',
         "bun run check",
       ]);
     } finally {
