@@ -611,6 +611,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Linter Expression Traversal** - Custom linter rules now see nested
   aggregate, operator, type-test, lambda, and match expression children through
   typed visitor paths.
+- **Linter Traversal Drift Guard** - Focused tests now pin child-bearing
+  linter visitor cases, document intentional non-recursive AST leaves, and keep
+  throw/try/switch child traversal covered.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.

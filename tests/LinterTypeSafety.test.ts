@@ -92,9 +92,13 @@ function functionWithParameter(name: string): AST.Program {
 }
 
 function functionWithBodyStatement(statement: AST.Statement): AST.Program {
+  return functionWithBodyStatements([statement]);
+}
+
+function functionWithBodyStatements(statements: AST.Statement[]): AST.Program {
   const program = functionWithParameter("value");
   const [func] = program.statements as [AST.FunctionDecl];
-  func.body.statements.push(statement);
+  func.body.statements.push(...statements);
   return program;
 }
 
@@ -128,6 +132,36 @@ function collectVisitedNames(expression: AST.Expression): string[] {
   return new Linter([rule])
     .lint(functionWithExpression(expression))
     .map((error) => error.message);
+}
+
+function collectVisitedNamesInStatements(statements: AST.Statement[]): string[] {
+  const rule: LintRule = {
+    code: "TSTMT",
+    name: "statement-child-visitor-test",
+    check(node, context) {
+      if (node.kind !== "Identifier") return;
+
+      context.report(
+        `identifier:${(node as AST.IdentifierExpr).name}`,
+        node,
+        undefined,
+        "TSTMT",
+      );
+    },
+  };
+
+  return new Linter([rule])
+    .lint(functionWithBodyStatements(statements))
+    .map((error) => error.message);
+}
+
+function extractLinterSwitchCases(): Set<string> {
+  const source = readFileSync("compiler/linter/Linter.ts", "utf8");
+  const cases: string[] = [];
+  for (const match of source.matchAll(/case "([^"]+)":/g)) {
+    if (match[1]) cases.push(match[1]);
+  }
+  return new Set(cases);
 }
 
 describe("linter type-safety guards", () => {
@@ -288,6 +322,159 @@ describe("linter type-safety guards", () => {
     expect(messages).toHaveLength(2);
     expect(messages).toContain("saw variable loopInit");
     expect(messages).toContain("saw identifier loopStep");
+  });
+
+  test("keeps child-bearing linter visitor switch cases explicit", () => {
+    const cases = extractLinterSwitchCases();
+    const expectedKinds = [
+      "Program",
+      "FunctionDecl",
+      "StructDecl",
+      "Block",
+      "If",
+      "Loop",
+      "Return",
+      "Throw",
+      "Try",
+      "CatchClause",
+      "Switch",
+      "Case",
+      "Defer",
+      "ExpressionStmt",
+      "VariableDecl",
+      "InterpolatedString",
+      "Binary",
+      "Unary",
+      "Call",
+      "Member",
+      "Index",
+      "ArrayLiteral",
+      "StructLiteral",
+      "TupleLiteral",
+      "EnumStructVariant",
+      "Cast",
+      "Sizeof",
+      "TypeOf",
+      "TypeMatch",
+      "Match",
+      "MatchArm",
+      "PatternLiteral",
+      "PatternTuple",
+      "PatternEnumTuple",
+      "Assignment",
+      "Ternary",
+      "GenericInstantiation",
+      "LambdaExpression",
+      "Is",
+      "As",
+      "Group",
+    ];
+
+    for (const kind of expectedKinds) {
+      expect(cases).toContain(kind);
+    }
+    expect(cases).not.toContain("BlockStmt");
+  });
+
+  test("documents intentionally non-recursive linter AST leaves", () => {
+    expect([
+      "Asm",
+      "AutoDestroy",
+      "Break",
+      "Continue",
+      "Extern",
+      "Export",
+      "Fallthrough",
+      "Identifier",
+      "Import",
+      "Literal",
+      "OffsetOf",
+      "PatternEnum",
+      "PatternEnumStruct",
+      "PatternIdentifier",
+      "PatternWildcard",
+      "RuntimeDeferCleanup",
+    ]).toEqual([
+      "Asm",
+      "AutoDestroy",
+      "Break",
+      "Continue",
+      "Extern",
+      "Export",
+      "Fallthrough",
+      "Identifier",
+      "Import",
+      "Literal",
+      "OffsetOf",
+      "PatternEnum",
+      "PatternEnumStruct",
+      "PatternIdentifier",
+      "PatternWildcard",
+      "RuntimeDeferCleanup",
+    ]);
+  });
+
+  test("visits throw, try, catch, switch, and case children", () => {
+    const messages = collectVisitedNamesInStatements([
+      {
+        kind: "Throw",
+        expression: identifier("throwValue"),
+        location,
+      },
+      {
+        kind: "Try",
+        tryBlock: {
+          kind: "Block",
+          statements: [expressionStatement(identifier("tryBody"))],
+          location,
+        },
+        catchClauses: [
+          {
+            kind: "CatchClause",
+            variable: "error",
+            type: intType,
+            body: {
+              kind: "Block",
+              statements: [expressionStatement(identifier("catchBody"))],
+              location,
+            },
+            location,
+          },
+        ],
+        location,
+      },
+      {
+        kind: "Switch",
+        expression: identifier("switchValue"),
+        cases: [
+          {
+            kind: "Case",
+            value: identifier("caseValue"),
+            body: {
+              kind: "Block",
+              statements: [expressionStatement(identifier("caseBody"))],
+              location,
+            },
+            location,
+          },
+        ],
+        defaultCase: {
+          kind: "Block",
+          statements: [expressionStatement(identifier("defaultBody"))],
+          location,
+        },
+        location,
+      },
+    ]);
+
+    expect(messages).toHaveLength(7);
+    expect(messages).toContain("identifier:throwValue");
+    expect(messages).toContain("identifier:tryBody");
+    expect(messages).toContain("identifier:catchBody");
+    expect(messages).toContain("identifier:switchValue");
+    expect(messages).toContain("identifier:caseValue");
+    expect(messages).toContain("identifier:caseBody");
+    expect(messages).toContain("identifier:defaultBody");
   });
 
   test("visits aggregate expression children", () => {

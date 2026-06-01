@@ -103,6 +103,34 @@ export class Linter {
         const retStmt = node as AST.ReturnStmt;
         if (retStmt.value) this.visit(retStmt.value, context);
         break;
+      case "Throw":
+        this.visit((node as AST.ThrowStmt).expression, context);
+        break;
+      case "Try":
+        const tryStmt = node as AST.TryStmt;
+        this.visit(tryStmt.tryBlock, context);
+        for (const catchClause of tryStmt.catchClauses) {
+          this.visit(catchClause, context);
+        }
+        break;
+      case "CatchClause":
+        const catchClause = node as AST.CatchClause;
+        if (catchClause.type) this.visit(catchClause.type, context);
+        this.visit(catchClause.body, context);
+        break;
+      case "Switch":
+        const switchStmt = node as AST.SwitchStmt;
+        this.visit(switchStmt.expression, context);
+        for (const switchCase of switchStmt.cases) {
+          this.visit(switchCase, context);
+        }
+        if (switchStmt.defaultCase) this.visit(switchStmt.defaultCase, context);
+        break;
+      case "Case":
+        const switchCase = node as AST.SwitchCase;
+        this.visit(switchCase.value, context);
+        this.visit(switchCase.body, context);
+        break;
       case "Defer":
         this.visit((node as AST.DeferStmt).statement, context);
         break;
