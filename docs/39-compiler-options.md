@@ -674,6 +674,19 @@ bun test tests/TypeCheckerBuiltinRedefinition.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "builtin type redefinition"
 ```
 
+Invalid fixed array size failures use `BPL_ARRAY_SIZE_INVALID`. This covers
+zero-sized fixed array dimensions such as `int[0]` in variable declarations,
+parameters, struct fields, and type aliases. For example, `local _values:
+int[0];` reports `Array size must be greater than zero.` with the hint
+`Arrays cannot have zero or negative size.`. Positive fixed arrays and dynamic
+slices such as `int[]` remain valid. Reproduce the type-checker and JSON
+contracts with:
+
+```bash
+bun test tests/TypeCheckerInvalidArraySizes.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "invalid array size"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

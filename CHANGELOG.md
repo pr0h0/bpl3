@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_BUILTIN_TYPE_REDEFINITION` in compiler errors, `bpl check --json`,
   `bpl build --json`, and the public CLI JSON error-code registry. The guard
   stays narrow enough for standard-library wrapper structs such as `Long`.
+- **Invalid Fixed Array Size Diagnostic Code** - Zero-sized fixed arrays now
+  report `BPL_ARRAY_SIZE_INVALID` in compiler errors, `bpl check --json`,
+  `bpl build --json`, and the public CLI JSON error-code registry. Dynamic
+  slices such as `int[]` and positive fixed arrays remain valid.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

@@ -1271,6 +1271,23 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document invalid fixed array size diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Invalid fixed array size failures use `BPL_ARRAY_SIZE_INVALID`",
+      "`Array size must be greater than zero.`",
+      "`Arrays cannot have zero or negative size.`",
+      "fixed array dimensions such as `int[0]`",
+      "dynamic slices such as `int[]` remain valid",
+      'bun test tests/TypeCheckerInvalidArraySizes.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "invalid array size"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
