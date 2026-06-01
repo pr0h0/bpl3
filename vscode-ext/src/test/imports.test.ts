@@ -222,6 +222,102 @@ describe("BPL import tooling", () => {
     }
   });
 
+  it("creates clickable document links for explicit package source-file imports", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-lsp-links-"));
+    const appDir = path.join(tmpDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageRoot = path.join(appDir, "bpl_modules", "package-links");
+    const featureDir = path.join(packageRoot, "features");
+
+    try {
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(featureDir, { recursive: true });
+      writePackage(packageRoot, "package-links", "index.bpl");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(featureDir, "add.bpl"), "export add;");
+
+      const filePath = path.join(sourceDir, "main.bpl");
+      const content = 'import add from "package-links/features/add.bpl";\n';
+      fs.writeFileSync(filePath, content);
+
+      const symbolIndex = new SymbolIndex(repoRoot);
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new DocumentLinkProvider(
+        astResolver,
+        symbolIndex.getResolver(),
+      );
+      const document = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        content,
+      );
+
+      const links = provider.provide(
+        { textDocument: { uri: document.uri } },
+        document,
+      );
+
+      expect(links.length).toBe(1);
+      expect(links[0]?.target).toBe(
+        pathToFileURL(path.join(featureDir, "add.bpl")).toString(),
+      );
+      expect(document.getText(links[0]?.range)).toBe(
+        "package-links/features/add.bpl",
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("creates clickable document links for extensionless package directory imports", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-lsp-links-"));
+    const appDir = path.join(tmpDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageRoot = path.join(appDir, "bpl_modules", "package-links");
+    const incrementDir = path.join(packageRoot, "features", "increment");
+
+    try {
+      fs.mkdirSync(sourceDir, { recursive: true });
+      fs.mkdirSync(incrementDir, { recursive: true });
+      writePackage(packageRoot, "package-links", "index.bpl");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(incrementDir, "index.bpl"), "export inc;");
+
+      const filePath = path.join(sourceDir, "main.bpl");
+      const content = 'import inc from "package-links/features/increment";\n';
+      fs.writeFileSync(filePath, content);
+
+      const symbolIndex = new SymbolIndex(repoRoot);
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new DocumentLinkProvider(
+        astResolver,
+        symbolIndex.getResolver(),
+      );
+      const document = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        content,
+      );
+
+      const links = provider.provide(
+        { textDocument: { uri: document.uri } },
+        document,
+      );
+
+      expect(links.length).toBe(1);
+      expect(links[0]?.target).toBe(
+        pathToFileURL(path.join(incrementDir, "index.bpl")).toString(),
+      );
+      expect(document.getText(links[0]?.range)).toBe(
+        "package-links/features/increment",
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps SymbolIndex trace logs opt-in", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-lsp-logs-"));
     const mainPath = path.join(tmpDir, "main.bpl");
