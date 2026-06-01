@@ -25,7 +25,60 @@ import {
   discoverDedicatedWasmExampleFiles,
 } from "../tools/release_smoke";
 
+function releaseSmokeSource(): string {
+  return readFileSync(
+    join(import.meta.dir, "../tools/release_smoke.ts"),
+    "utf8",
+  );
+}
+
+function expectSourceContainsSnippets(
+  sourceLabel: string,
+  source: string,
+  snippets: readonly string[],
+): void {
+  const missingSnippets = snippets.filter(
+    (snippet) => !source.includes(snippet),
+  );
+
+  if (missingSnippets.length > 0) {
+    throw new Error(
+      [
+        `Missing source snippets in ${sourceLabel}:`,
+        ...missingSnippets.map((snippet) => `- ${snippet}`),
+      ].join("\n"),
+    );
+  }
+}
+
+function expectReleaseSmokeSourceContains(snippets: readonly string[]): void {
+  expectSourceContainsSnippets(
+    "tools/release_smoke.ts",
+    releaseSmokeSource(),
+    snippets,
+  );
+}
+
 describe("Release metadata", () => {
+  test("source snippet helper reports concise missing-snippet diagnostics", () => {
+    let thrown: unknown;
+
+    try {
+      expectSourceContainsSnippets(
+        "large-source.ts",
+        "short source SOURCE_BODY_SENTINEL",
+        ["missing release source snippet"],
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    const message = String(thrown);
+    expect(message).toContain("Missing source snippets in large-source.ts");
+    expect(message).toContain("missing release source snippet");
+    expect(message).not.toContain("SOURCE_BODY_SENTINEL");
+  });
+
   test("package metadata exposes a release check and stable CLI entrypoint", () => {
     const packageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../package.json"), "utf8"),
@@ -339,369 +392,221 @@ describe("Release metadata", () => {
   });
 
   test("release helper smoke validates packed fuzz repro JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI fuzz artifact repro JSON",
-    );
-    expect(releaseSmokeSource).toContain('["run", "fuzz:repro", "--"');
-    expect(releaseSmokeSource).toContain("--json");
-    expect(releaseSmokeSource).toContain("schemaVersion");
-    expect(releaseSmokeSource).toContain("bun run fuzz -- --iterations");
-    expect(releaseSmokeSource).toContain(
+      '["run", "fuzz:repro", "--"',
+      "--json",
+      "schemaVersion",
+      "bun run fuzz -- --iterations",
       "check packed npm CLI CI triage helper",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI CI triage JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI CI triage root build no-input JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI registry subpath import",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI registry TypeScript declarations",
-    );
-    expect(releaseSmokeSource).toContain("BPL_BUILD_NO_INPUTS");
-    expect(releaseSmokeSource).toContain(
+      "BPL_BUILD_NO_INPUTS",
       'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',
-    );
-    expect(releaseSmokeSource).toContain(
       'bun test tests/CLI.test.ts -t "no-input compile"',
-    );
-    expect(releaseSmokeSource).toContain("parseCiTriageReport");
-    expect(releaseSmokeSource).toContain("run.headSha");
-    expect(releaseSmokeSource).toContain("checkout.status");
+      "parseCiTriageReport",
+      "run.headSha",
+      "checkout.status",
+    ]);
   });
 
   test("release helper smoke validates packed CI timeout repro contracts", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI CI triage timeout JSON",
-    );
-    expect(releaseSmokeSource).toContain("Package timeout metadata");
-    expect(releaseSmokeSource).toContain(
+      "Package timeout metadata",
       "BPL_PACKAGE_TOOL_TIMEOUT_MS=300000 bun test tests/PackageManager.test.ts",
-    );
-    expect(releaseSmokeSource).toContain(
       'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
-    );
-    expect(releaseSmokeSource).toContain(
       "BPL_OBJECT_SYMBOL_TIMEOUT_MS=30000 bun test tests/ObjectFileParser.test.ts",
-    );
+    ]);
   });
 
   test("release helper smoke validates packed CI sanitizer repro contracts", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI doctor sanitizer JSON",
-    );
-    expect(releaseSmokeSource).toContain('["doctor", "sanitizer", "--json"]');
-    expect(releaseSmokeSource).toContain("assertSanitizerDoctorContract");
-    expect(releaseSmokeSource).toContain(
+      '["doctor", "sanitizer", "--json"]',
+      "assertSanitizerDoctorContract",
       "check packed npm CLI CI triage sanitizer JSON",
-    );
-    expect(releaseSmokeSource).toContain("Sanitizer timeout metadata");
-    expect(releaseSmokeSource).toContain("bun run test:sanitizers");
-    expect(releaseSmokeSource).toContain(
+      "Sanitizer timeout metadata",
+      "bun run test:sanitizers",
       "bun test tests/CompilerSanitizerRuntime.test.ts",
-    );
-    expect(releaseSmokeSource).toContain(
       "bun index.ts doctor sanitizer --json",
-    );
+    ]);
   });
 
   test("release helper smoke validates packed CI JSON-code mapping repro contracts", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI CI triage JSON-code mappings",
-    );
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_ARCHIVE_NOT_FILE");
-    expect(releaseSmokeSource).toContain("BPL_WASM_LINKER_UNAVAILABLE");
-    expect(releaseSmokeSource).toContain(
+      "BPL_PACKAGE_ARCHIVE_NOT_FILE",
+      "BPL_WASM_LINKER_UNAVAILABLE",
       "bun test tests/PackageJsonFailureContracts.test.ts",
-    );
-    expect(releaseSmokeSource).toContain(
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
-    );
+    ]);
   });
 
   test("release smoke validates packed package import diagnostic codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package import diagnostic code JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI package import malformed manifest JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedPackageImportDiagnosticCodeSmoke",
-    );
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_PARSE_ERROR");
-    expect(releaseSmokeSource).toContain("manifest is not valid JSON");
-    expect(releaseSmokeSource).toContain('["check", "--json", "main.bpl"]');
-    expect(releaseSmokeSource).toContain("parseCheckReport");
+      "BPL_PACKAGE_MANIFEST_MISSING",
+      "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+      "manifest is not valid JSON",
+      '["check", "--json", "main.bpl"]',
+      "parseCheckReport",
+    ]);
   });
 
   test("release smoke validates packed build validation error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI build validation JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedBuildValidationJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain(
       "BPL_BUILD_OUTPUT_PARENT_NOT_FOUND",
-    );
-    expect(releaseSmokeSource).toContain("BPL_BUILD_UNSUPPORTED_TARGET");
-    expect(releaseSmokeSource).toContain("mips64-unknown-bpl");
-    expect(releaseSmokeSource).toContain("parseBuildFailureReport");
-    expect(releaseSmokeSource).toContain("--json");
-    expect(releaseSmokeSource).toContain("--emit");
+      "BPL_BUILD_UNSUPPORTED_TARGET",
+      "mips64-unknown-bpl",
+      "parseBuildFailureReport",
+      "--json",
+      "--emit",
+    ]);
   });
 
   test("release smoke validates packed root build no-input error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI root build no-input JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedBuildNoInputJsonSmoke");
-    expect(releaseSmokeSource).toContain("BPL_BUILD_NO_INPUTS");
-    expect(releaseSmokeSource).toContain("No input files specified.");
-    expect(releaseSmokeSource).toContain('["--json"]');
-    expect(releaseSmokeSource).toContain("parseBuildFailureReport");
+      "runPackedBuildNoInputJsonSmoke",
+      "BPL_BUILD_NO_INPUTS",
+      "No input files specified.",
+      '["--json"]',
+      "parseBuildFailureReport",
+    ]);
   });
 
   test("release smoke validates packed clean validation error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI clean validation JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedCleanValidationJsonSmoke");
-    expect(releaseSmokeSource).toContain(
+      "runPackedCleanValidationJsonSmoke",
       "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE",
-    );
-    expect(releaseSmokeSource).toContain("parseCleanFailureReport");
-    expect(releaseSmokeSource).toContain('["clean", "--json"]');
-    expect(releaseSmokeSource).toContain("fatal: simulated git failure");
+      "parseCleanFailureReport",
+      '["clean", "--json"]',
+      "fatal: simulated git failure",
+    ]);
   });
 
   test("release smoke validates packed run-script validation error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI run-script failure JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedRunScriptFailureJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain(
       "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",
-    );
-    expect(releaseSmokeSource).toContain("parseRunScriptFailureReport");
-    expect(releaseSmokeSource).toContain(
+      "parseRunScriptFailureReport",
       '["run-script", "--list", "--json"]',
-    );
+    ]);
   });
 
   test("release smoke validates packed check and lint validation error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI check/lint validation JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedSourceAnalysisValidationJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain("BPL_CHECK_INPUT_NOT_FILE");
-    expect(releaseSmokeSource).toContain("BPL_LINT_INPUT_SYMLINK");
-    expect(releaseSmokeSource).toContain("parseCheckReport");
-    expect(releaseSmokeSource).toContain("parseLintReport");
-    expect(releaseSmokeSource).toContain('["check", "--json"');
-    expect(releaseSmokeSource).toContain('["lint", "--json"');
+      "BPL_CHECK_INPUT_NOT_FILE",
+      "BPL_LINT_INPUT_SYMLINK",
+      "parseCheckReport",
+      "parseLintReport",
+      '["check", "--json"',
+      '["lint", "--json"',
+    ]);
   });
 
   test("release smoke validates packed format JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI format JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedFormatJsonSmoke");
-    expect(releaseSmokeSource).toContain("parseFormatReport");
-    expect(releaseSmokeSource).toContain('check: "format"');
-    expect(releaseSmokeSource).toContain("BPL_FORMAT_NOT_FORMATTED");
-    expect(releaseSmokeSource).toContain('["format", "--check", "--json"');
+      "runPackedFormatJsonSmoke",
+      "parseFormatReport",
+      'check: "format"',
+      "BPL_FORMAT_NOT_FORMATTED",
+      '["format", "--check", "--json"',
+    ]);
   });
 
   test("release smoke validates packed bindgen JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI bindgen JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedBindgenJsonSmoke");
-    expect(releaseSmokeSource).toContain("parseBindgenReport");
-    expect(releaseSmokeSource).toContain('check: "bindgen"');
-    expect(releaseSmokeSource).toContain("BPL_BINDGEN_OUTPUT_DIRECTORY");
-    expect(releaseSmokeSource).toContain('["bindgen", "--json"');
+      "runPackedBindgenJsonSmoke",
+      "parseBindgenReport",
+      'check: "bindgen"',
+      "BPL_BINDGEN_OUTPUT_DIRECTORY",
+      '["bindgen", "--json"',
+    ]);
   });
 
   test("release smoke validates packed docs JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI docs JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedDocsJsonSmoke");
-    expect(releaseSmokeSource).toContain("parseDocsReport");
-    expect(releaseSmokeSource).toContain('check: "docs"');
-    expect(releaseSmokeSource).toContain("BPL_DOCS_OUTPUT_DIRECTORY");
-    expect(releaseSmokeSource).toContain('["docs", "--json"');
+      "runPackedDocsJsonSmoke",
+      "parseDocsReport",
+      'check: "docs"',
+      "BPL_DOCS_OUTPUT_DIRECTORY",
+      '["docs", "--json"',
+    ]);
   });
 
   test("release smoke validates packed completion JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI completion JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI completion unsupported-shell JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedCompletionJsonSmoke");
-    expect(releaseSmokeSource).toContain("parseCompletionReport");
-    expect(releaseSmokeSource).toContain('check: "completion"');
-    expect(releaseSmokeSource).toContain("BPL_COMPLETION_SHELL_UNSUPPORTED");
-    expect(releaseSmokeSource).toContain('["completion", "bash", "--json"]');
-    expect(releaseSmokeSource).toContain('["completion", "fish", "--json"]');
+      "runPackedCompletionJsonSmoke",
+      "parseCompletionReport",
+      'check: "completion"',
+      "BPL_COMPLETION_SHELL_UNSUPPORTED",
+      '["completion", "bash", "--json"]',
+      '["completion", "fish", "--json"]',
+    ]);
   });
 
   test("release smoke validates packed version JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI version JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedVersionJsonSmoke");
-    expect(releaseSmokeSource).toContain("parseVersionReport");
-    expect(releaseSmokeSource).toContain('check: "version"');
-    expect(releaseSmokeSource).toContain('["--version", "--json"]');
-    expect(releaseSmokeSource).toContain('["--json", "--version"]');
+      "runPackedVersionJsonSmoke",
+      "parseVersionReport",
+      'check: "version"',
+      '["--version", "--json"]',
+      '["--json", "--version"]',
+    ]);
   });
 
   test("release smoke validates packed forced-color JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI forced-color version JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI forced-color check failure JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI forced-color build failure JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedJsonColorPuritySmoke");
-    expect(releaseSmokeSource).toContain("assertJsonValueHasNoAnsi");
-    expect(releaseSmokeSource).toContain(
+      "runPackedJsonColorPuritySmoke",
+      "assertJsonValueHasNoAnsi",
       '["--color", "--version", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["build", "bad.bpl", "--json", "--color"]',
-    );
+    ]);
   });
 
   test("release smoke validates packed CLI help output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain("check packed npm CLI help output");
-    expect(releaseSmokeSource).toContain("runPackedHelpSmoke");
-    expect(releaseSmokeSource).toContain('["--help"]');
-    expect(releaseSmokeSource).toContain('["build", "--help"]');
-    expect(releaseSmokeSource).toContain('["check", "--help"]');
-    expect(releaseSmokeSource).toContain('["package-cache", "--help"]');
+    expectReleaseSmokeSourceContains([
+      "check packed npm CLI help output",
+      "runPackedHelpSmoke",
+      '["--help"]',
+      '["build", "--help"]',
+      '["check", "--help"]',
+      '["package-cache", "--help"]',
+    ]);
   });
 
   test("release smoke validates packed check and lint no-input error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI check/lint no-input JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedSourceAnalysisNoInputJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain("BPL_CHECK_NO_INPUTS");
-    expect(releaseSmokeSource).toContain("BPL_LINT_NO_INPUTS");
-    expect(releaseSmokeSource).toContain("parseCheckReport");
-    expect(releaseSmokeSource).toContain("parseLintReport");
-    expect(releaseSmokeSource).toContain('["check", "--json"]');
-    expect(releaseSmokeSource).toContain('["lint", "--json"]');
+      "BPL_CHECK_NO_INPUTS",
+      "BPL_LINT_NO_INPUTS",
+      "parseCheckReport",
+      "parseLintReport",
+      '["check", "--json"]',
+      '["lint", "--json"]',
+    ]);
   });
 
   test("release smoke guards packed sanitizer doctor JSON contract", async () => {
@@ -822,191 +727,114 @@ describe("Release metadata", () => {
   });
 
   test("release smoke validates packed doctor scope JSON error code", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI doctor failure JSON",
-    );
-    expect(releaseSmokeSource).toContain("BPL_DOCTOR_SCOPE_UNKNOWN");
-    expect(releaseSmokeSource).toContain("parseDoctorFailureReport");
-    expect(releaseSmokeSource).toContain("errorCode");
+      "BPL_DOCTOR_SCOPE_UNKNOWN",
+      "parseDoctorFailureReport",
+      "errorCode",
+    ]);
   });
 
   test("release smoke validates packed package install JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package install JSON",
-    );
-    expect(releaseSmokeSource).toContain("parsePackageInstallReport");
-    expect(releaseSmokeSource).toContain('check: "package-install"');
+      "parsePackageInstallReport",
+      'check: "package-install"',
+    ]);
   });
 
   test("release smoke validates packed package pack JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package pack JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedPackagePackJsonSmoke");
-    expect(releaseSmokeSource).toContain("parsePackagePackReport");
-    expect(releaseSmokeSource).toContain('check: "package-pack"');
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
-    expect(releaseSmokeSource).toContain('["pack", missingManifestDir, "--json"]');
+      "runPackedPackagePackJsonSmoke",
+      "parsePackagePackReport",
+      'check: "package-pack"',
+      "BPL_PACKAGE_MANIFEST_MISSING",
+      '["pack", missingManifestDir, "--json"]',
+    ]);
   });
 
   test("release smoke validates packed package init JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package init JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedPackageInitJsonSmoke");
-    expect(releaseSmokeSource).toContain("parsePackageInitReport");
-    expect(releaseSmokeSource).toContain('check: "package-init"');
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_INIT_NAME_INVALID");
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_INIT_MANIFEST_EXISTS");
-    expect(releaseSmokeSource).toContain('["init", "Bad_Name", "--json"]');
+      "runPackedPackageInitJsonSmoke",
+      "parsePackageInitReport",
+      'check: "package-init"',
+      "BPL_PACKAGE_INIT_NAME_INVALID",
+      "BPL_PACKAGE_INIT_MANIFEST_EXISTS",
+      '["init", "Bad_Name", "--json"]',
+    ]);
   });
 
   test("release smoke validates packed bpl new JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain("check packed npm CLI bpl new JSON");
-    expect(releaseSmokeSource).toContain("runPackedProjectNewJsonSmoke");
-    expect(releaseSmokeSource).toContain("parseProjectNewReport");
-    expect(releaseSmokeSource).toContain('check: "project-new"');
-    expect(releaseSmokeSource).toContain("BPL_NEW_TEMPLATE_INVALID");
-    expect(releaseSmokeSource).toContain("BPL_NEW_PATH_EXISTS_DIRECTORY");
-    expect(releaseSmokeSource).toContain("release-smoke-new-json");
-    expect(releaseSmokeSource).toContain("--no-git");
+    expectReleaseSmokeSourceContains([
+      "check packed npm CLI bpl new JSON",
+      "runPackedProjectNewJsonSmoke",
+      "parseProjectNewReport",
+      'check: "project-new"',
+      "BPL_NEW_TEMPLATE_INVALID",
+      "BPL_NEW_PATH_EXISTS_DIRECTORY",
+      "release-smoke-new-json",
+      "--no-git",
+    ]);
   });
 
   test("release smoke validates packed package uninstall JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package uninstall JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedPackageUninstallJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain("parsePackageUninstallReport");
-    expect(releaseSmokeSource).toContain('check: "package-uninstall"');
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_UNINSTALL_NOT_INSTALLED");
-    expect(releaseSmokeSource).toContain(
+      "parsePackageUninstallReport",
+      'check: "package-uninstall"',
+      "BPL_PACKAGE_UNINSTALL_NOT_INSTALLED",
       '["remove", "missing-release-smoke-uninstall", "--json"]',
-    );
+    ]);
   });
 
   test("release smoke validates packed package manifest validation error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package manifest validation JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedPackageManifestValidationJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MISSING");
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_MANIFEST_MAIN_INVALID");
-    expect(releaseSmokeSource).toContain('["install", "--json"]');
-    expect(releaseSmokeSource).toContain("parsePackageInstallReport");
+      "BPL_PACKAGE_MANIFEST_MISSING",
+      "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
+      '["install", "--json"]',
+      "parsePackageInstallReport",
+    ]);
   });
 
   test("release smoke validates packed global package list JSON output", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI global package list JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI global package list tree JSON",
-    );
-    expect(releaseSmokeSource).toContain("runPackedPackageListJsonSmoke");
-    expect(releaseSmokeSource).toContain("parsePackageListReport");
-    expect(releaseSmokeSource).toContain("parsePackageListTreeReport");
-    expect(releaseSmokeSource).toContain('["list", "--global", "--json"]');
-    expect(releaseSmokeSource).toContain(
+      "runPackedPackageListJsonSmoke",
+      "parsePackageListReport",
+      "parsePackageListTreeReport",
+      '["list", "--global", "--json"]',
       '["list", "--global", "--tree", "--json"]',
-    );
+    ]);
   });
 
   test("release smoke validates packed package-cache validation error codes", () => {
-    const releaseSmokeSource = readFileSync(
-      join(import.meta.dir, "../tools/release_smoke.ts"),
-      "utf8",
-    );
-
-    expect(releaseSmokeSource).toContain(
+    expectReleaseSmokeSourceContains([
       "check packed npm CLI package-cache validation JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "check packed npm CLI package-cache maintenance JSON",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedPackageCacheMaintenanceJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedPackageCacheValidationJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain(
       "runPackedPackageCacheNameValidationJsonSmoke",
-    );
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_CACHE_VERSION_INVALID");
-    expect(releaseSmokeSource).toContain("BPL_PACKAGE_CACHE_NAME_INVALID");
-    expect(releaseSmokeSource).toContain(
+      "BPL_PACKAGE_CACHE_VERSION_INVALID",
+      "BPL_PACKAGE_CACHE_NAME_INVALID",
       '["package-cache", "list", "Bad_Name", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "verify", "Bad_Name", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "clean", "Bad_Name", "--dry-run", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "repair", "Bad_Name", "--dry-run", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "clean", "--dry-run", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "repair", "--dry-run", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "clean", "pkg", "--package-version", "^1.0.0", "--dry-run", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain(
       '["package-cache", "repair", "pkg", "--package-version", "latest", "--dry-run", "--json"]',
-    );
-    expect(releaseSmokeSource).toContain("parsePackageCacheListReport");
-    expect(releaseSmokeSource).toContain("parsePackageCacheVerifyReport");
-    expect(releaseSmokeSource).toContain("parsePackageCacheCleanReport");
-    expect(releaseSmokeSource).toContain("parsePackageCacheRepairReport");
+      "parsePackageCacheListReport",
+      "parsePackageCacheVerifyReport",
+      "parsePackageCacheCleanReport",
+      "parsePackageCacheRepairReport",
+    ]);
   });
 
   test("release manifest records checksums for shipped artifacts", () => {

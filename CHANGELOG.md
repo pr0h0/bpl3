@@ -605,6 +605,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **MarkdownDocs Code-List Diagnostics** - Documentation coverage failures for
   CLI JSON code-list registries now report compact `list:code` entries instead
   of generic array diffs.
+- **ReleaseMetadata Source Diagnostics** - Release smoke source coverage checks
+  now use compact source-snippet diagnostics so missing packed-helper coverage
+  does not dump the full helper source in CI logs.
 - **Path Safety Helper Consolidation** - Fuzz replay, fuzz promotion, fuzz
   artifact repro, crash artifact recording, and release manifest output
   validation now share path-component safety helpers while preserving their
