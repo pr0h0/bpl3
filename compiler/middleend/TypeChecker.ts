@@ -8,6 +8,7 @@ import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
+  BUILTIN_TYPE_REDEFINITION_CODE,
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
@@ -231,6 +232,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   public hoistDeclaration(stmt: AST.Statement): void {
     switch (stmt.kind) {
       case "StructDecl":
+        this.ensureNotBuiltinTypeRedefinition(stmt.name, stmt.location);
         const structType: AST.TypeNode = {
           kind: "MetaType",
           type: {
@@ -249,6 +251,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         stmt.resolvedType = structType.type;
         break;
       case "EnumDecl":
+        this.ensureNotBuiltinTypeRedefinition(stmt.name, stmt.location);
         const enumType: AST.TypeNode = {
           kind: "MetaType",
           type: {
@@ -267,6 +270,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         stmt.resolvedType = enumType.type;
         break;
       case "SpecDecl":
+        this.ensureNotBuiltinTypeRedefinition(stmt.name, stmt.location);
         this.defineSymbol(stmt.name, "Spec", undefined, stmt);
         this.registerLinkerSymbol(stmt.name, "type", undefined, stmt);
         break;
@@ -331,6 +335,26 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.checkImport(stmt);
         break;
     }
+  }
+
+  private ensureNotBuiltinTypeRedefinition(
+    name: string,
+    location: SourceLocation,
+  ): void {
+    const builtin = this.globalScope.getInCurrentScope(name);
+    if (
+      !builtin ||
+      !["TypeAlias", "Struct", "Enum", "Spec"].includes(builtin.kind)
+    ) {
+      return;
+    }
+
+    throw new CompilerError(
+      `Cannot redefine builtin type '${name}'`,
+      "Builtin type names are reserved. Choose a different name for this type declaration.",
+      location,
+      BUILTIN_TYPE_REDEFINITION_CODE,
+    );
   }
 
   // ========== Statement Checking ==========
@@ -1503,45 +1527,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Type Alias Checking ==========
 
   private checkTypeAlias(decl: AST.TypeAliasDecl): void {
-    // BUG-126: Prevent shadowing builtin types
-    const BUILTIN_TYPE_NAMES = new Set([
-      // Base LLVM types
-      "i1",
-      "i8",
-      "u8",
-      "i16",
-      "u16",
-      "i32",
-      "u32",
-      "i64",
-      "u64",
-      "double",
-      "void",
-      "null",
-      "nullptr",
-      // User-friendly aliases
-      "int",
-      "uint",
-      "float",
-      "bool",
-      "char",
-      "uchar",
-      "short",
-      "ushort",
-      "long",
-      "ulong",
-      "string",
-      "f32",
-      "f64",
-    ]);
-
-    if (BUILTIN_TYPE_NAMES.has(decl.name)) {
-      throw new CompilerError(
-        `Cannot redefine builtin type '${decl.name}'`,
-        "Builtin types like 'int', 'bool', 'string', etc. cannot be redefined as type aliases.",
-        decl.location,
-      );
-    }
+    this.ensureNotBuiltinTypeRedefinition(decl.name, decl.location);
 
     const resolved = this.resolveType(decl.type);
     if (!this.currentScope.getInCurrentScope(decl.name)) {
