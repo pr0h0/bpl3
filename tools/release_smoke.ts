@@ -522,6 +522,8 @@ function runPackedPackageSmoke(): void {
     ]);
     assertSourceOnlyFiles(packEntry, [
       "playground/examples/70-browser-wasm-showcase.json",
+      "playground/frontend/wasmHostAdapter.js",
+      "playground/frontend/browserWasmRuntime.js",
     ]);
     assertPackedFileAllowlist(
       packEntry,

@@ -134,7 +134,10 @@ The packed `fuzz`, `fuzz:replay`, and `fuzz:promote` scripts validate usage in
 installed packages before delegating to source-tree fuzz helpers when a checkout
 is present. The package intentionally excludes source-only files such as
 `playground/examples/70-browser-wasm-showcase.json`, `tests/`, `fuzz/`, and
-broad compiler sources. The narrow exception is
+broad compiler sources. The playground browser wasm helper assets are local
+playground files, not npm package payload:
+`playground/frontend/wasmHostAdapter.js` and
+`playground/frontend/browserWasmRuntime.js`. The narrow exception is
 `compiler/common/PathSafety.ts`, which is shipped because packed helper scripts
 share its symlink-safe path validation.
 Release metadata checks derive the helper inventory from `package.json` scripts

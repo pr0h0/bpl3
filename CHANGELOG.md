@@ -998,7 +998,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   working in installed packages.
 - **Packed Helper Package Docs** - Documented packed npm helper scripts
   supported from installed packages, source-only release exclusions such as
-  `playground/examples/70-browser-wasm-showcase.json`, and the narrow
+  `playground/examples/70-browser-wasm-showcase.json`, local-only playground
+  browser wasm helper assets
+  `playground/frontend/wasmHostAdapter.js` and
+  `playground/frontend/browserWasmRuntime.js`, and the narrow
   `compiler/common/PathSafety.ts` helper dependency kept instead of broad
   compiler sources.
 - **Trusted macOS Temp Root Symlinks (BUG-210)** - Shared path-safety checks now

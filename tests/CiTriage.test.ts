@@ -18,7 +18,7 @@ import {
   extractTestFileReferencesFromCiTriageSource,
   findMissingTestFileReferences,
   formatMissingTestFileReferenceDiagnostics,
-} from "../tools/test_reference_inventory";
+} from "./helpers/testReferenceInventory";
 import { CLI_JSON_ERROR_CODE_LISTS } from "../cli/JsonErrorCodes";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
 

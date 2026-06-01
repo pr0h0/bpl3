@@ -249,6 +249,30 @@ describe("Release metadata", () => {
     expect(packageJson.files).not.toContain("compiler/common");
   });
 
+  test("release smoke keeps playground browser wasm helper assets source-only", () => {
+    const repoRoot = join(import.meta.dir, "..");
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    );
+    const sourceOnlyHelperFiles = [
+      "playground/frontend/wasmHostAdapter.js",
+      "playground/frontend/browserWasmRuntime.js",
+    ];
+
+    for (const helperFile of sourceOnlyHelperFiles) {
+      expect(existsSync(join(repoRoot, helperFile))).toBe(true);
+      expect(isIncludedInPackageFiles(helperFile, packageJson.files)).toBe(
+        false,
+      );
+    }
+
+    expectReleaseSmokeSourceContains([
+      "playground/frontend/wasmHostAdapter.js",
+      "playground/frontend/browserWasmRuntime.js",
+      "npm tarball includes source-only files",
+    ]);
+  });
+
   test("package helper dependency discovery accepts extension and index import forms", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-helper-deps-test-"));
 

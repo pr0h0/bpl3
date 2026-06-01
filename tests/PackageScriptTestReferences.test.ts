@@ -5,7 +5,7 @@ import {
   extractTestFileReferencesFromPackageScripts,
   findMissingTestFileReferences,
   formatMissingTestFileReferenceDiagnostics,
-} from "../tools/test_reference_inventory";
+} from "./helpers/testReferenceInventory";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
 
