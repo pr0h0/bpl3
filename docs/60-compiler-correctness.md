@@ -52,6 +52,15 @@ To reproduce the Windows-safe lane locally:
 bun run test:codegen-cross-platform
 ```
 
+Integration/example concurrency can be limited with `BPL_INTEGRATION_JOBS`.
+`BPL_INTEGRATION_JOBS` must be a positive integer; malformed values are ignored
+with a warning and the auto-detected integration job count is used. The focused
+contract for that parsing is:
+
+```bash
+bun test tests/IntegrationRunner.test.ts
+```
+
 To reproduce just the wasm toolchain, runtime, playground linker, and
 compatibility coverage:
 

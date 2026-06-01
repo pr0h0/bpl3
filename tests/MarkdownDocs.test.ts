@@ -1156,6 +1156,23 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("docs document integration job environment validation", () => {
+    const normalizedText = normalizedMarkdownText([
+      "README.md",
+      "docs/60-compiler-correctness.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "BPL_INTEGRATION_JOBS",
+      "must be a positive integer",
+      "malformed values are ignored with a warning",
+      "auto-detected integration job count",
+      "bun test tests/IntegrationRunner.test.ts",
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("docs document timeout environment fallback diagnostics", () => {
     const combinedDocs = [
       readFileSync("docs/25-package-management.md", "utf8"),

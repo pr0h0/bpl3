@@ -871,6 +871,12 @@ bun run test
 # Run the CI-safe broad suite. This includes integration, playground, and
 # VS Code extension tests, but leaves fuzz/correctness corpora to dedicated scripts.
 bun run test:ci
+# Limit integration/example concurrency. BPL_INTEGRATION_JOBS must be a
+# positive integer; malformed values are ignored with a warning and the
+# auto-detected integration job count is used.
+BPL_INTEGRATION_JOBS=4 bun run test:ci
+# Check the integration runner environment contract directly.
+bun test tests/IntegrationRunner.test.ts
 
 # Build, pack, install, and smoke-test the release package. This also discovers
 # package scripts that call tools/*.ts and verifies those helper files are in the
