@@ -1254,6 +1254,23 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document builtin type redefinition diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Built-in type redefinition failures use `BPL_BUILTIN_TYPE_REDEFINITION`",
+      "`Cannot redefine builtin type 'bool'`",
+      "`Builtin type names are reserved.`",
+      "type aliases, structs, enums, and specs named after reserved primitive types",
+      "standard-library wrapper structs such as `Long` remain valid",
+      'bun test tests/TypeCheckerBuiltinRedefinition.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "builtin type redefinition"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

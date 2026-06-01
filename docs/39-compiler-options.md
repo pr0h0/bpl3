@@ -661,6 +661,19 @@ bun test tests/TypeCheckerVoidTypes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "invalid void type"
 ```
 
+Built-in type redefinition failures use `BPL_BUILTIN_TYPE_REDEFINITION`. This
+covers type aliases, structs, enums, and specs named after reserved primitive
+types. For example, `struct bool { ... }` reports
+`Cannot redefine builtin type 'bool'` with the hint
+`Builtin type names are reserved.`. The guard is limited to reserved primitive
+type names, so standard-library wrapper structs such as `Long` remain valid.
+Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerBuiltinRedefinition.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "builtin type redefinition"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
