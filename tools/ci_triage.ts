@@ -476,6 +476,27 @@ const BINARY_OPERATOR_MISUSE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const UNARY_OPERATOR_MISUSE_STEP_PATTERN = new RegExp(
+  [
+    "BPL_DEREFERENCE_TARGET_INVALID",
+    "BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH",
+    "BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH",
+    "BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH",
+    "BPL_UNARY_PLUS_UNSUPPORTED",
+    "unary operator misuse",
+    "Cannot dereference non-pointer type",
+    "Logical not requires boolean operand",
+    "Bitwise not requires integer operand",
+    "Unary operator '-' cannot be applied to type",
+    "Unary plus operator '\\+' is not supported",
+    "Dereference requires a pointer type",
+    "Ensure the operand is a boolean expression",
+    "Ensure the operand is an integer",
+    "Negation requires a numeric type",
+    "Simply remove the '\\+' prefix",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1297,6 +1318,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "binary operator misuse"',
   ],
   [BINARY_OPERATOR_MISUSE_STEP_PATTERN, "bun run check"],
+  [
+    UNARY_OPERATOR_MISUSE_STEP_PATTERN,
+    "bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts",
+  ],
+  [
+    UNARY_OPERATOR_MISUSE_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "unary operator misuse"',
+  ],
+  [
+    UNARY_OPERATOR_MISUSE_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "unary operator misuse"',
+  ],
+  [UNARY_OPERATOR_MISUSE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
