@@ -625,6 +625,20 @@ const ENUM_VARIANT_FIELD_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_INTRINSIC_GENERIC_ARITY_MISMATCH",
+    "BPL_INTRINSIC_ARGUMENT_COUNT_MISMATCH",
+    "intrinsic call diagnostics",
+    "intrinsic call diagnostic",
+    "intrinsic call semantic",
+    "Intrinsic __type_(?:id|info) requires exactly 1 generic argument",
+    "Intrinsic __type_(?:id|info) accepts no arguments",
+    "Use __type_(?:id|info)<T>\\(\\) with exactly one type argument",
+    "Call __type_(?:id|info)<T>\\(\\) without value arguments",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1550,6 +1564,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "struct literal diagnostic"',
   ],
   [STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerIntrinsicCallDiagnostics.test.ts",
+  ],
+  [
+    INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "intrinsic call diagnostics"',
+  ],
+  [
+    INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "intrinsic call diagnostic"',
+  ],
+  [INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
