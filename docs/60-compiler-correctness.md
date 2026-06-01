@@ -34,11 +34,14 @@ order and heavyweight exclusions out of `package.json`. Use
 planned commands without executing them; use `bun tools/test_ci.ts --json` when
 automation needs the versioned plan. `bun tools/test_ci.ts --help` prints usage
 on stdout. Unknown test_ci options exit with status 2 on stderr while stdout
-stays empty. The runner builds runtime support first, runs
-`tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`, runs the VS
-Code extension suite, checks the generated `bpl-v3/cli` registry shim with
-`bun run release:cli-registry`, then runs discovered top-level CI-safe unit
-tests. It intentionally excludes the full correctness corpora, long fuzz
+stays empty. `test:ci` rejects `--json=true`, `--list=true`, `--dry-run=true`,
+and `--help=true` before planning or running the CI-safe suite. Packed
+`test:ci --list` and `test:ci --json` planning does not require a
+source-checkout `tests/` directory. The runner builds runtime support first,
+runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`, runs
+the VS Code extension suite, checks the generated `bpl-v3/cli` registry shim
+with `bun run release:cli-registry`, then runs discovered top-level CI-safe
+unit tests. It intentionally excludes the full correctness corpora, long fuzz
 runners, sanitizer runtime suite, golden LLVM shape suite, and full release
 smoke suite because those have dedicated scripts and CI jobs.
 CI-safe unit discovery includes `tests/CiTriage.test.ts`, so offline jobs-json
@@ -193,6 +196,7 @@ status 2 before any GitHub API request. Focus that parser contract with:
 
 ```bash
 bun test tests/CiTriage.test.ts -t "inline option values|malformed inline option values"
+bun test tests/TestCiRunner.test.ts
 ```
 
 When text triage output says `No focused local repro command matched this job`:
@@ -307,6 +311,15 @@ Release registry sync failures map to `bun run release:cli-registry`. Use
 `bun run release:cli-registry` before broader release smoke when `ci:triage`
 reports a stale CLI registry shim, because it checks the generated packed
 `bpl-v3/cli` shim and declaration files against the implementation registry.
+Use `bun tools/cli_json_registry_shim.ts --help` to print direct helper usage
+and `bun tools/cli_json_registry_shim.ts --write` to refresh the checked-in
+shim files. `release:cli-registry` rejects `--check=true` and `--write=true`
+with status 2 before checking or writing generated files. Focus that helper
+contract with:
+
+```bash
+bun test tests/JsonErrorCodeLists.test.ts
+```
 
 The triage mapping is also guarded against the exported JSON error-code
 inventory. New `BPL_*` codes in the CLI registry must map to at least one local

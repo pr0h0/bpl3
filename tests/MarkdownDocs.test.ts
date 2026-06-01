@@ -594,6 +594,13 @@ describe("Markdown documentation", () => {
       "`--out=`",
       'bun test tests/CiTriage.test.ts -t "inline option values|malformed inline option values"',
       'bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|release manifest CLI accepts inline option values"',
+      "`test:ci` rejects `--json=true`, `--list=true`, `--dry-run=true`, and `--help=true`",
+      "Packed `test:ci --list` and `test:ci --json` planning does not require a source-checkout `tests/` directory",
+      "bun test tests/TestCiRunner.test.ts",
+      "bun tools/cli_json_registry_shim.ts --help",
+      "bun tools/cli_json_registry_shim.ts --write",
+      "`release:cli-registry` rejects `--check=true` and `--write=true`",
+      "bun test tests/JsonErrorCodeLists.test.ts",
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);

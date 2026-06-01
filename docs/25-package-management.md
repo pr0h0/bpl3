@@ -751,6 +751,17 @@ Focus both separated and inline value handling with:
 bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|release manifest CLI accepts inline option values"
 ```
 
+The generated CLI JSON registry helper is available as
+`bun run release:cli-registry` for the default sync check. Use
+`bun tools/cli_json_registry_shim.ts --help` for direct helper usage and
+`bun tools/cli_json_registry_shim.ts --write` to refresh the checked-in shim
+files. `release:cli-registry` rejects `--check=true` and `--write=true` with
+status 2 before checking or writing generated files. Focus that contract with:
+
+```bash
+bun test tests/JsonErrorCodeLists.test.ts
+```
+
 For source packages, keep these checks together:
 
 ```bash

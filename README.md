@@ -135,11 +135,18 @@ bun tools/release_manifest.ts --out=dist/release-manifest.json --repo-root=.
 Malformed inline values remain status 2 usage errors before network or release
 work starts. `ci:triage` rejects `--json=true` and `--jobs-json=` before any
 GitHub API request; `release_manifest` rejects `--pack-npm=true` and `--out=`
-before writing manifests or running `npm pack`. Focus those contracts with:
+before writing manifests or running `npm pack`. `test:ci` rejects
+`--json=true`, `--list=true`, `--dry-run=true`, and `--help=true` before
+planning or running the CI-safe suite. Packed `test:ci --list` and
+`test:ci --json` planning does not require a source-checkout `tests/`
+directory. `release:cli-registry` rejects `--check=true` and `--write=true`
+while keeping usage diagnostics on stderr. Focus those contracts with:
 
 ```bash
 bun test tests/CiTriage.test.ts -t "inline option values|malformed inline option values"
 bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|release manifest CLI accepts inline option values"
+bun test tests/TestCiRunner.test.ts
+bun test tests/JsonErrorCodeLists.test.ts
 ```
 
 Packed npm helper scripts supported from installed packages:
@@ -925,12 +932,18 @@ bun tools/test_ci.ts --list
 bun tools/test_ci.ts --dry-run
 bun tools/test_ci.ts --json
 bun tools/test_ci.ts --help
-# Unknown test_ci options exit with status 2 on stderr while stdout stays empty.
+# Unknown test_ci options and malformed flag values such as --json=true exit
+# with status 2 on stderr while stdout stays empty. Packed --list/--json
+# planning works even when the installed package has no tests/ directory.
 # CI-safe unit discovery includes tests/CiTriage.test.ts, including offline
 # jobs-json diagnostics. Focus that path directly when needed:
 bun test tests/CiTriage.test.ts -t "unreadable and malformed jobs-json"
 # Run the generated packed CLI registry shim check directly.
 bun run release:cli-registry
+bun tools/cli_json_registry_shim.ts --help
+bun tools/cli_json_registry_shim.ts --write
+# Malformed registry-shim flag values such as --check=true and --write=true
+# exit with status 2 before checking or writing generated files.
 # Limit integration/example concurrency. BPL_INTEGRATION_JOBS must be a
 # positive integer; malformed values are ignored with a warning and the
 # auto-detected integration job count is used.
