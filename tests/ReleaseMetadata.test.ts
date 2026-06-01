@@ -354,6 +354,9 @@ describe("Release metadata", () => {
     expect(releaseSmokeSource).toContain(
       "check packed npm CLI registry subpath import",
     );
+    expect(releaseSmokeSource).toContain(
+      "check packed npm CLI registry TypeScript declarations",
+    );
     expect(releaseSmokeSource).toContain("BPL_BUILD_NO_INPUTS");
     expect(releaseSmokeSource).toContain(
       'bun test tests/CLIJsonParseability.test.ts -t "root build JSON no-input"',

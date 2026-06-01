@@ -192,6 +192,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now has a renderer/check command, and tests compare `cli/index.js` plus
   `cli/index.d.ts` against `CLI_JSON_ERROR_CODE_LISTS` so the npm subpath
   cannot drift silently from implementation exports.
+- **Packed CLI Registry Type Smoke** - Release helper smoke now compiles a
+  TypeScript consumer of `bpl-v3/cli`, checking the packed declarations for
+  `CLI_JSON_ERROR_CODE_LISTS`, `CLI_JSON_ERROR_CODES`, and the
+  `CliJsonErrorCodeList` type.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

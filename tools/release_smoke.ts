@@ -567,6 +567,7 @@ function runPackedPackageSmoke(): void {
         : join(installDir, "node_modules", ".bin", "bpl");
 
     runPackedCliRegistrySmoke(installDir);
+    runPackedCliRegistryTypesSmoke(installDir);
     runPackedVersionJsonSmoke(installedBpl, installDir, packEntry.version);
     runPackedHelpSmoke(installedBpl, installDir);
     runPackedJsonColorPuritySmoke(installedBpl, installDir, packEntry.version);
@@ -782,6 +783,77 @@ export function runPackedCliRegistrySmoke(installDir: string): void {
   );
 
   runStep("check packed npm CLI registry subpath import", "bun", [smokePath], {
+    cwd: installDir,
+    bplHome: null,
+  });
+}
+
+export function runPackedCliRegistryTypesSmoke(installDir: string): void {
+  const smokePath = join(installDir, "check-cli-registry-types.ts");
+  writeFileSync(
+    smokePath,
+    [
+      'import { CLI_JSON_ERROR_CODE_LISTS, CLI_JSON_ERROR_CODES, type CliJsonErrorCodeList } from "bpl-v3/cli";',
+      "",
+      "const lists: readonly CliJsonErrorCodeList[] = CLI_JSON_ERROR_CODE_LISTS;",
+      "const flattenedCodes: readonly string[] = CLI_JSON_ERROR_CODES;",
+      "",
+      "function collectCodes(list: CliJsonErrorCodeList): readonly string[] {",
+      "  return list.codes;",
+      "}",
+      "",
+      "for (const list of lists) {",
+      "  const name: string = list.name;",
+      "  const codes: readonly string[] = collectCodes(list);",
+      "  if (name === \"package-resolver\") {",
+      "    const hasPackageNotFound: boolean = codes.includes(\"BPL_PACKAGE_NOT_FOUND\");",
+      "    void hasPackageNotFound;",
+      "  }",
+      "}",
+      "",
+      "const packageNotFoundIsKnown: boolean = flattenedCodes.includes(\"BPL_PACKAGE_NOT_FOUND\");",
+      "void packageNotFoundIsKnown;",
+      "",
+    ].join("\n"),
+  );
+
+  const localTsc = join(
+    repoRoot,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "tsc.cmd" : "tsc",
+  );
+  const command = existsSync(localTsc) ? localTsc : "bunx";
+  const args = existsSync(localTsc)
+    ? [
+        "--noEmit",
+        "--strict",
+        "--lib",
+        "ESNext",
+        "--target",
+        "ES2022",
+        "--module",
+        "ESNext",
+        "--moduleResolution",
+        "Bundler",
+        smokePath,
+      ]
+    : [
+        "tsc",
+        "--noEmit",
+        "--strict",
+        "--lib",
+        "ESNext",
+        "--target",
+        "ES2022",
+        "--module",
+        "ESNext",
+        "--moduleResolution",
+        "Bundler",
+        smokePath,
+      ];
+
+  runStep("check packed npm CLI registry TypeScript declarations", command, args, {
     cwd: installDir,
     bplHome: null,
   });

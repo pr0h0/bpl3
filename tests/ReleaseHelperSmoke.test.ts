@@ -11,6 +11,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import {
   runPackedCliRegistrySmoke,
+  runPackedCliRegistryTypesSmoke,
   runPackedHelperScriptSmoke,
 } from "../tools/release_smoke";
 
@@ -68,6 +69,20 @@ describe("Release helper smoke", () => {
       const installDir = writePackedCliRegistryInstallFixture(tempRoot);
 
       runPackedCliRegistrySmoke(installDir);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("exercises packed CLI registry TypeScript declarations", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-cli-registry-types-smoke-"),
+    );
+
+    try {
+      const installDir = writePackedCliRegistryInstallFixture(tempRoot);
+
+      runPackedCliRegistryTypesSmoke(installDir);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
