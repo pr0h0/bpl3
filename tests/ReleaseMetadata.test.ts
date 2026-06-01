@@ -449,10 +449,14 @@ describe("Release metadata", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI package import diagnostic code JSON",
       "check packed npm CLI package import malformed manifest JSON",
+      "check packed npm CLI package explicit source import JSON",
+      "check packed npm CLI package directory index import JSON",
       "runPackedPackageImportDiagnosticCodeSmoke",
       "BPL_PACKAGE_MANIFEST_MISSING",
       "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
       "manifest is not valid JSON",
+      "pkg-math/features/add.bpl",
+      "pkg-math/features/increment",
       '["check", "--json", "main.bpl"]',
       "parseCheckReport",
     ]);

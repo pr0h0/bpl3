@@ -2565,6 +2565,109 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         `Packed npm CLI package import malformed manifest JSON reported unexpected payload:\n${JSON.stringify(malformedReport, null, 2)}`,
       );
     }
+
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "pkg-math",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export root;\n");
+    mkdirSync(join(packageDir, "features", "increment"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(packageDir, "features", "add.bpl"),
+      [
+        "export add;",
+        "",
+        "frame add(left: int, right: int) ret int {",
+        "    return left + right;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(packageDir, "features", "increment", "index.bpl"),
+      [
+        "export increment;",
+        "",
+        "frame increment(value: int) ret int {",
+        "    return value + 1;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        'import add from "pkg-math/features/add.bpl";',
+        "",
+        "frame main() ret int {",
+        "    return add(2, 3);",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const explicitSourceImport = runStep(
+      "check packed npm CLI package explicit source import JSON",
+      installedBpl,
+      ["check", "--json", "main.bpl"],
+      { cwd: tempDir, bplHome: null },
+    );
+    const explicitSourceReport = parseCheckReport(explicitSourceImport.stdout);
+    const explicitSourceFileReport = explicitSourceReport.files[0];
+    if (
+      !explicitSourceReport.success ||
+      explicitSourceReport.totalFiles !== 1 ||
+      explicitSourceReport.errorCount !== 0 ||
+      explicitSourceReport.files.length !== 1 ||
+      explicitSourceFileReport?.file !== "main.bpl" ||
+      !explicitSourceFileReport.success
+    ) {
+      throw new Error(
+        `Packed npm CLI package explicit source import JSON reported unexpected payload:\n${JSON.stringify(explicitSourceReport, null, 2)}`,
+      );
+    }
+
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        'import increment from "pkg-math/features/increment";',
+        "",
+        "frame main() ret int {",
+        "    return increment(41);",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const directoryIndexImport = runStep(
+      "check packed npm CLI package directory index import JSON",
+      installedBpl,
+      ["check", "--json", "main.bpl"],
+      { cwd: tempDir, bplHome: null },
+    );
+    const directoryIndexReport = parseCheckReport(directoryIndexImport.stdout);
+    const directoryIndexFileReport = directoryIndexReport.files[0];
+    if (
+      !directoryIndexReport.success ||
+      directoryIndexReport.totalFiles !== 1 ||
+      directoryIndexReport.errorCount !== 0 ||
+      directoryIndexReport.files.length !== 1 ||
+      directoryIndexFileReport?.file !== "main.bpl" ||
+      !directoryIndexFileReport.success
+    ) {
+      throw new Error(
+        `Packed npm CLI package directory index import JSON reported unexpected payload:\n${JSON.stringify(directoryIndexReport, null, 2)}`,
+      );
+    }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
