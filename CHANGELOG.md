@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
+  now runs the packed `ci:triage` helper against an offline release registry
+  failure fixture and asserts it prints only `bun run release:cli-registry`,
+  keeping the focused guidance available without broadening full release smoke.
 - **CI-Safe Test Runner** - `bun run test:ci` now delegates to
   `tools/test_ci.ts`, a typed runner that owns runtime-build, integration,
   playground, VS Code extension, generated CLI registry shim, and CI-safe

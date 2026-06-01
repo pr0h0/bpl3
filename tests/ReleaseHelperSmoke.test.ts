@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
 import {
   cpSync,
   mkdirSync,
@@ -83,6 +84,92 @@ describe("Release helper smoke", () => {
       const installDir = writePackedCliRegistryInstallFixture(tempRoot);
 
       runPackedCliRegistryTypesSmoke(installDir);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("prints packed ci:triage release cli registry guidance", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-cli-registry-triage-smoke-"),
+    );
+
+    try {
+      const installDir = writePackedHelperInstallFixture(tempRoot, {
+        includePathSafety: true,
+      });
+      const packageDir = join(installDir, "node_modules", "bpl-v3");
+      const jobsPath = join(packageDir, "release-cli-registry-jobs.json");
+      writeFileSync(
+        jobsPath,
+        JSON.stringify(
+          {
+            run: {
+              id: 26695335269,
+              html_url:
+                "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+              head_branch: "master",
+              head_sha: "1234567890abcdef1234567890abcdef12345678",
+              status: "completed",
+              conclusion: "failure",
+            },
+            jobs: [
+              {
+                id: 17,
+                name: "Release CLI registry sync check",
+                conclusion: "failure",
+                html_url:
+                  "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/17",
+                steps: [
+                  {
+                    name: "CLI registry shim is stale",
+                    conclusion: "failure",
+                  },
+                ],
+              },
+            ],
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+
+      const result = spawnSync(
+        "npm",
+        [
+          "run",
+          "--silent",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          "release-cli-registry-jobs.json",
+          "26695335269",
+        ],
+        {
+          cwd: packageDir,
+          encoding: "utf8",
+          env: { ...process.env, NO_COLOR: "1" },
+          timeout: HELPER_SMOKE_TIMEOUT_MS,
+        },
+      );
+
+      if (result.error || result.status !== 0) {
+        throw new Error(
+          [
+            "Packed ci:triage release CLI registry guidance smoke failed.",
+            `status: ${result.status ?? "none"}`,
+            `spawn error: ${result.error?.stack ?? result.error?.message ?? "none"}`,
+            `stdout:\n${result.stdout}`,
+            `stderr:\n${result.stderr}`,
+          ].join("\n"),
+        );
+      }
+
+      const report = JSON.parse(result.stdout);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun run release:cli-registry",
+      ]);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
