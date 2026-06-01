@@ -289,8 +289,8 @@ export class ModuleResolver {
     }
 
     // Handle explicit std/ prefix
-    if (importSource.startsWith("std/")) {
-      const relativePath = importSource.substring(4); // Remove "std/"
+    if (importSource.startsWith("std/") || importSource.startsWith("std\\")) {
+      const relativePath = importSource.substring(4);
       if (!isSafeStandardLibraryImportPath(relativePath)) {
         throw new CompilerError(
           `Unsafe standard library import: ${importSource}`,
@@ -306,7 +306,10 @@ export class ModuleResolver {
         );
       }
 
-      const stdPath = path.join(this.stdLibPath, relativePath);
+      const stdPath = path.join(
+        this.stdLibPath,
+        ...relativePath.split(/[\\/]/),
+      );
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
         return result;

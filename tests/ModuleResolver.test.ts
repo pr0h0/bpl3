@@ -421,6 +421,9 @@ describe("ModuleResolver", () => {
     expect(
       resolver.resolveModulePath("std/collections/array.bpl", mainPath),
     ).toBe(stdModule);
+    expect(
+      resolver.resolveModulePath("std\\collections\\array.bpl", mainPath),
+    ).toBe(stdModule);
   });
 
   it("should reject unsafe explicit std import path segments", () => {
@@ -438,6 +441,10 @@ describe("ModuleResolver", () => {
       "std//array.bpl",
       "std/./array.bpl",
       "std/",
+      "std\\..\\outside-std-lib.bpl",
+      "std\\\\array.bpl",
+      "std\\.\\array.bpl",
+      "std\\",
     ]) {
       const error = captureCompilerError(() => {
         resolver.resolveModulePath(importSource, mainPath);

@@ -623,6 +623,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package Resolver Manifest Entry Validation** - Package import resolution now
   rejects non-string `main` and legacy `entry` manifest fields instead of
   silently falling back to `index.bpl`.
+- **Module Resolver Std Imports** - Explicit standard-library imports now treat
+  `std\path` the same as `std/path`, including unsafe segment diagnostics.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.
