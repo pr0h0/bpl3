@@ -1332,8 +1332,9 @@ describe("Markdown documentation", () => {
       "Condition type mismatch failures use `BPL_CONDITION_TYPE_MISMATCH`",
       "`If condition must be boolean, got int`",
       "`Loop condition must be boolean, got int`",
+      "`Ternary condition must be boolean, got int`",
       "`Ensure the condition evaluates to a boolean.`",
-      "non-boolean `if` and `loop` conditions",
+      "non-boolean `if`, `loop`, and ternary conditions",
       'bun test tests/TypeCheckerConditionMismatch.test.ts',
       'bun test tests/CLIJsonParseability.test.ts -t "condition type mismatch"',
     ]);
