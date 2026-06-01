@@ -7,6 +7,8 @@ export interface NamedTestFileReference {
 }
 
 const TEST_FILE_REFERENCE_PATTERN = /\btests\/[A-Za-z0-9._/-]+\.test\.ts\b/g;
+const CI_TRIAGE_LOCAL_COMMAND_SOURCE_NAME =
+  "tools/ci_triage.ts local command mappings";
 
 export function extractTestFileReferencesFromText(
   sourceName: string,
@@ -29,6 +31,15 @@ export function extractTestFileReferencesFromPackageScripts(
       extractTestFileReferencesFromText(sourceName, command),
     )
     .sort(compareNamedTestFileReferences);
+}
+
+export function extractTestFileReferencesFromCiTriageSource(
+  source: string,
+): NamedTestFileReference[] {
+  return extractTestFileReferencesFromText(
+    CI_TRIAGE_LOCAL_COMMAND_SOURCE_NAME,
+    extractCiTriageLocalCommandMappingsSource(source),
+  ).sort(compareNamedTestFileReferences);
 }
 
 export function findMissingTestFileReferences(
@@ -65,4 +76,15 @@ function compareNamedTestFileReferences(
   }
 
   return left.file.localeCompare(right.file);
+}
+
+function extractCiTriageLocalCommandMappingsSource(source: string): string {
+  const start = source.indexOf("const EXCLUSIVE_STEP_REPRO_COMMANDS");
+  const end = source.indexOf("export function formatCiTriageHelp");
+
+  if (start === -1 || end === -1 || end <= start) {
+    return source;
+  }
+
+  return source.slice(start, end);
 }

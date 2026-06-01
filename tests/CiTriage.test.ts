@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -14,8 +14,15 @@ import {
   summarizeWorkflowJobs,
   type GitHubWorkflowJob,
 } from "../tools/ci_triage";
+import {
+  extractTestFileReferencesFromCiTriageSource,
+  findMissingTestFileReferences,
+  formatMissingTestFileReferenceDiagnostics,
+} from "../tools/test_reference_inventory";
 import { CLI_JSON_ERROR_CODE_LISTS } from "../cli/JsonErrorCodes";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
+
+const REPO_ROOT = join(import.meta.dir, "..");
 
 describe("CI triage helper", () => {
   test("parses GitHub Actions run and job URLs", () => {
@@ -54,6 +61,72 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("Run deterministic differential compiler fuzz"),
     ).toEqual(["bun run fuzz:differential"]);
+  });
+
+  test("keeps ci:triage local command test references resolvable", () => {
+    const ciTriageSource = readFileSync(
+      join(REPO_ROOT, "tools/ci_triage.ts"),
+      "utf8",
+    );
+    const references =
+      extractTestFileReferencesFromCiTriageSource(ciTriageSource);
+
+    expect(references.length).toBeGreaterThan(40);
+    expect(references).toContainEqual({
+      sourceName: "tools/ci_triage.ts local command mappings",
+      file: "tests/PlaygroundBrowserWasmRuntime.test.ts",
+    });
+    expect(references).toContainEqual({
+      sourceName: "tools/ci_triage.ts local command mappings",
+      file: "tests/PackageResolver.test.ts",
+    });
+
+    const missing = findMissingTestFileReferences(references, REPO_ROOT);
+    const diagnostics = formatMissingTestFileReferenceDiagnostics(missing);
+
+    expect(diagnostics).toBe("");
+  });
+
+  test("extracts ci:triage references only from local command mappings", () => {
+    const references = extractTestFileReferencesFromCiTriageSource(
+      [
+        'const HELP_TEXT = "bun test tests/IgnoredHelp.test.ts";',
+        "const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [",
+        '  [/focused/i, "bun test tests/IncludedExclusive.test.ts"],',
+        "];",
+        "const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [",
+        '  [/general/i, "bun test tests/IncludedGeneral.test.ts"],',
+        "];",
+        "export function formatCiTriageHelp(): string {",
+      ].join("\n"),
+    );
+
+    expect(references).toEqual([
+      {
+        sourceName: "tools/ci_triage.ts local command mappings",
+        file: "tests/IncludedExclusive.test.ts",
+      },
+      {
+        sourceName: "tools/ci_triage.ts local command mappings",
+        file: "tests/IncludedGeneral.test.ts",
+      },
+    ]);
+  });
+
+  test("formats stale ci:triage command references with source context", () => {
+    const diagnostics = formatMissingTestFileReferenceDiagnostics([
+      {
+        sourceName: "tools/ci_triage.ts local command mappings",
+        file: "tests/RenamedCiTriageTarget.test.ts",
+      },
+    ]);
+
+    expect(diagnostics).toBe(
+      [
+        "Stale test file references:",
+        "- tools/ci_triage.ts local command mappings: tests/RenamedCiTriageTarget.test.ts",
+      ].join("\n"),
+    );
   });
 
   test("maps CI-safe typed runner failures to focused repro commands", () => {
