@@ -196,6 +196,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   TypeScript consumer of `bpl-v3/cli`, checking the packed declarations for
   `CLI_JSON_ERROR_CODE_LISTS`, `CLI_JSON_ERROR_CODES`, and the
   `CliJsonErrorCodeList` type.
+- **Package Docs Smoke Inventory** - Package/import documentation smoke
+  examples now live in a typed test inventory shared by MarkdownDocs and the
+  CLI JSON parseability smoke, keeping the documented success and failure
+  examples aligned.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.

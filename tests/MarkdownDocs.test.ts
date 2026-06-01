@@ -47,6 +47,7 @@ import { LINT_JSON_ERROR_CODES } from "../cli/commands/lint";
 import {
   RUN_SCRIPT_JSON_ERROR_CODES,
 } from "../cli/commands/runScript";
+import { PACKAGE_DOCS_SMOKE_DOCUMENTATION_SNIPPETS } from "./helpers/packageDocsSmokeExamples";
 
 function trackedMarkdownFiles(): string[] {
   const result = spawnSync("git", ["ls-files", "*.md"], {
@@ -409,15 +410,11 @@ describe("Markdown documentation", () => {
       "docs/25-package-management.md",
       "CHANGELOG.md",
     ]);
-    const requiredSnippets = [
-      "package/import docs examples",
-      "examples/package_transitive_dependency/app/main.bpl",
-      "pkg-math/../secret",
-      "BPL_PACKAGE_IMPORT_INVALID",
-      'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
-    ];
 
-    expectDocsContainSnippets(combinedDocs, requiredSnippets);
+    expectDocsContainSnippets(
+      combinedDocs,
+      PACKAGE_DOCS_SMOKE_DOCUMENTATION_SNIPPETS,
+    );
   });
 
   test("release docs document packed helper support and exclusions", () => {

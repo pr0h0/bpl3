@@ -8,6 +8,7 @@ import {
   parseJsonObjectStdout,
 } from "./helpers/cliJson";
 import { writeNodeCommandShim } from "./helpers/executableShim";
+import { PACKAGE_DOCS_SMOKE_EXAMPLES } from "./helpers/packageDocsSmokeExamples";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
 
@@ -211,42 +212,46 @@ describe("CLI JSON parseability", () => {
   });
 
   test("keeps package/import docs examples covered by JSON smoke fixtures", () => {
+    const { invalidImport, success: successExample } =
+      PACKAGE_DOCS_SMOKE_EXAMPLES;
     const documentedExample = path.join(
       process.cwd(),
-      "examples/package_transitive_dependency/app/main.bpl",
+      successExample.sourcePath,
     );
-    const success = runCli(["check", "--json", documentedExample]);
+    const successResult = runCli(["check", "--json", documentedExample]);
 
-    expectJsonStdoutReport(success, {
+    expectJsonStdoutReport(successResult, {
       status: 0,
       check: "check",
       success: true,
     });
 
-    const appDir = path.join(tempDir, "docs-package-import");
+    const appDir = path.join(tempDir, invalidImport.workspaceDirName);
     const sourceFile = path.join(appDir, "main.bpl");
     fs.mkdirSync(appDir, { recursive: true });
-    writePackageFixture(path.join(appDir, "bpl_modules", "pkg-math"));
+    writePackageFixture(
+      path.join(appDir, "bpl_modules", invalidImport.packageName),
+    );
     fs.writeFileSync(
       sourceFile,
       [
-        'import value from "pkg-math/../secret";',
+        `import value from "${invalidImport.importPath}";`,
         "frame main() ret int { return 0; }",
         "",
       ].join("\n"),
     );
 
-    const invalidImport = runCli(["check", "--json", sourceFile], {
+    const invalidImportResult = runCli(["check", "--json", sourceFile], {
       cwd: appDir,
     });
     const diagnostic = expectSingleCheckJsonDiagnostic(
-      invalidImport,
+      invalidImportResult,
       sourceFile,
     );
 
-    expect(diagnostic.code).toBe("BPL_PACKAGE_IMPORT_INVALID");
+    expect(diagnostic.code).toBe(invalidImport.expectedDiagnosticCode);
     expect(diagnostic.message).toContain(
-      "Package imports cannot contain empty, '.' or '..' path segments.",
+      invalidImport.expectedMessageSnippet,
     );
   });
 
