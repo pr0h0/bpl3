@@ -9,6 +9,7 @@ import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
   BUILTIN_TYPE_REDEFINITION_CODE,
+  RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
@@ -341,11 +342,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     name: string,
     location: SourceLocation,
   ): void {
-    const builtin = this.globalScope.getInCurrentScope(name);
-    if (
-      !builtin ||
-      !["TypeAlias", "Struct", "Enum", "Spec"].includes(builtin.kind)
-    ) {
+    if (!RESERVED_BUILTIN_TYPE_NAMES.has(name)) {
       return;
     }
 

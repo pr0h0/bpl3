@@ -2935,6 +2935,63 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports builtin type redefinition failures in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "builtin_type_redefinition.bpl");
+    const outputFile = path.join(tempDir, "builtin-type-redefinition-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "struct bool {",
+        "    value: i1,",
+        "}",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile);
+    expect(checkDiagnostic.code).toBe("BPL_BUILTIN_TYPE_REDEFINITION");
+    expect(checkDiagnostic.source?.preview).toContain("struct bool");
+    expect(checkDiagnostic.message).toContain(
+      "Cannot redefine builtin type 'bool'",
+    );
+    expect(checkDiagnostic.hint).toContain("Builtin type names are reserved.");
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_BUILTIN_TYPE_REDEFINITION" }],
+    });
+    expect(buildReport.diagnostics).toHaveLength(1);
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Cannot redefine builtin type 'bool'",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Builtin type names are reserved.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

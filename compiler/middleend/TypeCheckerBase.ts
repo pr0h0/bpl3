@@ -45,7 +45,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   BUILTIN_TYPE_REDEFINITION_CODE,
 ] as const;
 
-const PRIMITIVE_TYPE_NAMES = new Set([
+export const RESERVED_BUILTIN_TYPE_NAMES = new Set([
   "i1",
   "i8",
   "u8",
@@ -134,7 +134,7 @@ export abstract class TypeCheckerBase {
 
     if (
       this.resolveTypeSymbol(typeName) ||
-      PRIMITIVE_TYPE_NAMES.has(typeName) ||
+      RESERVED_BUILTIN_TYPE_NAMES.has(typeName) ||
       looksLikeGenericParam
     ) {
       return;
