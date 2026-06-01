@@ -1174,10 +1174,14 @@ describe("Markdown documentation", () => {
       "`Duplicate parameter name 'value'`",
       "`Duplicate generic type parameter 'T'`",
       "`The parameter 'value' is declared multiple times in function 'pick'.`",
+      "Duplicate struct fields and duplicate enum variants also use `BPL_SYMBOL_ALREADY_DEFINED`",
+      "`Duplicate field 'x' in struct 'Point'`",
+      "`Duplicate enum variant 'Red' in enum 'Color'`",
       'bun test tests/TypeCheckerDuplicateSymbols.test.ts',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures"',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters"',
+      'bun test tests/CLIJsonParseability.test.ts -t "duplicate struct fields|duplicate enum variants"',
     ]);
   });
 

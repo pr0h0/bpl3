@@ -603,6 +603,13 @@ duplicate generic names report `Duplicate generic type parameter 'T'`.
 Reproduce the JSON contracts with
 `bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters"`.
 
+Duplicate struct fields and duplicate enum variants also use
+`BPL_SYMBOL_ALREADY_DEFINED`. For example, a second `x: int` field in
+`struct Point` reports `Duplicate field 'x' in struct 'Point'`, and a repeated
+`Red` variant in `enum Color` reports
+`Duplicate enum variant 'Red' in enum 'Color'`. Reproduce the JSON contracts with
+`bun test tests/CLIJsonParseability.test.ts -t "duplicate struct fields|duplicate enum variants"`.
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
