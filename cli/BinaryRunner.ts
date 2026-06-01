@@ -170,6 +170,10 @@ export function compileToBinary(
   }
 
   try {
+    const existingExecStats = tryLstat(execPath);
+    if (existingExecStats?.isFile()) {
+      fs.chmodSync(tempExecPath, existingExecStats.mode & 0o777);
+    }
     fs.renameSync(tempExecPath, execPath);
   } catch (error) {
     removeBestEffort(tempExecPath);

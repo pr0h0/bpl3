@@ -349,6 +349,47 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("preserves existing executable permissions when replacing output", () => {
+    if (process.platform === "win32") {
+      return;
+    }
+
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-mode-"));
+    const irPath = path.join(tempDir, "program.ll");
+    const execPath = path.join(tempDir, "program");
+
+    try {
+      const fakeCompiler = writeNodeCommandShim(path.join(tempDir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+        'fs.writeFileSync(args[outputIndex], "replacement executable\\n");',
+      ]);
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.writeFileSync(execPath, "existing executable\n");
+      fs.chmodSync(execPath, 0o755);
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, { skipRuntime: true });
+
+      expect(result.success).toBe(true);
+      expect(fs.readFileSync(execPath, "utf-8")).toBe(
+        "replacement executable\n",
+      );
+      expect(fs.statSync(execPath).mode & 0o777).toBe(0o755);
+      expect(
+        fs
+          .readdirSync(tempDir)
+          .some(
+            (entry) => entry.startsWith(".program.") && entry.endsWith(".tmp"),
+          ),
+      ).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("cleans temporary executable directories after compiler failures", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-binary-temp-dir-"),
