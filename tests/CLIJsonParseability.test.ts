@@ -2640,6 +2640,127 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports generic type arity failures in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "generic_type_arity.bpl");
+    const outputFile = path.join(tempDir, "generic-type-arity-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "struct Box<T> {",
+        "    value: T,",
+        "}",
+        "frame main() ret int {",
+        "    local box: Box<int, bool>;",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile, {
+      line: 5,
+      column: 16,
+    });
+    expect(checkDiagnostic.code).toBe("BPL_GENERIC_ARITY_MISMATCH");
+    expect(checkDiagnostic.source?.preview).toContain("Box<int, bool>");
+    expect(checkDiagnostic.message).toContain(
+      "Generic type 'Box' expects 1 type arguments, but got 2.",
+    );
+    expect(checkDiagnostic.hint).toBe("Check generic argument count.");
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_GENERIC_ARITY_MISMATCH" }],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Generic type 'Box' expects 1 type arguments, but got 2.",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toBe(
+      "Check generic argument count.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
+  test("reports generic alias arity failures in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "generic_alias_arity.bpl");
+    const outputFile = path.join(tempDir, "generic-alias-arity-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "struct Box<T> {",
+        "    value: T,",
+        "}",
+        "type Alias<T> = Box<T>;",
+        "frame main() ret int {",
+        "    local box: Alias<int, bool>;",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile, {
+      line: 6,
+      column: 16,
+    });
+    expect(checkDiagnostic.code).toBe("BPL_GENERIC_ARITY_MISMATCH");
+    expect(checkDiagnostic.source?.preview).toContain("Alias<int, bool>");
+    expect(checkDiagnostic.message).toContain(
+      "Generic type 'Alias' expects 1 type arguments, but got 2.",
+    );
+    expect(checkDiagnostic.hint).toBe("Check generic argument count.");
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_GENERIC_ARITY_MISMATCH" }],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Generic type 'Alias' expects 1 type arguments, but got 2.",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toBe(
+      "Check generic argument count.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
