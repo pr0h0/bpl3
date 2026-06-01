@@ -201,13 +201,14 @@ const llvmIR = generator.generate(ast, filePath);
 // Returns: string (LLVM IR)
 ```
 
-`optimizationLevel` controls IR attributes that depend on optimization level.
-`debugIrPath` writes the generated LLVM IR to a diagnostic `.ll` file; when it
-is omitted, `BPL_DEBUG_IR` can still enable the same output, and `false`
-explicitly disables it. Debug IR write failures are surfaced to callers. The
-compiler refuses debug IR destinations that are a symbolic link, have a
-symbolic link in their parent path, are not regular files, or use a missing
-parent directory.
+`optimizationLevel` accepts 0 through 3 and controls IR attributes that depend
+on optimization level; values outside that range are rejected before IR is
+generated. `debugIrPath` writes the generated LLVM IR to a diagnostic `.ll`
+file; when it is omitted, `BPL_DEBUG_IR` can still enable the same output, and
+`false` explicitly disables it. Debug IR write failures are surfaced to
+callers. The compiler refuses debug IR destinations that are a symbolic link,
+have a symbolic link in their parent path, are not regular files, or use a
+missing parent directory.
 
 ---
 

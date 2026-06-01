@@ -307,21 +307,25 @@ describe("Markdown documentation", () => {
   });
 
   test("public API docs document CodeGenerator debug IR options", () => {
-    const text = readFileSync("docs/PUBLIC_API.md", "utf8").replace(
-      /\s+/g,
-      " ",
-    );
+    const publicApi = readFileSync("docs/PUBLIC_API.md", "utf8");
+    const codeGeneratorSection =
+      publicApi
+        .split("### `CodeGenerator` Class")[1]
+        ?.split("---")[0]
+        ?.replace(/\s+/g, " ") ?? "";
     const requiredSnippets = [
       "interface CodeGeneratorOptions",
       "optimizationLevel?: number",
       "debugIrPath?: string | false",
+      "`optimizationLevel` accepts 0 through 3",
+      "values outside that range are rejected",
       "Debug IR write failures are surfaced to callers",
       "symbolic link",
       "missing parent directory",
     ];
 
     for (const snippet of requiredSnippets) {
-      expect(text).toContain(snippet.replace(/\s+/g, " "));
+      expect(codeGeneratorSection).toContain(snippet.replace(/\s+/g, " "));
     }
   });
 
