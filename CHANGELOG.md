@@ -35,6 +35,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Inline Options** - `bun run ci:triage` now accepts
   `--repo=owner/repo`, `--jobs-json=path`, and `--run=id` while rejecting
   malformed flag values such as `--json=true` before any GitHub API request.
+- **Packed CI Triage Inline Smoke** - Release helper smoke now exercises the
+  installed-package `ci:triage` helper with inline option values and malformed
+  inline usage diagnostics.
 - **CI Triage Run Locator Validation** - `bun run ci:triage` now reports
   malformed run IDs, malformed URLs, non-GitHub URLs, non-actions URLs, and
   invalid job URL IDs as status-2 usage errors before any GitHub API request.

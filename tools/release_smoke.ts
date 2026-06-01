@@ -4157,6 +4157,11 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     { cwd: packageDir, bplHome: null },
   );
   const ciTriageReport = parseCiTriageReport(ciTriageJson.stdout);
+  const expectedCiTriageSuiteCommands = [
+    "bun test tests/TestCiRunner.test.ts",
+    "bun tools/test_ci.ts --list",
+    "bun run test:ci",
+  ];
   if (
     ciTriageReport.run.headSha !==
       "1234567890abcdef1234567890abcdef12345678" ||
@@ -4164,14 +4169,39 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     ciTriageReport.checkout.reason !== "local checkout SHA unavailable" ||
     ciTriageReport.summary.missingJobIds.length !== 0 ||
     JSON.stringify(ciTriageReport.summary.failedJobs[0]?.localCommands) !==
-      JSON.stringify([
-        "bun test tests/TestCiRunner.test.ts",
-        "bun tools/test_ci.ts --list",
-        "bun run test:ci",
-      ])
+      JSON.stringify(expectedCiTriageSuiteCommands)
   ) {
     throw new Error(
       `Packed npm CLI CI triage JSON reported unexpected payload:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+    );
+  }
+
+  const ciTriageInlineJson = runStep(
+    "check packed npm CLI CI triage inline JSON",
+    "npm",
+    [
+      "run",
+      "--silent",
+      "ci:triage",
+      "--",
+      "--json",
+      "--jobs-json=ci-triage-jobs.json",
+      "--run=26695335269",
+      "--repo=pr0h0/bpl3",
+    ],
+    { cwd: packageDir, bplHome: null },
+  );
+  const ciTriageInlineReport = parseCiTriageReport(ciTriageInlineJson.stdout);
+  if (
+    ciTriageInlineReport.run.headSha !==
+      "1234567890abcdef1234567890abcdef12345678" ||
+    ciTriageInlineReport.summary.missingJobIds.length !== 0 ||
+    JSON.stringify(
+      ciTriageInlineReport.summary.failedJobs[0]?.localCommands,
+    ) !== JSON.stringify(expectedCiTriageSuiteCommands)
+  ) {
+    throw new Error(
+      `Packed npm CLI CI triage inline JSON reported unexpected payload:\n${JSON.stringify(ciTriageInlineReport, null, 2)}`,
     );
   }
 
@@ -4340,6 +4370,32 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
       bplHome: null,
       expectedStatus: 2,
       expectedStderrIncludes: "Missing value for --repo",
+      forbiddenOutputIncludes: ["GitHub API", "api.github.com"],
+    },
+  );
+
+  runExpectedFailureStep(
+    "check packed npm CLI CI triage flag value usage errors",
+    "npm",
+    ["run", "ci:triage", "--", "--json=true", "26695335269"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "--json does not accept a value",
+      forbiddenOutputIncludes: ["GitHub API", "api.github.com"],
+    },
+  );
+
+  runExpectedFailureStep(
+    "check packed npm CLI CI triage empty value usage errors",
+    "npm",
+    ["run", "ci:triage", "--", "--jobs-json=", "26695335269"],
+    {
+      cwd: packageDir,
+      bplHome: null,
+      expectedStatus: 2,
+      expectedStderrIncludes: "Missing value for --jobs-json",
       forbiddenOutputIncludes: ["GitHub API", "api.github.com"],
     },
   );
