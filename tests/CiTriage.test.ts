@@ -178,6 +178,11 @@ describe("CI triage helper", () => {
       'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       ...expectedCommands,
     ];
+    const searchNotDirectoryCommands = [
+      'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
+      'bun test tests/CLIJsonParseability.test.ts -t "package search directory|global package search directory failures"',
+      'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+    ];
 
     expect(localCommandsForStep("PackageResolver.test")).toEqual(
       expectedCommands,
@@ -198,6 +203,27 @@ describe("CI triage helper", () => {
         "check packed npm CLI package global search symlink JSON",
       ),
     ).toEqual(globalSearchDirectoryCommands.slice(0, 2));
+    expect(localCommandsForStep("BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY")).toEqual(
+      searchNotDirectoryCommands,
+    );
+    expect(
+      localCommandsForStep("package search directory is not a directory"),
+    ).toEqual(searchNotDirectoryCommands);
+    expect(
+      localCommandsForStep(
+        "check packed npm CLI package local search non-directory JSON",
+      ),
+    ).toEqual(searchNotDirectoryCommands);
+    expect(
+      localCommandsForStep(
+        "check packed npm CLI package workspace search non-directory JSON",
+      ),
+    ).toEqual(searchNotDirectoryCommands);
+    expect(
+      localCommandsForStep(
+        "check packed npm CLI package global search non-directory JSON",
+      ),
+    ).toEqual(searchNotDirectoryCommands);
     expect(localCommandsForStep("BPL_PACKAGE_IMPORT_INVALID")).toEqual(
       expectedCommands,
     );
@@ -1679,6 +1705,18 @@ describe("CI triage helper", () => {
                 },
               ],
             },
+            {
+              id: 64,
+              name: "Packed package search non-directory",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "check packed npm CLI package local search non-directory JSON",
+                  conclusion: "failure",
+                },
+              ],
+            },
           ],
         }),
       );
@@ -1732,6 +1770,15 @@ describe("CI triage helper", () => {
       );
       expect(globalSearchJob?.localCommands).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "global package search directory failures"',
+        'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
+      ]);
+
+      const searchNotDirectoryJob = report.summary.failedJobs.find(
+        (job) => job.name === "Packed package search non-directory",
+      );
+      expect(searchNotDirectoryJob?.localCommands).toEqual([
+        'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
+        'bun test tests/CLIJsonParseability.test.ts -t "package search directory|global package search directory failures"',
         'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
       ]);
     } finally {

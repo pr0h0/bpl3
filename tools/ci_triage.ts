@@ -164,6 +164,15 @@ const PACKAGE_GLOBAL_SEARCH_DIR_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+    "package search directory is not a directory",
+    "Global package directory path is not a directory",
+    "package .* search non-directory JSON",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_IMPORT_DOCS_SMOKE_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*package/import docs examples",
@@ -697,6 +706,18 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     STD_IMPORT_ISOLATION_STEP_PATTERN,
     'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+  ],
+  [
+    PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
+    'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
+  ],
+  [
+    PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package search directory|global package search directory failures"',
+  ],
+  [
+    PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
+    'bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"',
   ],
 ];
 
