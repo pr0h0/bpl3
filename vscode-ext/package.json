@@ -21,8 +21,9 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -b",
+    "compile:test": "tsc --project tsconfig.test.json",
     "watch": "tsc -b -w",
-    "test": "bun test ./src/test"
+    "test": "npm run compile:test && bun test ./src/test"
   },
   "devDependencies": {
     "@types/node": "^16.11.7",

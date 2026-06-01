@@ -26,5 +26,10 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["node_modules", "vscode-ext/node_modules", "vscode-ext/out"]
+  "exclude": [
+    "node_modules",
+    "vscode-ext/node_modules",
+    "vscode-ext/out",
+    "vscode-ext/src/test/bun-test.d.ts"
+  ]
 }
