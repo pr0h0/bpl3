@@ -563,6 +563,10 @@ the ModuleResolver constants so new resolver codes do not silently miss docs.
 Machine-readable CLI JSON is a tooling contract. Consumers should check both
 `schemaVersion` and `check`, handle `success: false` reports on stdout where a
 command documents JSON-mode validation failures, and ignore unknown fields.
+Tooling that wants to inventory stable failure codes can import
+`CLI_JSON_ERROR_CODE_LISTS` or the flattened `CLI_JSON_ERROR_CODES` from the
+CLI API; those exports are guarded for non-empty `BPL_*` entries without
+per-list duplicates.
 
 Backward-compatible additions may add optional fields, new array/object members,
 or new command-specific reports under the same `schemaVersion` when existing

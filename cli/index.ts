@@ -18,6 +18,11 @@ export {
 } from "./BinaryRunner";
 export { processFile, processFileAsync, processCode } from "./CompilationRunner";
 export { watchMode } from "./Watcher";
+export {
+  CLI_JSON_ERROR_CODE_LISTS,
+  CLI_JSON_ERROR_CODES,
+  type CliJsonErrorCodeList,
+} from "./JsonErrorCodes";
 
 // Completions
 export { getBashCompletionScript, getZshCompletionScript } from "./completions";
