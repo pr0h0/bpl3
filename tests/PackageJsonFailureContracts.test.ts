@@ -10,6 +10,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync, type SpawnSyncReturns } from "child_process";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
+import { PACKAGE_MANIFEST_JSON_ERROR_CODES } from "../compiler/middleend/PackageManager";
 
 const BPL_CLI = join(import.meta.dir, "..", "index.ts");
 
@@ -586,6 +587,62 @@ describe("Package JSON failure contracts", () => {
           expectedError: "Invalid package manifest 'main' field",
         },
         {
+          name: "invalid-metadata",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-metadata",
+                version: "1.0.0",
+                description: 42,
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_METADATA_INVALID",
+          expectedError: "Invalid package manifest 'description' field",
+        },
+        {
+          name: "invalid-exports",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-exports",
+                version: "1.0.0",
+                exports: ["../outside.bpl"],
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_EXPORTS_INVALID",
+          expectedError: "Invalid package manifest 'exports' field",
+        },
+        {
+          name: "invalid-keywords",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-keywords",
+                version: "1.0.0",
+                keywords: [42],
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_KEYWORDS_INVALID",
+          expectedError: "Invalid package manifest 'keywords' field",
+        },
+        {
+          name: "invalid-repository",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-repository",
+                version: "1.0.0",
+                repository: { type: "git" },
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID",
+          expectedError: "Invalid package manifest 'repository' field",
+        },
+        {
           name: "invalid-dependencies",
           setup: (context) =>
             writeFileSync(
@@ -599,7 +656,39 @@ describe("Package JSON failure contracts", () => {
           expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
           expectedError: "Invalid 'dependencies' package name",
         },
+        {
+          name: "invalid-scripts",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-scripts",
+                version: "1.0.0",
+                scripts: [],
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID",
+          expectedError: "Invalid 'scripts' field",
+        },
+        {
+          name: "invalid-bin",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-bin",
+                version: "1.0.0",
+                bin: [],
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+          expectedError: "Invalid 'bin' field",
+        },
       ];
+
+      expect(cases.map((testCase) => testCase.expectedCode).sort()).toEqual(
+        [...PACKAGE_MANIFEST_JSON_ERROR_CODES].sort(),
+      );
 
       for (const testCase of cases) {
         const context = cleanPackageRoot(tempDir, testCase.name);

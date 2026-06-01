@@ -11,6 +11,7 @@ import {
 import {
   PACKAGE_CACHE_JSON_ERROR_CODES,
   PACKAGE_INIT_JSON_ERROR_CODES,
+  PACKAGE_MANIFEST_JSON_ERROR_CODES,
   PACKAGE_UNINSTALL_JSON_ERROR_CODES,
 } from "../compiler/middleend/PackageManager";
 import {
@@ -240,7 +241,7 @@ describe("Markdown documentation", () => {
       "The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands",
       "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
       "bpl doctor packages --json",
-      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or PackageManager manifest-loading failures",
+      "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or the PackageManager manifest-loading failures documented in package management",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",
       "unsafe cache-root validation failures",
@@ -454,21 +455,14 @@ describe("Markdown documentation", () => {
     );
     const requiredSnippets = [
       "PackageManager manifest-loading failures",
-      "BPL_PACKAGE_MANIFEST_SYMLINK",
-      "BPL_PACKAGE_MANIFEST_NOT_FILE",
-      "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
-      "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
-      "BPL_PACKAGE_MANIFEST_NAME_MISSING",
-      "BPL_PACKAGE_MANIFEST_NAME_INVALID",
-      "BPL_PACKAGE_MANIFEST_VERSION_MISSING",
-      "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
-      "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
-      "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package manifest error codes\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of PACKAGE_MANIFEST_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 

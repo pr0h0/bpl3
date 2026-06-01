@@ -70,6 +70,60 @@ export const PACKAGE_CACHE_JSON_ERROR_CODES = [
   PACKAGE_CACHE_NAME_INVALID_CODE,
 ] as const;
 
+export const PACKAGE_MANIFEST_MISSING_CODE =
+  "BPL_PACKAGE_MANIFEST_MISSING";
+export const PACKAGE_MANIFEST_SYMLINK_CODE =
+  "BPL_PACKAGE_MANIFEST_SYMLINK";
+export const PACKAGE_MANIFEST_NOT_FILE_CODE =
+  "BPL_PACKAGE_MANIFEST_NOT_FILE";
+export const PACKAGE_MANIFEST_PARSE_ERROR_CODE =
+  "BPL_PACKAGE_MANIFEST_PARSE_ERROR";
+export const PACKAGE_MANIFEST_NOT_OBJECT_CODE =
+  "BPL_PACKAGE_MANIFEST_NOT_OBJECT";
+export const PACKAGE_MANIFEST_NAME_MISSING_CODE =
+  "BPL_PACKAGE_MANIFEST_NAME_MISSING";
+export const PACKAGE_MANIFEST_NAME_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_NAME_INVALID";
+export const PACKAGE_MANIFEST_VERSION_MISSING_CODE =
+  "BPL_PACKAGE_MANIFEST_VERSION_MISSING";
+export const PACKAGE_MANIFEST_VERSION_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_VERSION_INVALID";
+export const PACKAGE_MANIFEST_METADATA_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_METADATA_INVALID";
+export const PACKAGE_MANIFEST_MAIN_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_MAIN_INVALID";
+export const PACKAGE_MANIFEST_EXPORTS_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_EXPORTS_INVALID";
+export const PACKAGE_MANIFEST_KEYWORDS_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_KEYWORDS_INVALID";
+export const PACKAGE_MANIFEST_REPOSITORY_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID";
+export const PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID";
+export const PACKAGE_MANIFEST_SCRIPTS_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID";
+export const PACKAGE_MANIFEST_BIN_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_BIN_INVALID";
+export const PACKAGE_MANIFEST_JSON_ERROR_CODES = [
+  PACKAGE_MANIFEST_MISSING_CODE,
+  PACKAGE_MANIFEST_SYMLINK_CODE,
+  PACKAGE_MANIFEST_NOT_FILE_CODE,
+  PACKAGE_MANIFEST_PARSE_ERROR_CODE,
+  PACKAGE_MANIFEST_NOT_OBJECT_CODE,
+  PACKAGE_MANIFEST_NAME_MISSING_CODE,
+  PACKAGE_MANIFEST_NAME_INVALID_CODE,
+  PACKAGE_MANIFEST_VERSION_MISSING_CODE,
+  PACKAGE_MANIFEST_VERSION_INVALID_CODE,
+  PACKAGE_MANIFEST_METADATA_INVALID_CODE,
+  PACKAGE_MANIFEST_MAIN_INVALID_CODE,
+  PACKAGE_MANIFEST_EXPORTS_INVALID_CODE,
+  PACKAGE_MANIFEST_KEYWORDS_INVALID_CODE,
+  PACKAGE_MANIFEST_REPOSITORY_INVALID_CODE,
+  PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE,
+  PACKAGE_MANIFEST_SCRIPTS_INVALID_CODE,
+  PACKAGE_MANIFEST_BIN_INVALID_CODE,
+] as const;
+
 export interface PackageManifest {
   name: string;
   version: string;
@@ -1472,7 +1526,7 @@ export class PackageManager {
         `No bpl.json found in ${packageDir}`,
         "Run 'bpl init' to create a new package.",
         location,
-        "BPL_PACKAGE_MANIFEST_MISSING",
+        PACKAGE_MANIFEST_MISSING_CODE,
       );
     }
 
@@ -1482,7 +1536,7 @@ export class PackageManager {
           "Invalid package manifest path: symbolic link",
           "bpl.json must be a regular file, not a symbolic link.",
           location,
-          "BPL_PACKAGE_MANIFEST_SYMLINK",
+          PACKAGE_MANIFEST_SYMLINK_CODE,
         );
       }
 
@@ -1491,7 +1545,7 @@ export class PackageManager {
           "Invalid package manifest path",
           "bpl.json must be a regular file.",
           location,
-          "BPL_PACKAGE_MANIFEST_NOT_FILE",
+          PACKAGE_MANIFEST_NOT_FILE_CODE,
         );
       }
 
@@ -1503,7 +1557,7 @@ export class PackageManager {
           "Invalid package manifest",
           "bpl.json must contain a JSON object.",
           location,
-          "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
+          PACKAGE_MANIFEST_NOT_OBJECT_CODE,
         );
       }
 
@@ -1513,7 +1567,7 @@ export class PackageManager {
           "Package manifest missing 'name' field",
           "Add a 'name' field to bpl.json.",
           location,
-          "BPL_PACKAGE_MANIFEST_NAME_MISSING",
+          PACKAGE_MANIFEST_NAME_MISSING_CODE,
         );
       }
       if (typeof manifest.name !== "string") {
@@ -1521,7 +1575,7 @@ export class PackageManager {
           "Invalid package manifest 'name' field",
           "'name' must be a non-empty string.",
           location,
-          "BPL_PACKAGE_MANIFEST_NAME_INVALID",
+          PACKAGE_MANIFEST_NAME_INVALID_CODE,
         );
       }
       if (!manifest.version) {
@@ -1529,7 +1583,7 @@ export class PackageManager {
           "Package manifest missing 'version' field",
           "Add a 'version' field to bpl.json (e.g., '0.1.0').",
           location,
-          "BPL_PACKAGE_MANIFEST_VERSION_MISSING",
+          PACKAGE_MANIFEST_VERSION_MISSING_CODE,
         );
       }
       if (typeof manifest.version !== "string") {
@@ -1537,7 +1591,7 @@ export class PackageManager {
           "Invalid package manifest 'version' field",
           "'version' must be a semantic version string.",
           location,
-          "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
+          PACKAGE_MANIFEST_VERSION_INVALID_CODE,
         );
       }
 
@@ -1547,14 +1601,14 @@ export class PackageManager {
           `Invalid version format: ${manifest.version} (expected: X.Y.Z)`,
           "Version must be in semantic versioning format (Major.Minor.Patch).",
           location,
-          "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
+          PACKAGE_MANIFEST_VERSION_INVALID_CODE,
         );
       }
 
       validatePackageName(
         manifest.name,
         location,
-        "BPL_PACKAGE_MANIFEST_NAME_INVALID",
+        PACKAGE_MANIFEST_NAME_INVALID_CODE,
       );
 
       // Validate dependencies, scripts, and bin
@@ -1569,7 +1623,7 @@ export class PackageManager {
           "Invalid 'scripts' field",
           "'scripts' must be an object mapping script names to commands.",
           location,
-          "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID",
+          PACKAGE_MANIFEST_SCRIPTS_INVALID_CODE,
         );
       }
       this.validateManifestScriptEntries(manifest, location);
@@ -1581,7 +1635,7 @@ export class PackageManager {
           "Invalid 'bin' field",
           "'bin' must be an object mapping command names to executable paths.",
           location,
-          "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+          PACKAGE_MANIFEST_BIN_INVALID_CODE,
         );
       }
       this.validateManifestBinEntries(manifest, packageDir, location);
@@ -1593,7 +1647,7 @@ export class PackageManager {
         `Failed to load package manifest: ${e instanceof Error ? e.message : String(e)}`,
         "Check that bpl.json is valid JSON.",
         location,
-        "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+        PACKAGE_MANIFEST_PARSE_ERROR_CODE,
       );
     }
   }
@@ -1608,7 +1662,7 @@ export class PackageManager {
           `Invalid package manifest '${field}' field`,
           `'${field}' must be a string when present.`,
           location,
-          "BPL_PACKAGE_MANIFEST_METADATA_INVALID",
+          PACKAGE_MANIFEST_METADATA_INVALID_CODE,
         );
       }
     }
@@ -1622,7 +1676,7 @@ export class PackageManager {
           "Invalid package manifest 'main' field",
           "'main' must be a package-relative path without empty, '.', or '..' segments.",
           location,
-          "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
+          PACKAGE_MANIFEST_MAIN_INVALID_CODE,
         );
       }
     }
@@ -1640,7 +1694,7 @@ export class PackageManager {
           "Invalid package manifest 'exports' field",
           "'exports' must be an array of package-relative paths without empty, '.', or '..' segments.",
           location,
-          "BPL_PACKAGE_MANIFEST_EXPORTS_INVALID",
+          PACKAGE_MANIFEST_EXPORTS_INVALID_CODE,
         );
       }
     }
@@ -1654,7 +1708,7 @@ export class PackageManager {
           "Invalid package manifest 'keywords' field",
           "'keywords' must be an array of strings.",
           location,
-          "BPL_PACKAGE_MANIFEST_KEYWORDS_INVALID",
+          PACKAGE_MANIFEST_KEYWORDS_INVALID_CODE,
         );
       }
     }
@@ -1671,7 +1725,7 @@ export class PackageManager {
           "Invalid package manifest 'repository' field",
           "'repository' must contain string 'type' and 'url' fields.",
           location,
-          "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID",
+          PACKAGE_MANIFEST_REPOSITORY_INVALID_CODE,
         );
       }
     }
@@ -1690,7 +1744,7 @@ export class PackageManager {
           `Invalid '${field}' field`,
           `'${field}' must be an object mapping package names to version or source strings.`,
           location,
-          "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+          PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE,
         );
       }
 
@@ -1700,7 +1754,7 @@ export class PackageManager {
             `Invalid '${field}' package name: ${packageName}`,
             "Use lowercase package names with digits and hyphens only.",
             location,
-            "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+            PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE,
           );
         }
 
@@ -1709,7 +1763,7 @@ export class PackageManager {
             `Invalid '${field}' source for ${packageName}`,
             "Use a non-empty version, range, package name, or file source string.",
             location,
-            "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+            PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE,
           );
         }
       }
@@ -1732,7 +1786,7 @@ export class PackageManager {
           "Invalid 'scripts' field",
           "'scripts' entries must map non-empty script names to command strings.",
           location,
-          "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID",
+          PACKAGE_MANIFEST_SCRIPTS_INVALID_CODE,
         );
       }
     }
@@ -1751,7 +1805,7 @@ export class PackageManager {
           `Invalid 'bin' command: ${commandName}`,
           "Use a plain command name without path separators.",
           location,
-          "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+          PACKAGE_MANIFEST_BIN_INVALID_CODE,
         );
       }
 
@@ -1763,7 +1817,7 @@ export class PackageManager {
           `Invalid 'bin' path for ${commandName}: ${String(executablePath)}`,
           "Use a package-relative executable path without empty, '.', or '..' segments.",
           location,
-          "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+          PACKAGE_MANIFEST_BIN_INVALID_CODE,
         );
       }
 
@@ -1776,7 +1830,7 @@ export class PackageManager {
           `Invalid 'bin' path for ${commandName}: ${executablePath}`,
           "Use a package-relative executable path inside the package root.",
           location,
-          "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+          PACKAGE_MANIFEST_BIN_INVALID_CODE,
         );
       }
     }
