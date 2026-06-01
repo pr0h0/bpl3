@@ -939,20 +939,6 @@ export function checkVariableDecl(
 
   decl.resolvedType = declaredType;
 
-  // Check if type is void (and not pointer)
-  if (
-    declaredType.kind === "BasicType" &&
-    declaredType.name === "void" &&
-    declaredType.pointerDepth === 0
-  ) {
-    throw new CompilerError(
-      `Variable '${decl.name}' cannot be of type 'void'`,
-      "Variables cannot be void. Use '*void' for void pointers.",
-      decl.location,
-      VOID_TYPE_INVALID_CODE,
-    );
-  }
-
   // Check for shadowing in current scope
   const existing = this.currentScope.getInCurrentScope(decl.name as string);
   if (existing) {
