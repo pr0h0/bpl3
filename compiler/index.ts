@@ -14,6 +14,10 @@ import * as path from "path";
 
 import { resolveBplPath } from "./common/PathResolver";
 import { CodeGenerator } from "./backend/CodeGenerator";
+import {
+  getUnsupportedCodegenTargetMessage,
+  isSupportedCodegenTarget,
+} from "./backend/codegen/BaseCodeGenerator";
 import { ASTPrinter } from "./common/ASTPrinter";
 import { CompilerError } from "./common/CompilerError";
 import { compilerLog } from "./common/Logger";
@@ -997,6 +1001,11 @@ export class Compiler {
       return this.createOptionError(
         `Invalid optimization level "${optimizationLevel}". Use one of: 0, 1, 2, 3.`,
       );
+    }
+
+    const target = this.options.target;
+    if (target !== undefined && !isSupportedCodegenTarget(target)) {
+      return this.createOptionError(getUnsupportedCodegenTargetMessage(target));
     }
 
     const jobs = this.options.jobs;

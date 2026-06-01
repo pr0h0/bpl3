@@ -54,4 +54,32 @@ describe("Compiler options", () => {
     expect(result.success).toBe(false);
     expect(result.errors?.[0]?.message).toContain('Invalid jobs count "0"');
   });
+
+  it("rejects unsupported direct target triples before compiling", () => {
+    const compiler = new Compiler({
+      filePath: "test.bpl",
+      target: "mips64-unknown-bpl",
+    });
+
+    const result = compiler.compile("frame main() ret int { return 0; }");
+
+    expect(result.success).toBe(false);
+    expect(result.errors?.[0]?.message).toContain(
+      'Unsupported target triple "mips64-unknown-bpl"',
+    );
+  });
+
+  it("rejects empty direct target triples before compiling", () => {
+    const compiler = new Compiler({
+      filePath: "test.bpl",
+      target: "",
+    });
+
+    const result = compiler.compile("frame main() ret int { return 0; }");
+
+    expect(result.success).toBe(false);
+    expect(result.errors?.[0]?.message).toContain(
+      'Unsupported target triple ""',
+    );
+  });
 });
