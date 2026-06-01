@@ -56,6 +56,7 @@ export const PACKAGE_RESOLUTION_FAILURE_CODES = [
   "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
   "BPL_PACKAGE_ROOT_CASE_MISMATCH",
   "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+  "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
   "BPL_PACKAGE_ROOT_SYMLINK",
   "BPL_PACKAGE_ROOT_NOT_DIRECTORY",
   "BPL_PACKAGE_MANIFEST_MISSING",
@@ -271,6 +272,12 @@ export function getPackageResolutionFailureCode(
       ) {
         return "BPL_PACKAGE_SEARCH_DIR_SYMLINK";
       }
+      if (
+        message.includes("package search directory is not a directory") ||
+        isGlobalPackageDirectoryNotDirectoryFailure(message)
+      ) {
+        return "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY";
+      }
       if (message.includes("package root is a symbolic link")) {
         return "BPL_PACKAGE_ROOT_SYMLINK";
       }
@@ -346,6 +353,11 @@ function resolvePackageFromBaseDir(
     return null;
   }
   if (baseStats && !baseStats.isDirectory()) {
+    failOnNonDirectoryPackageSearchDirectory(
+      baseDir,
+      trace,
+      source === "global" ? "Global package directory" : undefined,
+    );
     return null;
   }
 
@@ -713,6 +725,24 @@ function failOnSymlinkedPackageSearchDirectory(
 
 function isGlobalPackageDirectorySymlinkFailure(message: string): boolean {
   return message.includes("Global package directory path is a symbolic link");
+}
+
+function failOnNonDirectoryPackageSearchDirectory(
+  searchDirectory: string,
+  trace: PackageResolutionTrace,
+  label?: string,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY";
+  if (label) {
+    trace.failureMessage = `${label} path is not a directory: ${searchDirectory}`;
+    return;
+  }
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory is not a directory.`;
+}
+
+function isGlobalPackageDirectoryNotDirectoryFailure(message: string): boolean {
+  return message.includes("Global package directory path is not a directory");
 }
 
 function failOnCaseMismatchedPackageSearchDirectory(

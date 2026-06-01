@@ -180,8 +180,8 @@ describe("PackageResolver", () => {
     expect(details.trace.searchedPaths).not.toContain(lowerPackageDir);
   });
 
-  test("does not throw when the global package directory path is a file", () => {
-    const appDir = path.join(tempDir, "app");
+  test("rejects non-directory global package search directories", () => {
+    const appDir = path.join(tempDir, "global-search-dir-file-app");
     const globalPackageDir = path.join(tempDir, "global-packages");
     fs.mkdirSync(appDir);
     fs.writeFileSync(globalPackageDir, "not a directory");
@@ -191,7 +191,14 @@ describe("PackageResolver", () => {
     });
 
     expect(details.result).toBeNull();
-    expect(details.trace.failureReason).toBe("package-not-found");
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe(
+      "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+    );
+    expect(details.trace.failureMessage).toContain(
+      "Global package directory path is not a directory",
+    );
+    expect(details.trace.failureMessage).toContain(globalPackageDir);
   });
 
   test("rejects invalid package import path segments before searching", () => {
@@ -755,6 +762,80 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("missing bpl.json");
     expect(details.trace.failureMessage).toContain(path.join(packageRoot, "bpl.json"));
+  });
+
+  test("does not fall back to workspace or global packages after non-directory local package search directories", () => {
+    const appDir = path.join(tempDir, "non-dir-local-search-app");
+    const sourceDir = path.join(appDir, "src");
+    const modulesPath = path.join(appDir, "bpl_modules");
+    const workspacePackageDir = path.join(appDir, "packages", "math");
+    const globalPackageDir = path.join(tempDir, "non-dir-local-global");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(workspacePackageDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+    fs.writeFileSync(modulesPath, "not a package search directory");
+
+    for (const [packageDir, version] of [
+      [workspacePackageDir, "1.0.0"],
+      [globalVersionedPackageDir, "9.0.0"],
+    ] as const) {
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify({ name: "math", version, main: "index.bpl" }),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    }
+
+    const details = resolvePackageImport("math", sourceDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe(
+      "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+    );
+    expect(details.trace.failureMessage).toContain(
+      "package search directory is not a directory",
+    );
+    expect(details.trace.failureMessage).toContain(modulesPath);
+    expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
+    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+  });
+
+  test("does not fall back to global packages after non-directory workspace package search directories", () => {
+    const appDir = path.join(tempDir, "non-dir-workspace-search-app");
+    const sourceDir = path.join(appDir, "src");
+    const workspaceSearchPath = path.join(appDir, "packages");
+    const globalPackageDir = path.join(tempDir, "non-dir-workspace-global");
+    const globalVersionedPackageDir = path.join(globalPackageDir, "math-9.0.0");
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(globalVersionedPackageDir, { recursive: true });
+    fs.writeFileSync(workspaceSearchPath, "not a package search directory");
+    fs.writeFileSync(
+      path.join(globalVersionedPackageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "9.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(
+      path.join(globalVersionedPackageDir, "index.bpl"),
+      "export add;",
+    );
+
+    const details = resolvePackageImport("math", sourceDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe(
+      "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+    );
+    expect(details.trace.failureMessage).toContain(
+      "package search directory is not a directory",
+    );
+    expect(details.trace.failureMessage).toContain(workspaceSearchPath);
+    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
   });
 
   test("does not follow symlinked local package search directories", () => {

@@ -451,8 +451,9 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package import paths cannot contain empty, `.` or `..` segments",
       "The resolver does not follow symlinked package search directories, package roots, manifests, source parent directories, entry files, or subpath entries",
-      "Symlinked package search directories such as `bpl_modules/`, workspace `packages/`, and the global package directory are rejected before child package candidates are probed",
+      "Symlinked or non-directory package search directories such as `bpl_modules/`, workspace `packages/`, and the global package directory are rejected before child package candidates are probed",
       "Nested package source paths such as `src/index.bpl` and `features/add.bpl` reject symlinked parent directories before the child file is read",
+      "Symlinked or non-directory package search directories block same-name fallback to lower-priority workspace or global packages",
       "Existing malformed package roots, including symlinked roots, non-directory package paths, and roots missing `bpl.json`, block same-name workspace/global fallback",
       "Symlinked package entrypoint and subpath candidates also block lower-priority `.x` fallbacks",
       "including package directory `index.bpl` candidates before `index.x`",
@@ -868,12 +869,15 @@ describe("Markdown documentation", () => {
       "docs/39-compiler-options.md",
     ]);
     const requiredSnippets = [
-      "Symlinked package search directories stop package resolution instead of falling through to lower-priority package roots",
+      "Symlinked and non-directory package search directories stop package resolution instead of falling through to lower-priority package roots",
       "a symlinked local `bpl_modules/` stops resolution before workspace `packages/`",
-      "a symlinked workspace `packages/` stops resolution before global packages",
+      "a non-directory local `bpl_modules/` stops resolution before workspace and global packages",
+      "a symlinked or non-directory workspace `packages/` stops resolution before global packages",
       "`bpl check --json` keeps package search-directory safety failures in the per-file `diagnostics` array",
       "Local `bpl_modules/` and workspace `packages/` symlink failures report `package search directory is a symbolic link`",
       "global package cache symlinks report `Global package directory path is a symbolic link`",
+      "Local `bpl_modules/` and workspace `packages/` file or other non-directory failures report `package search directory is not a directory`",
+      "global package cache non-directory failures report `Global package directory path is not a directory`",
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -917,6 +921,12 @@ describe("Markdown documentation", () => {
         packageTrace(
           "manifest-invalid",
           "package search directory is a symbolic link",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "package search directory is not a directory",
         ),
       ),
       getPackageResolutionFailureCode(

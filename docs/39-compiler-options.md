@@ -518,7 +518,10 @@ backward compatibility, and a `diagnostics` array with source file locations.
 per-file `diagnostics` array with source locations and `success: false`. Local
 `bpl_modules/` and workspace `packages/` symlink failures report `package search
 directory is a symbolic link`; global package cache symlinks report `Global
-package directory path is a symbolic link`.
+package directory path is a symbolic link`. Local `bpl_modules/` and workspace
+`packages/` file or other non-directory failures report `package search
+directory is not a directory`; global package cache non-directory failures
+report `Global package directory path is not a directory`.
 Package source-safety diagnostics stay in the same `bpl check --json` shape
 after package root resolution: unsafe `main` values report `unsafe entrypoint`,
 symlinked entrypoint files report `entrypoint resolves to a symbolic link
@@ -541,6 +544,7 @@ classify a package import failure, the diagnostic includes one of these stable
 - `BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH`
 - `BPL_PACKAGE_ROOT_CASE_MISMATCH`
 - `BPL_PACKAGE_SEARCH_DIR_SYMLINK`
+- `BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`
 - `BPL_PACKAGE_ROOT_SYMLINK`
 - `BPL_PACKAGE_ROOT_NOT_DIRECTORY`
 - `BPL_PACKAGE_MANIFEST_MISSING`

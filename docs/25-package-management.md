@@ -408,11 +408,13 @@ subpath source candidates must also match filesystem casing exactly. Case-only
 mismatches are rejected with diagnostics that include the requested path and the
 actual path, so case-insensitive development machines cannot silently accept an
 import that fails on Linux.
-Symlinked package search directories stop package resolution instead of falling
-through to lower-priority package roots: a symlinked local `bpl_modules/` stops
-resolution before workspace `packages/`, and a symlinked workspace `packages/`
-stops resolution before global packages. A symlinked global package directory
-is rejected before global package candidates are listed.
+Symlinked and non-directory package search directories stop package resolution
+instead of falling through to lower-priority package roots: a symlinked local
+`bpl_modules/` stops resolution before workspace `packages/`, a non-directory
+local `bpl_modules/` stops resolution before workspace and global packages, and
+a symlinked or non-directory workspace `packages/` stops resolution before
+global packages. A symlinked or non-directory global package directory is
+rejected before global package candidates are listed.
 Existing malformed package roots are terminal metadata failures, so a blocked
 local package root cannot fall through to a same-name workspace or global
 package. This includes symlinked package roots, non-directory package paths, and
@@ -436,6 +438,7 @@ failures use `BPL_PACKAGE_ENTRYPOINT_UNSAFE`,
 `BPL_PACKAGE_ENTRYPOINT_NOT_FOUND`, `BPL_PACKAGE_SUBPATH_SYMLINK`,
 `BPL_PACKAGE_SUBPATH_CASE_MISMATCH`, and `BPL_PACKAGE_SUBPATH_NOT_FOUND`.
 Package search and metadata failures use `BPL_PACKAGE_SEARCH_DIR_SYMLINK`,
+`BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`,
 `BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH`, `BPL_PACKAGE_ROOT_SYMLINK`,
 `BPL_PACKAGE_ROOT_NOT_DIRECTORY`, `BPL_PACKAGE_ROOT_CASE_MISMATCH`,
 `BPL_PACKAGE_MANIFEST_MISSING`, `BPL_PACKAGE_MANIFEST_SYMLINK`,
