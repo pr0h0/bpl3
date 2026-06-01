@@ -3052,6 +3052,65 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports return type mismatch failures in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "return_type_mismatch.bpl");
+    const outputFile = path.join(tempDir, "return-type-mismatch-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "frame main() ret int {",
+        '    return "wrong";',
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile, {
+      line: 2,
+      column: 5,
+    });
+    expect(checkDiagnostic.code).toBe("BPL_RETURN_TYPE_MISMATCH");
+    expect(checkDiagnostic.source?.preview).toContain('return "wrong"');
+    expect(checkDiagnostic.message).toContain(
+      "Return type mismatch: expected i32, got *i8",
+    );
+    expect(checkDiagnostic.hint).toContain(
+      "Ensure the returned value matches the function's return type.",
+    );
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [{ code: "BPL_RETURN_TYPE_MISMATCH" }],
+    });
+    expect(buildReport.diagnostics).toHaveLength(1);
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Return type mismatch: expected i32, got *i8",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Ensure the returned value matches the function's return type.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
