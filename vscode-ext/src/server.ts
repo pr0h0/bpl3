@@ -6,8 +6,6 @@ import {
   CompletionItem,
   CompletionItemKind,
   createConnection,
-  Diagnostic,
-  DiagnosticSeverity,
   DidChangeConfigurationNotification,
   Hover,
   Location,
@@ -25,10 +23,9 @@ import {
 
 // Compiler integration
 import * as AST from "../../compiler/common/AST";
-import { CompilerError } from "../../compiler/common/CompilerError";
 import { Formatter } from "../../compiler/formatter/Formatter";
 import { Parser } from "../../compiler/frontend/Parser";
-import { TypeChecker } from "../../compiler/middleend/TypeChecker";
+import type { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
 // Symbol index and module resolution services
 import { SymbolIndex, InlayHintProvider, debugLog } from "./services";
@@ -51,6 +48,7 @@ import { TypeHierarchyProvider } from "./services/TypeHierarchyProvider";
 import { WorkspaceSymbolProvider } from "./services/WorkspaceSymbolProvider";
 import { CodeLensProvider } from "./services/CodeLensProvider";
 import { DocumentLinkProvider } from "./services/DocumentLinkProvider";
+import { DiagnosticsProvider } from "./services/DiagnosticsProvider";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -61,6 +59,11 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 // Global symbol index
 const symbolIndex = new SymbolIndex();
+const diagnosticsProvider = new DiagnosticsProvider(
+  symbolIndex,
+  (filePath, error) =>
+    connection.console.error(`Failed to index ${filePath}: ${error}`),
+);
 
 // AST-based resolver (uses compiler's parser)
 const astResolver = new ASTResolver(symbolIndex);
@@ -533,104 +536,14 @@ function _shouldSuppressImportError(
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
-  const maxNumberOfProblems = settings?.maxNumberOfProblems || 1000;
-
-  const text = textDocument.getText();
-  const filePath = fileURLToPath(textDocument.uri);
-  const currentDir = path.dirname(filePath);
-
-  if (settings?.bplHome) {
-    process.env.BPL_HOME = settings.bplHome;
-    symbolIndex.setBplHome(settings.bplHome);
-  } else {
-    // Auto-detect BPL_HOME if not set
-    const libDir = findWorkspaceLibDir(currentDir);
-    if (libDir) {
-      process.env.BPL_HOME = path.dirname(libDir);
-      symbolIndex.setBplHome(path.dirname(libDir));
-    }
+  const result = diagnosticsProvider.analyze(textDocument, settings);
+  if (result.analysis) {
+    documentAnalysis.set(textDocument.uri, result.analysis);
   }
-
-  // Index symbols from this file and its imports
-  try {
-    symbolIndex.indexFile(filePath, true);
-  } catch (e) {
-    // Silently fail on indexing errors
-    connection.console.error(`Failed to index ${filePath}: ${e}`);
-  }
-
-  const diagnostics: Diagnostic[] = [];
-  try {
-    // Parse to AST
-    const parser = new Parser(text, filePath);
-    const program: AST.Program = parser.parse();
-
-    // Type check with full import resolution for accuracy matching CLI compiler
-    // TypeChecker now collects all errors instead of throwing
-    const checker = new TypeChecker({
-      skipImportResolution: false,
-      collectAllErrors: true,
-    });
-
-    checker.checkProgram(program);
-
-    // Store analysis result
-    documentAnalysis.set(textDocument.uri, { program, checker });
-
-    // Collect all errors from the type checker - report them as-is
-    // No filtering: with import resolution enabled, errors are accurate
-    const errors = checker.getErrors();
-    for (const err of errors) {
-      diagnostics.push(compilerErrorToDiagnostic(err, textDocument));
-    }
-  } catch (e: any) {
-    // Handle parse errors or unexpected errors
-    if (e && e instanceof CompilerError) {
-      diagnostics.push(compilerErrorToDiagnostic(e, textDocument));
-    } else {
-      diagnostics.push({
-        severity: DiagnosticSeverity.Error,
-        range: Range.create(0, 0, 0, 1),
-        message: String(e?.message || e),
-        source: "bpl-lsp",
-      });
-    }
-  }
-
-  // Cap diagnostics if needed
-  const limited = diagnostics.slice(0, maxNumberOfProblems);
-  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics: limited });
-}
-
-function compilerErrorToDiagnostic(
-  err: CompilerError,
-  doc: TextDocument,
-): Diagnostic {
-  const start = clampPosition(
-    doc,
-    err.location.startLine,
-    err.location.startColumn,
-  );
-  const end = clampPosition(
-    doc,
-    err.location.endLine ?? err.location.startLine,
-    err.location.endColumn ?? err.location.startColumn + 1,
-  );
-  return {
-    severity: DiagnosticSeverity.Error,
-    range: Range.create(start, end),
-    message: `${err.message}${err.hint ? `\nHint: ${err.hint}` : ""}`,
-    source: "bpl-lsp",
-  };
-}
-
-function clampPosition(doc: TextDocument, line: number, character: number) {
-  const text = doc.getText();
-  const lines = text.split(/\r?\n/);
-  const l = Math.max(0, Math.min(lines.length - 1, (line ?? 1) - 1));
-  const maxChar = lines[l]?.length ?? 0;
-  const c = Math.max(0, Math.min(maxChar, (character ?? 1) - 1));
-  return { line: l, character: c };
+  connection.sendDiagnostics({
+    uri: textDocument.uri,
+    diagnostics: result.diagnostics,
+  });
 }
 
 // Formatting: full document only; no on-type formatting

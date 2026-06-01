@@ -157,7 +157,7 @@ export class SymbolIndex {
 
               this.indexFile(resolved.filePath, true);
             } else {
-              console.warn(
+              debugLog(
                 `[SymbolIndex] Failed to resolve "${importStmt.source}" from ${filePath}`,
               );
             }
