@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Bindgen JSON Validation Code List** - `bpl bindgen <header> --json`
+  validation codes now expose a shared constant list, and MarkdownDocs checks
+  the bindgen JSON documentation contract against that list.
 - **Docs JSON Validation Code List** - `bpl docs <file> --json` validation
   codes now expose a shared constant list, and MarkdownDocs checks the
   documentation contract against that list.

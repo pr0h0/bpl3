@@ -31,6 +31,7 @@ import {
   BUILD_OUTPUT_PARENT_SYMLINK_CODE,
   BUILD_OUTPUT_SYMLINK_CODE,
 } from "../cli/CompilationRunner";
+import { BINDGEN_JSON_ERROR_CODES } from "../cli/commands/bindgen";
 import { COMPLETION_SHELL_UNSUPPORTED_CODE } from "../cli/commands/completion";
 import {
   DOCTOR_SCOPE_UNKNOWN_CODE,
@@ -651,22 +652,14 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Bindgen JSON reports",
       'check: "bindgen"',
-      "BPL_BINDGEN_HEADER_NOT_FOUND",
-      "BPL_BINDGEN_HEADER_SYMLINK",
-      "BPL_BINDGEN_HEADER_NOT_FILE",
-      "BPL_BINDGEN_HEADER_PARENT_SYMLINK",
-      "BPL_BINDGEN_OUTPUT_SYMLINK",
-      "BPL_BINDGEN_OUTPUT_DIRECTORY",
-      "BPL_BINDGEN_OUTPUT_NOT_FILE",
-      "BPL_BINDGEN_OUTPUT_PARENT_NOT_FOUND",
-      "BPL_BINDGEN_OUTPUT_PARENT_SYMLINK",
-      "BPL_BINDGEN_OUTPUT_PARENT_NOT_DIRECTORY",
-      "BPL_BINDGEN_FAILED",
       "bun test tests/CLI.test.ts -t \"bindgen success and validation failures as JSON\"",
     ];
 
     for (const snippet of requiredSnippets) {
       expect(combinedDocs).toContain(snippet.replace(/\s+/g, " "));
+    }
+    for (const code of BINDGEN_JSON_ERROR_CODES) {
+      expect(combinedDocs).toContain(code);
     }
   });
 
