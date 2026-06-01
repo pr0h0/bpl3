@@ -572,6 +572,23 @@ const WASM_RUNTIME_FAILURE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PLAYGROUND_BROWSER_WASM_STEP_PATTERN = new RegExp(
+  [
+    "PlaygroundBrowserWasmRuntime\\.test",
+    "PlaygroundWasmHostAdapter\\.test",
+    "PlaygroundStaticAssets\\.test",
+    "WasmHostImportContract\\.test",
+    "BplBrowserCompiler\\.compileToHostedWasm",
+    "BplWasmHostAdapter\\.runHostedWasmInBrowser",
+    "BPL browser wasm runtime script must load before app\\.js",
+    "BPL wasm host adapter script must load before app\\.js",
+    "Browser-only BPL compilation is not available",
+    "Browser BPL compiler: unavailable",
+    "playground wasm browser",
+    "browser wasm runtime",
+  ].join("|"),
+  "i",
+);
 const SANITIZER_RUNTIME_STEP_PATTERN = new RegExp(
   [
     "Run sanitizer-backed runtime tests",
@@ -691,6 +708,12 @@ const FUZZ_ARTIFACT_REPRO_STEP_PATTERN = new RegExp(
 );
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    PLAYGROUND_BROWSER_WASM_STEP_PATTERN,
+    "bun test tests/PlaygroundBrowserWasmRuntime.test.ts tests/PlaygroundWasmHostAdapter.test.ts tests/PlaygroundStaticAssets.test.ts tests/WasmHostImportContract.test.ts",
+  ],
+  [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run test:wasm"],
+  [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run check"],
   [
     FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
     "bun run fuzz:repro -- fuzz/crashes",

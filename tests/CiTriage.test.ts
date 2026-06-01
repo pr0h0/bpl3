@@ -994,6 +994,31 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps playground browser wasm failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/PlaygroundBrowserWasmRuntime.test.ts tests/PlaygroundWasmHostAdapter.test.ts tests/PlaygroundStaticAssets.test.ts tests/WasmHostImportContract.test.ts",
+      "bun run test:wasm",
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("PlaygroundBrowserWasmRuntime.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("BplBrowserCompiler.compileToHostedWasm missing"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "BplWasmHostAdapter.runHostedWasmInBrowser is not a function",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "BPL browser wasm runtime script must load before app.js",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps sanitizer runtime failures to focused repro commands", () => {
     const expectedCommands = [
       "bun run test:sanitizers",
@@ -1676,6 +1701,69 @@ describe("CI triage helper", () => {
         "bun run test:wasm",
         "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
         "bun index.ts doctor --json",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints playground browser wasm repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-browser-wasm-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 58,
+              name: "Playground wasm browser contracts",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/58",
+              steps: [
+                {
+                  name: "PlaygroundBrowserWasmRuntime.test BplBrowserCompiler.compileToHostedWasm missing",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs).toHaveLength(1);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/PlaygroundBrowserWasmRuntime.test.ts tests/PlaygroundWasmHostAdapter.test.ts tests/PlaygroundStaticAssets.test.ts tests/WasmHostImportContract.test.ts",
+        "bun run test:wasm",
+        "bun run check",
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
