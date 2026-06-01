@@ -30,10 +30,12 @@ function formatSymbolKind(kind: SymbolKind): string {
 
 export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
 export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
+export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
+  GENERIC_ARITY_MISMATCH_CODE,
 ] as const;
 
 /**
@@ -160,6 +162,7 @@ export abstract class TypeCheckerBase {
               `Generic type '${type.name}' expects ${genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
               "Check generic argument count.",
               type.location,
+              GENERIC_ARITY_MISMATCH_CODE,
             );
           }
         }
@@ -300,6 +303,7 @@ export abstract class TypeCheckerBase {
                 `Generic alias '${type.name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
                 "Check generic argument count.",
                 type.location,
+                GENERIC_ARITY_MISMATCH_CODE,
               );
             }
 
