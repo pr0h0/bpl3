@@ -56,6 +56,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Helper CLI Inline Value Docs** - README and release/correctness docs now
   show inline helper option forms and focused tests for malformed inline usage
   diagnostics.
+- **CI-Safe Runner Inline Diagnostics** - `bun tools/test_ci.ts` now rejects
+  malformed flag values such as `--json=true`, `--list=true`,
+  `--dry-run=true`, and `--help=true` as status-2 usage errors before planning
+  or running the CI-safe suite.
 - **Release Manifest Help** - `bun tools/release_manifest.ts --help` now
   prints usage without writing release artifacts or running `npm pack`, and
   tests cover flag-looking values after `--out` and `--repo-root`.

@@ -145,6 +145,51 @@ describe("CI-safe test runner", () => {
     expect(unknown.stderr).toContain("Unknown option '--unknown'");
   });
 
+  test("keeps CLI list, dry-run, and json planning modes non-executing", () => {
+    for (const arg of ["--list", "--dry-run"] as const) {
+      const result = spawnSync("bun", ["tools/test_ci.ts", arg], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("# Build runtime support");
+      expect(result.stdout).toContain("bun run build:runtime");
+      expect(result.stdout).toContain("# Run CI-safe unit tests");
+    }
+
+    const json = spawnSync("bun", ["tools/test_ci.ts", "--json"], {
+      cwd: join(import.meta.dir, ".."),
+      encoding: "utf8",
+    });
+
+    expect(json.status).toBe(0);
+    expect(json.stderr).toBe("");
+    expect(JSON.parse(json.stdout)).toMatchObject({
+      schemaVersion: 1,
+      check: "test-ci",
+    });
+  });
+
+  test("rejects malformed inline option values before planning", () => {
+    for (const [arg, message] of [
+      ["--json=true", "--json does not accept a value"],
+      ["--list=true", "--list does not accept a value"],
+      ["--dry-run=true", "--dry-run does not accept a value"],
+      ["--help=true", "--help does not accept a value"],
+    ] as const) {
+      const result = spawnSync("bun", ["tools/test_ci.ts", arg], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(message);
+    }
+  });
+
   test("formats concise success summaries for completed CI-safe runs", () => {
     withTempTests(["Alpha.test.ts"], (testsDir) => {
       const summary = formatTestCiSuccessSummary(

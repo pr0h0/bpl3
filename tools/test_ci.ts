@@ -173,6 +173,14 @@ function parseArgs(argv: string[]): { list: boolean; json: boolean } {
   const options = { list: false, json: false };
 
   for (const arg of argv) {
+    for (const flag of ["--list", "--dry-run", "--json", "--help"] as const) {
+      if (arg.startsWith(`${flag}=`)) {
+        throw new UsageError(
+          `${flag} does not accept a value. Use --help for usage.`,
+        );
+      }
+    }
+
     if (arg === "--list" || arg === "--dry-run") {
       options.list = true;
     } else if (arg === "--json") {
