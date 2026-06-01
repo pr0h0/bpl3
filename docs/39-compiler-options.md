@@ -826,6 +826,13 @@ bun test tests/TypeCheckerIndexExpressionMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"
 ```
 
+Member access misuse failures use `BPL_STATIC_MEMBER_NOT_FOUND`, `BPL_INSTANCE_METHOD_NOT_COMPATIBLE`, `BPL_TUPLE_INDEX_INVALID`, and `BPL_MEMBER_NOT_FOUND`. This covers missing static members, incompatible instance method access, invalid tuple indices, and missing concrete-type members. Representative messages include `No static member 'x' found on type 'S'`, `No compatible instance method 'staticFunc' found on type 'S'`, `Invalid tuple index '2'`, and `Cannot access member 'y' on type 'S'`. The corresponding hints include `Ensure the member is static (does not take 'this').`, `Static methods must be called on the type, not an instance.`, `Valid indices are 0-1`, and `Check the type definition for available members.`. Valid field, instance method, static method, tuple, and imported primitive-wrapper member access remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerMemberAccessMisuse.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "member access misuse"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

@@ -113,6 +113,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_INDEX_TARGET_NOT_INDEXABLE` in compiler errors, `bpl check --json`,
   `bpl build --json`, and the public CLI JSON error-code registry. Valid
   array, pointer, alias-pointer, and `__get__` indexing remain accepted.
+- **Member Access Misuse Diagnostic Codes** - Missing static members,
+  incompatible instance method access, invalid tuple indices, and missing
+  concrete-type members now report `BPL_STATIC_MEMBER_NOT_FOUND`,
+  `BPL_INSTANCE_METHOD_NOT_COMPATIBLE`, `BPL_TUPLE_INDEX_INVALID`, and
+  `BPL_MEMBER_NOT_FOUND` in compiler errors, `bpl check --json`,
+  `bpl build --json`, and the public CLI JSON error-code registry. Valid
+  field, instance method, static method, tuple, and imported primitive-wrapper
+  member access remain accepted.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

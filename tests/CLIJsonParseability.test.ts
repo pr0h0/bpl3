@@ -4123,6 +4123,127 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports member access misuse failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "static_member_not_found",
+        code: "BPL_STATIC_MEMBER_NOT_FOUND",
+        line: 5,
+        column: 24,
+        preview: "local value: int = S.x",
+        message: "No static member 'x' found on type 'S'",
+        hint: "Ensure the member is static (does not take 'this').",
+        source: [
+          "struct S {",
+          "    x: int,",
+          "}",
+          "frame main() {",
+          "    local value: int = S.x;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "instance_method_not_compatible",
+        code: "BPL_INSTANCE_METHOD_NOT_COMPATIBLE",
+        line: 6,
+        column: 5,
+        preview: "s.staticFunc()",
+        message: "No compatible instance method 'staticFunc' found on type 'S'",
+        hint: "Static methods must be called on the type, not an instance.",
+        source: [
+          "struct S {",
+          "    frame staticFunc() {}",
+          "}",
+          "frame main() {",
+          "    local s: S;",
+          "    s.staticFunc();",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "tuple_index_invalid",
+        code: "BPL_TUPLE_INDEX_INVALID",
+        line: 3,
+        column: 12,
+        preview: "return pair.2",
+        message: "Invalid tuple index '2'",
+        hint: "Valid indices are 0-1",
+        source: [
+          "frame main() ret int {",
+          "    local pair: (int, bool) = (1, true);",
+          "    return pair.2;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "member_not_found",
+        code: "BPL_MEMBER_NOT_FOUND",
+        line: 6,
+        column: 12,
+        preview: "return s.y",
+        message: "Cannot access member 'y' on type 'S'",
+        hint: "Check the type definition for available members.",
+        source: [
+          "struct S {",
+          "    x: int,",
+          "}",
+          "frame main() ret int {",
+          "    local s: S;",
+          "    return s.y;",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      const checkDiagnostic = expectSingleCheckJsonDiagnostic(
+        check,
+        sourceFile,
+        {
+          line: testCase.line,
+          column: testCase.column,
+        },
+      );
+      expect(checkDiagnostic.code).toBe(testCase.code);
+      expect(checkDiagnostic.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic.message).toContain(testCase.message);
+      expect(checkDiagnostic.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+        diagnostics: [{ code: testCase.code }],
+      });
+      expect(buildReport.diagnostics).toHaveLength(1);
+      expect(buildReport.diagnostics[0]?.message).toContain(testCase.message);
+      expect(buildReport.diagnostics[0]?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

@@ -1493,6 +1493,28 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document member access misuse diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Member access misuse failures use `BPL_STATIC_MEMBER_NOT_FOUND`, `BPL_INSTANCE_METHOD_NOT_COMPATIBLE`, `BPL_TUPLE_INDEX_INVALID`, and `BPL_MEMBER_NOT_FOUND`",
+      "`No static member 'x' found on type 'S'`",
+      "`No compatible instance method 'staticFunc' found on type 'S'`",
+      "`Invalid tuple index '2'`",
+      "`Cannot access member 'y' on type 'S'`",
+      "`Ensure the member is static (does not take 'this').`",
+      "`Static methods must be called on the type, not an instance.`",
+      "`Valid indices are 0-1`",
+      "`Check the type definition for available members.`",
+      "missing static members, incompatible instance method access, invalid tuple indices, and missing concrete-type members",
+      'bun test tests/TypeCheckerMemberAccessMisuse.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "member access misuse"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
