@@ -1117,15 +1117,27 @@ describe("CI triage helper", () => {
 
   test("maps playground process execution failures to focused repro commands", () => {
     const expectedCommands = [
+      "bun test tests/PlaygroundNativeExecution.test.ts",
       "bun test tests/PlaygroundProcessRunner.test.ts",
       'bun test tests/PlaygroundExamples.test.ts -t "shell metacharacter args|argv-vector execution"',
       'bun test tests/TutorialExamples.test.ts -t "argv-vector execution"',
       "bun run check",
     ];
 
+    expect(localCommandsForStep("PlaygroundNativeExecution.test")).toEqual(
+      expectedCommands,
+    );
     expect(localCommandsForStep("PlaygroundProcessRunner.test")).toEqual(
       expectedCommands,
     );
+    expect(
+      localCommandsForStep(
+        "Playground native execution response shaping > preserves stdout and stderr for nonzero runtime failures",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("Execution timeout (25ms) in native execution"),
+    ).toEqual(expectedCommands);
     expect(
       localCommandsForStep(
         "Playground process runner > does not surface stdin pipe errors after a successful child exit",

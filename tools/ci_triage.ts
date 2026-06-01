@@ -603,15 +603,20 @@ const PLAYGROUND_BROWSER_WASM_STEP_PATTERN = new RegExp(
 );
 const PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN = new RegExp(
   [
+    "PlaygroundNativeExecution\\.test",
     "PlaygroundProcessRunner\\.test",
     "PlaygroundExamples\\.test.*(?:shell metacharacter args|argv-vector execution)",
     "TutorialExamples\\.test.*argv-vector execution",
+    "Playground native execution response shaping",
     "Playground process runner",
     "playground process execution",
     "playground backend execution",
+    "native execution.*(?:Runtime error|Execution timeout|maxBuffer|stdout|stderr)",
+    "(?:Runtime error|Execution timeout|maxBuffer|stdout|stderr).*native execution",
     "backend server runs compiled programs through argv-vector execution",
     "passes shell metacharacter args literally and preserves stdin",
     "does not surface stdin pipe errors after a successful child exit",
+    "runPlaygroundNativeBinary",
     "runProcessFile\\(binFile, args",
     "runProcessFile",
   ].join("|"),
@@ -751,6 +756,10 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run test:wasm"],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run check"],
+  [
+    PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN,
+    "bun test tests/PlaygroundNativeExecution.test.ts",
+  ],
   [
     PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN,
     "bun test tests/PlaygroundProcessRunner.test.ts",
