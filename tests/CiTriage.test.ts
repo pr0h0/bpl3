@@ -334,6 +334,27 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps debug IR path failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/CodeGenerator.test.ts -t "debug IR"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep("Debug IR path is a symbolic link"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "CodeGenerator reports missing debug IR parent directories",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "Debug IR parent path contains a symbolic link",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps bindgen JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',

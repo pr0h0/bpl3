@@ -207,6 +207,16 @@ const MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const DEBUG_IR_PATH_STEP_PATTERN = new RegExp(
+  [
+    "Debug IR path",
+    "Debug IR parent path",
+    "CodeGenerator.*debug IR",
+    "debug IR.*symbolic link",
+    "debug IR.*parent",
+  ].join("|"),
+  "i",
+);
 const EXECUTABLE_OUTPUT_MODE_STEP_PATTERN = new RegExp(
   [
     "BinaryRunner.*executable permissions",
@@ -614,6 +624,11 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/ModuleCache.test.ts -t "manifest permissions"',
   ],
   [MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN, "bun run check"],
+  [
+    DEBUG_IR_PATH_STEP_PATTERN,
+    'bun test tests/CodeGenerator.test.ts -t "debug IR"',
+  ],
+  [DEBUG_IR_PATH_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_ATOMIC_MODE_STEP_PATTERN,
     'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|package archive permissions|global cache archive permissions"',
