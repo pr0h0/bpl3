@@ -339,6 +339,23 @@ repro into the regression corpus. Paths are rewritten relative to the current
 repository, so stale absolute paths from CI metadata do not leak into local
 triage commands.
 
+### Fuzz Helper Usage Diagnostics
+
+Fuzz helper usage diagnostics are status 2 failures before artifact discovery,
+campaign startup, replay, promotion, or packed source-checkout delegation.
+`bun run fuzz:repro` rejects flag values such as `--json=true`, empty artifact
+options such as `--input=`, and mixed positional and `--input` artifact paths.
+`bun run fuzz` rejects malformed boolean values such as `--minimize maybe` and
+empty required values such as `--iterations=`.
+
+Focus those contracts directly with:
+
+```bash
+bun test tests/FuzzArtifactRepro.test.ts -t "malformed CLI option values"
+bun test tests/CompilerFuzzRunner.test.ts -t "fuzz package wrappers reject malformed option values"
+bun test tests/ReleaseHelperSmoke.test.ts -t "exercises packed helper usage paths"
+```
+
 ## Replay Modes
 
 Use one artifact to rerun every compiler stage that matters during triage:

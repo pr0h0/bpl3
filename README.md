@@ -137,7 +137,20 @@ npm run ci:triage -- --json --jobs-json jobs.json <run-id>
 
 The packed `fuzz`, `fuzz:replay`, and `fuzz:promote` scripts validate usage in
 installed packages before delegating to source-tree fuzz helpers when a checkout
-is present. The package intentionally excludes source-only files such as
+is present. Fuzz helper usage diagnostics are status 2 failures before artifact
+discovery, campaign startup, replay, promotion, or source-checkout delegation.
+`bun run fuzz:repro` rejects flag values such as `--json=true`, empty artifact
+options such as `--input=`, and mixed positional and `--input` artifact paths.
+`bun run fuzz` rejects malformed boolean values such as `--minimize maybe` and
+empty required values such as `--iterations=`. Focus these contracts with:
+
+```bash
+bun test tests/FuzzArtifactRepro.test.ts -t "malformed CLI option values"
+bun test tests/CompilerFuzzRunner.test.ts -t "fuzz package wrappers reject malformed option values"
+bun test tests/ReleaseHelperSmoke.test.ts -t "exercises packed helper usage paths"
+```
+
+The package intentionally excludes source-only files such as
 `playground/examples/70-browser-wasm-showcase.json`, `tests/`, `fuzz/`, and
 broad compiler sources. The playground browser wasm helper assets are local
 playground files, not npm package payload:

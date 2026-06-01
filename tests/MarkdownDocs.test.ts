@@ -1271,6 +1271,29 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("compiler correctness docs document fuzz helper usage diagnostics", () => {
+    const combinedDocs = [
+      readFileSync("README.md", "utf8"),
+      readFileSync("docs/60-compiler-correctness.md", "utf8"),
+      readFileSync("CHANGELOG.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Fuzz helper usage diagnostics",
+      "`bun run fuzz:repro` rejects flag values such as `--json=true`",
+      "`--input=`",
+      "mixed positional and `--input` artifact paths",
+      "`bun run fuzz` rejects malformed boolean values such as `--minimize maybe`",
+      "`--iterations=`",
+      "status 2",
+      'bun test tests/FuzzArtifactRepro.test.ts -t "malformed CLI option values"',
+      'bun test tests/CompilerFuzzRunner.test.ts -t "fuzz package wrappers reject malformed option values"',
+      'bun test tests/ReleaseHelperSmoke.test.ts -t "exercises packed helper usage paths"',
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("playground docs document browser wasm compiler hook contract", () => {
     const combinedDocs = [
       readFileSync("playground/README.md", "utf8"),
