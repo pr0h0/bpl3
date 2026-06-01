@@ -15,6 +15,8 @@ import {
   ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
   INDEX_TARGET_NOT_INDEXABLE_CODE,
   INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+  INTRINSIC_ARGUMENT_COUNT_MISMATCH_CODE,
+  INTRINSIC_GENERIC_ARITY_MISMATCH_CODE,
   MEMBER_NOT_FOUND_CODE,
   POINTER_INDEX_TYPE_MISMATCH_CODE,
   STATIC_MEMBER_NOT_FOUND_CODE,
@@ -78,15 +80,17 @@ export function checkCall(
       if (genericArgs.length !== 1) {
         throw new CompilerError(
           "Intrinsic __type_id requires exactly 1 generic argument",
-          "",
+          "Use __type_id<T>() with exactly one type argument.",
           expr.location,
+          INTRINSIC_GENERIC_ARITY_MISMATCH_CODE,
         );
       }
       if (expr.args.length !== 0) {
         throw new CompilerError(
           "Intrinsic __type_id accepts no arguments",
-          "",
+          "Call __type_id<T>() without value arguments.",
           expr.location,
+          INTRINSIC_ARGUMENT_COUNT_MISMATCH_CODE,
         );
       }
       // Resolve the type to ensure it exists and is valid
@@ -107,15 +111,17 @@ export function checkCall(
       if (genericArgs.length !== 1) {
         throw new CompilerError(
           "Intrinsic __type_info requires exactly 1 generic argument",
-          "",
+          "Use __type_info<T>() with exactly one type argument.",
           expr.location,
+          INTRINSIC_GENERIC_ARITY_MISMATCH_CODE,
         );
       }
       if (expr.args.length !== 0) {
         throw new CompilerError(
           "Intrinsic __type_info accepts no arguments",
-          "",
+          "Call __type_info<T>() without value arguments.",
           expr.location,
+          INTRINSIC_ARGUMENT_COUNT_MISMATCH_CODE,
         );
       }
       // Resolve the type to ensure it exists and is valid
