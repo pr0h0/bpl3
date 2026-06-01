@@ -515,11 +515,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Compiler Target Validation Hardening** - `Compiler`, `CodeGenerator`, and
   `bpl build` now reject unsupported target triples before LLVM IR is emitted
   instead of silently using an x86_64 Linux data layout for unknown targets.
-  It also rejects empty or whitespace-padded target triples, so accepted target
-  strings exactly match the metadata emitted to LLVM and forwarded to
-  toolchains. Target family matching is component-aware, so substrings such as
-  `notlinux` or `notwasm32` do not accidentally select Linux or WebAssembly
-  layouts. JSON-mode build failures report `BPL_BUILD_UNSUPPORTED_TARGET`.
+  It also rejects empty, whitespace-padded, or empty-component target triples,
+  so accepted target strings exactly match the metadata emitted to LLVM and
+  forwarded to toolchains. Target family matching is component-aware, so
+  substrings such as `notlinux` or `notwasm32` do not accidentally select Linux
+  or WebAssembly layouts. JSON-mode build failures report
+  `BPL_BUILD_UNSUPPORTED_TARGET`.
   Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux,
   AArch64 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64. Focused repro:
   `bun test tests/CodeGenerator.test.ts -t "target" && bun test tests/CLIJsonParseability.test.ts -t "build validation failures"`.

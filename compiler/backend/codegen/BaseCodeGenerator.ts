@@ -87,8 +87,12 @@ export function getSupportedCodegenTargetSummary(): string {
   return getSupportedCodegenTargetFamilies().join(", ");
 }
 
-function parseTargetTriple(normalizedTarget: string): ParsedTargetTriple {
-  const parts = normalizedTarget.split("-").filter(Boolean);
+function parseTargetTriple(
+  normalizedTarget: string,
+): ParsedTargetTriple | undefined {
+  const parts = normalizedTarget.split("-");
+  if (parts.some((part) => part.length === 0)) return undefined;
+
   return {
     arch: parts[0] ?? "",
     components: new Set(parts),
@@ -117,6 +121,8 @@ function resolveDataLayoutForTarget(target?: string): string | undefined {
 
   const normalizedTarget = trimmedTarget.toLowerCase();
   const parsedTarget = parseTargetTriple(normalizedTarget);
+  if (!parsedTarget) return undefined;
+
   return SUPPORTED_TARGET_DATA_LAYOUTS.find((entry) =>
     entry.matches(parsedTarget),
   )?.layout;

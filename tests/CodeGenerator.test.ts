@@ -203,6 +203,20 @@ describe("CodeGenerator", () => {
     ).toThrow(/Unsupported target triple "notwasm32-unknown-unknown"/);
   });
 
+  it("rejects target triples with empty components", () => {
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: "x86_64--linux",
+      }),
+    ).toThrow(/Unsupported target triple "x86_64--linux"/);
+
+    expect(() =>
+      compile("frame main() { return; }", {
+        target: "wasm32-",
+      }),
+    ).toThrow(/Unsupported target triple "wasm32-"/);
+  });
+
   it("uses the selected compiler driver for DWARF producer metadata", () => {
     const previousBplCc = process.env.BPL_CC;
     process.env.BPL_CC = join(

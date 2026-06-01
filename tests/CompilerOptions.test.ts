@@ -111,6 +111,20 @@ describe("Compiler options", () => {
     );
   });
 
+  it("rejects direct target triples with empty components", () => {
+    const compiler = new Compiler({
+      filePath: "test.bpl",
+      target: "x86_64--linux",
+    });
+
+    const result = compiler.compile("frame main() ret int { return 0; }");
+
+    expect(result.success).toBe(false);
+    expect(result.errors?.[0]?.message).toContain(
+      'Unsupported target triple "x86_64--linux"',
+    );
+  });
+
   it("rejects invalid direct emit types before compiling", () => {
     const compiler = new Compiler({
       filePath: "test.bpl",
