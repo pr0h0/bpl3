@@ -206,6 +206,41 @@ describe("Package Manager CLI", () => {
       expect(fs.existsSync("cli-test-pkg-1.0.0.tgz")).toBe(true);
     });
 
+    test("should preserve existing package archive permissions when packing through the CLI", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const manifest = {
+        name: "cli-archive-mode",
+        version: "1.0.0",
+        main: "index.bpl",
+      };
+      const archivePath = path.join(tempDir, "cli-archive-mode-1.0.0.tgz");
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export first;");
+
+      const firstPack = spawnSync("bun", [bplPath, "pack"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      expect(firstPack.status).toBe(0);
+      fs.chmodSync(archivePath, 0o640);
+
+      fs.writeFileSync("index.bpl", "export second;");
+      const secondPack = spawnSync("bun", [bplPath, "pack"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(secondPack.status).toBe(0);
+      expect(fs.statSync(archivePath).mode & 0o777).toBe(0o640);
+      expect(fs.existsSync(`${archivePath}.bplmeta.json`)).toBe(true);
+    });
+
     test("should report pack success and failures as JSON", () => {
       const packageDir = path.join(tempDir, "pack-json-package");
       const missingDir = path.join(tempDir, "pack-json-missing");
