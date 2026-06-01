@@ -6,9 +6,17 @@ const RUNTIME_WASM_HOST = resolve(
   import.meta.dir,
   "../lib/runtime_wasm_host.ll",
 );
-const PLAYGROUND_APP = resolve(
+const PLAYGROUND_WASM_HOST_ADAPTER = resolve(
   import.meta.dir,
-  "../playground/frontend/app.js",
+  "../playground/frontend/wasmHostAdapter.js",
+);
+const PLAYGROUND_INDEX = resolve(
+  import.meta.dir,
+  "../playground/frontend/index.html",
+);
+const PLAYGROUND_SERVER = resolve(
+  import.meta.dir,
+  "../playground/backend/server.ts",
 );
 const WASM_RUNTIME_TEST = resolve(import.meta.dir, "WasmRuntime.test.ts");
 const COMPILER_OPTIONS_DOC = resolve(
@@ -39,7 +47,7 @@ function extractRuntimeHostImports(source: string): string[] {
 
 function extractHostAdapterMethods(source: string): string[] {
   return sortedUnique(
-    [...source.matchAll(/^\s{6}(__bpl_host_[A-Za-z0-9_]+)\(/gm)].map(
+    [...source.matchAll(/^\s+(__bpl_host_[A-Za-z0-9_]+)\(/gm)].map(
       (match) => match[1] ?? "",
     ),
   );
@@ -62,14 +70,31 @@ function extractPlaygroundContract(source: string): string[] {
 describe("Hosted wasm env import contract", () => {
   test("keeps runtime, browser playground, and test host imports aligned", () => {
     const runtime = readFileSync(RUNTIME_WASM_HOST, "utf8");
-    const playground = readFileSync(PLAYGROUND_APP, "utf8");
+    const playgroundAdapter = readFileSync(
+      PLAYGROUND_WASM_HOST_ADAPTER,
+      "utf8",
+    );
     const runtimeTest = readFileSync(WASM_RUNTIME_TEST, "utf8");
     const expected = [...HOSTED_WASM_ENV_IMPORTS].sort();
 
     expect(extractRuntimeHostImports(runtime)).toEqual(expected);
-    expect(extractPlaygroundContract(playground)).toEqual(expected);
-    expect(extractHostAdapterMethods(playground)).toEqual(expected);
+    expect(extractPlaygroundContract(playgroundAdapter)).toEqual(expected);
+    expect(extractHostAdapterMethods(playgroundAdapter)).toEqual(expected);
     expect(extractHostAdapterMethods(runtimeTest)).toEqual(expected);
+  });
+
+  test("serves the browser wasm host adapter before the playground app shell", () => {
+    const indexHtml = readFileSync(PLAYGROUND_INDEX, "utf8");
+    const server = readFileSync(PLAYGROUND_SERVER, "utf8");
+    const adapterScript = 'src="wasmHostAdapter.js"';
+    const appScript = 'src="app.js"';
+
+    expect(indexHtml).toContain(adapterScript);
+    expect(indexHtml.indexOf(adapterScript)).toBeLessThan(
+      indexHtml.indexOf(appScript),
+    );
+    expect(server).toContain('url.pathname === "/wasmHostAdapter.js"');
+    expect(server).toContain("../frontend/wasmHostAdapter.js");
   });
 
   test("documents every required hosted wasm env import", () => {

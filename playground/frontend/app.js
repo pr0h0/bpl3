@@ -4,6 +4,11 @@ let currentExample = null;
 let allExamples = []; // Store all examples for searching
 const API_BASE =
   window.location.protocol === "file:" ? "http://localhost:3001" : "";
+const wasmHostAdapter = window.BplWasmHostAdapter;
+if (!wasmHostAdapter) {
+  throw new Error("BPL wasm host adapter script must load before app.js");
+}
+const { runHostedWasmInBrowser } = wasmHostAdapter;
 
 require.config({
   paths: {
@@ -535,130 +540,6 @@ function activateTab(tab) {
     .querySelectorAll(".tab-pane")
     .forEach((pane) => pane.classList.remove("active"));
   document.getElementById(`tab-${tab}`)?.classList.add("active");
-}
-
-function decodeBase64Bytes(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
-const HOSTED_WASM_ENV_IMPORTS = Object.freeze([
-  "__bpl_host_write",
-  "__bpl_host_exit",
-  "__bpl_host_argc",
-  "__bpl_host_argv_len",
-  "__bpl_host_argv_copy",
-  "__bpl_host_error",
-]);
-
-function assertHostedWasmEnvImports(env) {
-  const missing = HOSTED_WASM_ENV_IMPORTS.filter(
-    (importName) => typeof env[importName] !== "function",
-  );
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Hosted wasm env import contract mismatch: missing ${missing.join(", ")}`,
-    );
-  }
-}
-
-async function runHostedWasmInBrowser(wasmBase64, argv) {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const encodedArgs = ["program", ...argv].map((arg) => encoder.encode(arg));
-  let exports;
-  let stdout = "";
-  let stderr = "";
-  let returnCode = null;
-  let trapped = false;
-  let error = "";
-
-  const getMemory = () => {
-    if (!(exports?.memory instanceof WebAssembly.Memory)) {
-      throw new Error("Wasm module did not export memory.");
-    }
-    return exports.memory;
-  };
-
-  const readBytes = (ptr, len) => new Uint8Array(getMemory().buffer, ptr, len);
-  const readString = (ptr) => {
-    if (!ptr) return null;
-    const memory = new Uint8Array(getMemory().buffer);
-    let end = ptr;
-    while (end < memory.length && memory[end] !== 0) {
-      end++;
-    }
-    return decoder.decode(memory.subarray(ptr, end));
-  };
-
-  class WasmExit extends Error {
-    constructor(code) {
-      super(`wasm exit(${code})`);
-      this.code = code;
-    }
-  }
-
-  const imports = {
-    env: {
-      __bpl_host_write(fd, ptr, len) {
-        const text = decoder.decode(readBytes(ptr, len));
-        if (fd === 2) {
-          stderr += text;
-        } else {
-          stdout += text;
-        }
-      },
-      __bpl_host_exit(code) {
-        throw new WasmExit(code);
-      },
-      __bpl_host_argc() {
-        return encodedArgs.length;
-      },
-      __bpl_host_argv_len(index) {
-        return encodedArgs[index]?.length ?? -1;
-      },
-      __bpl_host_argv_copy(index, ptr) {
-        const arg = encodedArgs[index];
-        if (arg) {
-          readBytes(ptr, arg.length).set(arg);
-        }
-      },
-      __bpl_host_error(code, detailPtr, funcPtr, line, col) {
-        stderr += `BPL runtime error ${code}`;
-        const detail = readString(detailPtr);
-        const func = readString(funcPtr);
-        if (detail) stderr += ` ${detail}`;
-        if (func) stderr += ` in ${func}`;
-        if (line || col) stderr += ` at ${line}:${col}`;
-        stderr += "\n";
-      },
-    },
-  };
-  assertHostedWasmEnvImports(imports.env);
-
-  const instantiated = await WebAssembly.instantiate(
-    decodeBase64Bytes(wasmBase64),
-    imports,
-  );
-  exports = instantiated.instance.exports;
-
-  try {
-    returnCode = exports.main(0, 0);
-  } catch (caught) {
-    if (caught instanceof WasmExit) {
-      returnCode = caught.code;
-    } else {
-      trapped = true;
-      error = caught?.message || String(caught);
-    }
-  }
-
-  return { stdout, stderr, returnCode, trapped, error };
 }
 
 // Format code

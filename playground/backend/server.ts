@@ -776,6 +776,16 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === "/wasmHostAdapter.js") {
+      const js = fs.readFileSync(
+        path.join(__dirname, "../frontend/wasmHostAdapter.js"),
+        "utf-8",
+      );
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
+      });
+    }
+
     if (url.pathname === "/tutorial.js") {
       const js = fs.readFileSync(
         path.join(__dirname, "../frontend/tutorial.js"),
