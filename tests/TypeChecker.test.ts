@@ -5,10 +5,14 @@ import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
+function parseProgram(source: string, filePath = "test.bpl") {
+  const tokens = lexWithGrammar(source, filePath);
+  const parser = new Parser(source, filePath, tokens);
+  return parser.parse();
+}
+
 function check(source: string) {
-  const tokens = lexWithGrammar(source, "test.bpl");
-  const parser = new Parser(source, "test.bpl", tokens);
-  const program = parser.parse();
+  const program = parseProgram(source);
   const typeChecker = new TypeChecker();
   typeChecker.checkProgram(program);
   const typeErrors = typeChecker.getErrors();
@@ -19,6 +23,51 @@ function check(source: string) {
 }
 
 describe("TypeChecker", () => {
+  it("should clear failed import recovery state when reusing a checker", () => {
+    const checker = new TypeChecker({ collectAllErrors: true });
+    const failedImportSource = [
+      'import shadow from "std/missing.bpl";',
+      "frame main() ret int {",
+      "  return shadow();",
+      "}",
+    ].join("\n");
+    const unresolvedSource = [
+      "frame main() ret int {",
+      "  return shadow();",
+      "}",
+    ].join("\n");
+
+    checker.checkProgram(
+      parseProgram(failedImportSource, "reuse.bpl"),
+      "reuse.bpl",
+    );
+    const failedImportMessages = checker
+      .getErrors()
+      .map((error) => error.message);
+    expect(
+      failedImportMessages.some((message) =>
+        message.includes("Standard library module not found: std/missing.bpl"),
+      ),
+    ).toBe(true);
+    expect(failedImportMessages).not.toContain("Undefined symbol 'shadow'");
+
+    checker.errors = [];
+    checker.checkProgram(
+      parseProgram(unresolvedSource, "other.bpl"),
+      "other.bpl",
+    );
+    const otherFileMessages = checker.getErrors().map((error) => error.message);
+    expect(otherFileMessages).toContain("Undefined symbol 'shadow'");
+
+    checker.errors = [];
+    checker.checkProgram(
+      parseProgram(unresolvedSource, "reuse.bpl"),
+      "reuse.bpl",
+    );
+    const sameFileMessages = checker.getErrors().map((error) => error.message);
+    expect(sameFileMessages).toContain("Undefined symbol 'shadow'");
+  });
+
   it("should pass for valid struct method access", () => {
     const source = `
       struct Point {
