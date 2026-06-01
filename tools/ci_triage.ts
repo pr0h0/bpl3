@@ -196,6 +196,16 @@ const PACKAGE_ATOMIC_MODE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN = new RegExp(
+  [
+    "ModuleCache.*manifest permissions",
+    "module cache manifest.*permissions",
+    "preserves existing manifest permissions",
+    "manifest permissions.*Expected:\\s*416.*Received:\\s*384",
+    "manifest permissions.*expected\\s+416.*received\\s+384",
+  ].join("|"),
+  "i",
+);
 const EXECUTABLE_OUTPUT_MODE_STEP_PATTERN = new RegExp(
   [
     "BinaryRunner.*executable permissions",
@@ -598,6 +608,11 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     ATOMIC_WRITE_PERMISSION_STEP_PATTERN,
     'bun test tests/CLI.test.ts -t "format files in write mode atomically"',
   ],
+  [
+    MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN,
+    'bun test tests/ModuleCache.test.ts -t "manifest permissions"',
+  ],
+  [MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_ATOMIC_MODE_STEP_PATTERN,
     'bun test tests/PackageManager.test.ts -t "lockfile permissions|package provenance permissions|global cache archive permissions"',

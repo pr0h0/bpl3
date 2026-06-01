@@ -306,6 +306,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps module-cache manifest mode failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/ModuleCache.test.ts -t "manifest permissions"',
+      "bun run check",
+    ];
+
+    expect(
+      localCommandsForStep(
+        "ModuleCache > preserves existing manifest permissions when rewriting",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "module cache manifest permissions expected 416 received 384",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps bindgen JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',
