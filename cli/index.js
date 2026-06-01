@@ -207,6 +207,10 @@ const CLI_JSON_ERROR_CODE_LISTS = [
     codes: ["BPL_IMPORT_EXPORT_NOT_FOUND"],
   },
   {
+    name: "type-checker",
+    codes: ["BPL_SYMBOL_ALREADY_DEFINED"],
+  },
+  {
     name: "run-script",
     codes: [
       "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",

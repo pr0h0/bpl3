@@ -39,6 +39,7 @@ describe("CLI JSON error-code list exports", () => {
       "package-resolver",
       "module-resolver",
       "import-handler",
+      "type-checker",
       "run-script",
       "sanitizer-runtime",
       "wasm-linker",

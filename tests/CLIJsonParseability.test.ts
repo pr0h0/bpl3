@@ -2133,6 +2133,80 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("reports duplicate top-level symbols in JSON-mode check and build diagnostics", () => {
+    const sourceFile = path.join(tempDir, "duplicate_top_level_symbol.bpl");
+    const outputFile = path.join(tempDir, "duplicate-top-level-symbol-app");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "type Thing = int;",
+        "struct Thing {",
+        "    value: int,",
+        "}",
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+    const checkDiagnostic = expectSingleCheckJsonDiagnostic(check, sourceFile, {
+      line: 2,
+      column: 1,
+    });
+    expect(checkDiagnostic.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
+    expect(checkDiagnostic.source?.preview).toContain("struct Thing");
+    expect(checkDiagnostic.message).toContain(
+      "Symbol 'Thing' is already defined in this scope",
+    );
+    expect(checkDiagnostic.hint).toContain(
+      "Rename this struct or remove the earlier type alias declaration.",
+    );
+    expect(check.stderr).toBe("");
+
+    const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+    expect(build.status).toBe(1);
+    expect(build.stderr).toBe("");
+    const buildReport = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        hint: string;
+        location: {
+          file: string;
+          start: { line: number; column: number };
+        };
+      }>;
+    }>(build);
+    expect(buildReport).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      diagnostics: [
+        {
+          code: "BPL_SYMBOL_ALREADY_DEFINED",
+          location: {
+            file: sourceFile,
+            start: { line: 2, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(buildReport.diagnostics[0]?.message).toContain(
+      "Symbol 'Thing' is already defined in this scope",
+    );
+    expect(buildReport.diagnostics[0]?.hint).toContain(
+      "Rename this struct or remove the earlier type alias declaration.",
+    );
+    expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+    expect(fs.existsSync(outputFile)).toBe(false);
+  }, 10000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

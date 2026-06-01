@@ -15,6 +15,7 @@ import { RUN_SCRIPT_JSON_ERROR_CODES } from "./commands/runScript";
 import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
 import { IMPORT_HANDLER_FAILURE_CODES } from "../compiler/middleend/ImportHandler";
 import { MODULE_RESOLUTION_FAILURE_CODES } from "../compiler/middleend/ModuleResolver";
+import { TYPE_CHECKER_FAILURE_CODES } from "../compiler/middleend/TypeCheckerBase";
 import {
   PACKAGE_ARCHIVE_JSON_ERROR_CODES,
   PACKAGE_CACHE_JSON_ERROR_CODES,
@@ -50,6 +51,7 @@ export const CLI_JSON_ERROR_CODE_LISTS = [
   { name: "package-resolver", codes: PACKAGE_RESOLUTION_FAILURE_CODES },
   { name: "module-resolver", codes: MODULE_RESOLUTION_FAILURE_CODES },
   { name: "import-handler", codes: IMPORT_HANDLER_FAILURE_CODES },
+  { name: "type-checker", codes: TYPE_CHECKER_FAILURE_CODES },
   { name: "run-script", codes: RUN_SCRIPT_JSON_ERROR_CODES },
   { name: "sanitizer-runtime", codes: [SANITIZER_RUNTIME_UNAVAILABLE_CODE] },
   { name: "wasm-linker", codes: [WASM_LINKER_UNAVAILABLE_CODE] },

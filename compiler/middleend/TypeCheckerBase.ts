@@ -28,6 +28,10 @@ function formatSymbolKind(kind: SymbolKind): string {
   return kind === "TypeAlias" ? "type alias" : kind.toLowerCase();
 }
 
+export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
+
+export const TYPE_CHECKER_FAILURE_CODES = [SYMBOL_ALREADY_DEFINED_CODE] as const;
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -561,6 +565,7 @@ export abstract class TypeCheckerBase {
         `Symbol '${name}' is already defined in this scope`,
         `Rename this ${formatSymbolKind(kind)} or remove the earlier ${formatSymbolKind(existing.kind)} declaration.`,
         node.location,
+        SYMBOL_ALREADY_DEFINED_CODE,
       );
     }
 
