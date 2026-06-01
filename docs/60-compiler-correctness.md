@@ -165,6 +165,22 @@ Use this order for wasm CI failures: run `bun run ci:triage`, inspect
 doctor report means the local optional linker probe failed; CI makes that
 condition required through `BPL_REQUIRE_WASM_LD=1`.
 
+Playground browser wasm failures are separate from wasm linker failures. When
+the failing step mentions `PlaygroundBrowserWasmRuntime.test`,
+`BplWasmHostAdapter.runHostedWasmInBrowser`, or the browser-only compiler hook,
+triage should point at the browser-facing contracts first:
+
+```bash
+bun test tests/PlaygroundBrowserWasmRuntime.test.ts tests/PlaygroundWasmHostAdapter.test.ts tests/PlaygroundStaticAssets.test.ts tests/WasmHostImportContract.test.ts
+bun run test:wasm
+bun run check
+```
+
+`BplBrowserCompiler.compileToHostedWasm` is a browser compiler-bundle hook, not
+a `wasm-ld` prerequisite. Missing it means the playground can still execute
+hosted wasm in the browser after the backend `/wasm` endpoint compiles the
+module.
+
 Timeout failures in CI triage map to the same focused repro commands and
 timeout knobs shown by `bpl doctor --json`. Use the focused command first, then
 increase only the relevant timeout when the local host is known to be slower:

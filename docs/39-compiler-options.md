@@ -1023,6 +1023,13 @@ required-linker behavior locally.
 Reproduce the hard failure with `BPL_REQUIRE_WASM_LD=1 bun run test:wasm`.
 Inspect the same linker probe with `bun index.ts doctor --json` when you want
 the repository-local CLI entry point instead of an installed `bpl` binary.
+`bpl doctor --json` validates backend wasm compiler/linker prerequisites; it
+does not inspect browser APIs. The playground Wasm tab reports `Browser wasm
+runtime` and `Browser BPL compiler` separately. `Browser BPL compiler:
+unavailable` means browser execution may still work, but BPL-to-wasm
+compilation is delegated to the backend `/wasm` endpoint. Load a
+`BplBrowserCompiler.compileToHostedWasm` bundle only when you want the
+playground to compile BPL in the browser without the backend.
 
 ## Complete Examples
 
