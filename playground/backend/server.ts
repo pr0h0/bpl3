@@ -17,7 +17,8 @@ import {
   createPlaygroundWasmBuildEnv,
   resolvePlaygroundWasmLinker,
 } from "./wasmToolchain";
-import { formatProcessCommand, runProcessFile } from "./processRunner";
+import { runPlaygroundNativeBinary } from "./nativeExecution";
+import { formatProcessCommand } from "./processRunner";
 
 const execFileAsync = promisify(execFile);
 
@@ -404,20 +405,44 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         `[${requestId}] Executing binary: ${formatProcessCommand(binFile, args)}`,
       );
 
-      const { stdout, stderr } = await runProcessFile(binFile, args, {
+      const execution = await runPlaygroundNativeBinary(binFile, {
+        args,
         input: req.input,
-        timeout: 5000, // 5 second timeout
+        timeoutMs: 5000, // 5 second timeout
         maxBuffer: 1024 * 1024, // 1MB buffer
       });
 
       const execDuration = Date.now() - execStart;
       const totalDuration = Date.now() - startTime;
 
+      if (!execution.success) {
+        if (execution.error.startsWith("Execution timeout")) {
+          logger.warn(
+            `[${requestId}] Execution timeout after ${totalDuration}ms`,
+          );
+        } else {
+          logger.error(`[${requestId}] Runtime error after ${totalDuration}ms`, {
+            error: execution.error,
+            output: execution.output,
+          });
+        }
+        updateStats(false, totalDuration);
+
+        return {
+          success: false,
+          error: execution.error,
+          output: execution.output,
+          ir,
+          ast: safeStringify(ast),
+          tokens: JSON.stringify(tokens, null, 2),
+        };
+      }
+
       logger.info(
         `[${requestId}] Execution succeeded in ${execDuration}ms (total: ${totalDuration}ms)`,
         {
-          outputLength: stdout.length,
-          hasStderr: !!stderr,
+          outputLength: execution.output.length,
+          hasStderr: execution.output.includes("\nSTDERR:\n"),
         },
       );
 
@@ -425,7 +450,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
 
       return {
         success: true,
-        output: stdout + (stderr ? `\nSTDERR:\n${stderr}` : ""),
+        output: execution.output,
         warnings,
         ir,
         ast: safeStringify(ast),

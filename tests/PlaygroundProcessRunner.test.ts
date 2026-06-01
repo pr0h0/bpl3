@@ -146,7 +146,7 @@ describe("Playground process runner", () => {
       "utf8",
     );
 
-    expect(serverSource).toContain("runProcessFile(binFile, args");
+    expect(serverSource).toContain("runPlaygroundNativeBinary(binFile");
     expect(serverSource).not.toContain("const argsStr =");
     expect(serverSource).not.toContain("execAsync(cmd");
   });
