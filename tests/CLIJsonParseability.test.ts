@@ -1579,7 +1579,7 @@ describe("CLI JSON parseability", () => {
       "BPL_IMPORT_STD_PATH_UNSAFE",
     );
     expect(unsafeStdReport.diagnostics[0]?.hint).toContain(
-      "Use std/<path> without empty, '.', or '..' path segments.",
+      "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
     );
     expect(fs.existsSync(`${unsafeStdOutput}.ll`)).toBe(false);
     expect(fs.existsSync(unsafeStdOutput)).toBe(false);
@@ -1755,7 +1755,7 @@ describe("CLI JSON parseability", () => {
       "Unsafe standard library import: std/../outside-std-lib.bpl",
     );
     expect(unsafeStdDiagnostic.hint).toContain(
-      "Use std/<path> without empty, '.', or '..' path segments.",
+      "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
     );
     expect(unsafeStdCheck.stderr).toBe("");
 

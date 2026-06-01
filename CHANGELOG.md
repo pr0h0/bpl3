@@ -625,6 +625,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   silently falling back to `index.bpl`.
 - **Module Resolver Std Imports** - Explicit standard-library imports now treat
   `std\path` the same as `std/path`, including unsafe segment diagnostics.
+- **Module Resolver Std Import Hints** - Unsafe standard-library import hints now
+  mention both supported explicit forms: `std/<path>` and `std\<path>`.
 - **Linter Parameter Traversal** - Function parameter nodes now flow through
   the linter visitor directly instead of being wrapped in synthesized dynamic
   AST objects.

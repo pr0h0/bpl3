@@ -452,7 +452,9 @@ describe("ModuleResolver", () => {
 
       expect(error.message).toContain("Unsafe standard library import");
       expect(error.message).toContain(importSource);
-      expect(error.hint).toContain("empty, '.', or '..'");
+      expect(error.hint).toContain(
+        "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
+      );
       expect(error.code).toBe("BPL_IMPORT_STD_PATH_UNSAFE");
     }
   });

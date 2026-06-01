@@ -294,7 +294,7 @@ export class ModuleResolver {
       if (!isSafeStandardLibraryImportPath(relativePath)) {
         throw new CompilerError(
           `Unsafe standard library import: ${importSource}`,
-          "Use std/<path> without empty, '.', or '..' path segments.",
+          "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
           {
             file: fromFile,
             startLine: 0,
