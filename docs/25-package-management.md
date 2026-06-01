@@ -376,6 +376,16 @@ still validated with `lstat` before its manifest is read, so a symlink, regular
 file, or other non-directory named like a higher version blocks fallback to
 lower versions. For example, `~/.bpl/packages/math-9.0.0` as a symlink or file
 blocks fallback to `~/.bpl/packages/math-1.0.0`.
+Case-mismatched global versioned package directories such as `Math-9.0.0` are
+rejected before fallback to lower versions such as `math-1.0.0`; they report
+`BPL_PACKAGE_ROOT_CASE_MISMATCH` with both the requested lowercase path and the
+actual filesystem path. Focus this import stability surface with:
+
+```bash
+bun test tests/PackageResolver.test.ts -t "casing|case-mismatched global versioned"
+bun test tests/ModuleResolver.test.ts -t "case-mismatched global versioned|filesystem casing"
+bun test tests/CiTriage.test.ts -t "package import casing"
+```
 
 Packages can expose source files below their root through subpath imports:
 

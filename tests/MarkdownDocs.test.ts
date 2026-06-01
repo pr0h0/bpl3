@@ -910,6 +910,23 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(text, requiredSnippets);
   });
 
+  test("docs document global versioned package casing diagnostics", () => {
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/60-compiler-correctness.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "Case-mismatched global versioned package directories such as `Math-9.0.0` are rejected before fallback to lower versions such as `math-1.0.0`",
+      "`BPL_PACKAGE_ROOT_CASE_MISMATCH`",
+      'bun test tests/PackageResolver.test.ts -t "casing|case-mismatched global versioned"',
+      'bun test tests/ModuleResolver.test.ts -t "case-mismatched global versioned|filesystem casing"',
+      'bun test tests/CiTriage.test.ts -t "package import casing"',
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("docs document package search directory JSON diagnostics", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",

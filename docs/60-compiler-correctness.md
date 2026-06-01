@@ -203,6 +203,15 @@ When text triage output says `No focused local repro command matched this job`:
 Inspect the failed step logs first, and add a ci:triage mapping when the failure
 pattern is recurring so future runs print a focused local command.
 
+Package import casing failures map to focused resolver and JSON diagnostic
+checks. This includes package search directories, package roots, entrypoints,
+subpaths, and case-mismatched global versioned package directories. Focus that
+triage mapping with:
+
+```bash
+bun test tests/CiTriage.test.ts -t "package import casing"
+```
+
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
 suite, the CI-required linker mode, and the local doctor report command. When
 no linker is installed, optional local runs report an optional prerequisite
