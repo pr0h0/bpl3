@@ -589,6 +589,12 @@ bun test tests/TypeCheckerDuplicateSymbols.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"
 ```
 
+Same-signature function overloads also use `BPL_SYMBOL_ALREADY_DEFINED`.
+For example, two `frame pick(value: int) ret int` declarations report
+`Function 'pick' with this signature is already defined.` with the hint
+`Overloads must have different parameter types.`. Reproduce the JSON contract
+with `bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures"`.
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

@@ -1167,8 +1167,12 @@ describe("Markdown documentation", () => {
       "`Symbol 'Thing' is already defined in this scope`",
       "`Rename this struct or remove the earlier type alias declaration.`",
       "same-scope non-function declarations from silently overwriting earlier symbols",
+      "Same-signature function overloads also use `BPL_SYMBOL_ALREADY_DEFINED`",
+      "`Function 'pick' with this signature is already defined.`",
+      "`Overloads must have different parameter types.`",
       'bun test tests/TypeCheckerDuplicateSymbols.test.ts',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"',
+      'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures"',
     ]);
   });
 
