@@ -302,12 +302,17 @@ describe("GitHub Actions workflows", () => {
     expect(correctnessIndex).toBeGreaterThan(ciSuiteIndex);
   });
 
-  test("VS Code extension package test script runs Bun tests by directory", () => {
+  test("VS Code extension package test script type-checks tests before Bun", () => {
     const extensionPackageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../vscode-ext/package.json"), "utf8"),
     );
 
-    expect(extensionPackageJson.scripts.test).toBe("bun test ./src/test");
+    expect(extensionPackageJson.scripts["compile:test"]).toBe(
+      "tsc --project tsconfig.test.json",
+    );
+    expect(extensionPackageJson.scripts.test).toBe(
+      "npm run compile:test && bun test ./src/test",
+    );
     expect(extensionPackageJson.dependencies).toHaveProperty(
       "vscode-languageserver-textdocument",
     );
