@@ -1014,6 +1014,10 @@ describe("Markdown documentation", () => {
       "docs/25-package-management.md",
       "docs/39-compiler-options.md",
     ]);
+    const compilerOptionsDocs = readFileSync(
+      "docs/39-compiler-options.md",
+      "utf8",
+    ).replace(/\s+/g, " ");
     const expectedCodes = [
       MODULE_NOT_FOUND_CODE,
       MODULE_FILE_NOT_FOUND_CODE,
@@ -1037,6 +1041,12 @@ describe("Markdown documentation", () => {
     expect(docs).toContain(
       "Use the exact filesystem casing in imports",
     );
+    expectDocsContainSnippets(compilerOptionsDocs, [
+      "Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND`",
+      "`Standard library module not found`",
+      "do not fall back to package resolution",
+      'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
+    ]);
   });
 
   test("docs document build validation error codes from runner constants", () => {

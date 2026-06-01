@@ -557,6 +557,11 @@ codes in the same diagnostic objects: `BPL_MODULE_NOT_FOUND`,
 `BPL_MODULE_PATH_SYMLINK`, `BPL_MODULE_PATH_CASE_MISMATCH`, and
 `BPL_IMPORT_STD_PATH_UNSAFE`. The documentation inventory is guarded against
 the ModuleResolver constants so new resolver codes do not silently miss docs.
+Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
+`Standard library module not found` message. Explicit `std/` and `std\` imports
+do not fall back to package resolution, even when a local, workspace, global, or
+extra search-path package is named `std`. Reproduce the JSON contract with
+`bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"`.
 
 ### CLI JSON compatibility policy
 
