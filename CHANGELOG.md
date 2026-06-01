@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now verifies installed-package `ci:triage --jobs-json` diagnostics for
   missing and malformed offline fixture files without running full release
   smoke.
+- **Playground CI Triage Text Guard** - Offline `ci:triage --jobs-json` tests
+  now assert text output for playground backend/native execution failures lists
+  the focused native execution, process runner, playground example, tutorial
+  example, and check repro commands.
 - **Release Helper CLI Registry Triage Smoke** - `tests/ReleaseHelperSmoke.test.ts`
   now runs the packed `ci:triage` helper against an offline release registry
   failure fixture and asserts it prints only `bun run release:cli-registry`,

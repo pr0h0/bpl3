@@ -1990,6 +1990,33 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[1]?.localCommands).toEqual(
         expectedCommands,
       );
+
+      const textResult = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain(
+        "playground/backend/nativeExecution.ts output-limit handling failed",
+      );
+      expect(textResult.stdout).toContain(
+        "playground/backend/processRunner.ts shell argv regression",
+      );
+      for (const command of expectedCommands) {
+        expect(textResult.stdout).toContain(command);
+      }
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
