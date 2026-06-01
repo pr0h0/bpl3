@@ -235,6 +235,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   include stable `BPL_BUILD_*` `errorCode` values for invalid options, input
   path validation, and output artifact validation while preserving the
   human-readable `error` text.
+- **Build/Clean JSON Validation Code Lists** - `bpl build --json` and
+  `bpl clean --json` validation codes now expose shared constant lists, and
+  MarkdownDocs checks the build and clean JSON documentation contracts against
+  those lists.
 - **CI Triage Build Validation Repros** - `bun run ci:triage` now maps
   `BPL_BUILD_*` and build validation failure logs to focused `bpl build --json`
   JSON contract repro commands.

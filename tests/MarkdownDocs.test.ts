@@ -17,19 +17,7 @@ import {
   MODULE_PATH_SYMLINK_CODE,
 } from "../compiler/middleend/ModuleResolver";
 import {
-  BUILD_INPUT_NOT_FILE_CODE,
-  BUILD_INPUT_NOT_FOUND_CODE,
-  BUILD_INPUT_SYMLINK_CODE,
-  BUILD_INVALID_EMIT_CODE,
-  BUILD_INVALID_JOBS_CODE,
-  BUILD_INVALID_OPTIMIZATION_CODE,
-  BUILD_INVALID_WASM_RUNTIME_CODE,
-  BUILD_OUTPUT_DIRECTORY_CODE,
-  BUILD_OUTPUT_NOT_FILE_CODE,
-  BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
-  BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
-  BUILD_OUTPUT_PARENT_SYMLINK_CODE,
-  BUILD_OUTPUT_SYMLINK_CODE,
+  BUILD_JSON_ERROR_CODES,
 } from "../cli/CompilationRunner";
 import { BINDGEN_JSON_ERROR_CODES } from "../cli/commands/bindgen";
 import { COMPLETION_SHELL_UNSUPPORTED_CODE } from "../cli/commands/completion";
@@ -40,10 +28,7 @@ import {
 import { DOCS_JSON_ERROR_CODES } from "../cli/commands/docs";
 import { FORMAT_JSON_ERROR_CODES } from "../cli/commands/format";
 import { NEW_PROJECT_JSON_ERROR_CODES } from "../cli/commands/new";
-import {
-  CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
-  CLEAN_WORKDIR_SYMLINK_CODE,
-} from "../cli/commands/clean";
+import { CLEAN_JSON_ERROR_CODES } from "../cli/commands/clean";
 import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
 import { CHECK_JSON_ERROR_CODES } from "../cli/commands/check";
 import { LINT_JSON_ERROR_CODES } from "../cli/commands/lint";
@@ -923,23 +908,7 @@ describe("Markdown documentation", () => {
     ]
       .join("\n")
       .replace(/\s+/g, " ");
-    const expectedCodes = [
-      BUILD_INVALID_OPTIMIZATION_CODE,
-      BUILD_INVALID_EMIT_CODE,
-      BUILD_INVALID_WASM_RUNTIME_CODE,
-      BUILD_INVALID_JOBS_CODE,
-      BUILD_INPUT_NOT_FOUND_CODE,
-      BUILD_INPUT_SYMLINK_CODE,
-      BUILD_INPUT_NOT_FILE_CODE,
-      BUILD_OUTPUT_SYMLINK_CODE,
-      BUILD_OUTPUT_DIRECTORY_CODE,
-      BUILD_OUTPUT_NOT_FILE_CODE,
-      BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
-      BUILD_OUTPUT_PARENT_SYMLINK_CODE,
-      BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
-    ];
-
-    for (const code of expectedCodes) {
+    for (const code of BUILD_JSON_ERROR_CODES) {
       expect(docs).toContain(code);
     }
     expect(docs).toContain("Build validation `errorCode` values");
@@ -953,12 +922,7 @@ describe("Markdown documentation", () => {
     ]
       .join("\n")
       .replace(/\s+/g, " ");
-    const expectedCodes = [
-      CLEAN_WORKDIR_SYMLINK_CODE,
-      CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
-    ];
-
-    for (const code of expectedCodes) {
+    for (const code of CLEAN_JSON_ERROR_CODES) {
       expect(docs).toContain(code);
     }
     expect(docs).toContain("Clean validation `errorCode` values");
