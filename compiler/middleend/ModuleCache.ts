@@ -351,6 +351,19 @@ export class ModuleCache {
     });
   }
 
+  private validateOptimizationLevel(optimizationLevel: number | undefined): void {
+    if (
+      optimizationLevel === undefined ||
+      [0, 1, 2, 3].includes(optimizationLevel)
+    ) {
+      return;
+    }
+
+    throw this.createOptionError(
+      `Invalid optimization level "${optimizationLevel}". Use one of: 0, 1, 2, 3.`,
+    );
+  }
+
   resetStats(jobs: number | undefined = 1): void {
     this.lastStats = {
       totalModules: 0,
@@ -437,6 +450,7 @@ export class ModuleCache {
     optimizationLevel?: number,
     options: { sysroot?: string; clangFlags?: string[] } = {},
   ): string {
+    this.validateOptimizationLevel(optimizationLevel);
     // Include codegen-affecting options so incompatible object files do not collide.
     const hash = this.getModuleHash(content, target, optimizationLevel, options);
     const objectFileName = `${hash}.o`;
@@ -566,6 +580,12 @@ export class ModuleCache {
     modules: ModuleCompileInput[],
     options: ModuleCompileBatchOptions = {},
   ): Promise<string[]> {
+    for (const input of modules) {
+      this.validateOptimizationLevel(
+        input.optimizationLevel ?? options.optimizationLevel,
+      );
+    }
+
     const jobs = Math.min(
       this.normalizeJobs(options.jobs),
       modules.length || 1,
@@ -595,6 +615,7 @@ export class ModuleCache {
     const clangFlags = input.clangFlags ?? options.clangFlags;
     const optimizationLevel =
       input.optimizationLevel ?? options.optimizationLevel;
+    this.validateOptimizationLevel(optimizationLevel);
     const hash = this.getModuleHash(input.content, target, optimizationLevel, {
       sysroot,
       clangFlags,

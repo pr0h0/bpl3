@@ -60,6 +60,72 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("rejects invalid module optimization levels before invoking the compiler", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-invalid-opt-"));
+    const previousBplCc = process.env.BPL_CC;
+    const markerPath = join(dir, "driver-invoked");
+
+    try {
+      process.env.BPL_CC = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.writeFileSync(${JSON.stringify(markerPath)}, "invoked\\n");`,
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        'if (args[outputIndex]) fs.writeFileSync(args[outputIndex], "object\\n");',
+      ]);
+
+      const cache = new ModuleCache(dir);
+      let thrown: unknown;
+      try {
+        cache.compileModule(
+          "main.bpl",
+          "frame main() ret int { return 0; }",
+          EMPTY_MAIN_IR,
+          false,
+          undefined,
+          4,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toContain(
+        'Invalid optimization level "4"',
+      );
+      expect(existsSync(markerPath)).toBe(false);
+
+      thrown = undefined;
+      try {
+        await cache.compileModules(
+          [
+            {
+              modulePath: "main.bpl",
+              content: "frame main() ret int { return 0; }",
+              llvmIR: EMPTY_MAIN_IR,
+            },
+          ],
+          { optimizationLevel: 4 },
+        );
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toContain(
+        'Invalid optimization level "4"',
+      );
+      expect(existsSync(markerPath)).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps separate object cache entries for compiler driver flags", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-flags-"));
 
