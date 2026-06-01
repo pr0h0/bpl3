@@ -1243,6 +1243,26 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("playground docs document browser wasm compiler hook contract", () => {
+    const combinedDocs = [
+      readFileSync("playground/README.md", "utf8"),
+      readFileSync("docs/39-compiler-options.md", "utf8"),
+      readFileSync("docs/60-compiler-correctness.md", "utf8"),
+    ].join("\n");
+    const normalizedText = combinedDocs.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "`BplBrowserCompiler.compileToHostedWasm({ code, args })`",
+      "`code` is the editor source string",
+      "`args` is the argv array passed to `main`",
+      "Successful responses return `success: true` and a required `wasmBase64` string",
+      "`wasmBytes` and `imports` are optional display metadata",
+      "Failure responses return `success: false` with an `error` string",
+      "The playground then calls `BplWasmHostAdapter.runHostedWasmInBrowser(wasmBase64, args)`",
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("docs document CI-safe typed test runner", () => {
     const normalizedText = normalizedMarkdownText([
       "README.md",

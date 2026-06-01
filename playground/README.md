@@ -51,6 +51,21 @@ An interactive web-based playground for learning and experimenting with BPL (Bes
   `BplBrowserCompiler.compileToHostedWasm` bundle is loaded, the same UI can
   compile and run without the backend.
 
+### Browser Compiler Hook
+
+Browser-only compilation is opt-in. A compiler bundle can register
+`window.BplBrowserCompiler.compileToHostedWasm` before `app.js` runs. The
+playground calls `BplBrowserCompiler.compileToHostedWasm({ code, args })` where
+`code` is the editor source string and `args` is the argv array passed to
+`main`.
+
+Successful responses return `success: true` and a required `wasmBase64` string.
+`wasmBytes` and `imports` are optional display metadata using the same shape as
+the backend `/wasm` response. Failure responses return `success: false` with an
+`error` string. The playground then calls
+`BplWasmHostAdapter.runHostedWasmInBrowser(wasmBase64, args)` so browser and
+backend-compiled modules use the same host import adapter.
+
 ## Quick Start
 
 ### Prerequisites

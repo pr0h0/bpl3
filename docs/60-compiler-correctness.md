@@ -181,6 +181,12 @@ a `wasm-ld` prerequisite. Missing it means the playground can still execute
 hosted wasm in the browser after the backend `/wasm` endpoint compiles the
 module.
 
+The hook contract is intentionally small. The playground calls
+`BplBrowserCompiler.compileToHostedWasm({ code, args })`, then sends the
+returned `wasmBase64` to
+`BplWasmHostAdapter.runHostedWasmInBrowser(wasmBase64, args)`. See
+`playground/README.md` for the documented request and response fields.
+
 Timeout failures in CI triage map to the same focused repro commands and
 timeout knobs shown by `bpl doctor --json`. Use the focused command first, then
 increase only the relevant timeout when the local host is known to be slower:

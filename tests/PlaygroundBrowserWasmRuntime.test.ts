@@ -227,11 +227,16 @@ describe("Playground browser wasm runtime", () => {
   });
 
   test("uses an injected browser compiler bundle and host adapter when both are available", async () => {
-    const calls: string[] = [];
+    let capturedRequest: unknown;
+    let capturedHostArgv: string[] = [];
     const globalObject = makeBrowserGlobal({
       BplBrowserCompiler: {
         async compileToHostedWasm(request: { code: string; args: string[] }) {
-          calls.push(`${request.code}:${request.args.join(",")}`);
+          capturedRequest = {
+            keys: Object.keys(request),
+            code: request.code,
+            args: [...request.args],
+          };
           return {
             success: true,
             wasmBase64: "AGFzbQ==",
@@ -243,6 +248,7 @@ describe("Playground browser wasm runtime", () => {
     });
     const hostAdapter = {
       async runHostedWasmInBrowser(wasmBase64: string, argv: string[]) {
+        capturedHostArgv = [...argv];
         return {
           stdout: `${wasmBase64}:${argv.join(",")}`,
           stderr: "",
@@ -259,7 +265,12 @@ describe("Playground browser wasm runtime", () => {
       { globalObject, hostAdapter },
     );
 
-    expect(calls).toEqual(["source:alpha,beta"]);
+    expect(capturedRequest).toEqual({
+      keys: ["code", "args"],
+      code: "source",
+      args: ["alpha", "beta"],
+    });
+    expect(capturedHostArgv).toEqual(["alpha", "beta"]);
     expect(result).toEqual({
       success: true,
       phase: "run",
@@ -270,6 +281,45 @@ describe("Playground browser wasm runtime", () => {
         trapped: false,
         error: "",
       },
+    });
+  });
+
+  test("handles documented browser compiler failure and malformed success responses", async () => {
+    const compileFailure = await browserWasmRuntime.compileAndRunBplInBrowser(
+      "bad source",
+      [],
+      {
+        globalObject: makeBrowserGlobal({
+          BplBrowserCompiler: {
+            async compileToHostedWasm() {
+              return { success: false, error: "type error" };
+            },
+          },
+        }),
+      },
+    );
+
+    expect(compileFailure).toEqual({
+      success: false,
+      phase: "compile",
+      error: "type error",
+    });
+
+    const malformedSuccess =
+      await browserWasmRuntime.compileAndRunBplInBrowser("source", [], {
+        globalObject: makeBrowserGlobal({
+          BplBrowserCompiler: {
+            async compileToHostedWasm() {
+              return { success: true };
+            },
+          },
+        }),
+      });
+
+    expect(malformedSuccess).toEqual({
+      success: false,
+      phase: "compile",
+      error: "Browser BPL compiler did not return wasmBase64.",
     });
   });
 });
