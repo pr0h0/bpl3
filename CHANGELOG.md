@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **CI-Safe Test Runner** - `bun run test:ci` now delegates to
+  `tools/test_ci.ts`, a typed runner that owns runtime-build, integration,
+  playground, VS Code extension, and CI-safe unit-test ordering. Use
+  `bun tools/test_ci.ts --list`, `--dry-run`, or `--json` to inspect the
+  versioned plan without running the suite; correctness corpora, long fuzz,
+  sanitizer runtime, golden LLVM shape, and full release smoke suites remain in
+  their dedicated scripts.
 - **Bindgen JSON Validation Code List** - `bpl bindgen <header> --json`
   validation codes now expose a shared constant list, and MarkdownDocs checks
   the bindgen JSON documentation contract against that list.

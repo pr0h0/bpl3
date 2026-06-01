@@ -90,6 +90,9 @@ bun test tests/SpecificFeature.test.ts
 # Broad CI-safe suite, including integration, playground, and VS Code extension tests
 bun run test:ci
 
+# Inspect the typed CI-safe runner plan without executing the suite
+bun tools/test_ci.ts --list
+
 # VS Code extension tests only
 bun run test:vscode-ext
 

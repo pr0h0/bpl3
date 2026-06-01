@@ -28,6 +28,17 @@ wrap semantics and avoiding `inbounds` assumptions for unchecked raw pointer
 arithmetic.
 
 The broad `bun run test:ci` suite runs only on the primary Ubuntu release leg.
+It delegates to the typed runner in `tools/test_ci.ts`, which keeps the suite
+order and heavyweight exclusions out of `package.json`. Use
+`bun tools/test_ci.ts --list` or `bun tools/test_ci.ts --dry-run` to inspect the
+planned commands without executing them; use `bun tools/test_ci.ts --json` when
+automation needs the versioned plan. The runner builds runtime support first,
+runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`, runs
+the VS Code extension suite, then runs discovered top-level CI-safe unit tests.
+It intentionally excludes the full correctness corpora, long fuzz runners,
+sanitizer runtime suite, golden LLVM shape suite, and full release smoke suite
+because those have dedicated scripts and CI jobs.
+
 Every matrix leg still runs `bun run check`, `bun run test:correctness`,
 `bun run fuzz:validate-artifacts`, and `bun run test:sanitizers`.
 `test:correctness` includes standalone wasm runtime execution and the wasm

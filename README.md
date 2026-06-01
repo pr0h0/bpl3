@@ -869,8 +869,13 @@ not secrets.
 bun run test
 
 # Run the CI-safe broad suite. This includes integration, playground, and
-# VS Code extension tests, but leaves fuzz/correctness corpora to dedicated scripts.
+# VS Code extension tests, but leaves correctness corpora, long fuzz,
+# sanitizer runtime, and full release smoke suites to dedicated scripts.
 bun run test:ci
+# Inspect the typed CI-safe runner plan without running it.
+bun tools/test_ci.ts --list
+bun tools/test_ci.ts --dry-run
+bun tools/test_ci.ts --json
 # Limit integration/example concurrency. BPL_INTEGRATION_JOBS must be a
 # positive integer; malformed values are ignored with a warning and the
 # auto-detected integration job count is used.

@@ -1197,6 +1197,29 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
+  test("docs document CI-safe typed test runner", () => {
+    const normalizedText = normalizedMarkdownText([
+      "README.md",
+      "docs/57-extending-compiler.md",
+      "docs/60-compiler-correctness.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "bun run test:ci",
+      "tools/test_ci.ts",
+      "bun tools/test_ci.ts --list",
+      "bun tools/test_ci.ts --dry-run",
+      "bun tools/test_ci.ts --json",
+      "The runner builds runtime support first",
+      "runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`",
+      "runs the VS Code extension suite",
+      "then runs discovered top-level CI-safe unit tests",
+      "correctness corpora, long fuzz, sanitizer runtime, golden LLVM shape, and full release smoke suites remain in their dedicated scripts",
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
   test("docs document integration job environment validation", () => {
     const normalizedText = normalizedMarkdownText([
       "README.md",
