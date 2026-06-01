@@ -35,6 +35,7 @@ export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
 export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
 export const BUILTIN_TYPE_REDEFINITION_CODE =
   "BPL_BUILTIN_TYPE_REDEFINITION";
+export const ARRAY_SIZE_INVALID_CODE = "BPL_ARRAY_SIZE_INVALID";
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   SYMBOL_ALREADY_DEFINED_CODE,
@@ -43,6 +44,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   TYPE_NOT_FOUND_CODE,
   VOID_TYPE_INVALID_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
+  ARRAY_SIZE_INVALID_CODE,
 ] as const;
 
 export const RESERVED_BUILTIN_TYPE_NAMES = new Set([
@@ -196,6 +198,7 @@ export abstract class TypeCheckerBase {
               "Array size must be greater than zero.",
               "Arrays cannot have zero or negative size.",
               type.location,
+              ARRAY_SIZE_INVALID_CODE,
             );
           }
         }
