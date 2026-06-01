@@ -65,6 +65,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Packed CI Triage Sanitizer Contracts** - Release helper smoke now checks
   that packed `ci:triage` JSON keeps sanitizer runtime repro commands available
   after npm packaging.
+- **Completion Target Drift Guard** - Shell completion target triples now come
+  from a shared list that is compiled to LLVM metadata in tests, so advertised
+  target suggestions cannot drift away from CodeGenerator support.
 - **Packed Package Import Diagnostic Smoke** - Release smoke now checks that
   the packed npm CLI preserves package/import JSON diagnostic codes such as
   `BPL_PACKAGE_MANIFEST_MISSING`, with a focused metadata repro command for the

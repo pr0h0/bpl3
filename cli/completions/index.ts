@@ -3,6 +3,18 @@
  * Contains bash and zsh completion scripts as strings for the compiled binary
  */
 
+export const COMMON_TARGET_TRIPLES = [
+  "x86_64-pc-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "arm64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-gnu",
+  "wasm32-unknown-unknown",
+  "wasm32-wasi",
+] as const;
+
+const COMMON_TARGET_TRIPLE_LIST = COMMON_TARGET_TRIPLES.join(" ");
+
 /**
  * Get the embedded bash completion script
  */
@@ -86,7 +98,7 @@ _bpl_completion() {
         ;;
         --target)
             # Common target triples
-            local targets="x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown wasm32-wasi"
+            local targets="${COMMON_TARGET_TRIPLE_LIST}"
             COMPREPLY=( $(compgen -W "\${targets}" -- "\${cur}") )
             return 0
         ;;
@@ -281,7 +293,7 @@ _bpl() {
         '-o[Output file path]:file:_files'
         '--output[Output file path]:file:_files'
         '--emit[Emit type]:type:(llvm ast tokens formatted)'
-        '--target[Target triple for clang]:triple:(x86_64-pc-linux-gnu aarch64-unknown-linux-gnu arm64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-gnu wasm32-unknown-unknown wasm32-wasi)'
+        '--target[Target triple for clang]:triple:(${COMMON_TARGET_TRIPLE_LIST})'
         '--sysroot[Sysroot path for cross-compilation]:path:_directories'
         '--cpu[Target CPU for clang]:cpu'
         '--march[Target architecture for clang]:arch'
