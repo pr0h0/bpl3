@@ -1156,6 +1156,22 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document duplicate-symbol diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Duplicate top-level symbols use `BPL_SYMBOL_ALREADY_DEFINED`",
+      "`Symbol 'Thing' is already defined in this scope`",
+      "`Rename this struct or remove the earlier type alias declaration.`",
+      "same-scope non-function declarations from silently overwriting earlier symbols",
+      'bun test tests/TypeCheckerDuplicateSymbols.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

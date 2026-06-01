@@ -575,6 +575,20 @@ bun test tests/CLIJsonParseability.test.ts -t "available exports"
 bun test tests/CLIJsonParseability.test.ts -t "stdlib package-name collisions"
 ```
 
+Duplicate top-level symbols use `BPL_SYMBOL_ALREADY_DEFINED` when a declaration
+would reuse a non-function symbol already present in the same module scope.
+For example, `type Thing = int;` followed by `struct Thing { ... }` reports
+`Symbol 'Thing' is already defined in this scope` with the hint
+`Rename this struct or remove the earlier type alias declaration.`. This keeps
+same-scope non-function declarations from silently overwriting earlier symbols
+while preserving valid function overloads. Reproduce the type-checker and JSON
+contracts with:
+
+```bash
+bun test tests/TypeCheckerDuplicateSymbols.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
