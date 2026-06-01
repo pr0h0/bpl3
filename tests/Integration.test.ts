@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it } from "bun:test";
+import { createHash } from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -54,7 +55,15 @@ function getExampleDirectories(dir = EXAMPLES_DIR): string[] {
 
 function getExampleArtifactOutputPath(example: string): string {
   const safeExampleName = example.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return path.join(INTEGRATION_RUN_ARTIFACTS_DIR, safeExampleName, "main");
+  const exampleFingerprint = createHash("sha256")
+    .update(example)
+    .digest("hex")
+    .slice(0, 12);
+  return path.join(
+    INTEGRATION_RUN_ARTIFACTS_DIR,
+    `${safeExampleName}-${exampleFingerprint}`,
+    "main",
+  );
 }
 
 function prepareExampleArtifactOutput(example: string): string {
@@ -102,6 +111,15 @@ describe("Integration Tests", () => {
     );
 
     expect(outputPath).toContain(`run-${process.pid}-`);
+  });
+
+  it("keeps nested and underscore example artifact paths distinct", () => {
+    expect(getExampleArtifactOutputPath("enum_imports/destructuring")).not.toBe(
+      getExampleArtifactOutputPath("enum_imports_destructuring"),
+    );
+    expect(getExampleArtifactOutputPath("enum_imports/wildcard")).not.toBe(
+      getExampleArtifactOutputPath("enum_imports_wildcard"),
+    );
   });
 
   it("cleans prepared integration artifact directories", () => {

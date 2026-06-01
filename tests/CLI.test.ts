@@ -2634,7 +2634,8 @@ describe("CLI Tests", () => {
       expect(unsafeStdDiagnostic).toMatchObject({
         severity: "error",
         message: "Unsafe standard library import: std/../outside-std-lib.bpl",
-        hint: "Use std/<path> without empty, '.', or '..' path segments.",
+        hint:
+          "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
         location: {
           file: unsafeStdFile,
           start: { line: 1, column: 1 },

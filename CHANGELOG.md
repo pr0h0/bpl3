@@ -701,6 +701,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Integration Artifact Path Collisions** - CI-safe integration tests now add a
+  stable source-path fingerprint to temporary artifact directories, so examples
+  like `enum_imports/destructuring` and `enum_imports_destructuring` cannot
+  race by compiling into the same path during concurrent runs.
 - **Import Case-Mismatch Diagnostics** - Module and package import resolution now
   rejects case-only filesystem mismatches before accepting a candidate or
   falling back to lower-priority extensions. Diagnostics include stable codes
