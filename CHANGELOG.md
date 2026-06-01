@@ -512,6 +512,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Compiler Driver Wasm Target Detection** - Compiler driver selection now
+  treats only `wasm32` and `wasm64` target architectures as WebAssembly, so
+  substring-only targets such as `notwasm32-unknown-unknown` do not select
+  `BPL_WASM_CC`.
 - **Wasm Runtime Mode Component Matching** - Default hosted wasm runtime
   selection now matches target components such as `wasi`, `wasip1`, and
   `emscripten` instead of substrings, so targets like `wasm32-notwasi` remain

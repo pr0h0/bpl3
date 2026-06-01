@@ -6,7 +6,8 @@ const COMPILE_DRIVER_TIMEOUT_MS =
   TIMEOUT_ENV_DEFAULTS.BPL_COMPILE_DRIVER_TIMEOUT_MS;
 
 export function isWasmTarget(target?: string): boolean {
-  return target?.toLowerCase().includes("wasm") ?? false;
+  const arch = target?.toLowerCase().split("-")[0] ?? "";
+  return arch === "wasm32" || arch === "wasm64";
 }
 
 export function getCompilerDriver(target?: string): string {
