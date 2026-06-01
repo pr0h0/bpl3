@@ -143,8 +143,17 @@ function expectDocsContainSnippets(
   docs: string,
   snippets: readonly string[],
 ): void {
-  for (const snippet of snippets) {
-    expect(docs).toContain(snippet.replace(/\s+/g, " "));
+  const missingSnippets = snippets.filter(
+    (snippet) => !docs.includes(snippet.replace(/\s+/g, " ")),
+  );
+
+  if (missingSnippets.length > 0) {
+    throw new Error(
+      [
+        "Missing Markdown documentation snippets:",
+        ...missingSnippets.map((snippet) => `- ${snippet}`),
+      ].join("\n"),
+    );
   }
 }
 
@@ -152,8 +161,15 @@ function expectDocsContainCodes(
   docs: string,
   codes: readonly string[],
 ): void {
-  for (const code of codes) {
-    expect(docs).toContain(code);
+  const missingCodes = codes.filter((code) => !docs.includes(code));
+
+  if (missingCodes.length > 0) {
+    throw new Error(
+      [
+        "Missing Markdown documentation codes:",
+        ...missingCodes.map((code) => `- ${code}`),
+      ].join("\n"),
+    );
   }
 }
 
@@ -175,6 +191,23 @@ function expectDocsCoverCodeLists(
 }
 
 describe("Markdown documentation", () => {
+  test("snippet helper reports concise missing-snippet diagnostics", () => {
+    let thrown: unknown;
+
+    try {
+      expectDocsContainSnippets("short docs SECRET_FULL_CORPUS_SENTINEL", [
+        "missing snippet",
+      ]);
+    } catch (error) {
+      thrown = error;
+    }
+
+    const message = String(thrown);
+    expect(message).toContain("Missing Markdown documentation snippets");
+    expect(message).toContain("missing snippet");
+    expect(message).not.toContain("SECRET_FULL_CORPUS_SENTINEL");
+  });
+
   test("local markdown links resolve", () => {
     const files = trackedMarkdownFiles();
     const allTrackedFiles = trackedFiles();

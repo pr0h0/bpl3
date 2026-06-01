@@ -212,6 +212,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Integration Artifact Root Isolation** - Integration test output paths now
   include a run-unique temporary root and cleanup guard so concurrent local runs
   do not collide over generated binaries or LLVM IR.
+- **Compact MarkdownDocs Failures** - Markdown documentation snippet and code
+  helpers now report concise missing-item lists instead of dumping the entire
+  Markdown corpus into CI logs.
 - **Release Manifest Helper Reference Fixture** - Release manifest tests now
   cover script-name helper references in the local fixture, including multiple
   npm scripts pointing at the same packed helper.
