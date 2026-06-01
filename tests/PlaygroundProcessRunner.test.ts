@@ -86,6 +86,58 @@ describe("Playground process runner", () => {
     expect(error.stderr).toBe("partial stderr");
   });
 
+  test("passes cwd and environment to child processes without a shell", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-playground-process-cwd-"));
+    const scriptPath = join(tempDir, "cwd-env.js");
+
+    try {
+      writeFileSync(
+        scriptPath,
+        [
+          "console.log(",
+          "  JSON.stringify({",
+          "    cwd: process.cwd(),",
+          "    env: process.env.BPL_PLAYGROUND_RUNNER_TEST,",
+          "  }),",
+          ");",
+        ].join("\n"),
+      );
+
+      const result = await runProcessFile(process.execPath, [scriptPath], {
+        cwd: tempDir,
+        env: {
+          ...process.env,
+          BPL_PLAYGROUND_RUNNER_TEST: "env-value",
+        },
+        timeout: 5000,
+      });
+
+      expect(JSON.parse(result.stdout)).toEqual({
+        cwd: tempDir,
+        env: "env-value",
+      });
+      expect(result.stderr).toBe("");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("attaches stable stream and exit metadata to spawn failures", async () => {
+    const error = await expectRunProcessFileError(
+      runProcessFile(
+        join(tmpdir(), "missing-bpl-playground-runner-executable"),
+        [],
+        { timeout: 5000 },
+      ),
+    );
+
+    expect(error.message).toContain("ENOENT");
+    expect(error.code).toBeNull();
+    expect(error.signal).toBeNull();
+    expect(error.stdout).toBe("");
+    expect(error.stderr).toBe("");
+  });
+
   test("marks timeout errors as killed and keeps captured output", async () => {
     const error = await expectRunProcessFileError(
       runProcessFile(

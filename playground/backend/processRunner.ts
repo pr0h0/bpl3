@@ -72,6 +72,9 @@ export function runProcessFile(
       settled = true;
       cleanup();
       const processError = error as RunProcessFileError;
+      processError.code =
+        typeof processError.code === "number" ? processError.code : null;
+      processError.signal = processError.signal ?? null;
       processError.stdout = stdout;
       processError.stderr = stderr;
       reject(processError);
