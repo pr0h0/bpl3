@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
 
 import { Compiler } from "../compiler/index";
+import { runProcessFile } from "../playground/backend/processRunner";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 interface Example {
   order: number;
@@ -63,15 +64,11 @@ async function compileAndRunExample(
   const sourceFile = path.join(tempDir, "main.bpl");
   const irFile = path.join(tempDir, "main.ll");
   const binFile = path.join(tempDir, "main");
-  const inputFile = path.join(tempDir, "input.txt");
 
   const codeStr = Array.isArray(code) ? code.join("\n") : code;
 
   try {
     fs.writeFileSync(sourceFile, codeStr, "utf-8");
-    if (input) {
-      fs.writeFileSync(inputFile, input, "utf-8");
-    }
 
     const compiler = new Compiler({
       filePath: sourceFile,
@@ -99,9 +96,16 @@ async function compileAndRunExample(
     try {
       const runtimePath = path.resolve("lib/runtime.ll");
       const runtimeSupportPath = path.resolve("lib/runtime_support.o");
-      await execAsync(
-        `clang -o "${binFile}" "${irFile}" "${runtimePath}" "${runtimeSupportPath}" -Wno-override-module -lm -rdynamic`,
-      );
+      await execFileAsync("clang", [
+        "-o",
+        binFile,
+        irFile,
+        runtimePath,
+        runtimeSupportPath,
+        "-Wno-override-module",
+        "-lm",
+        "-rdynamic",
+      ]);
     } catch (e: any) {
       return {
         success: false,
@@ -112,13 +116,8 @@ async function compileAndRunExample(
 
     // Run the binary
     try {
-      const argsStr = (args || [])
-        .map((a) => `"${a.replace(/"/g, '\\"')}"`)
-        .join(" ");
-      const inputRedirect = input ? ` < "${inputFile}"` : "";
-      const cmd = `"${binFile}" ${argsStr}${inputRedirect}`;
-
-      const { stdout, stderr } = await execAsync(cmd, {
+      const { stdout, stderr } = await runProcessFile(binFile, args || [], {
+        input,
         timeout: 5000,
       });
 
@@ -228,6 +227,42 @@ describe("BPL Playground Examples", () => {
         "Browser WebAssembly Showcase",
       ]),
     );
+  });
+
+  it("passes shell metacharacter args literally and preserves stdin", async () => {
+    const result = await compileAndRunExample(
+      [
+        "extern printf(fmt: string, ...);",
+        "extern scanf(fmt: string, ...);",
+        "",
+        "frame main(argc: int, argv: **char) ret int {",
+        "    local value: i32;",
+        "    printf(\"argc=%d\\n\", argc);",
+        "    printf(\"arg1=%s\\n\", argv[1]);",
+        "    printf(\"arg2=%s\\n\", argv[2]);",
+        "    scanf(\"%d\", &value);",
+        "    printf(\"stdin=%d\\n\", value);",
+        "    return 0;",
+        "}",
+      ],
+      "42\n",
+      ["$(printf mutated)", "`printf ticked`"],
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain("argc=3");
+    expect(result.output).toContain("arg1=$(printf mutated)");
+    expect(result.output).toContain("arg2=`printf ticked`");
+    expect(result.output).toContain("stdin=42");
+  });
+
+  it("uses argv-vector execution instead of runtime shell strings", () => {
+    const source = fs.readFileSync(import.meta.path, "utf8");
+
+    expect(source).toContain("runProcessFile(binFile, args || []");
+    expect(source).not.toMatch(/const\s+argsStr\s*=/);
+    expect(source).not.toMatch(/\binputRedirect\b\s*=/);
+    expect(source).not.toMatch(/execAsync\s*\(\s*cmd/);
   });
 
   examples.forEach((example) => {
