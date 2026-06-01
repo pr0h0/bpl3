@@ -31,6 +31,12 @@ export interface TestCiPlanOptions {
   testsDir?: string;
 }
 
+export interface TestCiStepResultSummary {
+  status: number | null;
+  signal: string | null;
+  errorMessage?: string;
+}
+
 class UsageError extends Error {}
 
 const EXCLUDED_TEST_FILE_SET = new Set<string>(CI_SAFE_EXCLUDED_TEST_FILES);
@@ -89,6 +95,40 @@ export function formatTestCiPlanText(plan: TestCiStep[]): string {
     .join("\n\n");
 }
 
+export function formatTestCiSuccessSummary(plan: TestCiStep[]): string {
+  return `==> CI-safe validation passed (${plan.length} steps)`;
+}
+
+export function formatTestCiFailureSummary(
+  step: TestCiStep,
+  result: TestCiStepResultSummary,
+): string {
+  const lines = [
+    "==> CI-safe validation failed",
+    `Failed step: ${step.name}`,
+    `Command: ${formatCommand(step)}`,
+  ];
+
+  if (result.errorMessage) {
+    lines.push(`Start error: ${result.errorMessage}`);
+  }
+  if (result.status !== null) {
+    lines.push(`Exit status: ${result.status}`);
+  }
+  if (result.signal) {
+    lines.push(`Signal: ${result.signal}`);
+  }
+  if (
+    !result.errorMessage &&
+    result.status === null &&
+    result.signal === null
+  ) {
+    lines.push("No exit status was reported.");
+  }
+
+  return lines.join("\n");
+}
+
 export function runTestCiPlan(plan: TestCiStep[]): number {
   for (const step of plan) {
     console.log(`\n==> ${step.name}`);
@@ -98,15 +138,28 @@ export function runTestCiPlan(plan: TestCiStep[]): number {
     });
 
     if (result.error) {
-      console.error(`${step.name} failed to start: ${result.error.message}`);
+      console.error(
+        `\n${formatTestCiFailureSummary(step, {
+          status: result.status,
+          signal: result.signal,
+          errorMessage: result.error.message,
+        })}`,
+      );
       return 1;
     }
 
     if (result.status !== 0) {
+      console.error(
+        `\n${formatTestCiFailureSummary(step, {
+          status: result.status,
+          signal: result.signal,
+        })}`,
+      );
       return result.status ?? 1;
     }
   }
 
+  console.log(`\n${formatTestCiSuccessSummary(plan)}`);
   return 0;
 }
 

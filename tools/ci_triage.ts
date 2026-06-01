@@ -653,6 +653,7 @@ const VSCODE_EXTENSION_TYPECHECK_STEP_PATTERN = new RegExp(
 const TEST_CI_RUNNER_STEP_PATTERN = new RegExp(
   [
     "Run CI-safe test suite",
+    "CI-safe validation failed",
     "CI-safe test runner",
     "Run CI-safe unit tests",
     "tools/test_ci\\.ts",

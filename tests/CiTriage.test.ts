@@ -72,6 +72,11 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("Run CI-safe unit tests")).toEqual(
       expectedCommands,
     );
+    expect(
+      localCommandsForStep(
+        "CI-safe validation failed: Failed step: Run CI-safe unit tests",
+      ),
+    ).toEqual(expectedCommands);
     expect(localCommandsForStep('check: "test-ci" JSON mismatch')).toEqual(
       expectedCommands,
     );

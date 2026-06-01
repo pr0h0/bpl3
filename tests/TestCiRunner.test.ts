@@ -7,7 +7,10 @@ import {
   CI_SAFE_FIXED_TEST_FILES,
   createTestCiPlan,
   discoverCiSafeUnitTestFiles,
+  formatTestCiFailureSummary,
   formatTestCiPlanText,
+  formatTestCiSuccessSummary,
+  runTestCiPlan,
 } from "../tools/test_ci";
 
 function withTempTests<T>(files: string[], run: (testsDir: string) => T): T {
@@ -97,5 +100,106 @@ describe("CI-safe test runner", () => {
 
     const packageJson = require("../package.json");
     expect(packageJson.scripts["test:ci"]).toBe("bun tools/test_ci.ts");
+  });
+
+  test("formats concise success summaries for completed CI-safe runs", () => {
+    withTempTests(["Alpha.test.ts"], (testsDir) => {
+      const summary = formatTestCiSuccessSummary(
+        createTestCiPlan({ testsDir }),
+      );
+
+      expect(summary).toBe("==> CI-safe validation passed (4 steps)");
+    });
+  });
+
+  test("formats actionable failure summaries for failed CI-safe steps", () => {
+    const step = {
+      name: "Run CI-safe unit tests",
+      command: "bun",
+      args: ["test", "tests/Alpha.test.ts"],
+    };
+
+    expect(
+      formatTestCiFailureSummary(step, { status: 2, signal: null }),
+    ).toContain("==> CI-safe validation failed");
+    expect(
+      formatTestCiFailureSummary(step, { status: 2, signal: null }),
+    ).toContain("Failed step: Run CI-safe unit tests");
+    expect(
+      formatTestCiFailureSummary(step, { status: 2, signal: null }),
+    ).toContain("Command: bun test tests/Alpha.test.ts");
+    expect(
+      formatTestCiFailureSummary(step, { status: 2, signal: null }),
+    ).toContain("Exit status: 2");
+
+    expect(
+      formatTestCiFailureSummary(step, {
+        status: null,
+        signal: "SIGTERM",
+        errorMessage: "spawn failed",
+      }),
+    ).toContain("Signal: SIGTERM");
+    expect(
+      formatTestCiFailureSummary(step, {
+        status: null,
+        signal: "SIGTERM",
+        errorMessage: "spawn failed",
+      }),
+    ).toContain("Start error: spawn failed");
+  });
+
+  test("prints success summaries when all CI-safe steps pass", () => {
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (message?: unknown) => {
+      logs.push(String(message ?? ""));
+    };
+    try {
+      const exitCode = runTestCiPlan([
+        {
+          name: "Pass quickly",
+          command: process.execPath,
+          args: ["-e", "process.exit(0)"],
+        },
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(logs.join("\n")).toContain(
+        "==> CI-safe validation passed (1 steps)",
+      );
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  test("prints failure summaries when a CI-safe step fails", () => {
+    const logs: string[] = [];
+    const errors: string[] = [];
+    const originalLog = console.log;
+    const originalError = console.error;
+    console.log = (message?: unknown) => {
+      logs.push(String(message ?? ""));
+    };
+    console.error = (message?: unknown) => {
+      errors.push(String(message ?? ""));
+    };
+    try {
+      const exitCode = runTestCiPlan([
+        {
+          name: "Fail quickly",
+          command: process.execPath,
+          args: ["-e", "process.exit(7)"],
+        },
+      ]);
+
+      expect(exitCode).toBe(7);
+      expect(logs.join("\n")).toContain("==> Fail quickly");
+      expect(errors.join("\n")).toContain("CI-safe validation failed");
+      expect(errors.join("\n")).toContain("Failed step: Fail quickly");
+      expect(errors.join("\n")).toContain("Exit status: 7");
+    } finally {
+      console.log = originalLog;
+      console.error = originalError;
+    }
   });
 });
