@@ -58,6 +58,24 @@ function runCLI(args: string[]) {
   });
 }
 
+function writeStdShadowPackage(rootDir: string): void {
+  const stdPackageDir = path.join(rootDir, "bpl_modules", "std");
+  fs.mkdirSync(stdPackageDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(stdPackageDir, "bpl.json"),
+    JSON.stringify({ name: "std", version: "1.0.0", main: "missing.bpl" }),
+  );
+  fs.writeFileSync(
+    path.join(stdPackageDir, "missing.bpl"),
+    [
+      "frame shadow() ret int {",
+      "    return 42;",
+      "}",
+      "export shadow;",
+    ].join("\n"),
+  );
+}
+
 function expectDoctorJsonReport(
   result: SpawnSyncReturns<string>,
   expected: { status: number; success?: boolean },
@@ -505,22 +523,7 @@ describe("CLI Tests", () => {
   it("should not resolve missing explicit std imports from packages", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
     const sourceFile = path.join(tempDir, "main.bpl");
-    const unrelatedUndefinedFile = path.join(tempDir, "unrelated.bpl");
-    const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
-    fs.mkdirSync(stdPackageDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(stdPackageDir, "bpl.json"),
-      JSON.stringify({ name: "std", version: "1.0.0", main: "missing.bpl" }),
-    );
-    fs.writeFileSync(
-      path.join(stdPackageDir, "missing.bpl"),
-      [
-        "frame shadow() ret int {",
-        "    return 42;",
-        "}",
-        "export shadow;",
-      ].join("\n"),
-    );
+    writeStdShadowPackage(tempDir);
     fs.writeFileSync(
       sourceFile,
       [
@@ -530,16 +533,6 @@ describe("CLI Tests", () => {
         "}",
       ].join("\n"),
     );
-    fs.writeFileSync(
-      unrelatedUndefinedFile,
-      [
-        'import shadow from "std/missing.bpl";',
-        "frame main() ret int {",
-        "    return other();",
-        "}",
-      ].join("\n"),
-    );
-
     try {
       const expectMissingStdOnlyJson = (
         file: string,
@@ -594,6 +587,26 @@ describe("CLI Tests", () => {
         "Undefined symbol 'shadow'",
         "Return type mismatch",
       ]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should preserve unrelated undefined diagnostics with missing explicit std imports", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
+    const unrelatedUndefinedFile = path.join(tempDir, "unrelated.bpl");
+    writeStdShadowPackage(tempDir);
+    fs.writeFileSync(
+      unrelatedUndefinedFile,
+      [
+        'import shadow from "std/missing.bpl";',
+        "frame main() ret int {",
+        "    return other();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
       const unrelatedJsonResult = runCLI([
         "check",
         "--json",
@@ -623,21 +636,7 @@ describe("CLI Tests", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-std-shadow-"));
     const aliasSourceFile = path.join(tempDir, "alias.bpl");
     const namespaceSourceFile = path.join(tempDir, "namespace.bpl");
-    const stdPackageDir = path.join(tempDir, "bpl_modules", "std");
-    fs.mkdirSync(stdPackageDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(stdPackageDir, "bpl.json"),
-      JSON.stringify({ name: "std", version: "1.0.0", main: "missing.bpl" }),
-    );
-    fs.writeFileSync(
-      path.join(stdPackageDir, "missing.bpl"),
-      [
-        "frame shadow() ret int {",
-        "    return 42;",
-        "}",
-        "export shadow;",
-      ].join("\n"),
-    );
+    writeStdShadowPackage(tempDir);
     fs.writeFileSync(
       aliasSourceFile,
       [
