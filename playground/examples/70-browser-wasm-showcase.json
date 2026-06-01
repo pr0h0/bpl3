@@ -3,6 +3,12 @@
   "title": "Browser WebAssembly Showcase",
   "snippet": "Compile hosted wasm and execute the module inside the browser.",
   "description": "This example stays native-compatible while also using the hosted WebAssembly runtime. In the playground, Run Code executes it as a native binary and Run Wasm compiles it to wasm32, instantiates it in the browser, and routes stdout through JavaScript host imports.",
+  "wasm": {
+    "mode": "wasm-hosted",
+    "browserRuntime": true,
+    "canonicalMatrixFile": "examples/wasm_hosted_transform/main.bpl",
+    "reason": "Hosted browser wasm showcase that uses argv, stdout, stdlib String, and pure control flow through the JavaScript host adapter."
+  },
   "code": [
     "extern printf(fmt: string, ...) ret int;",
     "extern puts(value: string) ret int;",
