@@ -4947,6 +4947,16 @@ export class PackageManager {
     } else {
       try {
         manifest = this.loadManifest(packagePath);
+        try {
+          this.validatePackageExportFiles(
+            manifest,
+            packagePath,
+            path.join(packagePath, "bpl.json"),
+          );
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          problems.push(`invalid exports: ${detail}`);
+        }
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         problems.push(`invalid manifest: ${detail}`);

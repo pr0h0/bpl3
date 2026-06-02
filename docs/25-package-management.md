@@ -365,10 +365,13 @@ before choosing lockfile roots; symlinked, broken-symlink, malformed, or
 non-file lockfile paths are rejected instead of being treated as absent. Tree
 roots and nodes also classify `bpl_modules` and `bpl_modules/<package>` paths
 with `lstat`, so symlinked or non-directory package roots are reported as
-problems instead of being followed. Duplicate installed package names return
-the same `errorCode`, `issuesFound`, `issueKinds`, and compact `issues`
-contract before tree roots are selected. List and tree duplicate failures also
-include `issuesFound`, `issueKinds`, and compact `issues` entries with
+problems instead of being followed. Installed package nodes also revalidate
+declared `exports` entries; missing, directory, or symlinked public subpaths are
+appended to node `problems` in both text and JSON tree output while child
+dependency traversal is preserved. Duplicate installed package names return the
+same `errorCode`, `issuesFound`, `issueKinds`, and compact `issues` contract
+before tree roots are selected. List and tree duplicate failures also include
+`issuesFound`, `issueKinds`, and compact `issues` entries with
 `kind: "duplicate-installed-package"` so automation can point at the ambiguous
 installed directories. The duplicate issue payload includes both the compact
 `path` string and a `paths` array with every conflicting installed directory.

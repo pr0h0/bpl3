@@ -61,7 +61,9 @@ export checks before treating cached archives as healthy or repairable.
 Lockfile verification and `bpl install --repair-lock` also validate installed
 package exports, so a lockfile cannot silently trust or record a package with
 missing, directory, or symlinked public subpaths. `bpl doctor packages` reports
-the same broken installed export surfaces as package-health errors.
+the same broken installed export surfaces as package-health errors, and
+`bpl list --tree` appends those export failures to dependency-tree node
+problems without hiding valid child dependencies.
 
 ## CLI Commands
 
@@ -116,13 +118,18 @@ List local packages:
 
 ```bash
 bpl list
+bpl list --tree
 ```
 
 List global packages:
 
 ```bash
 bpl list --global
+bpl list --global --tree
 ```
+
+Use `--tree --json` when tooling needs the dependency tree and node `problems`
+for missing packages, unsafe package roots, or invalid installed exports.
 
 ### Uninstall a Package
 

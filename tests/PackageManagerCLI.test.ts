@@ -1987,6 +1987,111 @@ describe("Package Manager CLI", () => {
       );
     });
 
+    test("should report invalid installed package exports in dependency tree output", () => {
+      const appDir = path.join(tempDir, "cli-tree-export-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const parentDir = path.join(packageRoot, "cli-tree-export-parent");
+      const childDir = path.join(packageRoot, "cli-tree-export-child");
+      fs.mkdirSync(path.join(parentDir, "features"), { recursive: true });
+      fs.mkdirSync(childDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-tree-export-app",
+            version: "1.0.0",
+            dependencies: {
+              "cli-tree-export-parent": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(parentDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-tree-export-parent",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+            dependencies: {
+              "cli-tree-export-child": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(parentDir, "index.bpl"), "export parent;");
+      fs.writeFileSync(
+        path.join(childDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-tree-export-child",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(childDir, "index.bpl"), "export child;");
+
+      const textResult = spawnSync("bun", [bplPath, "list", "--tree"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("Dependency tree (local)");
+      expect(textResult.stdout).toContain("cli-tree-export-parent@1.0.0");
+      expect(textResult.stdout).toContain("cli-tree-export-child@1.0.0");
+      expect(textResult.stdout).toContain(
+        "! invalid exports: Missing package export entry: features/public.bpl",
+      );
+
+      const jsonResult = spawnSync(
+        "bun",
+        [bplPath, "list", "--tree", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        scope: string;
+        tree: Array<{
+          name: string;
+          problems: string[];
+          dependencies: Array<{ name: string; problems: string[] }>;
+        }>;
+      }>(jsonResult, {
+        status: 0,
+        check: "package-list-tree",
+        success: true,
+      });
+      expect(report.scope).toBe("local");
+      expect(report.tree[0]).toMatchObject({
+        name: "cli-tree-export-parent",
+        problems: [
+          expect.stringContaining(
+            "invalid exports: Missing package export entry: features/public.bpl",
+          ),
+        ],
+        dependencies: [
+          {
+            name: "cli-tree-export-child",
+            problems: [],
+          },
+        ],
+      });
+    });
+
     test("should show message when no packages installed", () => {
       const result = spawnSync("bun", [bplPath, "list"], {
         cwd: tempDir,

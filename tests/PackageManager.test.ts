@@ -4457,6 +4457,122 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report invalid installed package exports in dependency trees", () => {
+      const appDir = path.join(tempDir, "tree-export-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "tree-export-app",
+            version: "1.0.0",
+            dependencies: {
+              "tree-export-directory": "1.0.0",
+              "tree-export-missing": "1.0.0",
+              "tree-export-symlink": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const writeInstalledPackage = (
+        packageName: string,
+        manifestFields: Record<string, unknown>,
+        setup?: (packageDir: string) => void,
+      ) => {
+        const packageDir = path.join(packageRoot, packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              ...manifestFields,
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        setup?.(packageDir);
+      };
+
+      writeInstalledPackage("tree-export-child", {});
+      writeInstalledPackage(
+        "tree-export-missing",
+        {
+          exports: ["features/public.bpl"],
+          dependencies: {
+            "tree-export-child": "1.0.0",
+          },
+        },
+        (packageDir) => {
+          fs.mkdirSync(path.join(packageDir, "features"));
+        },
+      );
+      writeInstalledPackage(
+        "tree-export-directory",
+        { exports: ["features/public.bpl"] },
+        (packageDir) => {
+          fs.mkdirSync(path.join(packageDir, "features", "public.bpl"), {
+            recursive: true,
+          });
+        },
+      );
+      writeInstalledPackage(
+        "tree-export-symlink",
+        { exports: ["features/public.bpl"] },
+        (packageDir) => {
+          fs.mkdirSync(path.join(packageDir, "features"));
+          fs.writeFileSync(
+            path.join(packageDir, "features", "actual.bpl"),
+            "export actual;",
+          );
+          fs.symlinkSync(
+            "actual.bpl",
+            path.join(packageDir, "features", "public.bpl"),
+          );
+        },
+      );
+
+      const tree = new PackageManager(appDir).getDependencyTree({ global: false });
+      const nodeByName = new Map(tree.map((node) => [node.name, node]));
+
+      expect(nodeByName.get("tree-export-missing")?.problems).toEqual([
+        expect.stringContaining(
+          "invalid exports: Missing package export entry: features/public.bpl",
+        ),
+      ]);
+      expect(nodeByName.get("tree-export-directory")?.problems).toEqual([
+        expect.stringContaining(
+          "invalid exports: Unsupported package export entry: features/public.bpl",
+        ),
+      ]);
+      expect(nodeByName.get("tree-export-symlink")?.problems).toEqual([
+        expect.stringContaining(
+          "invalid exports: Unsupported package export entry: features/public.bpl",
+        ),
+      ]);
+      expect(
+        nodeByName.get("tree-export-missing")?.dependencies.map((node) => ({
+          name: node.name,
+          installed: node.installed,
+          problems: node.problems,
+        })),
+      ).toEqual([
+        {
+          name: "tree-export-child",
+          installed: true,
+          problems: [],
+        },
+      ]);
+    });
+
     test("should reject broken symlink lockfiles before building dependency trees", () => {
       const globalPackageDir = path.join(tempDir, "tree-broken-lock-cache");
       const appDir = path.join(tempDir, "tree-broken-lock-app");
