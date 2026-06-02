@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -1076,6 +1078,128 @@ describe("Package JSON failure contracts", () => {
           errorCode: testCase.expectedCode,
         });
       }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("surfaces malformed dependency source codes from lockfile JSON commands before mutation", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-package-dependency-source-json-"),
+    );
+
+    try {
+      const cases: Array<{
+        name: string;
+        args: string[];
+        expectedPayload: Record<string, unknown>;
+      }> = [
+        {
+          name: "install-malformed-source",
+          args: ["install", "--json"],
+          expectedPayload: {
+            mode: "project",
+            target: null,
+            global: false,
+            locked: false,
+            update: false,
+            repairLock: false,
+          },
+        },
+        {
+          name: "install-update-malformed-source",
+          args: ["install", "--update", "--json"],
+          expectedPayload: {
+            mode: "project",
+            target: null,
+            global: false,
+            locked: false,
+            update: true,
+            repairLock: false,
+          },
+        },
+        {
+          name: "lock-malformed-source",
+          args: ["lock", "--json"],
+          expectedPayload: {
+            mode: "project",
+            target: null,
+            global: false,
+            locked: false,
+            update: true,
+            repairLock: false,
+          },
+        },
+      ];
+
+      for (const testCase of cases) {
+        const context = cleanPackageRoot(tempDir, testCase.name);
+        writeFileSync(
+          join(context.cwd, "bpl.json"),
+          JSON.stringify({
+            name: testCase.name,
+            version: "1.0.0",
+            dependencies: {
+              "malformed-json-source": "^01.0.0",
+            },
+          }),
+        );
+
+        const report = expectJsonStdoutReport(
+          runCli(testCase.args, context),
+          {
+            status: 1,
+            check: "package-install",
+            success: false,
+          },
+        );
+
+        expect(report).toMatchObject({
+          ...testCase.expectedPayload,
+          error: expect.stringContaining(
+            "Invalid 'dependencies' source for malformed-json-source",
+          ),
+          errorCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+        });
+        expect(existsSync(join(context.cwd, "bpl_modules"))).toBe(false);
+        expect(existsSync(join(context.cwd, "bpl.lock"))).toBe(false);
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("emits package-install JSON from the lock alias for valid manifests", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-lock-json-"));
+
+    try {
+      const context = cleanPackageRoot(tempDir, "lock-valid-source");
+      writeFileSync(
+        join(context.cwd, "bpl.json"),
+        JSON.stringify({ name: "lock-valid-source", version: "1.0.0" }),
+      );
+
+      const report = expectJsonStdoutReport(runCli(["lock", "--json"], context), {
+        status: 0,
+        check: "package-install",
+        success: true,
+      });
+
+      expect(report).toMatchObject({
+        mode: "project",
+        target: null,
+        global: false,
+        locked: false,
+        update: true,
+        repairLock: false,
+      });
+      expect(
+        JSON.parse(readFileSync(join(context.cwd, "bpl.lock"), "utf8")),
+      ).toEqual({
+        lockfileVersion: 1,
+        packages: {},
+      });
+      expect(existsSync(join(context.cwd, "bpl_modules"))).toBe(false);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

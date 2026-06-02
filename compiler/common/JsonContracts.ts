@@ -66,6 +66,10 @@ export const CLI_JSON_CONTRACTS = [
     check: CLI_JSON_CHECKS.packageInstall,
   },
   {
+    command: "bpl lock --json",
+    check: CLI_JSON_CHECKS.packageInstall,
+  },
+  {
     command: "bpl init [name] --json",
     check: CLI_JSON_CHECKS.packageInit,
   },

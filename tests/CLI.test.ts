@@ -3982,6 +3982,14 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain(
       "--json[Output machine-readable install result]",
     );
+    expect(bash.stdout).toContain("install lock list");
+    expect(zsh.stdout).toContain(
+      "lock:Re-resolve bpl.json dependencies and rewrite bpl.lock",
+    );
+    expect(bash.stdout).toContain('lock_opts="-v --verbose --json"');
+    expect(zsh.stdout).toContain(
+      "--json[Output machine-readable lock result]",
+    );
     expect(bash.stdout).toContain('list_opts="-v --verbose --tree --json"');
     expect(zsh.stdout).toContain(
       "--json[Output machine-readable installed package data]",

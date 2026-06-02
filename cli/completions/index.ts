@@ -33,7 +33,7 @@ _bpl_completion() {
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format run dev build check lint init pack install list uninstall run-script rs package-cache completion clean new help docs bindgen doctor"
+    local commands="format run dev build check lint init pack install lock list uninstall run-script rs package-cache completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
@@ -65,6 +65,9 @@ _bpl_completion() {
 
     # Install command options
     local install_opts="-v --verbose --locked --update --repair-lock --json"
+
+    # Lock command options
+    local lock_opts="-v --verbose --json"
 
     # List command options
     local list_opts="-v --verbose --tree --json"
@@ -193,6 +196,10 @@ _bpl_completion() {
                 fi
                 return 0
             ;;
+            lock)
+                COMPREPLY=( $(compgen -W "\${lock_opts}" -- "\${cur}") )
+                return 0
+            ;;
             list)
                 COMPREPLY=( $(compgen -W "\${list_opts}" -- "\${cur}") )
                 return 0
@@ -273,6 +280,7 @@ _bpl() {
         'init:Initialize a new BPL package'
         'pack:Package a BPL project'
         'install:Install a BPL package'
+        'lock:Re-resolve bpl.json dependencies and rewrite bpl.lock'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
         'run-script:Run a script defined in bpl.json'
@@ -387,6 +395,12 @@ _bpl() {
                         '--repair-lock[Rewrite bpl.lock from currently installed packages]' \\
                         '--json[Output machine-readable install result]' \\
                         '1:package:_files'
+                    ;;
+                lock)
+                    _arguments \\
+                        '-v[Enable verbose output]' \\
+                        '--verbose[Enable verbose output]' \\
+                        '--json[Output machine-readable lock result]'
                     ;;
                 list)
                     _arguments \\

@@ -12,7 +12,7 @@ _bpl_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Main commands
-    local commands="format run dev build check lint init pack install list uninstall run-script rs package-cache completion clean new help docs bindgen doctor"
+    local commands="format run dev build check lint init pack install lock list uninstall run-script rs package-cache completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
@@ -44,6 +44,9 @@ _bpl_completion() {
 
     # Install command options
     local install_opts="-v --verbose --locked --update --repair-lock --json"
+
+    # Lock command options
+    local lock_opts="-v --verbose --json"
 
     # List command options
     local list_opts="-v --verbose --tree --json"
@@ -170,6 +173,10 @@ _bpl_completion() {
                     # Complete with .tar.gz files or directories
                     COMPREPLY=( $(compgen -f -- "${cur}") )
                 fi
+                return 0
+            ;;
+            lock)
+                COMPREPLY=( $(compgen -W "${lock_opts}" -- "${cur}") )
                 return 0
             ;;
             list)

@@ -186,7 +186,9 @@ export function registerPackageCommands(program: Command): void {
           setLogLevel(LogLevel.SILENT);
         }
         try {
-          const pm = new PackageManager();
+          const pm = new PackageManager(undefined, {
+            ensureDirectories: false,
+          });
 
           if (pkg && (options.locked || options.update || options.repairLock)) {
             throw new CompilerError(
@@ -231,6 +233,77 @@ export function registerPackageCommands(program: Command): void {
               JSON.stringify(
                 createJsonReport(CLI_JSON_CHECKS.packageInstall, false, {
                   ...formatPackageInstallJsonPayload(pkg, options),
+                  error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
+                  ...formatPackageLockVerificationJsonPayload(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
+          log.error(formatPackageCommandError(e));
+          process.exit(1);
+        } finally {
+          if (outputJson) {
+            resetLogLevel();
+          }
+        }
+      },
+    );
+
+  // Lock command
+  program
+    .command("lock")
+    .description("Re-resolve bpl.json dependencies and rewrite bpl.lock")
+    .option("-v, --verbose", "verbose output")
+    .option("--json", "output machine-readable lock result")
+    .action(
+      (
+        options: Pick<PackageOptionsVerbose, "verbose" | "json">,
+        command: Command,
+      ) => {
+        const globalOpts = command.parent?.opts() || {};
+        const outputJson = Boolean(options.json || globalOpts.json);
+        const installOptions: PackageOptionsVerbose = {
+          global: false,
+          verbose: Boolean(options.verbose),
+          update: true,
+          json: outputJson,
+        };
+        if (outputJson) {
+          setLogLevel(LogLevel.SILENT);
+        }
+        try {
+          const pm = new PackageManager(undefined, {
+            ensureDirectories: false,
+          });
+          const projectInstallResult = pm.installProject(installOptions);
+
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageInstall, true, {
+                  ...formatPackageInstallJsonPayload(
+                    undefined,
+                    installOptions,
+                  ),
+                  ...formatPackageInstallResultJsonPayload(
+                    projectInstallResult,
+                  ),
+                }),
+                null,
+                2,
+              ),
+            );
+          }
+        } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageInstall, false, {
+                  ...formatPackageInstallJsonPayload(undefined, installOptions),
                   error: formatPackageCommandJsonError(e),
                   ...formatPackageCommandErrorCode(e),
                   ...formatPackageLockVerificationJsonPayload(e),

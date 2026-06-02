@@ -23,6 +23,7 @@ _bpl() {
         'init:Initialize a new BPL package'
         'pack:Package a BPL project'
         'install:Install a BPL package'
+        'lock:Re-resolve bpl.json dependencies and rewrite bpl.lock'
         'list:List installed BPL packages'
         'uninstall:Uninstall a BPL package'
         'run-script:Run a script defined in bpl.json'
@@ -137,6 +138,12 @@ _bpl() {
                         '--repair-lock[Rewrite bpl.lock from currently installed packages]' \
                         '--json[Output machine-readable install result]' \
                         '1:package:_files'
+                    ;;
+                lock)
+                    _arguments \
+                        '-v[Enable verbose output]' \
+                        '--verbose[Enable verbose output]' \
+                        '--json[Output machine-readable lock result]'
                     ;;
                 list)
                     _arguments \

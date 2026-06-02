@@ -200,7 +200,8 @@ exact version, valid selector, `latest`, `*`, or package archive path.
 Malformed selector-like strings such as `01.0.0`, `^01.0.0`, or `>=1.0` fail
 while loading `bpl.json` instead of falling back to the newest cached package.
 `null`, arrays, invalid package-name keys, and blank source strings also fail
-before install or lockfile commands mutate the project.
+before install or lockfile commands create `bpl_modules/` or rewrite
+`bpl.lock`.
 
 ```json
 {
@@ -214,6 +215,10 @@ before install or lockfile commands mutate the project.
   }
 }
 ```
+
+To re-resolve dependency selectors and write a fresh lockfile without spelling
+the install flag, use `bpl lock`; `bpl lock --json` emits the same
+`package-install` JSON shape as `bpl install --update --json`.
 
 Commit `bpl.lock` for applications so repeated installs resolve the same
 package contents. Libraries may commit it when they need reproducible examples

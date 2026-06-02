@@ -28,6 +28,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   dependency source shapes for package names, exact versions, valid selectors,
   `latest`, `*`, and archive paths. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageManifestSchema.test.ts -t "malformed dependency version selectors|object-map key and value"`.
+- **Package Lock JSON Alias** - `bpl lock` now re-resolves `bpl.json`
+  dependency selectors through the existing `bpl install --update` lockfile
+  path, and `bpl lock --json` emits the same `package-install` payload with
+  `update: true`. Malformed dependency sources now fail before `bpl_modules/`
+  or `bpl.lock` are created by install/update/lock JSON commands. Reproduce
+  with
+  `bun test tests/PackageJsonFailureContracts.test.ts -t "malformed dependency source codes"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every
