@@ -167,6 +167,11 @@ interface PackageListReport {
   success: boolean;
   scope: string;
   packages: unknown[];
+  error?: string;
+  errorCode?: string;
+  issuesFound?: number;
+  issueKinds?: string[];
+  issues?: Array<{ packageName?: string; kind?: string; path?: string }>;
 }
 
 interface PackageListTreeReport {
@@ -622,6 +627,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageUninstallJsonSmoke(installedBpl);
     runPackedPackageManifestValidationJsonSmoke(installedBpl);
     runPackedPackageListJsonSmoke(installedBpl, installDir);
+    runPackedPackageListDuplicateJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheListJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheVerifyJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheMaintenanceJsonSmoke(installedBpl, installDir);
@@ -2378,6 +2384,91 @@ function runPackedPackageListJsonSmoke(
   ) {
     throw new Error(
       `Packed npm CLI global package list tree JSON was not isolated:\n${JSON.stringify(globalTreeReport, null, 2)}`,
+    );
+  }
+}
+
+function runPackedPackageListDuplicateJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const appDir = join(installDir, "package-list-duplicate-project");
+  const firstPackageDir = join(
+    appDir,
+    "bpl_modules",
+    "release-smoke-list-duplicate-a",
+  );
+  const secondPackageDir = join(
+    appDir,
+    "bpl_modules",
+    "release-smoke-list-duplicate-b",
+  );
+  mkdirSync(firstPackageDir, { recursive: true });
+  mkdirSync(secondPackageDir, { recursive: true });
+  writeFileSync(
+    join(appDir, "bpl.json"),
+    JSON.stringify(
+      {
+        name: "release-smoke-list-duplicate-app",
+        version: "1.0.0",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  for (const packageDir of [firstPackageDir, secondPackageDir]) {
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "release-smoke-list-duplicate",
+          version: "1.0.0",
+          main: "index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+  }
+
+  const duplicateList = runJsonFailureStep(
+    "check packed npm CLI package list duplicate JSON",
+    installedBpl,
+    ["list", "--json"],
+    { cwd: appDir, bplHome: null, expectedStatus: 1 },
+  );
+  const duplicateListReport = parsePackageListReport(duplicateList.stdout);
+  assertDuplicatePackageListFailureReport(duplicateListReport);
+}
+
+function assertDuplicatePackageListFailureReport(
+  report: PackageListReport,
+): void {
+  const duplicateIssue = report.issues?.[0];
+
+  if (
+    report.success ||
+    report.scope !== "local" ||
+    report.packages.length !== 0 ||
+    report.errorCode !== "BPL_PACKAGE_DUPLICATE_INSTALLED" ||
+    report.issuesFound !== 1 ||
+    !Array.isArray(report.issueKinds) ||
+    report.issueKinds.length !== 1 ||
+    report.issueKinds[0] !== "duplicate-installed-package" ||
+    !duplicateIssue ||
+    duplicateIssue.packageName !== "release-smoke-list-duplicate" ||
+    duplicateIssue.kind !== "duplicate-installed-package" ||
+    typeof duplicateIssue.path !== "string" ||
+    !duplicateIssue.path.includes("release-smoke-list-duplicate-a") ||
+    typeof report.error !== "string" ||
+    !report.error.includes(
+      "Multiple installed directories declare package 'release-smoke-list-duplicate'",
+    )
+  ) {
+    throw new Error(
+      `Packed npm CLI package list duplicate JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
     );
   }
 }

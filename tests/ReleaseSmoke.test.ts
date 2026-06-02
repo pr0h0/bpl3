@@ -198,6 +198,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI global package list tree JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package list duplicate JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package-cache list JSON",
       );
       expect(result.stdout).toContain(
