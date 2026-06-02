@@ -21,6 +21,7 @@ import {
   PACKAGE_CACHE_JSON_ERROR_CODES,
   PACKAGE_INIT_JSON_ERROR_CODES,
   PACKAGE_INSTALL_JSON_ERROR_CODES,
+  PACKAGE_LIST_JSON_ERROR_CODES,
   PACKAGE_MANIFEST_JSON_ERROR_CODES,
   PACKAGE_UNINSTALL_JSON_ERROR_CODES,
 } from "../compiler/middleend/PackageManager";
@@ -46,6 +47,7 @@ export const CLI_JSON_ERROR_CODE_LISTS = [
   { name: "package-uninstall", codes: PACKAGE_UNINSTALL_JSON_ERROR_CODES },
   { name: "package-cache", codes: PACKAGE_CACHE_JSON_ERROR_CODES },
   { name: "package-install", codes: PACKAGE_INSTALL_JSON_ERROR_CODES },
+  { name: "package-list", codes: PACKAGE_LIST_JSON_ERROR_CODES },
   { name: "package-archive", codes: PACKAGE_ARCHIVE_JSON_ERROR_CODES },
   { name: "package-manifest", codes: PACKAGE_MANIFEST_JSON_ERROR_CODES },
   { name: "package-resolver", codes: PACKAGE_RESOLUTION_FAILURE_CODES },

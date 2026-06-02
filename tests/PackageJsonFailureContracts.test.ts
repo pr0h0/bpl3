@@ -15,6 +15,7 @@ import {
   PACKAGE_CACHE_JSON_ERROR_CODES,
   PACKAGE_INIT_JSON_ERROR_CODES,
   PACKAGE_INSTALL_JSON_ERROR_CODES,
+  PACKAGE_LIST_JSON_ERROR_CODES,
   PACKAGE_MANIFEST_JSON_ERROR_CODES,
   PACKAGE_UNINSTALL_JSON_ERROR_CODES,
 } from "../compiler/middleend/PackageManager";
@@ -33,6 +34,7 @@ describe("Package JSON failure contracts", () => {
       { name: "package-uninstall", codes: PACKAGE_UNINSTALL_JSON_ERROR_CODES },
       { name: "package-cache", codes: PACKAGE_CACHE_JSON_ERROR_CODES },
       { name: "package-install", codes: PACKAGE_INSTALL_JSON_ERROR_CODES },
+      { name: "package-list", codes: PACKAGE_LIST_JSON_ERROR_CODES },
       { name: "package-archive", codes: PACKAGE_ARCHIVE_JSON_ERROR_CODES },
       { name: "package-manifest", codes: PACKAGE_MANIFEST_JSON_ERROR_CODES },
     ];
@@ -50,6 +52,14 @@ describe("Package JSON failure contracts", () => {
         );
       }
     }
+
+    expect([...PACKAGE_LIST_JSON_ERROR_CODES]).toEqual([
+      "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+      "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+      "BPL_PACKAGE_DUPLICATE_INSTALLED",
+    ]);
   });
 
   test("inventories package command empty failure shapes", () => {

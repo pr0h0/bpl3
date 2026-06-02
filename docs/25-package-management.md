@@ -343,6 +343,19 @@ include `issuesFound`, `issueKinds`, and compact `issues` entries with
 `kind: "duplicate-installed-package"` so automation can point at the ambiguous
 installed directories. Tree JSON validation failures return the requested
 `scope`, `tree: []`, and `error`.
+
+Package list JSON failure codes are exported through
+`PACKAGE_LIST_JSON_ERROR_CODES` and the public `CLI_JSON_ERROR_CODE_LISTS`
+`package-list` entry for tooling that wants the complete stable inventory:
+
+- `BPL_PACKAGE_SEARCH_DIR_SYMLINK`
+- `BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`
+- `BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY`
+- `BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK`
+- `BPL_PACKAGE_DUPLICATE_INSTALLED`
+
+Reproduce the exported inventory guard with
+`bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists"`.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured

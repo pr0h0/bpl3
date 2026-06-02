@@ -136,6 +136,16 @@ const CLI_JSON_ERROR_CODE_LISTS = [
     ],
   },
   {
+    name: "package-list",
+    codes: [
+      "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+      "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+      "BPL_PACKAGE_DUPLICATE_INSTALLED",
+    ],
+  },
+  {
     name: "package-archive",
     codes: [
       "BPL_PACKAGE_ARCHIVE_SYMLINK",

@@ -34,6 +34,7 @@ describe("CLI JSON error-code list exports", () => {
       "package-uninstall",
       "package-cache",
       "package-install",
+      "package-list",
       "package-archive",
       "package-manifest",
       "package-resolver",

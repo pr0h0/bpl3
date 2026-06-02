@@ -91,6 +91,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   duplicate installed package names with the same
   `BPL_PACKAGE_DUPLICATE_INSTALLED`, `issuesFound`, `issueKinds`, and compact
   `duplicate-installed-package` issue payload used by tree listing.
+- **Package List JSON Code Inventory** - Package list and tree JSON failure
+  codes now have an exported `PACKAGE_LIST_JSON_ERROR_CODES` inventory covering
+  package search-directory validation failures and
+  `BPL_PACKAGE_DUPLICATE_INSTALLED`. The same codes are available through the
+  public `CLI_JSON_ERROR_CODE_LISTS` `package-list` entry. The inventory is
+  guarded by
+  `bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists"`.
 - **Call-Site Mismatch Diagnostic Codes** - Non-callable targets now report
   `BPL_CALL_TARGET_NOT_CALLABLE`, function and first-class callable argument
   count and type mismatches now report `BPL_CALL_ARGUMENT_COUNT_MISMATCH` and

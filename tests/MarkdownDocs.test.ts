@@ -15,6 +15,7 @@ import {
   PACKAGE_CACHE_JSON_ERROR_CODES,
   PACKAGE_INIT_JSON_ERROR_CODES,
   PACKAGE_INSTALL_JSON_ERROR_CODES,
+  PACKAGE_LIST_JSON_ERROR_CODES,
   PACKAGE_MANIFEST_JSON_ERROR_CODES,
   PACKAGE_UNINSTALL_JSON_ERROR_CODES,
 } from "../compiler/middleend/PackageManager";
@@ -692,6 +693,21 @@ describe("Markdown documentation", () => {
 
     expectDocsContainSnippets(docs, requiredSnippets);
     expectDocsContainCodes(docs, PACKAGE_CACHE_JSON_ERROR_CODES);
+  });
+
+  test("package docs document package list JSON error codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "Package list JSON failure codes",
+      "bun test tests/PackageJsonFailureContracts.test.ts -t \"error-code lists\"",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+    expectDocsContainCodes(docs, PACKAGE_LIST_JSON_ERROR_CODES);
   });
 
   test("package docs document uninstall JSON error codes", () => {
