@@ -4023,6 +4023,40 @@ describe("PackageManager", () => {
       expect(tree[0]?.dependencies).toEqual([]);
     });
 
+    test("should reject duplicate installed package names before building fallback dependency trees", () => {
+      const appDir = path.join(tempDir, "tree-duplicate-installed-app");
+      const firstDir = path.join(appDir, "bpl_modules", "tree-duplicate-a");
+      const secondDir = path.join(appDir, "bpl_modules", "tree-duplicate-b");
+      fs.mkdirSync(firstDir, { recursive: true });
+      fs.mkdirSync(secondDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "tree-duplicate-installed-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+
+      for (const packageDir of [firstDir, secondDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            { name: "tree-duplicate", version: "1.0.0", main: "index.bpl" },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const localPM = new PackageManager(appDir);
+
+      expect(() => localPM.getDependencyTree({ global: false })).toThrow(
+        /Multiple installed directories declare package 'tree-duplicate'/,
+      );
+    });
+
     test("should reject cyclic package dependencies with the full chain", () => {
       const globalPackageDir = path.join(tempDir, "cycle-cache");
       const appDir = path.join(tempDir, "cycle-app");

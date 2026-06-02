@@ -82,6 +82,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `action: "verification-failed"` and
   `issueKinds: ["duplicate-installed-package"]`, matching the existing locked
   verification contract.
+- **Package Tree Duplicate Diagnostics** - `bpl list --tree` now rejects
+  duplicate installed package names before selecting tree roots, and
+  `bpl list --tree --json` reports
+  `errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"` with `issuesFound`,
+  `issueKinds`, and compact `duplicate-installed-package` issue entries.
 - **Call-Site Mismatch Diagnostic Codes** - Non-callable targets now report
   `BPL_CALL_TARGET_NOT_CALLABLE`, function and first-class callable argument
   count and type mismatches now report `BPL_CALL_ARGUMENT_COUNT_MISMATCH` and

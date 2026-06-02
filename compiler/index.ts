@@ -1111,6 +1111,7 @@ export { Linter } from "./linter/Linter";
 /** Manage BPL package dependencies */
 export {
   getPackageArchiveTool,
+  PackageInstalledNameError,
   PackageLockVerificationError,
   PackageManager,
   type PackageArchiveProvenance,
@@ -1123,6 +1124,7 @@ export {
   type PackageDependencyTreeNode,
   type PackageDoctorIssue,
   type PackageDoctorReport,
+  type PackageInstalledNameIssue,
   type PackageLockRepairResult,
   type PackageLockVerificationIssue,
   type PackageProjectInstallResult,

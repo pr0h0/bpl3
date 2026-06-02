@@ -82,6 +82,8 @@ export const PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT";
 export const PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE =
   "BPL_PACKAGE_LOCK_VERIFY_FAILED";
+export const PACKAGE_DUPLICATE_INSTALLED_CODE =
+  "BPL_PACKAGE_DUPLICATE_INSTALLED";
 export const PACKAGE_INSTALL_JSON_ERROR_CODES = [
   PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE,
   PACKAGE_INSTALL_GLOBAL_PROJECT_CONFLICT_CODE,
@@ -249,6 +251,13 @@ export interface PackageLockVerificationIssue {
   requestedSource?: string;
 }
 
+export interface PackageInstalledNameIssue {
+  packageName: string;
+  kind: "duplicate-installed-package";
+  message: string;
+  path: string;
+}
+
 export interface PackageLockVerification {
   ok: boolean;
   errors: string[];
@@ -275,6 +284,27 @@ export class PackageLockVerificationError extends CompilerError {
       PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
     );
     this.name = "PackageLockVerificationError";
+  }
+}
+
+export class PackageInstalledNameError extends CompilerError {
+  constructor(
+    public readonly issues: PackageInstalledNameIssue[],
+    packageDirectory: string,
+  ) {
+    super(
+      `Duplicate installed package names:\n${issues.map((issue) => issue.message).join("\n")}`,
+      "Keep only one installed directory for each package name, then rerun the package command.",
+      {
+        file: packageDirectory,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+      PACKAGE_DUPLICATE_INSTALLED_CODE,
+    );
+    this.name = "PackageInstalledNameError";
   }
 }
 
@@ -4226,6 +4256,19 @@ export class PackageManager {
   private findDuplicateLockRepairIssues(
     installedPackages: readonly PackageInfo[],
   ): PackageLockVerificationIssue[] {
+    return this.findDuplicateInstalledPackageNameIssues(installedPackages).map(
+      (issue) => ({
+        packageName: issue.packageName,
+        kind: issue.kind,
+        message: issue.message,
+        packagePath: issue.path,
+      }),
+    );
+  }
+
+  private findDuplicateInstalledPackageNameIssues(
+    installedPackages: readonly PackageInfo[],
+  ): PackageInstalledNameIssue[] {
     const packagesByName = new Map<string, string[]>();
 
     for (const pkg of installedPackages) {
@@ -4234,14 +4277,14 @@ export class PackageManager {
       packagesByName.set(pkg.manifest.name, paths);
     }
 
-    const issues: PackageLockVerificationIssue[] = [];
+    const issues: PackageInstalledNameIssue[] = [];
     for (const [packageName, paths] of packagesByName.entries()) {
       if (paths.length <= 1) continue;
       issues.push({
         packageName,
         kind: "duplicate-installed-package",
         message: `Multiple installed directories declare package '${packageName}': ${paths.join(", ")}`,
-        packagePath: paths.join(", "),
+        path: paths.join(", "),
       });
     }
 
@@ -4539,6 +4582,12 @@ export class PackageManager {
     const rootDependencySpecs = options.global
       ? {}
       : this.loadProjectDependencySpecs();
+    const installedPackages = this.list(options);
+    const duplicateIssues =
+      this.findDuplicateInstalledPackageNameIssues(installedPackages);
+    if (duplicateIssues.length > 0) {
+      throw new PackageInstalledNameError(duplicateIssues, targetDir);
+    }
     const rootNames = new Set<string>();
 
     for (const packageName of Object.keys(rootDependencySpecs)) {
@@ -4552,7 +4601,7 @@ export class PackageManager {
     }
 
     if (rootNames.size === 0) {
-      for (const pkg of this.list(options)) {
+      for (const pkg of installedPackages) {
         rootNames.add(pkg.manifest.name);
       }
     }

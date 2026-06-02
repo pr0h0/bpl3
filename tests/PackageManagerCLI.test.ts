@@ -1367,6 +1367,87 @@ describe("Package Manager CLI", () => {
       expect(typeof listedPackage?.hash).toBe("string");
     });
 
+    test("should report duplicate installed package names in dependency tree JSON", () => {
+      const appDir = path.join(tempDir, "cli-tree-duplicate-app");
+      const firstPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "cli-tree-duplicate-a",
+      );
+      const secondPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "cli-tree-duplicate-b",
+      );
+      fs.mkdirSync(firstPackageDir, { recursive: true });
+      fs.mkdirSync(secondPackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cli-tree-duplicate-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+
+      for (const packageDir of [firstPackageDir, secondPackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "cli-tree-duplicate",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "list", "--tree", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        scope: string;
+        tree: unknown[];
+        error: string;
+        errorCode?: string;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{ packageName: string; kind: string; path: string }>;
+      }>(result, {
+        status: 1,
+        check: "package-list-tree",
+        success: false,
+      });
+      expect(report).toMatchObject({
+        scope: "local",
+        tree: [],
+        errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED",
+        issuesFound: 1,
+        issueKinds: ["duplicate-installed-package"],
+        issues: [
+          {
+            packageName: "cli-tree-duplicate",
+            kind: "duplicate-installed-package",
+            path: expect.stringContaining("cli-tree-duplicate-a"),
+          },
+        ],
+      });
+      expect(report.error).toContain(
+        "Multiple installed directories declare package 'cli-tree-duplicate'",
+      );
+    });
+
     test("should show message when no packages installed", () => {
       const result = spawnSync("bun", [bplPath, "list"], {
         cwd: tempDir,

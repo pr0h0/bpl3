@@ -333,8 +333,12 @@ before choosing lockfile roots; symlinked, broken-symlink, malformed, or
 non-file lockfile paths are rejected instead of being treated as absent. Tree
 roots and nodes also classify `bpl_modules` and `bpl_modules/<package>` paths
 with `lstat`, so symlinked or non-directory package roots are reported as
-problems instead of being followed. Tree JSON validation failures return the
-requested `scope`, `tree: []`, and `error`.
+problems instead of being followed. Duplicate installed package names return
+`errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"` before tree roots are selected.
+Tree duplicate failures also include `issuesFound`, `issueKinds`, and compact
+`issues` entries with `kind: "duplicate-installed-package"` so automation can
+point at the ambiguous installed directories. Tree JSON validation failures
+return the requested `scope`, `tree: []`, and `error`.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured

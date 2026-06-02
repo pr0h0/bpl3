@@ -12,6 +12,7 @@ import {
   PackageManager,
   Compiler,
   CompilerError,
+  PackageInstalledNameError,
   PackageLockVerificationError,
   type PackageCacheEntry,
   type PackageCacheRepairResult,
@@ -342,6 +343,7 @@ export function registerPackageCommands(program: Command): void {
                     tree: [],
                     error,
                     ...errorCode,
+                    ...formatPackageInstalledNameJsonPayload(e),
                   })
                 : createJsonReport(CLI_JSON_CHECKS.packageList, false, {
                     scope,
@@ -735,6 +737,44 @@ function formatPackageCommandErrorCode(
   }
 
   return {};
+}
+
+function formatPackageInstalledNameJsonPayload(
+  error: unknown,
+):
+  | {
+      issuesFound: number;
+      issueKinds: string[];
+      issues: Array<{
+        packageName: string;
+        kind: string;
+        path: string;
+      }>;
+    }
+  | Record<string, never> {
+  if (!(error instanceof PackageInstalledNameError)) {
+    return {};
+  }
+
+  const issues = error.issues
+    .map((issue) => ({
+      packageName: issue.packageName,
+      kind: issue.kind,
+      path: issue.path,
+    }))
+    .sort((left, right) =>
+      [
+        left.packageName.localeCompare(right.packageName),
+        left.kind.localeCompare(right.kind),
+        left.path.localeCompare(right.path),
+      ].find((comparison) => comparison !== 0) ?? 0,
+    );
+
+  return {
+    issuesFound: issues.length,
+    issueKinds: [...new Set(issues.map((issue) => issue.kind))].sort(),
+    issues,
+  };
 }
 
 function formatPackageLockVerificationJsonPayload(
