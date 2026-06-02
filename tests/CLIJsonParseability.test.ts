@@ -825,6 +825,48 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps locked package install JSON success stdout parseable", () => {
+    const packageDir = path.join(tempDir, "locked-json-package");
+    writePackageFixture(packageDir, {
+      name: "locked-json-package",
+      version: "1.0.0",
+    });
+
+    const packResult = runCli(["pack"], { cwd: packageDir });
+    expect(packResult.status).toBe(0);
+
+    const projectDir = path.join(tempDir, "locked-json-project");
+    fs.mkdirSync(projectDir);
+    const tarballPath = path.join(packageDir, "locked-json-package-1.0.0.tgz");
+    const installResult = runCli(["install", tarballPath], {
+      cwd: projectDir,
+    });
+    expect(installResult.status).toBe(0);
+
+    const lockedResult = runCli(["install", "--locked", "--json"], {
+      cwd: projectDir,
+    });
+    const report = expectJsonStdoutReport(lockedResult, {
+      status: 0,
+      check: "package-install",
+      success: true,
+    });
+
+    expect(report).toEqual({
+      schemaVersion: 1,
+      check: "package-install",
+      success: true,
+      mode: "project",
+      target: null,
+      global: false,
+      locked: true,
+      update: false,
+      repairLock: false,
+      action: "verified",
+      packagesChecked: 1,
+    });
+  });
+
   test("keeps package install JSON success stdout parseable across package modes", () => {
     const packageDir = path.join(tempDir, "package-source");
     const homeDir = path.join(tempDir, "install-json-home");
