@@ -701,19 +701,12 @@ export class PackageManager {
         }
       }
 
-      // Create symlink
-      try {
-        this.linkPackageBinaryAtomically(
-          sourcePath,
-          targetPath,
-          name,
-          manifestPath,
-        );
-      } catch (e) {
-        compilerLog.warn(
-          `Failed to link binary ${name}: ${(e as Error).message}`,
-        );
+      if (this.isPackageBinaryTargetCurrent(targetPath, sourcePath)) {
+        continue;
       }
+
+      // Create symlink
+      this.linkPackageBinaryAtomically(sourcePath, targetPath, name, manifestPath);
     }
   }
 
@@ -838,6 +831,24 @@ export class PackageManager {
         endColumn: 1,
       },
     );
+  }
+
+  private isPackageBinaryTargetCurrent(
+    targetPath: string,
+    sourcePath: string,
+  ): boolean {
+    const existingTarget = this.tryLstat(targetPath);
+    if (!existingTarget?.isSymbolicLink()) return false;
+
+    try {
+      const linkTarget = fs.readlinkSync(targetPath);
+      const resolvedTarget = path.isAbsolute(linkTarget)
+        ? linkTarget
+        : path.resolve(path.dirname(targetPath), linkTarget);
+      return path.resolve(resolvedTarget) === path.resolve(sourcePath);
+    } catch {
+      return false;
+    }
   }
 
   private getLockFilePath(): string {
@@ -2934,10 +2945,8 @@ export class PackageManager {
         packageDir,
         installPath,
         path.join(packageDir, "bpl.json"),
+        () => this.linkBinaries(manifest, installPath, options.global || false),
       );
-
-      // Link binaries
-      this.linkBinaries(manifest, installPath, options.global || false);
 
       if (options.global) {
         this.ensurePackageArchiveOutputFile(
@@ -2974,6 +2983,7 @@ export class PackageManager {
     packageDir: string,
     installPath: string,
     manifestPath: string,
+    afterInstall?: () => void,
   ): void {
     fs.mkdirSync(path.dirname(installPath), { recursive: true });
     this.assertPackageInstallTargetReplaceable(installPath, manifestPath);
@@ -2984,6 +2994,7 @@ export class PackageManager {
     );
     let backupPath: string | undefined;
     let movedExisting = false;
+    let installedPath = false;
 
     try {
       this.copyDir(packageDir, stagingPath);
@@ -3000,7 +3011,13 @@ export class PackageManager {
 
       try {
         fs.renameSync(stagingPath, installPath);
+        installedPath = true;
+        afterInstall?.();
       } catch (error) {
+        if (installedPath && this.tryLstat(installPath)) {
+          this.removeDirectoryBestEffort(installPath);
+          installedPath = false;
+        }
         if (movedExisting && backupPath) {
           this.restorePackageInstallBackup(backupPath, installPath);
           movedExisting = false;
@@ -3014,6 +3031,9 @@ export class PackageManager {
       }
     } catch (error) {
       this.removeDirectoryBestEffort(stagingPath);
+      if (installedPath && this.tryLstat(installPath)) {
+        this.removeDirectoryBestEffort(installPath);
+      }
       if (movedExisting && backupPath && !this.tryLstat(installPath)) {
         this.restorePackageInstallBackup(backupPath, installPath);
       }
