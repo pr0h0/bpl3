@@ -41,6 +41,8 @@ import {
   SYMBOL_NOT_FOUND_CODE,
   STRING_CONCAT_UNSUPPORTED_CODE,
   TERNARY_BRANCH_TYPE_MISMATCH_CODE,
+  TYPE_QUERY_ENUM_NOT_FOUND_CODE,
+  TYPE_QUERY_TYPE_NOT_FOUND_CODE,
   UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
   UNARY_PLUS_UNSUPPORTED_CODE,
 } from "./TypeCheckerBase";
@@ -1511,6 +1513,7 @@ export function checkTypeMatch(
         `Cannot find enum '${enumPath.join(".")}'`,
         `The type '${enumPath.join(".")}' in match<${targetTypeName}> is not a defined enum.`,
         expr.location,
+        TYPE_QUERY_ENUM_NOT_FOUND_CODE,
       );
     }
 
@@ -1529,6 +1532,7 @@ export function checkTypeMatch(
         `Unknown type '${targetTypeName}'`,
         `The type '${targetTypeName}' in match<${targetTypeName}> is not defined.`,
         expr.location,
+        TYPE_QUERY_TYPE_NOT_FOUND_CODE,
       );
     }
   }
@@ -1588,6 +1592,7 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
           `Cannot find enum '${enumPath.join(".")}'`,
           `The type '${enumPath.join(".")}' in 'is' expression is not a defined enum.`,
           expr.location,
+          TYPE_QUERY_ENUM_NOT_FOUND_CODE,
         );
       }
 
@@ -1607,6 +1612,7 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
           `Unknown type: ${resolved.name}`,
           "Ensure the type is defined.",
           expr.location,
+          TYPE_QUERY_TYPE_NOT_FOUND_CODE,
         );
       }
       expr.type = resolved;
@@ -1622,6 +1628,7 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
         `Unknown type: ${resolved.name}`,
         "Ensure the type is defined.",
         expr.location,
+        TYPE_QUERY_TYPE_NOT_FOUND_CODE,
       );
     }
     expr.type = resolved;
