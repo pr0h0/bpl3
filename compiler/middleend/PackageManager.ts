@@ -230,6 +230,7 @@ export type PackageLockVerificationIssueKind =
   | "hash-mismatch"
   | "missing-transitive-lock-entry"
   | "missing-transitive-dependency"
+  | "duplicate-installed-package"
   | "unreachable-source";
 
 export interface PackageLockVerificationIssue {
@@ -4162,9 +4163,28 @@ export class PackageManager {
     const existingLock = this.loadLockFile();
     const nextLock: PackageLockFile = { lockfileVersion: 1, packages: {} };
     const updated: string[] = [];
-    const installedPackages = this.list({ global: false }).sort((left, right) =>
-      left.manifest.name.localeCompare(right.manifest.name),
+    const installedPackages = this.list({ global: false }).sort(
+      (left, right) =>
+        left.manifest.name.localeCompare(right.manifest.name) ||
+        left.path.localeCompare(right.path),
     );
+    const duplicateIssues = this.findDuplicateLockRepairIssues(
+      installedPackages,
+    );
+
+    if (duplicateIssues.length > 0) {
+      const verification: PackageLockVerification = {
+        ok: false,
+        errors: duplicateIssues.map((issue) => issue.message),
+        issues: duplicateIssues,
+        packagesChecked: installedPackages.length,
+      };
+      throw new PackageLockVerificationError(
+        verification,
+        this.getLockFilePath(),
+        "Keep only one installed directory for each package name, then rerun 'bpl install --repair-lock'.",
+      );
+    }
 
     for (const pkg of installedPackages) {
       const existing = existingLock.packages[pkg.manifest.name];
@@ -4201,6 +4221,33 @@ export class PackageManager {
       updated,
       removed,
     };
+  }
+
+  private findDuplicateLockRepairIssues(
+    installedPackages: readonly PackageInfo[],
+  ): PackageLockVerificationIssue[] {
+    const packagesByName = new Map<string, string[]>();
+
+    for (const pkg of installedPackages) {
+      const paths = packagesByName.get(pkg.manifest.name) ?? [];
+      paths.push(pkg.path);
+      packagesByName.set(pkg.manifest.name, paths);
+    }
+
+    const issues: PackageLockVerificationIssue[] = [];
+    for (const [packageName, paths] of packagesByName.entries()) {
+      if (paths.length <= 1) continue;
+      issues.push({
+        packageName,
+        kind: "duplicate-installed-package",
+        message: `Multiple installed directories declare package '${packageName}': ${paths.join(", ")}`,
+        packagePath: paths.join(", "),
+      });
+    }
+
+    return issues.sort((left, right) =>
+      left.packageName.localeCompare(right.packageName),
+    );
   }
 
   doctorPackages(): PackageDoctorReport {

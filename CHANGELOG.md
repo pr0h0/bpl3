@@ -76,6 +76,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"`,
   `bun test tests/PackageManager.test.ts -t "stale lock entries"`, and
   `bun index.ts doctor packages --json`.
+- **Package Lock Repair Duplicate Guard** - `bpl install --repair-lock` now
+  refuses duplicate installed package names before rewriting `bpl.lock`.
+  JSON-mode failures use `BPL_PACKAGE_LOCK_VERIFY_FAILED` with
+  `action: "verification-failed"` and
+  `issueKinds: ["duplicate-installed-package"]`, matching the existing locked
+  verification contract.
 - **Call-Site Mismatch Diagnostic Codes** - Non-callable targets now report
   `BPL_CALL_TARGET_NOT_CALLABLE`, function and first-class callable argument
   count and type mismatches now report `BPL_CALL_ARGUMENT_COUNT_MISMATCH` and

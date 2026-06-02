@@ -6,7 +6,10 @@ import * as path from "path";
 
 import { CompilerError } from "../compiler/common/CompilerError";
 import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
-import { PackageManager } from "../compiler/middleend/PackageManager";
+import {
+  PackageLockVerificationError,
+  PackageManager,
+} from "../compiler/middleend/PackageManager";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("PackageManager", () => {
@@ -3388,6 +3391,56 @@ describe("PackageManager", () => {
       expect(result.updated).toContain("repair-math");
       expect(result.removed).toContain("stale");
       expect(localPM.verifyLockFile().ok).toBe(true);
+    });
+
+    test("should reject duplicate installed package names when repairing lockfiles", () => {
+      const appDir = path.join(tempDir, "repair-duplicate-installed-app");
+      const firstDir = path.join(appDir, "bpl_modules", "repair-duplicate-a");
+      const secondDir = path.join(appDir, "bpl_modules", "repair-duplicate-b");
+      fs.mkdirSync(firstDir, { recursive: true });
+      fs.mkdirSync(secondDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "repair-duplicate-installed-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+
+      for (const packageDir of [firstDir, secondDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            { name: "repair-duplicate", version: "1.0.0", main: "index.bpl" },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const localPM = new PackageManager(appDir);
+      let error: unknown;
+      try {
+        localPM.repairLockFile();
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(PackageLockVerificationError);
+      expect((error as PackageLockVerificationError).verification).toMatchObject({
+        ok: false,
+        packagesChecked: 2,
+        issues: [
+          {
+            packageName: "repair-duplicate",
+            kind: "duplicate-installed-package",
+            packagePath: expect.stringContaining("repair-duplicate-a"),
+          },
+        ],
+      });
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
     });
 
     test("should install transitive package dependencies and keep lock restores local", () => {

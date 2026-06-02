@@ -252,7 +252,10 @@ bpl install --repair-lock
 ```
 
 This updates recorded versions and hashes for installed packages and removes
-lock entries for packages that are no longer installed.
+lock entries for packages that are no longer installed. `--repair-lock` refuses
+duplicate installed package names before writing `bpl.lock`; JSON failures use
+the `duplicate-installed-package` issue kind so CI can point users at the
+ambiguous `bpl_modules/` directories instead of accepting a collapsed lockfile.
 Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field. Successful `bpl install --locked --json` reports include

@@ -1207,6 +1207,93 @@ describe("Package Manager CLI", () => {
       expect(lock.packages["cli-repair"].hash).not.toBe("wrong");
       expect(lock.packages["cli-stale"]).toBeUndefined();
     });
+
+    test("should reject lockfile repair for duplicate installed package names", () => {
+      const appDir = path.join(tempDir, "cli-repair-duplicate-app");
+      const firstPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "cli-repair-duplicate-a",
+      );
+      const secondPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "cli-repair-duplicate-b",
+      );
+      fs.mkdirSync(firstPackageDir, { recursive: true });
+      fs.mkdirSync(secondPackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cli-repair-duplicate-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+
+      for (const packageDir of [firstPackageDir, secondPackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "cli-repair-duplicate",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "install", "--repair-lock", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        mode: string;
+        target: string | null;
+        repairLock: boolean;
+        error: string;
+        errorCode?: string;
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{ packageName: string; kind: string }>;
+      }>(result, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+      expect(report).toMatchObject({
+        mode: "project",
+        target: null,
+        repairLock: true,
+        errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        action: "verification-failed",
+        packagesChecked: 2,
+        issuesFound: 1,
+        issueKinds: ["duplicate-installed-package"],
+        issues: [
+          {
+            packageName: "cli-repair-duplicate",
+            kind: "duplicate-installed-package",
+          },
+        ],
+      });
+      expect(report.error).toContain(
+        "Multiple installed directories declare package 'cli-repair-duplicate'",
+      );
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
+    });
   });
 
   describe("list command", () => {

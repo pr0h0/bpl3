@@ -751,6 +751,8 @@ describe("Markdown documentation", () => {
       "`packagesChecked`",
       "`issuesFound`",
       "`issueKinds`",
+      "`--repair-lock` refuses duplicate installed package names",
+      "`duplicate-installed-package`",
       "doctor lock verification drift",
       "`stale-lock-entry`",
       "`lockVerificationKind`",

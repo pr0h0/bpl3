@@ -202,8 +202,10 @@ bpl install --json
 `--locked` verifies the lockfile without mutating `bpl_modules/`. `--update`
 re-resolves manifest dependency selectors such as `^1.2.0` against the package
 cache and rewrites `bpl.lock`. `--repair-lock` rewrites lockfile versions and
-hashes from currently installed packages and removes stale entries. `--json`
-prints a machine-readable `package-install` report for install automation.
+hashes from currently installed packages and removes stale entries. It refuses
+duplicate installed package names with the `duplicate-installed-package` issue
+kind instead of writing an ambiguous lockfile. `--json` prints a
+machine-readable `package-install` report for install automation.
 
 ### `bpl doctor`
 
