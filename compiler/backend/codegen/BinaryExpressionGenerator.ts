@@ -556,6 +556,20 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     rightRaw: string,
     enumTypeName: string,
   ): string {
+    return this.generateEnumValueComparison(
+      leftRaw,
+      rightRaw,
+      enumTypeName,
+      expr.operator.type === TokenType.EqualEqual,
+    );
+  }
+
+  private generateEnumValueComparison(
+    leftRaw: string,
+    rightRaw: string,
+    enumTypeName: string,
+    isEqual: boolean,
+  ): string {
     const enumName = enumTypeName.substring(6);
     const leftVal = leftRaw;
     const rightVal = rightRaw;
@@ -616,7 +630,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       const result = this.newRegister();
       this.emit(`  ${result} = and i1 ${tagsEqual}, ${dataEqual}`);
 
-      if (expr.operator.type === TokenType.BangEqual) {
+      if (!isEqual) {
         const notResult = this.newRegister();
         this.emit(`  ${notResult} = xor i1 ${result}, true`);
         return notResult;
@@ -624,7 +638,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return result;
     }
 
-    if (expr.operator.type === TokenType.BangEqual) {
+    if (!isEqual) {
       const notResult = this.newRegister();
       this.emit(`  ${notResult} = xor i1 ${tagsEqual}, true`);
       return notResult;
@@ -1108,6 +1122,19 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   ): string {
     const llvmType = this.resolveType(typeNode);
 
+    if (
+      typeNode.kind === "BasicType" &&
+      typeNode.arrayDimensions.length > 0 &&
+      typeNode.pointerDepth === 0
+    ) {
+      return this.generateArrayValueEquality(
+        left,
+        right,
+        llvmType,
+        typeNode as AST.BasicTypeNode,
+      );
+    }
+
     // Primitives
     if (
       this.isPrimitive(
@@ -1139,6 +1166,9 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       const basicType = typeNode as AST.BasicTypeNode;
       if (basicType.pointerDepth === 0 && llvmType.startsWith("%struct.")) {
         return this.generateStructEquality_Inner(left, right, llvmType);
+      }
+      if (basicType.pointerDepth === 0 && llvmType.startsWith("%enum.")) {
+        return this.generateEnumValueComparison(left, right, llvmType, true);
       }
     }
 
@@ -1388,7 +1418,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   }
 
   /**
-   * Generate array equality comparison using memcmp
+   * Generate array equality comparison element-by-element.
    */
   private generateArrayEquality(
     expr: AST.BinaryExpr,
@@ -1397,7 +1427,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     arrayType: string,
     isEqual: boolean,
   ): string {
-    // Verify array type shape before emitting a whole-value memcmp.
+    // Verify array type shape before extracting elements.
     const match = arrayType.match(/\[(\d+) x (.+)\]/);
     if (!match) {
       throw this.createError(
@@ -1407,41 +1437,59 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       );
     }
 
-    // Spill arrays to stack to get addresses
-    const leftPtr = this.newRegister();
-    this.emit(`  ${leftPtr} = alloca ${arrayType}`);
-    this.emit(`  store ${arrayType} ${left}, ${arrayType}* ${leftPtr}`);
-
-    const rightPtr = this.newRegister();
-    this.emit(`  ${rightPtr} = alloca ${arrayType}`);
-    this.emit(`  store ${arrayType} ${right}, ${arrayType}* ${rightPtr}`);
-
-    // Cast to i8* for memcmp
-    const leftBytes = this.newRegister();
-    this.emit(`  ${leftBytes} = bitcast ${arrayType}* ${leftPtr} to i8*`);
-
-    const rightBytes = this.newRegister();
-    this.emit(`  ${rightBytes} = bitcast ${arrayType}* ${rightPtr} to i8*`);
-
-    const sizePtr = this.newRegister();
-    const sizeVal = this.newRegister();
-    this.emit(
-      `  ${sizePtr} = getelementptr ${arrayType}, ${arrayType}* null, i32 1`,
-    );
-    this.emit(`  ${sizeVal} = ptrtoint ${arrayType}* ${sizePtr} to i64`);
-
-    // Call memcmp
-    const cmpResult = this.newRegister();
-    this.emit(
-      `  ${cmpResult} = call i32 @memcmp(i8* ${leftBytes}, i8* ${rightBytes}, i64 ${sizeVal})`,
+    const leftArrayType = expr.left.resolvedType as AST.BasicTypeNode;
+    const equal = this.generateArrayValueEquality(
+      left,
+      right,
+      arrayType,
+      leftArrayType,
     );
 
-    // Compare result with 0
+    if (isEqual) return equal;
+
     const result = this.newRegister();
-    const cmpOp = isEqual ? "eq" : "ne";
-    this.emit(`  ${result} = icmp ${cmpOp} i32 ${cmpResult}, 0`);
-
+    this.emit(`  ${result} = xor i1 ${equal}, true`);
     return result;
+  }
+
+  private generateArrayValueEquality(
+    left: string,
+    right: string,
+    arrayType: string,
+    arrayTypeNode: AST.BasicTypeNode,
+  ): string {
+    const length = arrayTypeNode.arrayDimensions[0];
+    if (length === null || length === undefined) {
+      return this.generateGenericStructEquality(left, right, arrayType, true);
+    }
+
+    if (length === 0) {
+      return "true";
+    }
+
+    const elementTypeNode: AST.BasicTypeNode = {
+      ...arrayTypeNode,
+      arrayDimensions: arrayTypeNode.arrayDimensions.slice(1),
+    };
+    let resultReg = "true";
+
+    for (let i = 0; i < length; i++) {
+      const leftElem = this.newRegister();
+      this.emit(`  ${leftElem} = extractvalue ${arrayType} ${left}, ${i}`);
+      const rightElem = this.newRegister();
+      this.emit(`  ${rightElem} = extractvalue ${arrayType} ${right}, ${i}`);
+
+      const elemEqual = this.generateValueEquality(
+        leftElem,
+        rightElem,
+        elementTypeNode,
+      );
+      const nextResult = this.newRegister();
+      this.emit(`  ${nextResult} = and i1 ${resultReg}, ${elemEqual}`);
+      resultReg = nextResult;
+    }
+
+    return resultReg;
   }
 
   /**
