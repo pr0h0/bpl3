@@ -18,6 +18,7 @@ import {
   RETURN_TYPE_MISMATCH_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
+  TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   VARIABLE_REDECLARATION_CODE,
   VARIABLE_TYPE_ANNOTATION_MISSING_CODE,
   VOID_TYPE_INVALID_CODE,
@@ -772,6 +773,15 @@ export function checkVariableDecl(
       ): void => {
         const resolvedTuple = this.resolveType(tupleNode);
         if (resolvedTuple.kind !== "TupleType") return;
+
+        if (nestedTargets.length !== resolvedTuple.types.length) {
+          throw new CompilerError(
+            `Tuple destructuring has ${nestedTargets.length} targets, but initializer has ${resolvedTuple.types.length} elements`,
+            "Destructuring target count must match tuple element count.",
+            decl.location,
+            TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
+          );
+        }
 
         for (let i = 0; i < nestedTargets.length; i++) {
           const target = nestedTargets[i]!;

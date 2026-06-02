@@ -134,6 +134,21 @@ describe("TypeChecker statement semantic guard diagnostics", () => {
     );
   });
 
+  test("codes tuple destructuring declaration target count mismatches", () => {
+    expectStatementGuardError(
+      `
+        frame main() ret int {
+          local pair: (int, int) = (1, 2);
+          local (left: int, middle: int, right: int) = pair;
+          return left;
+        }
+      `,
+      "Tuple destructuring has 3 targets, but initializer has 2 elements",
+      "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID",
+      "Destructuring target count must match tuple element count.",
+    );
+  });
+
   test("preserves valid statement guard forms", () => {
     const errors = collectErrors(`
       frame main() ret int {
