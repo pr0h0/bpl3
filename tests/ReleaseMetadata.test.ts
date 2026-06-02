@@ -29,11 +29,28 @@ import {
   discoverDedicatedWasmExampleFiles,
 } from "../tools/release_smoke";
 import { CI_SAFE_EXCLUDED_TEST_FILES } from "../tools/test_ci";
+import { PACKAGE_MANIFEST_JSON_ERROR_CODES } from "../compiler/middleend/PackageManager";
 
 function releaseSmokeSource(): string {
   return readFileSync(
     join(import.meta.dir, "../tools/release_smoke.ts"),
     "utf8",
+  );
+}
+
+function packedPackageManifestValidationSmokeCodes(source: string): string[] {
+  return [
+    ...new Set(
+      [...source.matchAll(/expectedCode:\s+"(BPL_PACKAGE_MANIFEST_[A-Z_]+)"/g)]
+        .map((match) => match[1])
+        .filter((code): code is string => code !== undefined),
+    ),
+  ];
+}
+
+function expectedPackedPackageManifestValidationSmokeCodes(): string[] {
+  return PACKAGE_MANIFEST_JSON_ERROR_CODES.filter(
+    (code) => code !== "BPL_PACKAGE_MANIFEST_SYMLINK",
   );
 }
 
@@ -1029,26 +1046,11 @@ describe("Release metadata", () => {
   });
 
   test("release smoke validates packed package manifest validation error codes", () => {
+    const source = releaseSmokeSource();
+
     expectReleaseSmokeSourceContains([
       "check packed npm CLI package manifest validation JSON",
       "runPackedPackageManifestValidationJsonSmoke",
-      "BPL_PACKAGE_MANIFEST_MISSING",
-      "BPL_PACKAGE_MANIFEST_NOT_FILE",
-      "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
-      "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
-      "BPL_PACKAGE_MANIFEST_NAME_MISSING",
-      "BPL_PACKAGE_MANIFEST_NAME_INVALID",
-      "BPL_PACKAGE_MANIFEST_VERSION_MISSING",
-      "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
-      "BPL_PACKAGE_MANIFEST_METADATA_INVALID",
-      "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
-      "BPL_PACKAGE_MANIFEST_ENTRY_INVALID",
-      "BPL_PACKAGE_MANIFEST_EXPORTS_INVALID",
-      "BPL_PACKAGE_MANIFEST_KEYWORDS_INVALID",
-      "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID",
-      "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
-      "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID",
-      "BPL_PACKAGE_MANIFEST_BIN_INVALID",
       "manifestValidationCases",
       "invalid-entry",
       "invalid-repository-type",
@@ -1057,6 +1059,12 @@ describe("Release metadata", () => {
       '["install", "--json"]',
       "parsePackageInstallReport",
     ]);
+    expect(packedPackageManifestValidationSmokeCodes(source)).toEqual(
+      expectedPackedPackageManifestValidationSmokeCodes(),
+    );
+    expect(packedPackageManifestValidationSmokeCodes(source)).not.toContain(
+      "BPL_PACKAGE_MANIFEST_SYMLINK",
+    );
   });
 
   test("release smoke validates packed global package list JSON output", () => {

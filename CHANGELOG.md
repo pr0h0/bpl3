@@ -117,6 +117,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   failures to the focused ReleaseSmoke, ReleaseMetadata, and
   PackageJsonFailureContracts commands before falling back to broad release
   smoke helpers.
+- **Release Metadata Manifest Smoke Drift Guard** - ReleaseMetadata now derives
+  the packed package manifest validation smoke expectations from
+  `PACKAGE_MANIFEST_JSON_ERROR_CODES`, excluding only the symlink case that
+  remains covered by unit JSON contracts because release-smoke symlink creation
+  is OS-sensitive.
 - **Package Manifest Null Map Validation** - `bpl install --json` and
   PackageManager manifest loading now reject `null` `dependencies`,
   `devDependencies`, `scripts`, and `bin` fields with the existing stable
