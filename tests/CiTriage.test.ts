@@ -50,6 +50,13 @@ describe("CI triage helper", () => {
       "bun tools/test_ci.ts --list",
       "bun run test:ci",
     ]);
+    expect(
+      localCommandsForStep("Run integration and playground examples"),
+    ).toEqual([
+      "bun test tests/PlaygroundExampleContracts.test.ts tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+      "bun test tests/PlaygroundExampleContracts.test.ts",
+      "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+    ]);
     expect(localCommandsForStep("Run WebAssembly runtime tests")).toEqual([
       "bun run test:wasm",
       "BPL_REQUIRE_WASM_LD=1 bun run test:wasm",
@@ -2803,6 +2810,71 @@ describe("CI triage helper", () => {
         "bun test tests/PlaygroundBrowserWasmRuntime.test.ts tests/PlaygroundWasmHostAdapter.test.ts tests/PlaygroundStaticAssets.test.ts tests/WasmHostImportContract.test.ts",
         "bun run test:wasm",
         "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints CI-safe example phase repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-example-phase-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 60,
+              name: "CI-safe examples",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/60",
+              steps: [
+                {
+                  name: "Run integration and playground examples",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs).toHaveLength(1);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/PlaygroundExampleContracts.test.ts tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+        "bun test tests/PlaygroundExampleContracts.test.ts",
+        "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

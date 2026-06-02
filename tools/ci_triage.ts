@@ -1094,6 +1094,14 @@ const PLAYGROUND_BROWSER_WASM_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN = new RegExp(
+  [
+    "Run integration and playground examples",
+    "CI-safe examples",
+    "CI-safe example phase",
+  ].join("|"),
+  "i",
+);
 const PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN = new RegExp(
   [
     "PlaygroundExampleContracts\\.test",
@@ -1284,6 +1292,18 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run test:wasm"],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run check"],
+  [
+    CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
+    "bun test tests/PlaygroundExampleContracts.test.ts tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+  ],
+  [
+    CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
+    "bun test tests/PlaygroundExampleContracts.test.ts",
+  ],
+  [
+    CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
+    "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+  ],
   [
     PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN,
     "bun test tests/PlaygroundExampleContracts.test.ts",
