@@ -256,6 +256,7 @@ export interface PackageLockVerificationIssue {
   kind: PackageLockVerificationIssueKind;
   message: string;
   packagePath?: string;
+  paths?: string[];
   source?: string;
   expectedVersion?: string;
   actualVersion?: string;
@@ -4314,6 +4315,7 @@ export class PackageManager {
         kind: issue.kind,
         message: issue.message,
         packagePath: issue.path,
+        paths: issue.paths,
       }),
     );
   }

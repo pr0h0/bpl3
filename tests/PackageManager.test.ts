@@ -3444,6 +3444,7 @@ describe("PackageManager", () => {
             packageName: "repair-duplicate",
             kind: "duplicate-installed-package",
             packagePath: expect.stringContaining("repair-duplicate-a"),
+            paths: [firstDir, secondDir],
           },
         ],
       });

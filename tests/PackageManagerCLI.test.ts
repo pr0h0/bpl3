@@ -1267,7 +1267,7 @@ describe("Package Manager CLI", () => {
         packagesChecked?: number;
         issuesFound?: number;
         issueKinds?: string[];
-        issues?: Array<{ packageName: string; kind: string }>;
+        issues?: Array<{ packageName: string; kind: string; paths?: string[] }>;
       }>(result, {
         status: 1,
         check: "package-install",
@@ -1286,6 +1286,7 @@ describe("Package Manager CLI", () => {
           {
             packageName: "cli-repair-duplicate",
             kind: "duplicate-installed-package",
+            paths: [firstPackageDir, secondPackageDir],
           },
         ],
       });

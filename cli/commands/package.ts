@@ -792,6 +792,7 @@ function formatPackageLockVerificationJsonPayload(
         packageName: string;
         kind: string;
         dependencyOf?: string;
+        paths?: string[];
       }>;
     }
   | Record<string, never> {
@@ -805,6 +806,7 @@ function formatPackageLockVerificationJsonPayload(
       packageName: issue.packageName,
       kind: issue.kind,
       ...(issue.dependencyOf ? { dependencyOf: issue.dependencyOf } : {}),
+      ...(issue.paths ? { paths: issue.paths } : {}),
     }))
     .sort((left, right) =>
       [
