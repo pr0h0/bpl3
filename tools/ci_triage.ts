@@ -1001,6 +1001,16 @@ const PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN = new RegExp(
+  [
+    "package doctor stale lock",
+    "stale-lock-entry",
+    "stale lock entries",
+    "lockVerificationKind\\W+missing-package",
+    "missing-package\\W+lockVerificationKind",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_MANIFEST_JSON_STEP_PATTERN = new RegExp(
   [
     "^(?!.*(?:package-pack|JSON-mode|package import|import diagnostics)).*BPL_PACKAGE_MANIFEST_",
@@ -1310,6 +1320,18 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
     "bun test tests/PlaygroundExampleContracts.test.ts",
+  ],
+  [
+    PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
+  ],
+  [
+    PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN,
+    'bun test tests/PackageManager.test.ts -t "stale lock entries"',
+  ],
+  [
+    PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN,
+    "bun index.ts doctor packages --json",
   ],
   [
     CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
