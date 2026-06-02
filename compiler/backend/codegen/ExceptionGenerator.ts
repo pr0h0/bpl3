@@ -484,10 +484,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     const captures = new Map<string, AST.TypeNode>();
     const visited = new Set<any>();
     const shadowedCaptureNames = new Set<string>();
-    const withShadowedCaptureNames = (
-      names: string[],
-      visitBody: () => void,
-    ) => {
+    const addShadowedCaptureNames = (names: string[]) => {
       const added: string[] = [];
       for (const name of names) {
         if (!shadowedCaptureNames.has(name)) {
@@ -495,13 +492,45 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           added.push(name);
         }
       }
+      return added;
+    };
+    const removeShadowedCaptureNames = (names: string[]) => {
+      for (const name of names) {
+        shadowedCaptureNames.delete(name);
+      }
+    };
+    const withShadowedCaptureNames = (
+      names: string[],
+      visitBody: () => void,
+    ) => {
+      const added = addShadowedCaptureNames(names);
       try {
         visitBody();
       } finally {
-        for (const name of added) {
-          shadowedCaptureNames.delete(name);
-        }
+        removeShadowedCaptureNames(added);
       }
+    };
+    const collectVariableDeclarationNames = (
+      declaration: AST.VariableDecl,
+    ): string[] => {
+      if (typeof declaration.name === "string") {
+        return declaration.name === "_" ? [] : [declaration.name];
+      }
+
+      const names: string[] = [];
+      const collect = (target: AST.DestructuringPattern) => {
+        if (Array.isArray(target)) {
+          for (const item of target) {
+            collect(item);
+          }
+          return;
+        }
+        if (target.name !== "_") {
+          names.push(target.name);
+        }
+      };
+      collect(declaration.name);
+      return names;
     };
     const collectPatternBindingNames = (pattern: AST.Pattern): string[] => {
       switch (pattern.kind) {
@@ -553,7 +582,26 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
       switch (node.kind) {
         case "Block":
-          collectCaptures((node as AST.BlockStmt).statements);
+          {
+            const added: string[] = [];
+            try {
+              for (const statement of (node as AST.BlockStmt).statements) {
+                if (statement.kind === "VariableDecl") {
+                  const declaration = statement as AST.VariableDecl;
+                  collectCaptures(declaration.initializer);
+                  added.push(
+                    ...addShadowedCaptureNames(
+                      collectVariableDeclarationNames(declaration),
+                    ),
+                  );
+                  continue;
+                }
+                collectCaptures(statement);
+              }
+            } finally {
+              removeShadowedCaptureNames(added);
+            }
+          }
           break;
         case "VariableDecl":
           collectCaptures((node as AST.VariableDecl).initializer);
@@ -567,10 +615,26 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           collectCaptures((node as AST.IfStmt).elseBranch);
           break;
         case "Loop":
-          collectCaptures((node as AST.LoopStmt).init);
-          collectCaptures((node as AST.LoopStmt).condition);
-          collectCaptures((node as AST.LoopStmt).step);
-          collectCaptures((node as AST.LoopStmt).body);
+          {
+            const loop = node as AST.LoopStmt;
+            if (loop.init?.kind === "VariableDecl") {
+              const declaration = loop.init as AST.VariableDecl;
+              collectCaptures(declaration.initializer);
+              withShadowedCaptureNames(
+                collectVariableDeclarationNames(declaration),
+                () => {
+                  collectCaptures(loop.condition);
+                  collectCaptures(loop.step);
+                  collectCaptures(loop.body);
+                },
+              );
+            } else {
+              collectCaptures(loop.init);
+              collectCaptures(loop.condition);
+              collectCaptures(loop.step);
+              collectCaptures(loop.body);
+            }
+          }
           break;
         case "Throw":
           collectCaptures((node as AST.ThrowStmt).expression);
@@ -700,6 +764,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
                 const name = n.name;
                 // Skip if this is a lambda parameter
                 if (paramNames.has(name)) return;
+                if (shadowedCaptureNames.has(name)) return;
                 // Capture if it's a local from our scope
                 if (this.locals.has(name) && !captures.has(name)) {
                   captures.set(name, this.localTypes.get(name)!);

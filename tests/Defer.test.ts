@@ -109,6 +109,61 @@ describe("Defer Statement", () => {
     expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
   });
 
+  it("should keep deferred local declarations from capturing shadowed outer locals", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 99;
+        defer {
+          local value: int = 7;
+          printf("defer local value: %d\\n", value);
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
+  });
+
+  it("should capture outer locals used by deferred local initializers before shadowing", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 99;
+        defer {
+          local value: int = value + 1;
+          printf("defer initialized value: %d\\n", value);
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
+  it("should keep deferred loop init declarations from capturing shadowed outer locals", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local i: int = 99;
+        defer {
+          loop (local i: int = 0; i < 1; i = i + 1) {
+            printf("defer loop value: %d\\n", i);
+          }
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
+  });
+
   it("should capture locals referenced inside deferred try and catch blocks", () => {
     const source = `
       extern printf(fmt: string, ...);

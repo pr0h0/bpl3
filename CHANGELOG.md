@@ -1045,6 +1045,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   treats match pattern bindings as arm-local names while scanning guards and
   bodies, avoiding unnecessary captures when a pattern binding shadows an outer
   local.
+- **Deferred Local Shadowing** - Deferred-block capture analysis now honors
+  local declarations and C-style loop init declarations as scoped shadow names,
+  while still capturing outer locals used by their initializers before the new
+  local comes into scope.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`
