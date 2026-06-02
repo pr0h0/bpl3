@@ -20,6 +20,7 @@ The configuration file defines the package metadata.
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/pr0h0/bpl3/master/bpl-package.schema.json",
   "name": "my-package",
   "version": "0.1.0",
   "description": "A useful library",
@@ -32,11 +33,13 @@ The configuration file defines the package metadata.
 
 `name` must use lowercase letters, digits, and hyphens only. `version` must be
 an `X.Y.Z` semantic version string. `main`, `entry`, and `exports` must stay
-inside the package root, and optional metadata such as `keywords` and
-`repository` is validated before packing or installing. Invalid manifests fail
-while loading `bpl.json` instead of later during path handling or archive
+inside the package root, and optional metadata such as `$schema`, `keywords`,
+and `repository` is validated before packing or installing. Invalid manifests
+fail while loading `bpl.json` instead of later during path handling or archive
 creation. The checked-in `bpl-package.schema.json` mirrors these runtime rules
 so editors and CI schema validation catch the same invalid shapes early.
+`bpl init` and `bpl new` include the canonical `$schema` URI in generated
+manifests so editors can find the package manifest contract immediately.
 Object maps such as `dependencies`, `devDependencies`, `scripts`, and `bin`
 must be JSON objects when present; `null` is rejected instead of being treated
 as an absent field.

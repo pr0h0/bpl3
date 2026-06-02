@@ -7,6 +7,10 @@ import {
   expectJsonStdoutReport,
   parseJsonObjectStdout,
 } from "./helpers/cliJson";
+import {
+  expectPackageManifestConformsToSchema,
+  type JsonObject,
+} from "./helpers/packageManifestSchema";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 import {
   NEW_PROJECT_NAME_INVALID_CODE,
@@ -3014,6 +3018,11 @@ describe("CLI Tests", () => {
       );
       expect(manifest.main).toBe("src/index.bpl");
       expect(manifest.type).toBe("library");
+      expectPackageManifestConformsToSchema(
+        manifest as JsonObject,
+        "bpl new --template library",
+        { requireSchemaUri: true },
+      );
 
       const source = fs.readFileSync(
         path.join(projectDir, "src", "index.bpl"),
@@ -3129,6 +3138,13 @@ describe("CLI Tests", () => {
       });
       expect(fs.existsSync(path.join(tempDir, "json-app", "main.bpl"))).toBe(
         true,
+      );
+      expectPackageManifestConformsToSchema(
+        JSON.parse(
+          fs.readFileSync(path.join(tempDir, "json-app", "bpl.json"), "utf-8"),
+        ) as JsonObject,
+        "bpl new --template app",
+        { requireSchemaUri: true },
       );
 
       const pathLikeName = spawnSync(

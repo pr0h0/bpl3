@@ -6043,6 +6043,18 @@ describe("PackageManager", () => {
         [
           JSON.stringify(
             {
+              name: "bad-schema-uri",
+              version: "1.0.0",
+              $schema: 1,
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest '\$schema' field/,
+        ],
+        [
+          JSON.stringify(
+            {
               name: "unsafe-main",
               version: "1.0.0",
               main: "../index.bpl",

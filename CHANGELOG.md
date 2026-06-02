@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Package Manifest Schema URI** - `bpl init` and `bpl new` now
+  write the canonical `bpl-package.schema.json` `$schema` URI into generated
+  manifests, and PackageManager manifest loading validates `$schema` as a
+  string when present. Schema tests now validate tracked package manifests and
+  generated init/new manifests against the checked-in package schema.
 - **Package Manifest Schema Runtime Alignment** - `bpl-package.schema.json`
   now mirrors PackageManager validation for `main`, `entry`, `exports`,
   dependency maps, script maps, and `bin` command/path maps so editors and CI

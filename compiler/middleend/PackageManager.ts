@@ -18,6 +18,7 @@ import {
   createJsonReport,
 } from "../common/JsonContracts";
 import { compilerLog } from "../common/Logger";
+import { BPL_PACKAGE_SCHEMA_URI } from "../common/PackageManifestSchema";
 import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
 import {
@@ -42,6 +43,8 @@ export function getPackageArchiveToolTimeoutMs(): number {
     },
   );
 }
+
+export { BPL_PACKAGE_SCHEMA_URI };
 
 export const PACKAGE_INIT_NAME_INVALID_CODE =
   "BPL_PACKAGE_INIT_NAME_INVALID";
@@ -178,6 +181,7 @@ export const PACKAGE_MANIFEST_JSON_ERROR_CODES = [
 ] as const;
 
 export interface PackageManifest {
+  $schema?: string;
   name: string;
   version: string;
   description?: string;
@@ -1859,7 +1863,12 @@ export class PackageManager {
     manifest: PackageManifest,
     location: SourceLocation,
   ): void {
-    for (const field of ["description", "author", "license"] as const) {
+    for (const field of [
+      "$schema",
+      "description",
+      "author",
+      "license",
+    ] as const) {
       if (manifest[field] !== undefined && typeof manifest[field] !== "string") {
         throw new CompilerError(
           `Invalid package manifest '${field}' field`,
@@ -4838,6 +4847,7 @@ export class PackageManager {
     );
 
     const manifest: PackageManifest = {
+      $schema: BPL_PACKAGE_SCHEMA_URI,
       name: packageName,
       version: "1.0.0",
       description: "A BPL project",

@@ -7,6 +7,10 @@ import {
   expectJsonStdoutReport,
   parseJsonObjectStdout,
 } from "./helpers/cliJson";
+import {
+  expectPackageManifestConformsToSchema,
+  type JsonObject,
+} from "./helpers/packageManifestSchema";
 
 describe("Package Manager CLI", () => {
   let tempDir: string;
@@ -39,6 +43,9 @@ describe("Package Manager CLI", () => {
       const manifest = JSON.parse(fs.readFileSync("bpl.json", "utf-8"));
       expect(manifest.name).toBeTruthy();
       expect(manifest.version).toBe("1.0.0");
+      expectPackageManifestConformsToSchema(manifest as JsonObject, "bpl init", {
+        requireSchemaUri: true,
+      });
     });
 
     test("should report init success and failures as JSON", () => {
@@ -74,6 +81,13 @@ describe("Package Manager CLI", () => {
         manifestPath: path.join(projectDir, "bpl.json"),
       });
       expect(fs.existsSync(path.join(projectDir, "bpl.json"))).toBe(true);
+      expectPackageManifestConformsToSchema(
+        JSON.parse(
+          fs.readFileSync(path.join(projectDir, "bpl.json"), "utf-8"),
+        ) as JsonObject,
+        "bpl init --json",
+        { requireSchemaUri: true },
+      );
 
       const invalidResult = spawnSync(
         "bun",

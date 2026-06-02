@@ -653,6 +653,22 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(text, requiredSnippets);
   });
 
+  test("package docs document generated manifest schema URI", () => {
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "PACKAGE_MANAGER.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "https://raw.githubusercontent.com/pr0h0/bpl3/master/bpl-package.schema.json",
+      "`bpl init` and `bpl new` include the canonical `$schema` URI",
+      "`bpl init` and `bpl new` generated manifests include the canonical `$schema` URI",
+      "Schema tests now validate tracked package manifests and generated init/new manifests",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("package docs document package manager manifest JSON error codes", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",

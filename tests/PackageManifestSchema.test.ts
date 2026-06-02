@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
 import { readFileSync } from "fs";
 import { join } from "path";
+import {
+  expectPackageManifestConformsToSchema,
+  type JsonObject,
+} from "./helpers/packageManifestSchema";
 
 type JsonSchemaObject = {
   properties?: Record<string, JsonSchemaObject>;
@@ -50,6 +55,36 @@ function schemaPattern(contract: JsonSchemaObject, label: string): RegExp {
 }
 
 describe("Package manifest JSON schema", () => {
+  test("documents optional editor schema URI metadata", () => {
+    expect(propertySchema("$schema").type).toBe("string");
+  });
+
+  test("validates tracked package manifests", () => {
+    const trackedManifests = spawnSync("git", ["ls-files", "**/bpl.json"], {
+      encoding: "utf8",
+    });
+
+    expect(trackedManifests.status).toBe(0);
+
+    const packageManifestPaths = trackedManifests.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((filePath) => filePath !== "vscode-ext/snippets/bpl.json");
+
+    expect(packageManifestPaths).toContain("packages/bpl-express/bpl.json");
+    expect(packageManifestPaths).toContain(
+      "examples/package_transitive_dependency/app/bpl.json",
+    );
+
+    for (const manifestPath of packageManifestPaths) {
+      const manifest = JSON.parse(
+        readFileSync(manifestPath, "utf8"),
+      ) as JsonObject;
+      expectPackageManifestConformsToSchema(manifest, manifestPath);
+    }
+  });
+
   test("mirrors runtime package-relative path validation", () => {
     const pathSchemas = [
       { name: "main", contract: propertySchema("main") },

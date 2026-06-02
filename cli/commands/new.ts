@@ -16,6 +16,7 @@ import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
+import { BPL_PACKAGE_SCHEMA_URI } from "../../compiler/common/PackageManifestSchema";
 import { writeFileAtomically } from "../utils";
 
 const log = new Logger("New");
@@ -115,6 +116,7 @@ export function registerNewCommand(program: Command): void {
           const manifest =
             template === "library"
               ? {
+                  $schema: BPL_PACKAGE_SCHEMA_URI,
                   name,
                   version: "0.1.0",
                   type: "library",
@@ -124,6 +126,7 @@ export function registerNewCommand(program: Command): void {
                   devDependencies: {},
                 }
               : {
+                  $schema: BPL_PACKAGE_SCHEMA_URI,
                   name,
                   version: "0.1.0",
                   type: "app",

@@ -8,6 +8,7 @@ A BPL package is defined by a `bpl.json` manifest file in the package root direc
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/pr0h0/bpl3/master/bpl-package.schema.json",
   "name": "my-package",
   "version": "1.0.0",
   "description": "My awesome package",
@@ -26,6 +27,7 @@ A BPL package is defined by a `bpl.json` manifest file in the package root direc
 ### Optional Fields
 
 - `description`: Package description
+- `$schema`: JSON Schema URI for editor validation
 - `main`: Package-relative entry point file (defaults to "index.bpl")
 - `entry`: Package-relative entry point alias
 - `author`: Package author
@@ -38,7 +40,9 @@ and `bin` path values must be package-relative paths without empty, `.`, or
 `..` segments. Dependency keys use the same package-name rule as `name`;
 dependency sources and script commands must be non-empty strings. Script names
 must be non-empty, and `bin` command names must be plain command names without
-path separators.
+path separators. `bpl init` and `bpl new` generated manifests include the
+canonical `$schema` URI so editors can use the checked-in package schema
+without extra setup.
 
 ## CLI Commands
 
