@@ -438,13 +438,15 @@ For doctor lock verification drift, each issue also carries
 `code: "BPL_PACKAGE_LOCK_VERIFY_FAILED"` and the verifier metadata needed by
 automation: `packageName`, `source`, `expectedVersion`, `actualVersion`,
 `expectedName`, `actualName`, `expectedHash`, `actualHash`, `dependencyOf`, and
-`requestedSource` when those fields apply to the drift kind. Doctor issues also
-include `lockVerificationKind`, which preserves the underlying verifier issue
-kind even when the doctor layer uses a clearer package-health label. For
-example, a lock entry whose package directory is missing is reported as
-`stale-lock-entry` with `lockVerificationKind: "missing-package"`. This lets CI
-summarize stale lock entries, hash mismatches, version mismatches, unreachable
-sources, untracked installed packages
+`requestedSource` when those fields apply to the drift kind. Duplicate
+lock-verification issues also include the verifier `paths` array with every
+conflicting installed directory. Doctor issues include `lockVerificationKind`,
+which preserves the underlying verifier issue kind even when the doctor layer
+uses a clearer package-health label. For example, a lock entry whose package
+directory is missing is reported as `stale-lock-entry` with
+`lockVerificationKind: "missing-package"`. This lets CI summarize stale lock
+entries, hash mismatches, version mismatches, unreachable sources, untracked
+installed packages
 (`lockVerificationKind: "untracked-package"`), invalid untracked package
 metadata, unsafe untracked package roots, and transitive dependency drift
 without parsing the human-readable message.

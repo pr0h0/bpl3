@@ -4829,6 +4829,7 @@ export class PackageManager {
           code: PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
           message: issue.message,
           path: issue.packagePath,
+          ...(issue.paths ? { paths: issue.paths } : {}),
           hint: this.formatLockVerificationHelp(verification),
           packageName: issue.packageName,
           ...(issue.source ? { source: issue.source } : {}),

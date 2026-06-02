@@ -227,6 +227,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   installed package issues now preserve the legacy joined `path` string and
   include a `paths` array with every conflicting installed directory, matching
   the package list JSON duplicate payload.
+- **Package Doctor Lock Duplicate Paths** - doctor lock verification duplicate
+  issues now preserve the verifier `paths` array alongside
+  `lockVerificationKind: "duplicate-installed-package"`, so tooling does not
+  need to split the compatibility `path` string.
 - **Package Doctor Cache Provenance Paths** - `bpl doctor packages --json`
   package-cache warning issues now include `provenancePath` when a missing,
   malformed, or unsafe provenance sidecar is involved, matching the nested

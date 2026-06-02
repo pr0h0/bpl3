@@ -3343,6 +3343,116 @@ describe("Package Manager CLI", () => {
       expect(duplicateIssue?.path).toContain(secondPackageDir);
     });
 
+    test("should preserve duplicate lock verification paths in doctor JSON", () => {
+      const appDir = path.join(tempDir, "doctor-locked-duplicate-cli-app");
+      const homeDir = path.join(tempDir, "doctor-locked-duplicate-cli-home");
+      const lockedPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-locked-duplicate",
+      );
+      const duplicatePackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-locked-duplicate-copy",
+      );
+      const sourceArchive = path.join(
+        appDir,
+        "doctor-locked-duplicate-1.0.0.tgz",
+      );
+      fs.mkdirSync(lockedPackageDir, { recursive: true });
+      fs.mkdirSync(duplicatePackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({
+          name: "doctor-locked-duplicate-cli-app",
+          version: "1.0.0",
+        }),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+
+      for (const packageDir of [lockedPackageDir, duplicatePackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "doctor-locked-duplicate",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const localPM = new PackageManager(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "doctor-locked-duplicate": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: localPM["calculatePackageHash"](lockedPackageDir),
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+            NO_COLOR: "1",
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          packageName?: string;
+          lockVerificationKind?: string;
+          path?: string;
+          paths?: string[];
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      const duplicateLockIssue = report.issues.find(
+        (issue) =>
+          issue.code === "BPL_PACKAGE_LOCK_VERIFY_FAILED" &&
+          issue.lockVerificationKind === "duplicate-installed-package",
+      );
+      expect(duplicateLockIssue).toMatchObject({
+        severity: "error",
+        kind: "duplicate-installed-package",
+        code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        packageName: "doctor-locked-duplicate",
+        lockVerificationKind: "duplicate-installed-package",
+        path: [lockedPackageDir, duplicatePackageDir].join(", "),
+        paths: [lockedPackageDir, duplicatePackageDir],
+      });
+    });
+
     test("should report invalid installed package exports as stable JSON issues", () => {
       const appDir = path.join(tempDir, "doctor-export-cli-app");
       const homeDir = path.join(tempDir, "doctor-export-cli-home");
