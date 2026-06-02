@@ -147,6 +147,36 @@ describe("Lambda Runtime", () => {
     expect(result.stdout).toContain("Result: 5 11");
   });
 
+  it("should capture outer variables inside lambda try and catch blocks", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local offset: int = 5;
+        local f: Lambda<int>(int) = |value: int| ret int {
+          try {
+            if (value == 0) {
+              throw 2;
+            }
+            return offset;
+          } catch (err: int) {
+            return offset + err;
+          }
+          return 0;
+        };
+        printf("Result: %d %d\\n", f(1), f(0));
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "lambda_try_catch_capture");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+      console.error("STDOUT:", result.stdout);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Result: 5 7");
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       extern printf(fmt: string, ...);

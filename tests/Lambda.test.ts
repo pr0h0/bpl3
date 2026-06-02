@@ -164,6 +164,29 @@ describe("Lambda Code Generation", () => {
     expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
   });
 
+  it("should capture outer variables in try and catch without capturing catch bindings", () => {
+    const source = `
+      frame main() ret int {
+        local offset: int = 5;
+        local f: Lambda<int>(int) = |value: int| ret int {
+          try {
+            if (value == 0) {
+              throw 2;
+            }
+            return offset;
+          } catch (err: int) {
+            return offset + err;
+          }
+          return 0;
+        };
+        return f(0);
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       frame apply(f: Lambda<int>(int), v: int) ret int {

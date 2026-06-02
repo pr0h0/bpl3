@@ -483,6 +483,18 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     // Analyze captures
     const captures = new Map<string, AST.TypeNode>();
     const visited = new Set<any>();
+    const shadowedCaptureNames = new Set<string>();
+    const withShadowedCaptureName = (name: string, visitBody: () => void) => {
+      const wasShadowed = shadowedCaptureNames.has(name);
+      shadowedCaptureNames.add(name);
+      try {
+        visitBody();
+      } finally {
+        if (!wasShadowed) {
+          shadowedCaptureNames.delete(name);
+        }
+      }
+    };
     const collectCaptures = (node: any) => {
       if (!node || typeof node !== "object") return;
       if (visited.has(node)) return;
@@ -490,6 +502,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
       if (node.kind === "Identifier") {
         const name = node.name;
+        if (shadowedCaptureNames.has(name)) return;
         if (this.locals.has(name) && !captures.has(name)) {
           captures.set(name, this.localTypes.get(name)!);
         }
@@ -533,6 +546,18 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           break;
         case "Throw":
           collectCaptures((node as AST.ThrowStmt).expression);
+          break;
+        case "Try":
+          collectCaptures((node as AST.TryStmt).tryBlock);
+          for (const clause of (node as AST.TryStmt).catchClauses) {
+            if (clause.variable && clause.type) {
+              withShadowedCaptureName(clause.variable, () => {
+                collectCaptures(clause.body);
+              });
+            } else {
+              collectCaptures(clause.body);
+            }
+          }
           break;
         case "Switch":
           collectCaptures((node as AST.SwitchStmt).expression);

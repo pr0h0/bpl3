@@ -69,4 +69,28 @@ describe("Defer Statement", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("defer value: 7");
   });
+
+  it("should capture locals referenced inside deferred try and catch blocks", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 7;
+        defer {
+          try {
+            printf("defer try value: %d\\n", value);
+          } catch (err: int) {
+            printf("defer catch value: %d\\n", value + err);
+          }
+        }
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "defer_try_catch_capture");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("defer try value: 7");
+  });
 });

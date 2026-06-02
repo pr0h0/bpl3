@@ -1033,6 +1033,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   bindings inside lambda `match` arms now stay arm-local during capture
   analysis. Lambdas no longer build closure contexts from destructured pattern
   names before those locals exist.
+- **Try/Catch Capture Traversal** - Lambda and deferred-block capture analysis
+  now visits `try` bodies and `catch` handlers while keeping typed catch
+  variables local to the handler, avoiding dangling loads when deferred or
+  lambda code references outer locals inside exception-handling blocks.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`

@@ -80,6 +80,9 @@ export class CaptureAnalyzer {
       case "Throw":
         this.visit((node as AST.ThrowStmt).expression);
         break;
+      case "Try":
+        this.visitTry(node as AST.TryStmt);
+        break;
       case "Switch":
         this.visitSwitch(node as AST.SwitchStmt);
         break;
@@ -160,6 +163,18 @@ export class CaptureAnalyzer {
 
     if (node.defaultCase) {
       this.visit(node.defaultCase);
+    }
+  }
+
+  private visitTry(node: AST.TryStmt) {
+    this.visit(node.tryBlock);
+
+    for (const clause of node.catchClauses) {
+      const catchBindings =
+        clause.variable && clause.type ? [clause] : [];
+      this.withLocalDeclarations(catchBindings, () => {
+        this.visit(clause.body);
+      });
     }
   }
 
