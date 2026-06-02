@@ -257,8 +257,12 @@ Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field. Successful `bpl install --locked --json` reports include
 `action: "verified"` and `packagesChecked`, so automation can distinguish a
-lockfile verification run from a normal install. Reproduce the locked success
-JSON contract with
+lockfile verification run from a normal install. Failed locked verification
+reports use `BPL_PACKAGE_LOCK_VERIFY_FAILED` with
+`action: "verification-failed"`, `packagesChecked`, `issuesFound`,
+`issueKinds`, and compact `issues` entries containing the package name and
+issue kind, so CI can detect lock drift without scraping the formatted
+diagnostic. Reproduce the locked success and failure JSON contract with
 `bun test tests/PackageManagerCLI.test.ts -t "should enforce --locked package verification"`.
 When the underlying package error has a stable compiler code, the report also
 includes `errorCode`, such as
@@ -269,7 +273,8 @@ malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
 `BPL_PACKAGE_INSTALL_GLOBAL_PROJECT_CONFLICT`,
 `BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT`, and
 `BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT` for project-mode option conflicts,
-and `BPL_PACKAGE_ARCHIVE_SYMLINK`,
+`BPL_PACKAGE_LOCK_VERIFY_FAILED` for locked package verification drift, and
+`BPL_PACKAGE_ARCHIVE_SYMLINK`,
 `BPL_PACKAGE_ARCHIVE_PARENT_SYMLINK`, and `BPL_PACKAGE_ARCHIVE_NOT_FILE` for
 direct archive paths that are symlinks, pass through symlinked parents, or are
 not files. Reproduce the focused option/archive JSON contracts with

@@ -747,7 +747,10 @@ describe("Markdown documentation", () => {
     ]);
     const requiredSnippets = [
       'action: "verified"',
+      'action: "verification-failed"',
       "`packagesChecked`",
+      "`issuesFound`",
+      "`issueKinds`",
       "project-mode option conflicts",
       "direct archive paths",
       "bpl install --locked --json",
