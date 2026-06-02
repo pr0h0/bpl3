@@ -548,6 +548,77 @@ describe("Package Manager CLI", () => {
       ).toBe(true);
     });
 
+    test("should install file-prefixed archive paths through the CLI", () => {
+      const packageDir = path.join(tempDir, "file-prefix-package");
+      const projectDir = path.join(tempDir, "file-prefix-project");
+      const depsDir = path.join(projectDir, "deps");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(depsDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-file-prefix-test",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+
+      const packResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(packResult.status).toBe(0);
+
+      const archiveName = "cli-file-prefix-test-1.0.0.tgz";
+      fs.copyFileSync(
+        path.join(packageDir, archiveName),
+        path.join(depsDir, archiveName),
+      );
+
+      const installResult = spawnSync(
+        "bun",
+        [bplPath, "install", `file:deps/${archiveName}`],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
+
+      expect(installResult.status).toBe(0);
+      expect(
+        fs.existsSync(
+          path.join(projectDir, "bpl_modules", "cli-file-prefix-test"),
+        ),
+      ).toBe(true);
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(projectDir, "bpl.lock"), "utf8"),
+      );
+      expect(lock.packages["cli-file-prefix-test"].source).toBe(
+        `file:deps/${archiveName}`,
+      );
+
+      fs.rmSync(path.join(projectDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+      const restoreResult = spawnSync("bun", [bplPath, "install"], {
+        cwd: projectDir,
+        encoding: "utf-8",
+      });
+      expect(restoreResult.status).toBe(0);
+      expect(
+        fs.existsSync(
+          path.join(projectDir, "bpl_modules", "cli-file-prefix-test"),
+        ),
+      ).toBe(true);
+    });
+
     test("should preserve existing lockfile permissions when installing through the CLI", () => {
       if (process.platform === "win32") {
         return;
