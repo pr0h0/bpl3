@@ -862,6 +862,39 @@ describe("Package Manager CLI", () => {
       });
       expect(lockedFail.status).toBe(1);
       expect(lockedFail.stderr).toContain("hash mismatch");
+
+      const lockedJsonFail = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const lockedFailureReport = expectJsonStdoutReport<{
+        errorCode?: string;
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{ packageName: string; kind: string }>;
+      }>(lockedJsonFail, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+      expect(lockedFailureReport).toMatchObject({
+        mode: "project",
+        target: null,
+        locked: true,
+        errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        action: "verification-failed",
+        packagesChecked: 1,
+        issuesFound: 1,
+        issueKinds: ["hash-mismatch"],
+        issues: [{ packageName: "locked-cli-test", kind: "hash-mismatch" }],
+      });
     });
 
     test("should check installed package imports from nested sources outside project cwd", () => {

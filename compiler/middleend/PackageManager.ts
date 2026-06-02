@@ -80,12 +80,15 @@ export const PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT";
 export const PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT";
+export const PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE =
+  "BPL_PACKAGE_LOCK_VERIFY_FAILED";
 export const PACKAGE_INSTALL_JSON_ERROR_CODES = [
   PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE,
   PACKAGE_INSTALL_GLOBAL_PROJECT_CONFLICT_CODE,
   PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT_CODE,
   PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT_CODE,
   PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE,
+  PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
 ] as const;
 
 export const PACKAGE_ARCHIVE_SYMLINK_CODE = "BPL_PACKAGE_ARCHIVE_SYMLINK";
@@ -250,6 +253,28 @@ export interface PackageLockVerification {
   errors: string[];
   issues: PackageLockVerificationIssue[];
   packagesChecked: number;
+}
+
+export class PackageLockVerificationError extends CompilerError {
+  constructor(
+    public readonly verification: PackageLockVerification,
+    lockFilePath: string,
+    hint: string,
+  ) {
+    super(
+      `Lockfile verification failed:\n${verification.errors.join("\n")}`,
+      hint,
+      {
+        file: lockFilePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+      PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
+    );
+    this.name = "PackageLockVerificationError";
+  }
 }
 
 export interface PackageDependencyTreeNode {
@@ -1331,16 +1356,10 @@ export class PackageManager {
     if (options.locked) {
       const verification = this.verifyLockFile();
       if (!verification.ok) {
-        throw new CompilerError(
-          `Lockfile verification failed:\n${verification.errors.join("\n")}`,
+        throw new PackageLockVerificationError(
+          verification,
+          this.getLockFilePath(),
           this.formatLockVerificationHelp(verification),
-          {
-            file: this.getLockFilePath(),
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
         );
       }
 

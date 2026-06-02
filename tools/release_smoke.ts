@@ -89,8 +89,11 @@ interface PackageInstallReport {
   locked: boolean;
   update: boolean;
   repairLock: boolean;
-  action?: "verified";
+  action?: "verified" | "verification-failed";
   packagesChecked?: number;
+  issuesFound?: number;
+  issueKinds?: string[];
+  issues?: Array<{ packageName?: string; kind?: string }>;
   error?: string;
   errorCode?: string;
 }
@@ -1466,6 +1469,60 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI locked package install JSON reported unexpected payload:\n${JSON.stringify(lockedReport, null, 2)}`,
+      );
+    }
+
+    writeFileSync(
+      join(appDir, "bpl_modules", "release-smoke-install-json", "index.bpl"),
+      "export tampered;\n",
+    );
+    const lockedFailure = runJsonFailureStep(
+      "check packed npm CLI locked package verification failure JSON",
+      installedBpl,
+      ["install", "--locked", "--json"],
+      {
+        cwd: appDir,
+        bplHome: null,
+        env: { HOME: homeDir },
+        expectedStatus: 1,
+      },
+    );
+    const lockedFailureReport = parsePackageInstallReport(
+      lockedFailure.stdout,
+    );
+    const expectedFailureMetadata = {
+      action: "verification-failed",
+      errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+      packagesChecked: 1,
+      issuesFound: 1,
+      issueKinds: ["hash-mismatch"],
+      issue: {
+        packageName: "release-smoke-install-json",
+        kind: "hash-mismatch",
+      },
+    } as const;
+
+    if (
+      lockedFailureReport.success ||
+      lockedFailureReport.mode !== "project" ||
+      lockedFailureReport.target !== null ||
+      lockedFailureReport.global ||
+      !lockedFailureReport.locked ||
+      lockedFailureReport.update ||
+      lockedFailureReport.repairLock ||
+      lockedFailureReport.errorCode !== expectedFailureMetadata.errorCode ||
+      lockedFailureReport.action !== expectedFailureMetadata.action ||
+      lockedFailureReport.packagesChecked !==
+        expectedFailureMetadata.packagesChecked ||
+      lockedFailureReport.issuesFound !== expectedFailureMetadata.issuesFound ||
+      JSON.stringify(lockedFailureReport.issueKinds) !==
+        JSON.stringify(expectedFailureMetadata.issueKinds) ||
+      lockedFailureReport.issues?.[0]?.packageName !==
+        expectedFailureMetadata.issue.packageName ||
+      lockedFailureReport.issues?.[0]?.kind !== expectedFailureMetadata.issue.kind
+    ) {
+      throw new Error(
+        `Packed npm CLI locked package verification failure JSON reported unexpected payload:\n${JSON.stringify(lockedFailureReport, null, 2)}`,
       );
     }
   } finally {

@@ -401,6 +401,7 @@ describe("Package JSON failure contracts", () => {
         context: CommandContext;
         expectedCode: string;
         expectedError: string;
+        expectedPayload?: Record<string, unknown>;
       }> = [
         {
           name: "package-with-update",
@@ -438,6 +439,25 @@ describe("Package JSON failure contracts", () => {
           expectedCode: "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT",
           expectedError: "Cannot use --update with --repair-lock",
         },
+        {
+          name: "locked-verify-failed",
+          args: ["install", "--locked", "--json"],
+          context: lockedVerificationFailureRoot(tempDir),
+          expectedCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+          expectedError: "Lockfile verification failed",
+          expectedPayload: {
+            action: "verification-failed",
+            packagesChecked: 1,
+            issuesFound: 1,
+            issueKinds: ["hash-mismatch"],
+            issues: [
+              {
+                packageName: "locked-json-failure",
+                kind: "hash-mismatch",
+              },
+            ],
+          },
+        },
       ];
 
       expect(cases.map((testCase) => testCase.expectedCode).sort()).toEqual(
@@ -453,6 +473,7 @@ describe("Package JSON failure contracts", () => {
         expect(report).toMatchObject({
           error: expect.stringContaining(testCase.expectedError),
           errorCode: testCase.expectedCode,
+          ...(testCase.expectedPayload ?? {}),
         });
       }
     } finally {
@@ -814,5 +835,39 @@ function projectManifestRoot(root: string, name: string): CommandContext {
     join(context.cwd, "bpl.json"),
     JSON.stringify({ name, version: "1.0.0" }),
   );
+  return context;
+}
+
+function lockedVerificationFailureRoot(root: string): CommandContext {
+  const context = projectManifestRoot(root, "locked-json-failure-project");
+  const packageName = "locked-json-failure";
+  const packageDir = join(context.cwd, "bpl_modules", packageName);
+  const sourcePath = join(context.cwd, `${packageName}-1.0.0.tgz`);
+
+  mkdirSync(packageDir, { recursive: true });
+  writeFileSync(sourcePath, "reachable lock source");
+  writeFileSync(
+    join(packageDir, "bpl.json"),
+    JSON.stringify({ name: packageName, version: "1.0.0" }),
+  );
+  writeFileSync(join(packageDir, "index.bpl"), "export actual;\n");
+  writeFileSync(
+    join(context.cwd, "bpl.lock"),
+    JSON.stringify(
+      {
+        lockfileVersion: 1,
+        packages: {
+          [packageName]: {
+            version: "1.0.0",
+            source: sourcePath,
+            hash: "definitely-not-the-installed-package-hash",
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
   return context;
 }

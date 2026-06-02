@@ -905,9 +905,13 @@ describe("Release metadata", () => {
   test("release smoke validates packed locked package install JSON output", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI locked package install JSON",
+      "check packed npm CLI locked package verification failure JSON",
       '["install", "--locked", "--json"]',
       'action: "verified"',
+      'action: "verification-failed"',
       "packagesChecked",
+      "issuesFound",
+      "issueKinds",
     ]);
   });
 

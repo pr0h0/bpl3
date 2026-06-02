@@ -12,6 +12,7 @@ import {
   PackageManager,
   Compiler,
   CompilerError,
+  PackageLockVerificationError,
   type PackageCacheEntry,
   type PackageCacheRepairResult,
   type PackageCacheVerificationIssue,
@@ -231,6 +232,7 @@ export function registerPackageCommands(program: Command): void {
                   ...formatPackageInstallJsonPayload(pkg, options),
                   error: formatPackageCommandJsonError(e),
                   ...formatPackageCommandErrorCode(e),
+                  ...formatPackageLockVerificationJsonPayload(e),
                 }),
                 null,
                 2,
@@ -733,6 +735,51 @@ function formatPackageCommandErrorCode(
   }
 
   return {};
+}
+
+function formatPackageLockVerificationJsonPayload(
+  error: unknown,
+):
+  | {
+      action: "verification-failed";
+      packagesChecked: number;
+      issuesFound: number;
+      issueKinds: string[];
+      issues: Array<{
+        packageName: string;
+        kind: string;
+        dependencyOf?: string;
+      }>;
+    }
+  | Record<string, never> {
+  if (!(error instanceof PackageLockVerificationError)) {
+    return {};
+  }
+
+  const { verification } = error;
+  const issues = verification.issues
+    .map((issue) => ({
+      packageName: issue.packageName,
+      kind: issue.kind,
+      ...(issue.dependencyOf ? { dependencyOf: issue.dependencyOf } : {}),
+    }))
+    .sort((left, right) =>
+      [
+        left.packageName.localeCompare(right.packageName),
+        left.kind.localeCompare(right.kind),
+        (left.dependencyOf ?? "").localeCompare(right.dependencyOf ?? ""),
+      ].find((comparison) => comparison !== 0) ?? 0,
+    );
+
+  return {
+    action: "verification-failed",
+    packagesChecked: verification.packagesChecked,
+    issuesFound: verification.issues.length,
+    issueKinds: [
+      ...new Set(verification.issues.map((issue) => issue.kind)),
+    ].sort(),
+    issues,
+  };
 }
 
 function formatPackageInstallResultJsonPayload(
