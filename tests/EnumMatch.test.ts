@@ -344,6 +344,33 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toBe("equal\n");
   });
 
+  it("should preserve generic enum struct variant field payloads", () => {
+    const source = `
+      extern printf(fmt: string, ...) ret int;
+
+      enum Box<T> {
+          Item { value: T },
+      }
+
+      frame main() ret int {
+          local box: Box<float> = Box.Item { value: 2.5 };
+
+          match (box) {
+              Box.Item { value: value } => {
+                  printf("%.1f\\n", value);
+              },
+          };
+
+          return 0;
+      }
+    `;
+
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("GenericEnumStructVariant Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("2.5\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);

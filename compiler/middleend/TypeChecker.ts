@@ -40,6 +40,72 @@ type NonEnumCoverageProjection =
   | boolean
   | NonEnumCoverageProjection[];
 
+function inferEnumGenericArgsFromType(
+  paramType: AST.TypeNode,
+  argType: AST.TypeNode,
+  genericParams: AST.GenericParam[],
+  typeMap: Map<string, AST.TypeNode>,
+): void {
+  if (paramType.kind === "BasicType") {
+    if (genericParams.some((p) => p.name === paramType.name)) {
+      if (!typeMap.has(paramType.name)) {
+        typeMap.set(paramType.name, argType);
+      }
+      return;
+    }
+
+    if (argType.kind === "BasicType" && paramType.name === argType.name) {
+      for (
+        let i = 0;
+        i < paramType.genericArgs.length && i < argType.genericArgs.length;
+        i++
+      ) {
+        inferEnumGenericArgsFromType(
+          paramType.genericArgs[i]!,
+          argType.genericArgs[i]!,
+          genericParams,
+          typeMap,
+        );
+      }
+    }
+  } else if (paramType.kind === "TupleType" && argType.kind === "TupleType") {
+    for (
+      let i = 0;
+      i < paramType.types.length && i < argType.types.length;
+      i++
+    ) {
+      inferEnumGenericArgsFromType(
+        paramType.types[i]!,
+        argType.types[i]!,
+        genericParams,
+        typeMap,
+      );
+    }
+  } else if (
+    paramType.kind === "FunctionType" &&
+    argType.kind === "FunctionType"
+  ) {
+    inferEnumGenericArgsFromType(
+      paramType.returnType,
+      argType.returnType,
+      genericParams,
+      typeMap,
+    );
+    for (
+      let i = 0;
+      i < paramType.paramTypes.length && i < argType.paramTypes.length;
+      i++
+    ) {
+      inferEnumGenericArgsFromType(
+        paramType.paramTypes[i]!,
+        argType.paramTypes[i]!,
+        genericParams,
+        typeMap,
+      );
+    }
+  }
+}
+
 /**
  * TypeChecker implementation that uses modular checker functions
  */
@@ -1722,10 +1788,36 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       genericArgs: [],
     };
 
+    const typeMap = new Map<string, AST.TypeNode>();
+    const context = this.matchContext[this.matchContext.length - 1];
+    const contextualType = context?.expectedType;
+    if (
+      contextualType?.kind === "BasicType" &&
+      contextualType.name === enumDecl.name &&
+      enumDecl.genericParams.length > 0
+    ) {
+      for (
+        let i = 0;
+        i < enumDecl.genericParams.length &&
+        i < contextualType.genericArgs.length;
+        i++
+      ) {
+        typeMap.set(
+          enumDecl.genericParams[i]!.name,
+          contextualType.genericArgs[i]!,
+        );
+      }
+    }
+
     // Validate fields
     const expectedFields = new Map(
       variant.dataType.fields.map((f) => [f.name, f.type]),
     );
+    const checkedFields: {
+      field: { name: string; value: AST.Expression };
+      expectedType: AST.TypeNode;
+      valueType: AST.TypeNode | undefined;
+    }[] = [];
     for (const field of expr.fields) {
       if (!expectedFields.has(field.name)) {
         throw new CompilerError(
@@ -1738,7 +1830,48 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
       const expectedType = expectedFields.get(field.name)!;
       const valueType = this.checkExpression(field.value);
-      if (valueType && !this.areTypesCompatible(expectedType, valueType)) {
+      if (valueType && enumDecl.genericParams.length > 0) {
+        inferEnumGenericArgsFromType(
+          expectedType,
+          valueType,
+          enumDecl.genericParams,
+          typeMap,
+        );
+      }
+      checkedFields.push({ field, expectedType, valueType });
+    }
+
+    const genericArgs =
+      enumDecl.genericParams.length > 0 && typeMap.size > 0
+        ? enumDecl.genericParams.map(
+            (p) =>
+              typeMap.get(p.name) ||
+              ({
+                kind: "BasicType",
+                name: p.name,
+                genericArgs: [],
+                pointerDepth: 0,
+                arrayDimensions: [],
+                location: expr.location,
+              } as AST.TypeNode),
+          )
+        : [];
+    expr.enumVariantInfo.genericArgs = genericArgs;
+
+    for (const {
+      field,
+      expectedType: rawExpectedType,
+      valueType,
+    } of checkedFields) {
+      let expectedType = rawExpectedType;
+      if (typeMap.size > 0) {
+        expectedType = this.substituteType(expectedType, typeMap);
+      }
+      const resolvedExpectedType = this.resolveType(expectedType);
+      if (
+        valueType &&
+        !this.areTypesCompatible(resolvedExpectedType, valueType)
+      ) {
         throw new CompilerError(
           `Type mismatch for field '${field.name}': expected ${this.typeToString(
             expectedType,
@@ -1753,7 +1886,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     return {
       kind: "BasicType",
       name: expr.enumName,
-      genericArgs: [],
+      genericArgs,
       pointerDepth: 0,
       arrayDimensions: [],
       location: expr.location,
@@ -2349,6 +2482,18 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
       }
 
+      const typeMap = new Map<string, AST.TypeNode>();
+      if (enumType.kind === "BasicType" && enumDecl!.genericParams) {
+        const genericArgs = enumType.genericArgs || [];
+        for (
+          let i = 0;
+          i < enumDecl!.genericParams.length && i < genericArgs.length;
+          i++
+        ) {
+          typeMap.set(enumDecl!.genericParams[i]!.name, genericArgs[i]!);
+        }
+      }
+
       const expectedFields = new Map(
         variant.dataType.fields.map((f) => [f.name, f.type]),
       );
@@ -2365,7 +2510,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         const bindingName = field.binding;
         if (bindingName === "_") continue;
 
-        const bindingType = expectedFields.get(field.fieldName)!;
+        let bindingType = expectedFields.get(field.fieldName)!;
+        if (typeMap.size > 0) {
+          bindingType = this.substituteType(bindingType, typeMap);
+        }
 
         // Create a synthetic VariableDecl for the binding so it can be captured correctly
         const bindingDecl: AST.VariableDecl = {

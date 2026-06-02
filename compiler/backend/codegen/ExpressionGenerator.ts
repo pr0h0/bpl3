@@ -1340,7 +1340,29 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
 
       const structVariant = variant.dataType as AST.EnumVariantStruct;
-      const fieldTypes = structVariant.fields.map((field) => field.type);
+      const typeMap = new Map<string, AST.TypeNode>();
+      if (
+        expr.resolvedType?.kind === "BasicType" &&
+        expr.resolvedType.genericArgs.length > 0 &&
+        _enumDecl.genericParams.length > 0
+      ) {
+        for (
+          let i = 0;
+          i < _enumDecl.genericParams.length &&
+          i < expr.resolvedType.genericArgs.length;
+          i++
+        ) {
+          typeMap.set(
+            _enumDecl.genericParams[i]!.name,
+            expr.resolvedType.genericArgs[i]!,
+          );
+        }
+      }
+      const fieldTypes = structVariant.fields.map((field) =>
+        typeMap.size > 0
+          ? this.substituteType(field.type, typeMap)
+          : field.type,
+      );
       const enumName = enumType.substring(6);
       const dataArraySize = this.enumDataSizes.get(enumName) || 64;
       const bytePtr = this.newRegister();
@@ -1370,7 +1392,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             expr.location,
           );
         }
-        const fieldTypeNode = structVariant.fields[fieldIndex]!.type;
+        const fieldTypeNode = fieldTypes[fieldIndex]!;
         const fieldType = this.resolveType(fieldTypeNode);
         const storeValue = this.emitCast(
           fieldValue,
