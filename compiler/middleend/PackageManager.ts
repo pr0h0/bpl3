@@ -430,6 +430,7 @@ export interface PackageDoctorIssue {
   code?: string;
   message: string;
   path?: string;
+  paths?: string[];
   hint?: string;
   packageName?: string;
   source?: string;
@@ -4615,6 +4616,7 @@ export class PackageManager {
         kind: "duplicate-installed-package",
         message: `Multiple installed directories declare package '${packageName}'.`,
         path: sortedPaths.join(", "),
+        paths: sortedPaths,
         hint: "Keep only one installed directory for each package name.",
       });
     }

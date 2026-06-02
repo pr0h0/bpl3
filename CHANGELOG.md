@@ -76,6 +76,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"`,
   `bun test tests/PackageManager.test.ts -t "stale lock entries"`, and
   `bun index.ts doctor packages --json`.
+- **Package Doctor Duplicate Paths** - `bpl doctor packages --json` duplicate
+  installed package issues now preserve the legacy joined `path` string and
+  include a `paths` array with every conflicting installed directory, matching
+  the package list JSON duplicate payload.
 - **Package Lock Repair Duplicate Guard** - `bpl install --repair-lock` now
   refuses duplicate installed package names before rewriting `bpl.lock`.
   JSON-mode failures use `BPL_PACKAGE_LOCK_VERIFY_FAILED` with

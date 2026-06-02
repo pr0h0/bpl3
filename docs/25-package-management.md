@@ -364,6 +364,9 @@ Reproduce the exported inventory guard with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured
 issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
+Duplicate installed package doctor issues preserve the compact joined `path`
+string and also include a `paths` array with every conflicting installed
+directory in deterministic order.
 For doctor lock verification drift, each issue also carries
 `code: "BPL_PACKAGE_LOCK_VERIFY_FAILED"` and the verifier metadata needed by
 automation: `packageName`, `source`, `expectedVersion`, `actualVersion`,

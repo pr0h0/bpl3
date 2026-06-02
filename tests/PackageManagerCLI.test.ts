@@ -1698,6 +1698,7 @@ describe("Package Manager CLI", () => {
           kind: string;
           message: string;
           path: string;
+          paths?: string[];
           hint: string;
         }>;
       }>(result, {
@@ -1814,6 +1815,8 @@ describe("Package Manager CLI", () => {
         severity: "error",
         kind: "duplicate-installed-package",
         message: "Multiple installed directories declare package 'doctor-shared'.",
+        path: [firstPackageDir, secondPackageDir].join(", "),
+        paths: [firstPackageDir, secondPackageDir],
         hint: "Keep only one installed directory for each package name.",
       });
       expect(duplicateIssue?.path).toContain(firstPackageDir);

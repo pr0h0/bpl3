@@ -363,6 +363,7 @@ describe("Markdown documentation", () => {
       "The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands",
       "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
       "bpl doctor packages --json",
+      "Duplicate installed package issues preserve the compact joined `path` string and include a `paths` array with every conflicting installed directory",
       "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or the PackageManager manifest-loading failures documented in package management",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",

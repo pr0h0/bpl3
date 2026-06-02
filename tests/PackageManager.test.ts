@@ -4745,6 +4745,9 @@ describe("PackageManager", () => {
           ?.split(", ")
           .map((entry) => path.basename(entry)),
       ).toEqual(["aaa-doctor-duplicate", "zzz-doctor-duplicate"]);
+      expect(duplicateIssue?.paths?.map((entry) => path.basename(entry))).toEqual(
+        ["aaa-doctor-duplicate", "zzz-doctor-duplicate"],
+      );
     });
 
     test("should ignore symlinked installed package entries during doctor checks", () => {
