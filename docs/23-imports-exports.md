@@ -321,11 +321,11 @@ string metadata such as `$schema`, `description`, `author`, and `license` must
 be strings when present, `keywords` must be an array of strings, and
 `repository` must contain string `type` and `url` fields, matching package
 manager manifest loading. Dependency, script, and `bin` maps are also checked
-for object shape, key, and non-empty string rules during import resolution.
-Symlinked or non-directory package search directories such as `bpl_modules/`,
-workspace `packages/`, and the global package directory are rejected before
-child package candidates are probed. Nested package source paths such as
-`src/index.bpl` and
+for object shape, key, and non-empty string rules during import resolution, and
+`exports` entries must be safe package-relative paths. Symlinked or
+non-directory package search directories such as `bpl_modules/`, workspace
+`packages/`, and the global package directory are rejected before child package
+candidates are probed. Nested package source paths such as `src/index.bpl` and
 `features/add.bpl` reject symlinked parent directories before the child file is
 read. Package search directories, package roots, manifests, entrypoints, and
 subpath source candidates must also use exact filesystem casing; case-only

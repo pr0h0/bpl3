@@ -477,6 +477,8 @@ describe("Markdown documentation", () => {
       "It also validates `keywords` as an array of strings and `repository` as an object with string `type` and `url` fields",
       "Dependency, script, and `bin` maps are checked for the same object shape, key, and non-empty string rules during import resolution",
       "Dependency, script, and `bin` maps are also checked for object shape, key, and non-empty string rules during import resolution",
+      "`exports` entries are also validated as safe package-relative paths",
+      "`exports` entries must be safe package-relative paths",
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);

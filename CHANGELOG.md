@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Resolver Exports Validation** - Package import resolution now
+  rejects installed package manifests whose optional `exports` field is not an
+  array of safe package-relative paths, matching PackageManager manifest loading
+  before the resolver uses the package entrypoint.
 - **Package Resolver Object Map Validation** - Package import resolution now
   rejects installed package manifests whose `dependencies`, `devDependencies`,
   `scripts`, or `bin` maps have malformed shapes, keys, or non-empty string

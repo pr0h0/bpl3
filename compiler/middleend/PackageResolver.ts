@@ -746,6 +746,16 @@ function validatePackageManifestMatchesImport(
     return false;
   }
 
+  const exportsError = validatePackageManifestExports(manifest.exports);
+  if (exportsError) {
+    return failPackageManifestInvalid(
+      packageName,
+      manifestPath,
+      trace,
+      exportsError,
+    );
+  }
+
   for (const field of ["dependencies", "devDependencies"] as const) {
     const error = validatePackageManifestDependencyMap(
       manifest[field],
@@ -803,6 +813,21 @@ function failPackageManifestInvalid(
   trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
   trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: ${detail}.`;
   return false;
+}
+
+function validatePackageManifestExports(value: unknown): string | null {
+  if (value === undefined) return null;
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (entry) =>
+        typeof entry !== "string" || !isSafeManifestRelativePath(entry),
+    )
+  ) {
+    return "manifest exports must be an array of package-relative paths without empty, '.' or '..' segments when present";
+  }
+
+  return null;
 }
 
 function validatePackageManifestDependencyMap(

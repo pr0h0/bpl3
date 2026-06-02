@@ -1625,6 +1625,59 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects package manifest exports with malformed values", () => {
+    const cases = [
+      {
+        name: "exports-string",
+        manifestPatch: { exports: "src/index.bpl" },
+      },
+      {
+        name: "exports-number-entry",
+        manifestPatch: { exports: ["src/index.bpl", 42] },
+      },
+      {
+        name: "exports-parent-entry",
+        manifestPatch: { exports: ["../secret.bpl"] },
+      },
+      {
+        name: "exports-empty-segment",
+        manifestPatch: { exports: ["src//index.bpl"] },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const appDir = path.join(tempDir, `app-${testCase.name}`);
+      const packageDir = path.join(appDir, "bpl_modules", "math");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "math",
+            version: "1.0.0",
+            ...testCase.manifestPatch,
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result, testCase.name).toBeNull();
+      expect(details.trace.failureReason, testCase.name).toBe(
+        "manifest-invalid",
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        "manifest exports must be an array of package-relative paths without empty, '.' or '..' segments when present",
+      );
+      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
+        "BPL_PACKAGE_MANIFEST_INVALID",
+      );
+    }
+  });
+
   test("does not fall back after unsafe manifest main paths", () => {
     const cases = [
       { name: "parent", main: "../outside.bpl" },

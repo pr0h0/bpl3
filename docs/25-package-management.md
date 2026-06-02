@@ -536,6 +536,7 @@ the package entrypoint. It also validates `keywords` as an array of strings and
 `repository` as an object with string `type` and `url` fields. Dependency,
 script, and `bin` maps are checked for the same object shape, key, and non-empty
 string rules during import resolution before the package entrypoint is used.
+`exports` entries are also validated as safe package-relative paths.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the
