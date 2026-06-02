@@ -1955,12 +1955,12 @@ export class PackageManager {
         !manifest.repository ||
         typeof manifest.repository !== "object" ||
         Array.isArray(manifest.repository) ||
-        typeof manifest.repository.type !== "string" ||
+        manifest.repository.type !== "git" ||
         typeof manifest.repository.url !== "string"
       ) {
         throw new CompilerError(
           "Invalid package manifest 'repository' field",
-          "'repository' must contain string 'type' and 'url' fields.",
+          "'repository' must contain 'type': 'git' and a string 'url' field.",
           location,
           PACKAGE_MANIFEST_REPOSITORY_INVALID_CODE,
         );

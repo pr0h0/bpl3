@@ -8064,6 +8064,21 @@ describe("PackageManager", () => {
           ),
           /Invalid package manifest 'keywords' field/,
         ],
+        [
+          JSON.stringify(
+            {
+              name: "bad-repository-type",
+              version: "1.0.0",
+              repository: {
+                type: "hg",
+                url: "https://example.com/repo.hg",
+              },
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest 'repository' field/,
+        ],
       ] as const;
 
       for (const [content, errorPattern] of manifests) {

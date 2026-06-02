@@ -1543,21 +1543,33 @@ describe("PackageResolver", () => {
         field: "repository",
         manifestPatch: { repository: null },
         expectedMessage:
-          "manifest repository must contain string type and url fields when present",
+          "manifest repository must contain type 'git' and a string url field when present",
       },
       {
         name: "repository-missing-url",
         field: "repository",
         manifestPatch: { repository: { type: "git" } },
         expectedMessage:
-          "manifest repository must contain string type and url fields when present",
+          "manifest repository must contain type 'git' and a string url field when present",
       },
       {
         name: "repository-url-number",
         field: "repository",
         manifestPatch: { repository: { type: "git", url: 42 } },
         expectedMessage:
-          "manifest repository must contain string type and url fields when present",
+          "manifest repository must contain type 'git' and a string url field when present",
+      },
+      {
+        name: "repository-type-hg",
+        field: "repository",
+        manifestPatch: {
+          repository: {
+            type: "hg",
+            url: "https://example.com/repo.hg",
+          },
+        },
+        expectedMessage:
+          "manifest repository must contain type 'git' and a string url field when present",
       },
     ] as const;
 

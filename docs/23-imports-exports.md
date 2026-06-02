@@ -319,7 +319,7 @@ directories, entry files, or subpath entries; malformed packages are treated as
 package metadata instead of silently importing a different package. Manifest
 string metadata such as `$schema`, `description`, `author`, and `license` must
 be strings when present, `keywords` must be an array of strings, and
-`repository` must contain string `type` and `url` fields, matching package
+`repository` must contain `type: "git"` and a string `url`, matching package
 manager manifest loading. Dependency, script, and `bin` maps are also checked
 for object shape, key, and non-empty string rules during import resolution, and
 `exports` entries must be safe package-relative paths. Symlinked or

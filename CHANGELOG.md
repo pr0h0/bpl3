@@ -79,8 +79,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   package entrypoint.
 - **Package Resolver Collection Metadata Validation** - Package import
   resolution now rejects installed package manifests whose optional `keywords`
-  or `repository` metadata has malformed shapes, matching PackageManager
-  manifest loading before the resolver uses the package entrypoint.
+  or `repository` metadata has malformed shapes, including repository metadata
+  whose `type` is not `git`, matching PackageManager manifest loading before
+  the resolver uses the package entrypoint.
 - **Package Resolver Metadata Validation** - Package import resolution now
   rejects installed package manifests whose optional string metadata fields
   (`$schema`, `description`, `author`, or `license`) are present with non-string
@@ -98,8 +99,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   keys that runtime manifest loading already rejects.
 - **Package Manifest Repository Schema Parity** - `bpl-package.schema.json`
   now requires both `repository.type` and `repository.url` whenever repository
-  metadata is present, matching PackageManager and package resolver manifest
-  validation before install, pack, or import resolution.
+  metadata is present, and PackageManager/package resolver runtime validation
+  now requires `repository.type` to be `git`, matching the schema before
+  install, pack, or import resolution.
 - **Packed Package Manifest Schema** - npm package payloads now include
   `bpl-package.schema.json`, and release smoke checks require it, so installed
   packages ship the same manifest schema referenced by generated `bpl.json`

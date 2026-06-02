@@ -737,12 +737,12 @@ function validatePackageManifestMatchesImport(
     (!repository ||
       typeof repository !== "object" ||
       Array.isArray(repository) ||
-      typeof repositoryRecord.type !== "string" ||
+      repositoryRecord.type !== "git" ||
       typeof repositoryRecord.url !== "string")
   ) {
     trace.failureReason = "manifest-invalid";
     trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
-    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest repository must contain string type and url fields when present.`;
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest repository must contain type 'git' and a string url field when present.`;
     return false;
   }
 
