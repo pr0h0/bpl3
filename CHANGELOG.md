@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Manifest Null Map Validation** - `bpl install --json` and
+  PackageManager manifest loading now reject `null` `dependencies`,
+  `devDependencies`, `scripts`, and `bin` fields with the existing stable
+  `BPL_PACKAGE_MANIFEST_*_INVALID` error codes instead of treating them as
+  absent object maps.
 - **Duplicate Symbol Diagnostic Code** - Duplicate top-level non-function
   declarations now fail before symbol-table overwrite with
   `BPL_SYMBOL_ALREADY_DEFINED` in compiler errors, `bpl check --json`,

@@ -1815,8 +1815,9 @@ export class PackageManager {
       this.validateManifestMetadataFields(manifest, location);
       this.validateManifestDependencyEntries(manifest, location);
       if (
-        manifest.scripts &&
-        (typeof manifest.scripts !== "object" ||
+        manifest.scripts !== undefined &&
+        (!manifest.scripts ||
+          typeof manifest.scripts !== "object" ||
           Array.isArray(manifest.scripts))
       ) {
         throw new CompilerError(
@@ -1828,8 +1829,10 @@ export class PackageManager {
       }
       this.validateManifestScriptEntries(manifest, location);
       if (
-        manifest.bin &&
-        (typeof manifest.bin !== "object" || Array.isArray(manifest.bin))
+        manifest.bin !== undefined &&
+        (!manifest.bin ||
+          typeof manifest.bin !== "object" ||
+          Array.isArray(manifest.bin))
       ) {
         throw new CompilerError(
           "Invalid 'bin' field",
@@ -1951,9 +1954,13 @@ export class PackageManager {
   ): void {
     for (const field of ["dependencies", "devDependencies"] as const) {
       const dependencies = manifest[field];
-      if (!dependencies) continue;
+      if (dependencies === undefined) continue;
 
-      if (typeof dependencies !== "object" || Array.isArray(dependencies)) {
+      if (
+        !dependencies ||
+        typeof dependencies !== "object" ||
+        Array.isArray(dependencies)
+      ) {
         throw new CompilerError(
           `Invalid '${field}' field`,
           `'${field}' must be an object mapping package names to version or source strings.`,
@@ -1988,7 +1995,7 @@ export class PackageManager {
     manifest: PackageManifest,
     location: SourceLocation,
   ): void {
-    if (!manifest.scripts) return;
+    if (manifest.scripts === undefined) return;
 
     for (const [scriptName, command] of Object.entries(manifest.scripts)) {
       if (
@@ -2011,7 +2018,7 @@ export class PackageManager {
     packageDir: string,
     location: SourceLocation,
   ): void {
-    if (!manifest.bin) return;
+    if (manifest.bin === undefined) return;
 
     for (const [commandName, executablePath] of Object.entries(manifest.bin)) {
       if (!this.isSafeBinCommandName(commandName)) {

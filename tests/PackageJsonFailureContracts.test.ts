@@ -994,6 +994,76 @@ describe("Package JSON failure contracts", () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("rejects null package manifest object maps in install JSON", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-package-manifest-null-maps-"),
+    );
+
+    try {
+      const cases: Array<{
+        name: string;
+        manifestPatch: Record<string, unknown>;
+        expectedCode: string;
+        expectedError: string;
+      }> = [
+        {
+          name: "null-dependencies",
+          manifestPatch: { dependencies: null },
+          expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+          expectedError: "Invalid 'dependencies' field",
+        },
+        {
+          name: "null-dev-dependencies",
+          manifestPatch: { devDependencies: null },
+          expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+          expectedError: "Invalid 'devDependencies' field",
+        },
+        {
+          name: "null-scripts",
+          manifestPatch: { scripts: null },
+          expectedCode: "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID",
+          expectedError: "Invalid 'scripts' field",
+        },
+        {
+          name: "null-bin",
+          manifestPatch: { bin: null },
+          expectedCode: "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+          expectedError: "Invalid 'bin' field",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const context = cleanPackageRoot(tempDir, testCase.name);
+        writeFileSync(
+          join(context.cwd, "bpl.json"),
+          JSON.stringify({
+            name: testCase.name,
+            version: "1.0.0",
+            ...testCase.manifestPatch,
+          }),
+        );
+
+        const report = expectJsonStdoutReport(
+          runCli(["install", "--json"], context),
+          {
+            status: 1,
+            check: "package-install",
+            success: false,
+          },
+        );
+
+        expect(report).toMatchObject({
+          mode: "project",
+          target: null,
+          error: expect.stringContaining(testCase.expectedError),
+          errorCode: testCase.expectedCode,
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function runCli(

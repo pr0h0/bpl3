@@ -6197,6 +6197,11 @@ describe("PackageManager", () => {
         {
           name: "script-validation",
           version: "1.0.0",
+          scripts: null,
+        },
+        {
+          name: "script-validation",
+          version: "1.0.0",
           scripts: {
             bad: ["bpl", "check"],
           },
@@ -6219,8 +6224,45 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should reject invalid package bin maps", () => {
+      const manifests = [
+        {
+          name: "bin-validation",
+          version: "1.0.0",
+          bin: null,
+        },
+        {
+          name: "bin-validation",
+          version: "1.0.0",
+          bin: {
+            "../tool": "bin/tool.sh",
+          },
+        },
+        {
+          name: "bin-validation",
+          version: "1.0.0",
+          bin: {
+            tool: null,
+          },
+        },
+      ];
+
+      for (const manifest of manifests) {
+        fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+
+        expect(() => packageManager.loadManifest(tempDir)).toThrow(
+          /Invalid 'bin'/,
+        );
+      }
+    });
+
     test("should reject malformed dependency maps", () => {
       const manifests = [
+        {
+          name: "dependency-validation",
+          version: "1.0.0",
+          dependencies: null,
+        },
         {
           name: "dependency-validation",
           version: "1.0.0",
@@ -6232,6 +6274,11 @@ describe("PackageManager", () => {
           dependencies: {
             "Bad_Name": "1.0.0",
           },
+        },
+        {
+          name: "dependency-validation",
+          version: "1.0.0",
+          devDependencies: null,
         },
         {
           name: "dependency-validation",

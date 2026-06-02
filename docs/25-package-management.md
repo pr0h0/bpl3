@@ -34,7 +34,10 @@ The configuration file defines the package metadata.
 an `X.Y.Z` semantic version string. `main` and `exports` must stay inside the
 package root, and optional metadata such as `keywords` and `repository` is
 validated before packing or installing. Invalid manifests fail while loading
-`bpl.json` instead of later during path handling or archive creation.
+`bpl.json` instead of later during path handling or archive creation. Object
+maps such as `dependencies`, `devDependencies`, `scripts`, and `bin` must be
+JSON objects when present; `null` is rejected instead of being treated as an
+absent field.
 
 `main`, `exports`, and `bin` path values are strict package-relative paths.
 They cannot be absolute and cannot contain empty, `.`, or `..` path segments.
@@ -174,8 +177,8 @@ Supported dependency sources are:
 
 `dependencies` and `devDependencies` must be JSON objects whose keys are
 lowercase package names and whose values are non-empty, non-whitespace strings.
-Invalid dependency maps fail while loading `bpl.json`, before install or
-lockfile commands mutate the project.
+`null`, arrays, invalid package-name keys, and blank source strings fail while
+loading `bpl.json`, before install or lockfile commands mutate the project.
 
 ```json
 {
