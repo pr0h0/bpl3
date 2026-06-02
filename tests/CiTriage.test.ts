@@ -1994,6 +1994,27 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps playground example contract failures to focused repro commands", () => {
+    const expectedCommands = [
+      "bun test tests/PlaygroundExampleContracts.test.ts",
+      "bun test tests/PlaygroundWasmExamples.test.ts",
+      'bun test tests/PlaygroundExamples.test.ts -t "Example 70|includes advanced"',
+      "bun run check",
+    ];
+
+    expect(localCommandsForStep("PlaygroundExampleContracts.test")).toEqual(
+      expectedCommands,
+    );
+    expect(
+      localCommandsForStep("playground example contract parser"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "playground/examples/70-browser-wasm-showcase.json: expectedOutput[1] must be a string",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps playground process execution failures to focused repro commands", () => {
     const expectedCommands = [
       "bun test tests/PlaygroundNativeExecution.test.ts",

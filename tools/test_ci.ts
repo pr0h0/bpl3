@@ -3,11 +3,13 @@ import { existsSync, readdirSync } from "fs";
 import { basename, join } from "path";
 
 export const CI_SAFE_FIXED_TEST_FILES = [
+  "tests/PlaygroundExampleContracts.test.ts",
   "tests/Integration.test.ts",
   "tests/PlaygroundExamples.test.ts",
 ] as const;
 
 export const CI_SAFE_EXCLUDED_TEST_FILES = [
+  "PlaygroundExampleContracts.test.ts",
   "Integration.test.ts",
   "PlaygroundExamples.test.ts",
   "CompilerCorrectnessCorpus.test.ts",

@@ -38,10 +38,11 @@ stays empty. `test:ci` rejects `--json=true`, `--list=true`, `--dry-run=true`,
 and `--help=true` before planning or running the CI-safe suite. Packed
 `test:ci --list` and `test:ci --json` planning does not require a
 source-checkout `tests/` directory. The runner builds runtime support first,
-runs `tests/Integration.test.ts` and `tests/PlaygroundExamples.test.ts`, runs
-the VS Code extension suite, checks the generated `bpl-v3/cli` registry shim
-with `bun run release:cli-registry`, then runs discovered top-level CI-safe
-unit tests. It intentionally excludes the full correctness corpora, long fuzz
+runs `tests/PlaygroundExampleContracts.test.ts`,
+`tests/Integration.test.ts`, and `tests/PlaygroundExamples.test.ts`, runs the
+VS Code extension suite, checks the generated `bpl-v3/cli` registry shim with
+`bun run release:cli-registry`, then runs discovered top-level CI-safe unit
+tests. It intentionally excludes the full correctness corpora, long fuzz
 runners, sanitizer runtime suite, golden LLVM shape suite, and full release
 smoke suite because those have dedicated scripts and CI jobs.
 CI-safe unit discovery includes `tests/CiTriage.test.ts`, so offline jobs-json
@@ -87,6 +88,17 @@ bun test tests/IntegrationRunner.test.ts
 ci:triage maps `BPL_INTEGRATION_JOBS` and integration concurrency failures to
 that helper test, a bounded `BPL_INTEGRATION_JOBS=4 bun run test:ci` repro, and
 the full `bun run test:ci` suite.
+
+Playground example JSON contracts are validated before the full playground
+compile/run pass. This keeps bad `args`, `input`, `expectedOutput`, or wasm
+metadata from surfacing as noisy compiler/runtime failures. Focus playground
+contract failures with:
+
+```bash
+bun test tests/PlaygroundExampleContracts.test.ts
+bun test tests/PlaygroundWasmExamples.test.ts
+bun test tests/PlaygroundExamples.test.ts -t "Example 70|includes advanced"
+```
 
 Integration examples use `examples/**/test_config.json` to declare expected
 runtime behavior. The harness validates these files before running examples.

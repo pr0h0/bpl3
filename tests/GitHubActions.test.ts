@@ -259,6 +259,7 @@ describe("GitHub Actions workflows", () => {
 
     expect(packageJson.scripts["test:ci"]).toBe("bun tools/test_ci.ts");
     expect(CI_SAFE_FIXED_TEST_FILES).toEqual([
+      "tests/PlaygroundExampleContracts.test.ts",
       "tests/Integration.test.ts",
       "tests/PlaygroundExamples.test.ts",
     ]);
@@ -270,6 +271,7 @@ describe("GitHub Actions workflows", () => {
         [
           "bun",
           "test",
+          "tests/PlaygroundExampleContracts.test.ts",
           "tests/Integration.test.ts",
           "tests/PlaygroundExamples.test.ts",
         ],

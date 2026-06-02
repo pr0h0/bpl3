@@ -1094,6 +1094,19 @@ const PLAYGROUND_BROWSER_WASM_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN = new RegExp(
+  [
+    "PlaygroundExampleContracts\\.test",
+    "playground example contract parser",
+    "validatePlaygroundExampleContract",
+    "loadPlaygroundExamples",
+    "playground/examples/[^\\s:]+\\.json: .*expectedOutput",
+    "playground/examples/[^\\s:]+\\.json: .*args\\[\\d+\\]",
+    "playground/examples/[^\\s:]+\\.json: .*input must be a string",
+    "playground/examples/[^\\s:]+\\.json: .*wasm\\.",
+  ].join("|"),
+  "i",
+);
 const PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN = new RegExp(
   [
     "PlaygroundNativeExecution\\.test",
@@ -1271,6 +1284,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run test:wasm"],
   [PLAYGROUND_BROWSER_WASM_STEP_PATTERN, "bun run check"],
+  [
+    PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN,
+    "bun test tests/PlaygroundExampleContracts.test.ts",
+  ],
+  [
+    PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN,
+    "bun test tests/PlaygroundWasmExamples.test.ts",
+  ],
+  [
+    PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN,
+    'bun test tests/PlaygroundExamples.test.ts -t "Example 70|includes advanced"',
+  ],
+  [PLAYGROUND_EXAMPLE_CONTRACT_STEP_PATTERN, "bun run check"],
   [
     PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN,
     "bun test tests/PlaygroundNativeExecution.test.ts",

@@ -48,9 +48,13 @@ describe("CI-safe test runner", () => {
     );
 
     expect(CI_SAFE_FIXED_TEST_FILES).toEqual([
+      "tests/PlaygroundExampleContracts.test.ts",
       "tests/Integration.test.ts",
       "tests/PlaygroundExamples.test.ts",
     ]);
+    expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain(
+      "PlaygroundExampleContracts.test.ts",
+    );
     expect(CI_SAFE_EXCLUDED_TEST_FILES).toContain(
       "CompilerCorrectnessCorpus.test.ts",
     );
@@ -90,6 +94,7 @@ describe("CI-safe test runner", () => {
         [
           "bun",
           "test",
+          "tests/PlaygroundExampleContracts.test.ts",
           "tests/Integration.test.ts",
           "tests/PlaygroundExamples.test.ts",
         ],
@@ -112,7 +117,7 @@ describe("CI-safe test runner", () => {
       expect(text).toContain("# Build runtime support");
       expect(text).toContain("bun run build:runtime");
       expect(text).toContain(
-        "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+        "bun test tests/PlaygroundExampleContracts.test.ts tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
       );
       expect(text).toContain("bun run test:vscode-ext");
       expect(text).toContain("# Check generated CLI registry shim");
