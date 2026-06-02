@@ -2828,6 +2828,87 @@ describe("PackageManager", () => {
       expect(verification.errors.join("\n")).toContain("hash mismatch");
     });
 
+    test("should reject importable installed packages missing from bpl.lock", () => {
+      const appDir = path.join(tempDir, "untracked-lock-app");
+      const lockedPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "tracked-lock-pkg",
+      );
+      const untrackedPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "untracked-lock-pkg",
+      );
+      const trackedSourcePath = path.join(appDir, "tracked-lock-pkg-1.0.0.tgz");
+      fs.mkdirSync(lockedPackageDir, { recursive: true });
+      fs.mkdirSync(untrackedPackageDir, { recursive: true });
+      fs.writeFileSync(trackedSourcePath, "tracked archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "untracked-lock-app", version: "1.0.0" }),
+      );
+
+      for (const [packageDir, packageName] of [
+        [lockedPackageDir, "tracked-lock-pkg"],
+        [untrackedPackageDir, "untracked-lock-pkg"],
+      ] as const) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export stable;");
+      }
+
+      const localPM = new PackageManager(appDir);
+      const hash = localPM["calculatePackageHash"](lockedPackageDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "tracked-lock-pkg": {
+                version: "1.0.0",
+                source: "tracked-lock-pkg-1.0.0.tgz",
+                hash,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      expect(localPM.resolvePackage("untracked-lock-pkg", appDir)).toBe(
+        path.join(untrackedPackageDir, "index.bpl"),
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "untracked-lock-pkg",
+          kind: "untracked-package",
+          packagePath: untrackedPackageDir,
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "untracked-lock-pkg: installed in bpl_modules but missing from bpl.lock",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/missing from bpl\.lock/);
+    });
+
     test("should verify installed package manifests against bpl.lock", () => {
       const manifest = {
         name: "manifest-lock-test",

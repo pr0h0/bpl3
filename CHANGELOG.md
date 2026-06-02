@@ -195,6 +195,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"`,
   `bun test tests/PackageManager.test.ts -t "stale lock entries"`, and
   `bun index.ts doctor packages --json`.
+- **Untracked Package Lock Verification** - `bpl install --locked` and
+  `bpl doctor packages --json` now report `untracked-package` when a valid
+  installed package is importable from `bpl_modules` but missing from
+  `bpl.lock`. CI triage maps `lockVerificationKind: "untracked-package"` to
+  `bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"`,
+  `bun test tests/PackageManager.test.ts -t "missing from bpl.lock"`, and
+  `bun index.ts doctor packages --json`.
 - **Package Doctor Duplicate Paths** - `bpl doctor packages --json` duplicate
   installed package issues now preserve the legacy joined `path` string and
   include a `paths` array with every conflicting installed directory, matching

@@ -436,8 +436,9 @@ kind even when the doctor layer uses a clearer package-health label. For
 example, a lock entry whose package directory is missing is reported as
 `stale-lock-entry` with `lockVerificationKind: "missing-package"`. This lets CI
 summarize stale lock entries, hash mismatches, version mismatches, unreachable
-sources, and transitive dependency drift without parsing the human-readable
-message.
+sources, untracked installed packages
+(`lockVerificationKind: "untracked-package"`), and transitive dependency drift
+without parsing the human-readable message.
 Reproduce this contract with
 `bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"`.
 When the local package directory, global package cache directory, or one of its

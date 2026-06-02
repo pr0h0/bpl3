@@ -251,6 +251,7 @@ export type PackageLockVerificationIssueKind =
   | "name-mismatch"
   | "version-mismatch"
   | "hash-mismatch"
+  | "untracked-package"
   | "missing-transitive-lock-entry"
   | "missing-transitive-dependency"
   | "duplicate-installed-package"
@@ -1188,6 +1189,7 @@ export class PackageManager {
     };
     let packagesChecked = 0;
     const lockEntries = Object.entries(lock.packages);
+    const dependencyNamesMissingFromLock = new Set<string>();
 
     if (lockEntries.length > 0) {
       this.readPackageManagerDirectoryStats(
@@ -1329,6 +1331,7 @@ export class PackageManager {
           dependencyStats.isDirectory()
         ) {
           if (!lock.packages[dependencyName]) {
+            dependencyNamesMissingFromLock.add(dependencyName);
             addIssue({
               packageName: dependencyName,
               kind: "missing-transitive-lock-entry",
@@ -1368,6 +1371,23 @@ export class PackageManager {
           requestedSource,
         });
       }
+    }
+
+    for (const pkg of this.list({ global: false })) {
+      if (
+        lock.packages[pkg.manifest.name] ||
+        dependencyNamesMissingFromLock.has(pkg.manifest.name)
+      ) {
+        continue;
+      }
+
+      addIssue({
+        packageName: pkg.manifest.name,
+        kind: "untracked-package",
+        message: `${pkg.manifest.name}: installed in bpl_modules but missing from bpl.lock`,
+        packagePath: pkg.path,
+        actualVersion: pkg.manifest.version,
+      });
     }
 
     const errors = issues.map((issue) => issue.message);
@@ -1562,6 +1582,7 @@ export class PackageManager {
     const restoreHelp = "Run 'bpl install' to restore packages from bpl.lock.";
     if (
       issueKinds.has("missing-package") ||
+      issueKinds.has("untracked-package") ||
       issueKinds.has("missing-transitive-lock-entry") ||
       issueKinds.has("missing-transitive-dependency")
     ) {

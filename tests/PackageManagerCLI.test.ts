@@ -3454,6 +3454,88 @@ describe("Package Manager CLI", () => {
         lockVerificationKind: "missing-package",
       });
     });
+
+    test("should report untracked installed packages as structured JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-untracked-lock-cli-app");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-untracked-lock-cli",
+      );
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "doctor-untracked-lock-cli-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-untracked-lock-cli",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-untracked-lock-cli-home"),
+            NO_COLOR: "1",
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        lockfile: { verified: boolean };
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          packageName?: string;
+          actualVersion?: string;
+          lockVerificationKind?: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.lockfile.verified).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "untracked-package",
+          code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+          packageName: "doctor-untracked-lock-cli",
+          actualVersion: "1.0.0",
+          lockVerificationKind: "untracked-package",
+          path: packageDir,
+          hint: expect.stringContaining("bpl list --tree"),
+        }),
+      );
+    });
   });
 
   describe("package-cache command", () => {

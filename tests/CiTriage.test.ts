@@ -1911,6 +1911,24 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package doctor untracked lock failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+      'bun test tests/PackageManager.test.ts -t "missing from bpl.lock"',
+      "bun index.ts doctor packages --json",
+    ];
+
+    expect(localCommandsForStep("untracked-package")).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep("lockVerificationKind untracked-package"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "bpl doctor packages --json reported BPL_PACKAGE_LOCK_VERIFY_FAILED untracked-package lockVerificationKind untracked-package",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package manifest JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
@@ -2964,6 +2982,72 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
         'bun test tests/PackageManager.test.ts -t "stale lock entries"',
+        "bun index.ts doctor packages --json",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package doctor untracked lock repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-untracked-lock-json-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 59,
+              name: "Package doctor untracked lock",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/59",
+              steps: [
+                {
+                  name: "untracked-package lockVerificationKind untracked-package",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs).toHaveLength(1);
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+        'bun test tests/PackageManager.test.ts -t "missing from bpl.lock"',
         "bun index.ts doctor packages --json",
       ]);
     } finally {

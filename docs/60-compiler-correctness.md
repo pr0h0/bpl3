@@ -328,6 +328,17 @@ bun test tests/PackageManager.test.ts -t "stale lock entries"
 bun index.ts doctor packages --json
 ```
 
+Untracked package lock doctor failures use the same package doctor entrypoint.
+If CI mentions `untracked-package`,
+`lockVerificationKind: "untracked-package"`, or an installed package that is
+missing from `bpl.lock`, reproduce with:
+
+```bash
+bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"
+bun test tests/PackageManager.test.ts -t "missing from bpl.lock"
+bun index.ts doctor packages --json
+```
+
 Package docs smoke failures map to the focused package/import docs examples and
 package documentation checks. Use the JSON smoke when the failure mentions
 `CLIJsonParseability.test` or `package/import docs examples`; use the

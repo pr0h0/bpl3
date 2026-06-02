@@ -858,6 +858,7 @@ describe("Markdown documentation", () => {
       "duplicate repair-lock issues include a `paths` array",
       "doctor lock verification drift",
       "`stale-lock-entry`",
+      "`untracked-package`",
       "`lockVerificationKind`",
       "`packageName`",
       "`expectedHash`",
@@ -2075,6 +2076,11 @@ describe("Markdown documentation", () => {
       '`lockVerificationKind: "missing-package"`',
       'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
       'bun test tests/PackageManager.test.ts -t "stale lock entries"',
+      "Untracked package lock doctor failures use the same package doctor entrypoint",
+      "`untracked-package`",
+      '`lockVerificationKind: "untracked-package"`',
+      'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+      'bun test tests/PackageManager.test.ts -t "missing from bpl.lock"',
       "Package docs smoke failures map to the focused package/import docs examples and package documentation checks",
       'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
       'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
@@ -2094,7 +2100,7 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(normalizedText, requiredSnippets);
   });
 
-  test("changelog documents stale package lock CI triage mapping", () => {
+  test("changelog documents stale and untracked package lock CI triage mappings", () => {
     const changelog = readFileSync("CHANGELOG.md", "utf8");
     const normalizedText = changelog.replace(/\s+/g, " ");
     const requiredSnippets = [
@@ -2103,6 +2109,11 @@ describe("Markdown documentation", () => {
       '`lockVerificationKind: "missing-package"`',
       'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
       'bun test tests/PackageManager.test.ts -t "stale lock entries"',
+      "Untracked Package Lock Verification",
+      "`untracked-package`",
+      '`lockVerificationKind: "untracked-package"`',
+      'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+      'bun test tests/PackageManager.test.ts -t "missing from bpl.lock"',
     ];
 
     expectDocsContainSnippets(normalizedText, requiredSnippets);

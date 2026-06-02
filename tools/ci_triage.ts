@@ -1050,6 +1050,17 @@ const PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_DOCTOR_UNTRACKED_LOCK_STEP_PATTERN = new RegExp(
+  [
+    "package doctor untracked lock",
+    "untracked-package",
+    "untracked installed package",
+    "installed in bpl_modules but missing from bpl\\.lock",
+    "lockVerificationKind\\W+untracked-package",
+    "untracked-package\\W+lockVerificationKind",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_MANIFEST_JSON_STEP_PATTERN = new RegExp(
   [
     "^(?!.*(?:package-pack|JSON-mode|package import|import diagnostics)).*BPL_PACKAGE_MANIFEST_",
@@ -1429,6 +1440,18 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [
     PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN,
+    "bun index.ts doctor packages --json",
+  ],
+  [
+    PACKAGE_DOCTOR_UNTRACKED_LOCK_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+  ],
+  [
+    PACKAGE_DOCTOR_UNTRACKED_LOCK_STEP_PATTERN,
+    'bun test tests/PackageManager.test.ts -t "missing from bpl.lock"',
+  ],
+  [
+    PACKAGE_DOCTOR_UNTRACKED_LOCK_STEP_PATTERN,
     "bun index.ts doctor packages --json",
   ],
   [
