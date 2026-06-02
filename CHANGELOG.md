@@ -231,6 +231,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   issues now preserve the verifier `paths` array alongside
   `lockVerificationKind: "duplicate-installed-package"`, so tooling does not
   need to split the compatibility `path` string.
+- **Package Doctor Duplicate Deduplication** - `bpl doctor packages --json`
+  now emits one duplicate installed-package issue per conflicting path set when
+  lock verification and installed-package scanning find the same duplicate,
+  preserving the lock-verification issue and its stable code metadata.
 - **Package Doctor Cache Provenance Paths** - `bpl doctor packages --json`
   package-cache warning issues now include `provenancePath` when a missing,
   malformed, or unsafe provenance sidecar is involved, matching the nested

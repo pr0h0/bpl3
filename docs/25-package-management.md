@@ -440,10 +440,13 @@ automation: `packageName`, `source`, `expectedVersion`, `actualVersion`,
 `expectedName`, `actualName`, `expectedHash`, `actualHash`, `dependencyOf`, and
 `requestedSource` when those fields apply to the drift kind. Duplicate
 lock-verification issues also include the verifier `paths` array with every
-conflicting installed directory. Doctor issues include `lockVerificationKind`,
-which preserves the underlying verifier issue kind even when the doctor layer
-uses a clearer package-health label. For example, a lock entry whose package
-directory is missing is reported as `stale-lock-entry` with
+conflicting installed directory. When lock verification and installed-package
+scanning find the same duplicate path set, doctor keeps the lock-verification
+issue and suppresses the redundant installed-package duplicate. Doctor issues
+include `lockVerificationKind`, which preserves the underlying verifier issue
+kind even when the doctor layer uses a clearer package-health label. For
+example, a lock entry whose package directory is missing is reported as
+`stale-lock-entry` with
 `lockVerificationKind: "missing-package"`. This lets CI summarize stale lock
 entries, hash mismatches, version mismatches, unreachable sources, untracked
 installed packages

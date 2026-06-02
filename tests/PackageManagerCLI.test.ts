@@ -3437,18 +3437,21 @@ describe("Package Manager CLI", () => {
         success: false,
       });
 
-      const duplicateLockIssue = report.issues.find(
+      const duplicatePath = [lockedPackageDir, duplicatePackageDir].join(", ");
+      const duplicateIssues = report.issues.filter(
         (issue) =>
-          issue.code === "BPL_PACKAGE_LOCK_VERIFY_FAILED" &&
-          issue.lockVerificationKind === "duplicate-installed-package",
+          issue.kind === "duplicate-installed-package" &&
+          issue.path === duplicatePath,
       );
+      expect(duplicateIssues).toHaveLength(1);
+      const [duplicateLockIssue] = duplicateIssues;
       expect(duplicateLockIssue).toMatchObject({
         severity: "error",
         kind: "duplicate-installed-package",
         code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
         packageName: "doctor-locked-duplicate",
         lockVerificationKind: "duplicate-installed-package",
-        path: [lockedPackageDir, duplicatePackageDir].join(", "),
+        path: duplicatePath,
         paths: [lockedPackageDir, duplicatePackageDir],
       });
     });

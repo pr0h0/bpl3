@@ -4819,10 +4819,19 @@ export class PackageManager {
       : 0;
 
     let lockVerified = !lockExists && dependencyCount === 0;
+    const lockDuplicatePathKeys = new Set<string>();
+    const duplicatePathKey = (paths: readonly string[]): string =>
+      [...paths].sort((left, right) => left.localeCompare(right)).join("\0");
     if (lockExists && !lockLoadError) {
       const verification = this.verifyLockFile();
       lockVerified = verification.ok;
       for (const issue of verification.issues) {
+        if (
+          issue.kind === "duplicate-installed-package" &&
+          issue.paths?.length
+        ) {
+          lockDuplicatePathKeys.add(duplicatePathKey(issue.paths));
+        }
         issues.push({
           severity: "error",
           kind: this.formatDoctorLockVerificationKind(issue),
@@ -4862,7 +4871,14 @@ export class PackageManager {
     let localPackageDirectoryReadable = true;
     try {
       installedPackages = this.list({ global: false });
-      issues.push(...this.findInstalledPackageNameIssues());
+      issues.push(
+        ...this.findInstalledPackageNameIssues().filter(
+          (issue) =>
+            issue.kind !== "duplicate-installed-package" ||
+            !issue.paths ||
+            !lockDuplicatePathKeys.has(duplicatePathKey(issue.paths)),
+        ),
+      );
     } catch (error) {
       localPackageDirectoryReadable = false;
       issues.push(
