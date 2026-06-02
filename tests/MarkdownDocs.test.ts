@@ -752,6 +752,8 @@ describe("Markdown documentation", () => {
       "`issuesFound`",
       "`issueKinds`",
       "doctor lock verification drift",
+      "`stale-lock-entry`",
+      "`lockVerificationKind`",
       "`packageName`",
       "`expectedHash`",
       "`actualHash`",

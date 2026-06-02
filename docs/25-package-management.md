@@ -340,9 +340,14 @@ For doctor lock verification drift, each issue also carries
 `code: "BPL_PACKAGE_LOCK_VERIFY_FAILED"` and the verifier metadata needed by
 automation: `packageName`, `source`, `expectedVersion`, `actualVersion`,
 `expectedName`, `actualName`, `expectedHash`, `actualHash`, `dependencyOf`, and
-`requestedSource` when those fields apply to the drift kind. This lets CI
-summarize hash mismatches, version mismatches, unreachable sources, and
-transitive dependency drift without parsing the human-readable message.
+`requestedSource` when those fields apply to the drift kind. Doctor issues also
+include `lockVerificationKind`, which preserves the underlying verifier issue
+kind even when the doctor layer uses a clearer package-health label. For
+example, a lock entry whose package directory is missing is reported as
+`stale-lock-entry` with `lockVerificationKind: "missing-package"`. This lets CI
+summarize stale lock entries, hash mismatches, version mismatches, unreachable
+sources, and transitive dependency drift without parsing the human-readable
+message.
 Reproduce this contract with
 `bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"`.
 When the local package directory, global package cache directory, or one of its

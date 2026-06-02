@@ -4790,6 +4790,60 @@ describe("PackageManager", () => {
       expect(driftIssue?.actualHash).not.toBe(driftIssue?.expectedHash);
     });
 
+    test("should report stale lock entries when locked packages are no longer installed", () => {
+      const appDir = path.join(tempDir, "doctor-stale-lock-entry-app");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "doctor-stale-lock-entry-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "doctor-stale-lock-entry": {
+                version: "1.2.3",
+                source: "doctor-stale-lock-entry-1.2.3.tgz",
+                hash: "stale-lock-hash",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const report = new PackageManager(appDir).doctorPackages();
+      const staleIssue = report.issues.find(
+        (issue) => issue.kind === "stale-lock-entry",
+      );
+
+      expect(report.ok).toBe(false);
+      expect(report.lockfile).toMatchObject({
+        exists: true,
+        packages: 1,
+        verified: false,
+      });
+      expect(staleIssue).toMatchObject({
+        severity: "error",
+        kind: "stale-lock-entry",
+        code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        packageName: "doctor-stale-lock-entry",
+        source: "doctor-stale-lock-entry-1.2.3.tgz",
+        expectedVersion: "1.2.3",
+        expectedHash: "stale-lock-hash",
+        path: path.join(appDir, "bpl_modules", "doctor-stale-lock-entry"),
+        hint: expect.stringContaining("bpl install"),
+        lockVerificationKind: "missing-package",
+      });
+    });
+
     test("should report invalid package lockfiles without throwing", () => {
       const appDir = path.join(tempDir, "doctor-invalid-lock-app");
       fs.mkdirSync(appDir);

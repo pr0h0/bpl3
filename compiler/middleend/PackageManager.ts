@@ -393,6 +393,7 @@ export interface PackageDoctorIssue {
   actualHash?: string;
   dependencyOf?: string;
   requestedSource?: string;
+  lockVerificationKind?: PackageLockVerificationIssueKind;
 }
 
 export interface PackageDoctorReport {
@@ -4255,7 +4256,7 @@ export class PackageManager {
       for (const issue of verification.issues) {
         issues.push({
           severity: "error",
-          kind: issue.kind,
+          kind: this.formatDoctorLockVerificationKind(issue),
           code: PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
           message: issue.message,
           path: issue.packagePath,
@@ -4274,6 +4275,7 @@ export class PackageManager {
           ...(issue.requestedSource
             ? { requestedSource: issue.requestedSource }
             : {}),
+          lockVerificationKind: issue.kind,
         });
       }
     } else if (!lockExists && dependencyCount > 0) {
@@ -4385,6 +4387,15 @@ export class PackageManager {
       dependencyTree,
       issues,
     });
+  }
+
+  private formatDoctorLockVerificationKind(
+    issue: PackageLockVerificationIssue,
+  ): string {
+    if (issue.kind === "missing-package") {
+      return "stale-lock-entry";
+    }
+    return issue.kind;
   }
 
   private formatUnsafePackageDirectoryIssue(

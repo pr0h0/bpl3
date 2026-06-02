@@ -1808,6 +1808,92 @@ describe("Package Manager CLI", () => {
       expect(driftIssue?.actualHash).toEqual(expect.any(String));
       expect(driftIssue?.actualHash).not.toBe(driftIssue?.expectedHash);
     });
+
+    test("should report stale lock entries as structured JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-stale-lock-cli-app");
+      fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "doctor-stale-lock-cli-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "doctor-stale-lock-cli": {
+                version: "2.3.4",
+                source: "doctor-stale-lock-cli-2.3.4.tgz",
+                hash: "cli-stale-hash",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-stale-lock-cli-home"),
+            NO_COLOR: "1",
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        lockfile: { exists: boolean; packages: number; verified: boolean };
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          packageName?: string;
+          source?: string;
+          expectedVersion?: string;
+          expectedHash?: string;
+          path?: string;
+          hint?: string;
+          lockVerificationKind?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.lockfile).toMatchObject({
+        exists: true,
+        packages: 1,
+        verified: false,
+      });
+      const staleIssue = report.issues.find(
+        (issue) => issue.kind === "stale-lock-entry",
+      );
+      expect(staleIssue).toMatchObject({
+        severity: "error",
+        kind: "stale-lock-entry",
+        code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        packageName: "doctor-stale-lock-cli",
+        source: "doctor-stale-lock-cli-2.3.4.tgz",
+        expectedVersion: "2.3.4",
+        expectedHash: "cli-stale-hash",
+        path: path.join(appDir, "bpl_modules", "doctor-stale-lock-cli"),
+        hint: expect.stringContaining("bpl install"),
+        lockVerificationKind: "missing-package",
+      });
+    });
   });
 
   describe("package-cache command", () => {
