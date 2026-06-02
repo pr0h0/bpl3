@@ -541,6 +541,22 @@ describe("CodeGenerator - Extended Tests", () => {
     });
   });
 
+  describe("Typeof Operator", () => {
+    it("should generate type info for the resolved type of identifier operands", () => {
+      const source = `
+        frame main() ret int {
+          local value: int = 1;
+          typeof(value);
+          return 0;
+        }
+      `;
+      const ir = generate(source);
+
+      expect(ir).toContain("@TypeInfo_i32");
+      expect(ir).not.toContain("@TypeInfo_value");
+    });
+  });
+
   describe("Generic Function Monomorphization", () => {
     it("should generate monomorphized functions for each type", () => {
       const source = `
