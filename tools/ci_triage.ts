@@ -639,6 +639,20 @@ const INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_MATCH_EXHAUSTIVENESS_MISMATCH",
+    "match exhaustiveness diagnostics",
+    "match exhaustiveness diagnostic",
+    "match exhaustiveness failures",
+    "Non-exhaustive match",
+    "missing variants",
+    "missing default case",
+    "Match expressions must handle all enum variants",
+    "Type matching requires a default case",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1577,6 +1591,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "intrinsic call diagnostic"',
   ],
   [INTRINSIC_CALL_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts",
+  ],
+  [
+    MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"',
+  ],
+  [
+    MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "match exhaustiveness diagnostic"',
+  ],
+  [MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

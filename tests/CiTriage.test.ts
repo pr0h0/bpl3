@@ -1185,6 +1185,30 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps match exhaustiveness diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"',
+      'bun test tests/MarkdownDocs.test.ts -t "match exhaustiveness diagnostic"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_MATCH_EXHAUSTIVENESS_MISMATCH",
+      "Non-exhaustive match: missing variants: Blue",
+      "Non-exhaustive match: missing default case (_)",
+      "Match expressions must handle all enum variants or include a wildcard (_) pattern.",
+      "Type matching requires a default case.",
+      "Match exhaustiveness failures use `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`",
+      "reports match exhaustiveness diagnostics failures in JSON-mode check and build diagnostics",
+      "docs document match exhaustiveness diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -5610,6 +5634,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerIntrinsicCallDiagnostics.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "intrinsic call diagnostics"',
         'bun test tests/MarkdownDocs.test.ts -t "intrinsic call diagnostic"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints match exhaustiveness diagnostic repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-match-exhaustiveness-diagnostics-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 107,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/107",
+              steps: [
+                {
+                  name: "BPL_MATCH_EXHAUSTIVENESS_MISMATCH Non-exhaustive match: missing variants: Blue",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"',
+        'bun test tests/MarkdownDocs.test.ts -t "match exhaustiveness diagnostic"',
         "bun run check",
       ]);
     } finally {
