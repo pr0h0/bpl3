@@ -1683,6 +1683,26 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document type-query diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Type-query failures use `BPL_TYPE_QUERY_ENUM_NOT_FOUND` and `BPL_TYPE_QUERY_TYPE_NOT_FOUND`",
+      "`Cannot find enum 'Missing'`",
+      "`Unknown type 'MissingType'`",
+      "`Unknown type: MissingType`",
+      "`The type 'Missing' in match<Missing.Some> is not a defined enum.`",
+      "`The type 'MissingType' in match<MissingType> is not defined.`",
+      "`Ensure the type is defined.`",
+      "unresolved `match<T>(value)` enum paths, unresolved `match<T>(value)` plain types, and unresolved `expr is T` targets",
+      'bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

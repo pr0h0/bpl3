@@ -889,6 +889,13 @@ bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"
 ```
 
+Type-query failures use `BPL_TYPE_QUERY_ENUM_NOT_FOUND` and `BPL_TYPE_QUERY_TYPE_NOT_FOUND`. This covers unresolved `match<T>(value)` enum paths, unresolved `match<T>(value)` plain types, and unresolved `expr is T` targets. Representative messages include `Cannot find enum 'Missing'`, `Unknown type 'MissingType'`, and `Unknown type: MissingType`. The corresponding hints include `The type 'Missing' in match<Missing.Some> is not a defined enum.`, `The type 'MissingType' in match<MissingType> is not defined.`, and `Ensure the type is defined.`. Valid primitive `is` checks and valid enum-variant `match<T>(value)` checks remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
