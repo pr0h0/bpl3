@@ -1347,6 +1347,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       this.emit(
         `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
       );
+      this.usedLlvmMemIntrinsics.add("memset");
+      this.emit(
+        `  call void @llvm.memset.p0i8.i64(i8* ${bytePtr}, i8 0, i64 ${dataArraySize}, i1 false)`,
+      );
 
       // Store each field in sequence in the data array
       for (let i = 0; i < expr.fields.length; i++) {

@@ -286,6 +286,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           this.emit(
             `  ${bytePtr} = bitcast [${dataSize} x i8]* ${dataPtr} to i8*`,
           );
+          this.usedLlvmMemIntrinsics.add("memset");
+          this.emit(
+            `  call void @llvm.memset.p0i8.i64(i8* ${bytePtr}, i8 0, i64 ${dataSize}, i1 false)`,
+          );
 
           const tupleVariant = variant.dataType as AST.EnumVariantTuple;
           const fieldTypeNodes = tupleVariant.types.map((typeNode) => {

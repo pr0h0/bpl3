@@ -806,6 +806,22 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     // Store the variant index as the discriminant
     this.emit(`  store i32 ${variantIndex}, i32* ${tagPtr}`);
 
+    const dataSize = this.enumDataSizes.get(enumName) || 0;
+    if (dataSize > 0) {
+      const dataPtr = this.newRegister();
+      this.emit(
+        `  ${dataPtr} = getelementptr inbounds ${enumType}, ${enumType}* ${enumPtr}, i32 0, i32 1`,
+      );
+      const bytePtr = this.newRegister();
+      this.emit(
+        `  ${bytePtr} = bitcast [${dataSize} x i8]* ${dataPtr} to i8*`,
+      );
+      this.usedLlvmMemIntrinsics.add("memset");
+      this.emit(
+        `  call void @llvm.memset.p0i8.i64(i8* ${bytePtr}, i8 0, i64 ${dataSize}, i1 false)`,
+      );
+    }
+
     // Load and return the enum value
     const result = this.newRegister();
     this.emit(`  ${result} = load ${enumType}, ${enumType}* ${enumPtr}`);

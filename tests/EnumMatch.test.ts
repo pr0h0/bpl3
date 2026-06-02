@@ -219,6 +219,73 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toBe("tag=3 value=4294967296 count=7\n");
   });
 
+  it("should ignore enum tuple payload padding in equality", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum E {
+          P(i8, long),
+          Q(long, long, long),
+      }
+
+      frame main() ret int {
+          local a: E = E.P(3, 4294967296);
+          local b: E = E.P(3, 4294967296);
+
+          if (a == b) {
+              printf("equal\\n");
+          } else {
+              printf("not equal\\n");
+          }
+
+          return 0;
+      }
+    `;
+
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("EnumEqualityPadding Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("equal\n");
+  });
+
+  it("should ignore inactive enum payload bytes for unit variant equality", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum E {
+          A,
+          B(i8, long),
+          C(long, long, long),
+      }
+
+      frame dirty(x: long) ret E {
+          local v: E = E.C(x, x + 1, x + 2);
+          if (x < 0) {
+              return v;
+          }
+          return E.A;
+      }
+
+      frame main() ret int {
+          local a: E = dirty(10);
+          local b: E = dirty(99);
+
+          if (a == b) {
+              printf("equal\\n");
+          } else {
+              printf("not equal\\n");
+          }
+
+          return 0;
+      }
+    `;
+
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("EnumUnitEqualityPadding Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("equal\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);
