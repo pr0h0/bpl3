@@ -501,8 +501,11 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         return;
       }
 
-      // Handle StructField which is not an ASTNode with kind but is in StructLiteralExpr
-      if (node.fieldName && node.value) {
+      // Handle field objects that are not ASTNodes but contain expressions.
+      if (
+        typeof node.value === "object" &&
+        (node.fieldName || node.name)
+      ) {
         collectCaptures(node.value);
         return;
       }
@@ -523,8 +526,21 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           collectCaptures((node as AST.IfStmt).elseBranch);
           break;
         case "Loop":
+          collectCaptures((node as AST.LoopStmt).init);
           collectCaptures((node as AST.LoopStmt).condition);
+          collectCaptures((node as AST.LoopStmt).step);
           collectCaptures((node as AST.LoopStmt).body);
+          break;
+        case "Throw":
+          collectCaptures((node as AST.ThrowStmt).expression);
+          break;
+        case "Switch":
+          collectCaptures((node as AST.SwitchStmt).expression);
+          for (const switchCase of (node as AST.SwitchStmt).cases) {
+            collectCaptures(switchCase.value);
+            collectCaptures(switchCase.body);
+          }
+          collectCaptures((node as AST.SwitchStmt).defaultCase);
           break;
         case "ExpressionStmt":
           collectCaptures((node as AST.ExpressionStmt).expression);
@@ -573,6 +589,18 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           break;
         case "TupleLiteral":
           collectCaptures((node as AST.TupleLiteralExpr).elements);
+          break;
+        case "EnumStructVariant":
+          collectCaptures((node as AST.EnumStructVariantExpr).fields);
+          break;
+        case "Sizeof":
+          collectCaptures((node as AST.SizeofExpr).target);
+          break;
+        case "TypeOf":
+          collectCaptures((node as AST.TypeOfExpr).target);
+          break;
+        case "TypeMatch":
+          collectCaptures((node as AST.TypeMatchExpr).value);
           break;
         case "Match":
           collectCaptures((node as AST.MatchExpr).value);
