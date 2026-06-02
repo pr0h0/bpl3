@@ -2175,54 +2175,174 @@ function runPackedPackageManifestValidationJsonSmoke(
   const workspaceDir = mkdtempSync(
     join(tmpdir(), "bpl-release-package-manifest-json-"),
   );
-  const missingManifestDir = join(workspaceDir, "missing-manifest");
-  const invalidMainDir = join(workspaceDir, "invalid-main");
-  const invalidEntryDir = join(workspaceDir, "invalid-entry");
-  const invalidRepositoryDir = join(workspaceDir, "invalid-repository-type");
   const homeDir = join(workspaceDir, "home");
 
   try {
-    mkdirSync(missingManifestDir, { recursive: true });
-    mkdirSync(invalidMainDir, { recursive: true });
-    mkdirSync(invalidEntryDir, { recursive: true });
-    mkdirSync(invalidRepositoryDir, { recursive: true });
     mkdirSync(homeDir, { recursive: true });
-    writeFileSync(
-      join(invalidMainDir, "bpl.json"),
-      JSON.stringify(
-        {
-          name: "invalid-main",
-          version: "1.0.0",
-          main: "src//index.bpl",
-        },
-        null,
-        2,
-      ) + "\n",
-    );
-    writeFileSync(
-      join(invalidEntryDir, "bpl.json"),
-      JSON.stringify(
-        {
-          name: "invalid-entry",
-          version: "1.0.0",
-          entry: "src//index.bpl",
-        },
-        null,
-        2,
-      ) + "\n",
-    );
-    writeFileSync(
-      join(invalidRepositoryDir, "bpl.json"),
-      JSON.stringify(
-        {
-          name: "invalid-repository-type",
-          version: "1.0.0",
-          repository: { type: "hg", url: "https://example.com/repo.hg" },
-        },
-        null,
-        2,
-      ) + "\n",
-    );
+
+    const writeManifest = (packageDir: string, manifest: unknown): void => {
+      writeFileSync(
+        join(packageDir, "bpl.json"),
+        JSON.stringify(manifest, null, 2) + "\n",
+      );
+    };
+
+    const manifestValidationCases: Array<{
+      name: string;
+      setup: (packageDir: string) => void;
+      expectedCode: string;
+    }> = [
+      {
+        name: "missing-manifest",
+        setup: () => {},
+        expectedCode: "BPL_PACKAGE_MANIFEST_MISSING",
+      },
+      {
+        name: "manifest-directory",
+        setup: (packageDir) => mkdirSync(join(packageDir, "bpl.json")),
+        expectedCode: "BPL_PACKAGE_MANIFEST_NOT_FILE",
+      },
+      {
+        name: "invalid-json",
+        setup: (packageDir) => writeFileSync(join(packageDir, "bpl.json"), "{"),
+        expectedCode: "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+      },
+      {
+        name: "array-manifest",
+        setup: (packageDir) => writeFileSync(join(packageDir, "bpl.json"), "[]"),
+        expectedCode: "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
+      },
+      {
+        name: "missing-name",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            version: "1.0.0",
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_NAME_MISSING",
+      },
+      {
+        name: "invalid-name",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "Bad_Name",
+            version: "1.0.0",
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_NAME_INVALID",
+      },
+      {
+        name: "missing-version",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "missing-version",
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_VERSION_MISSING",
+      },
+      {
+        name: "invalid-version",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-version",
+            version: "latest",
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_VERSION_INVALID",
+      },
+      {
+        name: "invalid-metadata",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-metadata",
+            version: "1.0.0",
+            description: 42,
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_METADATA_INVALID",
+      },
+      {
+        name: "invalid-main",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-main",
+            version: "1.0.0",
+            main: "src//index.bpl",
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
+      },
+      {
+        name: "invalid-entry",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-entry",
+            version: "1.0.0",
+            entry: "src//index.bpl",
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_ENTRY_INVALID",
+      },
+      {
+        name: "invalid-exports",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-exports",
+            version: "1.0.0",
+            exports: ["../outside.bpl"],
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_EXPORTS_INVALID",
+      },
+      {
+        name: "invalid-keywords",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-keywords",
+            version: "1.0.0",
+            keywords: [42],
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_KEYWORDS_INVALID",
+      },
+      {
+        name: "invalid-repository-type",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-repository-type",
+            version: "1.0.0",
+            repository: { type: "hg", url: "https://example.com/repo.hg" },
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID",
+      },
+      {
+        name: "invalid-dependencies",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-dependencies",
+            version: "1.0.0",
+            dependencies: { "Bad_Name": "1.0.0" },
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+      },
+      {
+        name: "invalid-scripts",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-scripts",
+            version: "1.0.0",
+            scripts: [],
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID",
+      },
+      {
+        name: "invalid-bin",
+        setup: (packageDir) =>
+          writeManifest(packageDir, {
+            name: "invalid-bin",
+            version: "1.0.0",
+            bin: [],
+          }),
+        expectedCode: "BPL_PACKAGE_MANIFEST_BIN_INVALID",
+      },
+    ];
+
+    for (const testCase of manifestValidationCases) {
+      const packageDir = join(workspaceDir, testCase.name);
+      mkdirSync(packageDir, { recursive: true });
+      testCase.setup(packageDir);
+    }
 
     console.log(
       "release smoke: check packed npm CLI package manifest validation JSON",
@@ -2233,137 +2353,74 @@ function runPackedPackageManifestValidationJsonSmoke(
       HOME: homeDir,
       NO_COLOR: "1",
     };
-    const missingResult = spawnSync(installedBpl, ["install", "--json"], {
-      cwd: missingManifestDir,
-      encoding: "utf-8",
-      env,
-      timeout: smokeTimeoutMs,
-    });
-    const invalidMainResult = spawnSync(installedBpl, ["install", "--json"], {
-      cwd: invalidMainDir,
-      encoding: "utf-8",
-      env,
-      timeout: smokeTimeoutMs,
-    });
-    const invalidEntryResult = spawnSync(installedBpl, ["install", "--json"], {
-      cwd: invalidEntryDir,
-      encoding: "utf-8",
-      env,
-      timeout: smokeTimeoutMs,
-    });
-    const invalidRepositoryResult = spawnSync(
-      installedBpl,
-      ["install", "--json"],
-      {
-        cwd: invalidRepositoryDir,
+    const results = manifestValidationCases.map((testCase) => ({
+      testCase,
+      result: spawnSync(installedBpl, ["install", "--json"], {
+        cwd: join(workspaceDir, testCase.name),
         encoding: "utf-8",
         env,
         timeout: smokeTimeoutMs,
-      },
-    );
+      }),
+    }));
 
-    if (missingResult.error) throw missingResult.error;
-    if (invalidMainResult.error) throw invalidMainResult.error;
-    if (invalidEntryResult.error) throw invalidEntryResult.error;
-    if (invalidRepositoryResult.error) throw invalidRepositoryResult.error;
-    if (
-      missingResult.status !== 1 ||
-      invalidMainResult.status !== 1 ||
-      invalidEntryResult.status !== 1 ||
-      invalidRepositoryResult.status !== 1
-    ) {
+    for (const { result } of results) {
+      if (result.error) throw result.error;
+    }
+
+    const unexpectedExitResults = results.filter(
+      ({ result }) => result.status !== 1,
+    );
+    if (unexpectedExitResults.length > 0) {
       throw new Error(
         [
           "Packed npm CLI package manifest validation smoke did not fail as expected.",
-          `missing exit: ${missingResult.status ?? "unknown"}`,
-          `missing stdout:\n${missingResult.stdout}`,
-          `missing stderr:\n${missingResult.stderr}`,
-          `invalid main exit: ${invalidMainResult.status ?? "unknown"}`,
-          `invalid main stdout:\n${invalidMainResult.stdout}`,
-          `invalid main stderr:\n${invalidMainResult.stderr}`,
-          `invalid entry exit: ${invalidEntryResult.status ?? "unknown"}`,
-          `invalid entry stdout:\n${invalidEntryResult.stdout}`,
-          `invalid entry stderr:\n${invalidEntryResult.stderr}`,
-          `invalid repository exit: ${invalidRepositoryResult.status ?? "unknown"}`,
-          `invalid repository stdout:\n${invalidRepositoryResult.stdout}`,
-          `invalid repository stderr:\n${invalidRepositoryResult.stderr}`,
-        ].join("\n"),
-      );
-    }
-    if (
-      missingResult.stderr !== "" ||
-      invalidMainResult.stderr !== "" ||
-      invalidEntryResult.stderr !== "" ||
-      invalidRepositoryResult.stderr !== ""
-    ) {
-      throw new Error(
-        [
-          "Packed npm CLI package manifest validation JSON wrote stderr.",
-          `missing stderr:\n${missingResult.stderr}`,
-          `invalid main stderr:\n${invalidMainResult.stderr}`,
-          `invalid entry stderr:\n${invalidEntryResult.stderr}`,
-          `invalid repository stderr:\n${invalidRepositoryResult.stderr}`,
+          ...unexpectedExitResults.flatMap(({ testCase, result }) => [
+            `${testCase.name} exit: ${result.status ?? "unknown"}`,
+            `${testCase.name} stdout:\n${result.stdout}`,
+            `${testCase.name} stderr:\n${result.stderr}`,
+          ]),
         ].join("\n"),
       );
     }
 
-    const missingReport = parsePackageInstallReport(missingResult.stdout);
-    const invalidMainReport = parsePackageInstallReport(
-      invalidMainResult.stdout,
-    );
-    const invalidEntryReport = parsePackageInstallReport(
-      invalidEntryResult.stdout,
-    );
-    const invalidRepositoryReport = parsePackageInstallReport(
-      invalidRepositoryResult.stdout,
-    );
-    if (
-      missingReport.success ||
-      missingReport.mode !== "project" ||
-      missingReport.target !== null ||
-      missingReport.global ||
-      missingReport.locked ||
-      missingReport.update ||
-      missingReport.repairLock ||
-      missingReport.errorCode !== "BPL_PACKAGE_MANIFEST_MISSING" ||
-      typeof missingReport.error !== "string" ||
-      invalidMainReport.success ||
-      invalidMainReport.mode !== "project" ||
-      invalidMainReport.target !== null ||
-      invalidMainReport.global ||
-      invalidMainReport.locked ||
-      invalidMainReport.update ||
-      invalidMainReport.repairLock ||
-      invalidMainReport.errorCode !== "BPL_PACKAGE_MANIFEST_MAIN_INVALID" ||
-      typeof invalidMainReport.error !== "string" ||
-      invalidEntryReport.success ||
-      invalidEntryReport.mode !== "project" ||
-      invalidEntryReport.target !== null ||
-      invalidEntryReport.global ||
-      invalidEntryReport.locked ||
-      invalidEntryReport.update ||
-      invalidEntryReport.repairLock ||
-      invalidEntryReport.errorCode !==
-        "BPL_PACKAGE_MANIFEST_ENTRY_INVALID" ||
-      typeof invalidEntryReport.error !== "string" ||
-      invalidRepositoryReport.success ||
-      invalidRepositoryReport.mode !== "project" ||
-      invalidRepositoryReport.target !== null ||
-      invalidRepositoryReport.global ||
-      invalidRepositoryReport.locked ||
-      invalidRepositoryReport.update ||
-      invalidRepositoryReport.repairLock ||
-      invalidRepositoryReport.errorCode !==
-        "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID" ||
-      typeof invalidRepositoryReport.error !== "string"
-    ) {
+    const stderrResults = results.filter(({ result }) => result.stderr !== "");
+    if (stderrResults.length > 0) {
+      throw new Error(
+        [
+          "Packed npm CLI package manifest validation JSON wrote stderr.",
+          ...stderrResults.map(
+            ({ testCase, result }) =>
+              `${testCase.name} stderr:\n${result.stderr}`,
+          ),
+        ].join("\n"),
+      );
+    }
+
+    const reports = results.map(({ testCase, result }) => ({
+      testCase,
+      report: parsePackageInstallReport(result.stdout),
+    }));
+    const unexpectedReports = reports.filter(({ testCase, report }) => {
+      return (
+        report.success ||
+        report.mode !== "project" ||
+        report.target !== null ||
+        report.global ||
+        report.locked ||
+        report.update ||
+        report.repairLock ||
+        report.errorCode !== testCase.expectedCode ||
+        typeof report.error !== "string"
+      );
+    });
+    if (unexpectedReports.length > 0) {
       throw new Error(
         [
           "Packed npm CLI package manifest validation JSON reported unexpected payload.",
-          `missing:\n${JSON.stringify(missingReport, null, 2)}`,
-          `invalid main:\n${JSON.stringify(invalidMainReport, null, 2)}`,
-          `invalid entry:\n${JSON.stringify(invalidEntryReport, null, 2)}`,
-          `invalid repository:\n${JSON.stringify(invalidRepositoryReport, null, 2)}`,
+          ...unexpectedReports.map(
+            ({ testCase, report }) =>
+              `${testCase.name}:\n${JSON.stringify(report, null, 2)}`,
+          ),
         ].join("\n"),
       );
     }

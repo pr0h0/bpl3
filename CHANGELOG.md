@@ -106,11 +106,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl-package.schema.json`, and release smoke checks require it, so installed
   packages ship the same manifest schema referenced by generated `bpl.json`
   files and documentation.
-- **Packed Package Manifest Repository JSON Smoke** - packed npm release smoke
-  now verifies that `bpl install --json` rejects manifests whose
-  `repository.type` is not `git` with
-  `BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID`, keeping release-package CLI
-  behavior aligned with PackageManager, package resolver, and schema checks.
+- **Packed Package Manifest JSON Error-Code Smoke** - packed npm release smoke
+  now table-drives the non-symlink package manifest validation cases through
+  installed `bpl install --json`, covering missing, directory, malformed JSON,
+  non-object, metadata, entrypoint, export, keyword, repository, dependency,
+  script, and bin manifest failures with their stable `BPL_PACKAGE_MANIFEST_*`
+  codes.
 - **Package Manifest Null Map Validation** - `bpl install --json` and
   PackageManager manifest loading now reject `null` `dependencies`,
   `devDependencies`, `scripts`, and `bin` fields with the existing stable
