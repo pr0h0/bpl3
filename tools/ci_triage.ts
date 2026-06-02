@@ -653,6 +653,20 @@ const MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH",
+    "BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH",
+    "tuple pattern diagnostics",
+    "tuple pattern diagnostic",
+    "tuple match pattern",
+    "Tuple pattern used on non-tuple type",
+    "Tuple pattern has [0-9]+ elements, but type has [0-9]+",
+    "Expected tuple type, got",
+    "Pattern and type must have the same number of elements",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1604,6 +1618,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "match exhaustiveness diagnostic"',
   ],
   [MATCH_EXHAUSTIVENESS_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts",
+  ],
+  [
+    TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"',
+  ],
+  [
+    TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "tuple match pattern diagnostic"',
+  ],
+  [TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
