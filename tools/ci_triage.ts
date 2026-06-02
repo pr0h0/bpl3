@@ -256,6 +256,17 @@ const IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const IMPORT_IDEMPOTENCY_STEP_PATTERN = new RegExp(
+  [
+    "ImportIdempotency\\.test",
+    "import idempotency",
+    "explicit Error imports?.*implicit Error import",
+    "Symbol ['\"]Error['\"] is already defined in this scope",
+    "BPL_SYMBOL_ALREADY_DEFINED.*Symbol ['\"]Error['\"]",
+    "errors\\.bpl:\\d+:\\d+.*Symbol ['\"]Error['\"]",
+  ].join("|"),
+  "i",
+);
 const DUPLICATE_SYMBOL_STEP_PATTERN = new RegExp(
   [
     "BPL_SYMBOL_ALREADY_DEFINED",
@@ -1220,6 +1231,22 @@ const FUZZ_ARTIFACT_REPRO_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+
+const PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    IMPORT_IDEMPOTENCY_STEP_PATTERN,
+    "bun test tests/ImportIdempotency.test.ts",
+  ],
+  [
+    IMPORT_IDEMPOTENCY_STEP_PATTERN,
+    'bun test tests/Integration.test.ts -t "stack_trace_error|stack_trace_uncaught|test_zero_comprehensive"',
+  ],
+  [
+    IMPORT_IDEMPOTENCY_STEP_PATTERN,
+    "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+  ],
+  [IMPORT_IDEMPOTENCY_STEP_PATTERN, "bun run check"],
+];
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
@@ -2239,6 +2266,13 @@ export function summarizeWorkflowJobs(
 }
 
 export function localCommandsForStep(stepName: string): string[] {
+  const priorityExclusiveCommands = PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS.filter(
+    ([pattern]) => pattern.test(stepName),
+  ).map(([, command]) => command);
+  if (priorityExclusiveCommands.length > 0) {
+    return priorityExclusiveCommands;
+  }
+
   const exclusiveCommands = EXCLUSIVE_STEP_REPRO_COMMANDS.filter(([pattern]) =>
     pattern.test(stepName),
   ).map(([, command]) => command);

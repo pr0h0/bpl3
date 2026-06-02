@@ -3677,6 +3677,73 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("prints import idempotency repro commands from duplicate Error import logs", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-import-idempotency-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 184,
+              name: "Ubuntu system clang release",
+              conclusion: "failure",
+              html_url:
+                "https://github.com/pr0h0/bpl3/actions/runs/1/job/184",
+              steps: [
+                {
+                  name: "error[BPL_SYMBOL_ALREADY_DEFINED][errors.bpl:22:1]: Symbol 'Error' is already defined in this scope",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/ImportIdempotency.test.ts",
+        'bun test tests/Integration.test.ts -t "stack_trace_error|stack_trace_uncaught|test_zero_comprehensive"',
+        "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prints duplicate function signature repro commands from an offline jobs fixture", () => {
     const tempDir = mkdtempSync(
       join(tmpdir(), "bpl-ci-triage-duplicate-function-signature-"),
