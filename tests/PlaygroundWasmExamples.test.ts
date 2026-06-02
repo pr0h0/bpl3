@@ -1,48 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "fs";
-import { join, resolve } from "path";
 import {
   WASM_COMPATIBILITY_MATRIX,
-  type WasmCompatibilityMode,
 } from "./helpers/wasmCompatibilityMatrix";
-
-const PLAYGROUND_EXAMPLES_DIR = resolve(
-  import.meta.dir,
-  "../playground/examples",
-);
-
-interface PlaygroundWasmMetadata {
-  mode: WasmCompatibilityMode;
-  reason: string;
-  browserRuntime: boolean;
-  canonicalMatrixFile?: string;
-  expectedReturn?: number;
-  expectedStdout?: string;
-  expectedStderr?: string;
-}
-
-interface PlaygroundExample {
-  title: string;
-  args?: string[];
-  expectedOutput?: string | string[];
-  wasm?: PlaygroundWasmMetadata;
-}
-
-interface PlaygroundExampleWithPath extends PlaygroundExample {
-  file: string;
-}
-
-function loadPlaygroundExamples(): PlaygroundExampleWithPath[] {
-  return readdirSync(PLAYGROUND_EXAMPLES_DIR)
-    .filter((name) => name.endsWith(".json"))
-    .sort()
-    .map((name) => ({
-      file: `playground/examples/${name}`,
-      ...(JSON.parse(
-        readFileSync(join(PLAYGROUND_EXAMPLES_DIR, name), "utf8"),
-      ) as PlaygroundExample),
-    }));
-}
+import { loadPlaygroundExamples } from "./helpers/playgroundExamples";
 
 describe("Playground wasm example metadata", () => {
   test("marks wasm-friendly playground examples with explicit metadata", () => {

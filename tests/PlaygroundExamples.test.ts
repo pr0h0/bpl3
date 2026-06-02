@@ -6,19 +6,13 @@ import { promisify } from "util";
 
 import { Compiler } from "../compiler/index";
 import { runProcessFile } from "../playground/backend/processRunner";
+import {
+  expectedOutputSnippets,
+  loadPlaygroundExamples,
+  type PlaygroundExample,
+} from "./helpers/playgroundExamples";
 
 const execFileAsync = promisify(execFile);
-
-interface Example {
-  order: number;
-  title: string;
-  snippet: string;
-  description: string;
-  code: string | string[];
-  input?: string;
-  args?: string[];
-  expectedOutput?: string | string[];
-}
 
 interface CompileResponse {
   success: boolean;
@@ -148,42 +142,8 @@ async function compileAndRunExample(
   }
 }
 
-function loadExamples(): Example[] {
-  const examplesDir = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../playground/examples",
-  );
-  const examples: Example[] = [];
-
-  if (!fs.existsSync(examplesDir)) {
-    console.warn("Examples directory not found:", examplesDir);
-    return examples;
-  }
-
-  const files = fs
-    .readdirSync(examplesDir)
-    .filter((f) => f.endsWith(".json"))
-    .sort();
-
-  for (const file of files) {
-    try {
-      const content = fs.readFileSync(path.join(examplesDir, file), "utf-8");
-      const example = JSON.parse(content);
-      examples.push(example);
-    } catch (e) {
-      console.error(`Failed to load example ${file}:`, e);
-    }
-  }
-
-  return examples.sort((a, b) => a.order - b.order);
-}
-
-function expectedOutputSnippets(expectedOutput: string | string[]): string[] {
-  return Array.isArray(expectedOutput) ? expectedOutput : [expectedOutput];
-}
-
 describe("BPL Playground Examples", () => {
-  const examples = loadExamples();
+  const examples: PlaygroundExample[] = loadPlaygroundExamples();
   const results: Map<string, { passed: boolean; error?: string }> = new Map();
 
   beforeAll(() => {
