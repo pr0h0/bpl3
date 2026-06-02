@@ -594,6 +594,17 @@ describe("Package Manager CLI", () => {
       const depsDir = path.join(projectDir, "deps");
       fs.mkdirSync(packageDir);
       fs.mkdirSync(depsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "file-prefix-project",
+            version: "1.0.0",
+          },
+          null,
+          2,
+        ),
+      );
 
       fs.writeFileSync(
         path.join(packageDir, "bpl.json"),

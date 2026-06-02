@@ -2484,6 +2484,17 @@ describe("PackageManager", () => {
       fs.mkdirSync(packageDir);
       fs.mkdirSync(depsDir, { recursive: true });
       fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "direct-windows-source-app",
+            version: "1.0.0",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
         path.join(packageDir, "bpl.json"),
         JSON.stringify(
           {
@@ -2534,6 +2545,17 @@ describe("PackageManager", () => {
       const depsDir = path.join(appDir, "deps");
       fs.mkdirSync(packageDir);
       fs.mkdirSync(depsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "direct-file-source-app",
+            version: "1.0.0",
+          },
+          null,
+          2,
+        ),
+      );
       fs.writeFileSync(
         path.join(packageDir, "bpl.json"),
         JSON.stringify(
@@ -2745,6 +2767,17 @@ describe("PackageManager", () => {
 
       const installDir = path.join(tempDir, "restore-test");
       fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(installDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "restore-test",
+            version: "1.0.0",
+          },
+          null,
+          2,
+        ),
+      );
       process.chdir(installDir);
 
       const localPM = new PackageManager();
@@ -4330,6 +4363,17 @@ describe("PackageManager", () => {
       const appDir = path.join(tempDir, "locked-global-app");
       fs.mkdirSync(globalPackageDir);
       fs.mkdirSync(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-global-app",
+            version: "1.0.0",
+          },
+          null,
+          2,
+        ),
+      );
 
       const createCachedPackage = (version: string, exportName: string) => {
         const packageDir = path.join(tempDir, `locked-math-${version}`);
