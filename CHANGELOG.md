@@ -35,6 +35,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   or `bpl.lock` are created by install/update/lock JSON commands. Reproduce
   with
   `bun test tests/PackageJsonFailureContracts.test.ts -t "malformed dependency source codes"`.
+- **Package Install Manifest Preflight** - Default project installs now validate
+  `bpl.json` before restoring packages from a non-empty `bpl.lock`, so malformed
+  dependency sources cannot be hidden by stale lockfile entries. Reproduce with
+  `bun test tests/PackageJsonFailureContracts.test.ts -t "before restoring non-empty lockfiles"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every

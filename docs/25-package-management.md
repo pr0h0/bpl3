@@ -222,9 +222,11 @@ the install flag, use `bpl lock`; `bpl lock --json` emits the same
 
 Commit `bpl.lock` for applications so repeated installs resolve the same
 package contents. Libraries may commit it when they need reproducible examples
-or test fixtures. Lockfiles are schema-validated before install, verify, doctor,
-or repair commands use them; malformed entries fail early with an
-`Invalid bpl.lock` diagnostic. Symlinked `bpl.lock` paths, including broken
+or test fixtures. Default project installs validate `bpl.json` before restoring
+packages from a non-empty lockfile, so a stale `bpl.lock` cannot hide malformed
+manifest dependency sources. Lockfiles are schema-validated before install,
+verify, doctor, or repair commands use them; malformed entries fail early with
+an `Invalid bpl.lock` diagnostic. Symlinked `bpl.lock` paths, including broken
 symlinks, are rejected before verification so package checks never follow a
 lockfile outside the project, and before project installs decide whether there
 is anything to restore or install.

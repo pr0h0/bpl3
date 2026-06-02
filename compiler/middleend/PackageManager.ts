@@ -1641,6 +1641,12 @@ export class PackageManager {
       };
     }
 
+    const manifest = this.loadManifest(this.projectRoot);
+    const deps = {
+      ...manifest.dependencies,
+      ...manifest.devDependencies,
+    };
+
     const lockPath = this.getLockFilePath();
     if (this.tryLstat(lockPath) && !options.update) {
       const lock = this.loadLockFile();
@@ -1673,12 +1679,6 @@ export class PackageManager {
         return { action: "restored", packages: entries.length };
       }
     }
-
-    const manifest = this.loadManifest(this.projectRoot);
-    const deps = {
-      ...manifest.dependencies,
-      ...manifest.devDependencies,
-    };
 
     if (options.update) {
       this.saveLockFile({ lockfileVersion: 1, packages: {} });

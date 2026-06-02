@@ -1169,6 +1169,69 @@ describe("Package JSON failure contracts", () => {
     }
   });
 
+  test("validates malformed dependency sources before restoring non-empty lockfiles", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-package-manifest-before-lock-"),
+    );
+
+    try {
+      const context = cleanPackageRoot(tempDir, "manifest-before-lock");
+      const lockJson = JSON.stringify(
+        {
+          lockfileVersion: 1,
+          packages: {
+            "stale-lock-package": {
+              version: "1.0.0",
+              source: "stale-lock-package-1.0.0.tgz",
+              hash: "stale-lock-hash",
+            },
+          },
+        },
+        null,
+        2,
+      );
+      writeFileSync(
+        join(context.cwd, "bpl.json"),
+        JSON.stringify({
+          name: "manifest-before-lock",
+          version: "1.0.0",
+          dependencies: {
+            "manifest-before-lock-dep": ">01.0.0",
+          },
+        }),
+      );
+      writeFileSync(join(context.cwd, "bpl.lock"), lockJson);
+
+      const report = expectJsonStdoutReport(
+        runCli(["install", "--json"], context),
+        {
+          status: 1,
+          check: "package-install",
+          success: false,
+        },
+      );
+
+      expect(report).toMatchObject({
+        mode: "project",
+        target: null,
+        global: false,
+        locked: false,
+        update: false,
+        repairLock: false,
+        error: expect.stringContaining(
+          "Invalid 'dependencies' source for manifest-before-lock-dep",
+        ),
+        errorCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
+      });
+      expect(existsSync(join(context.cwd, "bpl_modules"))).toBe(false);
+      expect(readFileSync(join(context.cwd, "bpl.lock"), "utf8")).toBe(
+        lockJson,
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("emits package-install JSON from the lock alias for valid manifests", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-lock-json-"));
 
