@@ -1,5 +1,6 @@
 import { BUILD_JSON_ERROR_CODES } from "./CompilationRunner";
 import { BINDGEN_JSON_ERROR_CODES } from "./commands/bindgen";
+import { CODEGEN_JSON_ERROR_CODES } from "../compiler/backend/CodeGenerator";
 import { CHECK_JSON_ERROR_CODES } from "./commands/check";
 import { CLEAN_JSON_ERROR_CODES } from "./commands/clean";
 import { COMPLETION_SHELL_UNSUPPORTED_CODE } from "./commands/completion";
@@ -35,6 +36,7 @@ export interface CliJsonErrorCodeList {
 export const CLI_JSON_ERROR_CODE_LISTS = [
   { name: "bindgen", codes: BINDGEN_JSON_ERROR_CODES },
   { name: "build", codes: BUILD_JSON_ERROR_CODES },
+  { name: "codegen", codes: CODEGEN_JSON_ERROR_CODES },
   { name: "check", codes: CHECK_JSON_ERROR_CODES },
   { name: "clean", codes: CLEAN_JSON_ERROR_CODES },
   { name: "completion", codes: [COMPLETION_SHELL_UNSUPPORTED_CODE] },

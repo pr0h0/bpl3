@@ -15,6 +15,25 @@ import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 import { findSymlinkedPathComponent } from "../common/PathSafety";
 
+export const CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE =
+  "BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK";
+export const CODEGEN_DEBUG_IR_PATH_NOT_FILE_CODE =
+  "BPL_CODEGEN_DEBUG_IR_PATH_NOT_FILE";
+export const CODEGEN_DEBUG_IR_PARENT_NOT_FOUND_CODE =
+  "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND";
+export const CODEGEN_DEBUG_IR_PARENT_SYMLINK_CODE =
+  "BPL_CODEGEN_DEBUG_IR_PARENT_SYMLINK";
+export const CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY_CODE =
+  "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY";
+
+export const CODEGEN_JSON_ERROR_CODES = [
+  CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE,
+  CODEGEN_DEBUG_IR_PATH_NOT_FILE_CODE,
+  CODEGEN_DEBUG_IR_PARENT_NOT_FOUND_CODE,
+  CODEGEN_DEBUG_IR_PARENT_SYMLINK_CODE,
+  CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY_CODE,
+] as const;
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -395,10 +414,20 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     if (existingPath?.isSymbolicLink()) {
-      throw new Error(`Debug IR path is a symbolic link: ${this.debugIrPath}`);
+      throw this.createDebugIrPathError(
+        `Debug IR path is a symbolic link: ${this.debugIrPath}`,
+        "Choose a real debug IR file path, not a symbolic link.",
+        CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE,
+        this.debugIrPath,
+      );
     }
     if (existingPath && !existingPath.isFile()) {
-      throw new Error(`Debug IR path is not a file: ${this.debugIrPath}`);
+      throw this.createDebugIrPathError(
+        `Debug IR path is not a file: ${this.debugIrPath}`,
+        "Choose a regular .ll file path or remove the existing non-file path.",
+        CODEGEN_DEBUG_IR_PATH_NOT_FILE_CODE,
+        this.debugIrPath,
+      );
     }
 
     const debugIrParent = path.dirname(path.resolve(this.debugIrPath));
@@ -412,28 +441,62 @@ export class CodeGenerator extends StatementGenerator {
         "code" in error &&
         (error.code === "ENOENT" || error.code === "ENOTDIR")
       ) {
-        throw new Error(
+        throw this.createDebugIrPathError(
           `Debug IR parent path does not exist: ${debugIrParent}`,
+          "Create the parent directory or choose an existing output directory.",
+          CODEGEN_DEBUG_IR_PARENT_NOT_FOUND_CODE,
+          debugIrParent,
         );
       }
       throw error;
     }
     if (parentPath.isSymbolicLink()) {
-      throw new Error(
+      throw this.createDebugIrPathError(
         `Debug IR parent path is a symbolic link: ${debugIrParent}`,
+        "Choose a debug IR output directory whose parent path contains only real directories.",
+        CODEGEN_DEBUG_IR_PARENT_SYMLINK_CODE,
+        debugIrParent,
       );
     }
     if (!parentPath.isDirectory()) {
-      throw new Error(`Debug IR parent path is not a directory: ${debugIrParent}`);
+      throw this.createDebugIrPathError(
+        `Debug IR parent path is not a directory: ${debugIrParent}`,
+        "Move the file out of the way or choose a directory parent.",
+        CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY_CODE,
+        debugIrParent,
+      );
     }
     const symlinkedParent = findSymlinkedPathComponent(debugIrParent);
     if (symlinkedParent) {
-      throw new Error(
+      throw this.createDebugIrPathError(
         `Debug IR parent path contains a symbolic link: ${symlinkedParent}`,
+        "Choose a debug IR output directory whose ancestor path contains only real directories.",
+        CODEGEN_DEBUG_IR_PARENT_SYMLINK_CODE,
+        symlinkedParent,
       );
     }
 
     fs.writeFileSync(this.debugIrPath, result);
+  }
+
+  private createDebugIrPathError(
+    message: string,
+    hint: string,
+    code: string,
+    filePath: string,
+  ): CompilerError {
+    return new CompilerError(
+      message,
+      hint,
+      {
+        file: filePath,
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+      code,
+    );
   }
 
   private generateTopLevel(node: AST.ASTNode) {

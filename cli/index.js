@@ -38,6 +38,16 @@ const CLI_JSON_ERROR_CODE_LISTS = [
     ],
   },
   {
+    name: "codegen",
+    codes: [
+      "BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK",
+      "BPL_CODEGEN_DEBUG_IR_PATH_NOT_FILE",
+      "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND",
+      "BPL_CODEGEN_DEBUG_IR_PARENT_SYMLINK",
+      "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY",
+    ],
+  },
+  {
     name: "check",
     codes: [
       "BPL_CHECK_INPUT_NOT_FOUND",

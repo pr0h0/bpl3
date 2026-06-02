@@ -22,6 +22,7 @@ describe("CLI JSON error-code list exports", () => {
     expect(CLI_JSON_ERROR_CODE_LISTS.map((list) => list.name)).toEqual([
       "bindgen",
       "build",
+      "codegen",
       "check",
       "clean",
       "completion",

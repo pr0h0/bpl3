@@ -13,6 +13,7 @@ import { join } from "path";
 
 import * as AST from "../compiler/common/AST";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
+import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
@@ -39,6 +40,29 @@ function getOnlyReturnExpression(program: AST.Program): AST.Expression {
   const fn = program.statements[0] as AST.FunctionDecl;
   const ret = fn.body.statements[0] as AST.ReturnStmt;
   return ret.value!;
+}
+
+function captureError(action: () => void): unknown {
+  try {
+    action();
+  } catch (error) {
+    return error;
+  }
+
+  throw new Error("Expected action to throw");
+}
+
+function expectDebugIrError(
+  action: () => void,
+  code: string,
+  message: RegExp,
+): CompilerError {
+  const error = captureError(action);
+  expect(error).toBeInstanceOf(CompilerError);
+  const compilerError = error as CompilerError;
+  expect(compilerError.code).toBe(code);
+  expect(compilerError.message).toMatch(message);
+  return compilerError;
 }
 
 describe("CodeGenerator", () => {
@@ -84,9 +108,11 @@ describe("CodeGenerator", () => {
       writeFileSync(targetPath, "original\n");
       symlinkSync(targetPath, debugIrPath, "file");
 
-      expect(() =>
-        compile("frame main() { return; }", { debugIrPath }),
-      ).toThrow(/Debug IR path is a symbolic link/);
+      expectDebugIrError(
+        () => compile("frame main() { return; }", { debugIrPath }),
+        "BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK",
+        /Debug IR path is a symbolic link/,
+      );
 
       expect(readFileSync(targetPath, "utf8")).toBe("original\n");
     } finally {
@@ -107,9 +133,11 @@ describe("CodeGenerator", () => {
       mkdirSync(realParent);
       symlinkSync(realParent, linkedParent, "dir");
 
-      expect(() =>
-        compile("frame main() { return; }", { debugIrPath }),
-      ).toThrow(/Debug IR parent path is a symbolic link/);
+      expectDebugIrError(
+        () => compile("frame main() { return; }", { debugIrPath }),
+        "BPL_CODEGEN_DEBUG_IR_PARENT_SYMLINK",
+        /Debug IR parent path is a symbolic link/,
+      );
 
       expect(existsSync(join(realParent, "debug.ll"))).toBe(false);
     } finally {
@@ -131,9 +159,11 @@ describe("CodeGenerator", () => {
       mkdirSync(realNested, { recursive: true });
       symlinkSync(realRoot, linkedRoot, "dir");
 
-      expect(() =>
-        compile("frame main() { return; }", { debugIrPath }),
-      ).toThrow(/Debug IR parent path contains a symbolic link/);
+      expectDebugIrError(
+        () => compile("frame main() { return; }", { debugIrPath }),
+        "BPL_CODEGEN_DEBUG_IR_PARENT_SYMLINK",
+        /Debug IR parent path contains a symbolic link/,
+      );
 
       expect(existsSync(join(realNested, "debug.ll"))).toBe(false);
     } finally {
@@ -150,9 +180,11 @@ describe("CodeGenerator", () => {
     try {
       process.chdir(dir);
 
-      expect(() =>
-        compile("frame main() { return; }", { debugIrPath }),
-      ).toThrow(/Debug IR parent path does not exist/);
+      expectDebugIrError(
+        () => compile("frame main() { return; }", { debugIrPath }),
+        "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND",
+        /Debug IR parent path does not exist/,
+      );
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
