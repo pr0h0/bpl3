@@ -68,7 +68,13 @@ export class ImportHandler {
     symbol: Symbol,
     scope?: SymbolTable,
   ): void {
+    const targetScope = scope ?? this.ctx.currentScope;
+
     // Define primary symbol
+    if (this.hasImportedSymbol(targetScope, name, symbol)) {
+      return;
+    }
+
     if (scope) {
       scope.define({
         name,
@@ -90,6 +96,10 @@ export class ImportHandler {
     // Define overloads
     if (symbol.overloads) {
       for (const overload of symbol.overloads) {
+        if (this.hasImportedSymbol(targetScope, name, overload)) {
+          continue;
+        }
+
         if (scope) {
           scope.define({
             name,
@@ -109,6 +119,29 @@ export class ImportHandler {
         }
       }
     }
+  }
+
+  private hasImportedSymbol(
+    scope: SymbolTable,
+    name: string,
+    symbol: Symbol,
+  ): boolean {
+    const existing = scope.getInCurrentScope(name);
+    if (!existing) {
+      return false;
+    }
+
+    return [existing, ...(existing.overloads || [])].some((candidate) =>
+      this.isSameImportedSymbol(candidate, symbol),
+    );
+  }
+
+  private isSameImportedSymbol(left: Symbol, right: Symbol): boolean {
+    return (
+      left.kind === right.kind &&
+      left.declaration === right.declaration &&
+      left.moduleScope === right.moduleScope
+    );
   }
 
   /**
