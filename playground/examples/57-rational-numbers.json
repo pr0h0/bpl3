@@ -7,7 +7,7 @@
     "# Rational number (fraction) arithmetic using std/rational.bpl",
     "import [Rational] from \"std/rational.bpl\";",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    printf(\"=== Rational Numbers ===\\n\\n\");",

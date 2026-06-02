@@ -4,7 +4,7 @@
   "snippet": "Binary operations",
   "description": "Bitwise operators manipulate individual bits in integer values. AND (&) sets bits where both operands have 1. OR (|) sets bits where either operand has 1. XOR (^) sets bits where operands differ. NOT (~) flips all bits. Left shift (<<) multiplies by powers of 2. Right shift (>>) divides by powers of 2. Common applications: flags/permissions, color manipulation, performance optimization, low-level hardware control, cryptography. Shifting by negative amounts or >= bit-width is undefined. This example demonstrates all bitwise operators, common bit manipulation patterns like setting/clearing/toggling bits, and mask operations.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    local a: int;",

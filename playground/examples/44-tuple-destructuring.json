@@ -4,7 +4,7 @@
   "snippet": "Unpack tuples in declarations and patterns",
   "description": "Tuple destructuring allows unpacking multiple values from tuples in a single statement. Use destructuring in local declarations, function returns, and pattern matching. Swap values without a temporary variable using tuple assignment: (a, b) = (b, a). Functions can return multiple values as tuples. Destructuring makes code cleaner by avoiding temporary variables and index access. You can also destructure in match patterns to extract nested tuple values. This is especially useful for functions that need to return multiple related values like coordinates, results with metadata, or parsed data.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Return multiple values as a tuple",
     "frame divmod(a: int, b: int) ret (int, int) {",

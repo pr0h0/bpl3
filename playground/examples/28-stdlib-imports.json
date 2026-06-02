@@ -9,7 +9,7 @@
     "import [Math], {PI} from \"std/math.bpl\";",
     "import [Stats] from \"std/stats.bpl\";",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    printf(\"=== Standard Library Demo ===\\n\\n\");",

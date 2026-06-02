@@ -4,7 +4,7 @@
   "snippet": "Get type sizes",
   "description": "The sizeof operator returns the size of a type or variable in bytes. It's evaluated at compile-time, not runtime, making it zero-cost. Use sizeof for portable code that adapts to platform differences (e.g., pointer size varies between 32/64-bit). Common uses: allocating arrays (malloc(n * sizeof(int))), calculating array length (sizeof(arr) / sizeof(arr[0])), portable type sizes. Struct sizes may include padding for alignment, so sizeof(struct) might be larger than the sum of member sizes. This example shows sizeof with primitives, arrays, structs, and pointers.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "struct Point {",
     "    x: int,",

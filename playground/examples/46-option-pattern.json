@@ -11,7 +11,7 @@
     "    None,",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Function that might not find a value",
     "frame findFirst(arr: int[5], size: int, target: int) ret Maybe<int> {",

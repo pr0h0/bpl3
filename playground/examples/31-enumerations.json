@@ -17,7 +17,7 @@
     "    Write { text: int },",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame getColorValue(c: Color) ret int {",
     "    return match (c) {",

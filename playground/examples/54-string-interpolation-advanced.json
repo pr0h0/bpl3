@@ -5,7 +5,7 @@
   "description": "BPL supports advanced string interpolation features, including nested expressions, struct literals, operator overloading, and more. This example demonstrates how to use these powerful features to create dynamic strings.",
   "code": [
     "import [String] from \"std\";",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame getGreeting() ret String {",
     "    return String.new(\"Greetings\");",

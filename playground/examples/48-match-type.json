@@ -4,7 +4,7 @@
   "snippet": "Write type-agnostic code with generics",
   "description": "Generic functions in BPL allow you to write code that works with any type. Use the <T> syntax to declare type parameters that get filled in when the function is called. The compiler generates specialized versions for each concrete type used. Generics enable code reuse while maintaining type safety - you write the function once and use it with different types. Common patterns include generic max/min functions, container operations, and utility functions. You can use sizeof(T) to get type sizes and perform generic comparisons when operators are available for the type.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Generic function - works for any type",
     "frame printSize<T>(_dummy: T) {",

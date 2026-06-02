@@ -4,8 +4,8 @@
   "snippet": "Text manipulation",
   "description": "BPL strings are null-terminated character arrays following C conventions. String literals are immutable and stored in read-only memory. The string type is an alias for char*, enabling pointer operations. Standard C library functions (strlen, strcpy, strcmp, strcat) work with BPL strings. String comparison with == compares pointers, not content - use strcmp for content comparison. Strings are not automatically managed, so heap-allocated strings must be manually freed. This example demonstrates string literals, standard string functions, concatenation, and comparison.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
-    "extern strlen(s: string) ret int;",
+    "import [printf] from \"std/c.bpl\";",
+    "import [strlen] from \"std/c.bpl\";",
     "",
     "frame greetUser(name: string, title: string) {",
     "    printf(\"%s %s, welcome!\\n\", title, name);",

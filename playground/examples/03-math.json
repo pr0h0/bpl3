@@ -4,7 +4,7 @@
   "snippet": "Arithmetic operations",
   "description": "BPL provides comprehensive arithmetic operations for both integers and floating-point numbers. Integer division truncates toward zero (10/3 = 3), while floating-point division preserves precision. The modulo operator (%) returns the remainder of integer division. Mixed-type arithmetic promotes to the wider type (int + float = float). This example demonstrates all basic arithmetic operators with both integer and floating-point values.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    local a: int = 10;",

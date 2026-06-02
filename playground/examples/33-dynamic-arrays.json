@@ -4,7 +4,7 @@
   "snippet": "Work with dynamically sized arrays",
   "description": "Dynamic arrays overcome fixed-size array limitations by allocating memory on the heap at runtime. Use malloc to allocate, realloc to resize, and free to deallocate. Unlike stack arrays, dynamic arrays can change size and outlive the function that created them. Must manually manage memory - forgetting to free causes memory leaks. Always check malloc/realloc return values (null on failure). When resizing, copy existing elements to new allocation. The std/vec.bpl module provides a safe, convenient dynamic array implementation. This example shows manual dynamic array implementation including allocation, resizing, and proper cleanup.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame printArray(arr: *int, size: int) ret void {",
     "    local i: int = 0;",

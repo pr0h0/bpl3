@@ -4,7 +4,7 @@
   "snippet": "Custom data types",
   "description": "Structs allow you to create composite types by grouping related data. Access members using the dot operator (.). Structs can be initialized using struct literal syntax. This example demonstrates struct definition, initialization, and usage.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Define a struct with multiple fields",
     "struct Person {",

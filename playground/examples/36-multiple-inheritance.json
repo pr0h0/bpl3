@@ -57,7 +57,7 @@
     "           this.x, this.y, this.width, this.height, this.r, this.g, this.b);",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    printf(\"=== Multiple Inheritance Example ===\\n\");",

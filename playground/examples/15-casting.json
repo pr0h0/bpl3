@@ -4,7 +4,7 @@
   "snippet": "Converting between types",
   "description": "Type casting converts values between different types using the cast<TargetType>(expression) syntax. BPL requires explicit casts for most conversions - implicit conversions are limited. Common casts include: integer ↔ float (may lose precision), integer ↔ char (ASCII values), void* ↔ typed pointers (for malloc/free). Narrowing casts (e.g., long to int) may truncate values. Pointer casts reinterpret memory without changing the underlying bits - use carefully as incorrect casts cause undefined behavior. This example shows numeric conversions, pointer casting, and precision handling.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    local i: int;",

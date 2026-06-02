@@ -95,7 +95,7 @@
     "    printf(\"CEO: %s (%s)\\n\", this.ceo.name, this.ceo.title);",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    printf(\"=== Nested Structs Example ===\\n\\n\");",

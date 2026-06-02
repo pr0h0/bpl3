@@ -4,7 +4,7 @@
   "snippet": "Logical operators and conditions",
   "description": "Boolean logic in BPL uses the standard operators: AND (&&), OR (||), and NOT (!). BPL implements short-circuit evaluation - in 'a && b', b is only evaluated if a is true; in 'a || b', b is only evaluated if a is false. This optimization prevents unnecessary computation and enables safe patterns like 'ptr != null && *ptr > 0'. Comparison operators (==, !=, <, >, <=, >=) produce boolean values. Non-boolean values can be used in boolean contexts: 0 is false, non-zero is true; null is false, non-null is true. This example demonstrates logical operators, short-circuiting, and boolean expressions.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    local age: int;",

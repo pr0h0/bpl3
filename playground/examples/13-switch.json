@@ -4,7 +4,7 @@
   "snippet": "Multi-way branching",
   "description": "Switch statements provide efficient multi-way branching based on a value. Cases must be compile-time constant expressions. Each case should end with 'break' to prevent fall-through to the next case - omitting break is legal but usually unintentional. Multiple cases can be grouped together for the same action. The 'default' case handles values that don't match any case and is optional but recommended. Switch statements compile to jump tables for better performance than if-else chains. This example demonstrates basic switch usage, fall-through patterns, and default handling.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame getDayName(day: int) ret string {",
     "    switch (day) {",

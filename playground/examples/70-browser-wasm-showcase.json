@@ -13,8 +13,8 @@
     "reason": "Hosted browser wasm showcase that uses argv, stdout, stdlib String, and pure control flow through the JavaScript host adapter."
   },
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
-    "extern puts(value: string) ret int;",
+    "import [printf] from \"std/c.bpl\";",
+    "import [puts] from \"std/c.bpl\";",
     "extern __bpl_argc() ret int;",
     "extern __bpl_argv_get(index: int) ret string;",
     "",

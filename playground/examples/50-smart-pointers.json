@@ -4,9 +4,9 @@
   "snippet": "RAII and automatic resource management",
   "description": "Smart pointers implement RAII (Resource Acquisition Is Initialization) for automatic memory management. They use constructors to acquire resources and destructors to release them automatically when objects go out of scope. This prevents memory leaks and makes code exception-safe. Unlike raw pointers, smart pointers track ownership and cleanup. The Box<T> pattern wraps a heap-allocated value with automatic deallocation. Methods like unwrap() provide controlled access. This example shows implementing a basic smart pointer with constructor/destructor for safe memory management.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
-    "extern malloc(size: int) ret *void;",
-    "extern free(ptr: *void);",
+    "import [printf] from \"std/c.bpl\";",
+    "import [malloc] from \"std/c.bpl\";",
+    "import [free] from \"std/c.bpl\";",
     "",
     "# Smart pointer that owns heap data",
     "struct Box<T> {",

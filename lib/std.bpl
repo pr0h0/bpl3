@@ -73,6 +73,29 @@ export [prefetch];
 export [trap];
 export [debugtrap];
 
+import [printf], [fprintf], [dprintf], [sprintf], [snprintf], [puts], [putchar], [scanf], [gets], [write], [malloc], [free], [memcpy], [memmove], [memset], [strlen], [strcmp], [strncmp], [strcpy], [strcat], [atoi] from "std/c.bpl";
+export [printf];
+export [fprintf];
+export [dprintf];
+export [sprintf];
+export [snprintf];
+export [puts];
+export [putchar];
+export [scanf];
+export [gets];
+export [write];
+export [malloc];
+export [free];
+export [memcpy];
+export [memmove];
+export [memset];
+export [strlen];
+export [strcmp];
+export [strncmp];
+export [strcpy];
+export [strcat];
+export [atoi];
+
 import [Option] from "std/option.bpl";
 export [Option];
 

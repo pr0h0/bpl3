@@ -10,7 +10,7 @@
     "    Err(E),",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Pattern match on integers",
     "frame classifyNumber(n: int) ret string {",

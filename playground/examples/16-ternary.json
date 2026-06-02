@@ -4,7 +4,7 @@
   "snippet": "Inline conditionals",
   "description": "The ternary operator provides a concise conditional expression: condition ? valueIfTrue : valueIfFalse. It evaluates the condition and returns one of two values based on the result. Only the selected branch is evaluated (short-circuit). Ternary operators can be nested but become hard to read - use if/else for complex conditions. The types of both branches must be compatible. Common uses include: conditional assignment, inline min/max, default values. This example demonstrates basic ternary usage, nested ternaries, and practical applications like value clamping and conditionally selecting expressions.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame max(a: int, b: int) ret int {",
     "    return a > b ? a : b;",

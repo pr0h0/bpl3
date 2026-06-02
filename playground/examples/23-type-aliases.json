@@ -4,7 +4,7 @@
   "snippet": "Custom type names",
   "description": "Type aliases create alternative names for existing types, improving code clarity and maintainability. Declared with 'type NewName = ExistingType;', aliases are compile-time constructs with zero runtime cost. Common uses: semantic naming (type Distance = int), simplifying complex types (type Callback = void (*)(int)), platform abstraction (type Size = i64). Aliases don't create new types - they're interchangeable with the original. This differs from languages with nominal typing. Use aliases to make code self-documenting and easier to refactor. This example demonstrates various alias patterns and their benefits.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Type aliases allow creating alternative names for types",
     "# Basic type aliases",

@@ -4,7 +4,7 @@
   "snippet": "Try-catch-throw exception handling",
   "description": "BPL supports structured exception handling with try, catch, and throw. You can throw any type (structs, primitives). catch blocks match by type. If no catch matches, the exception propagates up the call stack. A catch { } block (without type) can catch any exception type not previously matched. This provides a robust mechanism for handling runtime errors without cluttering code with return code checks.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Define error types",
     "struct DivByZeroError {",

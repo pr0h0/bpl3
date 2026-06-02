@@ -11,7 +11,7 @@
     "    None,",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame findValue(search: int) ret Maybe<int> {",
     "    if (search > 0) {",

@@ -4,7 +4,7 @@
   "snippet": "Anonymous functions and closures",
   "description": "Lambda expressions allow defining anonymous functions inline. They support parameter typing, return type specification, and variable capturing (closures). This example demonstrates basic lambdas, passing lambdas as arguments, and capturing local variables.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame apply(op: Lambda<int>(int, int), a: int, b: int) ret int {",
     "    return op(a, b);",

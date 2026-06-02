@@ -4,8 +4,8 @@
   "snippet": "Build reusable data structures with generics",
   "description": "Generic containers provide type-safe collections that work with any type. A Stack<T> stores elements of type T with push/pop operations. Using generics avoids code duplication - one implementation works for all types. The container maintains type safety: a Stack<int> can only store integers. Generics enable zero-cost abstractions through monomorphization - the compiler generates specialized code for each type. Common generic containers include stacks, queues, vectors, maps, and trees. This example demonstrates a simple generic stack implementation.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
-    "extern malloc(size: int) ret *void;",
+    "import [printf] from \"std/c.bpl\";",
+    "import [malloc] from \"std/c.bpl\";",
     "",
     "# Generic Stack data structure",
     "struct Stack<T> {",

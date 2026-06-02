@@ -30,7 +30,7 @@
     "    return a * b;",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "frame main() ret int {",
     "    # Use utility functions",

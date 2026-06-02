@@ -17,7 +17,7 @@
     "    InvalidInput,",
     "}",
     "",
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Function that can fail",
     "frame safeDivide(a: int, b: int) ret Result<int, MathError> {",

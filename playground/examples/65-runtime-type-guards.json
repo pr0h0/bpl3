@@ -4,7 +4,7 @@
   "snippet": "Use is and as for safe downcasts",
   "description": "Struct pointers in inheritance hierarchies can be checked at runtime. The is operator narrows simple identifiers inside the true branch, while as returns a nullable pointer for safe downcasts that you want to store.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "struct Animal {",
     "    name: string,",

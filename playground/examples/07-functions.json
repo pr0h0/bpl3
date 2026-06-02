@@ -4,7 +4,7 @@
   "snippet": "Define and call functions",
   "description": "Functions in BPL are declared using the 'frame' keyword. Functions can specify a return type with 'ret <type>'. If omitted, the return type is void. Parameters are typed and passed by value. Functions can return tuples for multiple values. Use generic type parameters for polymorphic functions. This example demonstrates function declaration, parameter passing, return values, tuple returns, recursion, and early returns.",
   "code": [
-    "extern printf(fmt: string, ...) ret int;",
+    "import [printf] from \"std/c.bpl\";",
     "",
     "# Frame with parameters and return value",
     "frame add(a: int, b: int) ret int {",

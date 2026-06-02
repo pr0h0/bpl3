@@ -5,15 +5,18 @@ import {
 import { loadPlaygroundExamples } from "./helpers/playgroundExamples";
 
 describe("Playground wasm example metadata", () => {
-  test("keeps direct printf playground examples wasm-safe", () => {
-    const directPrintfExamples = loadPlaygroundExamples().filter((example) => {
+  test("keeps common C externs centralized in std/c.bpl", () => {
+    const commonCExterns =
+      /\bextern\s+(?:printf|fprintf|dprintf|sprintf|snprintf|puts|putchar|scanf|gets|write|malloc|free|memcpy|memmove|memset|strlen|strcmp|strncmp|strcpy|strcat|atoi)\b/;
+    const directCExternExamples = loadPlaygroundExamples().flatMap((example) => {
       const code = Array.isArray(example.code)
         ? example.code.join("\n")
         : example.code;
-      return code.includes("extern printf(fmt: string, ...);");
+      const match = code.match(commonCExterns);
+      return match ? [`${example.file}: ${match[0]}`] : [];
     });
 
-    expect(directPrintfExamples.map((example) => example.file)).toEqual([]);
+    expect(directCExternExamples).toEqual([]);
   });
 
   test("marks wasm-friendly playground examples with explicit metadata", () => {
