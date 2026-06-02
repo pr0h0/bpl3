@@ -18,6 +18,17 @@ import {
   createJsonReport,
 } from "../common/JsonContracts";
 import { compilerLog } from "../common/Logger";
+import {
+  PACKAGE_VERSION_CAPTURE_PATTERN,
+  PACKAGE_VERSION_CAPTURE_SOURCE,
+  PACKAGE_VERSION_COMPARATOR_CAPTURE_PATTERN,
+  PACKAGE_VERSION_PATTERN,
+  PACKAGE_VERSION_SOURCE,
+  isPackageFileSource,
+  isValidPackageDependencySource,
+  isValidPackageName,
+  isVersionSelectorSpec,
+} from "../common/PackageDependencySource";
 import { BPL_PACKAGE_SCHEMA_URI } from "../common/PackageManifestSchema";
 import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
@@ -180,26 +191,6 @@ export const PACKAGE_MANIFEST_JSON_ERROR_CODES = [
   PACKAGE_MANIFEST_BIN_INVALID_CODE,
 ] as const;
 
-const PACKAGE_VERSION_SOURCE =
-  "(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)";
-const PACKAGE_VERSION_CAPTURE_SOURCE =
-  "(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)";
-const PACKAGE_VERSION_PATTERN = new RegExp(`^${PACKAGE_VERSION_SOURCE}$`);
-const PACKAGE_VERSION_CAPTURE_PATTERN = new RegExp(
-  `^${PACKAGE_VERSION_CAPTURE_SOURCE}$`,
-);
-const PACKAGE_VERSION_RANGE_PATTERN = new RegExp(
-  `^[~^]${PACKAGE_VERSION_SOURCE}$`,
-);
-const PACKAGE_VERSION_COMPARATOR_PATTERN = new RegExp(
-  `^(>=|>|<=|<|=)${PACKAGE_VERSION_SOURCE}$`,
-);
-const PACKAGE_VERSION_COMPARATOR_LIST_PATTERN = new RegExp(
-  `^(>=|>|<=|<|=)?${PACKAGE_VERSION_SOURCE}(\\s+(>=|>|<=|<|=)?${PACKAGE_VERSION_SOURCE})+$`,
-);
-const PACKAGE_VERSION_COMPARATOR_CAPTURE_PATTERN = new RegExp(
-  `^(>=|>|<=|<|=)?(${PACKAGE_VERSION_SOURCE})$`,
-);
 const PACKAGE_TARBALL_NAME_PATTERN = new RegExp(
   `^(.+)-(${PACKAGE_VERSION_SOURCE})\\.tgz$`,
 );
@@ -990,7 +981,7 @@ export class PackageManager {
 
     const packages = (rawLock.packages || {}) as Record<string, unknown>;
     for (const [packageName, entry] of Object.entries(packages)) {
-      if (!/^[a-z0-9-]+$/.test(packageName)) {
+      if (!isValidPackageName(packageName)) {
         throw new CompilerError(
           `Invalid bpl.lock entry: ${packageName}`,
           "Package lock entry names must use lowercase letters, digits, and hyphens only.",
@@ -1760,7 +1751,7 @@ export class PackageManager {
       fileSource,
     );
 
-    if (this.isPackageFileSource(fileSource)) {
+    if (isPackageFileSource(fileSource)) {
       const baseRelativePathExists = Boolean(this.tryLstat(baseRelativePath));
       const packageSource = baseRelativePathExists
         ? baseRelativePath
@@ -1792,30 +1783,6 @@ export class PackageManager {
       .split(path.sep)
       .join("/");
     return `file:${relativePath || path.basename(filePath)}`;
-  }
-
-  private isPackageFileSource(fileSource: string): boolean {
-    return (
-      fileSource.endsWith(".tgz") ||
-      fileSource.startsWith(".") ||
-      path.isAbsolute(fileSource) ||
-      path.win32.isAbsolute(fileSource) ||
-      fileSource.includes("/") ||
-      fileSource.includes("\\")
-    );
-  }
-
-  private isValidDependencySource(source: string): boolean {
-    const fileSource = source.startsWith("file:") ? source.slice(5) : source;
-    if (source.startsWith("file:")) {
-      return this.isPackageFileSource(fileSource);
-    }
-
-    return (
-      this.isPackageFileSource(fileSource) ||
-      isVersionSelectorSpec(fileSource) ||
-      /^[a-z0-9-]+$/.test(fileSource)
-    );
   }
 
   private resolveDependencyFileSource(baseDir: string, fileSource: string): string {
@@ -2176,7 +2143,7 @@ export class PackageManager {
       }
 
       for (const [packageName, source] of Object.entries(dependencies)) {
-        if (!/^[a-z0-9-]+$/.test(packageName)) {
+        if (!isValidPackageName(packageName)) {
           throw new CompilerError(
             `Invalid '${field}' package name: ${packageName}`,
             "Use lowercase package names with digits and hyphens only.",
@@ -2194,7 +2161,7 @@ export class PackageManager {
           );
         }
 
-        if (!this.isValidDependencySource(source)) {
+        if (!isValidPackageDependencySource(source)) {
           throw new CompilerError(
             `Invalid '${field}' source for ${packageName}`,
             "Use a package name, exact version, version range, 'latest', '*', or package archive path.",
@@ -2981,7 +2948,7 @@ export class PackageManager {
     const directFileSource = this.stripPackageFileSourcePrefix(packageSource);
     const directPackageSource =
       packageSource.startsWith("file:") ||
-      this.isPackageFileSource(directFileSource)
+      isPackageFileSource(directFileSource)
         ? this.resolveDependencyFileSource(this.projectRoot, directFileSource)
         : packageSource;
     if (this.tryLstat(directPackageSource)) {
@@ -3410,7 +3377,7 @@ export class PackageManager {
     const fileName = this.getPackageSourceBasename(fileSource);
     const parsed = parsePackageTarballName(fileName);
     if (parsed) return parsed.name;
-    if (/^[a-z0-9-]+$/.test(fileSource)) return fileSource;
+    if (isValidPackageName(fileSource)) return fileSource;
     return undefined;
   }
 
@@ -5429,7 +5396,7 @@ function validatePackageName(
   location: SourceLocation,
   code?: string,
 ): void {
-  if (!/^[a-z0-9-]+$/.test(name)) {
+  if (!isValidPackageName(name)) {
     throw new CompilerError(
       `Invalid package name: ${name} (use lowercase letters, numbers, and hyphens only)`,
       "Use a package-safe name such as 'my-package'.",
@@ -5517,14 +5484,6 @@ function parseSemverTuple(version: string): SemanticVersion {
   const match = PACKAGE_VERSION_CAPTURE_PATTERN.exec(version);
   if (!match) return [0n, 0n, 0n];
   return [BigInt(match[1]!), BigInt(match[2]!), BigInt(match[3]!)];
-}
-
-function isVersionSelectorSpec(value: string): boolean {
-  if (value === "*" || value === "latest") return true;
-  if (PACKAGE_VERSION_PATTERN.test(value)) return true;
-  if (PACKAGE_VERSION_RANGE_PATTERN.test(value)) return true;
-  if (PACKAGE_VERSION_COMPARATOR_PATTERN.test(value)) return true;
-  return PACKAGE_VERSION_COMPARATOR_LIST_PATTERN.test(value);
 }
 
 function satisfiesVersionSelector(version: string, selector: string): boolean {

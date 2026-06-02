@@ -51,6 +51,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   dependency source validation surface as `invalid-archive` issues instead of
   being trusted. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "revalidate verified cached archives|valid verified cached archives|invalid verified cached manifest dependencies"`.
+- **Shared Package Dependency Source Validation** - Package manager and package
+  resolver dependency source checks now use the same shared package-name,
+  semantic-version, selector, and archive-source helper to prevent drift between
+  install-time and import-time manifest validation. Reproduce with
+  `bun test tests/PackageDependencySource.test.ts tests/PackageManager.test.ts tests/PackageResolver.test.ts tests/PackageManifestSchema.test.ts -t "Package dependency source validation|malformed dependency version selectors|object maps with malformed values|valid package manifest dependency source|object-map key and value"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every
