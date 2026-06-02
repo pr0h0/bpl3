@@ -976,6 +976,78 @@ describe("CLI JSON parseability", () => {
     expect(lockedResult.stderr).toBe("");
   });
 
+  test("keeps project dependency install and restore JSON action payloads parseable", () => {
+    const packageDir = path.join(tempDir, "project-action-package");
+    writePackageFixture(packageDir, {
+      name: "project-json-action-package",
+      version: "1.0.0",
+    });
+
+    const packResult = runCli(["pack"], { cwd: packageDir });
+    expect(packResult.status).toBe(0);
+
+    const projectDir = path.join(tempDir, "project-json-action-app");
+    fs.mkdirSync(projectDir);
+    const tarballPath = path.join(
+      packageDir,
+      "project-json-action-package-1.0.0.tgz",
+    );
+    const relativeTarballPath = path
+      .relative(projectDir, tarballPath)
+      .split(path.sep)
+      .join("/");
+    fs.writeFileSync(
+      path.join(projectDir, "bpl.json"),
+      JSON.stringify({
+        name: "project-json-action-app",
+        version: "1.0.0",
+        dependencies: {
+          "project-json-action-package": `file:${relativeTarballPath}`,
+        },
+      }),
+    );
+
+    const installResult = runCli(["install", "--json"], { cwd: projectDir });
+    const installReport = expectJsonStdoutReport(installResult, {
+      status: 0,
+      check: "package-install",
+      success: true,
+    });
+    expect(installReport).toMatchObject({
+      mode: "project",
+      target: null,
+      global: false,
+      locked: false,
+      update: false,
+      repairLock: false,
+      action: "installed",
+      packages: 1,
+    });
+    expect(installResult.stderr).toBe("");
+
+    fs.rmSync(path.join(projectDir, "bpl_modules"), {
+      recursive: true,
+      force: true,
+    });
+    const restoreResult = runCli(["install", "--json"], { cwd: projectDir });
+    const restoreReport = expectJsonStdoutReport(restoreResult, {
+      status: 0,
+      check: "package-install",
+      success: true,
+    });
+    expect(restoreReport).toMatchObject({
+      mode: "project",
+      target: null,
+      global: false,
+      locked: false,
+      update: false,
+      repairLock: false,
+      action: "restored",
+      packages: 1,
+    });
+    expect(restoreResult.stderr).toBe("");
+  });
+
   test("keeps package install JSON success stdout parseable across package modes", () => {
     const packageDir = path.join(tempDir, "package-source");
     const homeDir = path.join(tempDir, "install-json-home");
