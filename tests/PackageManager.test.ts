@@ -3061,6 +3061,73 @@ describe("PackageManager", () => {
       ).toThrow(/Multiple installed directories declare package/);
     });
 
+    test("should collapse duplicate untracked package names during locked verification", () => {
+      const appDir = path.join(tempDir, "duplicate-untracked-name-app");
+      const firstPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "duplicate-untracked-name-a",
+      );
+      const secondPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "duplicate-untracked-name-b",
+      );
+      fs.mkdirSync(firstPackageDir, { recursive: true });
+      fs.mkdirSync(secondPackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({
+          name: "duplicate-untracked-name-app",
+          version: "1.0.0",
+        }),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+
+      for (const packageDir of [firstPackageDir, secondPackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "duplicate-untracked-name",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const localPM = new PackageManager(appDir);
+      const verification = localPM.verifyLockFile();
+
+      expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(2);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "duplicate-untracked-name",
+          kind: "duplicate-installed-package",
+          packagePath: [firstPackageDir, secondPackageDir].join(", "),
+          paths: [firstPackageDir, secondPackageDir],
+        }),
+      );
+      expect(
+        verification.issues.some(
+          (issue) =>
+            issue.packageName === "duplicate-untracked-name" &&
+            issue.kind === "untracked-package",
+        ),
+      ).toBe(false);
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/Multiple installed directories declare package/);
+    });
+
     test("should verify installed package manifests against bpl.lock", () => {
       const manifest = {
         name: "manifest-lock-test",

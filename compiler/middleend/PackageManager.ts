@@ -1407,6 +1407,11 @@ export class PackageManager {
 
     const issues: PackageLockVerificationIssue[] = [];
     const packagePathsByManifestName = new Map<string, string[]>();
+    const untrackedPackageCandidates: Array<{
+      packageName: string;
+      packagePath: string;
+      actualVersion: string;
+    }> = [];
     let packagesChecked = 0;
     for (const item of fs
       .readdirSync(this.localPackageDir)
@@ -1472,26 +1477,37 @@ export class PackageManager {
         continue;
       }
 
-      issues.push({
+      untrackedPackageCandidates.push({
         packageName: manifest.name,
-        kind: "untracked-package",
-        message: `${manifest.name}: installed in bpl_modules but missing from bpl.lock`,
         packagePath,
         actualVersion: manifest.version,
       });
     }
 
+    const duplicatePackageNames = new Set<string>();
     for (const [packageName, packagePaths] of packagePathsByManifestName) {
-      if (!lock.packages[packageName] || packagePaths.length <= 1) continue;
+      if (packagePaths.length <= 1) continue;
       const sortedPaths = packagePaths.sort((left, right) =>
         left.localeCompare(right),
       );
+      duplicatePackageNames.add(packageName);
       issues.push({
         packageName,
         kind: "duplicate-installed-package",
         message: `Multiple installed directories declare package '${packageName}': ${sortedPaths.join(", ")}`,
         packagePath: sortedPaths.join(", "),
         paths: sortedPaths,
+      });
+    }
+
+    for (const candidate of untrackedPackageCandidates) {
+      if (duplicatePackageNames.has(candidate.packageName)) continue;
+      issues.push({
+        packageName: candidate.packageName,
+        kind: "untracked-package",
+        message: `${candidate.packageName}: installed in bpl_modules but missing from bpl.lock`,
+        packagePath: candidate.packagePath,
+        actualVersion: candidate.actualVersion,
       });
     }
 

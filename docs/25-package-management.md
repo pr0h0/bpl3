@@ -294,7 +294,8 @@ validates installed package `bin` entries before trusting a lock entry, so
 missing, directory, or symlinked binary targets fail the same way as invalid
 installed package exports. It also rejects duplicate installed package names,
 including extra `bpl_modules/` directories whose manifest name matches an
-already locked package. Failed locked verification reports use
+already locked package and multiple untracked directories declaring the same
+package identity. Failed locked verification reports use
 `BPL_PACKAGE_LOCK_VERIFY_FAILED` with
 `action: "verification-failed"`, `packagesChecked`, `issuesFound`,
 `issueKinds`, and compact `issues` entries containing the package name and
