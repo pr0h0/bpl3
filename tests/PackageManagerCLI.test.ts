@@ -3536,6 +3536,75 @@ describe("Package Manager CLI", () => {
         }),
       );
     });
+
+    test("should report invalid untracked installed packages as lock verification JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-invalid-untracked-lock-cli-app");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-invalid-untracked-lock-cli",
+      );
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "doctor-invalid-untracked-lock-cli-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.writeFileSync(path.join(packageDir, "bpl.json"), "{ invalid");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-invalid-untracked-lock-cli-home"),
+            NO_COLOR: "1",
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        lockfile: { verified: boolean };
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          packageName?: string;
+          lockVerificationKind?: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.lockfile.verified).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "invalid-manifest",
+          code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+          packageName: "doctor-invalid-untracked-lock-cli",
+          lockVerificationKind: "invalid-manifest",
+          path: packageDir,
+          hint: expect.stringContaining("bpl install"),
+        }),
+      );
+    });
   });
 
   describe("package-cache command", () => {

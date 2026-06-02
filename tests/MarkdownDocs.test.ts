@@ -860,6 +860,7 @@ describe("Markdown documentation", () => {
       "`stale-lock-entry`",
       "`untracked-package`",
       "`lockVerificationKind`",
+      "invalid untracked package metadata",
       "`packageName`",
       "`expectedHash`",
       "`actualHash`",
@@ -2111,7 +2112,8 @@ describe("Markdown documentation", () => {
       'bun test tests/PackageManager.test.ts -t "stale lock entries"',
       "Untracked Package Lock Verification",
       "`untracked-package`",
-      '`lockVerificationKind: "untracked-package"`',
+      "`invalid-manifest`",
+      "the `untracked-package` lock verification kind",
       'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
       'bun test tests/PackageManager.test.ts -t "missing from bpl.lock"',
     ];

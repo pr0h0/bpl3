@@ -1373,21 +1373,11 @@ export class PackageManager {
       }
     }
 
-    for (const pkg of this.list({ global: false })) {
-      if (
-        lock.packages[pkg.manifest.name] ||
-        dependencyNamesMissingFromLock.has(pkg.manifest.name)
-      ) {
-        continue;
-      }
-
-      addIssue({
-        packageName: pkg.manifest.name,
-        kind: "untracked-package",
-        message: `${pkg.manifest.name}: installed in bpl_modules but missing from bpl.lock`,
-        packagePath: pkg.path,
-        actualVersion: pkg.manifest.version,
-      });
+    for (const issue of this.findUntrackedLocalPackageLockIssues(
+      lock,
+      dependencyNamesMissingFromLock,
+    )) {
+      addIssue(issue);
     }
 
     const errors = issues.map((issue) => issue.message);
@@ -1397,6 +1387,63 @@ export class PackageManager {
       issues,
       packagesChecked,
     };
+  }
+
+  private findUntrackedLocalPackageLockIssues(
+    lock: PackageLockFile,
+    dependencyNamesMissingFromLock: ReadonlySet<string>,
+  ): PackageLockVerificationIssue[] {
+    if (
+      !this.readPackageManagerDirectoryStats(
+        this.localPackageDir,
+        "Local package directory",
+      )
+    ) {
+      return [];
+    }
+
+    const issues: PackageLockVerificationIssue[] = [];
+    for (const item of fs
+      .readdirSync(this.localPackageDir)
+      .sort((left, right) => left.localeCompare(right))) {
+      const packagePath = path.join(this.localPackageDir, item);
+      const stats = this.tryLstat(packagePath);
+      if (!stats?.isDirectory()) continue;
+      if (lock.packages[item] || dependencyNamesMissingFromLock.has(item)) {
+        continue;
+      }
+
+      let manifest: PackageManifest;
+      try {
+        manifest = this.loadManifest(packagePath);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          packageName: item,
+          kind: "invalid-manifest",
+          message: `${item}: invalid untracked installed package (${detail})`,
+          packagePath,
+        });
+        continue;
+      }
+
+      if (
+        lock.packages[manifest.name] ||
+        dependencyNamesMissingFromLock.has(manifest.name)
+      ) {
+        continue;
+      }
+
+      issues.push({
+        packageName: manifest.name,
+        kind: "untracked-package",
+        message: `${manifest.name}: installed in bpl_modules but missing from bpl.lock`,
+        packagePath,
+        actualVersion: manifest.version,
+      });
+    }
+
+    return issues;
   }
 
   installProject(

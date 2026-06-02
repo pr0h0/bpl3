@@ -198,7 +198,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Untracked Package Lock Verification** - `bpl install --locked` and
   `bpl doctor packages --json` now report `untracked-package` when a valid
   installed package is importable from `bpl_modules` but missing from
-  `bpl.lock`. CI triage maps `lockVerificationKind: "untracked-package"` to
+  `bpl.lock`, and `invalid-manifest` when an untracked package directory has
+  invalid package metadata. CI triage maps the `untracked-package` lock
+  verification kind to focused repro commands:
   `bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"`,
   `bun test tests/PackageManager.test.ts -t "missing from bpl.lock"`, and
   `bun index.ts doctor packages --json`.

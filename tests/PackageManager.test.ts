@@ -2909,6 +2909,43 @@ describe("PackageManager", () => {
       ).toThrow(/missing from bpl\.lock/);
     });
 
+    test("should reject invalid untracked installed packages missing from bpl.lock", () => {
+      const appDir = path.join(tempDir, "invalid-untracked-lock-app");
+      const invalidPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "invalid-untracked-lock-pkg",
+      );
+      fs.mkdirSync(invalidPackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "invalid-untracked-lock-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.writeFileSync(path.join(invalidPackageDir, "bpl.json"), "{ invalid");
+      fs.writeFileSync(path.join(invalidPackageDir, "index.bpl"), "export bad;");
+
+      const localPM = new PackageManager(appDir);
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "invalid-untracked-lock-pkg",
+          kind: "invalid-manifest",
+          packagePath: invalidPackageDir,
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "invalid-untracked-lock-pkg: invalid untracked installed package",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/invalid untracked installed package/);
+    });
+
     test("should verify installed package manifests against bpl.lock", () => {
       const manifest = {
         name: "manifest-lock-test",
