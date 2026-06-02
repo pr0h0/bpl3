@@ -3605,6 +3605,74 @@ describe("Package Manager CLI", () => {
         }),
       );
     });
+
+    test("should report non-directory untracked package roots as lock verification JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-file-untracked-lock-cli-app");
+      const packagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-file-untracked-lock-cli",
+      );
+      fs.mkdirSync(path.dirname(packagePath), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "doctor-file-untracked-lock-cli-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.writeFileSync(packagePath, "not a package directory");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-file-untracked-lock-cli-home"),
+            NO_COLOR: "1",
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        lockfile: { verified: boolean };
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          packageName?: string;
+          lockVerificationKind?: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.lockfile.verified).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "invalid-package-root",
+          code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+          packageName: "doctor-file-untracked-lock-cli",
+          lockVerificationKind: "invalid-package-root",
+          path: packagePath,
+          hint: expect.stringContaining("bpl install"),
+        }),
+      );
+    });
   });
 
   describe("package-cache command", () => {

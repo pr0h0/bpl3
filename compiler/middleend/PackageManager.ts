@@ -1408,8 +1408,26 @@ export class PackageManager {
       .sort((left, right) => left.localeCompare(right))) {
       const packagePath = path.join(this.localPackageDir, item);
       const stats = this.tryLstat(packagePath);
-      if (!stats?.isDirectory()) continue;
+      if (!stats) continue;
       if (lock.packages[item] || dependencyNamesMissingFromLock.has(item)) {
+        continue;
+      }
+      if (stats.isSymbolicLink()) {
+        issues.push({
+          packageName: item,
+          kind: "invalid-package-root",
+          message: `${item}: untracked package root is a symbolic link (${packagePath})`,
+          packagePath,
+        });
+        continue;
+      }
+      if (!stats.isDirectory()) {
+        issues.push({
+          packageName: item,
+          kind: "invalid-package-root",
+          message: `${item}: untracked package root is not a directory (${packagePath})`,
+          packagePath,
+        });
         continue;
       }
 

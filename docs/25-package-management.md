@@ -438,8 +438,8 @@ example, a lock entry whose package directory is missing is reported as
 summarize stale lock entries, hash mismatches, version mismatches, unreachable
 sources, untracked installed packages
 (`lockVerificationKind: "untracked-package"`), invalid untracked package
-metadata, and transitive dependency drift without parsing the human-readable
-message.
+metadata, unsafe untracked package roots, and transitive dependency drift
+without parsing the human-readable message.
 Reproduce this contract with
 `bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"`.
 When the local package directory, global package cache directory, or one of its

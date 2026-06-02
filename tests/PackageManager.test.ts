@@ -2946,6 +2946,42 @@ describe("PackageManager", () => {
       ).toThrow(/invalid untracked installed package/);
     });
 
+    test("should reject non-directory untracked package roots missing from bpl.lock", () => {
+      const appDir = path.join(tempDir, "file-untracked-lock-app");
+      const packagePath = path.join(
+        appDir,
+        "bpl_modules",
+        "file-untracked-lock-pkg",
+      );
+      fs.mkdirSync(path.dirname(packagePath), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "file-untracked-lock-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.writeFileSync(packagePath, "not a package directory");
+
+      const localPM = new PackageManager(appDir);
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "file-untracked-lock-pkg",
+          kind: "invalid-package-root",
+          packagePath,
+        }),
+      );
+      expect(verification.errors.join("\n")).toContain(
+        "file-untracked-lock-pkg: untracked package root is not a directory",
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/untracked package root is not a directory/);
+    });
+
     test("should verify installed package manifests against bpl.lock", () => {
       const manifest = {
         name: "manifest-lock-test",
