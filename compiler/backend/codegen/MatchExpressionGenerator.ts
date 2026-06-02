@@ -2113,6 +2113,15 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       `  ${dataPtr} = getelementptr inbounds ${enumType}, ${enumType}* ${matchPtr}, i32 0, i32 1`,
     );
 
+    const enumName = enumType.substring(6);
+    const dataArraySize = this.enumDataSizes.get(enumName) || 64;
+
+    // Cast the data pointer to i8* to work with aligned byte offsets.
+    const bytePtr = this.newRegister();
+    this.emit(
+      `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+    );
+
     // For each field binding, extract the value
     for (const field of pattern.fields) {
       const bindingName = field.binding;
@@ -2132,31 +2141,26 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
       const fieldType = variant.dataType.fields[fieldIndex]!.type;
       const llvmType = this.resolveType(fieldType);
-
-      // Cast the data pointer to i8* to work with byte offsets
-      const bytePtr = this.newRegister();
-      this.emit(
-        `  ${bytePtr} = bitcast [${
-          this.structLayouts.get(enumType.substring(6))?.get("__data__") || 0
-        } x i8]* ${dataPtr} to i8*`,
+      const byteOffset = this.getEnumDataFieldByteOffset(
+        variant.dataType.fields.map((variantField) => variantField.type),
+        fieldIndex,
       );
 
-      // Cast to the field type pointer
-      const fieldPtr = this.newRegister();
-      this.emit(`  ${fieldPtr} = bitcast i8* ${bytePtr} to ${llvmType}*`);
-
-      // If this is not the first field, offset the pointer
-      let targetPtr = fieldPtr;
-      if (fieldIndex > 0) {
-        targetPtr = this.newRegister();
+      let fieldBytePtr = bytePtr;
+      if (byteOffset > 0) {
+        fieldBytePtr = this.newRegister();
         this.emit(
-          `  ${targetPtr} = getelementptr ${llvmType}, ${llvmType}* ${fieldPtr}, i32 ${fieldIndex}`,
+          `  ${fieldBytePtr} = getelementptr i8, i8* ${bytePtr}, i32 ${byteOffset}`,
         );
       }
 
+      // Cast to the field type pointer
+      const fieldPtr = this.newRegister();
+      this.emit(`  ${fieldPtr} = bitcast i8* ${fieldBytePtr} to ${llvmType}*`);
+
       // Load the value
       const value = this.newRegister();
-      this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${targetPtr}`);
+      this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${fieldPtr}`);
 
       // Allocate stack space and store the value
       const ptr = `%pattern_${bindingName}_${this.stackAllocCount++}`;

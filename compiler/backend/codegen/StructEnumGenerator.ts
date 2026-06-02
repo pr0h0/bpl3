@@ -493,6 +493,34 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     return maxSize;
   }
 
+  protected getEnumDataFieldByteOffset(
+    fieldTypes: AST.TypeNode[],
+    fieldIndex: number,
+  ): number {
+    let offset = 0;
+
+    for (let i = 0; i <= fieldIndex; i++) {
+      const fieldType = fieldTypes[i];
+      if (!fieldType) {
+        throw new Error(`Invalid enum data field index: ${fieldIndex}`);
+      }
+
+      const fieldSize = this.getTypeSizeInBits(fieldType) / 8;
+      const alignment = this.getAlignmentForSize(fieldSize);
+      if (offset % alignment !== 0) {
+        offset = Math.ceil(offset / alignment) * alignment;
+      }
+
+      if (i === fieldIndex) {
+        return offset;
+      }
+
+      offset += fieldSize;
+    }
+
+    return offset;
+  }
+
   protected calculateStructSize(decl: AST.StructDecl): number {
     let offset = 0;
     let maxAlign = 1;

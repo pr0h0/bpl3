@@ -1284,12 +1284,20 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
 
       const structVariant = variant.dataType as AST.EnumVariantStruct;
+      const fieldTypes = structVariant.fields.map((field) => field.type);
+      const enumName = enumType.substring(6);
+      const dataArraySize = this.enumDataSizes.get(enumName) || 64;
+      const bytePtr = this.newRegister();
+      this.emit(
+        `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+      );
 
       // Store each field in sequence in the data array
       for (let i = 0; i < expr.fields.length; i++) {
         const field = expr.fields[i]!;
         const fieldValue = this.generateExpression(field.value);
-        const fieldType = this.resolveType(field.value.resolvedType!);
+        const sourceTypeNode = field.value.resolvedType!;
+        const sourceType = this.resolveType(sourceTypeNode);
 
         // Find the field index in the variant definition
         const fieldIndex = structVariant.fields.findIndex(
@@ -1302,27 +1310,36 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             expr.location,
           );
         }
-
-        // Cast data pointer to the field type
-        const typedPtr = this.newRegister();
-        this.emit(
-          `  ${typedPtr} = bitcast [${this.getTypeSize(
-            fieldType,
-          )} x i8]* ${dataPtr} to ${fieldType}*`,
+        const fieldTypeNode = structVariant.fields[fieldIndex]!.type;
+        const fieldType = this.resolveType(fieldTypeNode);
+        const storeValue = this.emitCast(
+          fieldValue,
+          sourceType,
+          fieldType,
+          sourceTypeNode,
+          fieldTypeNode,
         );
 
-        // If there are multiple fields, we need to offset the pointer
-        let storePtr = typedPtr;
-        if (fieldIndex > 0) {
-          storePtr = this.newRegister();
+        const byteOffset = this.getEnumDataFieldByteOffset(
+          fieldTypes,
+          fieldIndex,
+        );
+        let fieldBytePtr = bytePtr;
+        if (byteOffset > 0) {
+          fieldBytePtr = this.newRegister();
           this.emit(
-            `  ${storePtr} = getelementptr ${fieldType}, ${fieldType}* ${typedPtr}, i32 ${fieldIndex}`,
+            `  ${fieldBytePtr} = getelementptr i8, i8* ${bytePtr}, i32 ${byteOffset}`,
           );
         }
 
+        const storePtr = this.newRegister();
+        this.emit(
+          `  ${storePtr} = bitcast i8* ${fieldBytePtr} to ${fieldType}*`,
+        );
+
         // Store the value
         this.emit(
-          `  store ${fieldType} ${fieldValue}, ${fieldType}* ${storePtr}`,
+          `  store ${fieldType} ${storeValue}, ${fieldType}* ${storePtr}`,
         );
       }
     }

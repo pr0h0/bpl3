@@ -93,6 +93,38 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toContain("Write: Hello");
   });
 
+  it("should preserve mixed-size struct variant fields when pattern binding", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum Packet {
+          Data { tag: i8, value: long, count: int },
+          Empty,
+      }
+
+      frame main() {
+          local packet: Packet = Packet.Data {
+              tag: 3,
+              value: 4294967296,
+              count: 7,
+          };
+
+          match (packet) {
+              Packet.Data { tag: t, value: v, count: c } => {
+                  printf("tag=%d value=%ld count=%d\\n", t, v, c);
+              },
+              Packet.Empty => {
+                  printf("empty\\n");
+              },
+          };
+      }
+    `;
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("StructVariantOffsets Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("tag=3 value=4294967296 count=7\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);
