@@ -2083,6 +2083,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       })),
     };
 
+    this.enumDeclMap.set(mangledName, instantiatedDecl);
+
     // Generate the instantiated enum
     const prevMap = this.currentTypeMap;
     this.currentTypeMap = typeMap;
