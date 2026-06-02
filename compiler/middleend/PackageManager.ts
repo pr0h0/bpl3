@@ -1521,6 +1521,14 @@ export class PackageManager {
     return parts[parts.length - 1] || path.basename(fileSource);
   }
 
+  private formatDirectPackageFileLockSource(packageSource: string): string {
+    if (path.isAbsolute(packageSource) || path.win32.isAbsolute(packageSource)) {
+      return packageSource;
+    }
+
+    return packageSource.split(/[\\/]/).join("/");
+  }
+
   private lockSourceExists(packageName: string, source: string): boolean {
     return this.getLockSourceCandidates(packageName, source).some((candidate) =>
       this.isReachableLockSource(candidate),
@@ -2499,8 +2507,14 @@ export class PackageManager {
     let lockSource = sourceContext.lockSource ?? packageSource;
 
     // Check if source is a file path or package name
-    if (this.tryLstat(packageSource)) {
-      tarballPath = packageSource;
+    const directPackageSource = this.isPackageFileSource(packageSource)
+      ? this.resolveDependencyFileSource(this.projectRoot, packageSource)
+      : packageSource;
+    if (this.tryLstat(directPackageSource)) {
+      tarballPath = directPackageSource;
+      if (!sourceContext.lockSource && directPackageSource !== packageSource) {
+        lockSource = this.formatDirectPackageFileLockSource(packageSource);
+      }
     } else {
       // Look for package in global registry
       const globalTarballPath = this.resolveGlobalPackageSource(packageSource);
@@ -2899,7 +2913,7 @@ export class PackageManager {
     if (fs.existsSync(packageSource)) return undefined;
     const installSpec = parsePackageInstallSpec(packageSource);
     if (installSpec) return installSpec.name;
-    const fileName = path.basename(packageSource);
+    const fileName = this.getPackageSourceBasename(packageSource);
     const parsed = parsePackageTarballName(fileName);
     if (parsed) return parsed.name;
     if (/^[a-z0-9-]+$/.test(packageSource)) return packageSource;
