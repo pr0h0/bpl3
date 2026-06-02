@@ -681,12 +681,15 @@ The invalid `pkg-math/../secret` package import checks the JSON diagnostic code
 
 When you run `bpl install`, the package manager:
 
-1.  Restores packages from `bpl.lock` when lock entries exist.
-2.  Otherwise reads `dependencies` and `devDependencies` from `bpl.json`.
-3.  Extracts packages to `bpl_modules/<package-name>`.
-4.  Installs package dependencies recursively.
-5.  Records each exact local install in `bpl.lock`.
-6.  Resolves imports through the nearest `bpl_modules/`, workspace `packages/`,
+1.  Validates `bpl.json`, including dependency source shapes, before any
+    package restore or install.
+2.  Restores packages from `bpl.lock` when lock entries exist and `--update` is
+    not used.
+3.  Otherwise reads `dependencies` and `devDependencies` from `bpl.json`.
+4.  Extracts packages to `bpl_modules/<package-name>`.
+5.  Installs package dependencies recursively.
+6.  Records each exact local install in `bpl.lock`.
+7.  Resolves imports through the nearest `bpl_modules/`, workspace `packages/`,
     and then the global package directory.
 
 Dependency cycles are rejected with the full package chain:
