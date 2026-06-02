@@ -22,6 +22,10 @@ describe("Hosted wasm printf runtime IR", () => {
     expect(runtime).toContain(
       "define internal i32 @__bpl_host_write_i32_decimal",
     );
+    expect(runtime).toContain(
+      "define internal i32 @__bpl_host_write_i32_decimal_width",
+    );
+    expect(runtime).toContain("define internal i32 @__bpl_host_write_i32_hex");
     expect(runtime).toContain("declare void @llvm.va_start(i8*)");
     expect(runtime).toContain("declare void @llvm.va_end(i8*)");
   });
@@ -59,8 +63,11 @@ describe("Hosted wasm printf runtime IR", () => {
   test("documents hosted formatting edge-case behavior", () => {
     const docs = readFileSync(COMPILER_OPTIONS_DOC, "utf8");
 
-    expect(docs).toContain("null `%s` arguments print `(null)`");
+    expect(docs).toContain("null `%s`");
+    expect(docs).toContain("arguments print `(null)`");
     expect(docs).toContain("a dangling `%` prints as `%`");
-    expect(docs).toContain("unsupported specifiers do not consume varargs");
+    expect(docs).toContain("unsupported specifiers");
+    expect(docs).toContain("do not consume varargs");
+    expect(docs).toContain("one-digit `%Nd` and `%0Nd` integer widths");
   });
 });

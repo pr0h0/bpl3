@@ -175,9 +175,10 @@ export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
     mode: "wasm-hosted",
     expectedReturn: 0,
     argv: ["program"],
-    expectedStdout: "wasm=42!\nliteral % A\n",
+    expectedStdout: "wasm=42!\nliteral % A\nhex=beef upper=BEEF zero=0007 wide=   42\n",
     expectedStderr: "err:-7:ok?\n",
-    reason: "hosted wasm formats dynamic %s, %d, %c, and %% output",
+    reason:
+      "hosted wasm formats dynamic %s, %d, %x/%X, width, %c, and %% output",
   },
   {
     file: "examples/wasm_hosted_transform/main.bpl",

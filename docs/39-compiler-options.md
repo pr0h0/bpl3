@@ -1332,14 +1332,16 @@ contract across `lib/runtime_wasm_host.ll`, the browser playground adapter, and
 the wasm runtime test harness, so adding or removing hosted wasm imports should
 update all three surfaces together. Hosted `printf`, `fprintf`, and `dprintf`
 implement a small browser-safe formatting subset: `%s` for null-terminated
-strings, `%d` for signed 32-bit integers, `%c` for one byte, `%f`/`%.Nf` for
+strings, `%d` for signed 32-bit integers, `%x`/`%X` for unsigned 32-bit hex,
+one-digit `%Nd` and `%0Nd` integer widths, `%c` for one byte, `%f`/`%.Nf` for
 fixed-point doubles with one-digit precision, and `%%` for a literal percent
 sign. Unsupported format specifiers are emitted literally with their leading
 `%` so output remains predictable. Edge cases are also stable: null `%s`
 arguments print `(null)`; a dangling `%` prints as `%`; unsupported specifiers
 do not consume varargs. Use native targets or a richer host/runtime adapter for
-full libc formatting such as widths, long integer modifiers, scientific
-notation, or locale-sensitive output. `wasm32-wasi`, `wasm32-wasip1`, and
+full libc formatting such as multi-digit widths, long integer modifiers,
+scientific notation, or locale-sensitive output. `wasm32-wasi`,
+`wasm32-wasip1`, and
 target triples with an `emscripten` component select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
 provided. Hosted defaults match target components, so substring-only components

@@ -564,6 +564,29 @@ frame main() ret int {
     expect(host.stderr()).toBe("");
   });
 
+  wasmIt("formats hosted wasm printf hex and integer width arguments", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+frame main() ret int {
+    local len: int = printf("hex=%x upper=%X zero=%04d wide=%5d\\n", 48879, 48879, 7, 42);
+    if (len != 41) {
+        return len;
+    }
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("hex=beef upper=BEEF zero=0007 wide=   42\n");
+    expect(host.stderr()).toBe("");
+  });
+
   wasmIt("keeps hosted wasm printf edge cases predictable", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(

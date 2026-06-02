@@ -259,7 +259,8 @@ describe("WebAssembly compatibility sweep", () => {
       mode: "wasm-hosted",
       expectedReturn: 0,
       argv: ["program"],
-      expectedStdout: "wasm=42!\nliteral % A\n",
+      expectedStdout:
+        "wasm=42!\nliteral % A\nhex=beef upper=BEEF zero=0007 wide=   42\n",
       expectedStderr: "err:-7:ok?\n",
     });
 
