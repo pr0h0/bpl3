@@ -2113,6 +2113,75 @@ describe("PackageManager", () => {
       expect(fs.existsSync(installedPath)).toBe(true);
     });
 
+    test("should restore locked file archive sources from the global package cache", () => {
+      const packageDir = path.join(tempDir, "cached-file-source-pkg");
+      const appDir = path.join(tempDir, "cached-file-source-app");
+      const depsDir = path.join(appDir, "deps");
+      const globalPackageDir = path.join(tempDir, "cached-file-source-cache");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(depsDir, { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cached-file-source-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export cached;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const archiveName = path.basename(tarballPath);
+      const appArchivePath = path.join(depsDir, archiveName);
+      fs.copyFileSync(tarballPath, appArchivePath);
+      fs.copyFileSync(tarballPath, path.join(globalPackageDir, archiveName));
+      fs.copyFileSync(
+        `${tarballPath}.bplmeta.json`,
+        path.join(globalPackageDir, `${archiveName}.bplmeta.json`),
+      );
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cached-file-source-app",
+            version: "1.0.0",
+            dependencies: {
+              "cached-file-source-pkg": `file:deps/${archiveName}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      fs.rmSync(appArchivePath);
+      fs.rmSync(path.join(appDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+      localPM.installProject({ global: false, verbose: false });
+
+      expect(
+        fs.existsSync(
+          path.join(appDir, "bpl_modules", "cached-file-source-pkg", "bpl.json"),
+        ),
+      ).toBe(true);
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+      expect(lock.packages["cached-file-source-pkg"].source).toBe(
+        `file:deps/${archiveName}`,
+      );
+    });
+
     test("should preserve existing lockfile permissions when rewriting", () => {
       if (process.platform === "win32") {
         return;

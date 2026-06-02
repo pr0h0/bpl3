@@ -2551,7 +2551,9 @@ export class PackageManager {
       }
 
       tarballPath = globalTarballPath;
-      lockSource = path.basename(globalTarballPath);
+      if (!sourceContext.lockSource) {
+        lockSource = path.basename(globalTarballPath);
+      }
     }
     const dependencyBaseDir = path.dirname(tarballPath);
 
@@ -2949,9 +2951,20 @@ export class PackageManager {
       return null;
     }
 
-    const exactTarballPath = path.join(this.globalPackageDir, packageSource);
-    if (packageSource.endsWith(".tgz") && this.tryLstat(exactTarballPath)) {
-      return exactTarballPath;
+    const fileSource = this.stripPackageFileSourcePrefix(packageSource);
+    if (fileSource.endsWith(".tgz")) {
+      const exactTarballPath = path.join(this.globalPackageDir, fileSource);
+      if (this.tryLstat(exactTarballPath)) {
+        return exactTarballPath;
+      }
+
+      const cachedTarballPath = path.join(
+        this.globalPackageDir,
+        this.getPackageSourceBasename(fileSource),
+      );
+      if (this.tryLstat(cachedTarballPath)) {
+        return cachedTarballPath;
+      }
     }
 
     const installSpec = parsePackageInstallSpec(packageSource);

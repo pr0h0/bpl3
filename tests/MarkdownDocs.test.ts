@@ -764,6 +764,7 @@ describe("Markdown documentation", () => {
       "bpl install file:deps/my-package-0.1.0.tgz",
       "Direct `bpl install` archive paths and manifest `file:` sources both accept `/` and `\\` as path separators",
       "lockfile sources are recorded with stable `/` separators",
+      "When a locked local archive source is no longer present, `bpl install` can restore from the matching archive basename in the global package cache without rewriting the lockfile source",
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);

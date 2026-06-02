@@ -131,6 +131,9 @@ Direct `bpl install` archive paths and manifest `file:` sources both accept `/`
 and `\` as path separators. Existing archives are resolved relative to the
 project or declaring package directory and lockfile sources are recorded with
 stable `/` separators.
+When a locked local archive source is no longer present, `bpl install` can
+restore from the matching archive basename in the global package cache without
+rewriting the lockfile source.
 If `bpl_modules/<package-name>` already exists, BPL only treats a real
 directory as an upgrade target. Existing regular files or symlinks at the
 package install path are rejected and left untouched.
