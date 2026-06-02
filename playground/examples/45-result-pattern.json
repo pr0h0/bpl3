@@ -17,7 +17,7 @@
     "    InvalidInput,",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# Function that can fail",
     "frame safeDivide(a: int, b: int) ret Result<int, MathError> {",

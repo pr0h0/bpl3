@@ -4,7 +4,7 @@
   "snippet": "Functions calling themselves",
   "description": "Recursion is when a function calls itself to solve a problem by breaking it into smaller subproblems. Every recursive function needs a base case (termination condition) to prevent infinite recursion and stack overflow. Recursive calls create stack frames, so deep recursion can exhaust stack space. Many recursive algorithms can be optimized to iterative versions for better performance. Common recursive patterns include divide-and-conquer, tree traversal, and mathematical sequences. This example demonstrates factorial calculation and Fibonacci sequence using recursion, along with base cases and recursive decomposition.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# Calculate factorial recursively",
     "frame factorial(n: int) ret int {",

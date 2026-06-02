@@ -39,7 +39,7 @@
     "}",
     "export Vector_magnitude;",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Test functions",

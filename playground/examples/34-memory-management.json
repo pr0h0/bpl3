@@ -4,7 +4,7 @@
   "snippet": "Work with malloc, free, and memory allocation",
   "description": "BPL uses manual memory management - you control allocation and deallocation. malloc(size) allocates heap memory, returning void* (must cast). free(ptr) releases memory. Rules: every malloc needs a matching free, never use freed memory (use-after-free), don't free twice (double-free), don't free stack variables. Memory leaks occur when allocated memory is never freed. Use tools like valgrind to detect leaks. Strategies: RAII-style init/cleanup methods, ownership conventions, minimal malloc/free pairs. Heap memory persists until freed, unlike stack memory (auto-freed on scope exit). This example demonstrates safe memory management patterns and common pitfalls.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "extern malloc(size: long) ret *void;",
     "extern free(ptr: *void);",
     "",

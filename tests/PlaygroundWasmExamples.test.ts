@@ -5,6 +5,17 @@ import {
 import { loadPlaygroundExamples } from "./helpers/playgroundExamples";
 
 describe("Playground wasm example metadata", () => {
+  test("keeps direct printf playground examples wasm-safe", () => {
+    const directPrintfExamples = loadPlaygroundExamples().filter((example) => {
+      const code = Array.isArray(example.code)
+        ? example.code.join("\n")
+        : example.code;
+      return code.includes("extern printf(fmt: string, ...);");
+    });
+
+    expect(directPrintfExamples.map((example) => example.file)).toEqual([]);
+  });
+
   test("marks wasm-friendly playground examples with explicit metadata", () => {
     const wasmExamples = loadPlaygroundExamples().filter(
       (example) => example.wasm !== undefined,

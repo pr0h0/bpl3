@@ -4,7 +4,7 @@
   "snippet": "Method chaining for fluent APIs",
   "description": "The Builder pattern provides a fluent interface for constructing complex objects step by step. Methods return a pointer to 'this', enabling method chaining. This pattern is useful when objects have many optional parameters or require multi-step initialization. Builder methods validate inputs and maintain object invariants. The pattern separates construction from representation, making code more readable and maintainable. Use builders for configuration objects, complex data structures, or any type that benefits from gradual initialization.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# HTTP request builder",
     "struct Request {",

@@ -4,7 +4,7 @@
   "snippet": "Using match<Type> operator",
   "description": "Demonstrates the match<Type> operator for checking enum variants or types at runtime.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "enum Message {",
     "    Quit,",

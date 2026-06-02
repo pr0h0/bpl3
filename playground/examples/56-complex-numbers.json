@@ -7,7 +7,7 @@
     "# Complex number arithmetic using std/complex.bpl",
     "import [Complex] from \"std/complex.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    printf(\"=== Complex Numbers ===\\n\\n\");",

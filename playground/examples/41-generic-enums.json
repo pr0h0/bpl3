@@ -11,7 +11,7 @@
     "    None,",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame findValue(search: int) ret Maybe<int> {",
     "    if (search > 0) {",

@@ -4,7 +4,7 @@
   "snippet": "Declaring and using variables",
   "description": "BPL uses the 'local' keyword to declare local variables within functions. Variables can be initialized at declaration or left uninitialized. The type system includes primitives (int, float, char, bool), composite types (strings, arrays, structs), and pointers. Type inference works in many cases but explicit types improve readability. Variables are mutable by default. You can also use tuple destructuring to declare multiple variables at once. This example demonstrates various declaration patterns and basic operations.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Declare local variables with explicit types",

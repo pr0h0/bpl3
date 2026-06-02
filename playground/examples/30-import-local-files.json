@@ -30,7 +30,7 @@
     "    return a * b;",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Use utility functions",

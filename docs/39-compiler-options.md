@@ -1332,14 +1332,15 @@ contract across `lib/runtime_wasm_host.ll`, the browser playground adapter, and
 the wasm runtime test harness, so adding or removing hosted wasm imports should
 update all three surfaces together. Hosted `printf`, `fprintf`, and `dprintf`
 implement a small browser-safe formatting subset: `%s` for null-terminated
-strings, `%d` for signed 32-bit integers, `%c` for one byte, and `%%` for a
-literal percent sign. Unsupported format specifiers are emitted literally with
-their leading `%` so output remains predictable. Edge cases are also stable:
-null `%s` arguments print `(null)`; a dangling `%` prints as `%`;
-unsupported specifiers do not consume varargs. Use native targets or a richer
-host/runtime adapter for full libc formatting such as widths, floating point,
-or long integer modifiers. `wasm32-wasi`, `wasm32-wasip1`, and target triples
-with an `emscripten` component select hosted mode by default;
+strings, `%d` for signed 32-bit integers, `%c` for one byte, `%f`/`%.Nf` for
+fixed-point doubles with one-digit precision, and `%%` for a literal percent
+sign. Unsupported format specifiers are emitted literally with their leading
+`%` so output remains predictable. Edge cases are also stable: null `%s`
+arguments print `(null)`; a dangling `%` prints as `%`; unsupported specifiers
+do not consume varargs. Use native targets or a richer host/runtime adapter for
+full libc formatting such as widths, long integer modifiers, scientific
+notation, or locale-sensitive output. `wasm32-wasi`, `wasm32-wasip1`, and
+target triples with an `emscripten` component select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
 provided. Hosted defaults match target components, so substring-only components
 such as `notwasi` or `notemscripten` stay freestanding unless
@@ -1355,10 +1356,11 @@ The `examples/wasm_control_flow`, `examples/wasm_lambdas_generics`,
 intentionally portable: they run as native x86_64 programs and as standalone
 `wasm32-unknown-unknown` modules. `examples/wasm_hosted_io` covers basic hosted
 mode I/O. `examples/wasm_hosted_printf` covers dynamic `%s`/`%d`/`%c` hosted
-formatting while remaining native-compatible. `examples/wasm_hosted_transform`
-is the richer hosted regression: it remains native-compatible while wasm tests
-execute it with host-provided argv, stdout, stderr, stdlib `String`, enum
-matching, generics, and lambda capture.
+formatting plus fixed-point `%f`/`%.Nf` output while remaining
+native-compatible. `examples/wasm_hosted_transform` is the richer hosted
+regression: it remains native-compatible while wasm tests execute it with
+host-provided argv, stdout, stderr, stdlib `String`, enum matching, generics,
+and lambda capture.
 
 The compatibility matrix in `tests/helpers/wasmCompatibilityMatrix.ts` is the
 source of truth for CI. Each tracked example is marked as `wasm-freestanding`,

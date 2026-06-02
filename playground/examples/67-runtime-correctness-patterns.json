@@ -4,7 +4,7 @@
   "snippet": "Deterministic loops, recursion, structs, and arrays",
   "description": "Compiler correctness tests compare runtime output across optimization levels. This example keeps observable behavior deterministic while mixing integer control flow, recursion, pointer-based struct mutation, and fixed array indexing.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "struct Pair {",
     "    left: int,",

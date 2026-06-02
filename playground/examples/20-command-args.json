@@ -4,7 +4,7 @@
   "snippet": "Access program arguments",
   "description": "Command-line arguments are passed to the program through the main function. The standard signature is 'frame main(argc: int, argv: string*) ret int' where argc is the argument count (including program name) and argv is an array of argument strings. argv[0] is always the program name, argv[1] is the first user argument. Always check argc before accessing argv elements to prevent out-of-bounds access. Arguments are strings - use conversion functions (atoi, atof) to parse numbers. This example shows argument parsing, validation, and conversion to different types.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# Note: Command-line arguments require standard library imports",
     "# This example shows a simplified version",

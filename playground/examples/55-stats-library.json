@@ -7,7 +7,7 @@
     "# Statistical functions using std/stats.bpl",
     "import [Stats] from \"std/stats.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Sample data",

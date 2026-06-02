@@ -31,7 +31,7 @@
     "    return swapped;",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Create a Pair of integers",

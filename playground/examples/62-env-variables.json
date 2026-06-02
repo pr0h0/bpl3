@@ -7,7 +7,7 @@
     "# Reading environment variables using std/env.bpl",
     "import [Env] from \"std/env.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    printf(\"=== Environment Variables ===\\n\\n\");",

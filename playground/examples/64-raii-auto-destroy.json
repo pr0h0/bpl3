@@ -4,7 +4,7 @@
   "snippet": "Scope-based cleanup with @[auto_destroy]",
   "description": "BPL destructors are opt-in. A destroy(this: *T) method runs automatically for value locals only when it is marked with @[auto_destroy]. This example shows nested scopes, deterministic cleanup, and the difference between inner-scope and function-scope teardown.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "global destroyed: int = 0;",
     "",

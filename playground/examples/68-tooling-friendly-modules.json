@@ -4,7 +4,7 @@
   "snippet": "Small exported APIs make diagnostics, editor tooling, and package checks easier to reason about.",
   "description": "Demonstrates a compact public API shape that works well with bpl check, package entry points, and editor snippets.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "struct Accumulator {",
     "    value: int,",

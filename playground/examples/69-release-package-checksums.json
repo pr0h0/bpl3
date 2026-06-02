@@ -7,7 +7,7 @@
     "# Release package checksum helpers using std/hash.bpl",
     "import [Hash] from \"std/hash.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    local packageName: string = \"bpl-v3-0.1.1.tgz\";",

@@ -10,7 +10,7 @@
     "    Err(E),",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# Pattern match on integers",
     "frame classifyNumber(n: int) ret string {",

@@ -7,7 +7,7 @@
     "# Date and Time operations using std/date.bpl",
     "import [Date], [DateTime] from \"std/date.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "extern time(ptr: *long) ret long;",
     "extern free(ptr: *void);",
     "",

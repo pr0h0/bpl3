@@ -7,7 +7,7 @@
     "# Base64 encoding using std/base64.bpl",
     "import [Base64] from \"std/base64.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "extern strlen(s: string) ret int;",
     "extern free(ptr: *void);",
     "",

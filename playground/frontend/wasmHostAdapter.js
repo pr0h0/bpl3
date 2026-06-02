@@ -71,6 +71,12 @@
       return decoder.decode(memory.subarray(ptr, end));
     };
 
+    const reportUnavailableStdio = (name, detail) => {
+      stderr += `Browser wasm stdio import ${name} is unavailable`;
+      if (detail) stderr += ` (${detail})`;
+      stderr += ".\n";
+    };
+
     const host = {
       env: {
         __bpl_host_write(fd, ptr, len) {
@@ -104,6 +110,17 @@
           if (func) stderr += ` in ${func}`;
           if (line || col) stderr += ` at ${line}:${col}`;
           stderr += "\n";
+        },
+        scanf(formatPtr) {
+          reportUnavailableStdio("scanf", readString(formatPtr));
+          return -1;
+        },
+        gets(bufferPtr) {
+          if (bufferPtr) {
+            readBytes(bufferPtr, 1)[0] = 0;
+          }
+          reportUnavailableStdio("gets");
+          return 0;
         },
       },
       imports: undefined,

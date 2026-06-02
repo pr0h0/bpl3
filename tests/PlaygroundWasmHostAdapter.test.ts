@@ -16,6 +16,8 @@ type HostEnv = {
     line: number,
     col: number,
   ): void;
+  scanf(formatPtr: number, ...args: number[]): number;
+  gets(bufferPtr: number): number;
 };
 
 type PlaygroundWasmHost = {
@@ -119,5 +121,24 @@ describe("Playground hosted wasm browser adapter", () => {
       trapped: false,
       error: "",
     });
+  });
+
+  test("provides browser-safe stdio stubs declared by std/io imports", () => {
+    const host = wasmHostAdapter.createHostedWasmBrowserHost([]);
+    const memory = new WebAssembly.Memory({ initial: 1 });
+    host.attach({ memory });
+
+    writeCString(memory, 16, "%d");
+
+    expect(typeof host.imports.env.scanf).toBe("function");
+    expect(typeof host.imports.env.gets).toBe("function");
+    expect(host.imports.env.scanf(16, 64)).toBe(-1);
+    expect(host.imports.env.gets(128)).toBe(0);
+    expect(host.result()).toMatchObject({
+      trapped: false,
+      returnCode: null,
+    });
+    expect(host.result().stderr).toContain("scanf is unavailable");
+    expect(host.result().stderr).toContain("gets is unavailable");
   });
 });

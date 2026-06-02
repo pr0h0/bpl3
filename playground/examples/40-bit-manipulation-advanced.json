@@ -4,7 +4,7 @@
   "snippet": "Advanced bitwise operations and bit fields",
   "description": "Advanced bit manipulation enables efficient algorithms and compact data representation. Techniques include: bit masks for flags/permissions, bit fields for packing data, bit counting (population count), finding set/clear bits, swapping values without temp variables, power-of-two detection, parity checking. Applications: graphics (color channels), compression, cryptography, embedded systems, performance optimization. Common patterns: isolate bit i with (x & (1 << i)), set bit i with (x | (1 << i)), clear bit i with (x & ~(1 << i)), toggle bit i with (x ^ (1 << i)). This example demonstrates sophisticated bit manipulation algorithms and optimization techniques.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# Utility functions for bit manipulation",
     "frame getBit(num: int, pos: int) ret int {",

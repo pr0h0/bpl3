@@ -59,7 +59,7 @@
     "    return counter;",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    printf(\"=== Static Methods Example ===\\n\\n\");",

@@ -7,7 +7,7 @@
     "# BitSet operations using std/bitset.bpl",
     "import [BitSet] from \"std/bitset.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    printf(\"=== BitSet Example ===\\n\\n\");",

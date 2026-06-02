@@ -4,7 +4,7 @@
   "snippet": "Functions within structs",
   "description": "BPL supports object-oriented programming through struct methods. Methods are functions defined inside a struct body that operate on struct instances. The 'this' keyword refers to the current instance, allowing access to members. Methods can be called using dot notation (obj.method()) for direct instances or arrow notation (ptr->method()) for pointers. Methods provide encapsulation by grouping related functionality with data. Unlike some OOP languages, BPL methods are just syntactic sugar - they compile to regular functions with an implicit 'this' parameter. This example demonstrates method definition, the 'this' keyword, and calling methods on struct instances.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "struct Rectangle {",
     "    width: int,",

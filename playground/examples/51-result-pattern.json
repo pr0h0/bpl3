@@ -4,7 +4,7 @@
   "snippet": "Error handling with Result<T, E>",
   "description": "Demonstrates how to use the Result<T, E> enum pattern for error handling, a common pattern in functional languages.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "enum Result<T, E> {",
     "    Ok(T),",

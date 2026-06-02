@@ -9,7 +9,7 @@
     "type Score = float;",
     "type Name = string;",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Use type aliases",

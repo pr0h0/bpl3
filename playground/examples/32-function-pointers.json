@@ -25,7 +25,7 @@
     "    return op(a, b);",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    local a: int = 10;",

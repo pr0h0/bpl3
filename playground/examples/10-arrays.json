@@ -4,7 +4,7 @@
   "snippet": "Fixed-size collections",
   "description": "Arrays in BPL are fixed-size, contiguous collections of elements with the same type. Array indices are zero-based (first element at index 0). The array size must be a compile-time constant. Arrays can be initialized with brace syntax [1, 2, 3] or element-by-element assignment. When passed to functions, arrays decay to pointers, losing size information - you must pass the size separately. Array bounds are not checked at runtime, so accessing out-of-bounds indices causes undefined behavior. Modern patterns include using compound assignments (+=) and the sizeof operator for size calculation.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    # Array with literal initialization",

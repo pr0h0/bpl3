@@ -4,7 +4,7 @@
   "snippet": "Type-safe varargs with an implicit count",
   "description": "Native BPL variadic functions use a variadic parameter followed by an explicit count: int parameter. Callers pass only the visible values; the compiler packs the arguments and supplies the count automatically.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame sum(...nums: int, count: int) ret int {",
     "    local total: int = 0;",

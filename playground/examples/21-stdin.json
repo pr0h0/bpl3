@@ -4,7 +4,7 @@
   "snippet": "Read user input",
   "description": "Reading from standard input (stdin) allows interactive programs. The scanf function reads formatted input matching a format string. Always pass addresses (&variable) to scanf for output parameters. Check scanf's return value to verify successful reads - it returns the number of successfully parsed items. For string input, ensure buffers are large enough to prevent overflow. Alternative input functions include: getchar() for single characters, fgets() for line input (safer than scanf for strings). Input validation is crucial - always verify user input meets expectations. This example demonstrates scanf usage, input validation, and safe reading practices.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "extern scanf(fmt: string, ...);",
     "",
     "# Use Standard Input box below to provide input for your program",

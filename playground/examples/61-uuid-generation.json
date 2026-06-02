@@ -7,7 +7,7 @@
     "# UUID v4 generation using std/uuid.bpl",
     "import [UUID] from \"std/uuid.bpl\";",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "extern free(ptr: *void);",
     "",
     "frame main() ret int {",

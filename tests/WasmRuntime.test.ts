@@ -542,6 +542,28 @@ frame main() ret int {
     expect(host.stderr()).toBe("err:-7:ok?\n");
   });
 
+  wasmIt("formats hosted wasm printf fixed-point float arguments", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+frame main() ret int {
+    local height: float = 5.6;
+    local delta: float = -3.25;
+    printf("Height: %.1f value=%.2f\\n", height, delta);
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("Height: 5.6 value=-3.25\n");
+    expect(host.stderr()).toBe("");
+  });
+
   wasmIt("keeps hosted wasm printf edge cases predictable", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(

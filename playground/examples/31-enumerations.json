@@ -17,7 +17,7 @@
     "    Write { text: int },",
     "}",
     "",
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame getColorValue(c: Color) ret int {",
     "    return match (c) {",

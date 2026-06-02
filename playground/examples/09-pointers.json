@@ -4,7 +4,7 @@
   "snippet": "Memory addresses and indirection",
   "description": "Pointers are variables that store memory addresses, enabling indirect access to values and dynamic memory management. The address-of operator (&) gets a variable's memory location, while the dereference operator (*) accesses the value at an address. Pointers are essential for pass-by-reference semantics, dynamic data structures, and efficient large data handling. Always check pointers against null before dereferencing to prevent crashes. Pointer arithmetic automatically scales by the pointed-to type's size. This example demonstrates pointer basics, dereferencing, pointer arithmetic, and safe usage patterns.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame swap(a: *int, b: *int) {",
     "    local temp: int;",

@@ -4,7 +4,7 @@
   "snippet": "Program-wide state",
   "description": "Global variables are declared outside any function and exist for the program's lifetime. They have file scope by default (visible throughout the file). Unlike local variables, globals are automatically zero-initialized. Use globals sparingly - they create hidden dependencies and make code harder to test and reason about. Prefer passing data through function parameters when possible. Common legitimate uses: program-wide configuration, shared state that's truly global, constants (though const is better). Global variables can cause issues in multi-threaded programs without proper synchronization. This example shows global variable declaration, initialization, and access patterns.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "# Global variables",
     "global counter: int;",

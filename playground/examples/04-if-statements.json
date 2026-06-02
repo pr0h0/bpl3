@@ -4,7 +4,7 @@
   "snippet": "Conditional execution",
   "description": "If statements control program flow based on boolean conditions. BPL requires explicit boolean conditions. Braces {} are mandatory even for single statements. You can chain multiple conditions using 'else if'. This example demonstrates basic if/else, else-if chains, and comparison operators.",
   "code": [
-    "extern printf(fmt: string, ...);",
+    "extern printf(fmt: string, ...) ret int;",
     "",
     "frame main() ret int {",
     "    local age: int = 18;",
