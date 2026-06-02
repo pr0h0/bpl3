@@ -95,6 +95,7 @@
     },
     "repository": {
       "type": "object",
+      "required": ["type", "url"],
       "properties": {
         "type": {
           "type": "string",

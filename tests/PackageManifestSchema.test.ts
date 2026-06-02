@@ -9,6 +9,7 @@ import {
 
 type JsonSchemaObject = {
   properties?: Record<string, JsonSchemaObject>;
+  required?: string[];
   items?: JsonSchemaObject;
   additionalProperties?: JsonSchemaObject | boolean;
   propertyNames?: JsonSchemaObject;
@@ -162,5 +163,45 @@ describe("Package manifest JSON schema", () => {
     expect(binCommandPattern.test("../tool")).toBe(false);
     expect(binCommandPattern.test("nested/tool")).toBe(false);
     expect(binCommandPattern.test("nested\\tool")).toBe(false);
+  });
+
+  test("requires repository type and url when repository metadata is present", () => {
+    const repositorySchema = propertySchema("repository");
+    expect(repositorySchema.type).toBe("object");
+    expect(repositorySchema.required).toEqual(["type", "url"]);
+
+    expect(() =>
+      expectPackageManifestConformsToSchema(
+        {
+          name: "missing-repository-url",
+          version: "1.0.0",
+          repository: { type: "git" },
+        },
+        "missing-repository-url",
+      ),
+    ).toThrow(/repository\.url is required/);
+
+    expect(() =>
+      expectPackageManifestConformsToSchema(
+        {
+          name: "missing-repository-type",
+          version: "1.0.0",
+          repository: { url: "https://example.com/repo.git" },
+        },
+        "missing-repository-type",
+      ),
+    ).toThrow(/repository\.type is required/);
+
+    expectPackageManifestConformsToSchema(
+      {
+        name: "valid-repository",
+        version: "1.0.0",
+        repository: {
+          type: "git",
+          url: "https://example.com/repo.git",
+        },
+      },
+      "valid-repository",
+    );
   });
 });
