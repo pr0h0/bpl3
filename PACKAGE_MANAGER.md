@@ -54,7 +54,9 @@ Packages without `exports` keep the existing permissive subpath behavior.
 During `bpl pack`, exported paths must exist as regular source files inside the
 package root. Missing files, directories, and symlinks are rejected before an
 archive is created, and explicitly exported `.x` files are included in the
-archive.
+archive. Archive install revalidates those exported paths after extraction and
+before replacing any installed package, so third-party archives cannot publish
+broken public subpaths.
 
 ## CLI Commands
 

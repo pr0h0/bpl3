@@ -2170,6 +2170,18 @@ export class PackageManager {
     return fullPath;
   }
 
+  private validatePackageExportFiles(
+    manifest: PackageManifest,
+    packageDir: string,
+    manifestPath: string,
+  ): string[] {
+    if (!manifest.exports) return [];
+
+    return manifest.exports.map((exportPath) =>
+      this.validatePackageExportFile(packageDir, exportPath, manifestPath),
+    );
+  }
+
   private isSafeBinCommandName(commandName: string): boolean {
     return (
       commandName.length > 0 &&
@@ -2442,15 +2454,12 @@ export class PackageManager {
     }
 
     // Also include explicit exported source files, including non-.bpl sources.
-    if (manifest.exports) {
-      for (const exportPath of manifest.exports) {
-        const fullPath = this.validatePackageExportFile(
-          packageDir,
-          exportPath,
-          manifestPath,
-        );
-        files.add(fullPath);
-      }
+    for (const fullPath of this.validatePackageExportFiles(
+      manifest,
+      packageDir,
+      manifestPath,
+    )) {
+      files.add(fullPath);
     }
 
     if (files.size === 0) {
@@ -2868,6 +2877,12 @@ export class PackageManager {
           },
         );
       }
+
+      this.validatePackageExportFiles(
+        manifest,
+        packageDir,
+        extractedManifestPath,
+      );
 
       this.ensurePackageManagerDirectory(targetDir, targetDirLabel);
       const localLock = options.global ? undefined : this.loadLockFile();

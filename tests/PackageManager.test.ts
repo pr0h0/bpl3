@@ -1663,6 +1663,198 @@ describe("PackageManager", () => {
       ).toThrow(/Missing package bin entry/);
     });
 
+    test("should reject package archives with invalid export entries", () => {
+      const cases = [
+        {
+          label: "missing",
+          exports: ["features/public.bpl"],
+          expected: /Missing package export entry: features\/public\.bpl/,
+          setup(packageRoot: string) {
+            fs.mkdirSync(path.join(packageRoot, "features"));
+          },
+        },
+        {
+          label: "directory",
+          exports: ["features/public.bpl"],
+          expected: /Unsupported package export entry: features\/public\.bpl/,
+          setup(packageRoot: string) {
+            fs.mkdirSync(path.join(packageRoot, "features", "public.bpl"), {
+              recursive: true,
+            });
+          },
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        const sourceDir = path.join(
+          tempDir,
+          `${testCase.label}-export-archive-source`,
+        );
+        const packageRoot = path.join(sourceDir, "package");
+        const installDir = path.join(
+          tempDir,
+          `${testCase.label}-export-archive-install`,
+        );
+        const tarballPath = path.join(
+          tempDir,
+          `${testCase.label}-export-archive-1.0.0.tgz`,
+        );
+        fs.mkdirSync(packageRoot, { recursive: true });
+        fs.mkdirSync(installDir);
+        fs.writeFileSync(
+          path.join(packageRoot, "bpl.json"),
+          JSON.stringify(
+            {
+              name: `${testCase.label}-export-archive`,
+              version: "1.0.0",
+              main: "index.bpl",
+              exports: testCase.exports,
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export test;");
+        testCase.setup(packageRoot);
+
+        const packResult = spawnSync(
+          "tar",
+          ["-czf", tarballPath, "-C", sourceDir, "package"],
+          { encoding: "utf-8" },
+        );
+        expect(packResult.status).toBe(0);
+
+        expect(() =>
+          new PackageManager(installDir).install(tarballPath, {
+            global: false,
+            verbose: false,
+          }),
+        ).toThrow(testCase.expected);
+        expect(
+          fs.existsSync(
+            path.join(
+              installDir,
+              "bpl_modules",
+              `${testCase.label}-export-archive`,
+            ),
+          ),
+        ).toBe(false);
+      }
+    });
+
+    test("should keep existing installs when replacement archive has invalid exports", () => {
+      const packageDir = path.join(tempDir, "replace-export-package");
+      const sourceDir = path.join(tempDir, "replace-export-archive-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const installDir = path.join(tempDir, "replace-export-install");
+      const badTarballPath = path.join(
+        tempDir,
+        "replace-export-archive-2.0.0.tgz",
+      );
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.mkdirSync(installDir);
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "replace-export-archive",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export old;");
+      const goodTarballPath = new PackageManager(packageDir).pack(packageDir);
+      const installer = new PackageManager(installDir);
+      installer.install(goodTarballPath, { global: false, verbose: false });
+
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "replace-export-archive",
+            version: "2.0.0",
+            main: "index.bpl",
+            exports: ["features/missing.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export new;");
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", badTarballPath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      expect(() =>
+        installer.install(badTarballPath, { global: false, verbose: false }),
+      ).toThrow(/Missing package export entry/);
+      expect(
+        fs.readFileSync(
+          path.join(
+            installDir,
+            "bpl_modules",
+            "replace-export-archive",
+            "index.bpl",
+          ),
+          "utf-8",
+        ),
+      ).toBe("export old;");
+    });
+
+    test("should track exported non-bpl files in installed package hashes", () => {
+      const packageDir = path.join(tempDir, "export-hash-package");
+      const installDir = path.join(tempDir, "export-hash-install");
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "export-hash-package",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/native.x"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "features", "native.x"),
+        "extern nativeFeature;",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const localPM = new PackageManager(installDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      expect(localPM.verifyLockFile().ok).toBe(true);
+
+      fs.writeFileSync(
+        path.join(
+          installDir,
+          "bpl_modules",
+          "export-hash-package",
+          "features",
+          "native.x",
+        ),
+        "extern changedNativeFeature;",
+      );
+
+      const verification = localPM.verifyLockFile();
+      expect(verification.ok).toBe(false);
+      expect(verification.errors.join("\n")).toContain("hash mismatch");
+    });
+
     test("should reject global cache archive targets that are directories", () => {
       const packageDir = path.join(tempDir, "global-cache-target-package");
       const globalPackageDir = path.join(tempDir, "global-cache-target");
@@ -1960,6 +2152,64 @@ describe("PackageManager", () => {
       ).toThrow(/Unsupported package archive entry/);
       expect(
         fs.existsSync(path.join(installDir, "bpl_modules", "symlink-archive")),
+      ).toBe(false);
+    });
+
+    test("should reject package archives whose exported entries are symlinks", () => {
+      const sourceDir = path.join(tempDir, "export-symlink-archive-source");
+      const installDir = path.join(tempDir, "export-symlink-archive-install");
+      const tarballPath = path.join(tempDir, "export-symlink-archive.tgz");
+      const externalSourcePath = path.join(tempDir, "external-public.bpl");
+      fs.mkdirSync(path.join(sourceDir, "features"), { recursive: true });
+      fs.mkdirSync(installDir);
+      fs.writeFileSync(
+        path.join(sourceDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "export-symlink-archive",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "export root;");
+      fs.writeFileSync(externalSourcePath, "export escaped;");
+      fs.symlinkSync(
+        externalSourcePath,
+        path.join(sourceDir, "features", "public.bpl"),
+      );
+
+      spawnSync(
+        "tar",
+        [
+          "-czf",
+          tarballPath,
+          "-C",
+          sourceDir,
+          "--transform=s|bpl.json|package/bpl.json|",
+          "bpl.json",
+          "--transform=s|index.bpl|package/index.bpl|",
+          "index.bpl",
+          "--transform=s|features/public.bpl|package/features/public.bpl|",
+          "features/public.bpl",
+        ],
+        { stdio: "pipe" },
+      );
+
+      expect(fs.existsSync(tarballPath)).toBe(true);
+
+      const localPM = new PackageManager(installDir);
+
+      expect(() =>
+        localPM.install(tarballPath, { global: false, verbose: false }),
+      ).toThrow(/Unsupported package archive entry/);
+      expect(
+        fs.existsSync(
+          path.join(installDir, "bpl_modules", "export-symlink-archive"),
+        ),
       ).toBe(false);
     });
 

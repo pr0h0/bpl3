@@ -8,10 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Package Pack Exports Validation** - `bpl pack` now validates every package
-  manifest `exports` entry before creating an archive. Missing exported files,
-  exported directories, and symlinked exported paths are rejected with package
-  diagnostics, while valid exported `.bpl` and `.x` files are included in the
+- **Package Archive Exports Validation** - `bpl pack` and archive install now
+  validate every package manifest `exports` entry before publishing or
+  replacing a package. Missing exported files, exported directories, and
+  symlinked exported paths are rejected with package diagnostics where archives
+  can carry them, while valid exported `.bpl` and `.x` files are included in the
   packed archive and package hash surface.
 - **Package Resolver Exports Allowlist** - Package import resolution now treats
   an installed package manifest's optional `exports` array as a subpath
