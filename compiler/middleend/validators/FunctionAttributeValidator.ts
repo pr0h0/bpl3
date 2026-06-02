@@ -1,5 +1,16 @@
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
+import {
+  FUNCTION_ATTRIBUTE_AUTO_DESTROY_CONTEXT_INVALID_CODE,
+  FUNCTION_ATTRIBUTE_AUTO_DESTROY_NAME_MISMATCH_CODE,
+  FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_MISSING_CODE,
+  FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_TYPE_MISMATCH_CODE,
+  FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH_CODE,
+  FUNCTION_ATTRIBUTE_CONFLICT_CODE,
+  FUNCTION_ATTRIBUTE_DUPLICATE_CODE,
+  FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH_CODE,
+  FUNCTION_ATTRIBUTE_UNKNOWN_CODE,
+} from "../TypeCheckerBase";
 
 export interface FunctionAttributeValidationContext {
   addError(error: CompilerError): void;
@@ -49,6 +60,7 @@ export function validateFunctionAttributes(
           `Unknown function attribute '${attr.name}'`,
           "Only compiler-known function attributes are supported.",
           attr.location,
+          FUNCTION_ATTRIBUTE_UNKNOWN_CODE,
         ),
       );
       continue;
@@ -60,6 +72,7 @@ export function validateFunctionAttributes(
           `Duplicate function attribute '${attr.name}'`,
           "Remove the duplicate attribute.",
           attr.location,
+          FUNCTION_ATTRIBUTE_DUPLICATE_CODE,
         ),
       );
     }
@@ -75,6 +88,7 @@ export function validateFunctionAttributes(
           `Conflicting function attributes: ${present.join(", ")}`,
           "Remove one of the conflicting attributes.",
           decl.location,
+          FUNCTION_ATTRIBUTE_CONFLICT_CODE,
         ),
       );
     }
@@ -97,6 +111,7 @@ export function validateFunctionAttributes(
         "Function attribute 'noreturn' requires a void return type",
         "Use 'ret void' or remove the noreturn attribute.",
         decl.location,
+        FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH_CODE,
       ),
     );
   }
@@ -121,6 +136,7 @@ function validateAutoDestroyAttribute(
         "Function attribute 'auto_destroy' is only valid on destroy methods",
         "Move the attribute to a struct or enum method named 'destroy'.",
         decl.location,
+        FUNCTION_ATTRIBUTE_AUTO_DESTROY_CONTEXT_INVALID_CODE,
       ),
     );
     return;
@@ -132,6 +148,7 @@ function validateAutoDestroyAttribute(
         "Function attribute 'auto_destroy' requires method name 'destroy'",
         "Rename the method to 'destroy' or remove the auto_destroy attribute.",
         decl.location,
+        FUNCTION_ATTRIBUTE_AUTO_DESTROY_NAME_MISMATCH_CODE,
       ),
     );
   }
@@ -143,6 +160,7 @@ function validateAutoDestroyAttribute(
         "Function attribute 'auto_destroy' requires first parameter named 'this'",
         `Use 'this: *${parentType.name}' as the first parameter.`,
         thisParam?.location ?? decl.location,
+        FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_MISSING_CODE,
       ),
     );
   }
@@ -160,6 +178,7 @@ function validateAutoDestroyAttribute(
           `Function attribute 'auto_destroy' requires receiver type '*${parentType.name}'`,
           `Change the first parameter to 'this: *${parentType.name}'.`,
           thisParam.location,
+          FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_TYPE_MISMATCH_CODE,
         ),
       );
     }
@@ -172,6 +191,7 @@ function validateAutoDestroyAttribute(
         "Function attribute 'auto_destroy' requires a void return type",
         "Use 'ret void' or remove the auto_destroy attribute.",
         decl.location,
+        FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH_CODE,
       ),
     );
   }

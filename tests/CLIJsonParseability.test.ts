@@ -5369,6 +5369,128 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports function-attribute diagnostics failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "function_attribute_unknown",
+        code: "BPL_FUNCTION_ATTRIBUTE_UNKNOWN",
+        preview: "@[trace]",
+        message: "Unknown function attribute 'trace'",
+        hint: "Only compiler-known function attributes are supported.",
+        source: ["@[trace]", "frame traced() {}"].join("\n"),
+      },
+      {
+        name: "function_attribute_duplicate",
+        code: "BPL_FUNCTION_ATTRIBUTE_DUPLICATE",
+        preview: "@[inline, inline]",
+        message: "Duplicate function attribute 'inline'",
+        hint: "Remove the duplicate attribute.",
+        source: ["@[inline, inline]", "frame duplicated() {}"].join("\n"),
+      },
+      {
+        name: "function_attribute_conflict",
+        code: "BPL_FUNCTION_ATTRIBUTE_CONFLICT",
+        preview: "@[always_inline, noinline]",
+        message: "Conflicting function attributes: always_inline, noinline",
+        hint: "Remove one of the conflicting attributes.",
+        source: [
+          "@[always_inline, noinline]",
+          "frame conflicted() {}",
+        ].join("\n"),
+      },
+      {
+        name: "function_attribute_noreturn_return_type",
+        code: "BPL_FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH",
+        preview: "@[noreturn]",
+        message: "Function attribute 'noreturn' requires a void return type",
+        hint: "Use 'ret void' or remove the noreturn attribute.",
+        source: [
+          "@[noreturn]",
+          "frame exits() ret int {",
+          "    return 1;",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "function_attribute_auto_destroy_receiver_type",
+        code: "BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_TYPE_MISMATCH",
+        preview: "frame destroy(this: *Other) ret void {}",
+        message:
+          "Function attribute 'auto_destroy' requires receiver type '*Resource'",
+        hint: "Change the first parameter to 'this: *Resource'.",
+        source: [
+          "struct Other {}",
+          "",
+          "struct Resource {",
+          "    @[auto_destroy]",
+          "    frame destroy(this: *Other) ret void {}",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      expect(check.status).toBe(1);
+      const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+      expect(checkReport).toMatchObject({
+        schemaVersion: 1,
+        check: "check",
+        success: false,
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: sourceFile,
+            success: false,
+          },
+        ],
+      });
+      const checkDiagnostic = checkReport.files[0]?.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(checkDiagnostic).toBeDefined();
+      expect(checkDiagnostic?.code).toBe(testCase.code);
+      expect(checkDiagnostic?.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic?.message).toContain(testCase.message);
+      expect(checkDiagnostic?.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+      });
+      const buildDiagnostic = buildReport.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(buildDiagnostic).toBeDefined();
+      expect(buildDiagnostic?.message).toContain(testCase.message);
+      expect(buildDiagnostic?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");
