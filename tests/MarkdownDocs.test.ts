@@ -364,7 +364,7 @@ describe("Markdown documentation", () => {
       "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
       "bpl doctor packages --json",
       "Duplicate installed package issues preserve the compact joined `path` string and include a `paths` array with every conflicting installed directory",
-      "Package-cache warning issues preserve the cache archive `path` and include `provenancePath`",
+      "Package-cache warning issues preserve `packageName`, `version`, the cache archive `path`, and `provenancePath`",
       "the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or the PackageManager manifest-loading failures documented in package management",
       "bpl package-cache list [package] --json",
       "bpl package-cache verify [package] --json",

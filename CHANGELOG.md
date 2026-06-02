@@ -84,6 +84,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   package-cache warning issues now include `provenancePath` when a missing,
   malformed, or unsafe provenance sidecar is involved, matching the nested
   package-cache verification issue payload.
+- **Package Doctor Cache Identity** - `bpl doctor packages --json`
+  package-cache warning issues now include `packageName` and `version`, so
+  automation can group cache provenance warnings without parsing messages or
+  repair hints.
 - **Package Lock Repair Duplicate Paths** - `bpl install --repair-lock --json`
   duplicate installed package verification failures now include a `paths` array
   with every conflicting installed directory.

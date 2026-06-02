@@ -1697,6 +1697,8 @@ describe("Package Manager CLI", () => {
         issues: Array<{
           severity: string;
           kind: string;
+          packageName?: string;
+          version?: string;
           message: string;
           path: string;
           provenancePath?: string;
@@ -1724,6 +1726,8 @@ describe("Package Manager CLI", () => {
         expect.objectContaining({
           severity: "warning",
           kind: "package-cache-missing-provenance",
+          packageName: "doctor-cache-cli",
+          version: "1.0.0",
           message: expect.stringContaining("missing package provenance sidecar"),
           path: cachePath,
           provenancePath: `${cachePath}.bplmeta.json`,
@@ -2458,6 +2462,8 @@ describe("Package Manager CLI", () => {
         issues: Array<{
           severity: string;
           kind: string;
+          packageName?: string;
+          version?: string;
           path: string;
           provenancePath?: string;
         }>;
@@ -2473,6 +2479,8 @@ describe("Package Manager CLI", () => {
         expect.objectContaining({
           severity: "warning",
           kind: "package-cache-invalid-provenance",
+          packageName: "cache-bad",
+          version: "1.0.0",
           path: malformedCachePath,
           provenancePath: `${malformedCachePath}.bplmeta.json`,
         }),
@@ -2481,6 +2489,8 @@ describe("Package Manager CLI", () => {
         expect.objectContaining({
           severity: "warning",
           kind: "package-cache-invalid-provenance",
+          packageName: "cache-link",
+          version: "1.0.0",
           path: linkedCachePath,
           provenancePath: linkedProvenancePath,
         }),

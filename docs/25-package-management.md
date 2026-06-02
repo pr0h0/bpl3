@@ -369,9 +369,10 @@ issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
 Duplicate installed package doctor issues preserve the compact joined `path`
 string and also include a `paths` array with every conflicting installed
 directory in deterministic order.
-Package-cache warning issues preserve the cache archive `path` and include
-`provenancePath` when a malformed, missing, or unsafe sidecar is involved, so
-automation can point directly at the stale `.bplmeta.json` file.
+Package-cache warning issues preserve `packageName`, `version`, the cache
+archive `path`, and `provenancePath` when a malformed, missing, or unsafe
+sidecar is involved, so automation can group warnings by package identity and
+point directly at the stale `.bplmeta.json` file.
 For doctor lock verification drift, each issue also carries
 `code: "BPL_PACKAGE_LOCK_VERIFY_FAILED"` and the verifier metadata needed by
 automation: `packageName`, `source`, `expectedVersion`, `actualVersion`,
@@ -657,8 +658,9 @@ following it. The `--json` report uses `schemaVersion: 1`,
 report and prints provenance warnings for stale or damaged cache entries. In
 JSON output, package-cache doctor issues use
 `package-cache-<verification-kind>` issue kinds such as
-`package-cache-missing-provenance`, preserving the original cache entry path and
-sidecar `provenancePath` plus the repair hint for CI annotations.
+`package-cache-missing-provenance`, preserving `packageName`, `version`, the
+original cache entry path, sidecar `provenancePath`, and the repair hint for CI
+annotations.
 
 `package-cache repair` regenerates missing or malformed provenance sidecars for
 valid cached archives. Its JSON result uses `schemaVersion: 1`,

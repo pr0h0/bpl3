@@ -435,6 +435,7 @@ export interface PackageDoctorIssue {
   provenancePath?: string;
   hint?: string;
   packageName?: string;
+  version?: string;
   source?: string;
   expectedVersion?: string;
   actualVersion?: string;
@@ -4505,6 +4506,8 @@ export class PackageManager {
       issues.push({
         severity: "warning",
         kind: `package-cache-${issue.kind}`,
+        packageName: issue.packageName,
+        version: issue.version,
         message: issue.message,
         path: issue.path,
         ...(issue.provenancePath
