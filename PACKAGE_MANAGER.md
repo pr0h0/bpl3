@@ -30,6 +30,7 @@ A BPL package is defined by a `bpl.json` manifest file in the package root direc
 - `$schema`: JSON Schema URI for editor validation
 - `main`: Package-relative entry point file (defaults to "index.bpl")
 - `entry`: Package-relative entry point alias
+- `exports`: Package-relative source files that may be imported as package subpaths
 - `author`: Package author
 - `license`: License type
 - `dependencies`: Map of package dependencies
@@ -50,6 +51,10 @@ resolver fallbacks, so exporting `features/add.bpl` allows
 `import [...] from "pkg/features/add"`, and exporting
 `features/math/index.bpl` allows `import [...] from "pkg/features/math"`.
 Packages without `exports` keep the existing permissive subpath behavior.
+During `bpl pack`, exported paths must exist as regular source files inside the
+package root. Missing files, directories, and symlinks are rejected before an
+archive is created, and explicitly exported `.x` files are included in the
+archive.
 
 ## CLI Commands
 
@@ -68,6 +73,8 @@ bpl pack [directory]
 ```
 
 Creates a `.tgz` archive of the package. If no directory is specified, uses the current directory.
+Pack validates public `exports` entries before writing the archive so packages
+cannot publish missing, symlinked, or directory-only subpath surfaces.
 
 Example:
 

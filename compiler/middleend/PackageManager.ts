@@ -2118,6 +2118,58 @@ export class PackageManager {
     return fullPath;
   }
 
+  private validatePackageExportFile(
+    packageDir: string,
+    relativePath: string,
+    manifestPath: string,
+  ): string {
+    const location: SourceLocation = {
+      file: manifestPath,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    };
+    const fullPath = this.resolvePackageRelativePath(packageDir, relativePath);
+    const exportStat = this.tryLstat(fullPath);
+
+    if (!exportStat) {
+      throw new CompilerError(
+        `Missing package export entry: ${relativePath}`,
+        "Package export entries must point to regular source files included in the package.",
+        location,
+      );
+    }
+
+    if (exportStat.isSymbolicLink()) {
+      throw new CompilerError(
+        `Unsupported package export entry: ${relativePath}`,
+        "Package export entries must be regular source files, not symbolic links.",
+        location,
+      );
+    }
+
+    if (!exportStat.isFile()) {
+      throw new CompilerError(
+        `Unsupported package export entry: ${relativePath}`,
+        "Package export entries must point to regular source files.",
+        location,
+      );
+    }
+
+    const packageRoot = fs.realpathSync(packageDir);
+    const realExportPath = fs.realpathSync(fullPath);
+    if (!this.isWithinPackage(packageRoot, realExportPath)) {
+      throw new CompilerError(
+        `Invalid package export entry: ${relativePath}`,
+        "Package export entries must resolve inside the package root.",
+        location,
+      );
+    }
+
+    return fullPath;
+  }
+
   private isSafeBinCommandName(commandName: string): boolean {
     return (
       commandName.length > 0 &&
@@ -2257,6 +2309,29 @@ export class PackageManager {
       }
     }
 
+    if (Array.isArray(manifest?.exports)) {
+      for (const relativeExportPath of manifest.exports) {
+        if (typeof relativeExportPath !== "string") continue;
+        if (!this.isSafePackageRelativePath(relativeExportPath)) continue;
+
+        const exportPath = this.resolvePackageRelativePath(
+          packageDir,
+          relativeExportPath,
+        );
+        if (!this.isWithinPackage(packageDir, exportPath)) continue;
+        if (!fs.existsSync(exportPath)) continue;
+
+        const stat = fs.lstatSync(exportPath);
+        if (stat.isSymbolicLink() || !stat.isFile()) continue;
+
+        const packageRoot = fs.realpathSync(packageDir);
+        const realExportPath = fs.realpathSync(exportPath);
+        if (this.isWithinPackage(packageRoot, realExportPath)) {
+          files.add(exportPath);
+        }
+      }
+    }
+
     return [...files];
   }
 
@@ -2352,7 +2427,7 @@ export class PackageManager {
     compilerLog.info(`Packing ${manifest.name}@${manifest.version}...`);
 
     // Get files to include
-    const files = this.getAllBplFiles(packageDir);
+    const files = new Set(this.getAllBplFiles(packageDir));
 
     // Also include 'bin' files
     if (manifest.bin) {
@@ -2362,11 +2437,23 @@ export class PackageManager {
           binaryPath as string,
           manifestPath,
         );
-        files.push(fullPath);
+        files.add(fullPath);
       }
     }
 
-    if (files.length === 0) {
+    // Also include explicit exported source files, including non-.bpl sources.
+    if (manifest.exports) {
+      for (const exportPath of manifest.exports) {
+        const fullPath = this.validatePackageExportFile(
+          packageDir,
+          exportPath,
+          manifestPath,
+        );
+        files.add(fullPath);
+      }
+    }
+
+    if (files.size === 0) {
       throw new CompilerError(
         "No .bpl files found in package",
         "Add some .bpl files to the package directory.",
@@ -2380,7 +2467,7 @@ export class PackageManager {
       );
     }
 
-    compilerLog.info(`Including ${files.length} source files`);
+    compilerLog.info(`Including ${files.size} source files`);
 
     // Create a temporary directory for packing
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-"));

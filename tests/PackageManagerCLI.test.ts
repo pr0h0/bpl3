@@ -448,6 +448,31 @@ describe("Package Manager CLI", () => {
       expect(linkResult.stderr).not.toContain("ENOENT");
     });
 
+    test("should reject missing package exports before creating archives", () => {
+      const manifest = {
+        name: "missing-export-cli",
+        version: "1.0.0",
+        main: "index.bpl",
+        exports: ["features/public.bpl"],
+      };
+
+      fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
+      fs.writeFileSync("index.bpl", "export root;");
+
+      const result = spawnSync("bun", [bplPath, "pack"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Missing package export entry: features/public.bpl",
+      );
+      expect(result.stderr).not.toContain("ENOENT");
+      expect(fs.existsSync("missing-export-cli-1.0.0.tgz")).toBe(false);
+    });
+
     test("should reject ambiguous manifest paths before creating archives", () => {
       const cases = [
         {

@@ -885,6 +885,107 @@ describe("PackageManager", () => {
         /Missing package bin entry/,
       );
     });
+
+    test("should reject package exports that do not point to regular files", () => {
+      const directoryProject = path.join(tempDir, "directory-export-package");
+      const missingProject = path.join(tempDir, "missing-export-package");
+      const symlinkProject = path.join(tempDir, "symlink-export-package");
+      fs.mkdirSync(path.join(directoryProject, "features"), {
+        recursive: true,
+      });
+      fs.mkdirSync(missingProject);
+      fs.mkdirSync(path.join(symlinkProject, "features"), { recursive: true });
+
+      fs.writeFileSync(
+        path.join(directoryProject, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "directory-export-package",
+            version: "1.0.0",
+            exports: ["features"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(directoryProject, "index.bpl"),
+        "export test;",
+      );
+
+      expect(() => packageManager.pack(directoryProject)).toThrow(
+        /Unsupported package export entry: features/,
+      );
+
+      fs.writeFileSync(
+        path.join(missingProject, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "missing-export-package",
+            version: "1.0.0",
+            exports: ["features/missing.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(missingProject, "index.bpl"), "export test;");
+
+      expect(() => packageManager.pack(missingProject)).toThrow(
+        /Missing package export entry: features\/missing\.bpl/,
+      );
+
+      fs.writeFileSync(
+        path.join(symlinkProject, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "symlink-export-package",
+            version: "1.0.0",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(symlinkProject, "index.bpl"), "export test;");
+      fs.symlinkSync(
+        path.join(symlinkProject, "missing-public.bpl"),
+        path.join(symlinkProject, "features", "public.bpl"),
+      );
+
+      expect(() => packageManager.pack(symlinkProject)).toThrow(
+        /Unsupported package export entry: features\/public\.bpl/,
+      );
+    });
+
+    test("should accept package exports that point to regular source files", () => {
+      fs.mkdirSync(path.join(tempDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        "bpl.json",
+        JSON.stringify(
+          {
+            name: "valid-export-package",
+            version: "1.0.0",
+            exports: ["features/public.bpl", "features/native.x"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync("index.bpl", "export root;");
+      fs.writeFileSync("features/public.bpl", "export publicFeature;");
+      fs.writeFileSync("features/native.x", "extern nativeFeature;");
+
+      const tarballPath = packageManager.pack(tempDir);
+
+      expect(fs.existsSync(tarballPath)).toBe(true);
+      const listing = spawnSync("tar", ["-tzf", tarballPath], {
+        encoding: "utf-8",
+      });
+      expect(listing.status).toBe(0);
+      expect(listing.stdout).toContain("package/features/public.bpl");
+      expect(listing.stdout).toContain("package/features/native.x");
+    });
   });
 
   describe("Package Installation", () => {

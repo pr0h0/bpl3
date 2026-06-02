@@ -93,9 +93,13 @@ my-package/
 
 `src/index.bpl` is the public package entry point. Keep exports there small and
 intentional so editor tooling, package consumers, and cache invalidation all see
-a stable API surface. `bpl pack` does not follow symlinked source files and
-rejects symlinked `bin` entries, including broken symlinks, so package archives
-contain only regular files from inside the package root. Package archive install
+a stable API surface. `bpl pack` validates each `exports` entry before writing
+an archive: exported paths must point to regular source files inside the package
+root, and missing files, directories, and symlinks are rejected. Explicitly
+exported non-`.bpl` sources such as `.x` files are included in the archive.
+`bpl pack` does not follow symlinked source files and rejects symlinked `bin`
+entries, including broken symlinks, so package archives contain only regular
+files from inside the package root. Package archive install
 paths reject both final symlinks and symlinked parent directories before
 extraction, so a path such as `deps-link/math-core-1.0.0.tgz` cannot redirect an
 install through a linked directory. When installing package binaries, BPL only
@@ -536,11 +540,13 @@ the package entrypoint. It also validates `keywords` as an array of strings and
 `repository` as an object with string `type` and `url` fields. Dependency,
 script, and `bin` maps are checked for the same object shape, key, and non-empty
 string rules during import resolution before the package entrypoint is used.
-`exports` entries are also validated as safe package-relative paths. When
-`exports` is present, package subpath imports are restricted to the listed
-package-relative source paths; packages without `exports` keep permissive
-subpath resolution. Extensionless imports still use the normal resolver
-fallbacks, so exporting `features/add.bpl` allows
+`exports` entries are also validated as safe package-relative paths. During
+`bpl pack`, each exported path must exist as a regular source file from inside
+the package root; directories, missing files, and symlinks fail before an
+archive is created. When `exports` is present, package subpath imports are
+restricted to the listed package-relative source paths; packages without
+`exports` keep permissive subpath resolution. Extensionless imports still use
+the normal resolver fallbacks, so exporting `features/add.bpl` allows
 `import [...] from "pkg/features/add"`, and exporting
 `features/math/index.bpl` allows `import [...] from "pkg/features/math"`.
 
