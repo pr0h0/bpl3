@@ -2792,6 +2792,9 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
     mkdirSync(join(packageDir, "features", "increment"), {
       recursive: true,
     });
+    mkdirSync(join(packageDir, "features", "shadow.bpl"), {
+      recursive: true,
+    });
     writeFileSync(
       join(packageDir, "features", "add.bpl"),
       [
@@ -2810,6 +2813,17 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         "",
         "frame increment(value: int) ret int {",
         "    return value + 1;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(packageDir, "features", "shadow.bpl", "index.bpl"),
+      [
+        "export shadow;",
+        "",
+        "frame shadow(value: int) ret int {",
+        "    return value;",
         "}",
         "",
       ].join("\n"),
@@ -2876,6 +2890,53 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI package directory index import JSON reported unexpected payload:\n${JSON.stringify(directoryIndexReport, null, 2)}`,
+      );
+    }
+
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        'import shadow from "pkg-math/features/shadow.bpl";',
+        "",
+        "frame main() ret int {",
+        "    return shadow(7);",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const explicitSourceDirectory = runJsonFailureStep(
+      "check packed npm CLI package explicit source directory JSON",
+      installedBpl,
+      ["check", "--json", "main.bpl"],
+      { cwd: tempDir, bplHome: null, expectedStatus: 1 },
+    );
+    const explicitSourceDirectoryReport = parseCheckReport(
+      explicitSourceDirectory.stdout,
+    );
+    const explicitSourceDirectoryFileReport =
+      explicitSourceDirectoryReport.files[0];
+    const explicitSourceDirectoryDiagnostic =
+      explicitSourceDirectoryFileReport?.diagnostics?.[0];
+    if (
+      explicitSourceDirectoryReport.success ||
+      explicitSourceDirectoryReport.totalFiles !== 1 ||
+      explicitSourceDirectoryReport.errorCount !== 1 ||
+      explicitSourceDirectoryReport.files.length !== 1 ||
+      explicitSourceDirectoryFileReport?.file !== "main.bpl" ||
+      explicitSourceDirectoryFileReport.success ||
+      explicitSourceDirectoryDiagnostic?.code !==
+        "BPL_PACKAGE_SUBPATH_NOT_FOUND" ||
+      typeof explicitSourceDirectoryDiagnostic.message !== "string" ||
+      !explicitSourceDirectoryDiagnostic.message.includes(
+        "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+      ) ||
+      typeof explicitSourceDirectoryDiagnostic.hint !== "string" ||
+      !explicitSourceDirectoryDiagnostic.hint.includes(
+        "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+      )
+    ) {
+      throw new Error(
+        `Packed npm CLI package explicit source directory JSON reported unexpected payload:\n${JSON.stringify(explicitSourceDirectoryReport, null, 2)}`,
       );
     }
   } finally {

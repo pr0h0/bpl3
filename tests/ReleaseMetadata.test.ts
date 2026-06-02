@@ -609,6 +609,15 @@ describe("Release metadata", () => {
     ]);
   });
 
+  test("release smoke validates packed explicit source directory import failures", () => {
+    expectReleaseSmokeSourceContains([
+      "check packed npm CLI package explicit source directory JSON",
+      "pkg-math/features/shadow.bpl",
+      "BPL_PACKAGE_SUBPATH_NOT_FOUND",
+      "explicit package source-file imports ending in .bpl or .x do not fall back to directory indexes",
+    ]);
+  });
+
   test("release smoke validates packed build validation error codes", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI build validation JSON",
