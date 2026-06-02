@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "fs";
 
 import type * as AST from "../compiler/common/AST";
 import { CaptureAnalyzer } from "../compiler/middleend/CaptureAnalyzer";
@@ -49,7 +50,60 @@ function lambdaReturning(value: AST.Expression): AST.LambdaExpr {
   };
 }
 
+function extractCaptureAnalyzerSwitchCases(): Set<string> {
+  const source = readFileSync("compiler/middleend/CaptureAnalyzer.ts", "utf8");
+  const cases: string[] = [];
+  for (const match of source.matchAll(/case "([^"]+)":/g)) {
+    if (match[1]) cases.push(match[1]);
+  }
+  return new Set(cases);
+}
+
 describe("CaptureAnalyzer", () => {
+  it("keeps child-bearing capture visitor switch cases explicit", () => {
+    const cases = extractCaptureAnalyzerSwitchCases();
+    const expectedKinds = [
+      "Identifier",
+      "Block",
+      "VariableDecl",
+      "Return",
+      "Binary",
+      "Unary",
+      "InterpolatedString",
+      "Call",
+      "If",
+      "Loop",
+      "Defer",
+      "Throw",
+      "Try",
+      "Switch",
+      "ExpressionStmt",
+      "Assignment",
+      "Member",
+      "Index",
+      "Cast",
+      "Group",
+      "Is",
+      "As",
+      "Ternary",
+      "GenericInstantiation",
+      "ArrayLiteral",
+      "StructLiteral",
+      "TupleLiteral",
+      "EnumStructVariant",
+      "Sizeof",
+      "TypeOf",
+      "OffsetOf",
+      "TypeMatch",
+      "Match",
+      "LambdaExpression",
+    ];
+
+    for (const kind of expectedKinds) {
+      expect(cases).toContain(kind);
+    }
+  });
+
   it("captures identifiers used as generic instantiation bases", () => {
     const capturedDecl: AST.VariableDecl = {
       kind: "VariableDecl",

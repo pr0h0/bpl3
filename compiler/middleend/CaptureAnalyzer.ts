@@ -156,6 +156,8 @@ export class CaptureAnalyzer {
       case "TypeOf":
         this.visit((node as AST.TypeOfExpr).target as AST.ASTNode);
         break;
+      case "OffsetOf":
+        break;
       case "TypeMatch":
         this.visit((node as AST.TypeMatchExpr).value as AST.ASTNode);
         break;

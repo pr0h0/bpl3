@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "fs";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
@@ -16,7 +17,66 @@ function compile(source: string): string {
   return generator.generate(program);
 }
 
+function extractDeferCaptureSwitchCases(): Set<string> {
+  const source = readFileSync(
+    "compiler/backend/codegen/ExceptionGenerator.ts",
+    "utf8",
+  );
+  const cases: string[] = [];
+  const collectCapturesStart = source.indexOf("const collectCaptures");
+  const generateDeferEnd = source.indexOf("collectCaptures(stmt.statement);");
+  const captureWalker = source.slice(collectCapturesStart, generateDeferEnd);
+  for (const match of captureWalker.matchAll(/case "([^"]+)":/g)) {
+    if (match[1]) cases.push(match[1]);
+  }
+  return new Set(cases);
+}
+
 describe("Defer Statement", () => {
+  it("keeps deferred capture visitor switch cases explicit", () => {
+    const cases = extractDeferCaptureSwitchCases();
+    const expectedKinds = [
+      "Block",
+      "VariableDecl",
+      "Return",
+      "If",
+      "Loop",
+      "Throw",
+      "Try",
+      "Switch",
+      "ExpressionStmt",
+      "Defer",
+      "Binary",
+      "Unary",
+      "InterpolatedString",
+      "Call",
+      "Member",
+      "Index",
+      "Assignment",
+      "Cast",
+      "Group",
+      "Is",
+      "As",
+      "Ternary",
+      "GenericInstantiation",
+      "StructLiteral",
+      "ArrayLiteral",
+      "TupleLiteral",
+      "EnumStructVariant",
+      "Sizeof",
+      "TypeOf",
+      "OffsetOf",
+      "TypeMatch",
+      "Match",
+      "MatchArm",
+      "LambdaExpression",
+    ];
+
+    for (const kind of expectedKinds) {
+      expect(cases).toContain(kind);
+    }
+  });
+
   it("should parse defer statement", () => {
     const code = `
       frame main() {

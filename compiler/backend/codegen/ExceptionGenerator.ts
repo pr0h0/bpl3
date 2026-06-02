@@ -729,6 +729,8 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         case "TypeOf":
           collectCaptures((node as AST.TypeOfExpr).target);
           break;
+        case "OffsetOf":
+          break;
         case "TypeMatch":
           collectCaptures((node as AST.TypeMatchExpr).value);
           break;
