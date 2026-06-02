@@ -76,6 +76,7 @@ interface PackageDoctorReport {
   success: boolean;
   ok: boolean;
   lockfile: {
+    packages: number;
     verified: boolean;
   };
   cacheVerification: PackageCacheVerifyReport;
@@ -88,6 +89,7 @@ interface PackageDoctorReport {
     expectedVersion?: string;
     expectedHash?: string;
     actualHash?: string;
+    lockVerificationKind?: string;
   }>;
 }
 
@@ -1457,6 +1459,74 @@ function runPackedPackageDoctorSmoke(
   ) {
     throw new Error(
       `Packed npm CLI package doctor lock drift JSON reported unexpected payload:\n${JSON.stringify(driftReport, null, 2)}`,
+    );
+  }
+
+  const staleProjectDir = join(installDir, "package-doctor-stale-lock-project");
+  const staleHomeDir = join(staleProjectDir, "home");
+  mkdirSync(staleProjectDir, { recursive: true });
+  mkdirSync(staleHomeDir, { recursive: true });
+  writeFileSync(
+    join(staleProjectDir, "bpl.json"),
+    JSON.stringify(
+      {
+        name: "package-doctor-stale-lock-project",
+        version: "1.0.0",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFileSync(
+    join(staleProjectDir, "bpl.lock"),
+    JSON.stringify(
+      {
+        lockfileVersion: 1,
+        packages: {
+          "doctor-stale-lock": {
+            version: "1.2.3",
+            source: "doctor-stale-lock-1.2.3.tgz",
+            hash: "stale-lock-hash",
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  const staleDoctor = runJsonFailureStep(
+    "check packed npm CLI package doctor stale lock JSON",
+    installedBpl,
+    ["doctor", "packages", "--json"],
+    {
+      cwd: staleProjectDir,
+      bplHome: null,
+      env: { HOME: staleHomeDir },
+      expectedStatus: 1,
+    },
+  );
+  const staleReport = parsePackageDoctorReport(staleDoctor.stdout);
+  const staleIssue = staleReport.issues.find(
+    (issue) => issue.kind === "stale-lock-entry",
+  );
+
+  if (
+    staleReport.success ||
+    staleReport.ok ||
+    staleReport.lockfile.verified ||
+    staleReport.lockfile.packages !== 1 ||
+    !staleIssue ||
+    staleIssue.severity !== "error" ||
+    staleIssue.code !== "BPL_PACKAGE_LOCK_VERIFY_FAILED" ||
+    staleIssue.packageName !== "doctor-stale-lock" ||
+    staleIssue.source !== "doctor-stale-lock-1.2.3.tgz" ||
+    staleIssue.expectedVersion !== "1.2.3" ||
+    staleIssue.expectedHash !== "stale-lock-hash" ||
+    staleIssue.lockVerificationKind !== "missing-package"
+  ) {
+    throw new Error(
+      `Packed npm CLI package doctor stale lock JSON reported unexpected payload:\n${JSON.stringify(staleReport, null, 2)}`,
     );
   }
 }

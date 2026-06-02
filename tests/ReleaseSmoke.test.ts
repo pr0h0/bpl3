@@ -165,6 +165,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package doctor lock drift JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package doctor stale lock JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package install JSON",
       );
       expect(result.stdout).toContain(

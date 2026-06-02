@@ -927,6 +927,22 @@ describe("Release metadata", () => {
     ]);
   });
 
+  test("release smoke validates packed package doctor stale lock JSON output", () => {
+    expectReleaseSmokeSourceContains([
+      "check packed npm CLI package doctor stale lock JSON",
+      '["doctor", "packages", "--json"]',
+      "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+      "doctor-stale-lock",
+      "stale-lock-entry",
+      "lockVerificationKind",
+      "missing-package",
+      "expectedHash",
+    ]);
+    expectReleaseSmokeTestSourceContains([
+      "release smoke: check packed npm CLI package doctor stale lock JSON",
+    ]);
+  });
+
   test("release smoke validates packed package pack JSON output", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI package pack JSON",
