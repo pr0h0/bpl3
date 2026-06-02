@@ -915,6 +915,18 @@ describe("Release metadata", () => {
     ]);
   });
 
+  test("release smoke validates packed package doctor lock drift JSON output", () => {
+    expectReleaseSmokeSourceContains([
+      "check packed npm CLI package doctor lock drift JSON",
+      '["doctor", "packages", "--json"]',
+      "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+      "doctor-lock-drift",
+      "packageName",
+      "expectedHash",
+      "actualHash",
+    ]);
+  });
+
   test("release smoke validates packed package pack JSON output", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI package pack JSON",

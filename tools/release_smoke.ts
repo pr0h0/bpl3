@@ -75,8 +75,20 @@ interface PackageDoctorReport {
   check: "packages";
   success: boolean;
   ok: boolean;
+  lockfile: {
+    verified: boolean;
+  };
   cacheVerification: PackageCacheVerifyReport;
-  issues: unknown[];
+  issues: Array<{
+    severity: string;
+    kind: string;
+    code?: string;
+    packageName?: string;
+    source?: string;
+    expectedVersion?: string;
+    expectedHash?: string;
+    actualHash?: string;
+  }>;
 }
 
 interface PackageInstallReport {
@@ -1366,6 +1378,85 @@ function runPackedPackageDoctorSmoke(
   ) {
     throw new Error(
       `Packed npm CLI package doctor cache verification was not isolated:\n${JSON.stringify(report.cacheVerification, null, 2)}`,
+    );
+  }
+
+  const driftPackageDir = join(installDir, "package-doctor-lock-drift-package");
+  const driftProjectDir = join(installDir, "package-doctor-lock-drift-project");
+  const driftHomeDir = join(driftProjectDir, "home");
+  mkdirSync(driftPackageDir, { recursive: true });
+  mkdirSync(driftProjectDir, { recursive: true });
+  mkdirSync(driftHomeDir, { recursive: true });
+  writeFileSync(
+    join(driftPackageDir, "bpl.json"),
+    JSON.stringify(
+      {
+        name: "doctor-lock-drift",
+        version: "1.0.0",
+        main: "index.bpl",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFileSync(join(driftPackageDir, "index.bpl"), "export original;\n");
+
+  runStep("pack package doctor lock drift fixture", installedBpl, ["pack"], {
+    cwd: driftPackageDir,
+    bplHome: null,
+  });
+  const driftArchivePath = join(
+    driftPackageDir,
+    "doctor-lock-drift-1.0.0.tgz",
+  );
+  runStep(
+    "install package doctor lock drift fixture",
+    installedBpl,
+    ["install", driftArchivePath],
+    {
+      cwd: driftProjectDir,
+      bplHome: null,
+      env: { HOME: driftHomeDir },
+    },
+  );
+  writeFileSync(
+    join(driftProjectDir, "bpl_modules", "doctor-lock-drift", "index.bpl"),
+    "export tampered;\n",
+  );
+
+  const driftDoctor = runJsonFailureStep(
+    "check packed npm CLI package doctor lock drift JSON",
+    installedBpl,
+    ["doctor", "packages", "--json"],
+    {
+      cwd: driftProjectDir,
+      bplHome: null,
+      env: { HOME: driftHomeDir },
+      expectedStatus: 1,
+    },
+  );
+  const driftReport = parsePackageDoctorReport(driftDoctor.stdout);
+  const driftIssue = driftReport.issues.find(
+    (issue) => issue.kind === "hash-mismatch",
+  );
+
+  if (
+    driftReport.success ||
+    driftReport.ok ||
+    driftReport.lockfile.verified ||
+    !driftIssue ||
+    driftIssue.severity !== "error" ||
+    driftIssue.code !== "BPL_PACKAGE_LOCK_VERIFY_FAILED" ||
+    driftIssue.packageName !== "doctor-lock-drift" ||
+    typeof driftIssue.source !== "string" ||
+    !driftIssue.source.includes("doctor-lock-drift-1.0.0.tgz") ||
+    driftIssue.expectedVersion !== "1.0.0" ||
+    typeof driftIssue.expectedHash !== "string" ||
+    typeof driftIssue.actualHash !== "string" ||
+    driftIssue.actualHash === driftIssue.expectedHash
+  ) {
+    throw new Error(
+      `Packed npm CLI package doctor lock drift JSON reported unexpected payload:\n${JSON.stringify(driftReport, null, 2)}`,
     );
   }
 }
