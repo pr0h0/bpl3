@@ -149,6 +149,21 @@ describe("TypeChecker statement semantic guard diagnostics", () => {
     );
   });
 
+  test("codes nested tuple destructuring declarations over non-tuple elements", () => {
+    expectStatementGuardError(
+      `
+        frame main() ret int {
+          local pair: (int, int) = (1, 2);
+          local ((left: int, right: int), value: int) = pair;
+          return value;
+        }
+      `,
+      "Nested tuple destructuring target used on non-tuple element",
+      "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID",
+      "Nested destructuring targets require tuple elements.",
+    );
+  });
+
   test("preserves valid statement guard forms", () => {
     const errors = collectErrors(`
       frame main() ret int {

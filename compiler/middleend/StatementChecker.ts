@@ -772,7 +772,14 @@ export function checkVariableDecl(
         tupleNode: AST.TypeNode,
       ): void => {
         const resolvedTuple = this.resolveType(tupleNode);
-        if (resolvedTuple.kind !== "TupleType") return;
+        if (resolvedTuple.kind !== "TupleType") {
+          throw new CompilerError(
+            "Nested tuple destructuring target used on non-tuple element",
+            "Nested destructuring targets require tuple elements.",
+            decl.location,
+            TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
+          );
+        }
 
         if (nestedTargets.length !== resolvedTuple.types.length) {
           throw new CompilerError(

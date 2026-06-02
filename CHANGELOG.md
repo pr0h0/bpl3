@@ -1040,8 +1040,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Tuple Destructuring Declaration Type Checks** - Explicit types on tuple
   destructuring declaration targets are now checked against their actual tuple
   element types, including nested destructuring targets, and target counts must
-  match tuple element counts instead of accepting mismatches that could reach
-  code generation.
+  match tuple element counts. Nested destructuring targets are also rejected
+  when the corresponding element is not a tuple, avoiding mismatches that could
+  reach code generation.
 - **Try/Catch Capture Traversal** - Lambda and deferred-block capture analysis
   now visits `try` bodies and `catch` handlers while keeping typed catch
   variables local to the handler, avoiding dangling loads when deferred or
