@@ -15,6 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   such as `01.0.0`, keeping package resolution and cache lookup from
   normalizing invalid versions differently across subsystems. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageResolver.test.ts tests/PackageManifestSchema.test.ts tests/PackageManagerCLI.test.ts tests/PackageJsonFailureContracts.test.ts -t "semantic versions|manifest identity fields are malformed|leading-zero semantic version|leading-zero global|invalid package-cache version filters|package-cache version filter"`.
+- **Exact Package SemVer Comparison** - Package resolver global versioned
+  directories, package-cache archive ordering, and dependency version ranges
+  now compare semantic version segments with exact integer precision, avoiding
+  JavaScript `Number` rounding for large segments such as
+  `9007199254740993.0.0`. Reproduce with
+  `bun test tests/PackageResolver.test.ts tests/PackageManager.test.ts -t "large global versioned|large dependency semver range"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every

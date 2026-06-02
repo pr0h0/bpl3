@@ -79,7 +79,7 @@ const PACKAGE_VERSION_PATTERN =
 const PACKAGE_VERSION_CAPTURE_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
-type SemanticVersion = [number, number, number];
+type SemanticVersion = [bigint, bigint, bigint];
 
 interface PackageRootCandidate {
   rootPath: string;
@@ -550,7 +550,7 @@ function parseSemanticVersion(version: string): SemanticVersion | null {
   const match = PACKAGE_VERSION_CAPTURE_PATTERN.exec(version);
   if (!match) return null;
 
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  return [BigInt(match[1]!), BigInt(match[2]!), BigInt(match[3]!)];
 }
 
 function classifyPackageRootCandidate(
@@ -584,8 +584,8 @@ function compareSemverDesc(
   right: SemanticVersion,
 ): number {
   for (let index = 0; index < 3; index++) {
-    const delta = right[index]! - left[index]!;
-    if (delta !== 0) return delta;
+    if (left[index] === right[index]) continue;
+    return left[index]! > right[index]! ? -1 : 1;
   }
 
   return 0;

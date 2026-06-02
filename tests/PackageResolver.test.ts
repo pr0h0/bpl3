@@ -47,6 +47,31 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("resolves large global versioned package directories without precision loss", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const version = "9007199254740993.0.0";
+    const packageDir = path.join(globalPackageDir, `math-${version}`);
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version, main: "index.bpl" }, null, 2),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export precise;");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toEqual({
+      filePath: path.join(packageDir, "index.bpl"),
+      packageName: "math",
+      packageRoot: packageDir,
+      source: "global",
+    });
+  });
+
   test("resolves local, workspace, global exact, and global versioned candidate roots", () => {
     type CandidateCase = {
       name: string;

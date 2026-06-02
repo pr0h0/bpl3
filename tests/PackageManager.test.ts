@@ -4120,6 +4120,54 @@ describe("PackageManager", () => {
       expect(lock.packages["range-math"].source).toBe("range-math-1.5.0.tgz");
     });
 
+    test("should compare large dependency semver range segments without precision loss", () => {
+      const globalPackageDir = path.join(tempDir, "large-range-cache");
+      const appDir = path.join(tempDir, "large-range-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "large-range-math",
+        "9007199254740993.0.0",
+        "export selectedVersion;",
+        globalPackageDir,
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "large-range-app",
+            version: "1.0.0",
+            dependencies: {
+              "large-range-math": ">9007199254740992.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const installedManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(appDir, "bpl_modules", "large-range-math", "bpl.json"),
+          "utf8",
+        ),
+      );
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+
+      expect(installedManifest.version).toBe("9007199254740993.0.0");
+      expect(lock.packages["large-range-math"].source).toBe(
+        "large-range-math-9007199254740993.0.0.tgz",
+      );
+    });
+
     test("should install versioned dependency tarballs from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "dependency-cache");
       const appDir = path.join(tempDir, "dependency-app");

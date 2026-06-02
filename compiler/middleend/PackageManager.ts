@@ -204,6 +204,8 @@ const PACKAGE_TARBALL_NAME_PATTERN = new RegExp(
   `^(.+)-(${PACKAGE_VERSION_SOURCE})\\.tgz$`,
 );
 
+type SemanticVersion = [bigint, bigint, bigint];
+
 export interface PackageManifest {
   $schema?: string;
   name: string;
@@ -3913,7 +3915,7 @@ export class PackageManager {
 
   private findGlobalPackageTarballs(packageName: string): Array<{
     file: string;
-    version: [number, number, number];
+    version: SemanticVersion;
     versionText: string;
   }> {
     if (
@@ -3941,10 +3943,10 @@ export class PackageManager {
 
         return {
           file,
-          version: [Number(match[1]), Number(match[2]), Number(match[3])] as [
-            number,
-            number,
-            number,
+          version: [
+            BigInt(match[1]!),
+            BigInt(match[2]!),
+            BigInt(match[3]!),
           ],
           versionText: `${match[1]}.${match[2]}.${match[3]}`,
         };
@@ -3954,7 +3956,7 @@ export class PackageManager {
           entry,
         ): entry is {
           file: string;
-          version: [number, number, number];
+          version: SemanticVersion;
           versionText: string;
         } => entry !== null,
       )
@@ -5453,10 +5455,10 @@ function parsePackageInstallSpec(
   };
 }
 
-function parseSemverTuple(version: string): [number, number, number] {
+function parseSemverTuple(version: string): SemanticVersion {
   const match = PACKAGE_VERSION_CAPTURE_PATTERN.exec(version);
-  if (!match) return [0, 0, 0];
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  if (!match) return [0n, 0n, 0n];
+  return [BigInt(match[1]!), BigInt(match[2]!), BigInt(match[3]!)];
 }
 
 function isVersionSelectorSpec(value: string): boolean {
@@ -5475,13 +5477,13 @@ function satisfiesVersionSelector(version: string, selector: string): boolean {
 
   if (selector.startsWith("^")) {
     const minimum = parseSemverTuple(selector.slice(1));
-    let maximum: [number, number, number];
-    if (minimum[0] > 0) {
-      maximum = [minimum[0] + 1, 0, 0];
-    } else if (minimum[1] > 0) {
-      maximum = [0, minimum[1] + 1, 0];
+    let maximum: SemanticVersion;
+    if (minimum[0] > 0n) {
+      maximum = [minimum[0] + 1n, 0n, 0n];
+    } else if (minimum[1] > 0n) {
+      maximum = [0n, minimum[1] + 1n, 0n];
     } else {
-      maximum = [0, 0, minimum[2] + 1];
+      maximum = [0n, 0n, minimum[2] + 1n];
     }
     return (
       compareSemverTuple(versionTuple, minimum) >= 0 &&
@@ -5491,10 +5493,10 @@ function satisfiesVersionSelector(version: string, selector: string): boolean {
 
   if (selector.startsWith("~")) {
     const minimum = parseSemverTuple(selector.slice(1));
-    const maximum: [number, number, number] = [
+    const maximum: SemanticVersion = [
       minimum[0],
-      minimum[1] + 1,
-      0,
+      minimum[1] + 1n,
+      0n,
     ];
     return (
       compareSemverTuple(versionTuple, minimum) >= 0 &&
@@ -5511,7 +5513,7 @@ function satisfiesVersionSelector(version: string, selector: string): boolean {
 }
 
 function satisfiesVersionComparator(
-  version: [number, number, number],
+  version: SemanticVersion,
   comparator: string,
 ): boolean {
   const match = PACKAGE_VERSION_COMPARATOR_CAPTURE_PATTERN.exec(comparator);
@@ -5538,24 +5540,24 @@ function satisfiesVersionComparator(
 }
 
 function compareSemverTuple(
-  left: [number, number, number],
-  right: [number, number, number],
+  left: SemanticVersion,
+  right: SemanticVersion,
 ): number {
   for (let i = 0; i < 3; i++) {
-    const delta = left[i]! - right[i]!;
-    if (delta !== 0) return delta;
+    if (left[i] === right[i]) continue;
+    return left[i]! > right[i]! ? 1 : -1;
   }
 
   return 0;
 }
 
 function compareSemverDesc(
-  left: [number, number, number],
-  right: [number, number, number],
+  left: SemanticVersion,
+  right: SemanticVersion,
 ): number {
   for (let i = 0; i < 3; i++) {
-    const delta = right[i]! - left[i]!;
-    if (delta !== 0) return delta;
+    if (left[i] === right[i]) continue;
+    return left[i]! > right[i]! ? -1 : 1;
   }
 
   return 0;

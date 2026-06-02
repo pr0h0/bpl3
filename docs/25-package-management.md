@@ -519,11 +519,13 @@ project.
 Global versioned package directories use the `<package>-X.Y.Z` naming form.
 When resolving a global package import, BPL selects the highest semantic
 version whose directory name matches the requested package, then validates that
-root before reading `bpl.json`. The selected global versioned package root is
-still validated with `lstat` before its manifest is read, so a symlink, regular
-file, or other non-directory named like a higher version blocks fallback to
-lower versions. For example, `~/.bpl/packages/math-9.0.0` as a symlink or file
-blocks fallback to `~/.bpl/packages/math-1.0.0`.
+root before reading `bpl.json`. Version segments are compared exactly, so large
+segments such as `9007199254740993` do not lose precision during package
+selection. The selected global versioned package root is still validated with
+`lstat` before its manifest is read, so a symlink, regular file, or other
+non-directory named like a higher version blocks fallback to lower versions.
+For example, `~/.bpl/packages/math-9.0.0` as a symlink or file blocks fallback
+to `~/.bpl/packages/math-1.0.0`.
 Versioned global directory names with zero-padded segments such as
 `math-01.0.0` are not considered semantic-version candidates; use
 `math-1.0.0` and a matching manifest version instead.
@@ -781,7 +783,9 @@ entries instead. package-cache repair refuses to regenerate provenance for an
 archive with a missing, directory, or symlinked package binary. `--package-version`
 filters expect one exact cached version in `X.Y.Z` form with no zero-padded
 segments; dependency ranges such as `^1.2.3` belong in `bpl.json`, not cache
-maintenance commands. In JSON mode, clean and repair
+maintenance commands. Cached package versions and dependency range comparisons
+use exact integer segment ordering rather than JavaScript number precision. In
+JSON mode, clean and repair
 validation failures keep stdout parseable: clean reports `removed: []`, repair
 reports `repaired: []`, `unchanged: []`, and `issues: []`, and both include the
 requested `dryRun` value plus `error`. Package-cache validation failures that
