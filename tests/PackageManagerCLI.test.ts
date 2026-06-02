@@ -4860,6 +4860,27 @@ describe("Package Manager CLI", () => {
       expect(repairResult.stderr).toContain(
         "Invalid package cache version filter: latest",
       );
+
+      const leadingZeroResult = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "clean",
+          "cache-cli",
+          "--package-version",
+          "01.0.0",
+        ],
+        {
+          cwd: tempDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      expect(leadingZeroResult.status).toBe(1);
+      expect(leadingZeroResult.stderr).toContain(
+        "Invalid package cache version filter: 01.0.0",
+      );
     });
   });
 

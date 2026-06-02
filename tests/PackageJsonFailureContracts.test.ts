@@ -298,6 +298,22 @@ describe("Package JSON failure contracts", () => {
             issues: [],
           },
         },
+        {
+          args: [
+            "package-cache",
+            "clean",
+            "pkg",
+            "--package-version",
+            "01.0.0",
+            "--dry-run",
+            "--json",
+          ],
+          expectedCheck: "package-cache-clean",
+          expectedPayload: {
+            removed: [],
+            dryRun: true,
+          },
+        },
       ];
 
       for (const testCase of cases) {

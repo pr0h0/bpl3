@@ -8408,7 +8408,16 @@ describe("PackageManager", () => {
     });
 
     test("should reject invalid semantic versions", () => {
-      const invalidVersions = ["1.0", "1", "v1.0.0", "1.0.0-beta", "latest"];
+      const invalidVersions = [
+        "1.0",
+        "1",
+        "v1.0.0",
+        "1.0.0-beta",
+        "latest",
+        "01.0.0",
+        "1.02.0",
+        "1.0.03",
+      ];
 
       invalidVersions.forEach((version) => {
         const manifest = {

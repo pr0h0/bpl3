@@ -32,7 +32,9 @@ The configuration file defines the package metadata.
 ```
 
 `name` must use lowercase letters, digits, and hyphens only. `version` must be
-an `X.Y.Z` semantic version string. `main`, `entry`, and `exports` must stay
+an `X.Y.Z` semantic version string whose numeric segments are either `0` or do
+not start with `0`; for example, `1.2.3` is valid and `01.2.3` is rejected.
+`main`, `entry`, and `exports` must stay
 inside the package root, and optional metadata such as `$schema`, `keywords`,
 and `repository` is validated before packing or installing. Invalid manifests
 fail while loading `bpl.json` instead of later during path handling or archive
@@ -522,6 +524,9 @@ still validated with `lstat` before its manifest is read, so a symlink, regular
 file, or other non-directory named like a higher version blocks fallback to
 lower versions. For example, `~/.bpl/packages/math-9.0.0` as a symlink or file
 blocks fallback to `~/.bpl/packages/math-1.0.0`.
+Versioned global directory names with zero-padded segments such as
+`math-01.0.0` are not considered semantic-version candidates; use
+`math-1.0.0` and a matching manifest version instead.
 Case-mismatched global versioned package directories such as `Math-9.0.0` are
 rejected before fallback to lower versions such as `math-1.0.0`; they report
 `BPL_PACKAGE_ROOT_CASE_MISMATCH` with both the requested lowercase path and the
@@ -774,9 +779,9 @@ mismatches, manifest mismatches, or invalid extracted `bin` target files because
 those states may indicate a stale or damaged archive; clean and repack those
 entries instead. package-cache repair refuses to regenerate provenance for an
 archive with a missing, directory, or symlinked package binary. `--package-version`
-filters expect one exact cached version in `X.Y.Z` form; dependency ranges such
-as `^1.2.3` belong in `bpl.json`, not cache maintenance commands. In JSON mode,
-clean and repair
+filters expect one exact cached version in `X.Y.Z` form with no zero-padded
+segments; dependency ranges such as `^1.2.3` belong in `bpl.json`, not cache
+maintenance commands. In JSON mode, clean and repair
 validation failures keep stdout parseable: clean reports `removed: []`, repair
 reports `repaired: []`, `unchanged: []`, and `issues: []`, and both include the
 requested `dryRun` value plus `error`. Package-cache validation failures that

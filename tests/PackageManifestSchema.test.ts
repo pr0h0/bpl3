@@ -86,6 +86,31 @@ describe("Package manifest JSON schema", () => {
     }
   });
 
+  test("rejects leading-zero semantic version segments", () => {
+    const versionPattern = schemaPattern(propertySchema("version"), "version");
+
+    for (const version of ["0.0.0", "1.2.3", "10.20.30"]) {
+      expect(versionPattern.test(version), `version accepts ${version}`).toBe(
+        true,
+      );
+    }
+
+    for (const version of ["01.0.0", "1.02.0", "1.0.03"]) {
+      expect(versionPattern.test(version), `version rejects ${version}`).toBe(
+        false,
+      );
+      expect(() =>
+        expectPackageManifestConformsToSchema(
+          {
+            name: "leading-zero-version",
+            version,
+          },
+          "leading-zero-version",
+        ),
+      ).toThrow(/version matches/);
+    }
+  });
+
   test("mirrors runtime package-relative path validation", () => {
     const pathSchemas = [
       { name: "main", contract: propertySchema("main") },

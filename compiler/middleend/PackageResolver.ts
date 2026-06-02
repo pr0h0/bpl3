@@ -74,7 +74,10 @@ export type PackageResolutionFailureCode =
   (typeof PACKAGE_RESOLUTION_FAILURE_CODES)[number];
 
 const PACKAGE_NAME_PATTERN = /^[a-z0-9-]+$/;
-const PACKAGE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+const PACKAGE_VERSION_PATTERN =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const PACKAGE_VERSION_CAPTURE_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 type SemanticVersion = [number, number, number];
 
@@ -544,7 +547,7 @@ function parseVersionedPackageDirectory(
 }
 
 function parseSemanticVersion(version: string): SemanticVersion | null {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  const match = PACKAGE_VERSION_CAPTURE_PATTERN.exec(version);
   if (!match) return null;
 
   return [Number(match[1]), Number(match[2]), Number(match[3])];

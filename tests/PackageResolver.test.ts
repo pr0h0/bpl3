@@ -2034,6 +2034,9 @@ describe("PackageResolver", () => {
       [{ name: 123, version: "1.0.0", main: "index.bpl" }, "manifest name"],
       [{ name: "math", version: 1, main: "index.bpl" }, "manifest version"],
       [{ name: "math", version: "latest", main: "index.bpl" }, "manifest version"],
+      [{ name: "math", version: "01.0.0", main: "index.bpl" }, "manifest version"],
+      [{ name: "math", version: "1.02.0", main: "index.bpl" }, "manifest version"],
+      [{ name: "math", version: "1.0.03", main: "index.bpl" }, "manifest version"],
     ] as const) {
       fs.writeFileSync(
         path.join(packageDir, "bpl.json"),
@@ -2119,5 +2122,46 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain(
       "manifest version '1.0.0' does not match package directory version '2.0.0'",
     );
+  });
+
+  test("ignores leading-zero global versioned package directories", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const invalidPackageDir = path.join(globalPackageDir, "math-01.0.0");
+    const validPackageDir = path.join(globalPackageDir, "math-1.0.0");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(invalidPackageDir, { recursive: true });
+    fs.mkdirSync(validPackageDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(invalidPackageDir, "bpl.json"),
+      JSON.stringify(
+        { name: "math", version: "01.0.0", main: "index.bpl" },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(invalidPackageDir, "index.bpl"), "export bad;");
+    fs.writeFileSync(
+      path.join(validPackageDir, "bpl.json"),
+      JSON.stringify(
+        { name: "math", version: "1.0.0", main: "index.bpl" },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(validPackageDir, "index.bpl"), "export good;");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toEqual({
+      filePath: path.join(validPackageDir, "index.bpl"),
+      packageName: "math",
+      packageRoot: validPackageDir,
+      source: "global",
+    });
+    expect(details.trace.searchedPaths).not.toContain(invalidPackageDir);
   });
 });

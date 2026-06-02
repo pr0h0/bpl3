@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Version SemVer Validation** - Package manifests, lock entries,
+  global versioned package directories, cache archive discovery, dependency
+  version selectors, JSON schema validation, and package-cache
+  `--package-version` filters now reject zero-padded semantic version segments
+  such as `01.0.0`, keeping package resolution and cache lookup from
+  normalizing invalid versions differently across subsystems. Reproduce with
+  `bun test tests/PackageManager.test.ts tests/PackageResolver.test.ts tests/PackageManifestSchema.test.ts tests/PackageManagerCLI.test.ts tests/PackageJsonFailureContracts.test.ts -t "semantic versions|manifest identity fields are malformed|leading-zero semantic version|leading-zero global|invalid package-cache version filters|package-cache version filter"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every

@@ -16,7 +16,7 @@
     "version": {
       "type": "string",
       "description": "Semantic version (e.g., 1.0.0)",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)$"
     },
     "description": {
       "type": "string",

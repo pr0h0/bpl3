@@ -180,6 +180,30 @@ export const PACKAGE_MANIFEST_JSON_ERROR_CODES = [
   PACKAGE_MANIFEST_BIN_INVALID_CODE,
 ] as const;
 
+const PACKAGE_VERSION_SOURCE =
+  "(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)";
+const PACKAGE_VERSION_CAPTURE_SOURCE =
+  "(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)";
+const PACKAGE_VERSION_PATTERN = new RegExp(`^${PACKAGE_VERSION_SOURCE}$`);
+const PACKAGE_VERSION_CAPTURE_PATTERN = new RegExp(
+  `^${PACKAGE_VERSION_CAPTURE_SOURCE}$`,
+);
+const PACKAGE_VERSION_RANGE_PATTERN = new RegExp(
+  `^[~^]${PACKAGE_VERSION_SOURCE}$`,
+);
+const PACKAGE_VERSION_COMPARATOR_PATTERN = new RegExp(
+  `^(>=|>|<=|<|=)${PACKAGE_VERSION_SOURCE}$`,
+);
+const PACKAGE_VERSION_COMPARATOR_LIST_PATTERN = new RegExp(
+  `^(>=|>|<=|<|=)?${PACKAGE_VERSION_SOURCE}(\\s+(>=|>|<=|<|=)?${PACKAGE_VERSION_SOURCE})+$`,
+);
+const PACKAGE_VERSION_COMPARATOR_CAPTURE_PATTERN = new RegExp(
+  `^(>=|>|<=|<|=)?(${PACKAGE_VERSION_SOURCE})$`,
+);
+const PACKAGE_TARBALL_NAME_PATTERN = new RegExp(
+  `^(.+)-(${PACKAGE_VERSION_SOURCE})\\.tgz$`,
+);
+
 export interface PackageManifest {
   $schema?: string;
   name: string;
@@ -990,7 +1014,7 @@ export class PackageManager {
 
       if (
         typeof rawEntry.version !== "string" ||
-        !/^\d+\.\d+\.\d+$/.test(rawEntry.version)
+        !PACKAGE_VERSION_PATTERN.test(rawEntry.version)
       ) {
         throw new CompilerError(
           `Invalid bpl.lock version for ${packageName}`,
@@ -1842,7 +1866,7 @@ export class PackageManager {
       );
     }
 
-    if (/^\d+\.\d+\.\d+$/.test(fileSource)) {
+    if (PACKAGE_VERSION_PATTERN.test(fileSource)) {
       candidates.add(
         path.join(this.globalPackageDir, `${packageName}-${fileSource}.tgz`),
       );
@@ -1958,7 +1982,7 @@ export class PackageManager {
       }
 
       // Validate version format
-      if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) {
+      if (!PACKAGE_VERSION_PATTERN.test(manifest.version)) {
         throw new CompilerError(
           `Invalid version format: ${manifest.version} (expected: X.Y.Z)`,
           "Version must be in semantic versioning format (Major.Minor.Patch).",
@@ -3902,7 +3926,7 @@ export class PackageManager {
     }
 
     const packagePattern = new RegExp(
-      `^${escapeRegExp(packageName)}-(\\d+)\\.(\\d+)\\.(\\d+)\\.tgz$`,
+      `^${escapeRegExp(packageName)}-${PACKAGE_VERSION_CAPTURE_SOURCE}\\.tgz$`,
     );
 
     return fs
@@ -5358,7 +5382,7 @@ function validatePackageName(
 function validatePackageCacheVersionFilter(version: string | undefined): void {
   if (version === undefined) return;
 
-  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+  if (!PACKAGE_VERSION_PATTERN.test(version)) {
     throw new CompilerError(
       `Invalid package cache version filter: ${version}`,
       "Use an exact semantic version such as '1.2.3'.",
@@ -5410,7 +5434,7 @@ function escapeRegExp(value: string): string {
 function parsePackageTarballName(
   file: string,
 ): { name: string; version: string } | null {
-  const match = /^(.+)-(\d+\.\d+\.\d+)\.tgz$/.exec(file);
+  const match = PACKAGE_TARBALL_NAME_PATTERN.exec(file);
   if (!match) return null;
   return {
     name: match[1]!,
@@ -5430,24 +5454,22 @@ function parsePackageInstallSpec(
 }
 
 function parseSemverTuple(version: string): [number, number, number] {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  const match = PACKAGE_VERSION_CAPTURE_PATTERN.exec(version);
   if (!match) return [0, 0, 0];
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
 function isVersionSelectorSpec(value: string): boolean {
   if (value === "*" || value === "latest") return true;
-  if (/^\d+\.\d+\.\d+$/.test(value)) return true;
-  if (/^[~^]\d+\.\d+\.\d+$/.test(value)) return true;
-  if (/^(>=|>|<=|<|=)\d+\.\d+\.\d+$/.test(value)) return true;
-  return /^(>=|>|<=|<|=)?\d+\.\d+\.\d+(\s+(>=|>|<=|<|=)?\d+\.\d+\.\d+)+$/.test(
-    value,
-  );
+  if (PACKAGE_VERSION_PATTERN.test(value)) return true;
+  if (PACKAGE_VERSION_RANGE_PATTERN.test(value)) return true;
+  if (PACKAGE_VERSION_COMPARATOR_PATTERN.test(value)) return true;
+  return PACKAGE_VERSION_COMPARATOR_LIST_PATTERN.test(value);
 }
 
 function satisfiesVersionSelector(version: string, selector: string): boolean {
   if (selector === "*" || selector === "latest") return true;
-  if (/^\d+\.\d+\.\d+$/.test(selector)) return version === selector;
+  if (PACKAGE_VERSION_PATTERN.test(selector)) return version === selector;
 
   const versionTuple = parseSemverTuple(version);
 
@@ -5492,7 +5514,7 @@ function satisfiesVersionComparator(
   version: [number, number, number],
   comparator: string,
 ): boolean {
-  const match = /^(>=|>|<=|<|=)?(\d+\.\d+\.\d+)$/.exec(comparator);
+  const match = PACKAGE_VERSION_COMPARATOR_CAPTURE_PATTERN.exec(comparator);
   if (!match) return false;
 
   const operator = match[1] || "=";
