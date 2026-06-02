@@ -120,6 +120,50 @@ describe("Lambda Code Generation", () => {
     expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
   });
 
+  it("should not capture enum tuple pattern bindings as outer lambda captures", () => {
+    const source = `
+      enum CaptureOption {
+        Some(int),
+        None,
+      }
+
+      frame main() ret int {
+        local f: Lambda<int>(CaptureOption) = |value: CaptureOption| ret int {
+          return match (value) {
+            CaptureOption.Some(inner) => inner + 1,
+            CaptureOption.None => 0,
+          };
+        };
+        return f(CaptureOption.Some(4));
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
+  });
+
+  it("should not capture enum struct pattern bindings as outer lambda captures", () => {
+    const source = `
+      enum Event {
+        MouseMove { x: int, y: int },
+        Close,
+      }
+
+      frame main() ret int {
+        local f: Lambda<int>(Event) = |event: Event| ret int {
+          return match (event) {
+            Event.MouseMove { x: px, y: py } => px + py,
+            Event.Close => 0,
+          };
+        };
+        return f(Event.MouseMove { x: 4, y: 5 });
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       frame apply(f: Lambda<int>(int), v: int) ret int {

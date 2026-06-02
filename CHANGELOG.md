@@ -1029,6 +1029,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   expressions, and aggregate literal children so closure contexts include
   locals referenced from those nested forms instead of emitting dangling local
   loads inside generated lambda functions.
+- **Lambda Pattern-Binding Captures** - Enum tuple and enum struct pattern
+  bindings inside lambda `match` arms now stay arm-local during capture
+  analysis. Lambdas no longer build closure contexts from destructured pattern
+  names before those locals exist.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`

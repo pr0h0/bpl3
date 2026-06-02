@@ -180,10 +180,14 @@ export class CaptureAnalyzer {
   private collectPatternBindings(pattern: AST.Pattern): AST.ASTNode[] {
     switch (pattern.kind) {
       case "PatternIdentifier":
-        return [pattern];
+        return [pattern.bindingDeclaration ?? pattern];
       case "PatternEnumTuple":
         return pattern.bindings.flatMap((binding) =>
           this.collectPatternBindings(binding),
+        );
+      case "PatternEnumStruct":
+        return pattern.fields.flatMap((field) =>
+          field.bindingDeclaration ? [field.bindingDeclaration] : [],
         );
       case "PatternTuple":
         return pattern.patterns.flatMap((subPattern) =>

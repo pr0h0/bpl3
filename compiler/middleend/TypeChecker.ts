@@ -2331,6 +2331,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             isConst: false,
           };
 
+          binding.bindingDeclaration = bindingDecl;
           this.defineSymbol(bindingName, "Variable", bindingType, bindingDecl);
         }
       }
@@ -2377,6 +2378,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           isConst: false,
         };
 
+        field.bindingDeclaration = bindingDecl;
         this.defineSymbol(bindingName, "Variable", bindingType, bindingDecl);
       }
     }

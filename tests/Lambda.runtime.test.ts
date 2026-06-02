@@ -103,6 +103,50 @@ describe("Lambda Runtime", () => {
     expect(result.stdout).toContain("Result: 5 7");
   });
 
+  it("should keep enum pattern bindings local inside lambda match arms", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum CaptureOption {
+        Some(int),
+        None,
+      }
+
+      enum Event {
+        MouseMove { x: int, y: int },
+        Close,
+      }
+
+      frame main() ret int {
+        local tuplePattern: Lambda<int>(CaptureOption) = |value: CaptureOption| ret int {
+          return match (value) {
+            CaptureOption.Some(inner) => inner + 1,
+            CaptureOption.None => 0,
+          };
+        };
+        local structPattern: Lambda<int>(Event) = |event: Event| ret int {
+          return match (event) {
+            Event.MouseMove { x: px, y: py } => px + py,
+            Event.Close => 0,
+          };
+        };
+        printf(
+          "Result: %d %d\\n",
+          tuplePattern(CaptureOption.Some(4)),
+          structPattern(Event.MouseMove { x: 5, y: 6 }),
+        );
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "lambda_enum_pattern_bindings_local");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+      console.error("STDOUT:", result.stdout);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Result: 5 11");
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       extern printf(fmt: string, ...);

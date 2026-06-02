@@ -300,6 +300,7 @@ export interface PatternIdentifier extends ASTNode {
   kind: "PatternIdentifier";
   name: string;
   type?: TypeNode;
+  bindingDeclaration?: VariableDecl;
 }
 
 export interface PatternTuple extends ASTNode {
@@ -326,7 +327,11 @@ export interface PatternEnumStruct extends ASTNode {
   kind: "PatternEnumStruct";
   enumName: string;
   variantName: string;
-  fields: { fieldName: string; binding: string }[];
+  fields: {
+    fieldName: string;
+    binding: string;
+    bindingDeclaration?: VariableDecl;
+  }[];
   genericArgs?: TypeNode[];
 }
 

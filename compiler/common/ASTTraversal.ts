@@ -29,6 +29,7 @@ const DEFAULT_SKIP_PROPERTIES = [
   "aliasDeclaration",
   "variableDeclaration",
   "declaration",
+  "bindingDeclaration",
 ];
 
 /**

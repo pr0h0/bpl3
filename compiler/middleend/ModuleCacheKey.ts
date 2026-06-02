@@ -661,6 +661,7 @@ const AST_TYPE_REFERENCE_IGNORED_KEYS = new Set([
   "aliasDeclaration",
   "variableDeclaration",
   "declaration",
+  "bindingDeclaration",
   "captures",
   "overloads",
   "operator",
@@ -962,6 +963,7 @@ function createStableAstSignature(value: unknown): unknown {
     "aliasDeclaration",
     "variableDeclaration",
     "declaration",
+    "bindingDeclaration",
     "captures",
   ]);
   const result: Record<string, unknown> = {};
