@@ -719,6 +719,33 @@ function validatePackageManifestMatchesImport(
     }
   }
 
+  if (
+    manifest.keywords !== undefined &&
+    (!Array.isArray(manifest.keywords) ||
+      manifest.keywords.some((keyword) => typeof keyword !== "string"))
+  ) {
+    trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest keywords must be an array of strings when present.`;
+    return false;
+  }
+
+  const repository = manifest.repository;
+  const repositoryRecord = repository as Record<string, unknown>;
+  if (
+    repository !== undefined &&
+    (!repository ||
+      typeof repository !== "object" ||
+      Array.isArray(repository) ||
+      typeof repositoryRecord.type !== "string" ||
+      typeof repositoryRecord.url !== "string")
+  ) {
+    trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest repository must contain string type and url fields when present.`;
+    return false;
+  }
+
   if (manifest.main !== undefined && typeof manifest.main !== "string") {
     trace.failureReason = "manifest-invalid";
     trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";

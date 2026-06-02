@@ -1447,6 +1447,81 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects package manifest collection metadata with malformed values", () => {
+    const cases = [
+      {
+        name: "keywords-string",
+        field: "keywords",
+        manifestPatch: { keywords: "math" },
+        expectedMessage:
+          "manifest keywords must be an array of strings when present",
+      },
+      {
+        name: "keywords-number-entry",
+        field: "keywords",
+        manifestPatch: { keywords: ["math", 42] },
+        expectedMessage:
+          "manifest keywords must be an array of strings when present",
+      },
+      {
+        name: "repository-null",
+        field: "repository",
+        manifestPatch: { repository: null },
+        expectedMessage:
+          "manifest repository must contain string type and url fields when present",
+      },
+      {
+        name: "repository-missing-url",
+        field: "repository",
+        manifestPatch: { repository: { type: "git" } },
+        expectedMessage:
+          "manifest repository must contain string type and url fields when present",
+      },
+      {
+        name: "repository-url-number",
+        field: "repository",
+        manifestPatch: { repository: { type: "git", url: 42 } },
+        expectedMessage:
+          "manifest repository must contain string type and url fields when present",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const appDir = path.join(tempDir, `app-${testCase.name}`);
+      const packageDir = path.join(appDir, "bpl_modules", "math");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "math",
+            version: "1.0.0",
+            ...testCase.manifestPatch,
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result, testCase.name).toBeNull();
+      expect(details.trace.failureReason, testCase.name).toBe(
+        "manifest-invalid",
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.expectedMessage,
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.field,
+      );
+      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
+        "BPL_PACKAGE_MANIFEST_INVALID",
+      );
+    }
+  });
+
   test("does not fall back after unsafe manifest main paths", () => {
     const cases = [
       { name: "parent", main: "../outside.bpl" },

@@ -532,7 +532,8 @@ the link. The package manager validates both `main` and the legacy `entry`
 field as package-relative paths before install or pack operations continue.
 The package import resolver also rejects malformed string metadata such as a
 non-string `$schema`, `description`, `author`, or `license` field before using
-the package entrypoint.
+the package entrypoint. It also validates `keywords` as an array of strings and
+`repository` as an object with string `type` and `url` fields.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the

@@ -471,7 +471,10 @@ describe("Markdown documentation", () => {
       "Global versioned package directories must match their manifest `version`",
       "package metadata instead of silently importing a different package",
       "Manifest string metadata such as `$schema`, `description`, `author`, and `license` must be strings when present",
+      "`keywords` must be an array of strings",
+      "`repository` must contain string `type` and `url` fields",
       "The package import resolver also rejects malformed string metadata",
+      "It also validates `keywords` as an array of strings and `repository` as an object with string `type` and `url` fields",
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);

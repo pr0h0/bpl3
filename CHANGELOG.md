@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Resolver Collection Metadata Validation** - Package import
+  resolution now rejects installed package manifests whose optional `keywords`
+  or `repository` metadata has malformed shapes, matching PackageManager
+  manifest loading before the resolver uses the package entrypoint.
 - **Package Resolver Metadata Validation** - Package import resolution now
   rejects installed package manifests whose optional string metadata fields
   (`$schema`, `description`, `author`, or `license`) are present with non-string
