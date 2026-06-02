@@ -1041,6 +1041,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   analysis now visits `is`, `as`, interpolated-string, and generic
   instantiation operands, so outer locals referenced only through those wrappers
   are included in closure contexts.
+- **Deferred Match Pattern Shadowing** - Deferred-block capture analysis now
+  treats match pattern bindings as arm-local names while scanning guards and
+  bodies, avoiding unnecessary captures when a pattern binding shadows an outer
+  local.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`

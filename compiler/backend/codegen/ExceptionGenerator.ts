@@ -484,15 +484,43 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     const captures = new Map<string, AST.TypeNode>();
     const visited = new Set<any>();
     const shadowedCaptureNames = new Set<string>();
-    const withShadowedCaptureName = (name: string, visitBody: () => void) => {
-      const wasShadowed = shadowedCaptureNames.has(name);
-      shadowedCaptureNames.add(name);
+    const withShadowedCaptureNames = (
+      names: string[],
+      visitBody: () => void,
+    ) => {
+      const added: string[] = [];
+      for (const name of names) {
+        if (!shadowedCaptureNames.has(name)) {
+          shadowedCaptureNames.add(name);
+          added.push(name);
+        }
+      }
       try {
         visitBody();
       } finally {
-        if (!wasShadowed) {
+        for (const name of added) {
           shadowedCaptureNames.delete(name);
         }
+      }
+    };
+    const collectPatternBindingNames = (pattern: AST.Pattern): string[] => {
+      switch (pattern.kind) {
+        case "PatternIdentifier":
+          return pattern.name === "_" ? [] : [pattern.name];
+        case "PatternEnumTuple":
+          return pattern.bindings.flatMap((binding) =>
+            collectPatternBindingNames(binding),
+          );
+        case "PatternEnumStruct":
+          return pattern.fields
+            .map((field) => field.binding)
+            .filter((binding) => binding !== "_");
+        case "PatternTuple":
+          return pattern.patterns.flatMap((subPattern) =>
+            collectPatternBindingNames(subPattern),
+          );
+        default:
+          return [];
       }
     };
     const collectCaptures = (node: any) => {
@@ -551,7 +579,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           collectCaptures((node as AST.TryStmt).tryBlock);
           for (const clause of (node as AST.TryStmt).catchClauses) {
             if (clause.variable && clause.type) {
-              withShadowedCaptureName(clause.variable, () => {
+              withShadowedCaptureNames([clause.variable], () => {
                 collectCaptures(clause.body);
               });
             } else {
@@ -645,8 +673,13 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           collectCaptures((node as AST.MatchExpr).arms);
           break;
         case "MatchArm":
-          collectCaptures((node as AST.MatchArm).guard);
-          collectCaptures((node as AST.MatchArm).body);
+          withShadowedCaptureNames(
+            collectPatternBindingNames((node as AST.MatchArm).pattern),
+            () => {
+              collectCaptures((node as AST.MatchArm).guard);
+              collectCaptures((node as AST.MatchArm).body);
+            },
+          );
           break;
         case "LambdaExpression":
           // For nested lambdas, we need to analyze their body for captures too.

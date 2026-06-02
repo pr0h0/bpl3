@@ -1,7 +1,20 @@
 import { describe, expect, it } from "bun:test";
+import { CodeGenerator } from "../compiler/backend/CodeGenerator";
+import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { Formatter } from "../compiler/formatter/Formatter";
+import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { runBpl } from "./runtime_utils";
+
+function compile(source: string): string {
+  const tokens = lexWithGrammar(source, "test.bpl");
+  const parser = new Parser(source, "test.bpl", tokens);
+  const program = parser.parse();
+  const typeChecker = new TypeChecker();
+  typeChecker.checkProgram(program);
+  const generator = new CodeGenerator();
+  return generator.generate(program);
+}
 
 describe("Defer Statement", () => {
   it("should parse defer statement", () => {
@@ -68,6 +81,32 @@ describe("Defer Statement", () => {
     }
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("defer value: 7");
+  });
+
+  it("should keep deferred match pattern bindings from capturing shadowed outer locals", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum CaptureOption {
+        Some(int),
+        None,
+      }
+
+      frame main() ret int {
+        local value: int = 99;
+        defer {
+          local result: int = match (CaptureOption.Some(7)) {
+            CaptureOption.Some(value) => value,
+            CaptureOption.None => 0,
+          };
+          printf("defer pattern value: %d\\n", result);
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
   });
 
   it("should capture locals referenced inside deferred try and catch blocks", () => {
