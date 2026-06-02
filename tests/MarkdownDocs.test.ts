@@ -1805,6 +1805,29 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("imports docs document implicit Error import idempotency", () => {
+    const importDocs = readFileSync(
+      "docs/23-imports-exports.md",
+      "utf8",
+    ).replace(/\s+/g, " ");
+    const changelog = readFileSync("CHANGELOG.md", "utf8").replace(
+      /\s+/g,
+      " ",
+    );
+
+    expectDocsContainSnippets(importDocs, [
+      "Repeated imports of the same exported declaration are idempotent",
+      "The compiler implicitly makes `Error` from `std/errors.bpl` available to normal modules",
+      'an explicit `import [Error] from "std/errors.bpl";` is accepted',
+      "Duplicate names from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`",
+    ]);
+    expectDocsContainSnippets(changelog, [
+      "Import Idempotency",
+      'Explicit `import [Error] from "std/errors.bpl";` no longer collides with the compiler\'s implicit `Error` import',
+      "duplicate names from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`",
+    ]);
+  });
+
   test("imports docs document diagnostic mode policy", () => {
     const text = readFileSync("docs/23-imports-exports.md", "utf8").replace(
       /\s+/g,

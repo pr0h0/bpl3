@@ -28,6 +28,12 @@ Import a module for side effects:
 import "std/errors.bpl";
 ```
 
+Repeated imports of the same exported declaration are idempotent. The compiler
+implicitly makes `Error` from `std/errors.bpl` available to normal modules, so
+an explicit `import [Error] from "std/errors.bpl";` is accepted and resolves to
+the same declaration instead of reporting a duplicate symbol. Duplicate names
+from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`.
+
 Aliases are supported for bare value imports:
 
 ```bpl
