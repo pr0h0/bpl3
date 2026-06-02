@@ -31,19 +31,26 @@ The configuration file defines the package metadata.
 ```
 
 `name` must use lowercase letters, digits, and hyphens only. `version` must be
-an `X.Y.Z` semantic version string. `main` and `exports` must stay inside the
-package root, and optional metadata such as `keywords` and `repository` is
-validated before packing or installing. Invalid manifests fail while loading
-`bpl.json` instead of later during path handling or archive creation. Object
-maps such as `dependencies`, `devDependencies`, `scripts`, and `bin` must be
-JSON objects when present; `null` is rejected instead of being treated as an
-absent field.
+an `X.Y.Z` semantic version string. `main`, `entry`, and `exports` must stay
+inside the package root, and optional metadata such as `keywords` and
+`repository` is validated before packing or installing. Invalid manifests fail
+while loading `bpl.json` instead of later during path handling or archive
+creation. The checked-in `bpl-package.schema.json` mirrors these runtime rules
+so editors and CI schema validation catch the same invalid shapes early.
+Object maps such as `dependencies`, `devDependencies`, `scripts`, and `bin`
+must be JSON objects when present; `null` is rejected instead of being treated
+as an absent field.
 
-`main`, `exports`, and `bin` path values are strict package-relative paths.
-They cannot be absolute and cannot contain empty, `.`, or `..` path segments.
-Use normalized paths such as `src/index.bpl` or `bin/tool.bpl`;
+`main`, `entry`, `exports`, and `bin` path values are strict package-relative
+paths. They cannot be absolute and cannot contain empty, `.`, or `..` path
+segments. Use normalized paths such as `src/index.bpl` or `bin/tool.bpl`;
 `src//index.bpl`, `src/./index.bpl`, and `../secret.bpl` are rejected before
 packing or installing.
+
+Dependency map keys use the same lowercase package-name rule as `name`, and
+dependency sources must be non-empty strings. Script names must be non-empty,
+script commands must contain at least one non-whitespace character, and `bin`
+command names must be plain command names without `/` or `\` separators.
 
 ## Creating a Package
 

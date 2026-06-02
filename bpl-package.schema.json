@@ -29,41 +29,64 @@
     "main": {
       "type": "string",
       "description": "Entry point file (e.g., lib/index.bpl)",
-      "default": "index.bpl"
+      "default": "index.bpl",
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
+    },
+    "entry": {
+      "type": "string",
+      "description": "Entry point file alias (e.g., lib/index.bpl)",
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
     },
     "bin": {
       "type": "object",
       "description": "Executable files to link into bpl_modules/.bin",
+      "propertyNames": {
+        "pattern": "^(?!\\.\\.?$)[^/\\\\]+$"
+      },
       "additionalProperties": {
-        "type": "string"
+        "type": "string",
+        "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
       }
     },
     "exports": {
       "type": "array",
       "description": "Public API exports",
       "items": {
-        "type": "string"
+        "type": "string",
+        "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
       }
     },
     "dependencies": {
       "type": "object",
       "description": "Runtime dependencies",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+$"
+      },
       "additionalProperties": {
-        "type": "string"
+        "type": "string",
+        "pattern": "\\S"
       }
     },
     "devDependencies": {
       "type": "object",
       "description": "Development dependencies",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+$"
+      },
       "additionalProperties": {
-        "type": "string"
+        "type": "string",
+        "pattern": "\\S"
       }
     },
     "scripts": {
       "type": "object",
       "description": "Script commands to be executed by 'bpl run-script'",
+      "propertyNames": {
+        "minLength": 1
+      },
       "additionalProperties": {
-        "type": "string"
+        "type": "string",
+        "pattern": "\\S"
       }
     },
     "repository": {

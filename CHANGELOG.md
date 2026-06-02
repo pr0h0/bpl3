@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Manifest Schema Runtime Alignment** - `bpl-package.schema.json`
+  now mirrors PackageManager validation for `main`, `entry`, `exports`,
+  dependency maps, script maps, and `bin` command/path maps so editors and CI
+  schema checks reject the same unsafe paths, blank map values, and invalid map
+  keys that runtime manifest loading already rejects.
 - **Package Manifest Null Map Validation** - `bpl install --json` and
   PackageManager manifest loading now reject `null` `dependencies`,
   `devDependencies`, `scripts`, and `bin` fields with the existing stable

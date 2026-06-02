@@ -643,10 +643,11 @@ describe("Markdown documentation", () => {
       " ",
     );
     const requiredSnippets = [
-      "`main`, `exports`, and `bin` path values are strict package-relative paths",
+      "`main`, `entry`, `exports`, and `bin` path values are strict package-relative paths",
       "cannot contain empty, `.`, or `..` path segments",
       "`src//index.bpl`, `src/./index.bpl`, and `../secret.bpl` are rejected",
       "`bin/tool.bpl`",
+      "The checked-in `bpl-package.schema.json` mirrors these runtime rules",
     ];
 
     expectDocsContainSnippets(text, requiredSnippets);

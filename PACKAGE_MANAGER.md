@@ -20,16 +20,25 @@ A BPL package is defined by a `bpl.json` manifest file in the package root direc
 
 ### Required Fields
 
-- `name`: Package name (alphanumeric, hyphens, underscores, scopes allowed)
+- `name`: Package name using lowercase letters, digits, and hyphens only
 - `version`: Semantic version (e.g., "1.0.0")
 
 ### Optional Fields
 
 - `description`: Package description
-- `main`: Entry point file (defaults to "index.bpl")
+- `main`: Package-relative entry point file (defaults to "index.bpl")
+- `entry`: Package-relative entry point alias
 - `author`: Package author
 - `license`: License type
 - `dependencies`: Map of package dependencies
+
+`bpl-package.schema.json` mirrors the runtime manifest validation used by
+`bpl pack`, `bpl install`, and package resolution. `main`, `entry`, `exports`,
+and `bin` path values must be package-relative paths without empty, `.`, or
+`..` segments. Dependency keys use the same package-name rule as `name`;
+dependency sources and script commands must be non-empty strings. Script names
+must be non-empty, and `bin` command names must be plain command names without
+path separators.
 
 ## CLI Commands
 
