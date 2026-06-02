@@ -635,9 +635,22 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     if (type.kind === "FunctionType") return 64; // Raw function pointer
     if (type.kind === "LambdaType") return 128; // Closure { func_ptr, env_ptr }
     if (type.kind === "TupleType") {
-      let size = 0;
-      for (const t of type.types) size += this.getTypeSizeInBits(t);
-      return size;
+      let offset = 0;
+      let maxAlign = 1;
+
+      for (const elementType of type.types) {
+        const sizeBytes = this.getTypeSizeInBits(elementType) / 8;
+        const alignment = this.getAlignmentForSize(sizeBytes);
+        if (offset % alignment !== 0) {
+          offset = Math.ceil(offset / alignment) * alignment;
+        }
+
+        offset += sizeBytes;
+        if (alignment > maxAlign) maxAlign = alignment;
+      }
+
+      const tailPadding = (maxAlign - (offset % maxAlign)) % maxAlign;
+      return (offset + tailPadding) * 8;
     }
 
     return 64;

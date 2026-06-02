@@ -166,6 +166,46 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toBe("first=1 second=4294967296 count=7\n");
   });
 
+  it("should preserve nested tuple variant payload alignment", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum Packet {
+          Data((i8, long), int),
+          Empty,
+      }
+
+      frame makePair() ret (i8, long) {
+          local tag: i8 = 3;
+          local value: long = 4294967296;
+          return (tag, value);
+      }
+
+      frame main() {
+          local pair: (i8, long) = makePair();
+          local packet: Packet = Packet.Data(pair, 7);
+
+          match (packet) {
+              Packet.Data(pair, count) => {
+                  printf(
+                      "tag=%d value=%ld count=%d\\n",
+                      pair.0,
+                      pair.1,
+                      count,
+                  );
+              },
+              Packet.Empty => {
+                  printf("empty\\n");
+              },
+          };
+      }
+    `;
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("TupleVariantNestedTuple Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("tag=3 value=4294967296 count=7\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);
