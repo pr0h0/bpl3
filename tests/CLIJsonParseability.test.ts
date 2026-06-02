@@ -6159,6 +6159,56 @@ describe("CLI JSON parseability", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("reports unsafe legacy entry metadata in JSON-mode check diagnostics", () => {
+    const appDir = path.join(tempDir, "app");
+    const sourceDir = path.join(appDir, "src");
+    const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
+    const outsideEntrypoint = path.join(appDir, "bpl_modules", "outside.bpl");
+    const sourceFile = path.join(
+      sourceDir,
+      "unsafe_legacy_entry_import.bpl",
+    );
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "pkg-math",
+          version: "1.0.0",
+          main: "index.bpl",
+          entry: "../outside.bpl",
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(outsideEntrypoint, "export value;");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import value from "pkg-math";',
+        "frame main() ret int {",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["check", "--json", sourceFile]);
+    const diagnostic = expectSingleCheckJsonDiagnostic(result, sourceFile);
+    expect(diagnostic.code).toBe("BPL_PACKAGE_ENTRYPOINT_UNSAFE");
+    expect(diagnostic.source?.preview).toContain(
+      'import value from "pkg-math";',
+    );
+    expect(diagnostic?.message).toContain("unsafe entrypoint '../outside.bpl'");
+    expect(diagnostic?.message).toContain("bpl.json");
+    expect(diagnostic?.message).not.toContain(outsideEntrypoint);
+    expect(diagnostic?.hint).toContain("unsafe entrypoint '../outside.bpl'");
+    expect(diagnostic?.hint).not.toContain(outsideEntrypoint);
+    expect(result.stderr).toBe("");
+  });
+
   test("reports package case-mismatch failures in JSON-mode check diagnostics", () => {
     const appDir = path.join(tempDir, "app");
     const sourceDir = path.join(appDir, "src");

@@ -101,6 +101,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CI Triage Package Manifest Parity Repros** - `bun run ci:triage` now maps
   package resolver legacy-entry and manifest diagnostic-ordering regressions to
   `bun test tests/PackageResolver.test.ts -t "legacy entry|metadata failures before later manifest fields"`.
+- **CLI JSON Legacy Entry Parity Coverage** - JSON-mode package import
+  diagnostics now have end-to-end coverage for unsafe legacy `entry` metadata
+  when `main` is safe, keeping `BPL_PACKAGE_ENTRYPOINT_UNSAFE` stable above the
+  direct resolver tests.
 - **CI Triage Exported Package Candidate Repros** - `bun run ci:triage` now
   maps exported package subpath fallback regressions to
   `bun test tests/PackageResolver.test.ts -t "exported candidates"`.
