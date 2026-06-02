@@ -759,8 +759,8 @@ contract with
 Reproduce package-cache bin validation with
 `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|package cache repair.*bin files|cached package bin files in verify"`.
 Directory `bin` targets are reported by package-cache `bin` validation.
-Symlinked binary archive members are rejected by the archive safety layer before
-provenance repair can trust them.
+Symlinked binary archive members are rejected by the archive safety layer during
+package-cache verify and before provenance repair can trust them.
 The package-cache package filters must use the same lowercase package-name format as
 package manifests. Invalid package filters in `package-cache list`, `verify`,
 `clean`, and `repair` fail with `BPL_PACKAGE_CACHE_NAME_INVALID`; reproduce that

@@ -32,7 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   whose `bin` target files are missing, directories, or symlinks, matching
   package publish/install safety checks. Directory `bin` targets are covered
   through package-cache bin validation; symlinked binary archive members are
-  covered through archive safety before provenance repair. Reproduce with
+  covered through archive safety during package-cache verify and before
+  provenance repair. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|package cache repair.*bin files|cached package bin files in verify"`.
 - **Package Lock Bin Validation** - lockfile verification validates installed
   package `bin` entries before trusting a lock entry, and `bpl install

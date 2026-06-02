@@ -3934,6 +3934,105 @@ describe("Package Manager CLI", () => {
       expect(fs.existsSync(`${repairCachePath}.bplmeta.json`)).toBe(false);
     });
 
+    test("should report symlinked cached package bin archive entries in verify JSON", () => {
+      const appDir = path.join(tempDir, "cache-bin-symlink-json-app");
+      const homeDir = path.join(tempDir, "cache-bin-symlink-json-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      const sourceDir = path.join(tempDir, "cache-bin-symlink-json-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(cacheDir, "cache-bin-symlink-json-1.0.0.tgz");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(path.join(packageRoot, "bin"), { recursive: true });
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({
+          name: "cache-bin-symlink-json-app",
+          version: "1.0.0",
+        }),
+      );
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-bin-symlink-json",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageRoot, "bin", "actual.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+      fs.symlinkSync("actual.sh", path.join(packageRoot, "bin", "tool.sh"));
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+      new PackageManager(tempDir)["writeArchiveProvenance"](
+        cachePath,
+        packageRoot,
+        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "verify",
+          "cache-bin-symlink-json",
+          "--json",
+        ],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      const verification = expectJsonStdoutReport<{
+        ok: boolean;
+        entriesChecked: number;
+        issues: Array<{
+          packageName: string;
+          kind: string;
+          message: string;
+          path: string;
+          provenancePath: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-cache-verify",
+        success: false,
+      });
+      expect(result.stderr).not.toContain("[Compiler]");
+      expect(verification.ok).toBe(false);
+      expect(verification.entriesChecked).toBe(1);
+      expect(verification.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-bin-symlink-json",
+          kind: "invalid-archive",
+          path: cachePath,
+          provenancePath: `${cachePath}.bplmeta.json`,
+          message: expect.stringContaining(
+            "Unsupported package archive entry: package/bin/tool.sh",
+          ),
+        }),
+      ]);
+    });
+
     test("should repair missing cache provenance for valid archives", () => {
       const homeDir = path.join(tempDir, "cache-repair-home");
       const cacheDir = path.join(homeDir, ".bpl", "packages");

@@ -769,7 +769,7 @@ describe("Markdown documentation", () => {
       "invalid cached `bin` target",
       "package-cache repair refuses to regenerate provenance",
       "Directory `bin` targets are reported by package-cache `bin` validation",
-      "Symlinked binary archive members are rejected by the archive safety layer",
+      "Symlinked binary archive members are rejected by the archive safety layer during package-cache verify",
       "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"cached package.*bin files|package cache repair.*bin files|cached package bin files in verify\"",
     ];
 

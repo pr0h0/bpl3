@@ -5635,6 +5635,68 @@ describe("PackageManager", () => {
       ]);
     });
 
+    test("should report cached package archives with symlinked package bin members", () => {
+      const globalPackageDir = path.join(tempDir, "cache-bin-symlink-packages");
+      const sourceDir = path.join(tempDir, "cache-bin-symlink-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(
+        globalPackageDir,
+        "cache-bin-symlink-1.0.0.tgz",
+      );
+      fs.mkdirSync(path.join(packageRoot, "bin"), { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-bin-symlink",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageRoot, "bin", "actual.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+      fs.symlinkSync("actual.sh", path.join(packageRoot, "bin", "tool.sh"));
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM["writeArchiveProvenance"](
+        cachePath,
+        packageRoot,
+        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+      );
+
+      const report = localPM.verifyPackageCache("cache-bin-symlink");
+
+      expect(report.ok).toBe(false);
+      expect(report.entriesChecked).toBe(1);
+      expect(report.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-bin-symlink",
+          kind: "invalid-archive",
+          path: cachePath,
+          provenancePath: `${cachePath}.bplmeta.json`,
+          message: expect.stringContaining(
+            "Unsupported package archive entry: package/bin/tool.sh",
+          ),
+        }),
+      ]);
+    });
+
     test("should use the configured archive tool while verifying package cache entries", () => {
       const globalPackageDir = path.join(tempDir, "cache-tar-tool-packages");
       fs.mkdirSync(globalPackageDir);
