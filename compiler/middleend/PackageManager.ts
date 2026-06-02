@@ -1805,6 +1805,19 @@ export class PackageManager {
     );
   }
 
+  private isValidDependencySource(source: string): boolean {
+    const fileSource = source.startsWith("file:") ? source.slice(5) : source;
+    if (source.startsWith("file:")) {
+      return this.isPackageFileSource(fileSource);
+    }
+
+    return (
+      this.isPackageFileSource(fileSource) ||
+      isVersionSelectorSpec(fileSource) ||
+      /^[a-z0-9-]+$/.test(fileSource)
+    );
+  }
+
   private resolveDependencyFileSource(baseDir: string, fileSource: string): string {
     if (path.isAbsolute(fileSource) || path.win32.isAbsolute(fileSource)) {
       return fileSource;
@@ -2176,6 +2189,15 @@ export class PackageManager {
           throw new CompilerError(
             `Invalid '${field}' source for ${packageName}`,
             "Use a non-empty version, range, package name, or file source string.",
+            location,
+            PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE,
+          );
+        }
+
+        if (!this.isValidDependencySource(source)) {
+          throw new CompilerError(
+            `Invalid '${field}' source for ${packageName}`,
+            "Use a package name, exact version, version range, 'latest', '*', or package archive path.",
             location,
             PACKAGE_MANIFEST_DEPENDENCIES_INVALID_CODE,
           );

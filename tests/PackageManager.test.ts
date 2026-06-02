@@ -4168,6 +4168,67 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should reject malformed dependency version selectors before package fallback", () => {
+      const invalidSources = [
+        "01.0.0",
+        "^01.0.0",
+        ">01.0.0",
+        ">=1.0",
+        "file:math-core",
+      ];
+
+      for (const [index, source] of invalidSources.entries()) {
+        const caseName = `${index}-${
+          source.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "exact"
+        }`;
+        const packageName = `malformed-selector-math-${caseName}`.toLowerCase();
+        const globalPackageDir = path.join(
+          tempDir,
+          `malformed-selector-cache-${caseName}`,
+        );
+        const appDir = path.join(
+          tempDir,
+          `malformed-selector-app-${caseName}`,
+        );
+        fs.mkdirSync(globalPackageDir);
+        fs.mkdirSync(appDir);
+
+        createCachedPackage(
+          packageName,
+          "2.0.0",
+          "export latestFallback;",
+          globalPackageDir,
+        );
+
+        fs.writeFileSync(
+          path.join(appDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: `malformed-selector-app-${caseName}`.toLowerCase(),
+              version: "1.0.0",
+              dependencies: {
+                [packageName]: source,
+              },
+            },
+            null,
+            2,
+          ),
+        );
+
+        const localPM = new PackageManager(appDir);
+        localPM["globalPackageDir"] = globalPackageDir;
+
+        expect(() =>
+          localPM.installProject({ global: false, verbose: false }),
+        ).toThrow(/Invalid 'dependencies' source/);
+        expect(
+          fs.existsSync(
+            path.join(appDir, "bpl_modules", packageName),
+          ),
+        ).toBe(false);
+      }
+    });
+
     test("should install versioned dependency tarballs from the global package cache", () => {
       const globalPackageDir = path.join(tempDir, "dependency-cache");
       const appDir = path.join(tempDir, "dependency-app");

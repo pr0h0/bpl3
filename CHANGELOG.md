@@ -21,6 +21,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   JavaScript `Number` rounding for large segments such as
   `9007199254740993.0.0`. Reproduce with
   `bun test tests/PackageResolver.test.ts tests/PackageManager.test.ts -t "large global versioned|large dependency semver range"`.
+- **Package Dependency Source Validation** - Package manifests now reject
+  malformed dependency source strings such as `01.0.0`, `^01.0.0`, `>01.0.0`,
+  and `>=1.0` before install or lockfile commands can fall back to the newest
+  cached package. The checked-in package manifest schema now mirrors the same
+  dependency source shapes for package names, exact versions, valid selectors,
+  `latest`, `*`, and archive paths. Reproduce with
+  `bun test tests/PackageManager.test.ts tests/PackageManifestSchema.test.ts -t "malformed dependency version selectors|object-map key and value"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every

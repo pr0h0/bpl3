@@ -160,7 +160,19 @@ describe("Package manifest JSON schema", () => {
       expect(keyPattern.test("")).toBe(false);
 
       expect(valuePattern.test("1.0.0")).toBe(true);
+      expect(valuePattern.test("^1.2.3")).toBe(true);
+      expect(valuePattern.test(">=1.0.0 <2.0.0")).toBe(true);
+      expect(valuePattern.test("latest")).toBe(true);
+      expect(valuePattern.test("*")).toBe(true);
+      expect(valuePattern.test("math-core")).toBe(true);
       expect(valuePattern.test("file:../math-core")).toBe(true);
+      expect(valuePattern.test("../math-core/math-core-1.0.0.tgz")).toBe(true);
+      expect(valuePattern.test("math-core-1.0.0.tgz")).toBe(true);
+      expect(valuePattern.test("01.0.0")).toBe(false);
+      expect(valuePattern.test("^01.0.0")).toBe(false);
+      expect(valuePattern.test(">01.0.0")).toBe(false);
+      expect(valuePattern.test(">=1.0")).toBe(false);
+      expect(valuePattern.test("file:math-core")).toBe(false);
       expect(valuePattern.test("   ")).toBe(false);
       expect(valuePattern.test("")).toBe(false);
     }

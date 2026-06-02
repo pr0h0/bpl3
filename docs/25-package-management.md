@@ -195,8 +195,12 @@ Supported dependency sources are:
 
 `dependencies` and `devDependencies` must be JSON objects whose keys are
 lowercase package names and whose values are non-empty, non-whitespace strings.
-`null`, arrays, invalid package-name keys, and blank source strings fail while
-loading `bpl.json`, before install or lockfile commands mutate the project.
+Values must match one of the supported source shapes above: a package name,
+exact version, valid selector, `latest`, `*`, or package archive path.
+Malformed selector-like strings such as `01.0.0`, `^01.0.0`, or `>=1.0` fail
+while loading `bpl.json` instead of falling back to the newest cached package.
+`null`, arrays, invalid package-name keys, and blank source strings also fail
+before install or lockfile commands mutate the project.
 
 ```json
 {
