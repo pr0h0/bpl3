@@ -175,4 +175,48 @@ describe("Golden LLVM Shape Checks", () => {
       /getelementptr inbounds \[3 x i32\]\*, \[3 x i32\]\*\* %rows_ptr/,
     );
   });
+
+  it("marks typed enum payload byte-buffer accesses as unaligned", () => {
+    const ir = compileToLLVM(`
+      enum Payload {
+        Tuple(i8, double),
+        Struct { tag: i8, value: long },
+      }
+
+      frame readTuple(payload: Payload) ret double {
+        return match (payload) {
+          Payload.Tuple(_, value) => value,
+          Payload.Struct { tag: _, value: _ } => 0.0,
+        };
+      }
+
+      frame readStruct(payload: Payload) ret long {
+        return match (payload) {
+          Payload.Tuple(_, _) => 0,
+          Payload.Struct { tag: _, value: value } => value,
+        };
+      }
+
+      frame main() ret int {
+        local tuplePayload: Payload = Payload.Tuple(1, 2.5);
+        local structPayload: Payload = Payload.Struct { tag: 2, value: 99 };
+        local _tupleValue: double = readTuple(tuplePayload);
+        local _structValue: long = readStruct(structPayload);
+        return 0;
+      }
+    `);
+
+    expect(ir).toMatch(
+      /bitcast i8\* %[^\n]+ to double\*\n\s+store double [^,]+, double\* %\d+, align 1/,
+    );
+    expect(ir).toMatch(
+      /bitcast i8\* %[^\n]+ to i64\*\n\s+store i64 [^,]+, i64\* %\d+, align 1/,
+    );
+    expect(ir).toMatch(
+      /bitcast i8\* %[^\n]+ to double\*\n\s+%\d+ = load double, double\* %\d+, align 1/,
+    );
+    expect(ir).toMatch(
+      /bitcast i8\* %[^\n]+ to i64\*\n\s+%\d+ = load i64, i64\* %\d+, align 1/,
+    );
+  });
 });

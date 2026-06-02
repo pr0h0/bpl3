@@ -359,7 +359,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
             // Store the value
             this.emit(
-              `  store ${storeType} ${storeValue}, ${storeType}* ${storePtr}`,
+              `  store ${storeType} ${storeValue}, ${storeType}* ${storePtr}, align 1`,
             );
           }
         }

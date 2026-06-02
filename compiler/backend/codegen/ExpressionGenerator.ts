@@ -1399,7 +1399,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
         // Store the value
         this.emit(
-          `  store ${fieldType} ${storeValue}, ${fieldType}* ${storePtr}`,
+          `  store ${fieldType} ${storeValue}, ${fieldType}* ${storePtr}, align 1`,
         );
       }
     }

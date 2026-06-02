@@ -125,7 +125,9 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       }
 
       const value = this.newRegister();
-      this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${elementPtr}`);
+      this.emit(
+        `  ${value} = load ${llvmType}, ${llvmType}* ${elementPtr}, align 1`,
+      );
       values.push({ value, llvmType, typeNode });
     }
 
@@ -2064,7 +2066,9 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
       // Load the value
       const value = this.newRegister();
-      this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${elementPtr}`);
+      this.emit(
+        `  ${value} = load ${llvmType}, ${llvmType}* ${elementPtr}, align 1`,
+      );
 
       // Allocate stack space and store the value
       const ptr = `%pattern_${bindingName}_${this.stackAllocCount++}`;
@@ -2145,7 +2149,9 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
       // Load the value
       const value = this.newRegister();
-      this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${fieldPtr}`);
+      this.emit(
+        `  ${value} = load ${llvmType}, ${llvmType}* ${fieldPtr}, align 1`,
+      );
 
       // Allocate stack space and store the value
       const ptr = `%pattern_${bindingName}_${this.stackAllocCount++}`;

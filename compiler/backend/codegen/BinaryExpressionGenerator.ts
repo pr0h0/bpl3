@@ -783,7 +783,9 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     const fieldPtr = this.newRegister();
     this.emit(`  ${fieldPtr} = bitcast i8* ${fieldBytePtr} to ${fieldType}*`);
     const fieldValue = this.newRegister();
-    this.emit(`  ${fieldValue} = load ${fieldType}, ${fieldType}* ${fieldPtr}`);
+    this.emit(
+      `  ${fieldValue} = load ${fieldType}, ${fieldType}* ${fieldPtr}, align 1`,
+    );
     return fieldValue;
   }
 
