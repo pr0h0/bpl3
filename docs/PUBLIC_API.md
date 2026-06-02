@@ -66,6 +66,7 @@ interface CompilerOptions {
   sysroot?: string;
   clangFlags?: string[];
   dwarf?: boolean;
+  debugIrPath?: string | false;
   collectAllErrors?: boolean;
   optimizationLevel?: number;
   jobs?: number;
@@ -82,6 +83,12 @@ interface CompilationResult {
 const compiler = new Compiler(options);
 const result = compiler.compile(sourceCode);
 ```
+
+`debugIrPath` writes the generated LLVM IR to a diagnostic `.ll` file through
+the compiler pipeline. When it is omitted, `BPL_DEBUG_IR` can still enable the
+same output, and `false` explicitly disables the environment fallback.
+Validation failures are returned as compiler diagnostics with stable
+`BPL_CODEGEN_DEBUG_IR_*` codes.
 
 `optimizationLevel` accepts 0 through 3 and is forwarded to code generation,
 cached module compilation, and native linking where applicable. `jobs` controls

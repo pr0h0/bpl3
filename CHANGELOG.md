@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
+  `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
+  without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay
+  parseable on stdout and promote stable `BPL_CODEGEN_DEBUG_IR_*` diagnostics
+  to top-level `errorCode` values. Reproduce with
+  `bun test tests/CLIJsonParseability.test.ts -t "debug IR path diagnostics"`.
 - **Package Version SemVer Validation** - Package manifests, lock entries,
   global versioned package directories, cache archive discovery, dependency
   version selectors, JSON schema validation, and package-cache

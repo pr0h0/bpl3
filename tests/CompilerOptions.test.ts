@@ -1,4 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { existsSync, mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 import { Compiler } from "../compiler";
 
@@ -137,5 +140,31 @@ describe("Compiler options", () => {
     expect(result.errors?.[0]?.message).toContain(
       'Invalid emit type "bytecode"',
     );
+  });
+
+  it("allows direct compiler options to disable BPL_DEBUG_IR", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-compiler-options-"));
+    const debugIrPath = join(dir, "debug.ll");
+    const previousDebugIr = process.env.BPL_DEBUG_IR;
+
+    try {
+      process.env.BPL_DEBUG_IR = debugIrPath;
+      const compiler = new Compiler({
+        filePath: "test.bpl",
+        debugIrPath: false,
+      });
+
+      const result = compiler.compile("frame main() ret int { return 0; }");
+
+      expect(result.success).toBe(true);
+      expect(existsSync(debugIrPath)).toBe(false);
+    } finally {
+      if (previousDebugIr === undefined) {
+        delete process.env.BPL_DEBUG_IR;
+      } else {
+        process.env.BPL_DEBUG_IR = previousDebugIr;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -15,7 +15,7 @@ _bpl_completion() {
     local commands="format run dev build check lint init pack install lock list uninstall run-script rs package-cache completion clean new help docs bindgen doctor"
 
     # Global options (work with file arguments and commands)
-    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
+    local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime --debug-ir-path -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
 
     # Format command options
     local format_opts="-w --write -v --verbose"
@@ -69,7 +69,7 @@ _bpl_completion() {
 
     # Check if we're after a specific option that needs a value
     case "${prev}" in
-        -o|--output)
+        -o|--output|--debug-ir-path)
             # Complete with file paths
             COMPREPLY=( $(compgen -f -- "${cur}") )
             return 0

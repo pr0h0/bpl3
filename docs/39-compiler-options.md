@@ -78,6 +78,9 @@ bpl build main.bpl --cache --jobs 4 --cache-stats
 
 # Build with a machine-readable result report
 bpl build main.bpl --json
+
+# Write a diagnostic copy of generated LLVM IR
+bpl build main.bpl --debug-ir-path debug/main.ll
 ```
 
 `--cache-stats` prints the module cache summary for cached builds:
@@ -395,6 +398,7 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `-O <level>`: Optimization level (0, 1, 2, or 3)
 - `-d, --dwarf`: Generate DWARF debug information on the default compile command
 - `--debug`: Generate DWARF debug information on `run`, `dev`, and `build`
+- `--debug-ir-path <file>`: Write a diagnostic copy of generated LLVM IR
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
@@ -425,7 +429,7 @@ part of a command's validation path use stdout with `success: false` or
 | --- | --- |
 | `bpl --version --json` | Version report with `schemaVersion`, `check: "version"`, `success: true`, and `version`. |
 | `bpl bindgen <header> --json` | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures. |
-| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`. |
+| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. Codegen diagnostics such as `--debug-ir-path` path-safety failures are promoted to top-level `errorCode` values while preserving the diagnostic object. No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
 | `bpl completion [shell] --json` | Completion report with `schemaVersion`, `check: "completion"`, `success`, `shell`, and `script`; unsupported shells return `success: false`, `shell`, `error`, and `errorCode: "BPL_COMPLETION_SHELL_UNSUPPORTED"` on stdout. |
 | `bpl docs <file> --json` | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. The command always writes Markdown to `outputPath`, defaulting to `docs.md`. |
@@ -1106,13 +1110,17 @@ Generate DWARF debug information for debugging with gdb/lldb:
 ```bash
 # Enable debug info
 bpl build main.bpl --debug
+bpl build main.bpl --debug-ir-path debug/main.ll
 ```
 
 Diagnostic debug IR output uses the same symlink safety policy as other compiler
 outputs: the destination, immediate parent, and parent path components must be
-real filesystem entries before a `.ll` file is written. Debug IR path
-validation failures are exported through the public CLI JSON error-code
-registry under the `codegen` group:
+real filesystem entries before a `.ll` file is written. Use
+`--debug-ir-path <file>` for an explicit CLI destination, or set
+`BPL_DEBUG_IR=<file>` when driving the compiler through an environment-only
+workflow. Debug IR path validation failures are exported through the public CLI
+JSON error-code registry under the `codegen` group and appear as top-level
+`errorCode` values in `bpl build --json` reports:
 
 - `BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK`
 - `BPL_CODEGEN_DEBUG_IR_PATH_NOT_FILE`

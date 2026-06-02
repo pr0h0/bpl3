@@ -3996,6 +3996,8 @@ describe("CLI Tests", () => {
     );
     expect(bash.stdout).toContain("--cache-stats");
     expect(zsh.stdout).toContain("--cache-stats");
+    expect(bash.stdout).toContain("--debug-ir-path");
+    expect(zsh.stdout).toContain("--debug-ir-path");
     expect(bash.stdout).toContain("--template");
     expect(zsh.stdout).toContain("--template");
     expect(bash.stdout).toContain(

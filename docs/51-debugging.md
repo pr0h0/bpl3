@@ -36,6 +36,9 @@ To debug your BPL program effectively, compile it with debug symbols enabled. Us
 ```bash
 # Compile with DWARF debug info
 bun index.ts build examples/hello-world/main.bpl --debug
+
+# Also keep a diagnostic copy of the generated LLVM IR
+bun index.ts build examples/hello-world/main.bpl --debug-ir-path debug/hello.ll
 ```
 
 This command does two things:
@@ -44,7 +47,9 @@ This command does two things:
 2.  Ensures that the resulting object file contains DWARF sections.
 
 When the compiler writes diagnostic debug IR, it refuses destinations whose
-path, immediate parent, or parent path components are symbolic links.
+path, immediate parent, or parent path components are symbolic links. In JSON
+mode, `--debug-ir-path` validation failures stay parseable on stdout and use
+stable `BPL_CODEGEN_DEBUG_IR_*` error codes.
 
 ## Using LLDB
 

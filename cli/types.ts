@@ -18,6 +18,7 @@ export interface CompileOptions {
   object?: string | string[];
   clangFlag?: string | string[];
   wasmRuntime?: "freestanding" | "host";
+  debugIrPath?: string;
   run?: boolean;
   verbose?: boolean;
   cache?: boolean;

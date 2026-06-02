@@ -590,6 +590,7 @@ function compileWithModules(
     sysroot: options.sysroot,
     clangFlags: getCompilerDriverFlags(options),
     dwarf: options.dwarf,
+    debugIrPath: options.debugIrPath,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
     requireEntryPoint: true,
@@ -678,6 +679,7 @@ async function compileWithModulesAsync(
     sysroot: options.sysroot,
     clangFlags: getCompilerDriverFlags(options),
     dwarf: options.dwarf,
+    debugIrPath: options.debugIrPath,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
     requireEntryPoint: true,
@@ -822,6 +824,7 @@ function compileSingleFile(
   const generator = new CodeGenerator({
     target: options.target || hostDefaults.target,
     dwarf: options.dwarf,
+    debugIrPath: options.debugIrPath,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
   });
   const ir = generator.generate(ast, filePath);

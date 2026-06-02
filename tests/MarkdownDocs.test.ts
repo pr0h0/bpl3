@@ -408,11 +408,15 @@ describe("Markdown documentation", () => {
 
     expect(optionsBlock).toContain("optimizationLevel?: number");
     expect(optionsBlock).toContain("jobs?: number");
+    expect(optionsBlock).toContain("debugIrPath?: string | false");
     expect(details).toContain(
       "`optimizationLevel` accepts 0 through 3".replace(/\s+/g, " "),
     );
     expect(details).toContain(
       "`jobs` controls parallel module compilation".replace(/\s+/g, " "),
+    );
+    expect(details).toContain(
+      "`debugIrPath` writes the generated LLVM IR".replace(/\s+/g, " "),
     );
   });
 

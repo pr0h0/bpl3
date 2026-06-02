@@ -50,6 +50,7 @@ _bpl() {
         '--march[Target architecture for clang]:arch'
         '--clang-flag[Additional flags for clang]:flag'
         '--wasm-runtime[WebAssembly runtime mode]:mode:(freestanding host)'
+        '--debug-ir-path[Write diagnostic LLVM IR to a file]:file:_files'
         '-l[Libraries to link with]:library'
         '--lib[Libraries to link with]:library'
         '-L[Library search paths]:path:_directories'

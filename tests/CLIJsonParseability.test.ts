@@ -1862,6 +1862,56 @@ describe("CLI JSON parseability", () => {
     expect(report.diagnostics[0]?.message).toContain("Type mismatch");
   });
 
+  test("reports debug IR path diagnostics in JSON-mode build failures", () => {
+    const sourceFile = path.join(tempDir, "debug-ir-path.bpl");
+    const debugIrPath = path.join(tempDir, "missing", "debug.ll");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    const result = runCli([
+      "build",
+      sourceFile,
+      "--json",
+      "--debug-ir-path",
+      debugIrPath,
+    ]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    const report = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      error: string;
+      errorCode: string;
+      diagnostics: Array<{
+        code?: string;
+        message: string;
+        location: { file: string; start: { line: number; column: number } };
+      }>;
+    }>(result);
+
+    expect(report).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      errorCode: "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND",
+      diagnostics: [
+        {
+          code: "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND",
+          location: {
+            file: path.dirname(debugIrPath),
+            start: { line: 1, column: 1 },
+          },
+        },
+      ],
+    });
+    expect(report.error).toContain("Debug IR parent path does not exist");
+    expect(report.diagnostics[0]?.message).toContain(
+      "Debug IR parent path does not exist",
+    );
+  });
+
   test("reports import diagnostics in JSON-mode build failures", () => {
     const unsafeStdFile = path.join(tempDir, "unsafe_std.bpl");
     const unsafeStdOutput = path.join(tempDir, "unsafe-std-app");

@@ -76,6 +76,8 @@ export interface CompilerOptions {
   clangFlags?: string[];
   /** Generate DWARF debug information */
   dwarf?: boolean;
+  /** Write generated LLVM IR to a diagnostic file; false disables BPL_DEBUG_IR */
+  debugIrPath?: string | false;
   /** Continue scanning and report all errors (don't stop at first error) */
   collectAllErrors?: boolean;
   /** Optimization level (0-3, where 0=none, 3=aggressive) */
@@ -233,6 +235,7 @@ export class Compiler {
       const codeGenerator = new CodeGenerator({
         target: this.options.target,
         dwarf: this.options.dwarf,
+        debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
       });
       const llvmIR = codeGenerator.generate(ast, this.options.filePath);
@@ -467,6 +470,7 @@ export class Compiler {
         useLinkOnceOdrForStdLib: isLinkingBpl,
         target: this.options.target,
         dwarf: this.options.dwarf,
+        debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
       });
 
@@ -562,6 +566,7 @@ export class Compiler {
       const codeGenerator = new CodeGenerator({
         target: this.options.target,
         dwarf: this.options.dwarf,
+        debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
       });
       const llvmIR = codeGenerator.generate(combinedAST, entryModule.path);
@@ -653,11 +658,16 @@ export class Compiler {
         return { success: false, errors: moduleCheck.errors };
       }
 
+      const entryModulePath = modules[modules.length - 1]?.path;
       const compileInputs: ModuleCompileInput[] = modules.map((module) => {
         const moduleAST = this.createPerModuleCodegenAst(modules, module);
         const codeGenerator = new CodeGenerator({
           target: this.options.target,
           dwarf: this.options.dwarf,
+          debugIrPath: this.getPerModuleDebugIrPath(
+            module.path,
+            entryModulePath,
+          ),
           optimizationLevel: this.options.optimizationLevel,
         });
         const restoreExternalizedBodies =
@@ -775,6 +785,17 @@ export class Compiler {
     }
 
     return { success: true };
+  }
+
+  private getPerModuleDebugIrPath(
+    modulePath: string,
+    entryModulePath: string | undefined,
+  ): string | false | undefined {
+    if (modulePath === entryModulePath) {
+      return this.options.debugIrPath;
+    }
+
+    return false;
   }
 
   private createPerModuleCodegenAst(
