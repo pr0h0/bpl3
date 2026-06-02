@@ -896,6 +896,13 @@ bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"
 ```
 
+Function-attribute failures use `BPL_FUNCTION_ATTRIBUTE_UNKNOWN`, `BPL_FUNCTION_ATTRIBUTE_DUPLICATE`, `BPL_FUNCTION_ATTRIBUTE_CONFLICT`, `BPL_FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH`, and the `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_*` codes. The auto-destroy family includes `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_CONTEXT_INVALID`, `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_NAME_MISMATCH`, `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_MISSING`, `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_TYPE_MISMATCH`, and `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH`. This covers unknown attributes, duplicate attributes, conflicting attributes, invalid `noreturn` return types, and invalid `auto_destroy` method shapes. Representative messages include `Unknown function attribute 'trace'`, `Duplicate function attribute 'inline'`, `Conflicting function attributes: always_inline, noinline`, `Function attribute 'noreturn' requires a void return type`, and `Function attribute 'auto_destroy' requires receiver type '*Resource'`. The corresponding hints include `Only compiler-known function attributes are supported.`, `Remove one of the conflicting attributes.`, and `Change the first parameter to 'this: *Resource'.`. Valid supported attributes, valid `noreturn` void functions, and valid `destroy(this: *T) ret void` auto-destroy methods remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "function-attribute diagnostics"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or

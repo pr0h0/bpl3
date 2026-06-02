@@ -185,6 +185,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now report `BPL_TYPE_QUERY_ENUM_NOT_FOUND` and
   `BPL_TYPE_QUERY_TYPE_NOT_FOUND` in compiler errors, `bpl check --json`,
   `bpl build --json`, and the public CLI JSON error-code registry.
+- **Function-Attribute Diagnostic Codes** - Unknown attributes, duplicate
+  attributes, conflicting attributes, invalid `noreturn` return types, and
+  invalid `auto_destroy` method shapes now report
+  `BPL_FUNCTION_ATTRIBUTE_UNKNOWN`, `BPL_FUNCTION_ATTRIBUTE_DUPLICATE`,
+  `BPL_FUNCTION_ATTRIBUTE_CONFLICT`,
+  `BPL_FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH`, and the
+  `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_*` codes in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

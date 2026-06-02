@@ -1703,6 +1703,31 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document function-attribute diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Function-attribute failures use `BPL_FUNCTION_ATTRIBUTE_UNKNOWN`, `BPL_FUNCTION_ATTRIBUTE_DUPLICATE`, `BPL_FUNCTION_ATTRIBUTE_CONFLICT`, `BPL_FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH`, and the `BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_*` codes",
+      "`BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_CONTEXT_INVALID`",
+      "`BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_TYPE_MISMATCH`",
+      "`BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH`",
+      "`Unknown function attribute 'trace'`",
+      "`Duplicate function attribute 'inline'`",
+      "`Conflicting function attributes: always_inline, noinline`",
+      "`Function attribute 'noreturn' requires a void return type`",
+      "`Function attribute 'auto_destroy' requires receiver type '*Resource'`",
+      "`Only compiler-known function attributes are supported.`",
+      "`Remove one of the conflicting attributes.`",
+      "`Change the first parameter to 'this: *Resource'.`",
+      "unknown attributes, duplicate attributes, conflicting attributes, invalid `noreturn` return types, and invalid `auto_destroy` method shapes",
+      'bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "function-attribute diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
