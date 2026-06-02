@@ -98,6 +98,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now reports `main` and legacy `entry` manifest failures before later
   `exports`, collection metadata, dependency, script, or `bin` field failures,
   matching the package manager's manifest validation order.
+- **CI Triage Package Manifest Parity Repros** - `bun run ci:triage` now maps
+  package resolver legacy-entry and manifest diagnostic-ordering regressions to
+  `bun test tests/PackageResolver.test.ts -t "legacy entry|metadata failures before later manifest fields"`.
 - **CI Triage Exported Package Candidate Repros** - `bun run ci:triage` now
   maps exported package subpath fallback regressions to
   `bun test tests/PackageResolver.test.ts -t "exported candidates"`.

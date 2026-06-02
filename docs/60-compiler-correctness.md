@@ -233,6 +233,14 @@ bun test tests/PackageResolver.test.ts -t "exported candidates"
 bun test tests/CiTriage.test.ts -t "package source-safety JSON failures"
 ```
 
+Package manifest parity regressions around unsafe legacy `entry` metadata or
+manifest diagnostic ordering also map to a focused resolver repro:
+
+```bash
+bun test tests/PackageResolver.test.ts -t "legacy entry|metadata failures before later manifest fields"
+bun test tests/CiTriage.test.ts -t "package manifest parity failures"
+```
+
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
 suite, the CI-required linker mode, and the local doctor report command. When
 no linker is installed, optional local runs report an optional prerequisite

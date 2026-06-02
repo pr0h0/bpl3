@@ -994,6 +994,18 @@ const PACKAGE_EXPORTED_CANDIDATE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_MANIFEST_PARITY_STEP_PATTERN = new RegExp(
+  [
+    "unsafe legacy entry",
+    "legacy entry metadata",
+    "metadata failures before later manifest fields",
+    "main and entry metadata failures",
+    "main and legacy entry manifest failures",
+    "manifest diagnostic ordering",
+    "Package Resolver Manifest Diagnostic Ordering",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_IMPORT_MANIFEST_STEP_PATTERN = new RegExp(
   [
     "package import manifest",
@@ -2091,6 +2103,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     PACKAGE_EXPORTED_CANDIDATE_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "exported candidates"',
+  ],
+  [
+    PACKAGE_MANIFEST_PARITY_STEP_PATTERN,
+    'bun test tests/PackageResolver.test.ts -t "legacy entry|metadata failures before later manifest fields"',
   ],
   [IMPORT_RESOLVER_STEP_PATTERN, "bun test tests/ModuleResolver.test.ts"],
   [

@@ -1854,6 +1854,28 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps package manifest parity failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageResolver.test.ts -t "legacy entry|metadata failures before later manifest fields"',
+    ];
+
+    expect(
+      localCommandsForStep(
+        "rejects unsafe legacy entry metadata even when main is present",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "reports main and entry metadata failures before later manifest fields",
+      ),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "main and legacy entry manifest failures before later exports fields",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package install JSON contract failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
