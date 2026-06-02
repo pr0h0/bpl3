@@ -4563,6 +4563,19 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
               },
             ],
           },
+          {
+            id: 50,
+            name: "Package doctor stale lock JSON code mapping",
+            conclusion: "failure",
+            html_url:
+              "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/50",
+            steps: [
+              {
+                name: "stale-lock-entry lockVerificationKind missing-package",
+                conclusion: "failure",
+              },
+            ],
+          },
         ],
       },
       null,
@@ -4752,6 +4765,10 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     ciTriageReport.summary.failedJobs.find(
       (job) => job.name === "Explicit std import JSON code mapping",
     )?.localCommands ?? [];
+  const staleLockCommands =
+    ciTriageReport.summary.failedJobs.find(
+      (job) => job.name === "Package doctor stale lock JSON code mapping",
+    )?.localCommands ?? [];
   const expectedPackageArchiveCommands = [
     'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
     "bun test tests/PackageJsonFailureContracts.test.ts",
@@ -4767,6 +4784,11 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     'bun test tests/CLI.test.ts -t "missing explicit std"',
     'bun test tests/CLIJsonParseability.test.ts -t "missing explicit std imports"',
     'bun test tests/MarkdownDocs.test.ts -t "std namespace isolation"',
+  ];
+  const expectedStaleLockCommands = [
+    'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
+    'bun test tests/PackageManager.test.ts -t "stale lock entries"',
+    "bun index.ts doctor packages --json",
   ];
   const missingCodeMappingCommands = [
     ...expectedPackageArchiveCommands.filter(
@@ -4785,6 +4807,23 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
         `${ciTriageCodeMappingLabel} reported unexpected payload:`,
         "missing JSON-code mapping commands:",
         ...missingCodeMappingCommands.map((command) => `- ${command}`),
+        `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+
+  const ciTriageStaleLockLabel =
+    "check packed npm CLI CI triage stale lock JSON";
+  console.log(`release smoke: ${ciTriageStaleLockLabel}`);
+  const missingStaleLockCommands = expectedStaleLockCommands.filter(
+    (command) => !staleLockCommands.includes(command),
+  );
+  if (missingStaleLockCommands.length > 0) {
+    throw new Error(
+      [
+        `${ciTriageStaleLockLabel} reported unexpected payload:`,
+        "missing stale lock commands:",
+        ...missingStaleLockCommands.map((command) => `- ${command}`),
         `report:\n${JSON.stringify(ciTriageReport, null, 2)}`,
       ].join("\n"),
     );
