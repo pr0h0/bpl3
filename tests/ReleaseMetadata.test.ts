@@ -44,6 +44,13 @@ function releaseSmokeTestSource(): string {
   );
 }
 
+function cliJsonParseabilitySource(): string {
+  return readFileSync(
+    join(import.meta.dir, "CLIJsonParseability.test.ts"),
+    "utf8",
+  );
+}
+
 function expectSourceContainsSnippets(
   sourceLabel: string,
   source: string,
@@ -75,6 +82,16 @@ function expectReleaseSmokeTestSourceContains(snippets: readonly string[]): void
   expectSourceContainsSnippets(
     "tests/ReleaseSmoke.test.ts",
     releaseSmokeTestSource(),
+    snippets,
+  );
+}
+
+function expectCliJsonParseabilitySourceContains(
+  snippets: readonly string[],
+): void {
+  expectSourceContainsSnippets(
+    "tests/CLIJsonParseability.test.ts",
+    cliJsonParseabilitySource(),
     snippets,
   );
 }
@@ -606,6 +623,15 @@ describe("Release metadata", () => {
       "pkg-math/features/increment",
       '["check", "--json", "main.bpl"]',
       "parseCheckReport",
+    ]);
+  });
+
+  test("CLI JSON parseability covers package-list failure contracts", () => {
+    expectCliJsonParseabilitySourceContains([
+      "global package-list parent-not-directory JSON stdout",
+      "global package-list-tree parent-symlink JSON stdout",
+      "duplicate package-list issue paths JSON stdout",
+      "duplicate package-list-tree issue paths JSON stdout",
     ]);
   });
 

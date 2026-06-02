@@ -123,6 +123,32 @@ function writePackageFixture(
   fs.writeFileSync(entryPath, options.entrySource ?? "export value;");
 }
 
+function writeDuplicateInstalledPackageFixture(
+  projectDir: string,
+  packageName: string,
+): string[] {
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(projectDir, "bpl.json"),
+    JSON.stringify({ name: `${packageName}-app`, version: "1.0.0" }),
+  );
+
+  const duplicatePaths = ["a", "b"].map((suffix) =>
+    path.join(projectDir, "bpl_modules", `${packageName}-${suffix}`),
+  );
+
+  for (const packageDir of duplicatePaths) {
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: packageName, version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+  }
+
+  return duplicatePaths;
+}
+
 describe("CLI JSON parseability", () => {
   let tempDir: string;
 
@@ -1093,6 +1119,129 @@ describe("CLI JSON parseability", () => {
         "Local package directory path is not a directory",
       ),
     });
+
+    const globalParentFileProject = path.join(
+      tempDir,
+      "global-list-parent-file-project",
+    );
+    const globalParentFileHome = path.join(
+      tempDir,
+      "global-list-parent-file-home",
+    );
+    fs.mkdirSync(globalParentFileProject);
+    fs.mkdirSync(globalParentFileHome);
+    fs.writeFileSync(
+      path.join(globalParentFileHome, ".bpl"),
+      "not a directory",
+    );
+
+    // global package-list parent-not-directory JSON stdout
+    const globalParentFileList = runCli(["list", "--global", "--json"], {
+      cwd: globalParentFileProject,
+      env: { HOME: globalParentFileHome },
+    });
+    expect(globalParentFileList.status).toBe(1);
+    expect(parseJsonObjectStdout(globalParentFileList)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-list",
+      success: false,
+      scope: "global",
+      packages: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+      error: expect.stringContaining(
+        "Global package directory parent path is not a directory",
+      ),
+    });
+
+    const globalParentSymlinkProject = path.join(
+      tempDir,
+      "global-list-parent-symlink-project",
+    );
+    const globalParentSymlinkHome = path.join(
+      tempDir,
+      "global-list-parent-symlink-home",
+    );
+    const realBplHome = path.join(tempDir, "global-list-real-bpl-home");
+    fs.mkdirSync(globalParentSymlinkProject);
+    fs.mkdirSync(globalParentSymlinkHome);
+    fs.mkdirSync(realBplHome);
+    fs.symlinkSync(
+      realBplHome,
+      path.join(globalParentSymlinkHome, ".bpl"),
+      "dir",
+    );
+
+    // global package-list-tree parent-symlink JSON stdout
+    const globalParentSymlinkTree = runCli(
+      ["list", "--global", "--tree", "--json"],
+      {
+        cwd: globalParentSymlinkProject,
+        env: { HOME: globalParentSymlinkHome },
+      },
+    );
+    expect(globalParentSymlinkTree.status).toBe(1);
+    expect(parseJsonObjectStdout(globalParentSymlinkTree)).toMatchObject({
+      schemaVersion: 1,
+      check: "package-list-tree",
+      success: false,
+      scope: "global",
+      tree: [],
+      errorCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+      error: expect.stringContaining(
+        "Global package directory parent path is a symbolic link",
+      ),
+    });
+
+    const duplicateProject = path.join(tempDir, "duplicate-list-project");
+    const duplicatePaths = writeDuplicateInstalledPackageFixture(
+      duplicateProject,
+      "cli-json-list-duplicate",
+    );
+    const duplicateCases: Array<{
+      args: string[];
+      expectedCheck: "package-list" | "package-list-tree";
+      emptyKey: "packages" | "tree";
+    }> = [
+      {
+        // duplicate package-list issue paths JSON stdout
+        args: ["list", "--json"],
+        expectedCheck: "package-list",
+        emptyKey: "packages",
+      },
+      {
+        // duplicate package-list-tree issue paths JSON stdout
+        args: ["list", "--tree", "--json"],
+        expectedCheck: "package-list-tree",
+        emptyKey: "tree",
+      },
+    ];
+
+    for (const testCase of duplicateCases) {
+      const result = runCli(testCase.args, { cwd: duplicateProject });
+      expect(result.status).toBe(1);
+      const report = parseJsonObjectStdout(result);
+      expect(report).toMatchObject({
+        schemaVersion: 1,
+        check: testCase.expectedCheck,
+        success: false,
+        scope: "local",
+        [testCase.emptyKey]: [],
+        errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED",
+        issuesFound: 1,
+        issueKinds: ["duplicate-installed-package"],
+        issues: [
+          {
+            packageName: "cli-json-list-duplicate",
+            kind: "duplicate-installed-package",
+            path: duplicatePaths.join(", "),
+            paths: duplicatePaths,
+          },
+        ],
+        error: expect.stringContaining(
+          "Multiple installed directories declare package 'cli-json-list-duplicate'",
+        ),
+      });
+    }
   });
 
   test("keeps package-cache maintenance JSON stdout parseable", () => {
