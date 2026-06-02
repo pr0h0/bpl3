@@ -986,8 +986,18 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
     "package install JSON",
     "BPL_LOCKFILE_",
     "BPL_PACKAGE_INSTALL_",
-    "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+    "^(?!.*doctor packages).*BPL_PACKAGE_LOCK_VERIFY_FAILED",
     "BPL_PACKAGE_ARCHIVE_",
+  ].join("|"),
+  "i",
+);
+const PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN = new RegExp(
+  [
+    "doctor lock verification drift",
+    "package doctor lock drift",
+    "bpl doctor packages.*BPL_PACKAGE_LOCK_VERIFY_FAILED",
+    "doctor packages.*BPL_PACKAGE_LOCK_VERIFY_FAILED",
+    "BPL_PACKAGE_LOCK_VERIFY_FAILED.*doctor packages",
   ].join("|"),
   "i",
 );
@@ -2085,6 +2095,18 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/ModuleResolver.test.ts -t "manifest"',
   ],
   [PACKAGE_IMPORT_MANIFEST_STEP_PATTERN, "bun run check"],
+  [
+    PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+  ],
+  [
+    PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN,
+    'bun test tests/PackageManager.test.ts -t "lock verification details"',
+  ],
+  [
+    PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN,
+    "bun index.ts doctor packages --json",
+  ],
   [
     PACKAGE_JSON_CONTRACT_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',

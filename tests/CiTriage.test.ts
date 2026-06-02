@@ -1781,6 +1781,23 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps package doctor lock drift failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+      'bun test tests/PackageManager.test.ts -t "lock verification details"',
+      "bun index.ts doctor packages --json",
+    ];
+
+    expect(
+      localCommandsForStep("doctor lock verification drift"),
+    ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "bpl doctor packages --json reported BPL_PACKAGE_LOCK_VERIFY_FAILED hash-mismatch",
+      ),
+    ).toEqual(expectedCommands);
+  });
+
   test("maps package manifest JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
