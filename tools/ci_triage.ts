@@ -983,6 +983,17 @@ const PACKAGE_SOURCE_SAFETY_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_EXPORTED_CANDIDATE_STEP_PATTERN = new RegExp(
+  [
+    "exported package candidate",
+    "exported candidates",
+    "exported candidate filtering",
+    "extensionless package subpath fallback",
+    "unexported .*\\.bpl.*shadow.*exported .*\\.x",
+    "unexported .*index\\.bpl.*shadow.*exported .*index\\.x",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_IMPORT_MANIFEST_STEP_PATTERN = new RegExp(
   [
     "package import manifest",
@@ -2077,6 +2088,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLIJsonParseability.test.ts -t "package import"',
   ],
   [PACKAGE_EXPLICIT_SOURCE_FILE_STEP_PATTERN, "bun run check"],
+  [
+    PACKAGE_EXPORTED_CANDIDATE_STEP_PATTERN,
+    'bun test tests/PackageResolver.test.ts -t "exported candidates"',
+  ],
   [IMPORT_RESOLVER_STEP_PATTERN, "bun test tests/ModuleResolver.test.ts"],
   [
     IMPORT_RESOLVER_STEP_PATTERN,

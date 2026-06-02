@@ -1819,6 +1819,13 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("subpath 'features/private' is not exported"),
     ).toEqual(expectedCommands);
+    expect(
+      localCommandsForStep(
+        "extensionless package subpath fallback to exported candidates",
+      ),
+    ).toEqual([
+      'bun test tests/PackageResolver.test.ts -t "exported candidates"',
+    ]);
   });
 
   test("maps package import manifest failures to focused reproduction commands", () => {

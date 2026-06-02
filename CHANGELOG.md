@@ -86,6 +86,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   subpath imports now restrict fallback probing to the source files listed by
   `exports`, so an unexported `.bpl` file or `index.bpl` cannot shadow an
   exported `.x` or `index.x` candidate.
+- **CI Triage Exported Package Candidate Repros** - `bun run ci:triage` now
+  maps exported package subpath fallback regressions to
+  `bun test tests/PackageResolver.test.ts -t "exported candidates"`.
 - **Package Resolver Exports Validation** - Package import resolution now
   rejects installed package manifests whose optional `exports` field is not an
   array of safe package-relative paths, matching PackageManager manifest loading

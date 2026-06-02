@@ -224,6 +224,15 @@ triage mapping with:
 bun test tests/CiTriage.test.ts -t "package import casing"
 ```
 
+Exported package subpath fallback regressions also have a focused triage
+mapping, so failures mentioning exported candidates point directly at the
+resolver repro:
+
+```bash
+bun test tests/PackageResolver.test.ts -t "exported candidates"
+bun test tests/CiTriage.test.ts -t "package source-safety JSON failures"
+```
+
 When a wasm/toolchain step fails, the triage helper prints the optional wasm
 suite, the CI-required linker mode, and the local doctor report command. When
 no linker is installed, optional local runs report an optional prerequisite
