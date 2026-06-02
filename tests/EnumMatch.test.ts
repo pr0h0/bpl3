@@ -33,6 +33,19 @@ function runBPL(sourceCode: string) {
 }
 
 describe("Enums and Pattern Matching", () => {
+  it("keeps tuple enum construction on the single aligned code path", () => {
+    const source = fs.readFileSync(
+      path.resolve(
+        __dirname,
+        "../compiler/backend/codegen/CallExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("getEnumDataFieldByteOffset");
+    expect(source).not.toContain("handleEnumVariantConstructor");
+  });
+
   it("should handle simple enums and matching", () => {
     const source = `
       extern printf(fmt: string, ...);
