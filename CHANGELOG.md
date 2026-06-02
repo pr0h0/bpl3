@@ -168,6 +168,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `BPL_INTRINSIC_ARGUMENT_COUNT_MISMATCH` in compiler errors,
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. The diagnostics now include usage hints instead of empty hints.
+- **Match Exhaustiveness Diagnostic Code** - Missing enum variants and missing
+  default cases for non-enum matches now report
+  `BPL_MATCH_EXHAUSTIVENESS_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry. Non-enum tuple matches remain accepted when unguarded patterns
+  provide provable finite coverage, such as boolean tuple partitions.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

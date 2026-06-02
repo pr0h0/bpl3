@@ -1647,6 +1647,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document match exhaustiveness diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Match exhaustiveness failures use `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`",
+      "`Non-exhaustive match: missing variants: Blue`",
+      "`Non-exhaustive match: missing default case (_)`",
+      "`Match expressions must handle all enum variants or include a wildcard (_) pattern.`",
+      "`Type matching requires a default case.`",
+      "missing enum variants and missing default cases for non-enum matches",
+      'bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
