@@ -1762,11 +1762,39 @@ describe("PackageResolver", () => {
           "manifest dependencies source for math must be a non-empty string",
       },
       {
+        name: "dependencies-leading-zero-range",
+        field: "dependencies",
+        manifestPatch: { dependencies: { math: "^01.0.0" } },
+        expectedMessage:
+          "manifest dependencies source '^01.0.0' for math must be a package name, exact version, version range, 'latest', '*', or package archive path",
+      },
+      {
+        name: "dependencies-leading-zero-comparator",
+        field: "dependencies",
+        manifestPatch: { dependencies: { math: ">01.0.0" } },
+        expectedMessage:
+          "manifest dependencies source '>01.0.0' for math must be a package name, exact version, version range, 'latest', '*', or package archive path",
+      },
+      {
+        name: "dependencies-short-comparator",
+        field: "dependencies",
+        manifestPatch: { dependencies: { math: ">=1.0" } },
+        expectedMessage:
+          "manifest dependencies source '>=1.0' for math must be a package name, exact version, version range, 'latest', '*', or package archive path",
+      },
+      {
         name: "dev-dependencies-number-source",
         field: "devDependencies",
         manifestPatch: { devDependencies: { math: 1 } },
         expectedMessage:
           "manifest devDependencies source for math must be a non-empty string",
+      },
+      {
+        name: "dev-dependencies-file-package-name",
+        field: "devDependencies",
+        manifestPatch: { devDependencies: { math: "file:math-core" } },
+        expectedMessage:
+          "manifest devDependencies source 'file:math-core' for math must be a package name, exact version, version range, 'latest', '*', or package archive path",
       },
       {
         name: "scripts-null",
@@ -1839,6 +1867,48 @@ describe("PackageResolver", () => {
         "BPL_PACKAGE_MANIFEST_INVALID",
       );
     }
+  });
+
+  test("accepts valid package manifest dependency source shapes", () => {
+    const appDir = path.join(tempDir, "app-valid-dependency-sources");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "math",
+          version: "1.0.0",
+          dependencies: {
+            exact: "1.2.3",
+            caret: "^1.2.3",
+            tilde: "~1.2.3",
+            comparator: ">=1.0.0",
+            range: ">=1.0.0 <2.0.0",
+            latest: "latest",
+            wildcard: "*",
+            "package-name": "math-core",
+            "archive-path": "../math-core/math-core-1.0.0.tgz",
+          },
+          devDependencies: {
+            "file-archive-path": "file:../math-core/math-core-1.0.0.tgz",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+
+    const details = resolvePackageImport("math", appDir);
+
+    expect(details.result).toEqual({
+      filePath: path.join(packageDir, "index.bpl"),
+      packageName: "math",
+      packageRoot: packageDir,
+      source: "local",
+    });
+    expect(details.trace.failureReason).toBeUndefined();
   });
 
   test("rejects package manifest exports with malformed values", () => {

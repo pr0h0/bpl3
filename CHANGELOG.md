@@ -23,11 +23,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/PackageResolver.test.ts tests/PackageManager.test.ts -t "large global versioned|large dependency semver range"`.
 - **Package Dependency Source Validation** - Package manifests now reject
   malformed dependency source strings such as `01.0.0`, `^01.0.0`, `>01.0.0`,
-  and `>=1.0` before install or lockfile commands can fall back to the newest
-  cached package. The checked-in package manifest schema now mirrors the same
-  dependency source shapes for package names, exact versions, valid selectors,
-  `latest`, `*`, and archive paths. Reproduce with
-  `bun test tests/PackageManager.test.ts tests/PackageManifestSchema.test.ts -t "malformed dependency version selectors|object-map key and value"`.
+  and `>=1.0` before install, lockfile commands, or package import resolution
+  can fall back to the newest cached package or accept an invalid installed
+  package. The checked-in package manifest schema and resolver now mirror the
+  same dependency source shapes for package names, exact versions, valid
+  selectors, `latest`, `*`, and archive paths. Reproduce with
+  `bun test tests/PackageManager.test.ts tests/PackageResolver.test.ts tests/PackageManifestSchema.test.ts -t "malformed dependency version selectors|object-map key and value|object maps with malformed values|valid package manifest dependency source"`.
 - **Package Lock JSON Alias** - `bpl lock` now re-resolves `bpl.json`
   dependency selectors through the existing `bpl install --update` lockfile
   path, and `bpl lock --json` emits the same `package-install` payload with

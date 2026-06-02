@@ -78,6 +78,12 @@ const PACKAGE_VERSION_PATTERN =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const PACKAGE_VERSION_CAPTURE_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const PACKAGE_VERSION_RANGE_PATTERN =
+  /^[~^](?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const PACKAGE_VERSION_COMPARATOR_PATTERN =
+  /^(>=|>|<=|<|=)(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const PACKAGE_VERSION_COMPARATOR_LIST_PATTERN =
+  /^(>=|>|<=|<|=)?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(\s+(>=|>|<=|<|=)?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))+$/;
 
 type SemanticVersion = [bigint, bigint, bigint];
 
@@ -873,6 +879,10 @@ function validatePackageManifestDependencyMap(
     if (typeof source !== "string" || source.trim().length === 0) {
       return `manifest ${field} source for ${packageName} must be a non-empty string`;
     }
+
+    if (!isValidPackageDependencySource(source)) {
+      return `manifest ${field} source '${source}' for ${packageName} must be a package name, exact version, version range, 'latest', '*', or package archive path`;
+    }
   }
 
   return null;
@@ -1023,6 +1033,38 @@ function isValidPackageName(name: string): boolean {
 
 function isValidPackageVersion(version: string): boolean {
   return PACKAGE_VERSION_PATTERN.test(version);
+}
+
+function isVersionSelectorSpec(value: string): boolean {
+  if (value === "*" || value === "latest") return true;
+  if (PACKAGE_VERSION_PATTERN.test(value)) return true;
+  if (PACKAGE_VERSION_RANGE_PATTERN.test(value)) return true;
+  if (PACKAGE_VERSION_COMPARATOR_PATTERN.test(value)) return true;
+  return PACKAGE_VERSION_COMPARATOR_LIST_PATTERN.test(value);
+}
+
+function isPackageFileSource(fileSource: string): boolean {
+  return (
+    fileSource.endsWith(".tgz") ||
+    fileSource.startsWith(".") ||
+    path.isAbsolute(fileSource) ||
+    path.win32.isAbsolute(fileSource) ||
+    fileSource.includes("/") ||
+    fileSource.includes("\\")
+  );
+}
+
+function isValidPackageDependencySource(source: string): boolean {
+  const fileSource = source.startsWith("file:") ? source.slice(5) : source;
+  if (source.startsWith("file:")) {
+    return isPackageFileSource(fileSource);
+  }
+
+  return (
+    isPackageFileSource(fileSource) ||
+    isVersionSelectorSpec(fileSource) ||
+    isValidPackageName(fileSource)
+  );
 }
 
 function resolvePackageEntryPoint(

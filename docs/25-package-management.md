@@ -53,9 +53,12 @@ segments. Use normalized paths such as `src/index.bpl` or `bin/tool.bpl`;
 packing or installing.
 
 Dependency map keys use the same lowercase package-name rule as `name`, and
-dependency sources must be non-empty strings. Script names must be non-empty,
-script commands must contain at least one non-whitespace character, and `bin`
-command names must be plain command names without `/` or `\` separators.
+dependency sources must be supported non-empty strings: package names, exact
+versions, valid version selectors, `latest`, `*`, or archive paths. The package
+resolver applies the same rule when reading installed package manifests during
+imports. Script names must be non-empty, script commands must contain at least
+one non-whitespace character, and `bin` command names must be plain command
+names without `/` or `\` separators.
 
 ## Creating a Package
 
