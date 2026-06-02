@@ -15,6 +15,8 @@ import {
   ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
   ENUM_VARIANT_FIELD_UNKNOWN_CODE,
   MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+  MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
+  MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
@@ -2127,6 +2129,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             "Tuple pattern used on non-tuple type",
             `Expected tuple type, got ${enumType.kind}`,
             pattern.location,
+            MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
           );
         }
 
@@ -2136,6 +2139,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             `Tuple pattern has ${pattern.patterns.length} elements, but type has ${enumType.types.length}`,
             "Pattern and type must have the same number of elements",
             pattern.location,
+            MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
           );
         }
 
