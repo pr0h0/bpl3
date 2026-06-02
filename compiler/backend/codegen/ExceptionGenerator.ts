@@ -746,43 +746,15 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           );
           break;
         case "LambdaExpression":
-          // For nested lambdas, we need to analyze their body for captures too.
-          // Variables captured by nested lambdas that come from our scope need to be
-          // captured by the defer block as well.
-          // Skip the parameters (they shadow outer vars) but analyze the body.
           {
             const lambda = node as AST.LambdaExpr;
-            const paramNames = new Set(lambda.params.map((p) => p.name));
-            // Temporarily mark params as visited to avoid capturing them
-            // We need a custom traversal that skips parameter identifiers
-            const analyzeNestedLambda = (n: any) => {
-              if (!n || typeof n !== "object") return;
-              if (visited.has(n)) return;
-              visited.add(n);
-
-              if (n.kind === "Identifier") {
-                const name = n.name;
-                // Skip if this is a lambda parameter
-                if (paramNames.has(name)) return;
-                if (shadowedCaptureNames.has(name)) return;
-                // Capture if it's a local from our scope
-                if (this.locals.has(name) && !captures.has(name)) {
-                  captures.set(name, this.localTypes.get(name)!);
-                }
+            for (const declaration of lambda.capturedVariables ?? []) {
+              const name = declaration.name as string;
+              if (shadowedCaptureNames.has(name)) continue;
+              if (this.locals.has(name) && !captures.has(name)) {
+                captures.set(name, this.localTypes.get(name)!);
               }
-
-              if (Array.isArray(n)) {
-                for (const item of n) analyzeNestedLambda(item);
-                return;
-              }
-
-              // Recursively traverse known AST nodes
-              for (const key of Object.keys(n)) {
-                if (key === "location" || key === "kind") continue;
-                analyzeNestedLambda(n[key]);
-              }
-            };
-            analyzeNestedLambda(lambda.body);
+            }
           }
           break;
         // Add other nodes as needed

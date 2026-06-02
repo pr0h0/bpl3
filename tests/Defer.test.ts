@@ -164,6 +164,47 @@ describe("Defer Statement", () => {
     expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
   });
 
+  it("should keep nested lambda locals inside defer from capturing shadowed outer locals", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 99;
+        defer {
+          local f: Lambda<int>() = || ret int {
+            local value: int = 7;
+            return value;
+          };
+          printf("defer nested lambda value: %d\\n", f());
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).not.toMatch(/%struct.lambda_.*_ctx = type/);
+  });
+
+  it("should capture outer locals used by nested lambdas inside defer", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 7;
+        defer {
+          local f: Lambda<int>() = || ret int {
+            return value;
+          };
+          printf("defer nested lambda capture: %d\\n", f());
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
   it("should capture locals referenced inside deferred try and catch blocks", () => {
     const source = `
       extern printf(fmt: string, ...);

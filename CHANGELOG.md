@@ -1049,6 +1049,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   local declarations and C-style loop init declarations as scoped shadow names,
   while still capturing outer locals used by their initializers before the new
   local comes into scope.
+- **Deferred Nested Lambda Captures** - Deferred-block capture analysis now uses
+  nested lambda semantic capture metadata instead of recursively guessing by
+  identifier name, avoiding captures caused by locals declared inside the nested
+  lambda while preserving real outer captures.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`
