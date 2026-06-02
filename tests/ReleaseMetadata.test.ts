@@ -136,6 +136,7 @@ describe("Release metadata", () => {
       expect.arrayContaining([
         "bpl",
         "bpl-wrapper.sh",
+        "bpl-package.schema.json",
         "cli/index.d.ts",
         "cli/index.js",
         "completions",

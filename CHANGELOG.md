@@ -100,6 +100,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now requires both `repository.type` and `repository.url` whenever repository
   metadata is present, matching PackageManager and package resolver manifest
   validation before install, pack, or import resolution.
+- **Packed Package Manifest Schema** - npm package payloads now include
+  `bpl-package.schema.json`, and release smoke checks require it, so installed
+  packages ship the same manifest schema referenced by generated `bpl.json`
+  files and documentation.
 - **Package Manifest Null Map Validation** - `bpl install --json` and
   PackageManager manifest loading now reject `null` `dependencies`,
   `devDependencies`, `scripts`, and `bin` fields with the existing stable
