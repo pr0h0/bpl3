@@ -3854,7 +3854,19 @@ export class PackageManager {
       }
     }
 
-    return packages;
+    return packages.sort((left, right) =>
+      this.comparePackageInfoByNameAndPath(left, right),
+    );
+  }
+
+  private comparePackageInfoByNameAndPath(
+    left: PackageInfo,
+    right: PackageInfo,
+  ): number {
+    return (
+      left.manifest.name.localeCompare(right.manifest.name) ||
+      left.path.localeCompare(right.path)
+    );
   }
 
   listPackageCache(packageName?: string): PackageCacheEntry[] {
@@ -4518,7 +4530,11 @@ export class PackageManager {
     const issues: PackageDoctorIssue[] = [];
     const seen = new Map<string, string[]>();
 
-    for (const item of fs.readdirSync(this.localPackageDir)) {
+    const items = fs
+      .readdirSync(this.localPackageDir)
+      .sort((left, right) => left.localeCompare(right));
+
+    for (const item of items) {
       const packagePath = path.join(this.localPackageDir, item);
       const stat = this.tryLstat(packagePath);
       if (!stat?.isDirectory()) continue;
@@ -4552,16 +4568,24 @@ export class PackageManager {
 
     for (const [packageName, paths] of seen.entries()) {
       if (paths.length <= 1) continue;
+      const sortedPaths = paths.sort((left, right) => left.localeCompare(right));
       issues.push({
         severity: "error",
         kind: "duplicate-installed-package",
         message: `Multiple installed directories declare package '${packageName}'.`,
-        path: paths.join(", "),
+        path: sortedPaths.join(", "),
         hint: "Keep only one installed directory for each package name.",
       });
     }
 
-    return issues;
+    return issues.sort((left, right) =>
+      [
+        left.kind.localeCompare(right.kind),
+        (left.packageName ?? "").localeCompare(right.packageName ?? ""),
+        (left.path ?? "").localeCompare(right.path ?? ""),
+        left.message.localeCompare(right.message),
+      ].find((comparison) => comparison !== 0) ?? 0,
+    );
   }
 
   getDependencyTree(

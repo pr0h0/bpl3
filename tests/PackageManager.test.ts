@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  spyOn,
+  test,
+} from "bun:test";
 import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
@@ -4685,6 +4692,61 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report duplicate installed package doctor paths deterministically", () => {
+      const appDir = path.join(tempDir, "doctor-duplicate-order-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const firstDir = path.join(packageRoot, "aaa-doctor-duplicate");
+      const secondDir = path.join(packageRoot, "zzz-doctor-duplicate");
+      fs.mkdirSync(firstDir, { recursive: true });
+      fs.mkdirSync(secondDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-duplicate-order-app", version: "1.0.0" }),
+      );
+
+      for (const packageDir of [firstDir, secondDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "doctor-duplicate-order",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const originalReaddirSync = fs.readdirSync;
+      const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(
+        ((dirPath: fs.PathLike, options?: Parameters<typeof fs.readdirSync>[1]) => {
+          if (path.resolve(String(dirPath)) === path.resolve(packageRoot)) {
+            return ["zzz-doctor-duplicate", "aaa-doctor-duplicate"];
+          }
+          return originalReaddirSync(dirPath, options as never) as never;
+        }) as typeof fs.readdirSync,
+      );
+
+      let report: ReturnType<PackageManager["doctorPackages"]>;
+      try {
+        report = new PackageManager(appDir).doctorPackages();
+      } finally {
+        readdirSpy.mockRestore();
+      }
+
+      const duplicateIssue = report.issues.find(
+        (issue) => issue.kind === "duplicate-installed-package",
+      );
+      expect(
+        duplicateIssue?.path
+          ?.split(", ")
+          .map((entry) => path.basename(entry)),
+      ).toEqual(["aaa-doctor-duplicate", "zzz-doctor-duplicate"]);
+    });
+
     test("should ignore symlinked installed package entries during doctor checks", () => {
       const appDir = path.join(tempDir, "doctor-symlink-app");
       const outsidePackageDir = path.join(tempDir, "doctor-outside-package");
@@ -5142,6 +5204,55 @@ describe("PackageManager", () => {
       expect(packages.length).toBe(1);
       expect(packages[0]?.manifest.name).toBe("list-test-pkg");
       expect(packages[0]?.manifest.version).toBe("2.0.0");
+    });
+
+    test("should list installed packages in deterministic manifest-name order", () => {
+      const appDir = path.join(tempDir, "list-order-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      fs.mkdirSync(appDir);
+
+      for (const installed of [
+        { directory: "aaa-zeta-list-order", name: "zeta-list-order" },
+        { directory: "zzz-alpha-list-order", name: "alpha-list-order" },
+      ]) {
+        const packageDir = path.join(packageRoot, installed.directory);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: installed.name,
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const originalReaddirSync = fs.readdirSync;
+      const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(
+        ((dirPath: fs.PathLike, options?: Parameters<typeof fs.readdirSync>[1]) => {
+          if (path.resolve(String(dirPath)) === path.resolve(packageRoot)) {
+            return ["aaa-zeta-list-order", "zzz-alpha-list-order"];
+          }
+          return originalReaddirSync(dirPath, options as never) as never;
+        }) as typeof fs.readdirSync,
+      );
+
+      let packages: ReturnType<PackageManager["list"]>;
+      try {
+        packages = new PackageManager(appDir).list({ global: false });
+      } finally {
+        readdirSpy.mockRestore();
+      }
+
+      expect(packages.map((pkg) => pkg.manifest.name)).toEqual([
+        "alpha-list-order",
+        "zeta-list-order",
+      ]);
     });
 
     test("should return empty list when no packages installed", () => {
