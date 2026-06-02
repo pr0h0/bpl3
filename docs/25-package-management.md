@@ -328,7 +328,9 @@ instead of followed. In JSON mode, unsafe package-root failures return
 `error`. Duplicate installed package names return
 `errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"` with `issuesFound`,
 `issueKinds`, and compact `issues` entries whose `kind` is
-`"duplicate-installed-package"`.
+`"duplicate-installed-package"`. Each duplicate issue keeps the compact `path`
+string for compatibility and also includes a `paths` array with every
+conflicting installed directory in deterministic order.
 `bpl list --tree --json` uses `check: "package-list-tree"` with the same
 `schemaVersion` and `success` fields, plus the dependency tree data used by the
 human tree output. Tree generation validates an existing local `bpl.lock`
@@ -341,8 +343,10 @@ the same `errorCode`, `issuesFound`, `issueKinds`, and compact `issues`
 contract before tree roots are selected. List and tree duplicate failures also
 include `issuesFound`, `issueKinds`, and compact `issues` entries with
 `kind: "duplicate-installed-package"` so automation can point at the ambiguous
-installed directories. Tree JSON validation failures return the requested
-`scope`, `tree: []`, and `error`.
+installed directories. The duplicate issue payload includes both the compact
+`path` string and a `paths` array with every conflicting installed directory.
+Tree JSON validation failures return the requested `scope`, `tree: []`, and
+`error`.
 
 Package list JSON failure codes are exported through
 `PACKAGE_LIST_JSON_ERROR_CODES` and the public `CLI_JSON_ERROR_CODE_LISTS`

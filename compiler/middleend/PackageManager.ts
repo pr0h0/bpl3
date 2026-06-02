@@ -272,6 +272,7 @@ export interface PackageInstalledNameIssue {
   kind: "duplicate-installed-package";
   message: string;
   path: string;
+  paths: string[];
 }
 
 export interface PackageLockVerification {
@@ -4330,11 +4331,13 @@ export class PackageManager {
     const issues: PackageInstalledNameIssue[] = [];
     for (const [packageName, paths] of packagesByName.entries()) {
       if (paths.length <= 1) continue;
+      const sortedPaths = paths.sort((left, right) => left.localeCompare(right));
       issues.push({
         packageName,
         kind: "duplicate-installed-package",
-        message: `Multiple installed directories declare package '${packageName}': ${paths.join(", ")}`,
-        path: paths.join(", "),
+        message: `Multiple installed directories declare package '${packageName}': ${sortedPaths.join(", ")}`,
+        path: sortedPaths.join(", "),
+        paths: sortedPaths,
       });
     }
 

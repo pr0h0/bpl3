@@ -750,6 +750,7 @@ function formatPackageInstalledNameJsonPayload(
         packageName: string;
         kind: string;
         path: string;
+        paths: string[];
       }>;
     }
   | Record<string, never> {
@@ -762,6 +763,7 @@ function formatPackageInstalledNameJsonPayload(
       packageName: issue.packageName,
       kind: issue.kind,
       path: issue.path,
+      paths: issue.paths,
     }))
     .sort((left, right) =>
       [

@@ -383,6 +383,7 @@ describe("Markdown documentation", () => {
       "unsafe package-root validation failures",
       "duplicate installed package names return `errorCode: \"BPL_PACKAGE_DUPLICATE_INSTALLED\"`",
       "List and tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: \"duplicate-installed-package\"`",
+      "`paths` array with every conflicting installed directory",
       "`packages: []`",
       "`tree: []`",
       "`schemaVersion`",
@@ -704,6 +705,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package list JSON failure codes",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"error-code lists\"",
+      "`paths` array with every conflicting installed directory",
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);

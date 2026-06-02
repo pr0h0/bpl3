@@ -491,6 +491,201 @@ describe("Package JSON failure contracts", () => {
     }
   });
 
+  test("surfaces stable package-list error codes and duplicate issue paths", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-list-codes-"));
+
+    try {
+      const searchDirCases: Array<{
+        name: string;
+        args: string[];
+        context: () => CommandContext;
+        expectedCheck: "package-list" | "package-list-tree";
+        emptyKey: "packages" | "tree";
+        expectedScope: "local" | "global";
+        expectedCode: string;
+        expectedError: string;
+      }> = [
+        {
+          name: "local-not-directory",
+          args: ["list", "--json"],
+          context: () => unsafeLocalPackageRoot(tempDir, "local-not-directory"),
+          expectedCheck: "package-list",
+          emptyKey: "packages",
+          expectedScope: "local",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+          expectedError: "Local package directory path is not a directory",
+        },
+        {
+          name: "local-tree-not-directory",
+          args: ["list", "--tree", "--json"],
+          context: () =>
+            unsafeLocalPackageRoot(tempDir, "local-tree-not-directory"),
+          expectedCheck: "package-list-tree",
+          emptyKey: "tree",
+          expectedScope: "local",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
+          expectedError: "Local package directory path is not a directory",
+        },
+        {
+          name: "local-symlink",
+          args: ["list", "--json"],
+          context: () => symlinkedLocalPackageRoot(tempDir, "local-symlink"),
+          expectedCheck: "package-list",
+          emptyKey: "packages",
+          expectedScope: "local",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+          expectedError: "Local package directory path is a symbolic link",
+        },
+        {
+          name: "local-tree-symlink",
+          args: ["list", "--tree", "--json"],
+          context: () =>
+            symlinkedLocalPackageRoot(tempDir, "local-tree-symlink"),
+          expectedCheck: "package-list-tree",
+          emptyKey: "tree",
+          expectedScope: "local",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
+          expectedError: "Local package directory path is a symbolic link",
+        },
+        {
+          name: "global-parent-not-directory",
+          args: ["list", "--global", "--json"],
+          context: () =>
+            globalPackageParentFileRoot(tempDir, "global-parent-not-directory"),
+          expectedCheck: "package-list",
+          emptyKey: "packages",
+          expectedScope: "global",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+          expectedError: "Global package directory parent path is not a directory",
+        },
+        {
+          name: "global-tree-parent-not-directory",
+          args: ["list", "--global", "--tree", "--json"],
+          context: () =>
+            globalPackageParentFileRoot(
+              tempDir,
+              "global-tree-parent-not-directory",
+            ),
+          expectedCheck: "package-list-tree",
+          emptyKey: "tree",
+          expectedScope: "global",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+          expectedError: "Global package directory parent path is not a directory",
+        },
+        {
+          name: "global-parent-symlink",
+          args: ["list", "--global", "--json"],
+          context: () =>
+            globalPackageParentSymlinkRoot(tempDir, "global-parent-symlink"),
+          expectedCheck: "package-list",
+          emptyKey: "packages",
+          expectedScope: "global",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+          expectedError: "Global package directory parent path is a symbolic link",
+        },
+        {
+          name: "global-tree-parent-symlink",
+          args: ["list", "--global", "--tree", "--json"],
+          context: () =>
+            globalPackageParentSymlinkRoot(
+              tempDir,
+              "global-tree-parent-symlink",
+            ),
+          expectedCheck: "package-list-tree",
+          emptyKey: "tree",
+          expectedScope: "global",
+          expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+          expectedError: "Global package directory parent path is a symbolic link",
+        },
+      ];
+
+      const searchDirCodes = searchDirCases.map(
+        (testCase) => testCase.expectedCode,
+      );
+      expect([...new Set(searchDirCodes)].sort()).toEqual(
+        PACKAGE_LIST_JSON_ERROR_CODES.filter(
+          (code) => code !== "BPL_PACKAGE_DUPLICATE_INSTALLED",
+        ).sort(),
+      );
+
+      for (const testCase of searchDirCases) {
+        const report = expectJsonStdoutReport(
+          runCli(testCase.args, testCase.context()),
+          {
+            status: 1,
+            check: testCase.expectedCheck,
+            success: false,
+          },
+        );
+        expect(report).toMatchObject({
+          schemaVersion: 1,
+          check: testCase.expectedCheck,
+          success: false,
+          scope: testCase.expectedScope,
+          [testCase.emptyKey]: [],
+          error: expect.stringContaining(testCase.expectedError),
+          errorCode: testCase.expectedCode,
+        });
+      }
+
+      const duplicateContext = duplicateInstalledPackageRoot(
+        tempDir,
+        "duplicate",
+        "list-contract-duplicate",
+      );
+      const duplicateCases: Array<{
+        args: string[];
+        expectedCheck: "package-list" | "package-list-tree";
+        emptyKey: "packages" | "tree";
+      }> = [
+        {
+          args: ["list", "--json"],
+          expectedCheck: "package-list",
+          emptyKey: "packages",
+        },
+        {
+          args: ["list", "--tree", "--json"],
+          expectedCheck: "package-list-tree",
+          emptyKey: "tree",
+        },
+      ];
+
+      for (const testCase of duplicateCases) {
+        const report = expectJsonStdoutReport(
+          runCli(testCase.args, duplicateContext),
+          {
+            status: 1,
+            check: testCase.expectedCheck,
+            success: false,
+          },
+        );
+        expect(report).toMatchObject({
+          schemaVersion: 1,
+          check: testCase.expectedCheck,
+          success: false,
+          scope: "local",
+          [testCase.emptyKey]: [],
+          errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED",
+          issuesFound: 1,
+          issueKinds: ["duplicate-installed-package"],
+          issues: [
+            {
+              packageName: "list-contract-duplicate",
+              kind: "duplicate-installed-package",
+              path: duplicateContext.duplicatePaths.join(", "),
+              paths: duplicateContext.duplicatePaths,
+            },
+          ],
+        });
+        expect(report.error).toContain(
+          "Multiple installed directories declare package 'list-contract-duplicate'",
+        );
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("surfaces stable direct archive path validation error codes", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-archive-codes-"));
 
@@ -819,6 +1014,61 @@ function unsafeLocalPackageRoot(root: string, name: string): CommandContext {
   mkdirSync(home, { recursive: true });
   writeFileSync(join(cwd, "bpl_modules"), "not a directory");
   return { cwd, env: { HOME: home } };
+}
+
+function symlinkedLocalPackageRoot(root: string, name: string): CommandContext {
+  const context = cleanPackageRoot(root, name);
+  const realPackageDir = join(root, `${name}-real-bpl-modules`);
+  mkdirSync(realPackageDir);
+  symlinkSync(realPackageDir, join(context.cwd, "bpl_modules"), "dir");
+  return context;
+}
+
+function globalPackageParentFileRoot(
+  root: string,
+  name: string,
+): CommandContext {
+  const context = cleanPackageRoot(root, name);
+  writeFileSync(join(String(context.env.HOME), ".bpl"), "not a directory");
+  return context;
+}
+
+function globalPackageParentSymlinkRoot(
+  root: string,
+  name: string,
+): CommandContext {
+  const context = cleanPackageRoot(root, name);
+  const realBplHome = join(root, `${name}-real-bpl-home`);
+  mkdirSync(realBplHome);
+  symlinkSync(realBplHome, join(String(context.env.HOME), ".bpl"), "dir");
+  return context;
+}
+
+function duplicateInstalledPackageRoot(
+  root: string,
+  name: string,
+  packageName: string,
+): CommandContext & { duplicatePaths: string[] } {
+  const context = cleanPackageRoot(root, name);
+  writeFileSync(
+    join(context.cwd, "bpl.json"),
+    JSON.stringify({ name: `${name}-project`, version: "1.0.0" }),
+  );
+
+  const duplicatePaths = ["a", "b"].map((suffix) =>
+    join(context.cwd, "bpl_modules", `${packageName}-${suffix}`),
+  );
+
+  for (const packageDir of duplicatePaths) {
+    mkdirSync(packageDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, "bpl.json"),
+      JSON.stringify({ name: packageName, version: "1.0.0", main: "index.bpl" }),
+    );
+    writeFileSync(join(packageDir, "index.bpl"), "export value;");
+  }
+
+  return { ...context, duplicatePaths };
 }
 
 function unsafeCacheRoot(root: string, name: string): CommandContext {

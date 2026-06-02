@@ -1419,7 +1419,12 @@ describe("Package Manager CLI", () => {
         errorCode?: string;
         issuesFound?: number;
         issueKinds?: string[];
-        issues?: Array<{ packageName: string; kind: string; path: string }>;
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path: string;
+          paths: string[];
+        }>;
       }>(result, {
         status: 1,
         check: "package-list",
@@ -1436,6 +1441,7 @@ describe("Package Manager CLI", () => {
             packageName: "cli-list-duplicate",
             kind: "duplicate-installed-package",
             path: expect.stringContaining("cli-list-duplicate-a"),
+            paths: [firstPackageDir, secondPackageDir],
           },
         ],
       });
@@ -1500,7 +1506,12 @@ describe("Package Manager CLI", () => {
         errorCode?: string;
         issuesFound?: number;
         issueKinds?: string[];
-        issues?: Array<{ packageName: string; kind: string; path: string }>;
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path: string;
+          paths: string[];
+        }>;
       }>(result, {
         status: 1,
         check: "package-list-tree",
@@ -1517,6 +1528,7 @@ describe("Package Manager CLI", () => {
             packageName: "cli-tree-duplicate",
             kind: "duplicate-installed-package",
             path: expect.stringContaining("cli-tree-duplicate-a"),
+            paths: [firstPackageDir, secondPackageDir],
           },
         ],
       });

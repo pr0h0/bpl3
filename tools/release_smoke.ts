@@ -171,7 +171,12 @@ interface PackageListReport {
   errorCode?: string;
   issuesFound?: number;
   issueKinds?: string[];
-  issues?: Array<{ packageName?: string; kind?: string; path?: string }>;
+  issues?: Array<{
+    packageName?: string;
+    kind?: string;
+    path?: string;
+    paths?: string[];
+  }>;
 }
 
 interface PackageListTreeReport {
@@ -2462,6 +2467,10 @@ function assertDuplicatePackageListFailureReport(
     duplicateIssue.kind !== "duplicate-installed-package" ||
     typeof duplicateIssue.path !== "string" ||
     !duplicateIssue.path.includes("release-smoke-list-duplicate-a") ||
+    !Array.isArray(duplicateIssue.paths) ||
+    duplicateIssue.paths.length !== 2 ||
+    !duplicateIssue.paths[0]?.includes("release-smoke-list-duplicate-a") ||
+    !duplicateIssue.paths[1]?.includes("release-smoke-list-duplicate-b") ||
     typeof report.error !== "string" ||
     !report.error.includes(
       "Multiple installed directories declare package 'release-smoke-list-duplicate'",

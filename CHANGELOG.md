@@ -90,7 +90,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Package List Duplicate Diagnostics** - `bpl list --json` now rejects
   duplicate installed package names with the same
   `BPL_PACKAGE_DUPLICATE_INSTALLED`, `issuesFound`, `issueKinds`, and compact
-  `duplicate-installed-package` issue payload used by tree listing.
+  `duplicate-installed-package` issue payload used by tree listing. Duplicate
+  issue payloads now retain the compatibility `path` string and include a
+  `paths` array with every conflicting installed directory in deterministic
+  order.
 - **Package List JSON Code Inventory** - Package list and tree JSON failure
   codes now have an exported `PACKAGE_LIST_JSON_ERROR_CODES` inventory covering
   package search-directory validation failures and
