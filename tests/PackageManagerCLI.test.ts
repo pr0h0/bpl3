@@ -782,9 +782,33 @@ describe("Package Manager CLI", () => {
       });
       expect(packResult.status).toBe(0);
 
+      const jsonInstallProjectDir = path.join(tempDir, "json-install-project");
+      fs.mkdirSync(jsonInstallProjectDir);
+      const tarballPath = path.join(packageDir, "locked-cli-test-1.0.0.tgz");
+      const installJson = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath, "--json"],
+        {
+          cwd: jsonInstallProjectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const installJsonReport = expectJsonStdoutReport(installJson, {
+        status: 0,
+        check: "package-install",
+        success: true,
+      });
+      expect(installJsonReport).toMatchObject({
+        mode: "package",
+        target: tarballPath,
+        locked: false,
+      });
+      expect(installJsonReport).not.toHaveProperty("action");
+      expect(installJsonReport).not.toHaveProperty("packagesChecked");
+
       const projectDir = path.join(tempDir, "locked-project");
       fs.mkdirSync(projectDir);
-      const tarballPath = path.join(packageDir, "locked-cli-test-1.0.0.tgz");
 
       const installResult = spawnSync(
         "bun",
@@ -801,6 +825,31 @@ describe("Package Manager CLI", () => {
         encoding: "utf-8",
       });
       expect(lockedOk.status).toBe(0);
+
+      const lockedJson = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const lockedReport = expectJsonStdoutReport<{
+        action?: string;
+        packagesChecked?: number;
+      }>(lockedJson, {
+        status: 0,
+        check: "package-install",
+        success: true,
+      });
+      expect(lockedReport).toMatchObject({
+        mode: "project",
+        target: null,
+        locked: true,
+        action: "verified",
+        packagesChecked: 1,
+      });
 
       fs.writeFileSync(
         path.join(projectDir, "bpl_modules", "locked-cli-test", "index.bpl"),

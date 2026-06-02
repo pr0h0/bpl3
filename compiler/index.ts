@@ -1124,6 +1124,7 @@ export {
   type PackageDoctorReport,
   type PackageLockRepairResult,
   type PackageLockVerificationIssue,
+  type PackageProjectInstallResult,
 } from "./middleend/PackageManager";
 export {
   resolvePackageImport,

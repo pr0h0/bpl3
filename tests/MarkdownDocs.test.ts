@@ -746,8 +746,12 @@ describe("Markdown documentation", () => {
       "CHANGELOG.md",
     ]);
     const requiredSnippets = [
+      'action: "verified"',
+      "`packagesChecked`",
       "project-mode option conflicts",
       "direct archive paths",
+      "bpl install --locked --json",
+      "bun test tests/PackageManagerCLI.test.ts -t \"should enforce --locked package verification\"",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package install option conflict|direct archive path\"",
     ];
 

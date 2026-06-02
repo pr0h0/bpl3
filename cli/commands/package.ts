@@ -17,6 +17,7 @@ import {
   type PackageCacheVerificationIssue,
   type PackageCacheVerificationReport,
   type PackageDependencyTreeNode,
+  type PackageProjectInstallResult,
 } from "../../compiler";
 import type {
   PackageOptionsGlobal,
@@ -200,8 +201,10 @@ export function registerPackageCommands(program: Command): void {
             );
           }
 
+          let projectInstallResult: PackageProjectInstallResult | undefined;
+
           if (!pkg) {
-            pm.installProject(options);
+            projectInstallResult = pm.installProject(options);
           } else {
             pm.install(pkg, options);
           }
@@ -211,6 +214,9 @@ export function registerPackageCommands(program: Command): void {
               JSON.stringify(
                 createJsonReport(CLI_JSON_CHECKS.packageInstall, true, {
                   ...formatPackageInstallJsonPayload(pkg, options),
+                  ...formatPackageInstallResultJsonPayload(
+                    projectInstallResult,
+                  ),
                 }),
                 null,
                 2,
@@ -724,6 +730,19 @@ function formatPackageCommandErrorCode(
 ): { errorCode: string } | Record<string, never> {
   if (error instanceof CompilerError && error.code) {
     return { errorCode: error.code };
+  }
+
+  return {};
+}
+
+function formatPackageInstallResultJsonPayload(
+  result: PackageProjectInstallResult | undefined,
+): { action: "verified"; packagesChecked: number } | Record<string, never> {
+  if (result?.action === "verified") {
+    return {
+      action: "verified",
+      packagesChecked: result.packagesChecked,
+    };
   }
 
   return {};

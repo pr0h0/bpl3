@@ -255,8 +255,14 @@ This updates recorded versions and hashes for installed packages and removes
 lock entries for packages that are no longer installed.
 Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
-`error` field. When the underlying package error has a stable compiler code, the
-report also includes `errorCode`, such as `BPL_LOCKFILE_UNSUPPORTED_VERSION` for
+`error` field. Successful `bpl install --locked --json` reports include
+`action: "verified"` and `packagesChecked`, so automation can distinguish a
+lockfile verification run from a normal install. Reproduce the locked success
+JSON contract with
+`bun test tests/PackageManagerCLI.test.ts -t "should enforce --locked package verification"`.
+When the underlying package error has a stable compiler code, the report also
+includes `errorCode`, such as
+`BPL_LOCKFILE_UNSUPPORTED_VERSION` for
 malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
 `BPL_PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE`,
 `BPL_PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT`,

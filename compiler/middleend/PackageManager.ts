@@ -328,6 +328,23 @@ export interface PackageLockRepairResult {
   removed: string[];
 }
 
+export type PackageProjectInstallAction =
+  | "verified"
+  | "repaired"
+  | "restored"
+  | "installed"
+  | "noop";
+
+export type PackageProjectInstallResult =
+  | { action: "verified"; packagesChecked: number }
+  | {
+      action: "repaired";
+      packages: number;
+      updated: string[];
+      removed: string[];
+    }
+  | { action: "restored" | "installed" | "noop"; packages: number };
+
 export type PackageDoctorIssueSeverity = "error" | "warning";
 
 export interface PackageDoctorIssue {
@@ -1246,7 +1263,7 @@ export class PackageManager {
 
   installProject(
     options: PackageOptionsVerbose = { verbose: false, global: false },
-  ): void {
+  ): PackageProjectInstallResult {
     if (options.global) {
       throw new CompilerError(
         "Project dependency install cannot be global",
@@ -1326,7 +1343,10 @@ export class PackageManager {
       compilerLog.info(
         `✓ Lockfile verified (${verification.packagesChecked} package${verification.packagesChecked === 1 ? "" : "s"})`,
       );
-      return;
+      return {
+        action: "verified",
+        packagesChecked: verification.packagesChecked,
+      };
     }
 
     if (options.repairLock) {
@@ -1340,7 +1360,12 @@ export class PackageManager {
       if (result.removed.length > 0 && options.verbose) {
         compilerLog.info(`Removed stale entries: ${result.removed.join(", ")}`);
       }
-      return;
+      return {
+        action: "repaired",
+        packages: result.packages,
+        updated: result.updated,
+        removed: result.removed,
+      };
     }
 
     const lockPath = this.getLockFilePath();
@@ -1372,7 +1397,7 @@ export class PackageManager {
             { lockSource: resolved.lockSource },
           );
         }
-        return;
+        return { action: "restored", packages: entries.length };
       }
     }
 
@@ -1388,11 +1413,12 @@ export class PackageManager {
 
     if (Object.keys(deps).length === 0) {
       compilerLog.info("No dependencies to install");
-      return;
+      return { action: "noop", packages: 0 };
     }
 
-    compilerLog.info(`Installing ${Object.keys(deps).length} dependencies...`);
-    for (const [name, source] of Object.entries(deps)) {
+    const dependencyEntries = Object.entries(deps);
+    compilerLog.info(`Installing ${dependencyEntries.length} dependencies...`);
+    for (const [name, source] of dependencyEntries) {
       const resolved = this.resolveDependencySource(
         name,
         source,
@@ -1409,6 +1435,7 @@ export class PackageManager {
         { lockSource: resolved.lockSource },
       );
     }
+    return { action: "installed", packages: dependencyEntries.length };
   }
 
   private formatLockVerificationHelp(
