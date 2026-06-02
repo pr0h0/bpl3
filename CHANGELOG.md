@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Resolver Exports Allowlist** - Package import resolution now treats
+  an installed package manifest's optional `exports` array as a subpath
+  allowlist. Exported source files still support extensionless and directory
+  `index.bpl`/`index.x` fallback imports, packages without `exports` keep the
+  previous permissive subpath behavior, and hidden subpaths now report the
+  stable `BPL_PACKAGE_SUBPATH_NOT_EXPORTED` diagnostic code.
 - **Package Resolver Exports Validation** - Package import resolution now
   rejects installed package manifests whose optional `exports` field is not an
   array of safe package-relative paths, matching PackageManager manifest loading

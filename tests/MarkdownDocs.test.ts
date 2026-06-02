@@ -1164,6 +1164,12 @@ describe("Markdown documentation", () => {
           "subpath 'features/add' casing does not match filesystem",
         ),
       ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "subpath-not-found",
+          "subpath 'features/private' is not exported by bpl.json",
+        ),
+      ),
     ].filter((code): code is string => typeof code === "string");
 
     expect(expectedCodes.sort()).toEqual(

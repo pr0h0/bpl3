@@ -1755,6 +1755,12 @@ describe("CI triage helper", () => {
       'bun test tests/CLIJsonParseability.test.ts -t "entrypoint|subpath|manifest"',
       "bun test tests/PackageResolver.test.ts",
     ];
+    const packageResolverCodeCommands = [
+      "bun test tests/PackageResolver.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "package search directory"',
+      'bun test tests/CLIJsonParseability.test.ts -t "global package root failures"',
+      ...expectedCommands,
+    ];
 
     expect(
       localCommandsForStep("entrypoint resolves to a symbolic link candidate"),
@@ -1766,6 +1772,12 @@ describe("CI triage helper", () => {
       localCommandsForStep(
         "subpath 'features/add' resolves to a symbolic link candidate",
       ),
+    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_PACKAGE_SUBPATH_NOT_EXPORTED")).toEqual(
+      packageResolverCodeCommands,
+    );
+    expect(
+      localCommandsForStep("subpath 'features/private' is not exported"),
     ).toEqual(expectedCommands);
   });
 

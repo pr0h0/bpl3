@@ -44,6 +44,13 @@ path separators. `bpl init` and `bpl new` generated manifests include the
 canonical `$schema` URI so editors can use the checked-in package schema
 without extra setup.
 
+When `exports` is present, package subpath imports are restricted to the listed
+package-relative source paths. Extensionless imports still use the normal
+resolver fallbacks, so exporting `features/add.bpl` allows
+`import [...] from "pkg/features/add"`, and exporting
+`features/math/index.bpl` allows `import [...] from "pkg/features/math"`.
+Packages without `exports` keep the existing permissive subpath behavior.
+
 ## CLI Commands
 
 ### Initialize a New Package

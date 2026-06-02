@@ -52,6 +52,7 @@ export const PACKAGE_RESOLUTION_FAILURE_CODES = [
   "BPL_PACKAGE_ENTRYPOINT_NOT_FOUND",
   "BPL_PACKAGE_SUBPATH_CASE_MISMATCH",
   "BPL_PACKAGE_SUBPATH_SYMLINK",
+  "BPL_PACKAGE_SUBPATH_NOT_EXPORTED",
   "BPL_PACKAGE_SUBPATH_NOT_FOUND",
   "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
   "BPL_PACKAGE_ROOT_CASE_MISMATCH",
@@ -256,6 +257,9 @@ export function getPackageResolutionFailureCode(
       if (message.includes("casing does not match")) {
         return "BPL_PACKAGE_SUBPATH_CASE_MISMATCH";
       }
+      if (message.includes("is not exported")) {
+        return "BPL_PACKAGE_SUBPATH_NOT_EXPORTED";
+      }
       return message.includes("symbolic link candidate")
         ? "BPL_PACKAGE_SUBPATH_SYMLINK"
         : "BPL_PACKAGE_SUBPATH_NOT_FOUND";
@@ -431,11 +435,7 @@ function resolvePackageFromBaseDir(
     const filePath =
       parts.length === 1
         ? resolvePackageEntryPoint(packageRootPath, manifest, trace)
-        : resolvePackageSourcePath(
-            path.join(packageRootPath, ...parts.slice(1)),
-            packageRootPath,
-            trace,
-          );
+        : resolvePackageSubpath(packageRootPath, manifest, parts, trace);
 
     if (filePath) {
       return {
@@ -1028,6 +1028,73 @@ function resolvePackageEntryPoint(
     packageRoot,
     trace,
   );
+}
+
+function resolvePackageSubpath(
+  packageRoot: string,
+  manifest: Record<string, unknown>,
+  parts: string[],
+  trace: PackageResolutionTrace,
+): string | null {
+  if (!isPackageSubpathExported(packageRoot, manifest, trace)) {
+    return null;
+  }
+
+  return resolvePackageSourcePath(
+    path.join(packageRoot, ...parts.slice(1)),
+    packageRoot,
+    trace,
+  );
+}
+
+function isPackageSubpathExported(
+  packageRoot: string,
+  manifest: Record<string, unknown>,
+  trace: PackageResolutionTrace,
+): boolean {
+  if (trace.subPath === undefined || manifest.exports === undefined) {
+    return true;
+  }
+
+  if (!Array.isArray(manifest.exports)) {
+    return true;
+  }
+
+  const exportedPaths = new Set(
+    manifest.exports
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => normalizeManifestRelativePath(entry)),
+  );
+  const candidates = getPackageSubpathExportCandidates(trace.subPath);
+  if (candidates.some((candidate) => exportedPaths.has(candidate))) {
+    return true;
+  }
+
+  trace.failureReason = "subpath-not-found";
+  trace.failureCode = "BPL_PACKAGE_SUBPATH_NOT_EXPORTED";
+  trace.failureMessage = `Package '${trace.packageName}' exists at ${packageRoot}, but subpath '${trace.subPath}' is not exported by bpl.json. Export one of: ${candidates.join(
+    ", ",
+  )}.`;
+  return false;
+}
+
+function getPackageSubpathExportCandidates(subPath: string): string[] {
+  const normalizedSubPath = normalizeManifestRelativePath(subPath);
+  if (hasPackageSourceExtension(normalizedSubPath)) {
+    return [normalizedSubPath];
+  }
+
+  return [
+    normalizedSubPath,
+    `${normalizedSubPath}.bpl`,
+    `${normalizedSubPath}.x`,
+    `${normalizedSubPath}/index.bpl`,
+    `${normalizedSubPath}/index.x`,
+  ];
+}
+
+function normalizeManifestRelativePath(relativePath: string): string {
+  return relativePath.split(/[\\/]/).join("/");
 }
 
 function resolvePackageSourcePath(

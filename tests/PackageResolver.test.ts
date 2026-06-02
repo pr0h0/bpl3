@@ -1338,6 +1338,81 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("enforces package manifest exports for subpath imports", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    const incrementDir = path.join(featureDir, "increment");
+    fs.mkdirSync(incrementDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "math",
+          version: "1.0.0",
+          main: "index.bpl",
+          exports: [
+            "features/direct.bpl",
+            "features/increment/index.bpl",
+            "legacy.x",
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(featureDir, "direct.bpl"), "export direct;");
+    fs.writeFileSync(path.join(featureDir, "private.bpl"), "export hidden;");
+    fs.writeFileSync(path.join(incrementDir, "index.bpl"), "export increment;");
+    fs.writeFileSync(path.join(packageDir, "legacy.x"), "export legacy;");
+
+    const allowedImports = [
+      ["math", path.join(packageDir, "index.bpl")],
+      ["math/features/direct", path.join(featureDir, "direct.bpl")],
+      ["math/features/direct.bpl", path.join(featureDir, "direct.bpl")],
+      ["math/features/increment", path.join(incrementDir, "index.bpl")],
+      ["math/legacy", path.join(packageDir, "legacy.x")],
+      ["math/legacy.x", path.join(packageDir, "legacy.x")],
+    ] as const;
+
+    for (const [importPath, expectedFile] of allowedImports) {
+      const details = resolvePackageImport(importPath, appDir);
+
+      expect(details.result?.filePath, importPath).toBe(expectedFile);
+    }
+
+    const hidden = resolvePackageImport("math/features/private", appDir);
+
+    expect(hidden.result).toBeNull();
+    expect(hidden.trace.failureReason).toBe("subpath-not-found");
+    expect(hidden.trace.failureCode).toBe("BPL_PACKAGE_SUBPATH_NOT_EXPORTED");
+    expect(hidden.trace.failureMessage).toContain(
+      "subpath 'features/private' is not exported",
+    );
+    expect(hidden.trace.failureMessage).toContain("features/private.bpl");
+    expect(getPackageResolutionFailureCode(hidden.trace)).toBe(
+      "BPL_PACKAGE_SUBPATH_NOT_EXPORTED",
+    );
+  });
+
+  test("keeps package subpath imports permissive when manifest exports is absent", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(featureDir, "private.bpl"), "export hidden;");
+
+    const details = resolvePackageImport("math/features/private", appDir);
+
+    expect(details.result?.filePath).toBe(path.join(featureDir, "private.bpl"));
+  });
+
   test("does not normalize ambiguous package entrypoint segments", () => {
     const appDir = path.join(tempDir, "app");
 

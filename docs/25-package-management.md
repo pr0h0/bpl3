@@ -536,7 +536,13 @@ the package entrypoint. It also validates `keywords` as an array of strings and
 `repository` as an object with string `type` and `url` fields. Dependency,
 script, and `bin` maps are checked for the same object shape, key, and non-empty
 string rules during import resolution before the package entrypoint is used.
-`exports` entries are also validated as safe package-relative paths.
+`exports` entries are also validated as safe package-relative paths. When
+`exports` is present, package subpath imports are restricted to the listed
+package-relative source paths; packages without `exports` keep permissive
+subpath resolution. Extensionless imports still use the normal resolver
+fallbacks, so exporting `features/add.bpl` allows
+`import [...] from "pkg/features/add"`, and exporting
+`features/math/index.bpl` allows `import [...] from "pkg/features/math"`.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the
@@ -545,7 +551,8 @@ resolver can classify the failure. Import spelling and lookup failures use
 failures use `BPL_PACKAGE_ENTRYPOINT_UNSAFE`,
 `BPL_PACKAGE_ENTRYPOINT_SYMLINK`, `BPL_PACKAGE_ENTRYPOINT_CASE_MISMATCH`,
 `BPL_PACKAGE_ENTRYPOINT_NOT_FOUND`, `BPL_PACKAGE_SUBPATH_SYMLINK`,
-`BPL_PACKAGE_SUBPATH_CASE_MISMATCH`, and `BPL_PACKAGE_SUBPATH_NOT_FOUND`.
+`BPL_PACKAGE_SUBPATH_CASE_MISMATCH`,
+`BPL_PACKAGE_SUBPATH_NOT_EXPORTED`, and `BPL_PACKAGE_SUBPATH_NOT_FOUND`.
 Package search and metadata failures use `BPL_PACKAGE_SEARCH_DIR_SYMLINK`,
 `BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`,
 `BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH`, `BPL_PACKAGE_ROOT_SYMLINK`,

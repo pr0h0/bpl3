@@ -609,6 +609,7 @@ describe("Release metadata", () => {
       "check packed npm CLI package import malformed manifest JSON",
       "check packed npm CLI package explicit source import JSON",
       "check packed npm CLI package directory index import JSON",
+      "check packed npm CLI package hidden export JSON",
       "runPackedPackageImportDiagnosticCodeSmoke",
       "BPL_PACKAGE_MANIFEST_MISSING",
       "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
@@ -618,7 +619,9 @@ describe("Release metadata", () => {
       "package search directory is not a directory",
       "Move the symlink out of the way",
       "BPL_PACKAGE_MANIFEST_PARSE_ERROR",
+      "BPL_PACKAGE_SUBPATH_NOT_EXPORTED",
       "manifest is not valid JSON",
+      "subpath 'features/private' is not exported",
       "pkg-math/features/add.bpl",
       "pkg-math/features/increment",
       '["check", "--json", "main.bpl"]',
@@ -639,6 +642,7 @@ describe("Release metadata", () => {
     expectReleaseSmokeTestSourceContains([
       "release smoke: check packed npm CLI package explicit source import JSON",
       "release smoke: check packed npm CLI package directory index import JSON",
+      "release smoke: check packed npm CLI package hidden export JSON",
     ]);
   });
 

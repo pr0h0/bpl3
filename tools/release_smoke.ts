@@ -3201,6 +3201,11 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
           name: "pkg-math",
           version: "1.0.0",
           main: "index.bpl",
+          exports: [
+            "features/add.bpl",
+            "features/increment/index.bpl",
+            "features/shadow.bpl",
+          ],
         },
         null,
         2,
@@ -3241,6 +3246,17 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         "export shadow;",
         "",
         "frame shadow(value: int) ret int {",
+        "    return value;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(packageDir, "features", "private.bpl"),
+      [
+        "export hidden;",
+        "",
+        "frame hidden(value: int) ret int {",
         "    return value;",
         "}",
         "",
@@ -3308,6 +3324,46 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
     ) {
       throw new Error(
         `Packed npm CLI package directory index import JSON reported unexpected payload:\n${JSON.stringify(directoryIndexReport, null, 2)}`,
+      );
+    }
+
+    writeFileSync(
+      join(tempDir, "main.bpl"),
+      [
+        'import hidden from "pkg-math/features/private";',
+        "",
+        "frame main() ret int {",
+        "    return hidden(7);",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const hiddenExportImport = runJsonFailureStep(
+      "check packed npm CLI package hidden export JSON",
+      installedBpl,
+      ["check", "--json", "main.bpl"],
+      { cwd: tempDir, bplHome: null, expectedStatus: 1 },
+    );
+    const hiddenExportReport = parseCheckReport(hiddenExportImport.stdout);
+    const hiddenExportFileReport = hiddenExportReport.files[0];
+    const hiddenExportDiagnostic = hiddenExportFileReport?.diagnostics?.[0];
+    if (
+      hiddenExportReport.success ||
+      hiddenExportReport.totalFiles !== 1 ||
+      hiddenExportReport.errorCount !== 1 ||
+      hiddenExportReport.files.length !== 1 ||
+      hiddenExportFileReport?.file !== "main.bpl" ||
+      hiddenExportFileReport.success ||
+      hiddenExportDiagnostic?.code !== "BPL_PACKAGE_SUBPATH_NOT_EXPORTED" ||
+      typeof hiddenExportDiagnostic.message !== "string" ||
+      !hiddenExportDiagnostic.message.includes(
+        "subpath 'features/private' is not exported",
+      ) ||
+      typeof hiddenExportDiagnostic.hint !== "string" ||
+      !hiddenExportDiagnostic.hint.includes("features/private.bpl")
+    ) {
+      throw new Error(
+        `Packed npm CLI package hidden export JSON reported unexpected payload:\n${JSON.stringify(hiddenExportReport, null, 2)}`,
       );
     }
 

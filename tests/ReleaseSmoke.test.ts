@@ -240,6 +240,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package directory index import JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package hidden export JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI check JSON",
       );
       expect(result.stdout).toContain(
