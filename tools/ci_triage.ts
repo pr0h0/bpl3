@@ -683,6 +683,22 @@ const TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const FUNCTION_ATTRIBUTE_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_FUNCTION_ATTRIBUTE_(?:UNKNOWN|DUPLICATE|CONFLICT)",
+    "BPL_FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH",
+    "BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_[A-Z_]+",
+    "function-attribute diagnostics",
+    "function-attribute diagnostic",
+    "Function-attribute failures",
+    "Unknown function attribute",
+    "Duplicate function attribute",
+    "Conflicting function attributes",
+    "Function attribute ['\"]noreturn['\"] requires a void return type",
+    "Function attribute ['\"]auto_destroy['\"] requires",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1660,6 +1676,23 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "type-query diagnostic"',
   ],
   [TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    FUNCTION_ATTRIBUTE_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts",
+  ],
+  [
+    FUNCTION_ATTRIBUTE_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/FunctionAttributes.test.ts",
+  ],
+  [
+    FUNCTION_ATTRIBUTE_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "function-attribute diagnostics"',
+  ],
+  [
+    FUNCTION_ATTRIBUTE_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "function-attribute diagnostic"',
+  ],
+  [FUNCTION_ATTRIBUTE_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',

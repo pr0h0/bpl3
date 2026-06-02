@@ -1261,6 +1261,36 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps function-attribute diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts",
+      "bun test tests/FunctionAttributes.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "function-attribute diagnostics"',
+      'bun test tests/MarkdownDocs.test.ts -t "function-attribute diagnostic"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_FUNCTION_ATTRIBUTE_UNKNOWN",
+      "BPL_FUNCTION_ATTRIBUTE_DUPLICATE",
+      "BPL_FUNCTION_ATTRIBUTE_CONFLICT",
+      "BPL_FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH",
+      "BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RECEIVER_TYPE_MISMATCH",
+      "Unknown function attribute 'trace'",
+      "Duplicate function attribute 'inline'",
+      "Conflicting function attributes: always_inline, noinline",
+      "Function attribute 'noreturn' requires a void return type",
+      "Function attribute 'auto_destroy' requires receiver type '*Resource'",
+      "Function-attribute failures use `BPL_FUNCTION_ATTRIBUTE_UNKNOWN`",
+      "reports function-attribute diagnostics failures in JSON-mode check and build diagnostics",
+      "docs document function-attribute diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -5884,6 +5914,73 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"',
         'bun test tests/MarkdownDocs.test.ts -t "type-query diagnostic"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints function-attribute diagnostic repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-function-attribute-diagnostics-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 110,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/110",
+              steps: [
+                {
+                  name: "BPL_FUNCTION_ATTRIBUTE_UNKNOWN Unknown function attribute 'trace'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts",
+        "bun test tests/FunctionAttributes.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "function-attribute diagnostics"',
+        'bun test tests/MarkdownDocs.test.ts -t "function-attribute diagnostic"',
         "bun run check",
       ]);
     } finally {
