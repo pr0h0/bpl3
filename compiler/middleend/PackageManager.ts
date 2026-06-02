@@ -121,6 +121,8 @@ export const PACKAGE_MANIFEST_METADATA_INVALID_CODE =
   "BPL_PACKAGE_MANIFEST_METADATA_INVALID";
 export const PACKAGE_MANIFEST_MAIN_INVALID_CODE =
   "BPL_PACKAGE_MANIFEST_MAIN_INVALID";
+export const PACKAGE_MANIFEST_ENTRY_INVALID_CODE =
+  "BPL_PACKAGE_MANIFEST_ENTRY_INVALID";
 export const PACKAGE_MANIFEST_EXPORTS_INVALID_CODE =
   "BPL_PACKAGE_MANIFEST_EXPORTS_INVALID";
 export const PACKAGE_MANIFEST_KEYWORDS_INVALID_CODE =
@@ -145,6 +147,7 @@ export const PACKAGE_MANIFEST_JSON_ERROR_CODES = [
   PACKAGE_MANIFEST_VERSION_INVALID_CODE,
   PACKAGE_MANIFEST_METADATA_INVALID_CODE,
   PACKAGE_MANIFEST_MAIN_INVALID_CODE,
+  PACKAGE_MANIFEST_ENTRY_INVALID_CODE,
   PACKAGE_MANIFEST_EXPORTS_INVALID_CODE,
   PACKAGE_MANIFEST_KEYWORDS_INVALID_CODE,
   PACKAGE_MANIFEST_REPOSITORY_INVALID_CODE,
@@ -160,6 +163,7 @@ export interface PackageManifest {
   author?: string;
   license?: string;
   main?: string;
+  entry?: string;
   exports?: string[];
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -1791,6 +1795,20 @@ export class PackageManager {
           "'main' must be a package-relative path without empty, '.', or '..' segments.",
           location,
           PACKAGE_MANIFEST_MAIN_INVALID_CODE,
+        );
+      }
+    }
+
+    if (manifest.entry !== undefined) {
+      if (
+        typeof manifest.entry !== "string" ||
+        !this.isSafeManifestRelativePath(manifest.entry)
+      ) {
+        throw new CompilerError(
+          "Invalid package manifest 'entry' field",
+          "'entry' must be a package-relative path without empty, '.', or '..' segments.",
+          location,
+          PACKAGE_MANIFEST_ENTRY_INVALID_CODE,
         );
       }
     }

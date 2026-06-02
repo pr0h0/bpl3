@@ -628,6 +628,20 @@ describe("Package JSON failure contracts", () => {
           expectedError: "Invalid package manifest 'main' field",
         },
         {
+          name: "invalid-entry",
+          setup: (context) =>
+            writeFileSync(
+              join(context.cwd, "bpl.json"),
+              JSON.stringify({
+                name: "invalid-entry",
+                version: "1.0.0",
+                entry: "src//index.bpl",
+              }),
+            ),
+          expectedCode: "BPL_PACKAGE_MANIFEST_ENTRY_INVALID",
+          expectedError: "Invalid package manifest 'entry' field",
+        },
+        {
           name: "invalid-metadata",
           setup: (context) =>
             writeFileSync(

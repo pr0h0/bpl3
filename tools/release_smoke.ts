@@ -1926,11 +1926,13 @@ function runPackedPackageManifestValidationJsonSmoke(
   );
   const missingManifestDir = join(workspaceDir, "missing-manifest");
   const invalidMainDir = join(workspaceDir, "invalid-main");
+  const invalidEntryDir = join(workspaceDir, "invalid-entry");
   const homeDir = join(workspaceDir, "home");
 
   try {
     mkdirSync(missingManifestDir, { recursive: true });
     mkdirSync(invalidMainDir, { recursive: true });
+    mkdirSync(invalidEntryDir, { recursive: true });
     mkdirSync(homeDir, { recursive: true });
     writeFileSync(
       join(invalidMainDir, "bpl.json"),
@@ -1939,6 +1941,18 @@ function runPackedPackageManifestValidationJsonSmoke(
           name: "invalid-main",
           version: "1.0.0",
           main: "src//index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(
+      join(invalidEntryDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "invalid-entry",
+          version: "1.0.0",
+          entry: "src//index.bpl",
         },
         null,
         2,
@@ -1966,10 +1980,21 @@ function runPackedPackageManifestValidationJsonSmoke(
       env,
       timeout: smokeTimeoutMs,
     });
+    const invalidEntryResult = spawnSync(installedBpl, ["install", "--json"], {
+      cwd: invalidEntryDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
 
     if (missingResult.error) throw missingResult.error;
     if (invalidMainResult.error) throw invalidMainResult.error;
-    if (missingResult.status !== 1 || invalidMainResult.status !== 1) {
+    if (invalidEntryResult.error) throw invalidEntryResult.error;
+    if (
+      missingResult.status !== 1 ||
+      invalidMainResult.status !== 1 ||
+      invalidEntryResult.status !== 1
+    ) {
       throw new Error(
         [
           "Packed npm CLI package manifest validation smoke did not fail as expected.",
@@ -1979,15 +2004,23 @@ function runPackedPackageManifestValidationJsonSmoke(
           `invalid main exit: ${invalidMainResult.status ?? "unknown"}`,
           `invalid main stdout:\n${invalidMainResult.stdout}`,
           `invalid main stderr:\n${invalidMainResult.stderr}`,
+          `invalid entry exit: ${invalidEntryResult.status ?? "unknown"}`,
+          `invalid entry stdout:\n${invalidEntryResult.stdout}`,
+          `invalid entry stderr:\n${invalidEntryResult.stderr}`,
         ].join("\n"),
       );
     }
-    if (missingResult.stderr !== "" || invalidMainResult.stderr !== "") {
+    if (
+      missingResult.stderr !== "" ||
+      invalidMainResult.stderr !== "" ||
+      invalidEntryResult.stderr !== ""
+    ) {
       throw new Error(
         [
           "Packed npm CLI package manifest validation JSON wrote stderr.",
           `missing stderr:\n${missingResult.stderr}`,
           `invalid main stderr:\n${invalidMainResult.stderr}`,
+          `invalid entry stderr:\n${invalidEntryResult.stderr}`,
         ].join("\n"),
       );
     }
@@ -1995,6 +2028,9 @@ function runPackedPackageManifestValidationJsonSmoke(
     const missingReport = parsePackageInstallReport(missingResult.stdout);
     const invalidMainReport = parsePackageInstallReport(
       invalidMainResult.stdout,
+    );
+    const invalidEntryReport = parsePackageInstallReport(
+      invalidEntryResult.stdout,
     );
     if (
       missingReport.success ||
@@ -2014,13 +2050,24 @@ function runPackedPackageManifestValidationJsonSmoke(
       invalidMainReport.update ||
       invalidMainReport.repairLock ||
       invalidMainReport.errorCode !== "BPL_PACKAGE_MANIFEST_MAIN_INVALID" ||
-      typeof invalidMainReport.error !== "string"
+      typeof invalidMainReport.error !== "string" ||
+      invalidEntryReport.success ||
+      invalidEntryReport.mode !== "project" ||
+      invalidEntryReport.target !== null ||
+      invalidEntryReport.global ||
+      invalidEntryReport.locked ||
+      invalidEntryReport.update ||
+      invalidEntryReport.repairLock ||
+      invalidEntryReport.errorCode !==
+        "BPL_PACKAGE_MANIFEST_ENTRY_INVALID" ||
+      typeof invalidEntryReport.error !== "string"
     ) {
       throw new Error(
         [
           "Packed npm CLI package manifest validation JSON reported unexpected payload.",
           `missing:\n${JSON.stringify(missingReport, null, 2)}`,
           `invalid main:\n${JSON.stringify(invalidMainReport, null, 2)}`,
+          `invalid entry:\n${JSON.stringify(invalidEntryReport, null, 2)}`,
         ].join("\n"),
       );
     }

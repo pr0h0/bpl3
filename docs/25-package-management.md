@@ -283,6 +283,7 @@ PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_VERSION_INVALID`,
 `BPL_PACKAGE_MANIFEST_METADATA_INVALID`,
 `BPL_PACKAGE_MANIFEST_MAIN_INVALID`,
+`BPL_PACKAGE_MANIFEST_ENTRY_INVALID`,
 `BPL_PACKAGE_MANIFEST_EXPORTS_INVALID`,
 `BPL_PACKAGE_MANIFEST_KEYWORDS_INVALID`,
 `BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID`,
@@ -458,7 +459,8 @@ After a package root has been accepted, package source failures are terminal
 too: unsafe manifest entrypoint values such as `../outside.bpl`, symlinked
 entrypoint files, and subpath source parents such as `features/` are reported
 at the import site instead of falling back to alternate candidates or following
-the link.
+the link. The package manager validates both `main` and the legacy `entry`
+field as package-relative paths before install or pack operations continue.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the

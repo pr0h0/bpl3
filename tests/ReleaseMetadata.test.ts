@@ -964,6 +964,8 @@ describe("Release metadata", () => {
       "runPackedPackageManifestValidationJsonSmoke",
       "BPL_PACKAGE_MANIFEST_MISSING",
       "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
+      "BPL_PACKAGE_MANIFEST_ENTRY_INVALID",
+      "invalid-entry",
       '["install", "--json"]',
       "parsePackageInstallReport",
     ]);

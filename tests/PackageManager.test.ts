@@ -5750,6 +5750,30 @@ describe("PackageManager", () => {
         [
           JSON.stringify(
             {
+              name: "unsafe-entry",
+              version: "1.0.0",
+              entry: "src//index.bpl",
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest 'entry' field/,
+        ],
+        [
+          JSON.stringify(
+            {
+              name: "non-string-entry",
+              version: "1.0.0",
+              entry: ["index.bpl"],
+            },
+            null,
+            2,
+          ),
+          /Invalid package manifest 'entry' field/,
+        ],
+        [
+          JSON.stringify(
+            {
               name: "bad-exports",
               version: "1.0.0",
               exports: ["src/index.bpl", "../secret.bpl"],

@@ -524,10 +524,11 @@ directory is not a directory`; global package cache non-directory failures
 report `Global package directory path is not a directory`.
 Package source-safety diagnostics stay in the same `bpl check --json` shape
 after package root resolution: unsafe `main` values report `unsafe entrypoint`,
-symlinked entrypoint files report `entrypoint resolves to a symbolic link
-candidate`, and symlinked subpath parents report `subpath 'features/add'
-resolves to a symbolic link candidate`. Package search directories, package
-roots, manifests, entrypoints, and subpaths also reject case-only filesystem
+and legacy `entry` values follow the same safety rule; symlinked entrypoint
+files report `entrypoint resolves to a symbolic link candidate`, and symlinked
+subpath parents report `subpath 'features/add' resolves to a symbolic link
+candidate`. Package search directories, package roots, manifests, entrypoints,
+and subpaths also reject case-only filesystem
 mismatches with diagnostics that include the requested path, the actual path,
 and the instruction to use exact filesystem casing. When the resolver can
 classify a package import failure, the diagnostic includes one of these stable
