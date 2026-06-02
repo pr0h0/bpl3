@@ -766,40 +766,48 @@ export function checkVariableDecl(
       : undefined;
 
     if (initType && initType.kind === "TupleType") {
-      const tupleType = initType as AST.TupleTypeNode;
-
-      const flattenNames = (innerTargets: any[]): string[] => {
-        const result: string[] = [];
-        for (const t of innerTargets) {
-          if (Array.isArray(t)) {
-            result.push(...flattenNames(t));
-          } else if (typeof t === "string") {
-            result.push(t);
-          } else if (t && typeof t === "object" && "name" in t) {
-            result.push(t.name);
-          }
-        }
-        return result;
-      };
-
-      const names = flattenNames(decl.name);
-
-      const assignTypes = (
-        nameList: string[],
-        types: AST.TypeNode[],
-        explicit: (AST.TypeNode | undefined)[],
+      const validateAndAssignTypes = (
+        nestedTargets: AST.DestructuringPattern[],
+        tupleNode: AST.TypeNode,
       ): void => {
-        for (let i = 0; i < nameList.length; i++) {
-          const inferredType = types[i];
-          const explicitType = explicit[i];
+        const resolvedTuple = this.resolveType(tupleNode);
+        if (resolvedTuple.kind !== "TupleType") return;
 
-          const finalType = explicitType || inferredType;
-          defineDestructuredTarget(targets[i]!, finalType);
+        for (let i = 0; i < nestedTargets.length; i++) {
+          const target = nestedTargets[i]!;
+          const inferredType = resolvedTuple.types[i];
+
+          if (Array.isArray(target)) {
+            if (inferredType) {
+              validateAndAssignTypes(target, inferredType);
+            }
+            continue;
+          }
+
+          const finalType = target.type || inferredType;
+          if (target.type && inferredType) {
+            const resolvedTarget = this.resolveType(target.type);
+            const resolvedInferred = this.resolveType(inferredType);
+            if (!this.areTypesCompatible(resolvedTarget, resolvedInferred)) {
+              throw new CompilerError(
+                `Type mismatch: cannot assign ${this.typeToString(
+                  resolvedInferred,
+                )} to ${this.typeToString(resolvedTarget)}`,
+                "Ensure the destructuring target type matches the tuple element type.",
+                decl.location,
+                "E001",
+              );
+            }
+          }
+
+          defineDestructuredTarget(target, finalType);
         }
       };
 
-      const explicitTypes = targets.map((t) => t.type);
-      assignTypes(names, tupleType.types, explicitTypes);
+      validateAndAssignTypes(
+        decl.name as AST.DestructuringPattern[],
+        initType,
+      );
     } else {
       for (const target of targets) {
         const finalType = target.type || initType;

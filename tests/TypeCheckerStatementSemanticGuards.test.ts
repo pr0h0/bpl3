@@ -119,6 +119,21 @@ describe("TypeChecker statement semantic guard diagnostics", () => {
     );
   });
 
+  test("codes tuple destructuring declaration target type mismatches", () => {
+    expectStatementGuardError(
+      `
+        frame main() ret int {
+          local pair: (int, int) = (1, 2);
+          local (text: string, value: int) = pair;
+          return value;
+        }
+      `,
+      "Type mismatch: cannot assign",
+      "E001",
+      "Ensure the destructuring target type matches the tuple element type.",
+    );
+  });
+
   test("preserves valid statement guard forms", () => {
     const errors = collectErrors(`
       frame main() ret int {
