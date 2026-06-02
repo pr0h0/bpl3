@@ -234,6 +234,9 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["test:wasm"]).toContain(
       "WasmHostImportContract.test.ts",
     );
+    expect(packageJson.scripts["test:wasm"]).toContain(
+      "WasmHostedPrintfRuntime.test.ts",
+    );
     expect(packageJson.scripts["test:sanitizers"]).toContain(
       "CompilerSanitizerRuntime.test.ts",
     );
@@ -301,6 +304,11 @@ describe("GitHub Actions workflows", () => {
     expect(CI_SAFE_EXCLUDED_TEST_FILES).not.toContain(
       "PackageJsonFailureContracts.test.ts",
     );
+    const ciSafeUnitArgs = createTestCiPlan()
+      .find((step) => step.name === "Run CI-safe unit tests")
+      ?.args.join(" ");
+    expect(ciSafeUnitArgs).toContain("tests/StdlibCExterns.test.ts");
+    expect(ciSafeUnitArgs).toContain("tests/ExampleExterns.test.ts");
     expect(
       existsSync(join(import.meta.dir, "ReleaseHelperSmoke.test.ts")),
     ).toBe(true);
