@@ -1,5 +1,5 @@
 # Bug Hunt: Return in Defer
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame test() ret int {
     defer {

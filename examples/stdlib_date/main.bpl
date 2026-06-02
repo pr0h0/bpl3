@@ -2,8 +2,8 @@
 
 import [Date], [DateTime] from "std/std.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern free(ptr: *void) ret void;
+import [printf] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== Date and DateTime Test ===\n\n");

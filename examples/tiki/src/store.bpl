@@ -1,10 +1,10 @@
 import [User], [Note] from "./models.bpl";
 # import [strcmp], [strcpy], [strlen], [malloc] from "libc";
-extern strcmp(s1: string, s2: string) ret int;
-extern strcpy(dst: string, src: string) ret string;
-extern strlen(s: string) ret int;
+import [strcmp] from "std/c.bpl";
+import [strcpy] from "std/c.bpl";
+import [strlen] from "std/c.bpl";
 extern malloc(size: long) ret string;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 
 # Simple in-memory storage
 # global const MAX_USERS = 50;

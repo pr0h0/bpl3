@@ -1,7 +1,7 @@
 # Comprehensive Pattern Guards Example
 # Shows various use cases for conditional pattern matching
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Temperature {
     Celsius(int),

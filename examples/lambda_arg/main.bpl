@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame apply(f: Lambda<int>(int), v: int) ret int {
     return f(v);

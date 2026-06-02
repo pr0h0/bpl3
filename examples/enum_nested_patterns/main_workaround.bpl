@@ -1,6 +1,6 @@
 # Test nested enums (workaround without nested pattern matching)
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Inner {
     Value(int),

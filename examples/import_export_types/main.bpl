@@ -1,6 +1,6 @@
 import [MyStruct] from "./type_exporter.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern exit(code: int);
 
 frame main() {

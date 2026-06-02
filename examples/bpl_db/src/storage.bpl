@@ -11,13 +11,13 @@ import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern sprintf(str: string, fmt: string, ...) ret int;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
-extern atoi(s: string) ret int;
-extern strlen(s: string) ret int;
-extern strcmp(s1: string, s2: string) ret int;
+import [atoi] from "std/c.bpl";
+import [strlen] from "std/c.bpl";
+import [strcmp] from "std/c.bpl";
 
 frame alloc<T>() ret *T {
     return cast<*T>(malloc(sizeof<T>()));

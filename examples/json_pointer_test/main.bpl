@@ -7,7 +7,7 @@ struct Node {
     next: *Node,
 }
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     IO.log("=== JSON Pointer Test ===");

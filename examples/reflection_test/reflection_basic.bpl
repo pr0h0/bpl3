@@ -22,7 +22,7 @@ struct Any {
     data: u64,
 }
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Color {
     Red,

@@ -1,5 +1,5 @@
 import [Array], [Option] from "std";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local arr: Array<int> = Array<int>.new(10);

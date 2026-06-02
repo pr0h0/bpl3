@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 type IntBox = Box<int>;
 struct Box<T> {

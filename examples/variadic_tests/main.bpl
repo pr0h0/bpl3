@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 # Homogeneous variadic function
 frame sum_integers(args: ...int, count: int) ret int {

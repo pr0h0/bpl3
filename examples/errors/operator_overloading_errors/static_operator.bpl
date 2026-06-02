@@ -1,7 +1,7 @@
 # Error: Static operator overload (not allowed)
 # Operator overloads must be instance methods
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     x: int,

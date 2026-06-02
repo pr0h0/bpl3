@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Advanced: nested tuples with functions
 frame createMatrix() ret ((int, int), (int, int)) {
     return ((1, 2), (3, 4));

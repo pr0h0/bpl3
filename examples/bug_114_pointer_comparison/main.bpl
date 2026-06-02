@@ -4,8 +4,8 @@
 
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern malloc(size: long) ret *void;
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
 
 frame alloc<T>() ret *T {
     return cast<*T>(malloc(sizeof<T>()));

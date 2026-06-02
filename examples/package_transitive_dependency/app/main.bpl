@@ -2,7 +2,7 @@ import add, doublePlusOne, triplePlusOne from "math-extra";
 import identity from "math-extra/features/direct.bpl";
 import increment from "math-extra/features/increment";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local sum: int = add(4, 5);

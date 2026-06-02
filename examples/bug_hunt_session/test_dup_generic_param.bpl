@@ -1,5 +1,5 @@
 # Bug Hunt: Duplicate Generic Params
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test: Multiple identical type parameters (should error)
 struct DupParam<T, T> {

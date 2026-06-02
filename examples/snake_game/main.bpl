@@ -5,11 +5,11 @@
 import [Rand] from "std/rand.bpl";
 import [Array] from "std/array.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern getchar() ret int;
 extern usleep(usec: int) ret int;
 extern malloc(size: u64) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 extern memcpy(dest: *void, src: *void, n: u64) ret *void;
 
 # Terminal control (POSIX)

@@ -1,6 +1,6 @@
 # Test operator overloading
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Vector2D with operator overloading
 struct Vector2D {

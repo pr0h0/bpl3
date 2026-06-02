@@ -1,5 +1,5 @@
 # Bug Hunt: Lambda Capture Syntax
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test capturing by reference
 frame test_capture() {

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: uint) ret string;
 frame testNullptr() {
     printf("Testing nullptr:\n");

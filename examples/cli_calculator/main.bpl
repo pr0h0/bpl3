@@ -4,11 +4,11 @@ import [ArgParser], [Command], [ParsedArgs] from "std/arg_parser.bpl";
 import [Option] from "std/option.bpl";
 import [Args] from "std/args.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern atoi(s: string) ret int;
-extern strcmp(s1: string, s2: string) ret int;
-extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
+import [printf] from "std/c.bpl";
+import [atoi] from "std/c.bpl";
+import [strcmp] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame main(argc: int, argv: **char) ret int {
     local root: *Command = Command.new("calc", "CLI Calculator");

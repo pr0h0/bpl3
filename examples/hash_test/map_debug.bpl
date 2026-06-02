@@ -2,7 +2,7 @@ import [Map] from "std/map.bpl";
 import [Hashable] from "std/core_specs.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 struct Key: Hashable<Key> {
     id: int,

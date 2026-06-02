@@ -1,5 +1,5 @@
 # Bug Hunt: Sizeof and Offsetof Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Empty {
 }

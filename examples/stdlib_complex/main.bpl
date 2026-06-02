@@ -2,7 +2,7 @@
 
 import [Complex] from "std/std.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== Complex Number Test ===\n\n");

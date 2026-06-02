@@ -1,5 +1,5 @@
-extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
 
 frame main() ret int {
     local size: int = 5;

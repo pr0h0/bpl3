@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Printer {
     frame print<T>(this: Printer) {

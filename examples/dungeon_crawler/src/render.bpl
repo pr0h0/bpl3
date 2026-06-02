@@ -5,7 +5,7 @@ import [Grid], [Tile], [TileType] from "./world.bpl";
 import [Entity], [Player], [Monster] from "./entities.bpl";
 import [Array] from "std/array.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 spec Renderable {
     frame render(this: Self);
@@ -27,8 +27,12 @@ struct Renderer {
                 # In a real game, we'd check tile.visible
 
                 match (tile.kind) {
-                    TileType.Wall => printf("#"),
-                    TileType.Floor => printf("."),
+                    TileType.Wall => {
+                        printf("#");
+                    },
+                    TileType.Floor => {
+                        printf(".");
+                    },
                     TileType.Door(open) => {
                         if (open) 
                             printf("'");

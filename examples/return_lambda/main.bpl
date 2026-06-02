@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame getAdder(x: int) ret Lambda<int>(int) {
     return |y: int| ret int {

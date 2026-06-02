@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Test nested structures and complex data layouts
 struct Point {
     x: int,

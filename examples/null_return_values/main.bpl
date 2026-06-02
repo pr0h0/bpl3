@@ -1,6 +1,6 @@
 import [NullAccessError] from "std/errors.bpl";
-extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
 
 struct Data {
     value: int,

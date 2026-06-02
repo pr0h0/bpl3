@@ -1,5 +1,5 @@
 import [NullAccessError] from "std/errors.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Inner {
     value: int,

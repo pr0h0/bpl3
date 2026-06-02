@@ -4,7 +4,7 @@
 # 1) Type mismatch: assign string to int
 # 2) Return value from a function declared to return void
 
-extern printf(format: string, ...) ret int;
+import [printf] from "std/c.bpl";
 frame main() {
     # Error 1: type mismatch
     local x: int = "string";

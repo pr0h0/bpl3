@@ -1,7 +1,7 @@
-extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
 extern memset(ptr: *void, value: int, size: int) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 
 frame main() ret int {
     # Allocate 12 bytes and zero them

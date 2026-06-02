@@ -1,7 +1,7 @@
 global const GLOBAL_CONST: int = 100;
 global var_global: int = 200;
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern exit(code: int);
 
 frame main() {

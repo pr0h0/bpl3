@@ -4,9 +4,9 @@
 import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern malloc(size: long) ret *void;
-extern free(ptr: *void);
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame alloc<T>() ret *T {
     return cast<*T>(malloc(sizeof<T>()));

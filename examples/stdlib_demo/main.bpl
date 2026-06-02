@@ -2,8 +2,8 @@ import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 import [IO] from "std/io.bpl";
 
-extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame demoArray() {
     IO.log("--- Demo Array<int> ---");

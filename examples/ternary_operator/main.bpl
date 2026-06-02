@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame max(a: int, b: int) ret int {
     return a > b ? a : b;
 }

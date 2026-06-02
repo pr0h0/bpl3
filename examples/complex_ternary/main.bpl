@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Complex ternary operator combinations
 frame classify(x: int, y: int) ret string {
     return x > y ? x > 50 ? "large positive" : "small positive" : x < y ? y > 50 ? "large negative" : "small negative" : "equal";

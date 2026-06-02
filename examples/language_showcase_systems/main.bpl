@@ -1,7 +1,7 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern malloc(size: ulong) ret *void;
-extern free(ptr: *void) ret void;
-extern strlen(s: string) ret int;
+import [free] from "std/c.bpl";
+import [strlen] from "std/c.bpl";
 
 global cleanupTotal: int = 0;
 

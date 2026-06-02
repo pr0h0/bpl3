@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 import [Allocator] from "std/memory/allocator.bpl";
 import [PageAllocator] from "std/memory/page_allocator.bpl";
 import [ArenaAllocator] from "std/memory/arena_allocator.bpl";

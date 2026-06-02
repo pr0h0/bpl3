@@ -1,6 +1,6 @@
 # Range demonstration
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 import [Range] from "std/range.bpl";
 

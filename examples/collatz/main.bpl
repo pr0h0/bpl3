@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Collatz Conjecture: For any positive integer n,
 # if n is even, divide by 2; if odd, multiply by 3 and add 1.
 # Repeat until n becomes 1.

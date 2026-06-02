@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Error handling example using try/catch/throw
 struct MathError {
     code: int,

@@ -1,5 +1,5 @@
 # Bug Hunt: Defer Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Multiple defers - order should be reverse
 frame test_multiple_defers() {

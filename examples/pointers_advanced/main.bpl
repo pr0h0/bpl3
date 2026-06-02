@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Advanced pointer example showcasing pointer arithmetic and memory operations
 frame swapPointers(a: *int, b: *int) {
     local temp: int = *a;

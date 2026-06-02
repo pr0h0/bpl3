@@ -2,7 +2,7 @@
 
 import [Time], [Duration], [Stopwatch] from "std/std.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== Extended Time Library Test ===\n\n");

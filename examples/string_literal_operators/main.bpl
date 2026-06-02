@@ -1,7 +1,7 @@
 # Demonstration of String operators with literal support
 
 import [String] from "std/string.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() {
     printf("=== String Literal Operator Demo ===\n\n");

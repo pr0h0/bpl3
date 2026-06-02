@@ -3,7 +3,7 @@ enum Tree {
     Node(*Tree, *Tree),
 }
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: ulong) ret *void;
 
 frame createLeaf(val: int) ret *Tree {

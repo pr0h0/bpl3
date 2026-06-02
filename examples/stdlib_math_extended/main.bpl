@@ -2,7 +2,7 @@
 
 import [Math], {PI}, {E}, {TAU}, {SQRT2}, {LN2}, {LN10} from "std/std.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== Extended Math Library Test ===\n\n");

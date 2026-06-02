@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Basic tuple swap without function
 frame main() ret int {
     local x: int = 10;

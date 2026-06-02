@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Edge case: combining all features in complex scenarios
 frame fibonacci(n: int) ret (int, int) {
     if (n == 0) {

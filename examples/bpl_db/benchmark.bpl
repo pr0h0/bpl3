@@ -3,7 +3,7 @@ import [Query], [Command], [Condition], [Operator] from "./src/query.bpl";
 import [Value] from "./src/types.bpl";
 import [Array] from "std/array.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern gettimeofday(tv: *TimeVal, tz: *void) ret int;
 
 struct TimeVal {

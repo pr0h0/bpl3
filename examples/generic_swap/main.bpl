@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame swap<T>(a: *T, b: *T) {
     local temp: T = *a;

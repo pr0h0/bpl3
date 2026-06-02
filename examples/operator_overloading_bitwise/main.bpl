@@ -1,6 +1,6 @@
 # Test bitwise operator overloading
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # BitSet - a set of flags using bitwise operations
 struct BitSet {

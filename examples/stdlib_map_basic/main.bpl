@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 import [Map] from "std";
 
 frame main() ret int {

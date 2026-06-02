@@ -1,5 +1,5 @@
 # Bug Hunt: Try-Catch Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Nested try-catch
 frame test_nested_try() {

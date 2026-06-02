@@ -3,7 +3,7 @@ import [Array] from "std/array.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 import [IO] from "std/io.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     IO.log("=== String Utils Demo ===");

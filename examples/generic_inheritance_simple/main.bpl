@@ -1,5 +1,5 @@
 import [IO] from "std/io.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Container<T> {
     value: T,

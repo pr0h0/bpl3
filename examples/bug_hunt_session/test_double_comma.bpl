@@ -1,5 +1,5 @@
 # Bug Hunt: Double comma in function call
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame test_call() {
     printf("test",, );

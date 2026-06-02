@@ -1,7 +1,7 @@
 # Vec3 operator overloading showcase
 
 import [Vec3] from "std/vec3.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== Vec3 Operator Overloading ===\n\n");

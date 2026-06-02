@@ -2,11 +2,11 @@ import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
 # import [Vector] from "std/vec.bpl";
 # import [strcmp], [strstr], [strlen] from "libc";
-extern strcmp(s1: string, s2: string) ret int;
+import [strcmp] from "std/c.bpl";
 extern strstr(haystack: string, needle: string) ret string;
-extern strlen(s: string) ret int;
+import [strlen] from "std/c.bpl";
 extern sprintf(str: string, fmt: string, ...) ret int;
-extern malloc(size: int) ret *void;
+import [malloc] from "std/c.bpl";
 
 frame int_to_string(val: int) ret string {
     local buf: *u8 = cast<*u8>(malloc(32));
@@ -80,7 +80,7 @@ frame parse_form(body: string) ret Array<KeyVal> {
 extern strchr(s: string, c: int) ret string;
 extern strndup(s: string, n: int) ret string;
 extern strdup(s: string) ret string;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 
 frame ptr_set_byte(ptr: string, val: int) {
     local p: *u8 = cast<*u8>(ptr);

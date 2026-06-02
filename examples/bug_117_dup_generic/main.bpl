@@ -2,7 +2,7 @@
 # This test verifies that duplicate generic parameters are now properly rejected.
 # The following code should NOT compile.
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # This struct has duplicate generic type parameter 'T' - should be rejected
 struct DupParam<T, T> {

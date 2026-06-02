@@ -1,7 +1,7 @@
 import [DiagnosticReporter] from "std/diagnostics.bpl";
 import [DiagnosticLevel] from "std/diagnostics.bpl";
 import [Span] from "std/diagnostics.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local reporter: DiagnosticReporter = DiagnosticReporter.new();

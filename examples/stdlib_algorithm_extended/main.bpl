@@ -2,7 +2,7 @@
 
 import [Algorithm], [Array], [Rand] from "std/std.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame printIntArray(arr: *Array<int>, label: string) {
     printf("%s: [", label);

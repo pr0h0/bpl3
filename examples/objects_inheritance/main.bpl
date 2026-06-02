@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Object-oriented example showcasing structs, methods, and inheritance
 struct Animal {
     name: string,

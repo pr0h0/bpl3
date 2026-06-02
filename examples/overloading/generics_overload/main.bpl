@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame process<T>(_val: T) {
     printf("Generic process\n");

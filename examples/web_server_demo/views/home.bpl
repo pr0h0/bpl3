@@ -1,6 +1,6 @@
 import [StringBuilder] from "std/string_builder.bpl";
 import HTMLEscape_appendEscaped from "bpl-templ";
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 struct Home {
   frame write(_sb: *StringBuilder, name: string) {
     _sb.append("<html>");

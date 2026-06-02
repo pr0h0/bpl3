@@ -1,5 +1,5 @@
 # Bug Hunt: Spec implementing itself
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 spec SelfSpec: SelfSpec {
     frame method(this: *SelfSpec);

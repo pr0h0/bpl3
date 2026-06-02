@@ -1,6 +1,6 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: u64) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 extern memset(dest: *void, c: int, n: u64) ret *void;
 extern strcmp(s1: *char, s2: *char) ret int;
 extern strncpy(dest: *char, src: *char, n: u64) ret *char;

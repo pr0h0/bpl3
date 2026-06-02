@@ -2,10 +2,10 @@
 # Note: Generic Array<T> doesn't support operators due to generic type resolution limitations
 # This example uses a concrete IntArray type
 
-extern printf(fmt: string, ...) ret int;
-extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
-extern memcpy(dest: *void, src: *void, n: long) ret *void;
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
+import [memcpy] from "std/c.bpl";
 
 struct IntArray {
     data: *int,

@@ -1,5 +1,5 @@
 import * as Lib from "./lib.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     printf("Testing namespace imports\n");

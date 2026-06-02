@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame ignore<T>(x: T) ret T {
     printf("Ignored\n");

@@ -5,7 +5,7 @@ import create_user, create_note from "./store.bpl";
 import [User] from "./models.bpl";
 import logger from "./middleware.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame api_handler(_req: *Request, res: *Response) {
     res.send(_req.path);

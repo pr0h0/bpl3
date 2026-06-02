@@ -1,5 +1,5 @@
 import [Option] from "std/option.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 enum Color {
     Red,

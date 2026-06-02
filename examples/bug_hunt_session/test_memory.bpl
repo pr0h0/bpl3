@@ -1,7 +1,7 @@
 # Bug Hunt: Memory and Pointer Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: u64) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 
 struct Point {
     x: int,

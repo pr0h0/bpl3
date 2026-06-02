@@ -3,7 +3,7 @@ import [Set] from "std/set.bpl";
 import [String] from "std/string.bpl";
 import [IO] from "std/io.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     IO.log("=== Map/Set Demo ===");

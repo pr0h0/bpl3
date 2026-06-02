@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Test array operations and boundary conditions
 frame testArrayInitialization() {
     printf("=== Array Initialization ===\n");

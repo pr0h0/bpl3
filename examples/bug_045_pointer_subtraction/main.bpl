@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     local arr: int[5] = [10, 20, 30, 40, 50];

@@ -10,7 +10,7 @@
 # - Loops, conditionals, and control flow
 # ============================================================================
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # ============================================================================
 # ENUMS - Representing different types of state and data

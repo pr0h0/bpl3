@@ -1,5 +1,5 @@
 extern dprintf(fd: int, fmt: string, ...) ret int;
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local label: string = "wasm";

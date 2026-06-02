@@ -5,15 +5,15 @@
 import [Rand] from "std/rand.bpl";
 import [Array] from "std/array.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern getchar() ret int;
 
 # Terminal control for raw input (no Enter required)
 extern tcgetattr(fd: int, termios: *void) ret int;
 extern tcsetattr(fd: int, optional_actions: int, termios: *void) ret int;
-extern malloc(size: long) ret *void;
-extern free(ptr: *void);
-extern memcpy(dest: *void, src: *void, n: long) ret *void;
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
+import [memcpy] from "std/c.bpl";
 
 # termios structure offsets and flags for Linux x86_64
 # struct termios { c_iflag, c_oflag, c_cflag, c_lflag, c_line, c_cc[32], c_ispeed, c_ospeed }

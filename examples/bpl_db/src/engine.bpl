@@ -6,7 +6,7 @@ import [Value], [DataType] from "./types.bpl";
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame use_value(v: Value) {
     local p: *Value = &v;

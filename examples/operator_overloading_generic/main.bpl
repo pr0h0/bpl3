@@ -3,9 +3,9 @@
 
 import [IndexOutOfBoundsError] from "std/errors.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: ulong) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 
 # Generic Array with operator overloading
 struct Array<T> {

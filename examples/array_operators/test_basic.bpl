@@ -1,7 +1,7 @@
 # Test basic Array<T> operations without operators
 
 import [Array] from "../../lib/array.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     # Create an integer array

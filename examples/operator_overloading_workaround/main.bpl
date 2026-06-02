@@ -1,7 +1,7 @@
 # Test to verify TypeChecker accepts generic operator overloads
 # This should compile successfully but we won't use the operator
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Box<T> {
     val: T,

@@ -1,7 +1,7 @@
 # Bug Hunt: Array Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: u64) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 
 # Test 1: Array of structs initialization
 struct Point {

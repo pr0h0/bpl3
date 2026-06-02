@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame foo(v: *void) {
     # Use v to avoid unused variable error

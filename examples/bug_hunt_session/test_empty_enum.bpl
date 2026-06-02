@@ -1,5 +1,5 @@
 # Bug Hunt: Empty Enum
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 enum Empty {
 }

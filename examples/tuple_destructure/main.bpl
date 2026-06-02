@@ -1,7 +1,7 @@
 # Test for tuple destructuring (with explicit type annotations as required by BPL)
 # BPL supports destructuring tuples in local declarations with type annotations
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     # Test 1: Simple tuple destructuring

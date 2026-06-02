@@ -1,6 +1,6 @@
-extern malloc(size: int) ret *void;
-extern free(ptr: *void);
-extern printf(fmt: string, ...);
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
+import [printf] from "std/c.bpl";
 
 struct Address {
     zip: int,

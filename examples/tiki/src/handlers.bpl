@@ -8,8 +8,8 @@ import [Map] from "std/map.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 
 import atoi from "bpl-express";
-extern strcmp(s1: string, s2: string) ret int;
-extern free(ptr: *void);
+import [strcmp] from "std/c.bpl";
+import [free] from "std/c.bpl";
 extern strdup(s: string) ret string;
 
 import [Home] from "./views/home.bpl";

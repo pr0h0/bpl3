@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame is_even(n: int) ret bool {
     if (n == 0) {

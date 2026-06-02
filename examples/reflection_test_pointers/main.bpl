@@ -1,7 +1,7 @@
 import [TypeInfo], [FieldInfo], [MethodInfo] from "std/reflection.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern strcmp(s1: string, s2: string) ret int;
+import [printf] from "std/c.bpl";
+import [strcmp] from "std/c.bpl";
 
 struct MyData {
     value: int,

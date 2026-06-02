@@ -1,7 +1,7 @@
 # Error: Non-existent operator being used
 # Operator must have a corresponding overload method
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     x: int,

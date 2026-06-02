@@ -1,5 +1,5 @@
 # Bug Hunt: More Type Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test: Self-inheriting struct - check if caught
 struct SelfInherit: SelfInherit {

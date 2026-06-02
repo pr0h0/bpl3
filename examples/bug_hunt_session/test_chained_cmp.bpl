@@ -1,5 +1,5 @@
 # Bug Hunt: Chained comparisons
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     # Chained comparison like Python: 1 < 2 < 3

@@ -1,5 +1,5 @@
 # Bug Hunt: Control Flow Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Break outside of loop
 frame test_break_outside() {

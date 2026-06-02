@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Recursive enum - should cause semantic error, not stack overflow
 enum List {

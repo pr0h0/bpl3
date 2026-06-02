@@ -1,5 +1,5 @@
 # Bug Hunt: Is/As Operator Bug Investigation
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Animal {
     name: string,

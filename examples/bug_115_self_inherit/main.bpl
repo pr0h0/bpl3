@@ -2,7 +2,7 @@
 # This test verifies that self-inheritance is now properly rejected.
 # Previously it caused a compiler stack overflow.
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # This struct had self-inheritance - now properly rejected:
 struct SelfInherit: SelfInherit {

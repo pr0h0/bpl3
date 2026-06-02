@@ -1,5 +1,5 @@
 import [String] from "std";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame getGreeting() ret String {
     return String.new("Greetings");

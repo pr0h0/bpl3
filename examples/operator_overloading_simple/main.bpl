@@ -1,7 +1,7 @@
 # Simple test for generic operator overloading
 # Tests only the push operator (<<)
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: ulong) ret *void;
 
 # Generic Counter with operator overloading

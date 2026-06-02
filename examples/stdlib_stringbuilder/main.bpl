@@ -1,6 +1,6 @@
 # StringBuilder demonstration
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 import [StringBuilder] from "std/string_builder.bpl";
 import [String] from "std/string.bpl";

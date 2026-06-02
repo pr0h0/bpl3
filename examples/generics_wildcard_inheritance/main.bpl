@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 struct Base<T> {
     val: T,

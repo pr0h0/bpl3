@@ -4,7 +4,7 @@ frame process(d: *Disposable) {
     d.destroy();
 }
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local u: User = User { name: "test" };

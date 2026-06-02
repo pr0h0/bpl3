@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern malloc(size: u64) ret *void;
 extern memset(ptr: *void, value: int, num: u64) ret *void;
 

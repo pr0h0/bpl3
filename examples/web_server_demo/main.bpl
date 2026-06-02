@@ -7,8 +7,8 @@ import [Option] from "std/option.bpl";
 import [IO] from "std/io.bpl";
 import [Env] from "std/env.bpl";
 
-extern strcmp(s1: string, s2: string) ret int;
-extern printf(fmt: string, ...) ret int;
+import [strcmp] from "std/c.bpl";
+import [printf] from "std/c.bpl";
 
 struct LoginData {
     username: string,

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame max<T>(a: T, b: T) ret T {
     # Assuming T supports > operator (int/float)

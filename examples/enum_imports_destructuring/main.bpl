@@ -2,7 +2,7 @@
 
 import [Message] from "./enums.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame testAdd() ret int {
     local msg: Message = Message.Move(5, 10);

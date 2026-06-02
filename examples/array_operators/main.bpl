@@ -1,7 +1,7 @@
 # Test Array<T> operator overloading with << and >>
 
 import [Array] from "../../lib/array.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     # Create an integer array

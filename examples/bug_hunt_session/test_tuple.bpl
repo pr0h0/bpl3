@@ -1,5 +1,5 @@
 # Bug Hunt: Tuple Edge Cases  
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Single element tuple - NOT SUPPORTED
 # frame test_single() {

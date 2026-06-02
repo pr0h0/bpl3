@@ -1,5 +1,5 @@
 import exec, execStatus, execOutput, execShell, execSilent, sleep, [ProcessResult] from "std/process.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 import [String] from "std/string.bpl";
 
 frame main() {

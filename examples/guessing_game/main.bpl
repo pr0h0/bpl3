@@ -3,8 +3,8 @@
 
 import [Rand] from "std/rand.bpl";
 
-extern printf(fmt: string, ...);
-extern scanf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
+import [scanf] from "std/c.bpl";
 
 frame main() ret int {
     # Initialize random number generator

@@ -1,6 +1,6 @@
-extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
-extern free(ptr: *void);
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame main() ret int {
     local ptr: *int = cast<*int>(malloc(sizeof<int>()));

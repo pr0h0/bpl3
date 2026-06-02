@@ -1,6 +1,6 @@
 # Minimal test for generic operator overloading
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Box<T> {
     val: T,

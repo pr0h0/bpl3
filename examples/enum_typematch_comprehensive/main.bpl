@@ -1,7 +1,7 @@
 # Comprehensive Type Matching Example
 # Shows various use cases for match<Type>(value) runtime checks
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Message {
     Text(string),

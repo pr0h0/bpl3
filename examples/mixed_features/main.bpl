@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Mixing tuples, ternary, and boolean operators
 frame getRange(x: int) ret (int, int) {
     local lower: int = x < 50 ? 0 : 50;

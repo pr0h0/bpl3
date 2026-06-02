@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame createTuple() ret (int, float, bool) {
     return (42, 3.14, true);
 }

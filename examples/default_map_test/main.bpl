@@ -1,7 +1,7 @@
 import [Map] from "std/map.bpl";
 import [Set] from "std/set.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("--- Testing Map<int, string> ---\n");

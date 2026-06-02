@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 type BinaryOp = Func<int>(int, int);
 type Mapper = Lambda<int>(int);

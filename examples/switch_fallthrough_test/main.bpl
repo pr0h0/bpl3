@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame test_fallthrough(x: int) {
     printf("Testing %d: ", x);

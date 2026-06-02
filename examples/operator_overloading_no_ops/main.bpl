@@ -1,6 +1,6 @@
 # Test without using operators - just declare the struct
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Box<T> {
     val: T,

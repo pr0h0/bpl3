@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Transformer functions
 frame square(x: int) ret int {
     return x * x;

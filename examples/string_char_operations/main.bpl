@@ -1,6 +1,6 @@
-extern printf(fmt: string, ...);
-extern strlen(s: string) ret int;
-extern strcmp(s1: string, s2: string) ret int;
+import [printf] from "std/c.bpl";
+import [strlen] from "std/c.bpl";
+import [strcmp] from "std/c.bpl";
 frame testStringLiterals() {
     printf("=== Testing String Literals ===\n");
     local str1: string = "Hello, World!";

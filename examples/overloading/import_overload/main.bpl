@@ -1,6 +1,6 @@
 import add, [Calculator] from "./module.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     local i: int = add(10, 20);

@@ -1,7 +1,7 @@
 import {exportedVar}, {EXPORTED_CONST} from "./exporter.bpl";
 import getExportedConst from "./exporter.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern exit(code: int);
 
 frame main() {

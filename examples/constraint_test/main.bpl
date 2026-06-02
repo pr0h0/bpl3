@@ -1,6 +1,6 @@
 import [Hashable] from "std/core_specs.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 struct MyInt: Hashable<MyInt> {
     val: int,

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Simple ternary chains
 frame main() ret int {
     local age: int = 25;

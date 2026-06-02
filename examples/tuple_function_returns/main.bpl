@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame getTuple() ret (int, int, int) {
     return (100, 200, 300);
 }

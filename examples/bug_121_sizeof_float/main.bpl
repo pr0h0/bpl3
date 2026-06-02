@@ -1,7 +1,7 @@
 # BUG-121: sizeof on floating point types (FIXED)
 # sizeof<float>() and sizeof<f64>() now work correctly
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     # Integer types

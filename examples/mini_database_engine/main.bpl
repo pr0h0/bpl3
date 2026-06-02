@@ -14,10 +14,10 @@
 import [Rand] from "std/rand.bpl";
 
 # C Library extern declarations
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern write(fd: int, buf: *void, count: u64) ret i64;
 extern malloc(size: u64) ret *void;
-extern free(ptr: *void);
+import [free] from "std/c.bpl";
 extern memcpy(dest: *void, src: *void, n: u64) ret *void;
 extern memset(dest: *void, c: int, n: u64) ret *void;
 extern strcmp(s1: *char, s2: *char) ret int;
@@ -6579,16 +6579,28 @@ struct TriggerManager {
             printf("  %d. %s ON %s ", i + 1, &trigger.name[0], &trigger.tableName[0]);
 
             match (trigger.timing) {
-                TriggerTiming.TriggerBefore => printf("BEFORE "),
-                TriggerTiming.TriggerAfter => printf("AFTER "),
-                TriggerTiming.TriggerInsteadOf => printf("INSTEAD OF "),
+                TriggerTiming.TriggerBefore => {
+                    printf("BEFORE ");
+                },
+                TriggerTiming.TriggerAfter => {
+                    printf("AFTER ");
+                },
+                TriggerTiming.TriggerInsteadOf => {
+                    printf("INSTEAD OF ");
+                },
                 _ => {
                 },
             };
             match (trigger.event) {
-                TriggerEvent.TriggerInsert => printf("INSERT"),
-                TriggerEvent.TriggerUpdate => printf("UPDATE"),
-                TriggerEvent.TriggerDelete => printf("DELETE"),
+                TriggerEvent.TriggerInsert => {
+                    printf("INSERT");
+                },
+                TriggerEvent.TriggerUpdate => {
+                    printf("UPDATE");
+                },
+                TriggerEvent.TriggerDelete => {
+                    printf("DELETE");
+                },
                 _ => {
                 },
             };

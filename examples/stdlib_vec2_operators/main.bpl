@@ -1,7 +1,7 @@
 # Vec2 operator overloading showcase
 
 import [Vec2] from "std/vec2.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== Vec2 Operator Overloading ===\n\n");

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 struct Calculator {
     frame add(this: *Calculator, a: int, b: int) ret int {

@@ -1,5 +1,5 @@
-extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 extern memset(dest: *void, value: int, size: int) ret *void;
 extern memcpy(dest: *void, src: *void, size: int) ret *void;
 extern memmove(dest: *void, src: *void, size: int) ret *void;

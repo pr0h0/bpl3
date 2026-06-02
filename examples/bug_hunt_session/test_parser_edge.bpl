@@ -1,5 +1,5 @@
 # Bug Hunt: Parser Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Empty generic params
 struct Empty<> {

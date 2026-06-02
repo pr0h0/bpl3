@@ -2,8 +2,8 @@
 
 import [UUID], [Rand] from "std/std.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern free(ptr: *void) ret void;
+import [printf] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== UUID Test ===\n\n");

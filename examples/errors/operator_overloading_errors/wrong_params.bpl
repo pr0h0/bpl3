@@ -1,7 +1,7 @@
 # Error: Wrong parameter types for operator overload
 # __add__ must take (this: *Type, other: Type) for binary operators
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     x: int,

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame get_safe(arr: *int, size: int, idx: int) ret int {
     if ((idx < 0) || (idx >= size)) {

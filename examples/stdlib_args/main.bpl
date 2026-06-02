@@ -2,7 +2,7 @@ import [Args] from "std/args.bpl";
 import [IO] from "std/io.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main(argc: int, argv: *string) ret int {
     printf("=== Program Arguments From main ===\n");

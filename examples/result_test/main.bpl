@@ -1,5 +1,5 @@
 import [Result] from "std";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local ok: Result<int, string> = Result<int, string>.Ok(42);

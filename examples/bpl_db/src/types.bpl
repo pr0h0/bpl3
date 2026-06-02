@@ -7,7 +7,7 @@ export deserialize_value;
 import [String] from "std/string.bpl";
 
 extern sprintf(str: string, format: string, ...) ret int;
-extern malloc(size: long) ret *void;
+import [malloc] from "std/c.bpl";
 
 enum DataType {
     Int,
@@ -44,7 +44,7 @@ frame serialize_value(v: *Value) ret string {
     return buf;
 }
 
-extern atoi(s: string) ret int;
+import [atoi] from "std/c.bpl";
 
 frame deserialize_value(s: string) ret Value {
     if (s[0] == 73) {

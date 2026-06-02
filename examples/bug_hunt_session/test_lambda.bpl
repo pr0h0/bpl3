@@ -1,5 +1,5 @@
 # Bug Hunt: Lambda and Closure Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Lambda capturing itself (recursive lambda)
 frame test_recursive_lambda() {

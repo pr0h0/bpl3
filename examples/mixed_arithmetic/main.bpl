@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame testIntFloatMix() {
     printf("Testing int and float mixing:\n");
     local i: int = 10;

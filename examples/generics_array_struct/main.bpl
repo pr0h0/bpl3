@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: long) ret string;
 extern free(ptr: string);
 struct MyArray<T> {

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Util {
     frame id<T>(this: Util, x: T) ret T {

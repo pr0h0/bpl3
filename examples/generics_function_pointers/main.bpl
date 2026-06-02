@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Callback: match signature Func<int>(int, int)
 # Meaning: returns int, takes (int, int)
 frame forEachCallback(el: int, index: int) ret int {

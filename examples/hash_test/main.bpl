@@ -3,7 +3,7 @@ import [Set] from "std/set.bpl";
 import [String] from "std/string.bpl";
 import [Option] from "std/option.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame strHash(s: *String) ret u64 {
     return s.hash();

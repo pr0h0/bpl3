@@ -1,6 +1,6 @@
 import [Args], [JSON], [Log], [String] from "std";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main(argc: int, argv: **char) ret int {
     local args: Args = Args.new(argc, argv);

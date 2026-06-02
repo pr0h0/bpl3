@@ -1,5 +1,5 @@
-extern printf(fmt: string, ...);
-extern strlen(s: string) ret int;
+import [printf] from "std/c.bpl";
+import [strlen] from "std/c.bpl";
 
 # ============================================
 # Comprehensive Primitive Pattern Matching Examples

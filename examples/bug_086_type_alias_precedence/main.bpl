@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern malloc(size: u64) ret *i8;
 
 # BUG-086: Type alias precedence issue

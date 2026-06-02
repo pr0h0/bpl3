@@ -1,7 +1,7 @@
 # Error: Wrong return type for comparison operators
 # Comparison operators must return bool
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     x: int,

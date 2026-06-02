@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame run<T>() {
     printf("Size: %d\n", sizeof<T>());

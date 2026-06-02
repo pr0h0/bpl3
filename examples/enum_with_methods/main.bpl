@@ -1,6 +1,6 @@
 # Enums used with struct methods
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Direction {
     North,

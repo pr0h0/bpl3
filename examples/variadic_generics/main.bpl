@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame check_generic_is<T>(val: T) {
     if (val is int) {

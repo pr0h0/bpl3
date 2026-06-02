@@ -1,6 +1,6 @@
 import [IO] from "std/io.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() {
     # Char (char)

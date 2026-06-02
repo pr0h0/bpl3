@@ -3,7 +3,7 @@
 
 import [Option] from "std/option.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Result<T, E> {
     Ok(T),

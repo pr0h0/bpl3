@@ -1,5 +1,5 @@
 # Bug Hunt: Generic Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Generic struct with unused type parameter
 struct Unused<T> {

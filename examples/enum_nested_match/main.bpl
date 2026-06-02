@@ -1,7 +1,7 @@
 # Nested match expressions with enums
 # Demonstrates workaround for nested pattern matching using nested match expressions
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Inner {
     Value(int),

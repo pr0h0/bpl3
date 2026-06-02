@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame testComplexLogical() {
     printf("Testing complex logical expressions:\n");
     local a: bool = true;

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Recursive algorithms example
 frame factorial(n: int) ret int {
     if (n <= 1) {

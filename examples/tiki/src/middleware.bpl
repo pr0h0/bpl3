@@ -1,5 +1,5 @@
 import [Request], [Response], [HttpMethod] from "bpl-express";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame logger(req: *Request, _res: *Response) {
     local method_str: string = "UNKNOWN";

@@ -1,6 +1,6 @@
 import [Allocator] from "std/memory/allocator.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 export [showcase_allocator];
 

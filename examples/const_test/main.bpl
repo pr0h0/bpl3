@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame process(x: int, const y: int) {
     # y = 10; # Should be error

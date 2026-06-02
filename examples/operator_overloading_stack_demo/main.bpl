@@ -23,7 +23,7 @@
 #             → resolveType(Box<int>)
 #               → ... infinite loop
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Box<T> {
     val: T,

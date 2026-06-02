@@ -1,6 +1,6 @@
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame minMaxSum(a: int, b: int) ret (int, int, int) {
     if (a < b) {

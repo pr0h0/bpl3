@@ -2,7 +2,7 @@ import [Engine], [Query], [Command], [Value], [Condition], [Operator] from "bpl-
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== DB Client Example ===\n");

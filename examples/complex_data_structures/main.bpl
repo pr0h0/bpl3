@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Complex data structures example showcasing arrays, structs, and algorithms
 struct Student {
     id: int,

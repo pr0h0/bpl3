@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Test floating point edge cases and operations
 frame testFloatArithmetic() {
     printf("=== Float Arithmetic ===\n");

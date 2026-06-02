@@ -1,5 +1,5 @@
 # Bug Hunt: Circular Inheritance
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test: Circular inheritance A -> B -> A
 struct CircleA: CircleB {

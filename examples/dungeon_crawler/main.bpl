@@ -4,7 +4,7 @@ import [Renderer] from "./src/render.bpl";
 import random_range from "./src/utils.bpl";
 import [Array] from "std/array.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern getchar() ret int;
 
 # Game Constants

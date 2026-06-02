@@ -1,5 +1,5 @@
 import [String] from "std/string.bpl";
-extern printf(f: string, ...);
+import [printf] from "std/c.bpl";
 
 struct X {
     a: String,

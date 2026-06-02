@@ -1,6 +1,6 @@
 # Test arithmetic operator overloading (division, modulo)
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Rational number (fraction)
 struct Rational {

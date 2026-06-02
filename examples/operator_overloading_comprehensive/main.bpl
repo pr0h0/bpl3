@@ -1,7 +1,7 @@
 # Comprehensive operator overloading test
 # Tests all 24 operators in a single example
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # All-in-one struct demonstrating every operator
 struct AllOps {

@@ -1,5 +1,5 @@
 # Bug Hunt: Break Outside Loop
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     break; # Should error

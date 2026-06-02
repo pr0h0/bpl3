@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Test pointer manipulation and arithmetic edge cases
 frame testPointerArithmetic() {
     printf("=== Pointer Arithmetic ===\n");

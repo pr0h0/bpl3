@@ -4,7 +4,7 @@ import [FS] from "std/fs.bpl";
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 import [OptionUnwrapError], [ResultUnwrapError], [IOError], [IndexOutOfBoundsError], [EmptyError], [NullAccessError], [DivisionByZeroError] from "std/errors.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     x: int,

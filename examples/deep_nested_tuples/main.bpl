@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Edge case: deeply nested tuple destructuring
 frame getDeepNested() ret (((int, int), int), int) {
     return (((1, 2), 3), 4);

@@ -1,6 +1,6 @@
 import [Error] from "std/errors.bpl";
 import [Debug] from "std/debug.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame funcC() {
     local e: Error = Error.new("Something went wrong in funcC");

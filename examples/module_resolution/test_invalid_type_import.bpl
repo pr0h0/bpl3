@@ -3,7 +3,7 @@
 
 import [TestType1,TestType2] from "./test_syntax.bpl";  # ❌ Not allowed
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
   printf("This should not compile\n");

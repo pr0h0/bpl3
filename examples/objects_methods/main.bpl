@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Example showcasing struct methods, constructors, and instance methods
 struct Rectangle {
     width: int,

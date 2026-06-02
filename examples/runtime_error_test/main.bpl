@@ -1,7 +1,7 @@
 # Runtime Error Test
 # This example tests the new runtime error handling with stack traces.
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern strcmp(s1: *i8, s2: *i8) ret int;
 extern atoi(s: *i8) ret int;
 

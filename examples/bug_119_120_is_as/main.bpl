@@ -2,7 +2,7 @@
 # The is operator returns false when it should return true
 # The as operator returns non-null when it should return null
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Animal {
     name: string,

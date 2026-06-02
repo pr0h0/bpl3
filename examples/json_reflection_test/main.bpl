@@ -1,7 +1,7 @@
 import [JSON] from "std/json.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 extern malloc(size: long) ret string;
 
 enum Status {

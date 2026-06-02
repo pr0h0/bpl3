@@ -1,7 +1,7 @@
 # String operator overloading showcase
 
 import [String] from "std/string.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     printf("=== String Operator Overloading ===\n\n");

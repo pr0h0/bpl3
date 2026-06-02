@@ -41,4 +41,4 @@ frame main() ret int {
     printf("o=%d\n", o);
     return 0;
 }
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame printArray(arr: *int, size: int) {
     local i: int = 0;

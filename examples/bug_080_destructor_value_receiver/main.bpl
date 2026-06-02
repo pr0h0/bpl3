@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # This should cause a semantic error - destructor must have pointer receiver
 struct D {

@@ -1,7 +1,7 @@
 # Shapes library for showcase
 
 extern sqrt(x: float) ret float;
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     x: float,

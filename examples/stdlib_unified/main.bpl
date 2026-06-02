@@ -2,7 +2,7 @@
 
 import [IO], [Array], [String], [Map], [Math], [Range], [StringBuilder], [Option], [Result], [Set], [Vec2] from "std";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     IO.printString("=== Unified Standard Library Demo ===");

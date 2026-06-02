@@ -3,8 +3,8 @@
 import [ParsedArgs] from "std/arg_parser.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern free(ptr: *void) ret void;
+import [printf] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame main() ret int {
     # Create and populate ParsedArgs

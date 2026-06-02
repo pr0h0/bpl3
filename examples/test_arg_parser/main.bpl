@@ -4,10 +4,10 @@ import [ArgParser], [Argument], [Command], [Flag], [ParsedArgs] from "std/arg_pa
 import [Option] from "std/option.bpl";
 import [Args] from "std/args.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
-extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 frame main(argc: int, argv: **char) ret int {
     local root: *Command = Command.new("compiler", "The BPL Compiler");

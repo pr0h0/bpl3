@@ -1,5 +1,5 @@
 # Bug Hunt: Type System Edge Cases
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 # Test 1: Duplicate struct field names (should error)
 struct DuplicateField {

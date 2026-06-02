@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame printVal(i: int) {
     printf("int: %d\n", i);

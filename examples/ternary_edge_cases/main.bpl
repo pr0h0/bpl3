@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Edge case: ternary with complex boolean expressions
 frame main() ret int {
     local x: int = 10;

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 # Edge case: tuples with mixed types including floats
 frame getMixedTuple() ret (int, float, bool, string) {
     return (42, 3.14, true, "hello");

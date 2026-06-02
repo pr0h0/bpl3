@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame printMessage(msg: string) {
     printf("Message: %s\n", msg);
 }

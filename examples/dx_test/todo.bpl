@@ -1,15 +1,15 @@
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
-extern scanf(fmt: string, ...) ret int;
-extern malloc(size: int) ret *void;
-extern free(ptr: *void);
+import [printf] from "std/c.bpl";
+import [scanf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 extern fopen(filename: string, mode: string) ret *void;
 extern fwrite(ptr: *void, size: int, count: int, file: *void) ret int;
 extern fread(ptr: *void, size: int, count: int, file: *void) ret int;
 extern fclose(file: *void) ret int;
-extern strlen(s: string) ret int;
+import [strlen] from "std/c.bpl";
 extern strstr(haystack: string, needle: string) ret string;
 
 # Input limits

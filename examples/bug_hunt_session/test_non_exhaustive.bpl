@@ -1,5 +1,5 @@
 # Bug Hunt: Non-exhaustive Match
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 enum Color {
     Red,

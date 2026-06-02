@@ -1,7 +1,7 @@
 # Test pattern guards in match expressions
 import [Option] from "std/option.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame classifyValue(opt: Option<int>) ret string {
     return match (opt) {

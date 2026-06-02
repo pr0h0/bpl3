@@ -11,7 +11,7 @@ import [TypeA], [TypeB] from "./comprehensive_syntax_demo.bpl";
 # Note: Each type in its own brackets, functions without brackets
 # Order doesn't matter, can interleave types and functions
 # import func1, [Type1], func2, [Type2] from "./module.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 frame main() ret int {
     printf("=== Comprehensive Import/Export Syntax Demo ===\n\n");
     printf("Testing function imports:\n");

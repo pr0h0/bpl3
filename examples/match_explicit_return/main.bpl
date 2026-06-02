@@ -3,7 +3,7 @@ enum Status {
     Error(int),
 }
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     local s: Status = Status.Error(404);

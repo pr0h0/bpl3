@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 spec Container<T> {
     frame get(this: *Self) ret T;

@@ -1,9 +1,9 @@
-extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 extern strlen(value: string) ret long;
-extern strcmp(left: string, right: string) ret int;
-extern strcpy(dest: string, src: string) ret string;
-extern strcat(dest: string, src: string) ret string;
+import [strcmp] from "std/c.bpl";
+import [strcpy] from "std/c.bpl";
+import [strcat] from "std/c.bpl";
 extern strncmp(left: string, right: string, count: long) ret int;
 extern atoi(value: string) ret int;
 

@@ -1,5 +1,5 @@
 import fma, frameaddress, returnaddress, stacksave, stackrestore from "std/intrinsics.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() {
     printf("--- Intrinsics Demo ---\n");

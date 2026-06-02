@@ -1,6 +1,6 @@
-extern printf(fmt: string, ...) ret int;
-extern malloc(size: long) ret *void;
-extern free(ptr: *void);
+import [printf] from "std/c.bpl";
+import [malloc] from "std/c.bpl";
+import [free] from "std/c.bpl";
 
 struct User {
     id: int,

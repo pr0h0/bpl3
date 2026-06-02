@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 enum Message {
     Quit,
@@ -16,7 +16,9 @@ frame process(msg: Message) {
         printf("Moving\n");
         # We can then match to extract data
         match (msg) {
-            Message.Move(x, y) => printf("To %d, %d\n", x, y),
+            Message.Move(x, y) => {
+                printf("To %d, %d\n", x, y);
+            },
             Message.Quit => {
             },
             Message.Write(_) => {

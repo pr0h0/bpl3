@@ -1,5 +1,5 @@
 # Bug Hunt: Operator Edge Cases (Fixed)
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() {
     # Test integer overflow

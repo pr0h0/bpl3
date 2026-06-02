@@ -2,7 +2,7 @@ import [FS] from "std/fs.bpl";
 import [IO] from "std/io.bpl";
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     IO.log("=== FS Demo ===");

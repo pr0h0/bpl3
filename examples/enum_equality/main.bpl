@@ -1,6 +1,6 @@
 # Test enum equality comparison
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 enum Color {
     Red,

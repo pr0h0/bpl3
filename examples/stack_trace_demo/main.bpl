@@ -1,5 +1,5 @@
 import frameaddress, returnaddress from "std/intrinsics.bpl";
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame trace() {
     printf("Stack Trace:\n");

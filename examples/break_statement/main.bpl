@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 frame testBreakInLoop() {
     printf("Testing break in simple loop:\n");
     local i: int = 0;

@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame test_prefix(const a: int) {
     printf("prefix: %d\n", a);

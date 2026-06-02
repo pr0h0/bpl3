@@ -2,7 +2,7 @@
 # Depends on: geometry.bpl
 import [Point], [Circle] from "./geometry.bpl";
 export drawCircle;
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 frame printPoint(p: Point) {
     printf("Point(%d, %d)\n", p.x, p.y);
 }

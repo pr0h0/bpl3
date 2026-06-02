@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct MathUtil {
     frame add(a: int, b: int) ret int {

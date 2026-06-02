@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 extern memcpy(dest: *void, src: *void, n: int) ret *void;
 
 struct Point<T> {

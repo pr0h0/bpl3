@@ -3,8 +3,8 @@ import [String] from "std/string.bpl";
 extern __bpl_argc() ret int;
 extern __bpl_argv_get(index: int) ret string;
 extern dprintf(fd: int, fmt: string, ...) ret int;
-extern printf(fmt: string, ...) ret int;
-extern puts(value: string) ret int;
+import [printf] from "std/c.bpl";
+import [puts] from "std/c.bpl";
 
 struct Box<T> {
     value: T,

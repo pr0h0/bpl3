@@ -1,4 +1,4 @@
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 type ID = int;
 type Coordinate = float;
 type Point3D = Point;

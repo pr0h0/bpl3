@@ -4,7 +4,7 @@
 
 import [Option] from "std/option.bpl";
 
-extern printf(fmt: string, ...) ret int;
+import [printf] from "std/c.bpl";
 
 # For now, match<Type> works perfectly with enum variants
 frame processOption(opt: Option<int>) ret int {
