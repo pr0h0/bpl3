@@ -894,6 +894,9 @@ describe("Package Manager CLI", () => {
         path.join(projectDir, "bpl_modules", "locked-cli-test", "index.bpl"),
         "export tampered;",
       );
+      const lockedHash = JSON.parse(
+        fs.readFileSync(path.join(projectDir, "bpl.lock"), "utf8"),
+      ).packages["locked-cli-test"].hash;
 
       const lockedFail = spawnSync("bun", [bplPath, "install", "--locked"], {
         cwd: projectDir,
@@ -917,7 +920,15 @@ describe("Package Manager CLI", () => {
         packagesChecked?: number;
         issuesFound?: number;
         issueKinds?: string[];
-        issues?: Array<{ packageName: string; kind: string }>;
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          source?: string;
+          expectedVersion?: string;
+          expectedHash?: string;
+          actualHash?: string;
+        }>;
       }>(lockedJsonFail, {
         status: 1,
         check: "package-install",
@@ -932,8 +943,20 @@ describe("Package Manager CLI", () => {
         packagesChecked: 1,
         issuesFound: 1,
         issueKinds: ["hash-mismatch"],
-        issues: [{ packageName: "locked-cli-test", kind: "hash-mismatch" }],
+        issues: [
+          {
+            packageName: "locked-cli-test",
+            kind: "hash-mismatch",
+            path: path.join(projectDir, "bpl_modules", "locked-cli-test"),
+            source: tarballPath,
+            expectedVersion: "1.0.0",
+            expectedHash: lockedHash,
+            actualHash: expect.any(String),
+          },
+        ],
       });
+      const hashIssue = lockedFailureReport.issues?.[0];
+      expect(hashIssue?.actualHash).not.toBe(hashIssue?.expectedHash);
     });
 
     test("should report invalid installed package exports during locked verification JSON", () => {
@@ -1041,6 +1064,186 @@ describe("Package Manager CLI", () => {
       });
       expect(report.error).toContain(
         "Missing package export entry: features/public.bpl",
+      );
+    });
+
+    test("should report lock verification name and version mismatch metadata as JSON", () => {
+      const appDir = path.join(tempDir, "locked-metadata-cli-app");
+      const packageDir = path.join(appDir, "bpl_modules", "locked-meta");
+      const sourceArchive = path.join(appDir, "locked-meta-1.0.0.tgz");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "locked-metadata-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-meta-actual",
+            version: "2.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "locked-meta": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: "placeholder",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          expectedName?: string;
+          actualName?: string;
+          expectedVersion?: string;
+          actualVersion?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+
+      expect(report.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            packageName: "locked-meta",
+            kind: "name-mismatch",
+            expectedName: "locked-meta",
+            actualName: "locked-meta-actual",
+            expectedVersion: "1.0.0",
+            actualVersion: "2.0.0",
+          }),
+          expect.objectContaining({
+            packageName: "locked-meta",
+            kind: "version-mismatch",
+            expectedVersion: "1.0.0",
+            actualVersion: "2.0.0",
+          }),
+        ]),
+      );
+    });
+
+    test("should report lock verification transitive dependency metadata as JSON", () => {
+      const appDir = path.join(tempDir, "locked-transitive-cli-app");
+      const parentDir = path.join(appDir, "bpl_modules", "locked-parent");
+      const childDir = path.join(appDir, "bpl_modules", "locked-child");
+      const sourceArchive = path.join(appDir, "locked-parent-1.0.0.tgz");
+      fs.mkdirSync(parentDir, { recursive: true });
+      fs.mkdirSync(childDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "locked-transitive-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(parentDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-parent",
+            version: "1.0.0",
+            main: "index.bpl",
+            dependencies: {
+              "locked-child": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(parentDir, "index.bpl"), "export parent;");
+      fs.writeFileSync(
+        path.join(childDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-child",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(childDir, "index.bpl"), "export child;");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "locked-parent": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: "placeholder",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          dependencyOf?: string;
+          requestedSource?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "locked-child",
+          kind: "missing-transitive-lock-entry",
+          path: childDir,
+          dependencyOf: "locked-parent",
+          requestedSource: "1.0.0",
+        }),
       );
     });
 

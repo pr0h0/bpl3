@@ -792,8 +792,15 @@ function formatPackageLockVerificationJsonPayload(
         packageName: string;
         kind: string;
         path?: string;
+        source?: string;
         expectedVersion?: string;
+        actualVersion?: string;
+        expectedName?: string;
+        actualName?: string;
+        expectedHash?: string;
+        actualHash?: string;
         dependencyOf?: string;
+        requestedSource?: string;
         paths?: string[];
       }>;
     }
@@ -808,10 +815,19 @@ function formatPackageLockVerificationJsonPayload(
       packageName: issue.packageName,
       kind: issue.kind,
       ...(issue.packagePath ? { path: issue.packagePath } : {}),
+      ...(issue.source ? { source: issue.source } : {}),
       ...(issue.expectedVersion
         ? { expectedVersion: issue.expectedVersion }
         : {}),
+      ...(issue.actualVersion ? { actualVersion: issue.actualVersion } : {}),
+      ...(issue.expectedName ? { expectedName: issue.expectedName } : {}),
+      ...(issue.actualName ? { actualName: issue.actualName } : {}),
+      ...(issue.expectedHash ? { expectedHash: issue.expectedHash } : {}),
+      ...(issue.actualHash ? { actualHash: issue.actualHash } : {}),
       ...(issue.dependencyOf ? { dependencyOf: issue.dependencyOf } : {}),
+      ...(issue.requestedSource
+        ? { requestedSource: issue.requestedSource }
+        : {}),
       ...(issue.paths ? { paths: issue.paths } : {}),
     }))
     .sort((left, right) =>

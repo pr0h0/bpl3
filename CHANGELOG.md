@@ -16,10 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   are rejected with package diagnostics where archives can carry them, while
   valid exported `.bpl` and `.x` files are included in the packed archive and
   package hash surface.
-- **Package Lock Verification JSON Paths** - `bpl install --locked --json` and
-  `bpl install --repair-lock --json` compact verification issues now include
-  `path` and `expectedVersion` when the verifier has them, so invalid installed
-  package export failures point automation at the broken package directory.
+- **Package Lock Verification JSON Metadata** - `bpl install --locked --json`
+  and `bpl install --repair-lock --json` compact verification issues now
+  include verifier metadata such as `path`, `source`, expected/actual names,
+  versions, hashes, `dependencyOf`, and `requestedSource` when available, so
+  automation can diagnose lock drift without parsing formatted diagnostics.
 - **Package Resolver Exports Allowlist** - Package import resolution now treats
   an installed package manifest's optional `exports` array as a subpath
   allowlist. Exported source files still support extensionless and directory
