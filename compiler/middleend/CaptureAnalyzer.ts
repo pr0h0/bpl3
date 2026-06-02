@@ -51,6 +51,14 @@ export class CaptureAnalyzer {
       case "Unary":
         this.visit((node as AST.UnaryExpr).operand);
         break;
+      case "InterpolatedString":
+        (node as AST.InterpolatedStringExpr).parts.forEach((part) =>
+          this.visit(part),
+        );
+        if ((node as AST.InterpolatedStringExpr).desugared) {
+          this.visit((node as AST.InterpolatedStringExpr).desugared!);
+        }
+        break;
       case "Call":
         this.visit((node as AST.CallExpr).callee);
         (node as AST.CallExpr).args.forEach((a) => this.visit(a));
@@ -106,10 +114,19 @@ export class CaptureAnalyzer {
       case "Group":
         this.visit((node as AST.GroupExpr).expression);
         break;
+      case "Is":
+        this.visit((node as AST.IsExpr).expression);
+        break;
+      case "As":
+        this.visit((node as AST.AsExpr).expression);
+        break;
       case "Ternary":
         this.visit((node as AST.TernaryExpr).condition);
         this.visit((node as AST.TernaryExpr).trueExpr);
         this.visit((node as AST.TernaryExpr).falseExpr);
+        break;
+      case "GenericInstantiation":
+        this.visit((node as AST.GenericInstantiationExpr).base);
         break;
       case "ArrayLiteral":
         (node as AST.ArrayLiteralExpr).elements.forEach((element) =>

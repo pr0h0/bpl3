@@ -177,6 +177,34 @@ describe("Lambda Runtime", () => {
     expect(result.stdout).toContain("Result: 5 7");
   });
 
+  it("should capture outer variables inside lambda is and as expressions", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 7;
+        local isCheck: Lambda<int>() = || ret int {
+          if (value is int) {
+            return 1;
+          }
+          return 0;
+        };
+        local asCheck: Lambda<long>() = || ret long {
+          return value as long;
+        };
+        printf("Result: %d %ld\\n", isCheck(), asCheck());
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "lambda_is_as_capture");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+      console.error("STDOUT:", result.stdout);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Result: 1 7");
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       extern printf(fmt: string, ...);

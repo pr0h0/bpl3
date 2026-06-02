@@ -580,6 +580,10 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         case "Unary":
           collectCaptures((node as AST.UnaryExpr).operand);
           break;
+        case "InterpolatedString":
+          collectCaptures((node as AST.InterpolatedStringExpr).parts);
+          collectCaptures((node as AST.InterpolatedStringExpr).desugared);
+          break;
         case "Call":
           collectCaptures((node as AST.CallExpr).callee);
           collectCaptures((node as AST.CallExpr).args);
@@ -601,10 +605,19 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         case "Group":
           collectCaptures((node as AST.GroupExpr).expression);
           break;
+        case "Is":
+          collectCaptures((node as AST.IsExpr).expression);
+          break;
+        case "As":
+          collectCaptures((node as AST.AsExpr).expression);
+          break;
         case "Ternary":
           collectCaptures((node as AST.TernaryExpr).condition);
           collectCaptures((node as AST.TernaryExpr).trueExpr);
           collectCaptures((node as AST.TernaryExpr).falseExpr);
+          break;
+        case "GenericInstantiation":
+          collectCaptures((node as AST.GenericInstantiationExpr).base);
           break;
         case "StructLiteral":
           collectCaptures((node as AST.StructLiteralExpr).fields);

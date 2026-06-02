@@ -187,6 +187,57 @@ describe("Lambda Code Generation", () => {
     expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
   });
 
+  it("should capture variables referenced inside is expressions", () => {
+    const source = `
+      frame main() ret int {
+        local value: int = 5;
+        local f: Lambda<bool>() = || ret bool {
+          return value is int;
+        };
+        if (f()) {
+          return 1;
+        }
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
+  it("should capture variables referenced inside as expressions", () => {
+    const source = `
+      frame main() ret long {
+        local value: int = 5;
+        local f: Lambda<long>() = || ret long {
+          return value as long;
+        };
+        return f();
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
+  it("should capture variables referenced inside interpolated strings", () => {
+    const source = `
+      import [String] from "std/string.bpl";
+
+      frame main() ret int {
+        local value: int = 5;
+        local f: Lambda<String>() = || ret String {
+          return \`Value: \${value}\`;
+        };
+        local result: String = f();
+        return 0;
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       frame apply(f: Lambda<int>(int), v: int) ret int {

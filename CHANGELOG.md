@@ -1037,6 +1037,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now visits `try` bodies and `catch` handlers while keeping typed catch
   variables local to the handler, avoiding dangling loads when deferred or
   lambda code references outer locals inside exception-handling blocks.
+- **Expression Wrapper Capture Traversal** - Lambda and deferred-block capture
+  analysis now visits `is`, `as`, interpolated-string, and generic
+  instantiation operands, so outer locals referenced only through those wrappers
+  are included in closure contexts.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`

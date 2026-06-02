@@ -93,4 +93,29 @@ describe("Defer Statement", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("defer try value: 7");
   });
+
+  it("should capture locals referenced inside deferred is and as expressions", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local value: int = 7;
+        defer {
+          if (value is int) {
+            printf("defer is value\\n");
+          }
+          local widened: long = value as long;
+          printf("defer as value: %ld\\n", widened);
+        }
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "defer_is_as_capture");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("defer is value");
+    expect(result.stdout).toContain("defer as value: 7");
+  });
 });
