@@ -4543,16 +4543,35 @@ export class PackageManager {
   doctorPackages(): PackageDoctorReport {
     const issues: PackageDoctorIssue[] = [];
     let manifest: PackageManifest | undefined;
+    const manifestPath = path.join(this.projectRoot, "bpl.json");
 
     try {
       manifest = this.loadManifest(this.projectRoot);
+      try {
+        this.validatePackageExportFiles(
+          manifest,
+          this.projectRoot,
+          manifestPath,
+        );
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          severity: "error",
+          kind: "invalid-project-package",
+          packageName: manifest.name,
+          version: manifest.version,
+          message: `${manifest.name}: invalid project package (${detail})`,
+          path: manifestPath,
+          hint: "Fix exported project files or remove invalid exports before packing.",
+        });
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       issues.push({
         severity: "warning",
         kind: "manifest",
         message: `No valid project package manifest: ${detail}`,
-        path: path.join(this.projectRoot, "bpl.json"),
+        path: manifestPath,
         hint: "Run 'bpl init' when this directory should be a package project.",
       });
     }

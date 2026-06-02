@@ -5556,6 +5556,78 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report invalid project package exports during doctor checks", () => {
+      const cases = [
+        {
+          packageName: "doctor-project-export-missing",
+          setup(appDir: string) {
+            fs.mkdirSync(path.join(appDir, "features"));
+          },
+          expected: "Missing package export entry: features/public.bpl",
+        },
+        {
+          packageName: "doctor-project-export-directory",
+          setup(appDir: string) {
+            fs.mkdirSync(path.join(appDir, "features", "public.bpl"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+        {
+          packageName: "doctor-project-export-symlink",
+          setup(appDir: string) {
+            fs.mkdirSync(path.join(appDir, "features"));
+            fs.writeFileSync(
+              path.join(appDir, "features", "actual.bpl"),
+              "export actual;",
+            );
+            fs.symlinkSync(
+              "actual.bpl",
+              path.join(appDir, "features", "public.bpl"),
+            );
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        const appDir = path.join(tempDir, `${testCase.packageName}-app`);
+        fs.mkdirSync(appDir);
+        fs.writeFileSync(
+          path.join(appDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              exports: ["features/public.bpl"],
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(appDir, "index.bpl"), "export root;");
+        testCase.setup(appDir);
+
+        const report = new PackageManager(appDir).doctorPackages();
+        const projectIssue = report.issues.find(
+          (issue) => issue.kind === "invalid-project-package",
+        );
+
+        expect(report.ok).toBe(false);
+        expect(projectIssue).toMatchObject({
+          severity: "error",
+          kind: "invalid-project-package",
+          packageName: testCase.packageName,
+          version: "1.0.0",
+          path: path.join(appDir, "bpl.json"),
+          message: expect.stringContaining(testCase.expected),
+          hint: expect.stringContaining("Fix exported project files"),
+        });
+      }
+    });
+
     test("should report invalid installed package exports during doctor checks", () => {
       const appDir = path.join(tempDir, "doctor-export-app");
       const packageRoot = path.join(appDir, "bpl_modules");

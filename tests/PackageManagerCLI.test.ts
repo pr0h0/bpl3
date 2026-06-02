@@ -2284,6 +2284,71 @@ describe("Package Manager CLI", () => {
       });
     });
 
+    test("should report invalid project package exports as stable JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-project-export-cli-app");
+      fs.mkdirSync(path.join(appDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-project-export-cli-app",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(appDir, "index.bpl"), "export root;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-project-export-cli-home"),
+            NO_COLOR: "1",
+          },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          packageName?: string;
+          version?: string;
+          message: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+      const issue = report.issues.find(
+        (entry) => entry.kind === "invalid-project-package",
+      );
+      expect(report.ok).toBe(false);
+      expect(issue).toMatchObject({
+        severity: "error",
+        kind: "invalid-project-package",
+        packageName: "doctor-project-export-cli-app",
+        version: "1.0.0",
+        message: expect.stringContaining(
+          "Missing package export entry: features/public.bpl",
+        ),
+        path: path.join(appDir, "bpl.json"),
+        hint: expect.stringContaining("Fix exported project files"),
+      });
+    });
+
     test("should report package cache provenance warnings as stable JSON issues", () => {
       const appDir = path.join(tempDir, "doctor-cache-cli-app");
       const homeDir = path.join(tempDir, "doctor-cache-cli-home");

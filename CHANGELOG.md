@@ -12,7 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every
   package manifest `exports` entry before publishing, replacing, recording,
-  diagnosing, listing, or trusting a package.
+  diagnosing, listing, or trusting a package. Package doctor validates both the
+  current project package and installed packages.
   Missing exported files, exported directories, and symlinked exported paths
   are rejected with package diagnostics where archives can carry them, while
   valid exported `.bpl` and `.x` files are included in the packed archive and
