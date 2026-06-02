@@ -135,6 +135,15 @@ export const CI_TRIAGE_JSON_CODE_GROUP_COVERAGE_DECISIONS: readonly CiTriageJson
 
 const RELEASE_SMOKE_STEP_PATTERN =
   /(?:ReleaseSmoke\.test|release smoke|release:smoke|package import diagnostic code JSON)/i;
+const RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN = new RegExp(
+  [
+    "package-cache bin invalid archive",
+    "package-cache bin invalid archive JSON",
+    "Packed npm CLI package-cache bin invalid archive",
+    "release-smoke-cache-bin-invalid",
+  ].join("|"),
+  "i",
+);
 const RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN = new RegExp(
   [
     "npm tarball includes paths outside the release allowlist",
@@ -1345,6 +1354,23 @@ const PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
 ];
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
+    'bun test tests/ReleaseSmoke.test.ts -t "builds and exercises"',
+  ],
+  [
+    RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
+    'bun test tests/ReleaseMetadata.test.ts -t "package-cache validation error codes"',
+  ],
+  [
+    RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
+  ],
+  [
+    RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
+    "bun run release:smoke",
+  ],
+  [RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN, "bun run check"],
   [
     RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN,
     'bun test tests/ReleaseMetadata.test.ts -t "packed tools payload|playground browser wasm helper assets|package helper script inventory"',

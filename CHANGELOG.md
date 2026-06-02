@@ -43,6 +43,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   builds a cached archive with an invalid `bin` target and verifies
   `bpl package-cache repair --json` returns a parseable `invalid-archive`
   issue without writing a provenance sidecar.
+- **CI Triage Packed Package Cache Bin Smoke** - `bun run ci:triage` now maps
+  the packed package-cache bin invalid-archive release-smoke label to the
+  focused ReleaseSmoke, release metadata, and package-cache bin regression
+  commands instead of only the broad release-smoke helper list.
 - **Package Lock Bin Validation** - lockfile verification validates installed
   package `bin` entries before trusting a lock entry, and `bpl install
   --repair-lock` now refuses to record an invalid installed package bin target.

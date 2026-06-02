@@ -233,6 +233,26 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps packed package-cache bin release-smoke failures to focused repro commands", () => {
+    const expectedCommands = [
+      'bun test tests/ReleaseSmoke.test.ts -t "builds and exercises"',
+      'bun test tests/ReleaseMetadata.test.ts -t "package-cache validation error codes"',
+      'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
+      "bun run release:smoke",
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "release smoke: check packed npm CLI package-cache bin invalid archive JSON",
+      "Packed npm CLI package-cache bin invalid archive JSON reported unexpected payload",
+      "release-smoke-cache-bin-invalid package-cache repair --json",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps release package allowlist failures to focused metadata commands", () => {
     const expectedCommands = [
       'bun test tests/ReleaseMetadata.test.ts -t "packed tools payload|playground browser wasm helper assets|package helper script inventory"',
@@ -3434,6 +3454,73 @@ describe("CI triage helper", () => {
       expect(result.stderr).not.toContain("api.github.com");
       expect(result.stdout).toContain("Release CLI registry sync check");
       expect(result.stdout).toContain("bun run release:cli-registry");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints packed package-cache bin release-smoke repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-release-cache-bin-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 64,
+              name: "Release smoke package-cache bin invalid archive",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/64",
+              steps: [
+                {
+                  name: "release smoke: check packed npm CLI package-cache bin invalid archive JSON",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/ReleaseSmoke.test.ts -t "builds and exercises"',
+        'bun test tests/ReleaseMetadata.test.ts -t "package-cache validation error codes"',
+        'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
+        "bun run release:smoke",
+        "bun run check",
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
