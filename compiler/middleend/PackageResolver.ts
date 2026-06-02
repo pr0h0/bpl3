@@ -8,7 +8,11 @@ import {
   isValidPackageName,
   isValidPackageVersion,
 } from "../common/PackageDependencySource";
-import { findCaseMismatchPath } from "../common/PathSafety";
+import {
+  findCaseMismatchPath,
+  findNonDirectoryPathComponent,
+  findSymlinkedParentPath,
+} from "../common/PathSafety";
 
 export type PackageResolutionSource = "local" | "workspace" | "global";
 
@@ -61,6 +65,8 @@ export const PACKAGE_RESOLUTION_FAILURE_CODES = [
   "BPL_PACKAGE_SUBPATH_NOT_EXPORTED",
   "BPL_PACKAGE_SUBPATH_NOT_FOUND",
   "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH",
+  "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+  "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
   "BPL_PACKAGE_ROOT_CASE_MISMATCH",
   "BPL_PACKAGE_SEARCH_DIR_SYMLINK",
   "BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY",
@@ -270,8 +276,28 @@ export function getPackageResolutionFailureCode(
       if (message.includes("package search directory casing does not match")) {
         return "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH";
       }
+      if (
+        message.includes(
+          "package search directory parent path is not a directory",
+        )
+      ) {
+        return "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY";
+      }
+      if (
+        message.includes(
+          "package search directory parent path is a symbolic link",
+        )
+      ) {
+        return "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK";
+      }
       if (message.includes("package root casing does not match")) {
         return "BPL_PACKAGE_ROOT_CASE_MISMATCH";
+      }
+      if (message.includes("parent path is not a directory")) {
+        return "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY";
+      }
+      if (message.includes("parent path is a symbolic link")) {
+        return "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK";
       }
       if (
         message.includes("package search directory is a symbolic link") ||
@@ -346,6 +372,30 @@ function resolvePackageFromBaseDir(
       baseDir,
       baseDirCaseMismatch,
       trace,
+    );
+    return null;
+  }
+
+  const baseDirSymlinkedParent = findSymlinkedParentPath(baseDir);
+  if (baseDirSymlinkedParent) {
+    failOnSymlinkedPackageSearchDirectoryParent(
+      baseDir,
+      baseDirSymlinkedParent,
+      trace,
+      source === "global" ? "Global package directory" : undefined,
+    );
+    return null;
+  }
+
+  const baseDirNonDirectoryParent = findNonDirectoryPathComponent(
+    path.dirname(path.resolve(baseDir)),
+  );
+  if (baseDirNonDirectoryParent) {
+    failOnNonDirectoryPackageSearchDirectoryParent(
+      baseDir,
+      baseDirNonDirectoryParent,
+      trace,
+      source === "global" ? "Global package directory" : undefined,
     );
     return null;
   }
@@ -990,6 +1040,36 @@ function failOnCaseMismatchedPackageSearchDirectory(
   trace.failureReason = "manifest-invalid";
   trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_CASE_MISMATCH";
   trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${requestedSearchDirectory}: package search directory casing does not match filesystem path ${actualSearchDirectory}.`;
+}
+
+function failOnSymlinkedPackageSearchDirectoryParent(
+  searchDirectory: string,
+  parentPath: string,
+  trace: PackageResolutionTrace,
+  label?: string,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK";
+  if (label) {
+    trace.failureMessage = `${label} parent path is a symbolic link: ${parentPath}`;
+    return;
+  }
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory parent path is a symbolic link: ${parentPath}.`;
+}
+
+function failOnNonDirectoryPackageSearchDirectoryParent(
+  searchDirectory: string,
+  parentPath: string,
+  trace: PackageResolutionTrace,
+  label?: string,
+): void {
+  trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY";
+  if (label) {
+    trace.failureMessage = `${label} parent path is not a directory: ${parentPath}`;
+    return;
+  }
+  trace.failureMessage = `Package '${trace.packageName}' has an invalid package search directory at ${searchDirectory}: package search directory parent path is not a directory: ${parentPath}.`;
 }
 
 function failOnInvalidPackageRoot(

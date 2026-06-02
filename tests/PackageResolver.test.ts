@@ -267,6 +267,60 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain(globalPackageDir);
   });
 
+  test("rejects global package search directories through symlinked parents", () => {
+    const appDir = path.join(tempDir, "global-parent-symlink-app");
+    const outsideParent = path.join(tempDir, "outside-global-parent");
+    const linkedParent = path.join(tempDir, "linked-global-parent");
+    const globalPackageDir = path.join(linkedParent, "packages");
+    const packageDir = path.join(globalPackageDir, "math-1.0.0");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(packageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+    fs.renameSync(linkedParent, outsideParent);
+    fs.symlinkSync(outsideParent, linkedParent, "dir");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe(
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
+    );
+    expect(details.trace.failureMessage).toContain(
+      "Global package directory parent path is a symbolic link",
+    );
+    expect(details.trace.failureMessage).toContain(linkedParent);
+    expect(details.trace.searchedPaths).not.toContain(packageDir);
+  });
+
+  test("rejects global package search directories through non-directory parents", () => {
+    const appDir = path.join(tempDir, "global-parent-file-app");
+    const parentFile = path.join(tempDir, "global-parent-file");
+    const globalPackageDir = path.join(parentFile, "packages");
+    fs.mkdirSync(appDir);
+    fs.writeFileSync(parentFile, "not a directory");
+
+    const details = resolvePackageImport("math", appDir, {
+      globalPackageDir,
+    });
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe(
+      "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
+    );
+    expect(details.trace.failureMessage).toContain(
+      "Global package directory parent path is not a directory",
+    );
+    expect(details.trace.failureMessage).toContain(parentFile);
+  });
+
   test("rejects invalid package import path segments before searching", () => {
     const appDir = path.join(tempDir, "app");
     fs.mkdirSync(path.join(appDir, "bpl_modules", "math"), { recursive: true });
