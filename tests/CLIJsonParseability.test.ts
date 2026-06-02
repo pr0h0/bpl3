@@ -867,6 +867,68 @@ describe("CLI JSON parseability", () => {
     });
   });
 
+  test("keeps locked package verification failure JSON stdout parseable", () => {
+    const packageDir = path.join(tempDir, "locked-json-failure-package");
+    writePackageFixture(packageDir, {
+      name: "locked-json-failure-package",
+      version: "1.0.0",
+    });
+
+    const packResult = runCli(["pack"], { cwd: packageDir });
+    expect(packResult.status).toBe(0);
+
+    const projectDir = path.join(tempDir, "locked-json-failure-project");
+    fs.mkdirSync(projectDir);
+    const tarballPath = path.join(
+      packageDir,
+      "locked-json-failure-package-1.0.0.tgz",
+    );
+    const installResult = runCli(["install", tarballPath], {
+      cwd: projectDir,
+    });
+    expect(installResult.status).toBe(0);
+
+    fs.writeFileSync(
+      path.join(
+        projectDir,
+        "bpl_modules",
+        "locked-json-failure-package",
+        "index.bpl",
+      ),
+      "export tampered;\n",
+    );
+
+    const lockedResult = runCli(["install", "--locked", "--json"], {
+      cwd: projectDir,
+    });
+    const report = expectJsonStdoutReport(lockedResult, {
+      status: 1,
+      check: "package-install",
+      success: false,
+    });
+
+    expect(report).toMatchObject({
+      mode: "project",
+      target: null,
+      global: false,
+      locked: true,
+      update: false,
+      repairLock: false,
+      errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+      action: "verification-failed",
+      packagesChecked: 1,
+      issuesFound: 1,
+      issueKinds: ["hash-mismatch"],
+      issues: [
+        {
+          packageName: "locked-json-failure-package",
+          kind: "hash-mismatch",
+        },
+      ],
+    });
+    expect(lockedResult.stderr).toBe("");
+  });
+
   test("keeps package install JSON success stdout parseable across package modes", () => {
     const packageDir = path.join(tempDir, "package-source");
     const homeDir = path.join(tempDir, "install-json-home");
