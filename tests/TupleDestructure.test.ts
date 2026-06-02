@@ -124,6 +124,22 @@ describe("Tuple Destructuring", () => {
       const result = compileAndRun(code);
       expect(result.trim()).toBe("200 100");
     });
+
+    it("should cast compatible integer assignment elements to narrower targets", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame main() ret int {
+          local left: i8 = 0;
+          local right: i8 = 0;
+          local pair: (int, int) = (3, 4);
+          (left, right) = pair;
+          printf("%d %d\\n", cast<int>(left), cast<int>(right));
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("3 4");
+    });
   });
 
   describe("Tuple element access", () => {

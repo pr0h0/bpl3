@@ -1043,10 +1043,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   match tuple element counts. Nested destructuring targets are also rejected
   when the corresponding element is not a tuple, avoiding mismatches that could
   reach code generation.
-- **Tuple Destructuring Codegen Casts** - Tuple destructuring declarations now
-  cast extracted elements to the declared target type before storing them, so
-  compatible integer-width destructuring such as `(left: i8, right: i8)` from an
-  `(int, int)` tuple emits valid LLVM IR.
+- **Tuple Destructuring Codegen Casts** - Tuple destructuring declarations and
+  tuple assignment now cast extracted elements to the declared target type
+  before storing them, so compatible integer-width destructuring such as
+  `(left: i8, right: i8)` from an `(int, int)` tuple emits valid LLVM IR.
 - **Try/Catch Capture Traversal** - Lambda and deferred-block capture analysis
   now visits `try` bodies and `catch` handlers while keeping typed catch
   variables local to the handler, avoiding dangling loads when deferred or

@@ -564,10 +564,24 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         const target = tupleLit.elements[i]!;
         const addr = this.generateAddress(target, true);
 
-        const elemType = this.resolveType(target.resolvedType!);
+        const sourceTypeNode = this.getTargetTypeNodeFromTuple(
+          expr.value.resolvedType!,
+          [i],
+        );
+        const targetTypeNode = target.resolvedType!;
+        const elemType = this.resolveType(targetTypeNode);
         const elemVal = this.newRegister();
         this.emit(`  ${elemVal} = extractvalue ${tupleType} ${tupleVal}, ${i}`);
-        this.emit(`  store ${elemType} ${elemVal}, ${elemType}* ${addr}`);
+        const storeVal = sourceTypeNode
+          ? this.emitCast(
+              elemVal,
+              this.resolveType(sourceTypeNode),
+              elemType,
+              sourceTypeNode,
+              targetTypeNode,
+            )
+          : elemVal;
+        this.emit(`  store ${elemType} ${storeVal}, ${elemType}* ${addr}`);
       }
 
       return tupleVal;
