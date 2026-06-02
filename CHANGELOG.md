@@ -70,6 +70,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   report `BPL_SWITCH_CASE_TYPE_MISMATCH`, in compiler errors,
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Valid integer and string switches remain accepted.
+- **Stale Package Lock CI Triage** - `bun run ci:triage` now maps
+  `stale-lock-entry` and `lockVerificationKind: "missing-package"` package
+  doctor failures to focused stale lock repro commands:
+  `bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"`,
+  `bun test tests/PackageManager.test.ts -t "stale lock entries"`, and
+  `bun index.ts doctor packages --json`.
 - **Call-Site Mismatch Diagnostic Codes** - Non-callable targets now report
   `BPL_CALL_TARGET_NOT_CALLABLE`, function and first-class callable argument
   count and type mismatches now report `BPL_CALL_ARGUMENT_COUNT_MISMATCH` and

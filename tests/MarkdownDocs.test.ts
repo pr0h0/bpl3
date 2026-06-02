@@ -1959,6 +1959,11 @@ describe("Markdown documentation", () => {
       "`SANITIZER_RUNTIME_TEST_TIMEOUT_MS` must be a positive integer; invalid values are ignored with a warning and the 30000ms default is used",
       'bun test tests/CLIJsonParseability.test.ts -t "package install JSON"',
       "bun test tests/PackageJsonFailureContracts.test.ts",
+      "Stale package lock doctor failures map to focused package doctor checks",
+      "`stale-lock-entry`",
+      '`lockVerificationKind: "missing-package"`',
+      'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
+      'bun test tests/PackageManager.test.ts -t "stale lock entries"',
       "Package docs smoke failures map to the focused package/import docs examples and package documentation checks",
       'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
       'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
@@ -1973,6 +1978,20 @@ describe("Markdown documentation", () => {
       "add a ci:triage mapping when the failure pattern is recurring",
       "When the scheduled `Compiler Fuzz` workflow fails",
       "bun run fuzz:repro -- fuzz/crashes",
+    ];
+
+    expectDocsContainSnippets(normalizedText, requiredSnippets);
+  });
+
+  test("changelog documents stale package lock CI triage mapping", () => {
+    const changelog = readFileSync("CHANGELOG.md", "utf8");
+    const normalizedText = changelog.replace(/\s+/g, " ");
+    const requiredSnippets = [
+      "Stale Package Lock CI Triage",
+      "`stale-lock-entry`",
+      '`lockVerificationKind: "missing-package"`',
+      'bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"',
+      'bun test tests/PackageManager.test.ts -t "stale lock entries"',
     ];
 
     expectDocsContainSnippets(normalizedText, requiredSnippets);

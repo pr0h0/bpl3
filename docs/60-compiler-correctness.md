@@ -318,6 +318,16 @@ bun test tests/PackageJsonFailureContracts.test.ts
 bun test tests/PackageManagerCLI.test.ts -t "install command|doctor packages command"
 ```
 
+Stale package lock doctor failures map to focused package doctor checks. If CI
+mentions `stale-lock-entry`, `lockVerificationKind: "missing-package"`, or a
+stale `bpl.lock` entry whose installed package directory is gone, reproduce with:
+
+```bash
+bun test tests/PackageManagerCLI.test.ts -t "stale lock entries"
+bun test tests/PackageManager.test.ts -t "stale lock entries"
+bun index.ts doctor packages --json
+```
+
 Package docs smoke failures map to the focused package/import docs examples and
 package documentation checks. Use the JSON smoke when the failure mentions
 `CLIJsonParseability.test` or `package/import docs examples`; use the
