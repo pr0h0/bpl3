@@ -4186,6 +4186,11 @@ export class PackageManager {
         const packageDir = path.join(tempDir, "package");
         this.validateExtractedPackageTree(packageDir, entry.path);
         const manifest = this.loadManifest(packageDir);
+        this.validatePackageExportFiles(
+          manifest,
+          packageDir,
+          path.join(packageDir, "bpl.json"),
+        );
         const provenance = metadata.provenance;
 
         if (
@@ -4300,6 +4305,11 @@ export class PackageManager {
         const packageDir = path.join(tempDir, "package");
         this.validateExtractedPackageTree(packageDir, entry.path);
         const manifest = this.loadManifest(packageDir);
+        this.validatePackageExportFiles(
+          manifest,
+          packageDir,
+          path.join(packageDir, "bpl.json"),
+        );
 
         if (manifest.name !== entry.name || manifest.version !== entry.version) {
           addIssue(

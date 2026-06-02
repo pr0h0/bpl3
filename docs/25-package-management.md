@@ -683,12 +683,15 @@ failures from `package-cache list` return `success: false`, `entries: []`, and
 
 `package-cache verify` checks every matching cached archive. It verifies the
 sidecar schema, the archive hash, the archive file name, the manifest identity,
-and the extracted package content hash. Missing sidecars are reported as
-`missing-provenance` so older caches remain visible instead of being silently
-trusted. Malformed sidecars and symlinked provenance paths are reported as
-`invalid-provenance` issues with the cache archive path and sidecar
-`provenancePath`, so automation can flag unsafe cache metadata without
-following it. The `--json` report uses `schemaVersion: 1`,
+the extracted package content hash, and the manifest `exports` entries against
+the extracted package files. Missing or directory-only exported paths are
+reported as `invalid-archive` issues so broken public cache surfaces are not
+treated as healthy. Missing sidecars are reported as `missing-provenance` so
+older caches remain visible instead of being silently trusted. Malformed
+sidecars and symlinked provenance paths are reported as `invalid-provenance`
+issues with the cache archive path and sidecar `provenancePath`, so automation
+can flag unsafe cache metadata without following it. The `--json` report uses
+`schemaVersion: 1`,
 `check: "package-cache-verify"`, `success`, the legacy `ok` boolean,
 `entriesChecked`, and structured provenance `issues`.
 `bpl doctor packages` includes the same cache verification result in its JSON
@@ -702,11 +705,12 @@ annotations.
 `package-cache repair` regenerates missing or malformed provenance sidecars for
 valid cached archives. Its JSON result uses `schemaVersion: 1`,
 `check: "package-cache-repair"`, `success`, `dryRun`, `repaired`, `unchanged`,
-and `issues`. It refuses to repair archive hash mismatches or manifest
-mismatches because those states may indicate a stale or damaged archive; clean
-and repack those entries instead. `--package-version` filters expect one exact
-cached version in `X.Y.Z` form; dependency ranges such as `^1.2.3` belong in
-`bpl.json`, not cache maintenance commands. In JSON mode, clean and repair
+and `issues`. It refuses to repair invalid extracted `exports`, archive hash
+mismatches, or manifest mismatches because those states may indicate a stale or
+damaged archive; clean and repack those entries instead. `--package-version`
+filters expect one exact cached version in `X.Y.Z` form; dependency ranges such
+as `^1.2.3` belong in `bpl.json`, not cache maintenance commands. In JSON mode,
+clean and repair
 validation failures keep stdout parseable: clean reports `removed: []`, repair
 reports `repaired: []`, `unchanged: []`, and `issues: []`, and both include the
 requested `dryRun` value plus `error`. Package-cache validation failures that

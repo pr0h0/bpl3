@@ -4891,6 +4891,87 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report cached package archives with invalid exports", () => {
+      const globalPackageDir = path.join(tempDir, "cache-export-packages");
+      fs.mkdirSync(globalPackageDir);
+
+      const createInvalidExportArchive = (
+        packageName: string,
+        setupExportPath: (packageRoot: string) => void,
+      ) => {
+        const sourceDir = path.join(tempDir, `${packageName}-source`);
+        const packageRoot = path.join(sourceDir, "package");
+        const cachePath = path.join(globalPackageDir, `${packageName}-1.0.0.tgz`);
+        fs.mkdirSync(packageRoot, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageRoot, "bpl.json"),
+          JSON.stringify(
+            {
+              name: packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              exports: ["features/public.bpl"],
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+        setupExportPath(packageRoot);
+
+        const packResult = spawnSync(
+          "tar",
+          ["-czf", cachePath, "-C", sourceDir, "package"],
+          { encoding: "utf-8" },
+        );
+        expect(packResult.status).toBe(0);
+
+        const localPM = new PackageManager(tempDir);
+        localPM["writeArchiveProvenance"](
+          cachePath,
+          packageRoot,
+          JSON.parse(
+            fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8"),
+          ),
+        );
+      };
+
+      createInvalidExportArchive("cache-export-missing", (packageRoot) => {
+        fs.mkdirSync(path.join(packageRoot, "features"));
+      });
+      createInvalidExportArchive("cache-export-directory", (packageRoot) => {
+        fs.mkdirSync(path.join(packageRoot, "features", "public.bpl"), {
+          recursive: true,
+        });
+      });
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const report = localPM.verifyPackageCache();
+
+      expect(report.ok).toBe(false);
+      expect(report.entriesChecked).toBe(2);
+      expect(report.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            packageName: "cache-export-directory",
+            kind: "invalid-archive",
+            message: expect.stringContaining(
+              "Unsupported package export entry: features/public.bpl",
+            ),
+          }),
+          expect.objectContaining({
+            packageName: "cache-export-missing",
+            kind: "invalid-archive",
+            message: expect.stringContaining(
+              "Missing package export entry: features/public.bpl",
+            ),
+          }),
+        ]),
+      );
+    });
+
     test("should use the configured archive tool while verifying package cache entries", () => {
       const globalPackageDir = path.join(tempDir, "cache-tar-tool-packages");
       fs.mkdirSync(globalPackageDir);
@@ -4967,6 +5048,54 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should refuse package cache repair for archives with invalid exports", () => {
+      const globalPackageDir = path.join(tempDir, "cache-repair-export-packages");
+      const sourceDir = path.join(tempDir, "cache-repair-export-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(globalPackageDir, "cache-repair-export-1.0.0.tgz");
+      fs.mkdirSync(path.join(packageRoot, "features"), { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-repair-export",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const repair = localPM.repairPackageCache("cache-repair-export");
+
+      expect(repair.success).toBe(false);
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-export",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Missing package export entry: features/public.bpl",
+          ),
+        }),
+      ]);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+    });
+
     test("should repair missing package cache provenance for valid archives", () => {
       const globalPackageDir = path.join(tempDir, "cache-repair-packages");
       fs.mkdirSync(globalPackageDir);
@@ -4997,6 +5126,47 @@ describe("PackageManager", () => {
 
       const report = localPM.verifyPackageCache("cache-repair");
       expect(report.ok).toBe(true);
+    });
+
+    test("should repair and verify cached archives with exported non-bpl files", () => {
+      const packageDir = path.join(tempDir, "cache-export-valid-source");
+      const globalPackageDir = path.join(tempDir, "cache-export-valid-packages");
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-export-valid",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/native.x"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "features", "native.x"),
+        "extern nativeFeature;",
+      );
+
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const cachePath = path.join(globalPackageDir, path.basename(tarballPath));
+      fs.copyFileSync(tarballPath, cachePath);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const repair = localPM.repairPackageCache("cache-export-valid");
+      expect(repair.success).toBe(true);
+      expect(repair.repaired.length).toBe(1);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(true);
+
+      const report = localPM.verifyPackageCache("cache-export-valid");
+      expect(report.ok).toBe(true);
+      expect(report.issues).toEqual([]);
     });
 
     test("should report package doctor issues for missing lockfiles and duplicate installed names", () => {

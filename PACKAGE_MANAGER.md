@@ -56,7 +56,8 @@ package root. Missing files, directories, and symlinks are rejected before an
 archive is created, and explicitly exported `.x` files are included in the
 archive. Archive install revalidates those exported paths after extraction and
 before replacing any installed package, so third-party archives cannot publish
-broken public subpaths.
+broken public subpaths. Package-cache verify and repair use the same extracted
+export checks before treating cached archives as healthy or repairable.
 
 ## CLI Commands
 
