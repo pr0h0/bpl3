@@ -5152,6 +5152,104 @@ describe("CLI JSON parseability", () => {
     }
   }, 30000);
 
+  test("reports tuple pattern diagnostics failures in JSON-mode check and build diagnostics", () => {
+    const cases = [
+      {
+        name: "tuple_pattern_type_mismatch",
+        code: "BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH",
+        preview: "(left, right) => left",
+        message: "Tuple pattern used on non-tuple type",
+        hint: "Expected tuple type, got BasicType",
+        source: [
+          "frame main() ret int {",
+          "    local value: int = 1;",
+          "    return match (value) {",
+          "        (left, right) => left,",
+          "        _ => 0,",
+          "    };",
+          "}",
+        ].join("\n"),
+      },
+      {
+        name: "tuple_pattern_arity_mismatch",
+        code: "BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH",
+        preview: "(left, middle, right) => left",
+        message: "Tuple pattern has 3 elements, but type has 2",
+        hint: "Pattern and type must have the same number of elements",
+        source: [
+          "frame main() ret int {",
+          "    local pair: (int, int) = (1, 2);",
+          "    return match (pair) {",
+          "        (left, middle, right) => left,",
+          "        _ => 0,",
+          "    };",
+          "}",
+        ].join("\n"),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const sourceFile = path.join(tempDir, `${testCase.name}.bpl`);
+      const outputFile = path.join(tempDir, `${testCase.name}-app`);
+      fs.writeFileSync(sourceFile, testCase.source);
+
+      const check = runCli(["check", "--json", sourceFile]);
+      expect(check.status).toBe(1);
+      const checkReport = parseJsonObjectStdout<CheckJsonFailureReport>(check);
+      expect(checkReport).toMatchObject({
+        schemaVersion: 1,
+        check: "check",
+        success: false,
+        totalFiles: 1,
+        errorCount: 1,
+        files: [
+          {
+            file: sourceFile,
+            success: false,
+          },
+        ],
+      });
+      const checkDiagnostic = checkReport.files[0]?.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(checkDiagnostic).toBeDefined();
+      expect(checkDiagnostic?.code).toBe(testCase.code);
+      expect(checkDiagnostic?.source?.preview).toContain(testCase.preview);
+      expect(checkDiagnostic?.message).toContain(testCase.message);
+      expect(checkDiagnostic?.hint).toContain(testCase.hint);
+      expect(check.stderr).toBe("");
+
+      const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
+      expect(build.status).toBe(1);
+      expect(build.stderr).toBe("");
+      const buildReport = parseJsonObjectStdout<{
+        schemaVersion: number;
+        check: string;
+        success: boolean;
+        file: string;
+        diagnostics: Array<{
+          code?: string;
+          message: string;
+          hint: string;
+        }>;
+      }>(build);
+      expect(buildReport).toMatchObject({
+        schemaVersion: 1,
+        check: "build",
+        success: false,
+        file: sourceFile,
+      });
+      const buildDiagnostic = buildReport.diagnostics.find(
+        (diagnostic) => diagnostic.code === testCase.code,
+      );
+      expect(buildDiagnostic).toBeDefined();
+      expect(buildDiagnostic?.message).toContain(testCase.message);
+      expect(buildDiagnostic?.hint).toContain(testCase.hint);
+      expect(fs.existsSync(`${outputFile}.ll`)).toBe(false);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    }
+  }, 30000);
+
   test("reports global package root failures in JSON-mode check diagnostics", () => {
     const homeDir = path.join(tempDir, "home");
     const globalPackageDir = path.join(homeDir, ".bpl", "packages");

@@ -1665,6 +1665,24 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("docs document tuple match pattern diagnostic codes", () => {
+    const docs = normalizedMarkdownText([
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+
+    expectDocsContainSnippets(docs, [
+      "Tuple match pattern failures use `BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH` and `BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH`",
+      "`Tuple pattern used on non-tuple type`",
+      "`Tuple pattern has 3 elements, but type has 2`",
+      "`Expected tuple type, got BasicType`",
+      "`Pattern and type must have the same number of elements`",
+      "tuple patterns used on non-tuple values and tuple pattern element-count mismatches",
+      'bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts',
+      'bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"',
+    ]);
+  });
+
   test("docs document build validation error codes from runner constants", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",

@@ -174,6 +174,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
   registry. Non-enum tuple matches remain accepted when unguarded patterns
   provide provable finite coverage, such as boolean tuple partitions.
+- **Tuple Match Pattern Diagnostic Codes** - Tuple patterns used on non-tuple
+  values and tuple pattern element-count mismatches now report
+  `BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH` and
+  `BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH` in compiler errors,
+  `bpl check --json`, `bpl build --json`, and the public CLI JSON error-code
+  registry.
 - **Missing Export Diagnostic Code** - Named imports that resolve a module but
   request a non-exported symbol now carry `BPL_IMPORT_EXPORT_NOT_FOUND` through
   compiler errors, `bpl check --json`, `bpl build --json`, and the public

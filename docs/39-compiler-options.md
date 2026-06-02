@@ -882,6 +882,13 @@ bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"
 ```
 
+Tuple match pattern failures use `BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH` and `BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH`. This covers tuple patterns used on non-tuple values and tuple pattern element-count mismatches. Representative messages include `Tuple pattern used on non-tuple type` and `Tuple pattern has 3 elements, but type has 2`. The corresponding hints include `Expected tuple type, got BasicType` and `Pattern and type must have the same number of elements`. Valid tuple pattern matching and tuple destructuring remain accepted. Reproduce the type-checker and JSON contracts with:
+
+```bash
+bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts
+bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"
+```
+
 Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND` with a
 `Standard library module not found` message. Explicit `std/` and `std\` imports
 do not fall back to package resolution, even when a local, workspace, global, or
