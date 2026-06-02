@@ -135,6 +135,48 @@ describe("Import idempotency", () => {
     expect(errors).toHaveLength(0);
   });
 
+  it("allows repeated namespace imports from the same module", () => {
+    const errors = collectErrorsForSource(
+      [
+        'import * as Things from "./thing.bpl";',
+        'import * as Things from "./thing.bpl";',
+        "",
+        "frame main() ret int {",
+        "  local thing: Things.Thing;",
+        "  thing.value = Things.makeThing();",
+        "  return thing.value;",
+        "}",
+      ].join("\n"),
+      { "thing.bpl": thingModule },
+    );
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it("keeps namespace name conflicts diagnostic when declarations differ", () => {
+    const errors = collectErrorsForSource(
+      [
+        'import * as Things from "./thing.bpl";',
+        "",
+        "struct Things {",
+        "  value: int,",
+        "}",
+        "",
+        "frame main() ret int {",
+        "  return 0;",
+        "}",
+      ].join("\n"),
+      { "thing.bpl": thingModule },
+    );
+
+    expect(errors.map((error) => error.code)).toContain(
+      "BPL_SYMBOL_ALREADY_DEFINED",
+    );
+    expect(errors.map((error) => error.message)).toContain(
+      "Symbol 'Things' is already defined in this scope",
+    );
+  });
+
   it("keeps real duplicate declarations diagnostic when declarations differ", () => {
     const errors = collectErrorsForSource(
       [

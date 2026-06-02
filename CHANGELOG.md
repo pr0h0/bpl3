@@ -1025,9 +1025,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - **Import Idempotency** - Re-importing the same exported declaration into a
-  module scope is now idempotent. Explicit `import [Error] from
-  "std/errors.bpl";` no longer collides with the compiler's implicit `Error`
-  import, while duplicate names from different declarations still report
+  module scope is now idempotent, including repeated `import * as namespace`
+  imports of the same module. Explicit `import [Error] from "std/errors.bpl";`
+  no longer collides with the compiler's implicit `Error` import, while
+  duplicate names from different declarations still report
   `BPL_SYMBOL_ALREADY_DEFINED`.
 - **Integration Config Parse Errors** - Malformed example `test_config.json`
   files now report the config file path before the JSON parse detail, and the

@@ -144,6 +144,46 @@ export class ImportHandler {
     );
   }
 
+  private isSameNamespaceScope(
+    leftScope: SymbolTable,
+    rightScope: SymbolTable,
+  ): boolean {
+    const leftNames = new Set(leftScope.getAllSymbols());
+    const rightNames = new Set(rightScope.getAllSymbols());
+
+    if (leftNames.size !== rightNames.size) {
+      return false;
+    }
+
+    for (const name of leftNames) {
+      if (!rightNames.has(name)) {
+        return false;
+      }
+
+      const left = leftScope.getInCurrentScope(name);
+      const right = rightScope.getInCurrentScope(name);
+      if (!left || !right || !this.isSameSymbolGroup(left, right)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private isSameSymbolGroup(left: Symbol, right: Symbol): boolean {
+    const leftSymbols = [left, ...(left.overloads || [])];
+    const rightSymbols = [right, ...(right.overloads || [])];
+
+    return (
+      leftSymbols.length === rightSymbols.length &&
+      leftSymbols.every((leftSymbol) =>
+        rightSymbols.some((rightSymbol) =>
+          this.isSameImportedSymbol(leftSymbol, rightSymbol),
+        ),
+      )
+    );
+  }
+
   /**
    * Resolve the import path from an import statement
    */
@@ -403,18 +443,23 @@ export class ImportHandler {
             for (const item of exportStmt.items) {
               const symbol = moduleScope.resolve(item.name);
               if (symbol) {
-                exportedScope.define({
-                  name: symbol.name,
-                  kind: symbol.kind,
-                  type: symbol.type,
-                  declaration: symbol.declaration,
-                  moduleScope: symbol.moduleScope,
-                });
+                this.defineImportedSymbol(symbol.name, symbol, exportedScope);
               }
             }
           }
         }
       }
+    }
+
+    const existingNamespace = this.ctx.currentScope.getInCurrentScope(
+      stmt.namespace!,
+    );
+    if (
+      existingNamespace?.kind === "Module" &&
+      existingNamespace.moduleScope &&
+      this.isSameNamespaceScope(existingNamespace.moduleScope, exportedScope)
+    ) {
+      return;
     }
 
     this.ctx.defineSymbol(

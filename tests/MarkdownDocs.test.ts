@@ -1817,12 +1817,14 @@ describe("Markdown documentation", () => {
 
     expectDocsContainSnippets(importDocs, [
       "Repeated imports of the same exported declaration are idempotent",
+      "including repeated `import * as namespace` imports of the same module",
       "The compiler implicitly makes `Error` from `std/errors.bpl` available to normal modules",
       'an explicit `import [Error] from "std/errors.bpl";` is accepted',
       "Duplicate names from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`",
     ]);
     expectDocsContainSnippets(changelog, [
       "Import Idempotency",
+      "including repeated `import * as namespace` imports of the same module",
       'Explicit `import [Error] from "std/errors.bpl";` no longer collides with the compiler\'s implicit `Error` import',
       "duplicate names from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`",
     ]);
