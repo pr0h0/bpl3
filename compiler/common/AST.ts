@@ -411,6 +411,7 @@ export interface Parameter extends ASTNode {
 export interface DestructuringTarget {
   name: string;
   type?: TypeNode;
+  bindingDeclaration?: VariableDecl;
 }
 
 /** Recursive type for nested destructuring patterns */

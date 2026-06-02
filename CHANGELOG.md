@@ -1033,6 +1033,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   bindings inside lambda `match` arms now stay arm-local during capture
   analysis. Lambdas no longer build closure contexts from destructured pattern
   names before those locals exist.
+- **Lambda Destructuring Captures** - Tuple destructuring declaration targets
+  now get per-target binding declarations, allowing lambdas to capture
+  destructured locals such as `left` and `right` without treating the parent
+  destructuring declaration as a single invalid capture field.
 - **Try/Catch Capture Traversal** - Lambda and deferred-block capture analysis
   now visits `try` bodies and `catch` handlers while keeping typed catch
   variables local to the handler, avoiding dangling loads when deferred or

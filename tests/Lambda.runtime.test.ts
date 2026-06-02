@@ -40,6 +40,27 @@ describe("Lambda Runtime", () => {
     expect(result.stdout).toContain("Result: 105");
   });
 
+  it("should capture destructured tuple locals", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      frame main() ret int {
+        local pair: (int, int) = (10, 20);
+        local (left: int, right: int) = pair;
+        local f: Lambda<int>() = || ret int { return left * 10 + right; };
+        printf("Result: %d\\n", f());
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "lambda_destructured_tuple_capture");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+      console.error("STDOUT:", result.stdout);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Result: 120");
+  });
+
   it("should handle nested lambdas", () => {
     const source = `
       extern printf(fmt: string, ...);

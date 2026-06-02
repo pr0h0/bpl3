@@ -708,8 +708,8 @@ export function checkVariableDecl(
     // Destructuring - enforce explicit type annotations
     const flattenTargets = (
       targets: any[],
-    ): { name: string; type?: AST.TypeNode }[] => {
-      const result: { name: string; type?: AST.TypeNode }[] = [];
+    ): AST.DestructuringTarget[] => {
+      const result: AST.DestructuringTarget[] = [];
       for (const target of targets) {
         if (Array.isArray(target)) {
           result.push(...flattenTargets(target));
@@ -721,6 +721,34 @@ export function checkVariableDecl(
     };
 
     const targets = flattenTargets(decl.name);
+
+    const defineDestructuredTarget = (
+      target: AST.DestructuringTarget,
+      finalType: AST.TypeNode | undefined,
+    ): void => {
+      if (target.name === "_" || !finalType) return;
+
+      const resolvedType = this.resolveType(finalType);
+      const bindingDecl: AST.VariableDecl = {
+        kind: "VariableDecl",
+        isGlobal: decl.isGlobal,
+        isConst: decl.isConst,
+        name: target.name,
+        typeAnnotation: finalType,
+        resolvedType,
+        location: decl.location,
+      };
+
+      target.bindingDeclaration = bindingDecl;
+      this.defineSymbol(
+        target.name,
+        "Variable",
+        resolvedType,
+        bindingDecl,
+        undefined,
+        decl.isConst,
+      );
+    };
 
     // Check that all non-underscore targets have explicit type annotations
     for (const target of targets) {
@@ -762,23 +790,11 @@ export function checkVariableDecl(
         explicit: (AST.TypeNode | undefined)[],
       ): void => {
         for (let i = 0; i < nameList.length; i++) {
-          const name = nameList[i]!;
           const inferredType = types[i];
           const explicitType = explicit[i];
 
-          if (name === "_") continue;
-
           const finalType = explicitType || inferredType;
-          if (finalType) {
-            this.defineSymbol(
-              name,
-              "Variable",
-              this.resolveType(finalType),
-              decl,
-              undefined,
-              decl.isConst,
-            );
-          }
+          defineDestructuredTarget(targets[i]!, finalType);
         }
       };
 
@@ -786,18 +802,8 @@ export function checkVariableDecl(
       assignTypes(names, tupleType.types, explicitTypes);
     } else {
       for (const target of targets) {
-        if (target.name === "_") continue;
         const finalType = target.type || initType;
-        if (finalType) {
-          this.defineSymbol(
-            target.name,
-            "Variable",
-            this.resolveType(finalType),
-            decl,
-            undefined,
-            decl.isConst,
-          );
-        }
+        defineDestructuredTarget(target, finalType);
       }
     }
 

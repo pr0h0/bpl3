@@ -37,7 +37,9 @@ export class CaptureAnalyzer {
           this.visit((node as AST.VariableDecl).initializer!);
         }
         // Then add to locals
-        this.localDeclarations.add(node);
+        this.collectVariableDeclarationLocals(
+          node as AST.VariableDecl,
+        ).forEach((declaration) => this.localDeclarations.add(declaration));
         break;
       case "Return":
         if ((node as AST.ReturnStmt).value) {
@@ -228,6 +230,37 @@ export class CaptureAnalyzer {
       default:
         return [];
     }
+  }
+
+  private collectVariableDeclarationLocals(
+    declaration: AST.VariableDecl,
+  ): AST.ASTNode[] {
+    if (!Array.isArray(declaration.name)) {
+      return [declaration];
+    }
+
+    return [
+      declaration,
+      ...this.collectDestructuringTargetBindings(
+        declaration.name as AST.DestructuringPattern[],
+      ),
+    ];
+  }
+
+  private collectDestructuringTargetBindings(
+    targets: AST.DestructuringPattern[],
+  ): AST.ASTNode[] {
+    const bindings: AST.ASTNode[] = [];
+
+    for (const target of targets) {
+      if (Array.isArray(target)) {
+        bindings.push(...this.collectDestructuringTargetBindings(target));
+      } else if (target.bindingDeclaration) {
+        bindings.push(target.bindingDeclaration);
+      }
+    }
+
+    return bindings;
   }
 
   private withLocalDeclarations(
