@@ -22,6 +22,7 @@ const log = new Logger("Run");
  *   bpl run main.bpl arg1 arg2 arg3
  *   bpl run main.bpl -v
  *   bpl run main.bpl -O2
+ *   bpl run main.bpl --debug-ir-path debug/run.ll
  */
 export function registerRunCommand(program: Command): void {
   program
@@ -33,6 +34,7 @@ export function registerRunCommand(program: Command): void {
     .option("-q, --quiet", "suppress non-error output")
     .option("-O <level>", "optimization level: 0, 1, 2, or 3")
     .option("--debug", "generate debug information (DWARF)")
+    .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
     .option("--time", "show compilation time statistics")
     .option("--cache", "enable incremental compilation with module caching")
     .option(

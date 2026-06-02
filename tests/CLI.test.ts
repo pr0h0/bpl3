@@ -163,8 +163,23 @@ describe("CLI Tests", () => {
           "Usage: bpl build [options] <file>",
           "--emit <type>",
           "--wasm-runtime <mode>",
+          "--debug-ir-path <file>",
           "--cache-stats",
           "--json",
+        ],
+      },
+      {
+        args: ["run", "--help"],
+        snippets: [
+          "Usage: bpl run [options] <file> [args...]",
+          "--debug-ir-path <file>",
+        ],
+      },
+      {
+        args: ["dev", "--help"],
+        snippets: [
+          "Usage: bpl dev [options] <file> [args...]",
+          "--debug-ir-path <file>",
         ],
       },
       {
@@ -1048,6 +1063,38 @@ describe("CLI Tests", () => {
       expect(output).toContain(" -O3 ");
       expect(output).not.toContain(" -O0 ");
       expect(output).toContain("run-optimized");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should let run subcommand write diagnostic debug IR", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-debug-ir-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const debugIrFile = path.join(tempDir, "run-debug.ll");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "extern printf(fmt: string, ...);",
+        "frame main() ret int {",
+        '    printf("run-debug-ir\\n");',
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const result = runCLI([
+        "run",
+        "--debug-ir-path",
+        debugIrFile,
+        sourceFile,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("run-debug-ir");
+      expect(fs.existsSync(debugIrFile)).toBe(true);
+      expect(fs.readFileSync(debugIrFile, "utf8")).toContain("define i32 @main(");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

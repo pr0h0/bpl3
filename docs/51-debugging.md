@@ -39,6 +39,7 @@ bun index.ts build examples/hello-world/main.bpl --debug
 
 # Also keep a diagnostic copy of the generated LLVM IR
 bun index.ts build examples/hello-world/main.bpl --debug-ir-path debug/hello.ll
+bun index.ts run examples/hello-world/main.bpl --debug-ir-path debug/run.ll
 ```
 
 This command does two things:

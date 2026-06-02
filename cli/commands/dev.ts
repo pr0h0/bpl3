@@ -22,6 +22,7 @@ const log = new Logger("Dev");
  *   bpl dev main.bpl arg1 arg2
  *   bpl dev main.bpl --clear
  *   bpl dev main.bpl --no-run      # Compile only, don't execute
+ *   bpl dev main.bpl --debug-ir-path debug/dev.ll
  *   bpl dev main.bpl -v --time
  */
 export function registerDevCommand(program: Command): void {
@@ -36,6 +37,7 @@ export function registerDevCommand(program: Command): void {
     .option("--no-run", "compile only, don't execute")
     .option("-O <level>", "optimization level: 0, 1, 2, or 3")
     .option("--debug", "generate debug information (DWARF)")
+    .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
     .option("--time", "show compilation time statistics")
     .option("--cache", "enable incremental compilation with module caching")
     .option("--cache-stats", "show incremental cache hit/miss statistics")

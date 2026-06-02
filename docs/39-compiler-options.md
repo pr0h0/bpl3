@@ -36,6 +36,9 @@ bpl run hello.bpl arg1 arg2
 
 # Run with optimization
 bpl run hello.bpl -O 2
+
+# Run while keeping diagnostic LLVM IR
+bpl run hello.bpl --debug-ir-path debug/run.ll
 ```
 
 ### `bpl dev <file> [args...]`
@@ -58,6 +61,9 @@ bpl dev main.bpl --clear
 
 # Watch but only compile
 bpl dev main.bpl --no-run
+
+# Watch while keeping the latest diagnostic LLVM IR
+bpl dev main.bpl --debug-ir-path debug/dev.ll
 ```
 
 ### `bpl build <file>`
@@ -398,7 +404,8 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 - `-O <level>`: Optimization level (0, 1, 2, or 3)
 - `-d, --dwarf`: Generate DWARF debug information on the default compile command
 - `--debug`: Generate DWARF debug information on `run`, `dev`, and `build`
-- `--debug-ir-path <file>`: Write a diagnostic copy of generated LLVM IR
+- `--debug-ir-path <file>`: Write a diagnostic copy of generated LLVM IR on
+  the default compile command, `run`, `dev`, and `build`
 - `--time`: Show compilation time statistics
 - `--cache`: Enable incremental compilation
 - `--cache-stats`: Show incremental cache hit/miss statistics
@@ -1116,11 +1123,11 @@ bpl build main.bpl --debug-ir-path debug/main.ll
 Diagnostic debug IR output uses the same symlink safety policy as other compiler
 outputs: the destination, immediate parent, and parent path components must be
 real filesystem entries before a `.ll` file is written. Use
-`--debug-ir-path <file>` for an explicit CLI destination, or set
-`BPL_DEBUG_IR=<file>` when driving the compiler through an environment-only
-workflow. Debug IR path validation failures are exported through the public CLI
-JSON error-code registry under the `codegen` group and appear as top-level
-`errorCode` values in `bpl build --json` reports:
+`--debug-ir-path <file>` on `bpl`, `bpl build`, `bpl run`, or `bpl dev` for an
+explicit CLI destination, or set `BPL_DEBUG_IR=<file>` when driving the compiler
+through an environment-only workflow. Debug IR path validation failures are
+exported through the public CLI JSON error-code registry under the `codegen`
+group and appear as top-level `errorCode` values in `bpl build --json` reports:
 
 - `BPL_CODEGEN_DEBUG_IR_PATH_EMPTY`
 - `BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK`

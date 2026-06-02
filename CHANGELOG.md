@@ -20,6 +20,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   output. `debugIrPath: false`, `BPL_DEBUG_IR=0`, and `BPL_DEBUG_IR=false`
   remain intentional disable paths. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "empty debug IR" tests/CLIJsonParseability.test.ts -t "empty debug IR path diagnostics"`.
+- **Run/Dev Debug IR Parity** - `bpl run` and `bpl dev` now advertise
+  `--debug-ir-path <file>` directly, matching `bpl` and `bpl build`. `bpl run`
+  writes the requested diagnostic LLVM IR file while still executing the
+  program. Reproduce with
+  `bun test tests/CLI.test.ts -t "key subcommand help|run subcommand write diagnostic debug IR"`.
 - **Package Version SemVer Validation** - Package manifests, lock entries,
   global versioned package directories, cache archive discovery, dependency
   version selectors, JSON schema validation, and package-cache
