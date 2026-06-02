@@ -1397,7 +1397,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     arrayType: string,
     isEqual: boolean,
   ): string {
-    // Get array size from type (e.g., "[5 x i32]" -> 5 elements)
+    // Verify array type shape before emitting a whole-value memcmp.
     const match = arrayType.match(/\[(\d+) x (.+)\]/);
     if (!match) {
       throw this.createError(
@@ -1406,12 +1406,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         `Expected array type in format [N x T], got ${arrayType}`,
       );
     }
-    const elemCount = parseInt(match[1]!, 10);
-    const elemType = match[2]!;
-
-    // Calculate size in bytes
-    const elemSize = this.getTypeSize(elemType);
-    const totalBytes = elemCount * elemSize;
 
     // Spill arrays to stack to get addresses
     const leftPtr = this.newRegister();
@@ -1429,10 +1423,17 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     const rightBytes = this.newRegister();
     this.emit(`  ${rightBytes} = bitcast ${arrayType}* ${rightPtr} to i8*`);
 
+    const sizePtr = this.newRegister();
+    const sizeVal = this.newRegister();
+    this.emit(
+      `  ${sizePtr} = getelementptr ${arrayType}, ${arrayType}* null, i32 1`,
+    );
+    this.emit(`  ${sizeVal} = ptrtoint ${arrayType}* ${sizePtr} to i64`);
+
     // Call memcmp
     const cmpResult = this.newRegister();
     this.emit(
-      `  ${cmpResult} = call i32 @memcmp(i8* ${leftBytes}, i8* ${rightBytes}, i64 ${totalBytes})`,
+      `  ${cmpResult} = call i32 @memcmp(i8* ${leftBytes}, i8* ${rightBytes}, i64 ${sizeVal})`,
     );
 
     // Compare result with 0
