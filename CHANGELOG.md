@@ -1024,6 +1024,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Lambda Capture Traversal** - Lambda capture analysis now visits `match`
+  expressions, `switch` cases, deferred statements, throws, loop init/step
+  expressions, and aggregate literal children so closure contexts include
+  locals referenced from those nested forms instead of emitting dangling local
+  loads inside generated lambda functions.
 - **Import Idempotency** - Re-importing the same exported declaration into a
   module scope is now idempotent, including repeated `import * as namespace`
   imports of the same module. Explicit `import [Error] from "std/errors.bpl";`

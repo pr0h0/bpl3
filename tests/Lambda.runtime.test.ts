@@ -64,6 +64,45 @@ describe("Lambda Runtime", () => {
     expect(result.stdout).toContain("Result: 60");
   });
 
+  it("should capture variables inside match and switch bodies", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      enum Flag {
+        On,
+        Off,
+      }
+
+      frame main() ret int {
+        local offset: int = 5;
+        local fromMatch: Lambda<int>(Flag) = |flag: Flag| ret int {
+          return match (flag) {
+            Flag.On => offset,
+            Flag.Off => 0,
+          };
+        };
+        local fromSwitch: Lambda<int>(int) = |value: int| ret int {
+          switch (value) {
+            case 1: {
+              return offset + 2;
+            }
+            default: {
+              return 0;
+            }
+          }
+        };
+        printf("Result: %d %d\\n", fromMatch(Flag.On), fromSwitch(1));
+        return 0;
+      }
+    `;
+    const result = runBpl(source, "lambda_match_switch_capture");
+    if (result.exitCode !== 0) {
+      console.error("STDERR:", result.stderr);
+    }
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Result: 5 7");
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       extern printf(fmt: string, ...);

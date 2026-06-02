@@ -75,6 +75,51 @@ describe("Lambda Code Generation", () => {
     expect(matches!.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("should capture variables referenced inside match expressions", () => {
+    const source = `
+      enum Flag {
+        On,
+        Off,
+      }
+
+      frame main() ret int {
+        local offset: int = 5;
+        local f: Lambda<int>(Flag) = |flag: Flag| ret int {
+          return match (flag) {
+            Flag.On => offset,
+            Flag.Off => 0,
+          };
+        };
+        return f(Flag.On);
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
+  it("should capture variables referenced inside switch cases", () => {
+    const source = `
+      frame main() ret int {
+        local offset: int = 5;
+        local f: Lambda<int>(int) = |value: int| ret int {
+          switch (value) {
+            case 1: {
+              return offset;
+            }
+            default: {
+              return 0;
+            }
+          }
+        };
+        return f(1);
+      }
+    `;
+    const ir = compile(source);
+
+    expect(ir).toMatch(/%struct.lambda_.*_ctx = type { i32 }/);
+  });
+
   it("should pass lambda as argument", () => {
     const source = `
       frame apply(f: Lambda<int>(int), v: int) ret int {

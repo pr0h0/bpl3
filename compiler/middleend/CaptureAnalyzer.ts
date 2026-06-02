@@ -64,9 +64,24 @@ export class CaptureAnalyzer {
         }
         break;
       case "Loop":
+        if ((node as AST.LoopStmt).init) {
+          this.visit((node as AST.LoopStmt).init!);
+        }
         if ((node as AST.LoopStmt).condition)
           this.visit((node as AST.LoopStmt).condition!);
+        if ((node as AST.LoopStmt).step) {
+          this.visit((node as AST.LoopStmt).step!);
+        }
         this.visit((node as AST.LoopStmt).body);
+        break;
+      case "Defer":
+        this.visit((node as AST.DeferStmt).statement);
+        break;
+      case "Throw":
+        this.visit((node as AST.ThrowStmt).expression);
+        break;
+      case "Switch":
+        this.visitSwitch(node as AST.SwitchStmt);
         break;
       case "ExpressionStmt":
         this.visit((node as AST.ExpressionStmt).expression);
@@ -93,6 +108,38 @@ export class CaptureAnalyzer {
         this.visit((node as AST.TernaryExpr).trueExpr);
         this.visit((node as AST.TernaryExpr).falseExpr);
         break;
+      case "ArrayLiteral":
+        (node as AST.ArrayLiteralExpr).elements.forEach((element) =>
+          this.visit(element),
+        );
+        break;
+      case "StructLiteral":
+        (node as AST.StructLiteralExpr).fields.forEach((field) =>
+          this.visit(field.value),
+        );
+        break;
+      case "TupleLiteral":
+        (node as AST.TupleLiteralExpr).elements.forEach((element) =>
+          this.visit(element),
+        );
+        break;
+      case "EnumStructVariant":
+        (node as AST.EnumStructVariantExpr).fields.forEach((field) =>
+          this.visit(field.value),
+        );
+        break;
+      case "Sizeof":
+        this.visit((node as AST.SizeofExpr).target as AST.ASTNode);
+        break;
+      case "TypeOf":
+        this.visit((node as AST.TypeOfExpr).target as AST.ASTNode);
+        break;
+      case "TypeMatch":
+        this.visit((node as AST.TypeMatchExpr).value as AST.ASTNode);
+        break;
+      case "Match":
+        this.visitMatch(node as AST.MatchExpr);
+        break;
       case "LambdaExpression":
         const lambda = node as AST.LambdaExpr;
         if (lambda.capturedVariables) {
@@ -100,6 +147,72 @@ export class CaptureAnalyzer {
         }
         break;
       // Add other nodes as needed
+    }
+  }
+
+  private visitSwitch(node: AST.SwitchStmt) {
+    this.visit(node.expression);
+
+    for (const switchCase of node.cases) {
+      this.visit(switchCase.value);
+      this.visit(switchCase.body);
+    }
+
+    if (node.defaultCase) {
+      this.visit(node.defaultCase);
+    }
+  }
+
+  private visitMatch(node: AST.MatchExpr) {
+    this.visit(node.value);
+
+    for (const arm of node.arms) {
+      const patternBindings = this.collectPatternBindings(arm.pattern);
+      this.withLocalDeclarations(patternBindings, () => {
+        if (arm.guard) {
+          this.visit(arm.guard);
+        }
+        this.visit(arm.body);
+      });
+    }
+  }
+
+  private collectPatternBindings(pattern: AST.Pattern): AST.ASTNode[] {
+    switch (pattern.kind) {
+      case "PatternIdentifier":
+        return [pattern];
+      case "PatternEnumTuple":
+        return pattern.bindings.flatMap((binding) =>
+          this.collectPatternBindings(binding),
+        );
+      case "PatternTuple":
+        return pattern.patterns.flatMap((subPattern) =>
+          this.collectPatternBindings(subPattern),
+        );
+      default:
+        return [];
+    }
+  }
+
+  private withLocalDeclarations(
+    declarations: AST.ASTNode[],
+    visitBody: () => void,
+  ) {
+    const added: AST.ASTNode[] = [];
+
+    for (const declaration of declarations) {
+      if (!this.localDeclarations.has(declaration)) {
+        this.localDeclarations.add(declaration);
+        added.push(declaration);
+      }
+    }
+
+    try {
+      visitBody();
+    } finally {
+      for (const declaration of added) {
+        this.localDeclarations.delete(declaration);
+      }
     }
   }
 
