@@ -121,11 +121,16 @@ To use a package in another project, install it from a package archive:
 
 ```bash
 bpl install ../path/to/my-package-0.1.0.tgz
+bpl install file:deps/my-package-0.1.0.tgz
 ```
 
 This extracts the package into the `bpl_modules/` directory of your project.
 For local installs, BPL also writes `bpl.lock` with the exact installed package
 version, source archive, and content hash.
+Direct `bpl install` archive paths and manifest `file:` sources both accept `/`
+and `\` as path separators. Existing archives are resolved relative to the
+project or declaring package directory and lockfile sources are recorded with
+stable `/` separators.
 If `bpl_modules/<package-name>` already exists, BPL only treats a real
 directory as an upgrade target. Existing regular files or symlinks at the
 package install path are rejected and left untouched.

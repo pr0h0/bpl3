@@ -758,6 +758,17 @@ describe("Markdown documentation", () => {
     ]);
   });
 
+  test("package docs document file source path normalization", () => {
+    const docs = normalizedMarkdownText(["docs/25-package-management.md"]);
+    const requiredSnippets = [
+      "bpl install file:deps/my-package-0.1.0.tgz",
+      "Direct `bpl install` archive paths and manifest `file:` sources both accept `/` and `\\` as path separators",
+      "lockfile sources are recorded with stable `/` separators",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("docs document project creation JSON contract", () => {
     const docs = normalizedMarkdownText([
       "docs/39-compiler-options.md",
