@@ -57,6 +57,22 @@ interface TestableCode {
   isChallengeSolution: boolean;
 }
 
+const centralizedTutorialCExterns = [
+  /\bextern printf\(fmt: string, \.\.\.\)(?: ret int)?;/,
+  /\bextern scanf\(fmt: string, \.\.\.\)(?: ret int)?;/,
+  /\bextern puts\((?:s|value): string\) ret int;/,
+  /\bextern malloc\(size: (?:int|long|u64)\) ret \*void;/,
+  /\bextern free\(ptr: \*void\)(?: ret void)?;/,
+  /\bextern strlen\(s: string\) ret int;/,
+  /\bextern strcmp\([A-Za-z_][A-Za-z0-9_]*: string, [A-Za-z_][A-Za-z0-9_]*: string\) ret int;/,
+  /\bextern strcpy\((?:dst|dest): string, src: string\) ret string;/,
+  /\bextern strcat\((?:dst|dest): string, src: string\) ret string;/,
+  /\bextern atoi\(s: string\) ret int;/,
+  /\bextern memcpy\(dest: \*void, src: \*void, (?:n|size): (?:int|long|u64)\) ret \*void;/,
+  /\bextern memmove\(dest: \*void, src: \*void, (?:n|size): (?:int|long|u64)\) ret \*void;/,
+  /\bextern memset\((?:dest|ptr): \*void, (?:value|c): int, (?:n|size): (?:int|long|u64)\) ret \*void;/,
+];
+
 async function compileAndRunCode(code: string): Promise<CompileResponse> {
   const tempDir = path.join(
     "/tmp",
@@ -176,6 +192,45 @@ function loadTutorials(): Tutorial[] {
   return tutorials.sort((a, b) => a.order - b.order);
 }
 
+function collectTutorialSnippetExterns(): string[] {
+  const tutorialsDir = path.join(import.meta.dir, "../playground/tutorials");
+
+  return fs
+    .readdirSync(tutorialsDir)
+    .filter((file) => file.endsWith(".json"))
+    .sort()
+    .flatMap((file) => {
+      if (file === "21-ffi.json") {
+        return [];
+      }
+
+      const content = fs.readFileSync(path.join(tutorialsDir, file), "utf8");
+      const tutorial = JSON.parse(content) as Tutorial;
+
+      return tutorial.sections.flatMap((section) => {
+        const snippets = [
+          ["code", section.code],
+          ["solution", section.solution],
+        ] as const;
+
+        return snippets.flatMap(([field, snippet]) => {
+          if (!snippet) {
+            return [];
+          }
+
+          return centralizedTutorialCExterns.flatMap((pattern) => {
+            const match = snippet.match(pattern);
+            return match
+              ? [
+                  `playground/tutorials/${file} ${section.title} ${field}: ${match[0]}`,
+                ]
+              : [];
+          });
+        });
+      });
+    });
+}
+
 function extractTestableCode(tutorials: Tutorial[]): TestableCode[] {
   const testable: TestableCode[] = [];
 
@@ -261,6 +316,10 @@ describe("BPL Tutorial Examples", () => {
     expect(source).not.toMatch(/promisify\s*\(\s*exec\s*\)/);
     expect(source).not.toMatch(/execAsync\s*\(/);
     expect(source).not.toMatch(/`"\$\{binFile\}"`/);
+  });
+
+  it("uses std/c.bpl for canonical C externs outside the FFI tutorial", () => {
+    expect(collectTutorialSnippetExterns()).toEqual([]);
   });
 
   testableCode.forEach((item, index) => {

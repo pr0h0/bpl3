@@ -6,7 +6,9 @@
   "difficulty": "beginner",
   "duration": "10 min",
   "description": "Learn how to store and work with data in BPL. Understand the different data types and how to declare variables.",
-  "prerequisites": ["welcome"],
+  "prerequisites": [
+    "welcome"
+  ],
   "objectives": [
     "Declare variables with the 'local' keyword",
     "Understand primitive data types (int, float, bool, char, string)",
@@ -32,7 +34,7 @@
     {
       "type": "code",
       "title": "Primitive Data Types",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Integer type\n    local age: int = 25;           # 32-bit signed integer (most common)\n    \n    # Floating point (decimals)\n    local price: float = 19.99;    # 64-bit floating point\n    \n    # Boolean (true/false)\n    local isActive: bool = true;\n    \n    # Character (single letter)\n    local grade: char = 'A';\n    \n    # String (text)\n    local greeting: string = \"Hello, World!\";\n    \n    # Print them all!\n    printf(\"Age: %d\\n\", age);\n    printf(\"Price: %.2f\\n\", price);\n    printf(\"Is Active: %d\\n\", isActive);  # 1 = true, 0 = false\n    printf(\"Grade: %c\\n\", grade);\n    printf(\"Greeting: %s\\n\", greeting);\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Integer type\n    local age: int = 25;           # 32-bit signed integer (most common)\n    \n    # Floating point (decimals)\n    local price: float = 19.99;    # 64-bit floating point\n    \n    # Boolean (true/false)\n    local isActive: bool = true;\n    \n    # Character (single letter)\n    local grade: char = 'A';\n    \n    # String (text)\n    local greeting: string = \"Hello, World!\";\n    \n    # Print them all!\n    printf(\"Age: %d\\n\", age);\n    printf(\"Price: %.2f\\n\", price);\n    printf(\"Is Active: %d\\n\", isActive);  # 1 = true, 0 = false\n    printf(\"Grade: %c\\n\", grade);\n    printf(\"Greeting: %s\\n\", greeting);\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Age: 25\nPrice: 19.99\nIs Active: 1\nGrade: A\nGreeting: Hello, World!",
       "lineExplanations": {
@@ -40,9 +42,9 @@
         "6": "i64 holds very large numbers (up to 9 quintillion!).",
         "8": "u32 is unsigned - it can't be negative but holds larger positive values.",
         "11": "float is for numbers with decimal points.",
-        "14-15": "bool has only two values: true or false.",
         "18": "char holds a single character, using single quotes.",
-        "21": "string holds text, using double quotes."
+        "21": "string holds text, using double quotes.",
+        "14-15": "bool has only two values: true or false."
       }
     },
     {
@@ -53,7 +55,7 @@
     {
       "type": "code",
       "title": "Variable Operations",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Variables can be changed (mutated)\n    local score: int = 0;\n    printf(\"Initial score: %d\\n\", score);\n    \n    score = 10;  # Assign new value\n    printf(\"After assignment: %d\\n\", score);\n    \n    score = score + 5;  # Add to existing value\n    printf(\"After adding 5: %d\\n\", score);\n    \n    # Shorthand operators\n    score = score + 10;   # Same as: score += 10 (if supported)\n    printf(\"Final score: %d\\n\", score);\n    \n    # Constants (cannot be changed)\n    local const MAX_SCORE: int = 100;\n    printf(\"Max possible score: %d\\n\", MAX_SCORE);\n    # MAX_SCORE = 200;  # ERROR! Can't modify a const\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Variables can be changed (mutated)\n    local score: int = 0;\n    printf(\"Initial score: %d\\n\", score);\n    \n    score = 10;  # Assign new value\n    printf(\"After assignment: %d\\n\", score);\n    \n    score = score + 5;  # Add to existing value\n    printf(\"After adding 5: %d\\n\", score);\n    \n    # Shorthand operators\n    score = score + 10;   # Same as: score += 10 (if supported)\n    printf(\"Final score: %d\\n\", score);\n    \n    # Constants (cannot be changed)\n    local const MAX_SCORE: int = 100;\n    printf(\"Max possible score: %d\\n\", MAX_SCORE);\n    # MAX_SCORE = 200;  # ERROR! Can't modify a const\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Initial score: 0\nAfter assignment: 10\nAfter adding 5: 15\nFinal score: 25\nMax possible score: 100",
       "lineExplanations": {
@@ -68,7 +70,7 @@
       "title": "Practice: Temperature Converter",
       "instructions": "Create a program that:\n1. Stores a temperature in Celsius (e.g., 25.0)\n2. Converts it to Fahrenheit using: F = C × 9/5 + 32\n3. Prints both values",
       "hint": "Use 'float' for temperature values. Cast integers to float if needed.",
-      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local celsius: float = 25.0;\n    local fahrenheit: float = celsius * 9.0 / 5.0 + 32.0;\n    \n    printf(\"%.1f°C = %.1f°F\\n\", celsius, fahrenheit);\n    \n    return 0;\n}"
+      "solution": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local celsius: float = 25.0;\n    local fahrenheit: float = celsius * 9.0 / 5.0 + 32.0;\n    \n    printf(\"%.1f°C = %.1f°F\\n\", celsius, fahrenheit);\n    \n    return 0;\n}"
     },
     {
       "type": "text",
@@ -80,13 +82,23 @@
       "questions": [
         {
           "question": "Which type would you use for someone's age?",
-          "options": ["float", "string", "int", "bool"],
+          "options": [
+            "float",
+            "string",
+            "int",
+            "bool"
+          ],
           "correct": 2,
           "explanation": "Age is a whole number, so 'int' is the best choice."
         },
         {
           "question": "What keyword makes a variable unchangeable?",
-          "options": ["final", "const", "immutable", "fixed"],
+          "options": [
+            "final",
+            "const",
+            "immutable",
+            "fixed"
+          ],
           "correct": 1,
           "explanation": "Use 'local const' to create a constant that cannot be reassigned."
         },

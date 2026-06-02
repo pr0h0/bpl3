@@ -6,7 +6,9 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Master the BPL compiler. Learn compilation options, debugging techniques, and optimization settings.",
-  "prerequisites": ["ffi"],
+  "prerequisites": [
+    "ffi"
+  ],
   "objectives": [
     "Understand the compilation pipeline",
     "Use compiler flags effectively",
@@ -22,7 +24,7 @@
     {
       "type": "code",
       "title": "Basic Compilation",
-      "code": "# This is a simple program to compile\nextern printf(fmt: string, ...);\n\nframe factorial(n: int) ret int {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);\n}\n\nframe main() ret int {\n    printf(\"Factorials:\\n\");\n    \n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        printf(\"%d! = %d\\n\", i, factorial(i));\n    }\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# This is a simple program to compile\nframe factorial(n: int) ret int {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);\n}\n\nframe main() ret int {\n    printf(\"Factorials:\\n\");\n    \n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        printf(\"%d! = %d\\n\", i, factorial(i));\n    }\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Factorials:\n1! = 1\n2! = 2\n3! = 6\n4! = 24\n5! = 120\n6! = 720\n7! = 5040\n8! = 40320\n9! = 362880\n10! = 3628800",
       "lineExplanations": {
@@ -43,7 +45,7 @@
     {
       "type": "code",
       "title": "Debug vs Release Builds",
-      "code": "extern printf(fmt: string, ...);\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\nframe distance(p1: *Point, p2: *Point) ret int {\n    local dx: int = p2.x - p1.x;\n    local dy: int = p2.y - p1.y;\n    # Simplified: returns dx^2 + dy^2 (no sqrt)\n    return dx * dx + dy * dy;\n}\n\nframe main() ret int {\n    local origin: Point = Point { x: 0, y: 0 };\n    local point: Point = Point { x: 3, y: 4 };\n    \n    printf(\"Origin: (%d, %d)\\n\", origin.x, origin.y);\n    printf(\"Point: (%d, %d)\\n\", point.x, point.y);\n    \n    local distSquared: int = distance(&origin, &point);\n    printf(\"Distance squared: %d\\n\", distSquared);\n    # 3^2 + 4^2 = 9 + 16 = 25\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\nframe distance(p1: *Point, p2: *Point) ret int {\n    local dx: int = p2.x - p1.x;\n    local dy: int = p2.y - p1.y;\n    # Simplified: returns dx^2 + dy^2 (no sqrt)\n    return dx * dx + dy * dy;\n}\n\nframe main() ret int {\n    local origin: Point = Point { x: 0, y: 0 };\n    local point: Point = Point { x: 3, y: 4 };\n    \n    printf(\"Origin: (%d, %d)\\n\", origin.x, origin.y);\n    printf(\"Point: (%d, %d)\\n\", point.x, point.y);\n    \n    local distSquared: int = distance(&origin, &point);\n    printf(\"Distance squared: %d\\n\", distSquared);\n    # 3^2 + 4^2 = 9 + 16 = 25\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Origin: (0, 0)\nPoint: (3, 4)\nDistance squared: 25",
       "lineExplanations": {
@@ -59,7 +61,7 @@
     {
       "type": "code",
       "title": "Common Bugs and Fixes",
-      "code": "extern printf(fmt: string, ...);\nextern malloc(size: int) ret *void;\nextern free(ptr: *void);\n\n# Bug 1: Off-by-one error\nframe buggyLoop() {\n    local arr: int[5] = [1, 2, 3, 4, 5];\n    \n    # WRONG: i <= 5 goes one past the end!\n    # loop (local i = 0; i <= 5; i = i + 1) {\n    \n    # CORRECT: i < 5\n    loop (local i: int = 0; i < 5; i = i + 1) {\n        printf(\"%d \", arr[i]);\n    }\n    printf(\"\\n\");\n}\n\n# Bug 2: Null pointer check\nframe safeAccess() {\n    local ptr: *int = cast<*int>(malloc(sizeof<int>()));\n    \n    # Always check malloc result!\n    if (ptr == nullptr) {\n        printf(\"Allocation failed!\\n\");\n        return;\n    }\n    \n    *ptr = 42;\n    printf(\"Value: %d\\n\", *ptr);\n    free(cast<*void>(ptr));\n}\n\n# Bug 3: Integer overflow\nframe checkOverflow() {\n    local big: int = 2000000000;  # Close to int max\n    local result: int = big + big; # Might overflow!\n    printf(\"2B + 2B = %d (overflow!)\\n\", result);\n    \n    # Use larger type if needed\n    local big64: i64 = 2000000000;\n    local result64: i64 = big64 + big64;\n    printf(\"As i64: %ld\\n\", result64);\n}\n\nframe main() ret int {\n    printf(\"=== Bug Examples ===\\n\\n\");\n    \n    printf(\"1. Array bounds:\\n\");\n    buggyLoop();\n    \n    printf(\"\\n2. Null checks:\\n\");\n    safeAccess();\n    \n    printf(\"\\n3. Overflow:\\n\");\n    checkOverflow();\n    \n    return 0;\n}",
+      "code": "import [printf], [malloc], [free] from \"std/c.bpl\";\n\n# Bug 1: Off-by-one error\nframe buggyLoop() {\n    local arr: int[5] = [1, 2, 3, 4, 5];\n    \n    # WRONG: i <= 5 goes one past the end!\n    # loop (local i = 0; i <= 5; i = i + 1) {\n    \n    # CORRECT: i < 5\n    loop (local i: int = 0; i < 5; i = i + 1) {\n        printf(\"%d \", arr[i]);\n    }\n    printf(\"\\n\");\n}\n\n# Bug 2: Null pointer check\nframe safeAccess() {\n    local ptr: *int = cast<*int>(malloc(sizeof<int>()));\n    \n    # Always check malloc result!\n    if (ptr == nullptr) {\n        printf(\"Allocation failed!\\n\");\n        return;\n    }\n    \n    *ptr = 42;\n    printf(\"Value: %d\\n\", *ptr);\n    free(cast<*void>(ptr));\n}\n\n# Bug 3: Integer overflow\nframe checkOverflow() {\n    local big: int = 2000000000;  # Close to int max\n    local result: int = big + big; # Might overflow!\n    printf(\"2B + 2B = %d (overflow!)\\n\", result);\n    \n    # Use larger type if needed\n    local big64: i64 = 2000000000;\n    local result64: i64 = big64 + big64;\n    printf(\"As i64: %ld\\n\", result64);\n}\n\nframe main() ret int {\n    printf(\"=== Bug Examples ===\\n\\n\");\n    \n    printf(\"1. Array bounds:\\n\");\n    buggyLoop();\n    \n    printf(\"\\n2. Null checks:\\n\");\n    safeAccess();\n    \n    printf(\"\\n3. Overflow:\\n\");\n    checkOverflow();\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "=== Bug Examples ===\n\n1. Array bounds:\n1 2 3 4 5 \n\n2. Null checks:\nValue: 42\n\n3. Overflow:\n2B + 2B = -294967296 (overflow!)\nAs i64: 4000000000",
       "lineExplanations": {
@@ -83,7 +85,7 @@
       "title": "Practice: Debug a Function",
       "instructions": "This function has a bug. Find and fix it:\n\n```bpl\nframe sumArray(arr: *int, len: int) ret int {\n    local sum: int = 0;\n    loop (local i: int = 1; i <= len; i = i + 1) {\n        sum = sum + *(arr + i);\n    }\n    return sum;\n}\n```\n\nIt should sum [1,2,3,4,5] = 15, but returns wrong value.",
       "hint": "Check the loop bounds. Array indices start at 0.",
-      "solution": "extern printf(fmt: string, ...);\n\n# Fixed version:\n# Bug was: i starts at 1 (skips first element)\n#          i <= len (goes past last element)\nframe sumArray(arr: *int, len: int) ret int {\n    local sum: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        sum = sum + *(arr + i);\n    }\n    return sum;\n}\n\nframe main() ret int {\n    local arr: int[5] = [1, 2, 3, 4, 5];\n    local result: int = sumArray(&arr[0], 5);\n    printf(\"Sum: %d (should be 15)\\n\", result);\n    return 0;\n}"
+      "solution": "import [printf] from \"std/c.bpl\";\n\n# Fixed version:\n# Bug was: i starts at 1 (skips first element)\n#          i <= len (goes past last element)\nframe sumArray(arr: *int, len: int) ret int {\n    local sum: int = 0;\n    loop (local i: int = 0; i < len; i = i + 1) {\n        sum = sum + *(arr + i);\n    }\n    return sum;\n}\n\nframe main() ret int {\n    local arr: int[5] = [1, 2, 3, 4, 5];\n    local result: int = sumArray(&arr[0], 5);\n    printf(\"Sum: %d (should be 15)\\n\", result);\n    return 0;\n}"
     },
     {
       "type": "text",
@@ -106,7 +108,12 @@
         },
         {
           "question": "Which flag enables aggressive optimization?",
-          "options": ["-O0", "-O1", "-O3", "-Og"],
+          "options": [
+            "-O0",
+            "-O1",
+            "-O3",
+            "-Og"
+          ],
           "correct": 2,
           "explanation": "-O3 enables aggressive optimizations, while -O0 disables optimization."
         },

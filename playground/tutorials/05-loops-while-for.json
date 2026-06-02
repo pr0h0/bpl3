@@ -6,7 +6,9 @@
   "difficulty": "beginner",
   "duration": "12 min",
   "description": "Learn how to repeat code with loops. Master while loops, for loops, and control statements like break and continue.",
-  "prerequisites": ["control-flow-if-else"],
+  "prerequisites": [
+    "control-flow-if-else"
+  ],
   "objectives": [
     "Write while loops for condition-based repetition",
     "Use for loops for counting iterations",
@@ -33,7 +35,7 @@
     {
       "type": "code",
       "title": "While Loop (Condition-Based)",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Basic while loop - runs while condition is true\n    local count: int = 1;\n    \n    printf(\"Counting to 5:\\n\");\n    loop (count <= 5) {\n        printf(\"%d \", count);\n        count = count + 1;  # Don't forget to update!\n    }\n    printf(\"\\n\");\n    \n    # Countdown example\n    local rocket: int = 3;\n    printf(\"\\nLaunch sequence:\\n\");\n    loop (rocket > 0) {\n        printf(\"%d...\\n\", rocket);\n        rocket = rocket - 1;\n    }\n    printf(\"Liftoff!\\n\");\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Basic while loop - runs while condition is true\n    local count: int = 1;\n    \n    printf(\"Counting to 5:\\n\");\n    loop (count <= 5) {\n        printf(\"%d \", count);\n        count = count + 1;  # Don't forget to update!\n    }\n    printf(\"\\n\");\n    \n    # Countdown example\n    local rocket: int = 3;\n    printf(\"\\nLaunch sequence:\\n\");\n    loop (rocket > 0) {\n        printf(\"%d...\\n\", rocket);\n        rocket = rocket - 1;\n    }\n    printf(\"Liftoff!\\n\");\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Counting to 5:\n1 2 3 4 5 \n\nLaunch sequence:\n3...\n2...\n1...\nLiftoff!",
       "lineExplanations": {
@@ -45,7 +47,7 @@
     {
       "type": "code",
       "title": "For Loop (Counter-Based)",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Classic for loop: (init; condition; update)\n    printf(\"For loop 0-4:\\n\");\n    loop (local i: int = 0; i < 5; i = i + 1) {\n        printf(\"%d \", i);\n    }\n    printf(\"\\n\");\n    \n    # Count by 2s\n    printf(\"\\nEven numbers 0-10:\\n\");\n    loop (local j: int = 0; j <= 10; j = j + 2) {\n        printf(\"%d \", j);\n    }\n    printf(\"\\n\");\n    \n    # Countdown with for\n    printf(\"\\nCountdown:\\n\");\n    loop (local k: int = 5; k >= 1; k = k - 1) {\n        printf(\"%d \", k);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Classic for loop: (init; condition; update)\n    printf(\"For loop 0-4:\\n\");\n    loop (local i: int = 0; i < 5; i = i + 1) {\n        printf(\"%d \", i);\n    }\n    printf(\"\\n\");\n    \n    # Count by 2s\n    printf(\"\\nEven numbers 0-10:\\n\");\n    loop (local j: int = 0; j <= 10; j = j + 2) {\n        printf(\"%d \", j);\n    }\n    printf(\"\\n\");\n    \n    # Countdown with for\n    printf(\"\\nCountdown:\\n\");\n    loop (local k: int = 5; k >= 1; k = k - 1) {\n        printf(\"%d \", k);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "For loop 0-4:\n0 1 2 3 4 \n\nEven numbers 0-10:\n0 2 4 6 8 10 \n\nCountdown:\n5 4 3 2 1 ",
       "lineExplanations": {
@@ -57,7 +59,7 @@
     {
       "type": "code",
       "title": "Break: Exit Loop Early",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Find first number divisible by 7 after 50\n    printf(\"Finding first number > 50 divisible by 7:\\n\");\n    \n    loop (local i: int = 51; i < 100; i = i + 1) {\n        if (i % 7 == 0) {\n            printf(\"Found: %d\\n\", i);\n            break;  # Exit the loop immediately\n        }\n    }\n    \n    # Search example\n    local target: int = 7;\n    local found: bool = false;\n    \n    loop (local j: int = 1; j <= 10; j = j + 1) {\n        printf(\"Checking %d... \", j);\n        if (j == target) {\n            printf(\"Found it!\\n\");\n            found = true;\n            break;\n        }\n        printf(\"nope\\n\");\n    }\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Find first number divisible by 7 after 50\n    printf(\"Finding first number > 50 divisible by 7:\\n\");\n    \n    loop (local i: int = 51; i < 100; i = i + 1) {\n        if (i % 7 == 0) {\n            printf(\"Found: %d\\n\", i);\n            break;  # Exit the loop immediately\n        }\n    }\n    \n    # Search example\n    local target: int = 7;\n    local found: bool = false;\n    \n    loop (local j: int = 1; j <= 10; j = j + 1) {\n        printf(\"Checking %d... \", j);\n        if (j == target) {\n            printf(\"Found it!\\n\");\n            found = true;\n            break;\n        }\n        printf(\"nope\\n\");\n    }\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Finding first number > 50 divisible by 7:\nFound: 56\nChecking 1... nope\nChecking 2... nope\nChecking 3... nope\nChecking 4... nope\nChecking 5... nope\nChecking 6... nope\nChecking 7... Found it!",
       "lineExplanations": {
@@ -68,7 +70,7 @@
     {
       "type": "code",
       "title": "Continue: Skip to Next Iteration",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Print only odd numbers\n    printf(\"Odd numbers 1-10:\\n\");\n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        if (i % 2 == 0) {\n            continue;  # Skip even numbers\n        }\n        printf(\"%d \", i);\n    }\n    printf(\"\\n\");\n    \n    # Skip number 5\n    printf(\"\\n1-10 (skipping 5):\\n\");\n    loop (local j: int = 1; j <= 10; j = j + 1) {\n        if (j == 5) {\n            continue;\n        }\n        printf(\"%d \", j);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Print only odd numbers\n    printf(\"Odd numbers 1-10:\\n\");\n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        if (i % 2 == 0) {\n            continue;  # Skip even numbers\n        }\n        printf(\"%d \", i);\n    }\n    printf(\"\\n\");\n    \n    # Skip number 5\n    printf(\"\\n1-10 (skipping 5):\\n\");\n    loop (local j: int = 1; j <= 10; j = j + 1) {\n        if (j == 5) {\n            continue;\n        }\n        printf(\"%d \", j);\n    }\n    printf(\"\\n\");\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Odd numbers 1-10:\n1 3 5 7 9 \n\n1-10 (skipping 5):\n1 2 3 4 6 7 8 9 10 ",
       "lineExplanations": {
@@ -80,25 +82,25 @@
     {
       "type": "code",
       "title": "Infinite Loop (with break)",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Infinite loop - use with caution!\n    # loop { } runs forever unless you break out\n    \n    local count: int = 0;\n    \n    printf(\"Infinite loop with break:\\n\");\n    loop {\n        count = count + 1;\n        printf(\"Iteration %d\\n\", count);\n        \n        if (count >= 3) {\n            printf(\"Breaking out!\\n\");\n            break;\n        }\n    }\n    \n    # Common pattern: input validation loop\n    # (simulated here)\n    local attempts: int = 0;\n    local valid: bool = false;\n    \n    loop {\n        attempts = attempts + 1;\n        printf(\"Attempt %d: \", attempts);\n        \n        # Simulate: 3rd attempt is valid\n        if (attempts == 3) {\n            valid = true;\n            printf(\"Valid input!\\n\");\n            break;\n        }\n        printf(\"Invalid, try again\\n\");\n    }\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Infinite loop - use with caution!\n    # loop { } runs forever unless you break out\n    \n    local count: int = 0;\n    \n    printf(\"Infinite loop with break:\\n\");\n    loop {\n        count = count + 1;\n        printf(\"Iteration %d\\n\", count);\n        \n        if (count >= 3) {\n            printf(\"Breaking out!\\n\");\n            break;\n        }\n    }\n    \n    # Common pattern: input validation loop\n    # (simulated here)\n    local attempts: int = 0;\n    local valid: bool = false;\n    \n    loop {\n        attempts = attempts + 1;\n        printf(\"Attempt %d: \", attempts);\n        \n        # Simulate: 3rd attempt is valid\n        if (attempts == 3) {\n            valid = true;\n            printf(\"Valid input!\\n\");\n            break;\n        }\n        printf(\"Invalid, try again\\n\");\n    }\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Infinite loop with break:\nIteration 1\nIteration 2\nIteration 3\nBreaking out!\nAttempt 1: Invalid, try again\nAttempt 2: Invalid, try again\nAttempt 3: Valid input!",
       "lineExplanations": {
         "10": "loop { } without a condition runs forever.",
-        "14-17": "ALWAYS have a break condition in infinite loops!",
-        "25": "Infinite loops are useful for input validation."
+        "25": "Infinite loops are useful for input validation.",
+        "14-17": "ALWAYS have a break condition in infinite loops!"
       }
     },
     {
       "type": "code",
       "title": "Nested Loops",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Multiplication table (3x3)\n    printf(\"Multiplication Table:\\n\");\n    printf(\"  \");\n    loop (local h: int = 1; h <= 3; h = h + 1) {\n        printf(\"%4d\", h);\n    }\n    printf(\"\\n\");\n    printf(\"  +------------\\n\");\n    \n    loop (local i: int = 1; i <= 3; i = i + 1) {\n        printf(\"%d |\", i);\n        loop (local j: int = 1; j <= 3; j = j + 1) {\n            printf(\"%4d\", i * j);\n        }\n        printf(\"\\n\");\n    }\n    \n    # Pattern: right triangle\n    printf(\"\\nTriangle pattern:\\n\");\n    loop (local row: int = 1; row <= 5; row = row + 1) {\n        loop (local col: int = 0; col < row; col = col + 1) {\n            printf(\"* \");\n        }\n        printf(\"\\n\");\n    }\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Multiplication table (3x3)\n    printf(\"Multiplication Table:\\n\");\n    printf(\"  \");\n    loop (local h: int = 1; h <= 3; h = h + 1) {\n        printf(\"%4d\", h);\n    }\n    printf(\"\\n\");\n    printf(\"  +------------\\n\");\n    \n    loop (local i: int = 1; i <= 3; i = i + 1) {\n        printf(\"%d |\", i);\n        loop (local j: int = 1; j <= 3; j = j + 1) {\n            printf(\"%4d\", i * j);\n        }\n        printf(\"\\n\");\n    }\n    \n    # Pattern: right triangle\n    printf(\"\\nTriangle pattern:\\n\");\n    loop (local row: int = 1; row <= 5; row = row + 1) {\n        loop (local col: int = 0; col < row; col = col + 1) {\n            printf(\"* \");\n        }\n        printf(\"\\n\");\n    }\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Multiplication Table:\n     1   2   3\n  +------------\n1 |   1   2   3\n2 |   2   4   6\n3 |   3   6   9\n\nTriangle pattern:\n* \n* * \n* * * \n* * * * \n* * * * * ",
       "lineExplanations": {
-        "13-19": "Outer loop handles rows, inner loop handles columns.",
         "15": "Inner loop runs completely for each outer loop iteration.",
-        "24": "The inner loop runs 'row' times, creating the triangle shape."
+        "24": "The inner loop runs 'row' times, creating the triangle shape.",
+        "13-19": "Outer loop handles rows, inner loop handles columns."
       }
     },
     {
@@ -111,7 +113,7 @@
       "title": "Practice: Sum of Numbers",
       "instructions": "Write a program that:\n1. Calculates the sum of numbers from 1 to 10\n2. Prints each number as you add it\n3. Prints the final sum (should be 55)",
       "hint": "Use a running total variable, start at 0, add each number in the loop.",
-      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local sum: int = 0;\n    \n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        sum = sum + i;\n        printf(\"Added %d, sum is now %d\\n\", i, sum);\n    }\n    \n    printf(\"Final sum: %d\\n\", sum);\n    \n    return 0;\n}"
+      "solution": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local sum: int = 0;\n    \n    loop (local i: int = 1; i <= 10; i = i + 1) {\n        sum = sum + i;\n        printf(\"Added %d, sum is now %d\\n\", i, sum);\n    }\n    \n    printf(\"Final sum: %d\\n\", sum);\n    \n    return 0;\n}"
     },
     {
       "type": "text",
@@ -123,7 +125,12 @@
       "questions": [
         {
           "question": "How many times does this loop run? loop (local i: int = 0; i < 5; i = i + 1) { }",
-          "options": ["4 times", "5 times", "6 times", "Infinite"],
+          "options": [
+            "4 times",
+            "5 times",
+            "6 times",
+            "Infinite"
+          ],
           "correct": 1,
           "explanation": "i goes through values 0, 1, 2, 3, 4 (5 iterations). When i becomes 5, the condition i < 5 is false."
         },

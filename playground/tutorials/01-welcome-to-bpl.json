@@ -32,7 +32,7 @@
     {
       "type": "code",
       "title": "Your First Program",
-      "code": "# This is your first BPL program!\n# Lines starting with # are comments - they're ignored by the compiler\n\n# We need printf to print text. 'extern' means it's defined elsewhere (C library)\nextern printf(fmt: string, ...);\n\n# Every BPL program starts with a 'main' frame (function)\n# 'frame' = function, 'ret int' = returns an integer\nframe main() ret int {\n    # Print a message to the screen\n    printf(\"Hello, BPL World!\\n\");\n    \n    # Return 0 means \"success\" (like in C)\n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# This is your first BPL program!\n# Lines starting with # are comments - they're ignored by the compiler\n\n# We need printf to print text. 'extern' means it's defined elsewhere (C library)\n# Every BPL program starts with a 'main' frame (function)\n# 'frame' = function, 'ret int' = returns an integer\nframe main() ret int {\n    # Print a message to the screen\n    printf(\"Hello, BPL World!\\n\");\n    \n    # Return 0 means \"success\" (like in C)\n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Hello, BPL World!",
       "lineExplanations": {
@@ -48,7 +48,7 @@
       "title": "Try It Yourself!",
       "instructions": "Modify the program above to print your name instead of 'BPL World'. For example: `Hello, Alice!`",
       "hint": "Just change the text inside the quotes in the printf statement.",
-      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    printf(\"Hello, Alice!\\n\");\n    return 0;\n}"
+      "solution": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    printf(\"Hello, Alice!\\n\");\n    return 0;\n}"
     },
     {
       "type": "text",
@@ -60,7 +60,12 @@
       "questions": [
         {
           "question": "What keyword is used to define a function in BPL?",
-          "options": ["func", "function", "frame", "def"],
+          "options": [
+            "func",
+            "function",
+            "frame",
+            "def"
+          ],
           "correct": 2,
           "explanation": "BPL uses 'frame' to define functions, which is unique to BPL."
         },

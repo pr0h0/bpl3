@@ -6,7 +6,9 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Understand memory addresses and pointers. Learn how to reference and dereference values, and why pointers are essential for systems programming.",
-  "prerequisites": ["struct-methods"],
+  "prerequisites": [
+    "struct-methods"
+  ],
   "objectives": [
     "Understand what pointers are and why they're useful",
     "Create pointers with the & operator",
@@ -33,7 +35,7 @@
     {
       "type": "code",
       "title": "Creating and Using Pointers",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local x: int = 42;\n    \n    # Create a pointer using & (address-of operator)\n    local ptr: *int = &x;\n    \n    printf(\"x = %d\\n\", x);\n    printf(\"Address of x: %p\\n\", ptr);\n    \n    # Dereference pointer using * to get the value\n    printf(\"Value at ptr (*ptr): %d\\n\", *ptr);\n    \n    # Modify the value through the pointer\n    *ptr = 100;\n    printf(\"\\nAfter *ptr = 100:\\n\");\n    printf(\"x = %d\\n\", x);        # x is now 100!\n    printf(\"*ptr = %d\\n\", *ptr);  # Same value\n    \n    # Change x and see it through pointer\n    x = 999;\n    printf(\"\\nAfter x = 999:\\n\");\n    printf(\"*ptr = %d\\n\", *ptr);  # Pointer sees the change\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local x: int = 42;\n    \n    # Create a pointer using & (address-of operator)\n    local ptr: *int = &x;\n    \n    printf(\"x = %d\\n\", x);\n    printf(\"Address of x: %p\\n\", ptr);\n    \n    # Dereference pointer using * to get the value\n    printf(\"Value at ptr (*ptr): %d\\n\", *ptr);\n    \n    # Modify the value through the pointer\n    *ptr = 100;\n    printf(\"\\nAfter *ptr = 100:\\n\");\n    printf(\"x = %d\\n\", x);        # x is now 100!\n    printf(\"*ptr = %d\\n\", *ptr);  # Same value\n    \n    # Change x and see it through pointer\n    x = 999;\n    printf(\"\\nAfter x = 999:\\n\");\n    printf(\"*ptr = %d\\n\", *ptr);  # Pointer sees the change\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "x = 42\nAddress of x: 0x...\nValue at ptr (*ptr): 42\n\nAfter *ptr = 100:\nx = 100\n*ptr = 100\n\nAfter x = 999:\n*ptr = 999",
       "lineExplanations": {
@@ -47,7 +49,7 @@
     {
       "type": "code",
       "title": "Pass by Reference",
-      "code": "extern printf(fmt: string, ...);\n\n# Without pointer: can't modify original\nframe tryToDouble(n: int) {\n    n = n * 2;  # Only modifies local copy!\n    printf(\"Inside tryToDouble: %d\\n\", n);\n}\n\n# With pointer: can modify original\nframe actuallyDouble(n: *int) {\n    *n = *n * 2;  # Modifies the original!\n    printf(\"Inside actuallyDouble: %d\\n\", *n);\n}\n\nframe main() ret int {\n    local value: int = 10;\n    printf(\"Original value: %d\\n\", value);\n    \n    # Try to double without pointer\n    printf(\"\\nCalling tryToDouble...\\n\");\n    tryToDouble(value);\n    printf(\"After tryToDouble: %d\\n\", value);  # Still 10!\n    \n    # Double with pointer\n    printf(\"\\nCalling actuallyDouble...\\n\");\n    actuallyDouble(&value);\n    printf(\"After actuallyDouble: %d\\n\", value);  # Now 20!\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# Without pointer: can't modify original\nframe tryToDouble(n: int) {\n    n = n * 2;  # Only modifies local copy!\n    printf(\"Inside tryToDouble: %d\\n\", n);\n}\n\n# With pointer: can modify original\nframe actuallyDouble(n: *int) {\n    *n = *n * 2;  # Modifies the original!\n    printf(\"Inside actuallyDouble: %d\\n\", *n);\n}\n\nframe main() ret int {\n    local value: int = 10;\n    printf(\"Original value: %d\\n\", value);\n    \n    # Try to double without pointer\n    printf(\"\\nCalling tryToDouble...\\n\");\n    tryToDouble(value);\n    printf(\"After tryToDouble: %d\\n\", value);  # Still 10!\n    \n    # Double with pointer\n    printf(\"\\nCalling actuallyDouble...\\n\");\n    actuallyDouble(&value);\n    printf(\"After actuallyDouble: %d\\n\", value);  # Now 20!\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Original value: 10\n\nCalling tryToDouble...\nInside tryToDouble: 20\nAfter tryToDouble: 10\n\nCalling actuallyDouble...\nInside actuallyDouble: 20\nAfter actuallyDouble: 20",
       "lineExplanations": {
@@ -60,7 +62,7 @@
     {
       "type": "code",
       "title": "Swapping Values with Pointers",
-      "code": "extern printf(fmt: string, ...);\n\n# Classic swap function - needs pointers!\nframe swap(a: *int, b: *int) {\n    local temp: int = *a;\n    *a = *b;\n    *b = temp;\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 20;\n    \n    printf(\"Before swap: x=%d, y=%d\\n\", x, y);\n    \n    swap(&x, &y);\n    \n    printf(\"After swap: x=%d, y=%d\\n\", x, y);\n    \n    # Swap them back\n    swap(&x, &y);\n    printf(\"After second swap: x=%d, y=%d\\n\", x, y);\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# Classic swap function - needs pointers!\nframe swap(a: *int, b: *int) {\n    local temp: int = *a;\n    *a = *b;\n    *b = temp;\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 20;\n    \n    printf(\"Before swap: x=%d, y=%d\\n\", x, y);\n    \n    swap(&x, &y);\n    \n    printf(\"After swap: x=%d, y=%d\\n\", x, y);\n    \n    # Swap them back\n    swap(&x, &y);\n    printf(\"After second swap: x=%d, y=%d\\n\", x, y);\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Before swap: x=10, y=20\nAfter swap: x=20, y=10\nAfter second swap: x=10, y=20",
       "lineExplanations": {
@@ -74,7 +76,7 @@
     {
       "type": "code",
       "title": "Pointers to Structs",
-      "code": "extern printf(fmt: string, ...);\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\nframe movePoint(p: *Point, dx: int, dy: int) {\n    # Access struct fields through pointer\n    p.x = p.x + dx;  # BPL auto-dereferences for field access\n    p.y = p.y + dy;\n}\n\nframe printPoint(p: *Point) {\n    printf(\"Point(%d, %d)\\n\", p.x, p.y);\n}\n\nframe main() ret int {\n    local point: Point = Point { x: 0, y: 0 };\n    \n    printf(\"Initial: \");\n    printPoint(&point);\n    \n    movePoint(&point, 5, 10);\n    printf(\"After move(5, 10): \");\n    printPoint(&point);\n    \n    movePoint(&point, -3, 7);\n    printf(\"After move(-3, 7): \");\n    printPoint(&point);\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nstruct Point {\n    x: int,\n    y: int,\n}\n\nframe movePoint(p: *Point, dx: int, dy: int) {\n    # Access struct fields through pointer\n    p.x = p.x + dx;  # BPL auto-dereferences for field access\n    p.y = p.y + dy;\n}\n\nframe printPoint(p: *Point) {\n    printf(\"Point(%d, %d)\\n\", p.x, p.y);\n}\n\nframe main() ret int {\n    local point: Point = Point { x: 0, y: 0 };\n    \n    printf(\"Initial: \");\n    printPoint(&point);\n    \n    movePoint(&point, 5, 10);\n    printf(\"After move(5, 10): \");\n    printPoint(&point);\n    \n    movePoint(&point, -3, 7);\n    printf(\"After move(-3, 7): \");\n    printPoint(&point);\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Initial: Point(0, 0)\nAfter move(5, 10): Point(5, 10)\nAfter move(-3, 7): Point(2, 17)",
       "lineExplanations": {
@@ -86,12 +88,12 @@
     {
       "type": "code",
       "title": "Multiple Pointers, Same Data",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local data: int = 100;\n    \n    # Multiple pointers to the same location\n    local p1: *int = &data;\n    local p2: *int = &data;\n    local p3: *int = p1;  # Copy the pointer value\n    \n    printf(\"data = %d\\n\", data);\n    printf(\"*p1 = %d\\n\", *p1);\n    printf(\"*p2 = %d\\n\", *p2);\n    printf(\"*p3 = %d\\n\", *p3);\n    \n    # Modify through one pointer\n    *p1 = 200;\n    \n    printf(\"\\nAfter *p1 = 200:\\n\");\n    printf(\"data = %d\\n\", data);\n    printf(\"*p2 = %d\\n\", *p2);  # Sees the change!\n    printf(\"*p3 = %d\\n\", *p3);  # Sees the change!\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local data: int = 100;\n    \n    # Multiple pointers to the same location\n    local p1: *int = &data;\n    local p2: *int = &data;\n    local p3: *int = p1;  # Copy the pointer value\n    \n    printf(\"data = %d\\n\", data);\n    printf(\"*p1 = %d\\n\", *p1);\n    printf(\"*p2 = %d\\n\", *p2);\n    printf(\"*p3 = %d\\n\", *p3);\n    \n    # Modify through one pointer\n    *p1 = 200;\n    \n    printf(\"\\nAfter *p1 = 200:\\n\");\n    printf(\"data = %d\\n\", data);\n    printf(\"*p2 = %d\\n\", *p2);  # Sees the change!\n    printf(\"*p3 = %d\\n\", *p3);  # Sees the change!\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "data = 100\n*p1 = 100\n*p2 = 100\n*p3 = 100\n\nAfter *p1 = 200:\ndata = 200\n*p2 = 200\n*p3 = 200",
       "lineExplanations": {
-        "7-9": "All three pointers point to the same memory.",
         "17": "Changing through one pointer affects all.",
+        "7-9": "All three pointers point to the same memory.",
         "21-22": "All pointers see the new value."
       }
     },
@@ -103,7 +105,7 @@
     {
       "type": "code",
       "title": "Safe Pointer Patterns",
-      "code": "extern printf(fmt: string, ...);\n\n# Safe function that checks for null\nframe safePrint(ptr: *int) {\n    if (ptr == nullptr) {\n        printf(\"Error: null pointer!\\n\");\n        return;\n    }\n    printf(\"Value: %d\\n\", *ptr);\n}\n\n# Function that returns success/failure\nframe safeIncrement(ptr: *int) ret bool {\n    if (ptr == nullptr) {\n        return false;\n    }\n    *ptr = *ptr + 1;\n    return true;\n}\n\nframe main() ret int {\n    local value: int = 42;\n    local valid: *int = &value;\n    local invalid: *int = nullptr;\n    \n    printf(\"Valid pointer:\\n\");\n    safePrint(valid);\n    \n    printf(\"\\nNull pointer:\\n\");\n    safePrint(invalid);\n    \n    printf(\"\\nIncrement valid: %d\\n\", safeIncrement(valid));\n    safePrint(valid);\n    \n    printf(\"\\nIncrement null: %d\\n\", safeIncrement(invalid));\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# Safe function that checks for null\nframe safePrint(ptr: *int) {\n    if (ptr == nullptr) {\n        printf(\"Error: null pointer!\\n\");\n        return;\n    }\n    printf(\"Value: %d\\n\", *ptr);\n}\n\n# Function that returns success/failure\nframe safeIncrement(ptr: *int) ret bool {\n    if (ptr == nullptr) {\n        return false;\n    }\n    *ptr = *ptr + 1;\n    return true;\n}\n\nframe main() ret int {\n    local value: int = 42;\n    local valid: *int = &value;\n    local invalid: *int = nullptr;\n    \n    printf(\"Valid pointer:\\n\");\n    safePrint(valid);\n    \n    printf(\"\\nNull pointer:\\n\");\n    safePrint(invalid);\n    \n    printf(\"\\nIncrement valid: %d\\n\", safeIncrement(valid));\n    safePrint(valid);\n    \n    printf(\"\\nIncrement null: %d\\n\", safeIncrement(invalid));\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Valid pointer:\nValue: 42\n\nNull pointer:\nError: null pointer!\n\nIncrement valid: 1\nValue: 43\n\nIncrement null: 0",
       "lineExplanations": {
@@ -117,7 +119,7 @@
       "title": "Practice: Array Statistics with Pointers",
       "instructions": "Write a function `stats(arr: *int, len: int, outMin: *int, outMax: *int, outSum: *int)` that:\n1. Calculates min, max, and sum of an array\n2. Writes results to the output pointers\n\nTest with array [5, 2, 8, 1, 9]",
       "hint": "Initialize min/max to the first element, then loop through the rest.",
-      "solution": "extern printf(fmt: string, ...);\n\nframe stats(arr: *int, len: int, outMin: *int, outMax: *int, outSum: *int) {\n    *outMin = *arr;\n    *outMax = *arr;\n    *outSum = 0;\n    \n    loop (local i: int = 0; i < len; i = i + 1) {\n        local val: int = *(arr + i);\n        *outSum = *outSum + val;\n        if (val < *outMin) { *outMin = val; }\n        if (val > *outMax) { *outMax = val; }\n    }\n}\n\nframe main() ret int {\n    local data: int[5] = [5, 2, 8, 1, 9];\n    local min: int;\n    local max: int;\n    local sum: int;\n    \n    stats(&data[0], 5, &min, &max, &sum);\n    \n    printf(\"Min: %d\\n\", min);\n    printf(\"Max: %d\\n\", max);\n    printf(\"Sum: %d\\n\", sum);\n    printf(\"Avg: %d\\n\", sum / 5);\n    \n    return 0;\n}"
+      "solution": "import [printf] from \"std/c.bpl\";\n\nframe stats(arr: *int, len: int, outMin: *int, outMax: *int, outSum: *int) {\n    *outMin = *arr;\n    *outMax = *arr;\n    *outSum = 0;\n    \n    loop (local i: int = 0; i < len; i = i + 1) {\n        local val: int = *(arr + i);\n        *outSum = *outSum + val;\n        if (val < *outMin) { *outMin = val; }\n        if (val > *outMax) { *outMax = val; }\n    }\n}\n\nframe main() ret int {\n    local data: int[5] = [5, 2, 8, 1, 9];\n    local min: int;\n    local max: int;\n    local sum: int;\n    \n    stats(&data[0], 5, &min, &max, &sum);\n    \n    printf(\"Min: %d\\n\", min);\n    printf(\"Max: %d\\n\", max);\n    printf(\"Sum: %d\\n\", sum);\n    printf(\"Avg: %d\\n\", sum / 5);\n    \n    return 0;\n}"
     },
     {
       "type": "text",

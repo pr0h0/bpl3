@@ -6,7 +6,9 @@
   "difficulty": "advanced",
   "duration": "15 min",
   "description": "Write low-level assembly code directly in BPL. Learn Intel, AT&T, and LLVM IR syntax for maximum control.",
-  "prerequisites": ["bitwise-operations"],
+  "prerequisites": [
+    "bitwise-operations"
+  ],
   "objectives": [
     "Understand when to use inline assembly",
     "Write Intel and AT&T syntax assembly",
@@ -22,7 +24,7 @@
     {
       "type": "code",
       "title": "Intel Syntax Basics",
-      "code": "extern printf(fmt: string, ...);\n\nframe addWithAsm(a: int, b: int) ret int {\n    local result: int = 0;\n    \n    # Intel syntax: destination, source\n    asm(\"intel\") {\n        mov eax, (a)          # Load a into eax\n        add eax, (b)          # Add b to eax\n        mov (=result), eax    # Store eax in result\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 25;\n    \n    local sum: int = addWithAsm(x, y);\n    printf(\"%d + %d = %d\\n\", x, y, sum);\n    \n    # Another example\n    printf(\"100 + 50 = %d\\n\", addWithAsm(100, 50));\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe addWithAsm(a: int, b: int) ret int {\n    local result: int = 0;\n    \n    # Intel syntax: destination, source\n    asm(\"intel\") {\n        mov eax, (a)          # Load a into eax\n        add eax, (b)          # Add b to eax\n        mov (=result), eax    # Store eax in result\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 25;\n    \n    local sum: int = addWithAsm(x, y);\n    printf(\"%d + %d = %d\\n\", x, y, sum);\n    \n    # Another example\n    printf(\"100 + 50 = %d\\n\", addWithAsm(100, 50));\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "10 + 25 = 35\n100 + 50 = 150",
       "lineExplanations": {
@@ -35,7 +37,7 @@
     {
       "type": "code",
       "title": "AT&T Syntax",
-      "code": "extern printf(fmt: string, ...);\n\nframe multiplyATT(a: int, b: int) ret int {\n    local result: int = 0;\n    \n    # AT&T syntax: source, destination (opposite of Intel!)\n    asm(\"att\") {\n        movl (a), %eax        # Load a into eax\n        imull (b), %eax       # Multiply eax by b\n        movl %eax, (=result)  # Store result\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    printf(\"6 * 7 = %d\\n\", multiplyATT(6, 7));\n    printf(\"12 * 11 = %d\\n\", multiplyATT(12, 11));\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe multiplyATT(a: int, b: int) ret int {\n    local result: int = 0;\n    \n    # AT&T syntax: source, destination (opposite of Intel!)\n    asm(\"att\") {\n        movl (a), %eax        # Load a into eax\n        imull (b), %eax       # Multiply eax by b\n        movl %eax, (=result)  # Store result\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    printf(\"6 * 7 = %d\\n\", multiplyATT(6, 7));\n    printf(\"12 * 11 = %d\\n\", multiplyATT(12, 11));\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "6 * 7 = 42\n12 * 11 = 132",
       "lineExplanations": {
@@ -52,7 +54,7 @@
     {
       "type": "code",
       "title": "LLVM IR Assembly",
-      "code": "extern printf(fmt: string, ...);\n\n# Using LLVM IR for precise control\nframe safeBitShift(value: int, shift: int) ret int {\n    local result: int = 0;\n    \n    # LLVM IR gives maximum control\n    asm(\"llvm\") {\n        \"%shifted = shl i32 (value), (shift)\"\n        \"store i32 %shifted, i32* (=result)\"\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    printf(\"1 << 0 = %d\\n\", safeBitShift(1, 0));\n    printf(\"1 << 1 = %d\\n\", safeBitShift(1, 1));\n    printf(\"1 << 4 = %d\\n\", safeBitShift(1, 4));\n    printf(\"5 << 3 = %d\\n\", safeBitShift(5, 3));\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# Using LLVM IR for precise control\nframe safeBitShift(value: int, shift: int) ret int {\n    local result: int = 0;\n    \n    # LLVM IR gives maximum control\n    asm(\"llvm\") {\n        \"%shifted = shl i32 (value), (shift)\"\n        \"store i32 %shifted, i32* (=result)\"\n    }\n    \n    return result;\n}\n\nframe main() ret int {\n    printf(\"1 << 0 = %d\\n\", safeBitShift(1, 0));\n    printf(\"1 << 1 = %d\\n\", safeBitShift(1, 1));\n    printf(\"1 << 4 = %d\\n\", safeBitShift(1, 4));\n    printf(\"5 << 3 = %d\\n\", safeBitShift(5, 3));\n    \n    return 0;\n}",
       "runnable": false,
       "expectedOutput": "1 << 0 = 1\n1 << 1 = 2\n1 << 4 = 16\n5 << 3 = 40",
       "lineExplanations": {
@@ -64,7 +66,7 @@
     {
       "type": "code",
       "title": "Constraints and Clobbers",
-      "code": "extern printf(fmt: string, ...);\n\n# Advanced: specify register constraints and clobbers\nframe divide(dividend: int, divisor: int) ret int {\n    local quotient: int = 0;\n    local remainder: int = 0;\n    \n    asm(\"intel\") {\n        mov eax, (dividend)     # Dividend in eax\n        xor edx, edx            # Clear edx (high part)\n        mov ecx, (divisor)      # Divisor in ecx\n        div ecx                 # eax = eax/ecx, edx = remainder\n        mov (=quotient), eax    # Store quotient\n        mov (=remainder), edx   # Store remainder\n        [ \"eax\", \"edx\", \"ecx\" ] # Clobbered registers\n    }\n    \n    printf(\"Remainder: %d\\n\", remainder);\n    return quotient;\n}\n\nframe main() ret int {\n    printf(\"17 / 5 = %d\\n\", divide(17, 5));\n    printf(\"\\n100 / 7 = %d\\n\", divide(100, 7));\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# Advanced: specify register constraints and clobbers\nframe divide(dividend: int, divisor: int) ret int {\n    local quotient: int = 0;\n    local remainder: int = 0;\n    \n    asm(\"intel\") {\n        mov eax, (dividend)     # Dividend in eax\n        xor edx, edx            # Clear edx (high part)\n        mov ecx, (divisor)      # Divisor in ecx\n        div ecx                 # eax = eax/ecx, edx = remainder\n        mov (=quotient), eax    # Store quotient\n        mov (=remainder), edx   # Store remainder\n        [ \"eax\", \"edx\", \"ecx\" ] # Clobbered registers\n    }\n    \n    printf(\"Remainder: %d\\n\", remainder);\n    return quotient;\n}\n\nframe main() ret int {\n    printf(\"17 / 5 = %d\\n\", divide(17, 5));\n    printf(\"\\n100 / 7 = %d\\n\", divide(100, 7));\n    \n    return 0;\n}",
       "runnable": false,
       "expectedOutput": "Remainder: 2\n17 / 5 = 3\n\nRemainder: 2\n100 / 7 = 14",
       "lineExplanations": {
@@ -76,7 +78,7 @@
     {
       "type": "code",
       "title": "Practical Example: Fast Operations",
-      "code": "extern printf(fmt: string, ...);\n\n# Count leading zeros (useful for log2)\nframe countLeadingZeros(n: int) ret int {\n    local result: int = 0;\n    \n    if (n == 0) {\n        return 32;  # All zeros\n    }\n    \n    asm(\"intel\") {\n        bsr eax, (n)          # Bit scan reverse\n        xor eax, 31           # Convert to leading zeros\n        mov (=result), eax\n    }\n    \n    return result;\n}\n\n# Fast check if power of 2\nframe isPowerOfTwo(n: int) ret bool {\n    if (n <= 0) { return false; }\n    return (n & (n - 1)) == 0;\n}\n\nframe main() ret int {\n    printf(\"Leading zeros in 1: %d\\n\", countLeadingZeros(1));\n    printf(\"Leading zeros in 16: %d\\n\", countLeadingZeros(16));\n    printf(\"Leading zeros in 255: %d\\n\", countLeadingZeros(255));\n    \n    printf(\"\\nPower of 2 checks:\\n\");\n    printf(\"isPowerOfTwo(1) = %d\\n\", isPowerOfTwo(1));\n    printf(\"isPowerOfTwo(16) = %d\\n\", isPowerOfTwo(16));\n    printf(\"isPowerOfTwo(15) = %d\\n\", isPowerOfTwo(15));\n    printf(\"isPowerOfTwo(64) = %d\\n\", isPowerOfTwo(64));\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\n# Count leading zeros (useful for log2)\nframe countLeadingZeros(n: int) ret int {\n    local result: int = 0;\n    \n    if (n == 0) {\n        return 32;  # All zeros\n    }\n    \n    asm(\"intel\") {\n        bsr eax, (n)          # Bit scan reverse\n        xor eax, 31           # Convert to leading zeros\n        mov (=result), eax\n    }\n    \n    return result;\n}\n\n# Fast check if power of 2\nframe isPowerOfTwo(n: int) ret bool {\n    if (n <= 0) { return false; }\n    return (n & (n - 1)) == 0;\n}\n\nframe main() ret int {\n    printf(\"Leading zeros in 1: %d\\n\", countLeadingZeros(1));\n    printf(\"Leading zeros in 16: %d\\n\", countLeadingZeros(16));\n    printf(\"Leading zeros in 255: %d\\n\", countLeadingZeros(255));\n    \n    printf(\"\\nPower of 2 checks:\\n\");\n    printf(\"isPowerOfTwo(1) = %d\\n\", isPowerOfTwo(1));\n    printf(\"isPowerOfTwo(16) = %d\\n\", isPowerOfTwo(16));\n    printf(\"isPowerOfTwo(15) = %d\\n\", isPowerOfTwo(15));\n    printf(\"isPowerOfTwo(64) = %d\\n\", isPowerOfTwo(64));\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "Leading zeros in 1: 31\nLeading zeros in 16: 27\nLeading zeros in 255: 24\n\nPower of 2 checks:\nisPowerOfTwo(1) = 1\nisPowerOfTwo(16) = 1\nisPowerOfTwo(15) = 0\nisPowerOfTwo(64) = 1",
       "lineExplanations": {
@@ -100,7 +102,7 @@
       "title": "Practice: Swap Without Temp",
       "instructions": "Write `swapXor(a: *int, b: *int)` using inline assembly and XOR to swap two integers without a temporary variable.\n\nXOR swap: a ^= b; b ^= a; a ^= b;\n\nTest by swapping 10 and 20.",
       "hint": "Use Intel syntax. Load *a and *b, do three XOR operations, store back.",
-      "solution": "extern printf(fmt: string, ...);\n\nframe swapXor(a: *int, b: *int) {\n    asm(\"intel\") {\n        mov eax, [a]      # Load *a\n        mov ebx, [b]      # Load *b\n        xor eax, ebx      # a ^= b\n        xor ebx, eax      # b ^= a\n        xor eax, ebx      # a ^= b\n        mov [a], eax      # Store back\n        mov [b], ebx\n        [ \"eax\", \"ebx\" ]\n    }\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 20;\n    \n    printf(\"Before: x=%d, y=%d\\n\", x, y);\n    swapXor(&x, &y);\n    printf(\"After: x=%d, y=%d\\n\", x, y);\n    \n    return 0;\n}",
+      "solution": "import [printf] from \"std/c.bpl\";\n\nframe swapXor(a: *int, b: *int) {\n    asm(\"intel\") {\n        mov eax, [a]      # Load *a\n        mov ebx, [b]      # Load *b\n        xor eax, ebx      # a ^= b\n        xor ebx, eax      # b ^= a\n        xor eax, ebx      # a ^= b\n        mov [a], eax      # Store back\n        mov [b], ebx\n        [ \"eax\", \"ebx\" ]\n    }\n}\n\nframe main() ret int {\n    local x: int = 10;\n    local y: int = 20;\n    \n    printf(\"Before: x=%d, y=%d\\n\", x, y);\n    swapXor(&x, &y);\n    printf(\"After: x=%d, y=%d\\n\", x, y);\n    \n    return 0;\n}",
       "runnable": false
     },
     {

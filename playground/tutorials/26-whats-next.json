@@ -6,7 +6,9 @@
   "difficulty": "beginner",
   "duration": "5 min",
   "description": "Congratulations on completing the BPL tutorial! Discover resources, community, and projects to continue learning.",
-  "prerequisites": ["best-practices"],
+  "prerequisites": [
+    "best-practices"
+  ],
   "objectives": [
     "Find additional learning resources",
     "Discover project ideas",
@@ -32,7 +34,7 @@
     {
       "type": "code",
       "title": "Quick Reference Card",
-      "code": "# === BPL Quick Reference ===\n\n# Variables\nlocal x: int = 42;          # Mutable\nlocal const PI: float = 3.14; # Immutable\nglobal count: int = 0;      # Global variable\n\n# Functions (called 'frames')\nframe add(a: int, b: int) ret int {\n    return a + b;\n}\n\n# Structs with methods\nstruct Point {\n    x: int, y: int,\n    frame new(x: int, y: int) ret Point { return Point { x: x, y: y }; }\n}\n\n# Enums (algebraic data types)\nenum Option<T> { Some(T), None }\n\n# Pattern matching\nmatch (opt) {\n    Option.Some(val) => { /* use val */ },\n    Option.None => { /* handle none */ },\n}\n\n# Error handling\ntry {\n    throw 1;\n} catch (e: int) {\n    /* handle error */\n}\n\n# Lambdas\nlocal square: Lambda<int>(int) = |x: int| ret int { return x * x; };\n\n# Memory management\nlocal ptr: *int = cast<*int>(malloc(sizeof<int>()));\ndefer { free(cast<*void>(ptr)); }\n\n# FFI\nextern printf(fmt: string, ...);",
+      "code": "import [malloc], [free] from \"std/c.bpl\";\n\n# === BPL Quick Reference ===\n\n# Variables\nlocal x: int = 42;          # Mutable\nlocal const PI: float = 3.14; # Immutable\nglobal count: int = 0;      # Global variable\n\n# Functions (called 'frames')\nframe add(a: int, b: int) ret int {\n    return a + b;\n}\n\n# Structs with methods\nstruct Point {\n    x: int, y: int,\n    frame new(x: int, y: int) ret Point { return Point { x: x, y: y }; }\n}\n\n# Enums (algebraic data types)\nenum Option<T> { Some(T), None }\n\n# Pattern matching\nmatch (opt) {\n    Option.Some(val) => { /* use val */ },\n    Option.None => { /* handle none */ },\n}\n\n# Error handling\ntry {\n    throw 1;\n} catch (e: int) {\n    /* handle error */\n}\n\n# Lambdas\nlocal square: Lambda<int>(int) = |x: int| ret int { return x * x; };\n\n# Memory management\nlocal ptr: *int = cast<*int>(malloc(sizeof<int>()));\ndefer { free(cast<*void>(ptr)); }\n\n# FFI\n",
       "runnable": false,
       "lineExplanations": {
         "4": "Local variables with explicit type.",

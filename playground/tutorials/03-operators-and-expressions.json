@@ -6,7 +6,9 @@
   "difficulty": "beginner",
   "duration": "10 min",
   "description": "Learn how to perform calculations and comparisons using BPL's operators. Build complex expressions combining multiple operations.",
-  "prerequisites": ["variables-and-types"],
+  "prerequisites": [
+    "variables-and-types"
+  ],
   "objectives": [
     "Use arithmetic operators (+, -, *, /, %)",
     "Understand comparison operators (==, !=, <, >, <=, >=)",
@@ -22,7 +24,7 @@
     {
       "type": "code",
       "title": "Arithmetic Operators",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local a: int = 10;\n    local b: int = 3;\n    \n    # Basic arithmetic\n    printf(\"a = %d, b = %d\\n\", a, b);\n    printf(\"a + b = %d\\n\", a + b);   # Addition: 13\n    printf(\"a - b = %d\\n\", a - b);   # Subtraction: 7\n    printf(\"a * b = %d\\n\", a * b);   # Multiplication: 30\n    printf(\"a / b = %d\\n\", a / b);   # Division: 3 (integer division!)\n    printf(\"a %% b = %d\\n\", a % b);  # Modulo (remainder): 1\n    \n    # Negative numbers\n    local c: int = -5;\n    printf(\"-5 = %d\\n\", c);\n    printf(\"Absolute: %d\\n\", -c);    # Unary minus: 5\n    \n    # Float division (for decimals)\n    local x: float = 10.0;\n    local y: float = 3.0;\n    printf(\"10.0 / 3.0 = %.4f\\n\", x / y);  # 3.3333\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local a: int = 10;\n    local b: int = 3;\n    \n    # Basic arithmetic\n    printf(\"a = %d, b = %d\\n\", a, b);\n    printf(\"a + b = %d\\n\", a + b);   # Addition: 13\n    printf(\"a - b = %d\\n\", a - b);   # Subtraction: 7\n    printf(\"a * b = %d\\n\", a * b);   # Multiplication: 30\n    printf(\"a / b = %d\\n\", a / b);   # Division: 3 (integer division!)\n    printf(\"a %% b = %d\\n\", a % b);  # Modulo (remainder): 1\n    \n    # Negative numbers\n    local c: int = -5;\n    printf(\"-5 = %d\\n\", c);\n    printf(\"Absolute: %d\\n\", -c);    # Unary minus: 5\n    \n    # Float division (for decimals)\n    local x: float = 10.0;\n    local y: float = 3.0;\n    printf(\"10.0 / 3.0 = %.4f\\n\", x / y);  # 3.3333\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "a = 10, b = 3\na + b = 13\na - b = 7\na * b = 30\na / b = 3\na % b = 1\n-5 = -5\nAbsolute: 5\n10.0 / 3.0 = 3.3333",
       "lineExplanations": {
@@ -45,7 +47,7 @@
     {
       "type": "code",
       "title": "Comparison Operators",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local a: int = 10;\n    local b: int = 20;\n    local c: int = 10;\n    \n    printf(\"a = %d, b = %d, c = %d\\n\\n\", a, b, c);\n    \n    # Equality\n    printf(\"a == b: %d\\n\", a == b);   # 0 (false)\n    printf(\"a == c: %d\\n\", a == c);   # 1 (true)\n    printf(\"a != b: %d\\n\", a != b);   # 1 (true)\n    \n    # Relational\n    printf(\"a < b: %d\\n\", a < b);     # 1 (true)\n    printf(\"a > b: %d\\n\", a > b);     # 0 (false)\n    printf(\"a <= c: %d\\n\", a <= c);   # 1 (true)\n    printf(\"b >= a: %d\\n\", b >= a);   # 1 (true)\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local a: int = 10;\n    local b: int = 20;\n    local c: int = 10;\n    \n    printf(\"a = %d, b = %d, c = %d\\n\\n\", a, b, c);\n    \n    # Equality\n    printf(\"a == b: %d\\n\", a == b);   # 0 (false)\n    printf(\"a == c: %d\\n\", a == c);   # 1 (true)\n    printf(\"a != b: %d\\n\", a != b);   # 1 (true)\n    \n    # Relational\n    printf(\"a < b: %d\\n\", a < b);     # 1 (true)\n    printf(\"a > b: %d\\n\", a > b);     # 0 (false)\n    printf(\"a <= c: %d\\n\", a <= c);   # 1 (true)\n    printf(\"b >= a: %d\\n\", b >= a);   # 1 (true)\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "a = 10, b = 20, c = 10\n\na == b: 0\na == c: 1\na != b: 1\na < b: 1\na > b: 0\na <= c: 1\nb >= a: 1",
       "lineExplanations": {
@@ -60,7 +62,7 @@
     {
       "type": "code",
       "title": "Logical Operators",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local a: bool = true;\n    local b: bool = false;\n    \n    printf(\"a = true, b = false\\n\\n\");\n    \n    # AND: both must be true\n    printf(\"a && a: %d\\n\", a && a);   # 1 (true && true = true)\n    printf(\"a && b: %d\\n\", a && b);   # 0 (true && false = false)\n    printf(\"b && b: %d\\n\", b && b);   # 0 (false && false = false)\n    \n    # OR: at least one must be true\n    printf(\"a || a: %d\\n\", a || a);   # 1\n    printf(\"a || b: %d\\n\", a || b);   # 1\n    printf(\"b || b: %d\\n\", b || b);   # 0\n    \n    # NOT: flips the value\n    printf(\"!a: %d\\n\", !a);           # 0 (not true = false)\n    printf(\"!b: %d\\n\", !b);           # 1 (not false = true)\n    \n    # Combined example\n    local age: int = 25;\n    local hasLicense: bool = true;\n    local canDrive: bool = age >= 18 && hasLicense;\n    printf(\"Can drive (age >= 18 AND hasLicense): %d\\n\", canDrive);\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local a: bool = true;\n    local b: bool = false;\n    \n    printf(\"a = true, b = false\\n\\n\");\n    \n    # AND: both must be true\n    printf(\"a && a: %d\\n\", a && a);   # 1 (true && true = true)\n    printf(\"a && b: %d\\n\", a && b);   # 0 (true && false = false)\n    printf(\"b && b: %d\\n\", b && b);   # 0 (false && false = false)\n    \n    # OR: at least one must be true\n    printf(\"a || a: %d\\n\", a || a);   # 1\n    printf(\"a || b: %d\\n\", a || b);   # 1\n    printf(\"b || b: %d\\n\", b || b);   # 0\n    \n    # NOT: flips the value\n    printf(\"!a: %d\\n\", !a);           # 0 (not true = false)\n    printf(\"!b: %d\\n\", !b);           # 1 (not false = true)\n    \n    # Combined example\n    local age: int = 25;\n    local hasLicense: bool = true;\n    local canDrive: bool = age >= 18 && hasLicense;\n    printf(\"Can drive (age >= 18 AND hasLicense): %d\\n\", canDrive);\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "a = true, b = false\n\na && a: 1\na && b: 0\nb && b: 0\na || a: 1\na || b: 1\nb || b: 0\n!a: 0\n!b: 1\nCan drive (age >= 18 AND hasLicense): 1",
       "lineExplanations": {
@@ -78,7 +80,7 @@
     {
       "type": "code",
       "title": "Precedence Examples",
-      "code": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    # Arithmetic precedence: * before +\n    local result1: int = 2 + 3 * 4;      # 2 + (3*4) = 14, not 20\n    local result2: int = (2 + 3) * 4;    # (2+3) * 4 = 20\n    \n    printf(\"2 + 3 * 4 = %d\\n\", result1);\n    printf(\"(2 + 3) * 4 = %d\\n\", result2);\n    \n    # Mixed comparison and logic\n    local a: int = 5;\n    local b: int = 10;\n    local c: int = 15;\n    \n    # This: a < b && b < c\n    # Parses as: (a < b) && (b < c)\n    local inRange: bool = a < b && b < c;  # true\n    printf(\"5 < 10 < 15: %d\\n\", inRange);\n    \n    # Be explicit with parentheses!\n    local explicit: bool = (a < b) && (b < c);\n    printf(\"Explicit: %d\\n\", explicit);\n    \n    return 0;\n}",
+      "code": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    # Arithmetic precedence: * before +\n    local result1: int = 2 + 3 * 4;      # 2 + (3*4) = 14, not 20\n    local result2: int = (2 + 3) * 4;    # (2+3) * 4 = 20\n    \n    printf(\"2 + 3 * 4 = %d\\n\", result1);\n    printf(\"(2 + 3) * 4 = %d\\n\", result2);\n    \n    # Mixed comparison and logic\n    local a: int = 5;\n    local b: int = 10;\n    local c: int = 15;\n    \n    # This: a < b && b < c\n    # Parses as: (a < b) && (b < c)\n    local inRange: bool = a < b && b < c;  # true\n    printf(\"5 < 10 < 15: %d\\n\", inRange);\n    \n    # Be explicit with parentheses!\n    local explicit: bool = (a < b) && (b < c);\n    printf(\"Explicit: %d\\n\", explicit);\n    \n    return 0;\n}",
       "runnable": true,
       "expectedOutput": "2 + 3 * 4 = 14\n(2 + 3) * 4 = 20\n5 < 10 < 15: 1\nExplicit: 1",
       "lineExplanations": {
@@ -93,7 +95,7 @@
       "title": "Practice: Calculate Circle Area",
       "instructions": "Write a program that:\n1. Stores a radius (use 5.0)\n2. Calculates the area using: area = π × r²\n3. Use 3.14159 for π\n4. Print the result",
       "hint": "For r², you can write r * r since BPL doesn't have a power operator.",
-      "solution": "extern printf(fmt: string, ...);\n\nframe main() ret int {\n    local pi: float = 3.14159;\n    local radius: float = 5.0;\n    local area: float = pi * radius * radius;\n    \n    printf(\"Circle with radius %.1f has area %.2f\\n\", radius, area);\n    \n    return 0;\n}"
+      "solution": "import [printf] from \"std/c.bpl\";\n\nframe main() ret int {\n    local pi: float = 3.14159;\n    local radius: float = 5.0;\n    local area: float = pi * radius * radius;\n    \n    printf(\"Circle with radius %.1f has area %.2f\\n\", radius, area);\n    \n    return 0;\n}"
     },
     {
       "type": "text",
@@ -105,7 +107,12 @@
       "questions": [
         {
           "question": "What is the result of 7 / 2 when both are integers?",
-          "options": ["3.5", "3", "4", "Error"],
+          "options": [
+            "3.5",
+            "3",
+            "4",
+            "Error"
+          ],
           "correct": 1,
           "explanation": "Integer division truncates the decimal part. 7 / 2 = 3."
         },
@@ -122,7 +129,12 @@
         },
         {
           "question": "What is true && false?",
-          "options": ["true", "false", "Error", "undefined"],
+          "options": [
+            "true",
+            "false",
+            "Error",
+            "undefined"
+          ],
           "correct": 1,
           "explanation": "AND (&&) requires BOTH sides to be true. One false makes it false."
         }
