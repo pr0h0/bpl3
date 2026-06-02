@@ -14,6 +14,7 @@ import {
   BUILTIN_TYPE_REDEFINITION_CODE,
   ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
   ENUM_VARIANT_FIELD_UNKNOWN_CODE,
+  MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
@@ -31,6 +32,11 @@ import { validateFunctionAttributes } from "./validators/FunctionAttributeValida
 import * as ExprChecker from "./ExpressionChecker";
 import * as StmtChecker from "./StatementChecker";
 import * as CallChecker from "./CallChecker";
+
+type NonEnumCoverageProjection =
+  | "*"
+  | boolean
+  | NonEnumCoverageProjection[];
 
 /**
  * TypeChecker implementation that uses modular checker functions
@@ -1916,17 +1922,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   public checkMatchExhaustiveness(
     expr: AST.MatchExpr,
     enumDecl: AST.EnumDecl | undefined,
+    valueType?: AST.TypeNode,
   ): void {
-    // If matching on Any/Type, we only require a default case for now
+    // Non-enum matches need an unguarded catch-all or provable finite coverage.
     if (!enumDecl) {
-      const hasDefault = expr.arms.some(
-        (arm) => arm.pattern.kind === "PatternWildcard" && !arm.guard,
-      );
-      if (!hasDefault) {
+      if (!valueType || !this.isNonEnumMatchExhaustive(expr, valueType)) {
         throw new CompilerError(
           "Non-exhaustive match: missing default case (_)",
           "Type matching requires a default case.",
           expr.location,
+          MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
         );
       }
       return;
@@ -1965,9 +1970,88 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           `Non-exhaustive match: missing variants: ${missingVariants.join(", ")}`,
           "Match expressions must handle all enum variants or include a wildcard (_) pattern. Note: Guarded arms do not contribute to exhaustiveness.",
           expr.location,
+          MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
         );
       }
     }
+  }
+
+  private isNonEnumMatchExhaustive(
+    expr: AST.MatchExpr,
+    valueType: AST.TypeNode,
+  ): boolean {
+    const projections = this.getNonEnumCoverageProjections(valueType);
+    const unguardedPatterns = expr.arms
+      .filter((arm) => !arm.guard)
+      .map((arm) => arm.pattern);
+
+    return projections.every((projection) =>
+      unguardedPatterns.some((pattern) =>
+        this.patternCoversNonEnumProjection(pattern, projection),
+      ),
+    );
+  }
+
+  private getNonEnumCoverageProjections(
+    type: AST.TypeNode,
+  ): NonEnumCoverageProjection[] {
+    if (this.isBoolType(type)) {
+      return [true, false];
+    }
+
+    if (type.kind !== "TupleType") {
+      return ["*"];
+    }
+
+    let projections: NonEnumCoverageProjection[][] = [[]];
+    for (const elementType of type.types) {
+      const elementProjections =
+        this.getNonEnumCoverageProjections(elementType);
+      const next: NonEnumCoverageProjection[][] = [];
+
+      for (const current of projections) {
+        for (const elementProjection of elementProjections) {
+          next.push([...current, elementProjection]);
+        }
+      }
+
+      projections = next;
+    }
+
+    return projections;
+  }
+
+  private patternCoversNonEnumProjection(
+    pattern: AST.Pattern,
+    projection: NonEnumCoverageProjection,
+  ): boolean {
+    if (
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier"
+    ) {
+      return true;
+    }
+
+    if (Array.isArray(projection)) {
+      return (
+        pattern.kind === "PatternTuple" &&
+        pattern.patterns.length === projection.length &&
+        pattern.patterns.every((subPattern, index) =>
+          this.patternCoversNonEnumProjection(
+            subPattern,
+            projection[index]!,
+          ),
+        )
+      );
+    }
+
+    if (projection === "*") return false;
+
+    if (pattern.kind === "PatternLiteral" && pattern.value.type === "bool") {
+      return pattern.value.value === projection;
+    }
+
+    return false;
   }
 
   /**

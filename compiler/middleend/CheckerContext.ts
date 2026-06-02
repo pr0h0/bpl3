@@ -104,7 +104,11 @@ export interface CheckerContext {
   ): { field: AST.StructField; type: AST.TypeNode } | undefined;
 
   // Pattern Matching
-  checkMatchExhaustiveness(expr: AST.MatchExpr, enumDecl: AST.EnumDecl): void;
+  checkMatchExhaustiveness(
+    expr: AST.MatchExpr,
+    enumDecl: AST.EnumDecl | undefined,
+    valueType?: AST.TypeNode,
+  ): void;
   checkPattern(
     pattern: AST.Pattern,
     enumType: AST.TypeNode,

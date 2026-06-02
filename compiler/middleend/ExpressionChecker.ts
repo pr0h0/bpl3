@@ -1764,9 +1764,7 @@ export function checkMatchExpr(
     }
   }
 
-  if (enumDecl) {
-    this.checkMatchExhaustiveness(expr, enumDecl);
-  }
+  this.checkMatchExhaustiveness(expr, enumDecl, valueType);
 
   return resultType || this.makeVoidType();
 }
