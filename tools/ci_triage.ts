@@ -260,6 +260,9 @@ const IMPORT_IDEMPOTENCY_STEP_PATTERN = new RegExp(
   [
     "ImportIdempotency\\.test",
     "import idempotency",
+    "repeated namespace imports?",
+    "namespace imports?.*idempot",
+    "repeated_namespace_import",
     "explicit Error imports?.*implicit Error import",
     "Symbol ['\"]Error['\"] is already defined in this scope",
     "BPL_SYMBOL_ALREADY_DEFINED.*Symbol ['\"]Error['\"]",
@@ -1236,6 +1239,10 @@ const PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     IMPORT_IDEMPOTENCY_STEP_PATTERN,
     "bun test tests/ImportIdempotency.test.ts",
+  ],
+  [
+    IMPORT_IDEMPOTENCY_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "repeated namespace imports"',
   ],
   [
     IMPORT_IDEMPOTENCY_STEP_PATTERN,

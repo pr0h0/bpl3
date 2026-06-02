@@ -502,6 +502,29 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps import idempotency diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/ImportIdempotency.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "repeated namespace imports"',
+      'bun test tests/Integration.test.ts -t "stack_trace_error|stack_trace_uncaught|test_zero_comprehensive"',
+      "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "ImportIdempotency.test",
+      "import idempotency",
+      "allows repeated namespace imports from the same module",
+      "accepts repeated namespace imports in JSON-mode check diagnostics",
+      "repeated_namespace_import.bpl",
+      "error[BPL_SYMBOL_ALREADY_DEFINED][errors.bpl:22:1]: Symbol 'Error' is already defined in this scope",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps duplicate-symbol diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
@@ -3735,6 +3758,7 @@ describe("CI triage helper", () => {
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         "bun test tests/ImportIdempotency.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "repeated namespace imports"',
         'bun test tests/Integration.test.ts -t "stack_trace_error|stack_trace_uncaught|test_zero_comprehensive"',
         "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
         "bun run check",
