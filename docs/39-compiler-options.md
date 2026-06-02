@@ -528,6 +528,9 @@ Package source-safety diagnostics stay in the same `bpl check --json` shape
 after package root resolution: unsafe `main` values report `unsafe entrypoint`,
 and legacy `entry` values follow the same safety rule before either package
 entrypoint or subpath imports are resolved, even when `main` is present;
+`main` and legacy `entry` validation errors are reported before later manifest
+field failures such as `exports`, `keywords`, `repository`, dependency maps,
+scripts, or `bin`;
 symlinked entrypoint files report `entrypoint resolves to a symbolic link
 candidate`, and symlinked subpath parents report `subpath 'features/add'
 resolves to a symbolic link candidate`.

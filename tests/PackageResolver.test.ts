@@ -1555,6 +1555,77 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("reports main and entry metadata failures before later manifest fields", () => {
+    const cases = [
+      {
+        name: "main-type-before-exports",
+        manifestPatch: {
+          main: 42,
+          exports: "features/add.bpl",
+        },
+        expectedCode: "BPL_PACKAGE_MANIFEST_INVALID",
+        expectedMessage: "manifest main must be a string when present",
+        unexpectedMessage: "manifest exports",
+      },
+      {
+        name: "unsafe-main-before-exports",
+        manifestPatch: {
+          main: "../outside.bpl",
+          exports: "features/add.bpl",
+        },
+        expectedCode: "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
+        expectedMessage: "unsafe entrypoint '../outside.bpl'",
+        unexpectedMessage: "manifest exports",
+      },
+      {
+        name: "entry-type-before-repository",
+        manifestPatch: {
+          main: "index.bpl",
+          entry: ["index.bpl"],
+          repository: null,
+        },
+        expectedCode: "BPL_PACKAGE_MANIFEST_INVALID",
+        expectedMessage: "manifest entry must be a string when present",
+        unexpectedMessage: "manifest repository",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const appDir = path.join(tempDir, `app-${testCase.name}`);
+      const packageDir = path.join(appDir, "bpl_modules", "math");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "math",
+            version: "1.0.0",
+            ...testCase.manifestPatch,
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result, testCase.name).toBeNull();
+      expect(details.trace.failureReason, testCase.name).toBe(
+        "manifest-invalid",
+      );
+      expect(details.trace.failureCode, testCase.name).toBe(
+        testCase.expectedCode,
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.expectedMessage,
+      );
+      expect(details.trace.failureMessage, testCase.name).not.toContain(
+        testCase.unexpectedMessage,
+      );
+    }
+  });
+
   test("rejects package manifest collection metadata with malformed values", () => {
     const cases = [
       {

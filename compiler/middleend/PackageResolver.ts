@@ -719,6 +719,39 @@ function validatePackageManifestMatchesImport(
     }
   }
 
+  if (manifest.main !== undefined && typeof manifest.main !== "string") {
+    trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest main must be a string when present.`;
+    return false;
+  }
+
+  if (manifest.entry !== undefined && typeof manifest.entry !== "string") {
+    trace.failureReason = "manifest-invalid";
+    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
+    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest entry must be a string when present.`;
+    return false;
+  }
+
+  for (const entrypoint of [manifest.main, manifest.entry]) {
+    if (
+      typeof entrypoint === "string" &&
+      !isSafeManifestRelativePath(entrypoint)
+    ) {
+      return failOnUnsafePackageEntrypoint(packageRoot, entrypoint, trace);
+    }
+  }
+
+  const exportsError = validatePackageManifestExports(manifest.exports);
+  if (exportsError) {
+    return failPackageManifestInvalid(
+      packageName,
+      manifestPath,
+      trace,
+      exportsError,
+    );
+  }
+
   if (
     manifest.keywords !== undefined &&
     (!Array.isArray(manifest.keywords) ||
@@ -744,16 +777,6 @@ function validatePackageManifestMatchesImport(
     trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest repository must contain type 'git' and a string url field when present.`;
     return false;
-  }
-
-  const exportsError = validatePackageManifestExports(manifest.exports);
-  if (exportsError) {
-    return failPackageManifestInvalid(
-      packageName,
-      manifestPath,
-      trace,
-      exportsError,
-    );
   }
 
   for (const field of ["dependencies", "devDependencies"] as const) {
@@ -784,29 +807,6 @@ function validatePackageManifestMatchesImport(
       trace,
       binError,
     );
-  }
-
-  if (manifest.main !== undefined && typeof manifest.main !== "string") {
-    trace.failureReason = "manifest-invalid";
-    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
-    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest main must be a string when present.`;
-    return false;
-  }
-
-  if (manifest.entry !== undefined && typeof manifest.entry !== "string") {
-    trace.failureReason = "manifest-invalid";
-    trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
-    trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest entry must be a string when present.`;
-    return false;
-  }
-
-  for (const entrypoint of [manifest.main, manifest.entry]) {
-    if (
-      typeof entrypoint === "string" &&
-      !isSafeManifestRelativePath(entrypoint)
-    ) {
-      return failOnUnsafePackageEntrypoint(packageRoot, entrypoint, trace);
-    }
   }
 
   return true;

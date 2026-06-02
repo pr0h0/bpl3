@@ -589,7 +589,10 @@ subpaths that would otherwise point at safe files. The resolver validates both
 fields independently, so an unsafe legacy `entry` still invalidates the package
 when a safe `main` is present. The package manager validates both `main` and
 the legacy `entry` field as package-relative paths before install or pack
-operations continue.
+operations continue. Package import validation reports `main` and legacy
+`entry` failures before later manifest fields such as `exports`, `keywords`,
+`repository`, dependency maps, scripts, or `bin`, matching package-manager
+manifest validation order.
 The package import resolver also rejects malformed string metadata such as a
 non-string `$schema`, `description`, `author`, or `license` field before using
 the package entrypoint. It also validates `keywords` as an array of strings and
