@@ -338,6 +338,27 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps duplicate package install diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names"',
+      'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
+      "bun index.ts doctor packages --json",
+      "bun index.ts list --tree --json",
+    ];
+
+    for (const stepName of [
+      "BPL_PACKAGE_DUPLICATE_INSTALLED",
+      "duplicate-installed-package",
+      "Multiple installed directories declare package 'math'",
+      "BPL_PACKAGE_LOCK_VERIFY_FAILED duplicate-installed-package",
+      "list --tree --json duplicate installed package names",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps explicit package source-file import diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/PackageResolver.test.ts -t "explicit source-file"',
@@ -3629,6 +3650,72 @@ describe("CI triage helper", () => {
         'bun test tests/PackageResolver.test.ts -t "manifest"',
         'bun test tests/ModuleResolver.test.ts -t "manifest"',
         "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints duplicate package install repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-package-duplicate-installed-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 65,
+              name: "Package duplicate installed diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/65",
+              steps: [
+                {
+                  name: "BPL_PACKAGE_DUPLICATE_INSTALLED duplicate-installed-package",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names"',
+        'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
+        "bun index.ts doctor packages --json",
+        "bun index.ts list --tree --json",
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

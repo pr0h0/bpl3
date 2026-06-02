@@ -991,6 +991,16 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN = new RegExp(
+  [
+    "BPL_PACKAGE_DUPLICATE_INSTALLED",
+    "duplicate-installed-package",
+    "duplicate installed package names?",
+    "Multiple installed directories declare package",
+    "list --tree --json.*duplicate",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN = new RegExp(
   [
     "doctor lock verification drift",
@@ -1332,6 +1342,22 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     PACKAGE_DOCTOR_STALE_LOCK_STEP_PATTERN,
     "bun index.ts doctor packages --json",
+  ],
+  [
+    PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names"',
+  ],
+  [
+    PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
+    'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
+  ],
+  [
+    PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
+    "bun index.ts doctor packages --json",
+  ],
+  [
+    PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
+    "bun index.ts list --tree --json",
   ],
   [
     CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
