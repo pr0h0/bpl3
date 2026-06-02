@@ -371,6 +371,39 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toBe("2.5\n");
   });
 
+  it("should preserve generic enum struct variant mixed field offsets", () => {
+    const source = `
+      extern printf(fmt: string, ...) ret int;
+
+      enum Packet<T> {
+          Item { tag: u8, value: T, tail: u16 },
+      }
+
+      frame main() ret int {
+          local packet: Packet<float> = Packet.Item {
+              tag: 7,
+              value: 2.5,
+              tail: 513,
+          };
+
+          match (packet) {
+              Packet.Item { tag: tag, value: value, tail: tail } => {
+                  printf("%d %.1f %d\\n", tag, value, tail);
+              },
+          };
+
+          return 0;
+      }
+    `;
+
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) {
+      console.error("GenericEnumStructVariantOffsets Stderr:", stderr);
+    }
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("7 2.5 513\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);
