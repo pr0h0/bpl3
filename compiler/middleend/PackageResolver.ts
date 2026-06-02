@@ -1036,7 +1036,12 @@ function resolvePackageSubpath(
   parts: string[],
   trace: PackageResolutionTrace,
 ): string | null {
-  if (!isPackageSubpathExported(packageRoot, manifest, trace)) {
+  const exportAllowlist = getPackageSubpathExportAllowlist(
+    packageRoot,
+    manifest,
+    trace,
+  );
+  if (exportAllowlist === false) {
     return null;
   }
 
@@ -1044,20 +1049,21 @@ function resolvePackageSubpath(
     path.join(packageRoot, ...parts.slice(1)),
     packageRoot,
     trace,
+    exportAllowlist ?? undefined,
   );
 }
 
-function isPackageSubpathExported(
+function getPackageSubpathExportAllowlist(
   packageRoot: string,
   manifest: Record<string, unknown>,
   trace: PackageResolutionTrace,
-): boolean {
+): ReadonlySet<string> | null | false {
   if (trace.subPath === undefined || manifest.exports === undefined) {
-    return true;
+    return null;
   }
 
   if (!Array.isArray(manifest.exports)) {
-    return true;
+    return null;
   }
 
   const exportedPaths = new Set(
@@ -1066,8 +1072,11 @@ function isPackageSubpathExported(
       .map((entry) => normalizeManifestRelativePath(entry)),
   );
   const candidates = getPackageSubpathExportCandidates(trace.subPath);
-  if (candidates.some((candidate) => exportedPaths.has(candidate))) {
-    return true;
+  const allowedCandidates = candidates.filter((candidate) =>
+    exportedPaths.has(candidate),
+  );
+  if (allowedCandidates.length > 0) {
+    return new Set(allowedCandidates);
   }
 
   trace.failureReason = "subpath-not-found";
@@ -1101,7 +1110,14 @@ function resolvePackageSourcePath(
   filePath: string,
   packageRoot: string,
   trace: PackageResolutionTrace,
+  allowedRelativePaths?: ReadonlySet<string>,
 ): string | null {
+  const candidateAllowed = (candidatePath: string): boolean =>
+    isPackageSourceCandidateAllowed(
+      candidatePath,
+      packageRoot,
+      allowedRelativePaths,
+    );
   const symlinkedParent = findSymlinkedPackageSourceParent(filePath, packageRoot);
   if (symlinkedParent) {
     addEntryCandidate(trace, filePath);
@@ -1110,7 +1126,7 @@ function resolvePackageSourcePath(
   }
 
   const sourceCaseMismatchPath = findCaseMismatchPath(filePath);
-  if (sourceCaseMismatchPath) {
+  if (sourceCaseMismatchPath && candidateAllowed(filePath)) {
     addEntryCandidate(trace, filePath);
     failOnCaseMismatchedSourceCandidate(
       filePath,
@@ -1121,21 +1137,23 @@ function resolvePackageSourcePath(
   }
 
   const directStats = tryLstat(filePath);
-  if (!directStats) {
+  if (!directStats && candidateAllowed(filePath)) {
     addEntryCandidate(trace, filePath);
   }
   if (directStats) {
     if (directStats.isSymbolicLink()) {
-      addEntryCandidate(trace, filePath);
-      failOnSymlinkedSourceCandidate(filePath, trace);
-      return null;
+      if (candidateAllowed(filePath)) {
+        addEntryCandidate(trace, filePath);
+        failOnSymlinkedSourceCandidate(filePath, trace);
+        return null;
+      }
     }
-    if (directStats.isFile()) {
+    if (directStats.isFile() && candidateAllowed(filePath)) {
       addEntryCandidate(trace, filePath);
       return filePath;
     }
     if (directStats.isDirectory()) {
-      if (hasPackageSourceExtension(filePath)) {
+      if (hasPackageSourceExtension(filePath) && candidateAllowed(filePath)) {
         addEntryCandidate(trace, filePath);
         failOnExplicitSourceFileDirectory(filePath, packageRoot, trace);
         return null;
@@ -1143,6 +1161,7 @@ function resolvePackageSourcePath(
 
       for (const indexName of ["index.bpl", "index.x"]) {
         const indexPath = path.join(filePath, indexName);
+        if (!candidateAllowed(indexPath)) continue;
         addEntryCandidate(trace, indexPath);
         const indexCaseMismatchPath = findCaseMismatchPath(indexPath);
         if (indexCaseMismatchPath) {
@@ -1170,6 +1189,7 @@ function resolvePackageSourcePath(
       filePath.endsWith(".bpl") || filePath.endsWith(".x")
         ? filePath
         : filePath + ext;
+    if (!candidateAllowed(fullPath)) continue;
     addEntryCandidate(trace, fullPath);
     const fullPathCaseMismatchPath = findCaseMismatchPath(fullPath);
     if (fullPathCaseMismatchPath) {
@@ -1191,6 +1211,26 @@ function resolvePackageSourcePath(
   }
 
   return null;
+}
+
+function isPackageSourceCandidateAllowed(
+  candidatePath: string,
+  packageRoot: string,
+  allowedRelativePaths?: ReadonlySet<string>,
+): boolean {
+  if (!allowedRelativePaths) return true;
+
+  const relativePath = path.relative(packageRoot, candidatePath);
+  if (
+    relativePath.length === 0 ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    return false;
+  }
+
+  return allowedRelativePaths.has(normalizeManifestRelativePath(relativePath));
 }
 
 function hasPackageSourceExtension(filePath: string): boolean {

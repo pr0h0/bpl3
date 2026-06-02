@@ -602,6 +602,11 @@ Extensionless imports still use the normal resolver fallbacks, so exporting
 `features/add.bpl` allows
 `import [...] from "pkg/features/add"`, and exporting
 `features/math/index.bpl` allows `import [...] from "pkg/features/math"`.
+When an `exports` allowlist is present, those fallbacks only probe exported
+source paths. For example, if `exports` contains `legacy.x`, an extensionless
+`pkg/legacy` import resolves `legacy.x` and does not expose a hidden
+`legacy.bpl`; similarly, an exported `features/math/index.x` is not shadowed by
+an unexported `features/math/index.bpl`.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the

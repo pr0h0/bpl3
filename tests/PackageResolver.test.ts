@@ -1396,6 +1396,39 @@ describe("PackageResolver", () => {
     );
   });
 
+  test("limits extensionless package subpath fallback to exported candidates", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features", "increment");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "math",
+          version: "1.0.0",
+          main: "index.bpl",
+          exports: ["legacy.x", "features/increment/index.x"],
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+    fs.writeFileSync(path.join(packageDir, "legacy.bpl"), "export hidden;");
+    fs.writeFileSync(path.join(packageDir, "legacy.x"), "export legacy;");
+    fs.writeFileSync(path.join(featureDir, "index.bpl"), "export hidden;");
+    fs.writeFileSync(path.join(featureDir, "index.x"), "export increment;");
+
+    const legacy = resolvePackageImport("math/legacy", appDir);
+    const increment = resolvePackageImport("math/features/increment", appDir);
+
+    expect(legacy.result?.filePath).toBe(path.join(packageDir, "legacy.x"));
+    expect(increment.result?.filePath).toBe(
+      path.join(featureDir, "index.x"),
+    );
+  });
+
   test("keeps package subpath imports permissive when manifest exports is absent", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");

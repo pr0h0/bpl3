@@ -82,6 +82,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `index.bpl`/`index.x` fallback imports, packages without `exports` keep the
   previous permissive subpath behavior, and hidden subpaths now report the
   stable `BPL_PACKAGE_SUBPATH_NOT_EXPORTED` diagnostic code.
+- **Package Resolver Exported Candidate Filtering** - extensionless package
+  subpath imports now restrict fallback probing to the source files listed by
+  `exports`, so an unexported `.bpl` file or `index.bpl` cannot shadow an
+  exported `.x` or `index.x` candidate.
 - **Package Resolver Exports Validation** - Package import resolution now
   rejects installed package manifests whose optional `exports` field is not an
   array of safe package-relative paths, matching PackageManager manifest loading
