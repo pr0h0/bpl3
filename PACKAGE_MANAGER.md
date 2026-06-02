@@ -58,6 +58,9 @@ archive. Archive install revalidates those exported paths after extraction and
 before replacing any installed package, so third-party archives cannot publish
 broken public subpaths. Package-cache verify and repair use the same extracted
 export checks before treating cached archives as healthy or repairable.
+Lockfile verification and `bpl install --repair-lock` also validate installed
+package exports, so a lockfile cannot silently trust or record a package with
+missing, directory, or symlinked public subpaths.
 
 ## CLI Commands
 

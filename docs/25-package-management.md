@@ -239,8 +239,9 @@ directory, or if its source hash no longer matches the lockfile. Missing
 `bpl_modules` roots still report package-missing issues for locked entries;
 symlinked roots are rejected before any locked package manifest or file content
 is read through the link. It also checks installed package manifests for missing
-or malformed transitive dependency roots and lock entries, so deleting
-`bpl_modules/math-core` or removing `math-core` from `bpl.lock` will be reported
+or malformed exported subpaths, transitive dependency roots, and lock entries,
+so deleting `bpl_modules/math-core`, removing `math-core` from `bpl.lock`, or
+leaving an exported file path missing from an installed package will be reported
 even when only `math-extra` imports it.
 
 To re-resolve `bpl.json` dependency selectors and rewrite `bpl.lock`, run:
@@ -272,11 +273,12 @@ bpl install --repair-lock
 
 This updates recorded versions and hashes for installed packages and removes
 lock entries for packages that are no longer installed. `--repair-lock` refuses
-duplicate installed package names before writing `bpl.lock`; JSON failures use
-the `duplicate-installed-package` issue kind so CI can point users at the
-ambiguous `bpl_modules/` directories instead of accepting a collapsed lockfile.
-Those duplicate repair-lock issues include a `paths` array with every
-conflicting installed directory.
+duplicate installed package names and installed packages with invalid `exports`
+entries before writing `bpl.lock`; export failures use the `invalid-manifest`
+issue kind, and duplicate failures use the `duplicate-installed-package` issue
+kind so CI can point users at ambiguous `bpl_modules/` directories instead of
+accepting a collapsed lockfile. Those duplicate repair-lock issues include a
+`paths` array with every conflicting installed directory.
 Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field. Successful `bpl install --locked --json` reports include

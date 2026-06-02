@@ -1231,6 +1231,11 @@ export class PackageManager {
       let manifest: PackageManifest;
       try {
         manifest = this.loadManifest(installPath);
+        this.validatePackageExportFiles(
+          manifest,
+          installPath,
+          path.join(installPath, "bpl.json"),
+        );
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         addIssue({
@@ -4384,6 +4389,8 @@ export class PackageManager {
     const duplicateIssues = this.findDuplicateLockRepairIssues(
       installedPackages,
     );
+    const invalidExportIssues =
+      this.findInvalidLockRepairExportIssues(installedPackages);
 
     if (duplicateIssues.length > 0) {
       const verification: PackageLockVerification = {
@@ -4396,6 +4403,20 @@ export class PackageManager {
         verification,
         this.getLockFilePath(),
         "Keep only one installed directory for each package name, then rerun 'bpl install --repair-lock'.",
+      );
+    }
+
+    if (invalidExportIssues.length > 0) {
+      const verification: PackageLockVerification = {
+        ok: false,
+        errors: invalidExportIssues.map((issue) => issue.message),
+        issues: invalidExportIssues,
+        packagesChecked: installedPackages.length,
+      };
+      throw new PackageLockVerificationError(
+        verification,
+        this.getLockFilePath(),
+        "Fix installed package manifests or reinstall broken packages, then rerun 'bpl install --repair-lock'.",
       );
     }
 
@@ -4448,6 +4469,33 @@ export class PackageManager {
         paths: issue.paths,
       }),
     );
+  }
+
+  private findInvalidLockRepairExportIssues(
+    installedPackages: readonly PackageInfo[],
+  ): PackageLockVerificationIssue[] {
+    const issues: PackageLockVerificationIssue[] = [];
+
+    for (const pkg of installedPackages) {
+      try {
+        this.validatePackageExportFiles(
+          pkg.manifest,
+          pkg.path,
+          path.join(pkg.path, "bpl.json"),
+        );
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          packageName: pkg.manifest.name,
+          kind: "invalid-manifest",
+          message: `${pkg.manifest.name}: invalid installed package (${detail})`,
+          packagePath: pkg.path,
+          expectedVersion: pkg.manifest.version,
+        });
+      }
+    }
+
+    return issues;
   }
 
   private findDuplicateInstalledPackageNameIssues(

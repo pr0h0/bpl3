@@ -2804,6 +2804,91 @@ describe("PackageManager", () => {
       expect(verification.errors.join("\n")).toContain("hash mismatch");
     });
 
+    test("should verify installed package exports against bpl.lock", () => {
+      const appDir = path.join(tempDir, "export-lock-app");
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const cases = [
+        {
+          packageName: "export-lock-missing",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features"));
+          },
+          expected: "Missing package export entry: features/public.bpl",
+        },
+        {
+          packageName: "export-lock-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features", "public.bpl"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+      ] as const;
+
+      fs.mkdirSync(path.join(appDir, "bpl_modules"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "export-lock-app", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+
+      const localPM = new PackageManager(appDir);
+      const packages: Record<
+        string,
+        { version: string; source: string; hash: string }
+      > = {};
+
+      for (const testCase of cases) {
+        const packageDir = path.join(
+          appDir,
+          "bpl_modules",
+          testCase.packageName,
+        );
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              exports: ["features/public.bpl"],
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+        packages[testCase.packageName] = {
+          version: "1.0.0",
+          source: "file:source.tgz",
+          hash: localPM["calculatePackageHash"](packageDir),
+        };
+      }
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages }, null, 2),
+      );
+
+      const verification = localPM.verifyLockFile();
+
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toEqual(
+        expect.arrayContaining(
+          cases.map((testCase) =>
+            expect.objectContaining({
+              packageName: testCase.packageName,
+              kind: "invalid-manifest",
+              message: expect.stringContaining(testCase.expected),
+            }),
+          ),
+        ),
+      );
+    });
+
     test("should reject lock entries whose installed manifest name differs from the lock key", () => {
       const appDir = path.join(tempDir, "manifest-name-lock-app");
       const sourceArchive = path.join(appDir, "source.tgz");
@@ -3748,6 +3833,89 @@ describe("PackageManager", () => {
       const result = localPM.repairLockFile();
       expect(result.updated).toContain("repair-math");
       expect(result.removed).toContain("stale");
+      expect(localPM.verifyLockFile().ok).toBe(true);
+    });
+
+    test("should reject invalid installed package exports when repairing lockfiles", () => {
+      const appDir = path.join(tempDir, "repair-export-invalid-app");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "repair-export-invalid",
+      );
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "repair-export-invalid-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "repair-export-invalid",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const localPM = new PackageManager(appDir);
+
+      expect(() => localPM.repairLockFile()).toThrow(
+        PackageLockVerificationError,
+      );
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
+    });
+
+    test("should repair lockfiles with valid exported non-bpl package files", () => {
+      const appDir = path.join(tempDir, "repair-export-valid-app");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "repair-export-valid",
+      );
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "repair-export-valid-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(appDir, "repair-export-valid-1.0.0.tgz"), "");
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "repair-export-valid",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/native.x"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "features", "native.x"),
+        "extern nativeFeature;",
+      );
+
+      const localPM = new PackageManager(appDir);
+
+      const result = localPM.repairLockFile();
+
+      expect(result.updated).toContain("repair-export-valid");
       expect(localPM.verifyLockFile().ok).toBe(true);
     });
 
