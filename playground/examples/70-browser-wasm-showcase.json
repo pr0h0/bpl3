@@ -7,6 +7,9 @@
     "mode": "wasm-hosted",
     "browserRuntime": true,
     "canonicalMatrixFile": "examples/wasm_hosted_transform/main.bpl",
+    "expectedReturn": 0,
+    "expectedStdout": "BPL hosted wasm demo\nargv[1]: browser\nfib(7) verified\n",
+    "expectedStderr": "",
     "reason": "Hosted browser wasm showcase that uses argv, stdout, stdlib String, and pure control flow through the JavaScript host adapter."
   },
   "code": [
@@ -38,5 +41,6 @@
     "}"
   ],
   "input": "",
-  "args": ["browser", "wasm"]
+  "args": ["browser", "wasm"],
+  "expectedOutput": "BPL hosted wasm demo\nargv[1]: browser\nfib(7) verified\n"
 }

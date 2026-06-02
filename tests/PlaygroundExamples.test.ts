@@ -17,6 +17,7 @@ interface Example {
   code: string | string[];
   input?: string;
   args?: string[];
+  expectedOutput?: string | string[];
 }
 
 interface CompileResponse {
@@ -177,6 +178,10 @@ function loadExamples(): Example[] {
   return examples.sort((a, b) => a.order - b.order);
 }
 
+function expectedOutputSnippets(expectedOutput: string | string[]): string[] {
+  return Array.isArray(expectedOutput) ? expectedOutput : [expectedOutput];
+}
+
 describe("BPL Playground Examples", () => {
   const examples = loadExamples();
   const results: Map<string, { passed: boolean; error?: string }> = new Map();
@@ -297,6 +302,15 @@ describe("BPL Playground Examples", () => {
           expect(result.output).toBeDefined();
           if (!result.output || result.output.trim() === "") {
             throw new Error("No output produced");
+          }
+        }
+
+        if (example.expectedOutput !== undefined) {
+          expect(result.output).toBeDefined();
+          for (const expected of expectedOutputSnippets(
+            example.expectedOutput,
+          )) {
+            expect(result.output).toContain(expected);
           }
         }
 

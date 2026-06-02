@@ -16,10 +16,15 @@ interface PlaygroundWasmMetadata {
   reason: string;
   browserRuntime: boolean;
   canonicalMatrixFile?: string;
+  expectedReturn?: number;
+  expectedStdout?: string;
+  expectedStderr?: string;
 }
 
 interface PlaygroundExample {
   title: string;
+  args?: string[];
+  expectedOutput?: string | string[];
   wasm?: PlaygroundWasmMetadata;
 }
 
@@ -54,6 +59,24 @@ describe("Playground wasm example metadata", () => {
       canonicalMatrixFile: "examples/wasm_hosted_transform/main.bpl",
     });
     expect(wasmExamples[0]?.wasm?.reason.length ?? 0).toBeGreaterThan(20);
+  });
+
+  test("keeps the browser wasm showcase runtime contract explicit", () => {
+    const showcase = loadPlaygroundExamples().find(
+      (example) =>
+        example.file === "playground/examples/70-browser-wasm-showcase.json",
+    );
+
+    expect(showcase?.args).toEqual(["browser", "wasm"]);
+    expect(showcase?.expectedOutput).toEqual(
+      "BPL hosted wasm demo\nargv[1]: browser\nfib(7) verified\n",
+    );
+    expect(showcase?.wasm).toMatchObject({
+      expectedReturn: 0,
+      expectedStdout:
+        "BPL hosted wasm demo\nargv[1]: browser\nfib(7) verified\n",
+      expectedStderr: "",
+    });
   });
 
   test("keeps playground wasm metadata aligned with the compiler compatibility matrix", () => {
