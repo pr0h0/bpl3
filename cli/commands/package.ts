@@ -928,15 +928,41 @@ function formatPackageLockVerificationJsonPayload(
 
 function formatPackageInstallResultJsonPayload(
   result: PackageProjectInstallResult | undefined,
-): { action: "verified"; packagesChecked: number } | Record<string, never> {
-  if (result?.action === "verified") {
-    return {
-      action: "verified",
-      packagesChecked: result.packagesChecked,
-    };
+):
+  | { action: "verified"; packagesChecked: number }
+  | {
+      action: "repaired";
+      packages: number;
+      updated: string[];
+      removed: string[];
+    }
+  | { action: "restored" | "installed" | "noop"; packages: number }
+  | Record<string, never> {
+  if (!result) {
+    return {};
   }
 
-  return {};
+  switch (result.action) {
+    case "verified":
+      return {
+        action: "verified",
+        packagesChecked: result.packagesChecked,
+      };
+    case "repaired":
+      return {
+        action: "repaired",
+        packages: result.packages,
+        updated: result.updated,
+        removed: result.removed,
+      };
+    case "restored":
+    case "installed":
+    case "noop":
+      return {
+        action: result.action,
+        packages: result.packages,
+      };
+  }
 }
 
 function formatPackageInstallJsonPayload(

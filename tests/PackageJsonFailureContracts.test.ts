@@ -1255,6 +1255,8 @@ describe("Package JSON failure contracts", () => {
         locked: false,
         update: true,
         repairLock: false,
+        action: "noop",
+        packages: 0,
       });
       expect(
         JSON.parse(readFileSync(join(context.cwd, "bpl.lock"), "utf8")),

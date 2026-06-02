@@ -848,7 +848,28 @@ describe("CLI JSON parseability", () => {
       locked: false,
       update: false,
       repairLock: false,
+      action: "noop",
+      packages: 0,
     });
+
+    const updateResult = runCli(["install", "--update", "--json"], {
+      cwd: tempDir,
+    });
+    expect(updateResult.status).toBe(0);
+    expect(parseJsonObjectStdout(updateResult)).toEqual({
+      schemaVersion: 1,
+      check: "package-install",
+      success: true,
+      mode: "project",
+      target: null,
+      global: false,
+      locked: false,
+      update: true,
+      repairLock: false,
+      action: "noop",
+      packages: 0,
+    });
+    expect(fs.existsSync(path.join(tempDir, "bpl.lock"))).toBe(true);
   });
 
   test("keeps locked package install JSON success stdout parseable", () => {

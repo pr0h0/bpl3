@@ -1985,6 +1985,7 @@ describe("Package Manager CLI", () => {
     test("should repair lockfiles from installed packages", () => {
       const appDir = path.join(tempDir, "cli-repair-app");
       const packageDir = path.join(appDir, "bpl_modules", "cli-repair");
+      const lockPath = path.join(appDir, "bpl.lock");
       fs.mkdirSync(packageDir, { recursive: true });
 
       fs.writeFileSync(
@@ -2001,7 +2002,7 @@ describe("Package Manager CLI", () => {
       );
       fs.writeFileSync(path.join(packageDir, "index.bpl"), "export repaired;");
       fs.writeFileSync(
-        path.join(appDir, "bpl.lock"),
+        lockPath,
         JSON.stringify(
           {
             lockfileVersion: 1,
@@ -2031,10 +2032,58 @@ describe("Package Manager CLI", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("Repaired bpl.lock");
       const lock = JSON.parse(
-        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+        fs.readFileSync(lockPath, "utf8"),
       );
       expect(lock.packages["cli-repair"].hash).not.toBe("wrong");
       expect(lock.packages["cli-stale"]).toBeUndefined();
+
+      fs.writeFileSync(
+        lockPath,
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "cli-repair": {
+                version: "1.0.0",
+                source: "cli-repair-1.0.0.tgz",
+                hash: "wrong-again",
+              },
+              "cli-stale": {
+                version: "9.9.9",
+                source: "cli-stale-9.9.9.tgz",
+                hash: "stale",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const jsonResult = spawnSync(
+        "bun",
+        [bplPath, "install", "--repair-lock", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+      const repairReport = expectJsonStdoutReport(jsonResult, {
+        status: 0,
+        check: "package-install",
+        success: true,
+      });
+      expect(repairReport).toMatchObject({
+        mode: "project",
+        target: null,
+        repairLock: true,
+        action: "repaired",
+        packages: 1,
+        updated: ["cli-repair"],
+        removed: ["cli-stale"],
+      });
+      expect(jsonResult.stderr).toBe("");
     });
 
     test("should reject lockfile repair for duplicate installed package names", () => {

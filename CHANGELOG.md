@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl.json` before restoring packages from a non-empty `bpl.lock`, so malformed
   dependency sources cannot be hidden by stale lockfile entries. Reproduce with
   `bun test tests/PackageJsonFailureContracts.test.ts -t "before restoring non-empty lockfiles"`.
+- **Package Install JSON Actions** - Successful project install JSON reports now
+  include the existing project action details for `noop`, `installed`,
+  `restored`, and `repaired` modes, instead of only reporting locked
+  verification details. Reproduce with
+  `bun test tests/CLIJsonParseability.test.ts tests/PackageManagerCLI.test.ts -t "package install JSON success stdout parseable|repair lockfiles from installed packages"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every
