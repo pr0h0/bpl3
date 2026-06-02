@@ -2093,6 +2093,7 @@ describe("CLI JSON parseability", () => {
       check: string;
       success: boolean;
       file: string;
+      errorCode?: string;
       diagnostics: Array<{
         code?: string;
         message: string;
@@ -2108,6 +2109,7 @@ describe("CLI JSON parseability", () => {
       check: "build",
       success: false,
       file: missingFile,
+      errorCode: "BPL_MODULE_NOT_FOUND",
       diagnostics: [
         {
           code: "BPL_MODULE_NOT_FOUND",

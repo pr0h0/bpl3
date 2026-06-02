@@ -282,6 +282,13 @@ function formatBuildJsonErrorCode(
     return { errorCode: error.code };
   }
 
+  const diagnosticCode = getCompilationDiagnostics(error)?.find(
+    (diagnostic) => diagnostic.code,
+  )?.code;
+  if (diagnosticCode) {
+    return { errorCode: diagnosticCode };
+  }
+
   return {};
 }
 
