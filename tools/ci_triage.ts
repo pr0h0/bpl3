@@ -113,6 +113,7 @@ const MAPPED_JSON_CODE_GROUP_NAMES = [
   "package-uninstall",
   "package-cache",
   "package-install",
+  "package-list",
   "package-archive",
   "package-manifest",
   "package-resolver",
@@ -1001,6 +1002,15 @@ const PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_LIST_JSON_STEP_PATTERN = new RegExp(
+  [
+    "PACKAGE_LIST_JSON_ERROR_CODES",
+    "package-list(?:-tree)? JSON",
+    "package list(?: tree)? JSON",
+    "bpl list --(?:tree --)?json",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN = new RegExp(
   [
     "doctor lock verification drift",
@@ -1359,6 +1369,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
     "bun index.ts list --tree --json",
   ],
+  [
+    PACKAGE_LIST_JSON_STEP_PATTERN,
+    'bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists|empty failure shapes"',
+  ],
+  [
+    PACKAGE_LIST_JSON_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package list JSON stdout parseable"',
+  ],
+  [
+    PACKAGE_LIST_JSON_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
+  ],
+  [PACKAGE_LIST_JSON_STEP_PATTERN, "bun index.ts list --json"],
   [
     CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
     "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",

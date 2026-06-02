@@ -359,6 +359,26 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps package list JSON failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists|empty failure shapes"',
+      'bun test tests/CLIJsonParseability.test.ts -t "package list JSON stdout parseable"',
+      'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
+      "bun index.ts list --json",
+    ];
+
+    for (const stepName of [
+      "package-list JSON failure",
+      "Package list JSON failure codes",
+      "PACKAGE_LIST_JSON_ERROR_CODES",
+      "bpl list --json failed",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps explicit package source-file import diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/PackageResolver.test.ts -t "explicit source-file"',
