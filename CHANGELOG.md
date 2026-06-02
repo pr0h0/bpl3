@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   package-cache `invalid-archive` and cached `bin` archive failures to the
   focused package-cache CLI/API regression tests, including symlinked cached
   binary archive members.
+- **Release Smoke Package Cache Bin JSON** - packed npm release smoke now
+  builds a cached archive with an invalid `bin` target and verifies
+  `bpl package-cache repair --json` returns a parseable `invalid-archive`
+  issue without writing a provenance sidecar.
 - **Package Lock Bin Validation** - lockfile verification validates installed
   package `bin` entries before trusting a lock entry, and `bpl install
   --repair-lock` now refuses to record an invalid installed package bin target.

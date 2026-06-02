@@ -212,9 +212,18 @@ interface PackageCacheVerifyReport {
   success: boolean;
   ok: boolean;
   entriesChecked: number;
-  issues: unknown[];
+  issues: PackageCacheIssue[];
   error?: string;
   errorCode?: string;
+}
+
+interface PackageCacheIssue {
+  packageName?: string;
+  version?: string;
+  kind?: string;
+  message?: string;
+  path?: string;
+  provenancePath?: string;
 }
 
 interface PackageCacheCleanReport {
@@ -234,7 +243,7 @@ interface PackageCacheRepairReport {
   dryRun: boolean;
   repaired: unknown[];
   unchanged: unknown[];
-  issues: unknown[];
+  issues: PackageCacheIssue[];
   error?: string;
   errorCode?: string;
 }
@@ -648,6 +657,7 @@ function runPackedPackageSmoke(): void {
     runPackedPackageCacheMaintenanceJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheValidationJsonSmoke(installedBpl, installDir);
     runPackedPackageCacheNameValidationJsonSmoke(installedBpl, installDir);
+    runPackedPackageCacheBinInvalidArchiveJsonSmoke(installedBpl, installDir);
     runPackedLockedInstallSafetySmoke(installedBpl);
     runPackedPackageImportDiagnosticCodeSmoke(installedBpl);
     runPackedCheckJsonSmoke(installedBpl);
@@ -2836,6 +2846,119 @@ function runPackedPackageCacheNameValidationJsonSmoke(
         `list:\n${JSON.stringify(listReport, null, 2)}`,
         `verify:\n${JSON.stringify(verifyReport, null, 2)}`,
         `clean:\n${JSON.stringify(cleanReport, null, 2)}`,
+        `repair:\n${JSON.stringify(repairReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+}
+
+function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
+  installedBpl: string,
+  installDir: string,
+): void {
+  const packageName = "release-smoke-cache-bin-invalid";
+  const homeDir = join(installDir, "package-cache-bin-invalid-home");
+  const cacheDir = join(homeDir, ".bpl", "packages");
+  const sourceDir = join(installDir, "package-cache-bin-invalid-source");
+  const packageRoot = join(sourceDir, "package");
+  const archivePath = join(cacheDir, `${packageName}-1.0.0.tgz`);
+
+  mkdirSync(join(packageRoot, "bin"), { recursive: true });
+  mkdirSync(cacheDir, { recursive: true });
+  writeFileSync(
+    join(packageRoot, "bpl.json"),
+    JSON.stringify(
+      {
+        name: packageName,
+        version: "1.0.0",
+        main: "index.bpl",
+        bin: { broken: "bin/missing.bpl" },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(join(packageRoot, "index.bpl"), "export root;\n");
+
+  const tarResult = spawnSync(
+    "tar",
+    ["-czf", archivePath, "-C", sourceDir, "package"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      timeout: smokeTimeoutMs,
+    },
+  );
+
+  if (tarResult.error) throw tarResult.error;
+  if (tarResult.status !== 0) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache bin invalid archive fixture could not be created.",
+        `tar exit: ${tarResult.status ?? "unknown"}`,
+        `stdout:\n${tarResult.stdout}`,
+        `stderr:\n${tarResult.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  console.log(
+    "release smoke: check packed npm CLI package-cache bin invalid archive JSON",
+  );
+  const result = spawnSync(
+    installedBpl,
+    ["package-cache", "repair", "release-smoke-cache-bin-invalid", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null, env: { HOME: homeDir } }),
+      timeout: smokeTimeoutMs,
+    },
+  );
+
+  if (result.error) throw result.error;
+  if (result.status !== 1) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache bin invalid archive smoke did not fail as expected.",
+        `exit: ${result.status ?? "unknown"}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+  if (result.stderr !== "") {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache bin invalid archive JSON wrote stderr.",
+        `stderr:\n${result.stderr}`,
+      ].join("\n"),
+    );
+  }
+
+  const repairReport = parsePackageCacheRepairReport(result.stdout);
+  const issue = repairReport.issues[0];
+  if (
+    repairReport.success ||
+    repairReport.dryRun ||
+    repairReport.repaired.length !== 0 ||
+    repairReport.unchanged.length !== 0 ||
+    repairReport.issues.length !== 1 ||
+    repairReport.error !== undefined ||
+    repairReport.errorCode !== undefined ||
+    !issue ||
+    issue.packageName !== packageName ||
+    issue.version !== "1.0.0" ||
+    issue.kind !== "invalid-archive" ||
+    issue.path !== archivePath ||
+    issue.provenancePath !== `${archivePath}.bplmeta.json` ||
+    typeof issue.message !== "string" ||
+    !issue.message.includes("Missing package bin entry: bin/missing.bpl") ||
+    existsSync(`${archivePath}.bplmeta.json`)
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache bin invalid archive JSON reported unexpected payload.",
         `repair:\n${JSON.stringify(repairReport, null, 2)}`,
       ].join("\n"),
     );

@@ -216,6 +216,9 @@ describe("Release smoke", () => {
         "release smoke: check packed npm CLI package-cache package filter JSON",
       );
       expect(result.stdout).toContain(
+        "release smoke: check packed npm CLI package-cache bin invalid archive JSON",
+      );
+      expect(result.stdout).toContain(
         "release smoke: check packed npm CLI package import diagnostic code JSON",
       );
       expect(result.stdout).toContain(
