@@ -800,6 +800,16 @@ function validatePackageManifestMatchesImport(
     return false;
   }
 
+  let entrypoint: string | undefined;
+  if (typeof manifest.main === "string") {
+    entrypoint = manifest.main;
+  } else if (typeof manifest.entry === "string") {
+    entrypoint = manifest.entry;
+  }
+  if (entrypoint !== undefined && !isSafeManifestRelativePath(entrypoint)) {
+    return failOnUnsafePackageEntrypoint(packageRoot, entrypoint, trace);
+  }
+
   return true;
 }
 
@@ -812,6 +822,20 @@ function failPackageManifestInvalid(
   trace.failureReason = "manifest-invalid";
   trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
   trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: ${detail}.`;
+  return false;
+}
+
+function failOnUnsafePackageEntrypoint(
+  packageRoot: string,
+  entrypoint: string,
+  trace: PackageResolutionTrace,
+): false {
+  trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_ENTRYPOINT_UNSAFE";
+  trace.failureMessage = `Package '${trace.packageName}' has an unsafe entrypoint '${entrypoint}' in bpl.json at ${path.join(
+    packageRoot,
+    "bpl.json",
+  )} for package root ${packageRoot}.`;
   return false;
 }
 
@@ -1014,12 +1038,7 @@ function resolvePackageEntryPoint(
   }
 
   if (!isSafeManifestRelativePath(mainEntry)) {
-    trace.failureReason = "manifest-invalid";
-    trace.failureCode = "BPL_PACKAGE_ENTRYPOINT_UNSAFE";
-    trace.failureMessage = `Package '${trace.packageName}' has an unsafe entrypoint '${mainEntry}' in bpl.json at ${path.join(
-      packageRoot,
-      "bpl.json",
-    )} for package root ${packageRoot}.`;
+    failOnUnsafePackageEntrypoint(packageRoot, mainEntry, trace);
     return null;
   }
 

@@ -1859,6 +1859,40 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects unsafe manifest entry fields before resolving package subpaths", () => {
+    const appDir = path.join(tempDir, "app");
+    const packageDir = path.join(appDir, "bpl_modules", "math");
+    const featureDir = path.join(packageDir, "features");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "math",
+          version: "1.0.0",
+          main: "../outside.bpl",
+          exports: ["features/add.bpl"],
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(featureDir, "add.bpl"), "export add;");
+
+    const details = resolvePackageImport("math/features/add", appDir);
+
+    expect(details.result).toBeNull();
+    expect(details.trace.failureReason).toBe("manifest-invalid");
+    expect(details.trace.failureCode).toBe("BPL_PACKAGE_ENTRYPOINT_UNSAFE");
+    expect(details.trace.failureMessage).toContain(
+      "unsafe entrypoint '../outside.bpl'",
+    );
+    expect(details.trace.failureMessage).toContain(
+      path.join(packageDir, "bpl.json"),
+    );
+    expect(details.trace.entryCandidates).toEqual([]);
+  });
+
   test("does not resolve package roots whose manifest name does not match the import", () => {
     const appDir = path.join(tempDir, "app");
     const packageDir = path.join(appDir, "bpl_modules", "math");
