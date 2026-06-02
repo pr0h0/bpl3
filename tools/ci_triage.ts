@@ -986,6 +986,7 @@ const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
     "package install JSON",
     "BPL_LOCKFILE_",
     "BPL_PACKAGE_INSTALL_",
+    "BPL_PACKAGE_LOCK_VERIFY_FAILED",
     "BPL_PACKAGE_ARCHIVE_",
   ].join("|"),
   "i",

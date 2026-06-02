@@ -1773,6 +1773,9 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("BPL_PACKAGE_INSTALL_LOCKED_UPDATE_CONFLICT"),
     ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_PACKAGE_LOCK_VERIFY_FAILED")).toEqual(
+      expectedCommands,
+    );
     expect(localCommandsForStep("BPL_PACKAGE_ARCHIVE_NOT_FILE")).toEqual(
       expectedCommands,
     );
