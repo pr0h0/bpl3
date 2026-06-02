@@ -185,10 +185,10 @@ export function registerPackageCommands(program: Command): void {
         try {
           const pm = new PackageManager();
 
-          if (pkg && (options.update || options.repairLock)) {
+          if (pkg && (options.locked || options.update || options.repairLock)) {
             throw new CompilerError(
-              "--update and --repair-lock are project install options",
-              "Run 'bpl install --update' or 'bpl install --repair-lock' without a package argument.",
+              "--locked, --update, and --repair-lock are project install options",
+              "Run 'bpl install --locked', 'bpl install --update', or 'bpl install --repair-lock' without a package argument.",
               {
                 file: process.cwd(),
                 startLine: 1,

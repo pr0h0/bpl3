@@ -744,7 +744,20 @@ describe("CLI JSON parseability", () => {
           update: true,
           repairLock: false,
           error: expect.stringContaining(
-            "--update and --repair-lock are project install options",
+            "--locked, --update, and --repair-lock are project install options",
+          ),
+        },
+      },
+      {
+        name: "package argument with locked mode",
+        args: ["install", "missing-package", "--locked", "--json"],
+        expected: {
+          target: "missing-package",
+          locked: true,
+          update: false,
+          repairLock: false,
+          error: expect.stringContaining(
+            "--locked, --update, and --repair-lock are project install options",
           ),
         },
       },

@@ -407,7 +407,8 @@ describe("Package JSON failure contracts", () => {
           args: ["install", "pkg", "--update", "--json"],
           context: cleanPackageRoot(tempDir, "package-with-update"),
           expectedCode: "BPL_PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE",
-          expectedError: "--update and --repair-lock are project install options",
+          expectedError:
+            "--locked, --update, and --repair-lock are project install options",
         },
         {
           name: "locked-update",
