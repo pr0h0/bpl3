@@ -17,6 +17,8 @@ import { findSymlinkedPathComponent } from "../common/PathSafety";
 
 export const CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE =
   "BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK";
+export const CODEGEN_DEBUG_IR_PATH_EMPTY_CODE =
+  "BPL_CODEGEN_DEBUG_IR_PATH_EMPTY";
 export const CODEGEN_DEBUG_IR_PATH_NOT_FILE_CODE =
   "BPL_CODEGEN_DEBUG_IR_PATH_NOT_FILE";
 export const CODEGEN_DEBUG_IR_PARENT_NOT_FOUND_CODE =
@@ -27,6 +29,7 @@ export const CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY_CODE =
   "BPL_CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY";
 
 export const CODEGEN_JSON_ERROR_CODES = [
+  CODEGEN_DEBUG_IR_PATH_EMPTY_CODE,
   CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE,
   CODEGEN_DEBUG_IR_PATH_NOT_FILE_CODE,
   CODEGEN_DEBUG_IR_PARENT_NOT_FOUND_CODE,
@@ -389,7 +392,7 @@ export class CodeGenerator extends StatementGenerator {
       this.output.join("\n") +
       `\n${this.getLlvmAttributeGroupOutput()}\n`;
 
-    if (this.debugIrPath) {
+    if (this.debugIrPath !== false) {
       this.writeDebugIr(result);
     }
 
@@ -397,7 +400,16 @@ export class CodeGenerator extends StatementGenerator {
   }
 
   private writeDebugIr(result: string): void {
-    if (!this.debugIrPath) return;
+    if (this.debugIrPath === false) return;
+
+    if (this.debugIrPath.trim().length === 0) {
+      throw this.createDebugIrPathError(
+        "Debug IR path is empty.",
+        "Choose a non-empty debug IR file path or use BPL_DEBUG_IR=0/false to disable diagnostic IR output.",
+        CODEGEN_DEBUG_IR_PATH_EMPTY_CODE,
+        this.currentFilePath || "<debug-ir-path>",
+      );
+    }
 
     let existingPath: fs.Stats | undefined;
     try {

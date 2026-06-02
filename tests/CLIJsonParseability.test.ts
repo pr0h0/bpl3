@@ -1912,6 +1912,45 @@ describe("CLI JSON parseability", () => {
     );
   });
 
+  test("reports empty debug IR path diagnostics in JSON-mode build failures", () => {
+    const sourceFile = path.join(tempDir, "empty-debug-ir-path.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+
+    const result = runCli([
+      "build",
+      sourceFile,
+      "--json",
+      "--debug-ir-path",
+      "",
+    ]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    const report = parseJsonObjectStdout<{
+      schemaVersion: number;
+      check: string;
+      success: boolean;
+      file: string;
+      error: string;
+      errorCode: string;
+      diagnostics: Array<{ code?: string; message: string }>;
+    }>(result);
+
+    expect(report).toMatchObject({
+      schemaVersion: 1,
+      check: "build",
+      success: false,
+      file: sourceFile,
+      errorCode: "BPL_CODEGEN_DEBUG_IR_PATH_EMPTY",
+      diagnostics: [
+        {
+          code: "BPL_CODEGEN_DEBUG_IR_PATH_EMPTY",
+        },
+      ],
+    });
+    expect(report.error).toContain("Debug IR path is empty");
+    expect(report.diagnostics[0]?.message).toContain("Debug IR path is empty");
+  });
+
   test("reports import diagnostics in JSON-mode build failures", () => {
     const unsafeStdFile = path.join(tempDir, "unsafe_std.bpl");
     const unsafeStdOutput = path.join(tempDir, "unsafe-std-app");

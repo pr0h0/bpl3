@@ -49,7 +49,9 @@ This command does two things:
 When the compiler writes diagnostic debug IR, it refuses destinations whose
 path, immediate parent, or parent path components are symbolic links. In JSON
 mode, `--debug-ir-path` validation failures stay parseable on stdout and use
-stable `BPL_CODEGEN_DEBUG_IR_*` error codes.
+stable `BPL_CODEGEN_DEBUG_IR_*` error codes. Empty explicit paths are rejected;
+use `BPL_DEBUG_IR=0` or `BPL_DEBUG_IR=false` when disabling environment-driven
+diagnostic IR output intentionally.
 
 ## Using LLDB
 

@@ -88,7 +88,7 @@ const result = compiler.compile(sourceCode);
 the compiler pipeline. When it is omitted, `BPL_DEBUG_IR` can still enable the
 same output, and `false` explicitly disables the environment fallback.
 Validation failures are returned as compiler diagnostics with stable
-`BPL_CODEGEN_DEBUG_IR_*` codes.
+`BPL_CODEGEN_DEBUG_IR_*` codes, including empty explicit paths.
 
 `optimizationLevel` accepts 0 through 3 and is forwarded to code generation,
 cached module compilation, and native linking where applicable. `jobs` controls
@@ -245,7 +245,8 @@ file; when it is omitted, `BPL_DEBUG_IR` can still enable the same output, and
 `false` explicitly disables it. Debug IR write failures are surfaced to
 callers. The compiler refuses debug IR destinations that are a symbolic link,
 have a symbolic link in their parent path, are not regular files, or use a
-missing parent directory.
+missing parent directory. Empty explicit debug IR paths are rejected; use
+`false` or `BPL_DEBUG_IR=0`/`BPL_DEBUG_IR=false` to disable diagnostic output.
 
 `target` selects the LLVM target metadata and data layout. Supported target
 families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux,

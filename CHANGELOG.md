@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   parseable on stdout and promote stable `BPL_CODEGEN_DEBUG_IR_*` diagnostics
   to top-level `errorCode` values. Reproduce with
   `bun test tests/CLIJsonParseability.test.ts -t "debug IR path diagnostics"`.
+- **Debug IR Empty Path Diagnostics** - Explicit empty debug IR destinations
+  from `--debug-ir-path`, `debugIrPath`, or `BPL_DEBUG_IR` now fail with
+  `BPL_CODEGEN_DEBUG_IR_PATH_EMPTY` instead of silently disabling diagnostic IR
+  output. `debugIrPath: false`, `BPL_DEBUG_IR=0`, and `BPL_DEBUG_IR=false`
+  remain intentional disable paths. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "empty debug IR" tests/CLIJsonParseability.test.ts -t "empty debug IR path diagnostics"`.
 - **Package Version SemVer Validation** - Package manifests, lock entries,
   global versioned package directories, cache archive discovery, dependency
   version selectors, JSON schema validation, and package-cache

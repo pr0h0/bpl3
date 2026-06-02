@@ -1122,6 +1122,7 @@ workflow. Debug IR path validation failures are exported through the public CLI
 JSON error-code registry under the `codegen` group and appear as top-level
 `errorCode` values in `bpl build --json` reports:
 
+- `BPL_CODEGEN_DEBUG_IR_PATH_EMPTY`
 - `BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK`
 - `BPL_CODEGEN_DEBUG_IR_PATH_NOT_FILE`
 - `BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND`

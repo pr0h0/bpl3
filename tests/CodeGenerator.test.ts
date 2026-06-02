@@ -97,6 +97,33 @@ describe("CodeGenerator", () => {
     }
   });
 
+  it("rejects empty debug IR paths", () => {
+    expectDebugIrError(
+      () => compile("frame main() { return; }", { debugIrPath: "" }),
+      "BPL_CODEGEN_DEBUG_IR_PATH_EMPTY",
+      /Debug IR path is empty/,
+    );
+  });
+
+  it("rejects empty debug IR environment values", () => {
+    const previousDebugIr = process.env.BPL_DEBUG_IR;
+
+    try {
+      process.env.BPL_DEBUG_IR = "";
+      expectDebugIrError(
+        () => compile("frame main() { return; }"),
+        "BPL_CODEGEN_DEBUG_IR_PATH_EMPTY",
+        /Debug IR path is empty/,
+      );
+    } finally {
+      if (previousDebugIr === undefined) {
+        delete process.env.BPL_DEBUG_IR;
+      } else {
+        process.env.BPL_DEBUG_IR = previousDebugIr;
+      }
+    }
+  });
+
   it("does not write debug IR through symbolic links", () => {
     const cwd = process.cwd();
     const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));

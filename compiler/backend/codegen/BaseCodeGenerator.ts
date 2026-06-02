@@ -193,10 +193,14 @@ export class BaseCodeGenerator {
 
   private getDebugIrPathFromEnv(): string | false {
     const value = process.env.BPL_DEBUG_IR;
-    if (!value || value === "0" || value.toLowerCase() === "false") {
+    if (value === undefined) {
       return false;
     }
-    if (value === "1" || value.toLowerCase() === "true") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "0" || normalized === "false") {
+      return false;
+    }
+    if (normalized === "1" || normalized === "true") {
       return "ir.ll";
     }
     return value;
