@@ -112,6 +112,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   non-object, metadata, entrypoint, export, keyword, repository, dependency,
   script, and bin manifest failures with their stable `BPL_PACKAGE_MANIFEST_*`
   codes.
+- **CI Triage Packed Package Manifest Smoke Repros** - `bun run ci:triage`
+  now maps packed package manifest validation release-smoke labels and payload
+  failures to the focused ReleaseSmoke, ReleaseMetadata, and
+  PackageJsonFailureContracts commands before falling back to broad release
+  smoke helpers.
 - **Package Manifest Null Map Validation** - `bpl install --json` and
   PackageManager manifest loading now reject `null` `dependencies`,
   `devDependencies`, `scripts`, and `bin` fields with the existing stable

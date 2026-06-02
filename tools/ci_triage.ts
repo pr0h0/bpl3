@@ -144,6 +144,14 @@ const RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN = new RegExp(
+  [
+    "release smoke: check packed npm CLI package manifest validation JSON",
+    "Packed npm CLI package manifest validation",
+    "bpl-release-package-manifest-json",
+  ].join("|"),
+  "i",
+);
 const RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN = new RegExp(
   [
     "npm tarball includes paths outside the release allowlist",
@@ -1354,6 +1362,23 @@ const PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
 ];
 
 const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
+  [
+    RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN,
+    'bun test tests/ReleaseSmoke.test.ts -t "builds and exercises"',
+  ],
+  [
+    RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN,
+    'bun test tests/ReleaseMetadata.test.ts -t "package manifest validation error codes"',
+  ],
+  [
+    RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN,
+    'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
+  ],
+  [
+    RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN,
+    "bun run release:smoke",
+  ],
+  [RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN, "bun run check"],
   [
     RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
     'bun test tests/ReleaseSmoke.test.ts -t "builds and exercises"',

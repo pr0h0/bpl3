@@ -253,6 +253,26 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps packed package manifest release-smoke failures to focused repro commands", () => {
+    const expectedCommands = [
+      'bun test tests/ReleaseSmoke.test.ts -t "builds and exercises"',
+      'bun test tests/ReleaseMetadata.test.ts -t "package manifest validation error codes"',
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
+      "bun run release:smoke",
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "release smoke: check packed npm CLI package manifest validation JSON",
+      "Packed npm CLI package manifest validation JSON reported unexpected payload",
+      "Packed npm CLI package manifest validation smoke did not fail as expected",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps release package allowlist failures to focused metadata commands", () => {
     const expectedCommands = [
       'bun test tests/ReleaseMetadata.test.ts -t "packed tools payload|playground browser wasm helper assets|package helper script inventory"',
