@@ -90,5 +90,76 @@ describe("BUG-082: Tuple Equality Fix", () => {
       expect(result).toContain("eq");
       expect(result).toContain("neq");
     });
+
+    it("should compare aggregate tuple elements semantically", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+
+        struct Wide {
+          tag: i8,
+          value: long,
+        }
+
+        enum Marker {
+          Value(float),
+        }
+
+        frame make(tag: i8, value: long) ret Wide[1] {
+          local filler: long[3] = [value, value + 1, value + 2];
+          if (value < 0) {
+            printf("%ld", filler[0]);
+          }
+          return [Wide { tag: tag, value: value }];
+        }
+
+        frame main() ret int {
+          local neg: float = -1.0 * 0.0;
+          local left: (Wide[1], Marker) = (make(7, 4294967296), Marker.Value(0.0));
+          local right: (Wide[1], Marker) = (make(7, 4294967296), Marker.Value(neg));
+
+          if (left == right) {
+            printf("equal\\n");
+          } else {
+            printf("not equal\\n");
+          }
+
+          return 0;
+        }
+      `;
+
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("equal");
+    });
+
+    it("should compare tuple fields semantically inside structs", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+
+        enum Marker {
+          Value(float),
+        }
+
+        struct Box {
+          pair: (int, Marker),
+        }
+
+        frame main() ret int {
+          local neg: float = -1.0 * 0.0;
+          local left: Box = Box { pair: (42, Marker.Value(0.0)) };
+          local right: Box = Box { pair: (42, Marker.Value(neg)) };
+
+          if (left == right) {
+            printf("equal\\n");
+          } else {
+            printf("not equal\\n");
+          }
+
+          return 0;
+        }
+      `;
+
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("equal");
+    });
   });
 });

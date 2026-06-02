@@ -1318,7 +1318,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return this.generateLambdaEquality_Inner(left, right, llvmType);
     }
 
-    // Generic struct literal fallback (e.g. Tuples, or Lambdas where Kind check failed)
+    if (typeNode.kind === "TupleType") {
+      return this.generateTupleValueEquality(
+        left,
+        right,
+        llvmType,
+        typeNode as AST.TupleTypeNode,
+      );
+    }
+
+    // Generic struct literal fallback (e.g. anonymous aggregates without AST shape)
     // This prevents icmp on aggregate types
     if (llvmType.startsWith("{") && !llvmType.endsWith("*")) {
       return this.generateGenericStructEquality(left, right, llvmType, true);
@@ -1644,106 +1653,53 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     isEqual: boolean,
   ): string {
     const tupleTypeNode = expr.left.resolvedType as AST.TupleTypeNode;
+    const equal = this.generateTupleValueEquality(
+      left,
+      right,
+      tupleType,
+      tupleTypeNode,
+    );
+
+    if (isEqual) {
+      return equal;
+    }
+
+    const result = this.newRegister();
+    this.emit(`  ${result} = xor i1 ${equal}, true`);
+    return result;
+  }
+
+  private generateTupleValueEquality(
+    left: string,
+    right: string,
+    tupleType: string,
+    tupleTypeNode: AST.TupleTypeNode,
+  ): string {
     const numElements = tupleTypeNode.types.length;
 
     if (numElements === 0) {
-      // Empty tuple is always equal
-      return isEqual ? "1" : "0";
+      return "true";
     }
 
-    if (numElements === 1) {
-      // Single element - direct comparison
-      const elemType = this.resolveType(tupleTypeNode.types[0]!);
-      const leftElem = this.newRegister();
-      this.emit(`  ${leftElem} = extractvalue ${tupleType} ${left}, 0`);
-      const rightElem = this.newRegister();
-      this.emit(`  ${rightElem} = extractvalue ${tupleType} ${right}, 0`);
-
-      const isFloat = elemType === "double" || elemType === "float";
-      let cmpOp: string;
-      if (isEqual) {
-        cmpOp = isFloat ? "fcmp oeq" : "icmp eq";
-      } else {
-        cmpOp = isFloat ? "fcmp one" : "icmp ne";
-      }
-      const result = this.newRegister();
-      this.emit(`  ${result} = ${cmpOp} ${elemType} ${leftElem}, ${rightElem}`);
-      return result;
-    }
-
-    // Multi-element tuple: use short-circuit evaluation
-    const finalLabel = this.newLabel("tuple_cmp_end");
-    const _startLabel = this.getCurrentLabel(); // Block where we start
-
-    // Build a chain of comparisons with short-circuit evaluation
-    const phiInputs: Array<{ value: string; block: string }> = [];
+    let resultReg = "true";
 
     for (let i = 0; i < numElements; i++) {
-      const elemType = this.resolveType(tupleTypeNode.types[i]!);
-
-      // Extract elements
       const leftElem = this.newRegister();
       this.emit(`  ${leftElem} = extractvalue ${tupleType} ${left}, ${i}`);
       const rightElem = this.newRegister();
       this.emit(`  ${rightElem} = extractvalue ${tupleType} ${right}, ${i}`);
 
-      // Compare elements
-      const isFloat = elemType === "double" || elemType === "float";
-      const cmpOp = isFloat ? "fcmp oeq" : "icmp eq";
-      const cmpResult = this.newRegister();
-      this.emit(
-        `  ${cmpResult} = ${cmpOp} ${elemType} ${leftElem}, ${rightElem}`,
+      const elemEqual = this.generateValueEquality(
+        leftElem,
+        rightElem,
+        tupleTypeNode.types[i]!,
       );
-
-      if (i < numElements - 1) {
-        // Not the last element - short circuit if comparison fails/succeeds
-        const nextLabel = this.newLabel(`tuple_cmp_${i + 1}`);
-        const currentBlock = this.getCurrentLabel();
-
-        if (isEqual) {
-          // For ==: if elements not equal, entire tuple is not equal (result = false)
-          this.emit(
-            `  br i1 ${cmpResult}, label %${nextLabel}, label %${finalLabel}`,
-          );
-          phiInputs.push({ value: "0", block: currentBlock });
-        } else {
-          // For !=: if elements not equal, entire tuple is not equal (result = true)
-          this.emit(
-            `  br i1 ${cmpResult}, label %${finalLabel}, label %${nextLabel}`,
-          );
-          phiInputs.push({ value: "1", block: currentBlock });
-        }
-
-        this.emit(`${nextLabel}:`);
-      } else {
-        // Last element - use its comparison result (or inverted for !=)
-        const currentBlock = this.getCurrentLabel();
-
-        if (isEqual) {
-          // For ==: last element comparison determines result
-          phiInputs.push({ value: cmpResult, block: currentBlock });
-        } else {
-          // For !=: invert last comparison (all equal means not-not-equal = false)
-          const inverted = this.newRegister();
-          this.emit(`  ${inverted} = xor i1 ${cmpResult}, 1`);
-          phiInputs.push({ value: inverted, block: currentBlock });
-        }
-
-        this.emit(`  br label %${finalLabel}`);
-      }
+      const nextResult = this.newRegister();
+      this.emit(`  ${nextResult} = and i1 ${resultReg}, ${elemEqual}`);
+      resultReg = nextResult;
     }
 
-    // Merge block
-    this.emit(`${finalLabel}:`);
-    const result = this.newRegister();
-
-    // Build phi node with correct predecessors
-    const phiParts = phiInputs.map(
-      (input) => `[ ${input.value}, %${input.block} ]`,
-    );
-    this.emit(`  ${result} = phi i1 ${phiParts.join(", ")}`);
-
-    return result;
+    return resultReg;
   }
 
   /**
