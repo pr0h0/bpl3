@@ -1373,10 +1373,13 @@ export class PackageManager {
       }
     }
 
-    for (const issue of this.findUntrackedLocalPackageLockIssues(
-      lock,
-      dependencyNamesMissingFromLock,
-    )) {
+    const untrackedLocalPackageLockIssues =
+      this.findUntrackedLocalPackageLockIssues(
+        lock,
+        dependencyNamesMissingFromLock,
+      );
+    packagesChecked += untrackedLocalPackageLockIssues.packagesChecked;
+    for (const issue of untrackedLocalPackageLockIssues.issues) {
       addIssue(issue);
     }
 
@@ -1392,17 +1395,18 @@ export class PackageManager {
   private findUntrackedLocalPackageLockIssues(
     lock: PackageLockFile,
     dependencyNamesMissingFromLock: ReadonlySet<string>,
-  ): PackageLockVerificationIssue[] {
+  ): { issues: PackageLockVerificationIssue[]; packagesChecked: number } {
     if (
       !this.readPackageManagerDirectoryStats(
         this.localPackageDir,
         "Local package directory",
       )
     ) {
-      return [];
+      return { issues: [], packagesChecked: 0 };
     }
 
     const issues: PackageLockVerificationIssue[] = [];
+    let packagesChecked = 0;
     for (const item of fs
       .readdirSync(this.localPackageDir)
       .sort((left, right) => left.localeCompare(right))) {
@@ -1412,6 +1416,7 @@ export class PackageManager {
       if (lock.packages[item] || dependencyNamesMissingFromLock.has(item)) {
         continue;
       }
+      packagesChecked++;
       if (stats.isSymbolicLink()) {
         issues.push({
           packageName: item,
@@ -1461,7 +1466,7 @@ export class PackageManager {
       });
     }
 
-    return issues;
+    return { issues, packagesChecked };
   }
 
   installProject(

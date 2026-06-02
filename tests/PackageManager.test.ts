@@ -2894,6 +2894,7 @@ describe("PackageManager", () => {
 
       const verification = localPM.verifyLockFile();
       expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(2);
       expect(verification.issues).toContainEqual(
         expect.objectContaining({
           packageName: "untracked-lock-pkg",
@@ -2931,6 +2932,7 @@ describe("PackageManager", () => {
       const localPM = new PackageManager(appDir);
       const verification = localPM.verifyLockFile();
       expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(1);
       expect(verification.issues).toContainEqual(
         expect.objectContaining({
           packageName: "invalid-untracked-lock-pkg",
@@ -2967,6 +2969,7 @@ describe("PackageManager", () => {
       const localPM = new PackageManager(appDir);
       const verification = localPM.verifyLockFile();
       expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(1);
       expect(verification.issues).toContainEqual(
         expect.objectContaining({
           packageName: "file-untracked-lock-pkg",

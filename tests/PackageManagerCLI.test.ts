@@ -960,6 +960,83 @@ describe("Package Manager CLI", () => {
       expect(hashIssue?.actualHash).not.toBe(hashIssue?.expectedHash);
     });
 
+    test("should count untracked package roots in locked verification JSON", () => {
+      const projectDir = path.join(tempDir, "locked-untracked-count-project");
+      const packageDir = path.join(
+        projectDir,
+        "bpl_modules",
+        "locked-untracked-count",
+      );
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectDir, "bpl.json"),
+        JSON.stringify({ name: "locked-untracked-count-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(projectDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-untracked-count",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        errorCode?: string;
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          actualVersion?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+      expect(report).toMatchObject({
+        mode: "project",
+        target: null,
+        locked: true,
+        errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        action: "verification-failed",
+        packagesChecked: 1,
+        issuesFound: 1,
+        issueKinds: ["untracked-package"],
+        issues: [
+          {
+            packageName: "locked-untracked-count",
+            kind: "untracked-package",
+            path: packageDir,
+            actualVersion: "1.0.0",
+          },
+        ],
+      });
+    });
+
     test("should report invalid installed package exports during locked verification JSON", () => {
       const appDir = path.join(tempDir, "locked-export-cli-app");
       const packageDir = path.join(appDir, "bpl_modules", "locked-export-cli");

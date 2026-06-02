@@ -284,7 +284,10 @@ Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field. Successful `bpl install --locked --json` reports include
 `action: "verified"` and `packagesChecked`, so automation can distinguish a
-lockfile verification run from a normal install. lockfile verification
+lockfile verification run from a normal install. `packagesChecked` counts
+locked package entries plus untracked `bpl_modules/` roots inspected for drift,
+so an empty lockfile with one installed untracked package reports `1`.
+Lockfile verification
 validates installed package `bin` entries before trusting a lock entry, so
 missing, directory, or symlinked binary targets fail the same way as invalid
 installed package exports. Failed locked verification reports use
