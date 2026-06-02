@@ -242,7 +242,9 @@ is read through the link. It also checks installed package manifests for missing
 or malformed exported subpaths, transitive dependency roots, and lock entries,
 so deleting `bpl_modules/math-core`, removing `math-core` from `bpl.lock`, or
 leaving an exported file path missing from an installed package will be reported
-even when only `math-extra` imports it.
+even when only `math-extra` imports it. A transitive dependency root referenced
+by a checked lock entry is reported as dependency drift only once; it is not
+also summarized as an untracked `bpl_modules/` root.
 
 To re-resolve `bpl.json` dependency selectors and rewrite `bpl.lock`, run:
 

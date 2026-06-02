@@ -1437,6 +1437,110 @@ describe("Package Manager CLI", () => {
       );
     });
 
+    test("should avoid duplicate JSON issues for invalid transitive roots", () => {
+      const appDir = path.join(tempDir, "locked-invalid-transitive-cli-app");
+      const parentDir = path.join(
+        appDir,
+        "bpl_modules",
+        "locked-invalid-parent",
+      );
+      const childPath = path.join(
+        appDir,
+        "bpl_modules",
+        "locked-invalid-child",
+      );
+      const sourceArchive = path.join(appDir, "locked-invalid-parent-1.0.0.tgz");
+      fs.mkdirSync(parentDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({
+          name: "locked-invalid-transitive-cli-app",
+          version: "1.0.0",
+        }),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(parentDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-invalid-parent",
+            version: "1.0.0",
+            main: "index.bpl",
+            dependencies: {
+              "locked-invalid-child": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(parentDir, "index.bpl"), "export parent;");
+      fs.writeFileSync(childPath, "not a package directory");
+
+      const localPM = new PackageManager(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "locked-invalid-parent": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: localPM["calculatePackageHash"](parentDir),
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          dependencyOf?: string;
+          requestedSource?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+
+      expect(report).toMatchObject({
+        action: "verification-failed",
+        packagesChecked: 1,
+        issuesFound: 1,
+        issueKinds: ["invalid-package-root"],
+        issues: [
+          {
+            packageName: "locked-invalid-child",
+            kind: "invalid-package-root",
+            path: childPath,
+            dependencyOf: "locked-invalid-parent",
+            requestedSource: "1.0.0",
+          },
+        ],
+      });
+    });
+
     test("should check installed package imports from nested sources outside project cwd", () => {
       const packageDir = path.join(tempDir, "import-package");
       fs.mkdirSync(packageDir);

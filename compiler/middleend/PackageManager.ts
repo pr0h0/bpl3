@@ -1189,7 +1189,7 @@ export class PackageManager {
     };
     let packagesChecked = 0;
     const lockEntries = Object.entries(lock.packages);
-    const dependencyNamesMissingFromLock = new Set<string>();
+    const dependencyNamesReferencedByLockEntries = new Set<string>();
 
     if (lockEntries.length > 0) {
       this.readPackageManagerDirectoryStats(
@@ -1323,6 +1323,7 @@ export class PackageManager {
       for (const [dependencyName, requestedSource] of Object.entries(
         manifest.dependencies || {},
       )) {
+        dependencyNamesReferencedByLockEntries.add(dependencyName);
         const dependencyPath = path.join(this.localPackageDir, dependencyName);
         const dependencyStats = this.tryLstat(dependencyPath);
         if (
@@ -1331,7 +1332,6 @@ export class PackageManager {
           dependencyStats.isDirectory()
         ) {
           if (!lock.packages[dependencyName]) {
-            dependencyNamesMissingFromLock.add(dependencyName);
             addIssue({
               packageName: dependencyName,
               kind: "missing-transitive-lock-entry",
@@ -1376,7 +1376,7 @@ export class PackageManager {
     const untrackedLocalPackageLockIssues =
       this.findUntrackedLocalPackageLockIssues(
         lock,
-        dependencyNamesMissingFromLock,
+        dependencyNamesReferencedByLockEntries,
       );
     packagesChecked += untrackedLocalPackageLockIssues.packagesChecked;
     for (const issue of untrackedLocalPackageLockIssues.issues) {
@@ -1394,7 +1394,7 @@ export class PackageManager {
 
   private findUntrackedLocalPackageLockIssues(
     lock: PackageLockFile,
-    dependencyNamesMissingFromLock: ReadonlySet<string>,
+    dependencyNamesReferencedByLockEntries: ReadonlySet<string>,
   ): { issues: PackageLockVerificationIssue[]; packagesChecked: number } {
     if (
       !this.readPackageManagerDirectoryStats(
@@ -1413,7 +1413,10 @@ export class PackageManager {
       const packagePath = path.join(this.localPackageDir, item);
       const stats = this.tryLstat(packagePath);
       if (!stats) continue;
-      if (lock.packages[item] || dependencyNamesMissingFromLock.has(item)) {
+      if (
+        lock.packages[item] ||
+        dependencyNamesReferencedByLockEntries.has(item)
+      ) {
         continue;
       }
       packagesChecked++;
@@ -1452,7 +1455,7 @@ export class PackageManager {
 
       if (
         lock.packages[manifest.name] ||
-        dependencyNamesMissingFromLock.has(manifest.name)
+        dependencyNamesReferencedByLockEntries.has(manifest.name)
       ) {
         continue;
       }

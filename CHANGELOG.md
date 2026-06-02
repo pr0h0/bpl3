@@ -66,6 +66,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   includes untracked `bpl_modules/` roots in `packagesChecked`, so API and
   `bpl install --locked --json` reports count every local package root inspected
   for lock drift instead of only entries already present in `bpl.lock`.
+- **Package Lock Verification Drift Deduplication** - transitive dependency
+  roots referenced from locked package manifests are no longer also reported as
+  untracked `bpl_modules/` roots when they are invalid, so `issuesFound` and
+  `packagesChecked` stay aligned with the dependency-drift diagnostic.
 - **Package Resolver Exports Allowlist** - Package import resolution now treats
   an installed package manifest's optional `exports` array as a subpath
   allowlist. Exported source files still support extensionless and directory

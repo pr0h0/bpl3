@@ -4823,6 +4823,85 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should not duplicate invalid transitive roots as untracked packages", () => {
+      const globalPackageDir = path.join(tempDir, "locked-invalid-root-cache");
+      const appDir = path.join(tempDir, "locked-invalid-root-app");
+      fs.mkdirSync(globalPackageDir);
+      fs.mkdirSync(appDir);
+
+      createCachedPackage(
+        "locked-invalid-root-b",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+      );
+      createCachedPackage(
+        "locked-invalid-root-a",
+        "1.0.0",
+        'import value from "locked-invalid-root-b";\nexport value;',
+        globalPackageDir,
+        { "locked-invalid-root-b": "1.0.0" },
+      );
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-invalid-root-app",
+            version: "1.0.0",
+            dependencies: {
+              "locked-invalid-root-a": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM.installProject({ global: false, verbose: false });
+
+      const lockPath = path.join(appDir, "bpl.lock");
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+      delete lock.packages["locked-invalid-root-b"];
+      fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+
+      const invalidDependencyPath = path.join(
+        appDir,
+        "bpl_modules",
+        "locked-invalid-root-b",
+      );
+      fs.rmSync(invalidDependencyPath, { recursive: true, force: true });
+      fs.writeFileSync(invalidDependencyPath, "not a package directory");
+
+      const verification = localPM.verifyLockFile();
+      const invalidRootIssues = verification.issues.filter(
+        (issue) =>
+          issue.packageName === "locked-invalid-root-b" &&
+          issue.kind === "invalid-package-root",
+      );
+
+      expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(1);
+      expect(invalidRootIssues).toHaveLength(1);
+      expect(invalidRootIssues[0]).toMatchObject({
+        packageName: "locked-invalid-root-b",
+        kind: "invalid-package-root",
+        dependencyOf: "locked-invalid-root-a",
+        requestedSource: "1.0.0",
+        packagePath: invalidDependencyPath,
+      });
+      expect(
+        verification.issues.some(
+          (issue) =>
+            issue.packageName === "locked-invalid-root-b" &&
+            !issue.dependencyOf &&
+            issue.message.includes("untracked package root"),
+        ),
+      ).toBe(false);
+    });
+
     test("should report installed transitive dependencies missing from bpl.lock", () => {
       const globalPackageDir = path.join(tempDir, "locked-complete-cache");
       const appDir = path.join(tempDir, "locked-complete-app");
