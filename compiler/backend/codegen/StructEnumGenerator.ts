@@ -724,22 +724,6 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     }
   }
 
-  protected getTypeSize(llvmType: string): number {
-    // Estimate size in bytes for common LLVM types
-    // This is a simplification - actual sizes may vary
-    if (llvmType === "i1") return 1;
-    if (llvmType === "i8") return 1;
-    if (llvmType === "i16") return 2;
-    if (llvmType === "i32") return 4;
-    if (llvmType === "i64") return 8;
-    if (llvmType === "double") return 8;
-    if (llvmType === "float") return 4;
-    if (llvmType.endsWith("*")) return 8; // Pointers are 8 bytes
-    if (llvmType.startsWith("%struct.")) return 8; // Approximate struct size
-    if (llvmType.startsWith("%enum.")) return 8; // Approximate enum size
-    return 8; // Default fallback
-  }
-
   /**
    * Get proper alignment for a given size in bytes.
    * Follows standard alignment rules: 8-byte types align to 8, 4-byte to 4, etc.
