@@ -288,7 +288,10 @@ reports use `BPL_PACKAGE_LOCK_VERIFY_FAILED` with
 `action: "verification-failed"`, `packagesChecked`, `issuesFound`,
 `issueKinds`, and compact `issues` entries containing the package name and
 issue kind, so CI can detect lock drift without scraping the formatted
-diagnostic. Reproduce the locked success and failure JSON contract with
+diagnostic. When verifier issues carry installed package paths or expected
+versions, compact issue entries also include `path` and `expectedVersion`;
+invalid installed export failures use this to point directly at the broken
+package directory. Reproduce the locked success and failure JSON contract with
 `bun test tests/PackageManagerCLI.test.ts -t "should enforce --locked package verification"`.
 When the underlying package error has a stable compiler code, the report also
 includes `errorCode`, such as

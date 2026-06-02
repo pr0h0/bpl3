@@ -791,6 +791,8 @@ function formatPackageLockVerificationJsonPayload(
       issues: Array<{
         packageName: string;
         kind: string;
+        path?: string;
+        expectedVersion?: string;
         dependencyOf?: string;
         paths?: string[];
       }>;
@@ -805,6 +807,10 @@ function formatPackageLockVerificationJsonPayload(
     .map((issue) => ({
       packageName: issue.packageName,
       kind: issue.kind,
+      ...(issue.packagePath ? { path: issue.packagePath } : {}),
+      ...(issue.expectedVersion
+        ? { expectedVersion: issue.expectedVersion }
+        : {}),
       ...(issue.dependencyOf ? { dependencyOf: issue.dependencyOf } : {}),
       ...(issue.paths ? { paths: issue.paths } : {}),
     }))
