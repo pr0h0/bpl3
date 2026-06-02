@@ -1406,6 +1406,7 @@ export class PackageManager {
     }
 
     const issues: PackageLockVerificationIssue[] = [];
+    const packagePathsByManifestName = new Map<string, string[]>();
     let packagesChecked = 0;
     for (const item of fs
       .readdirSync(this.localPackageDir)
@@ -1413,14 +1414,13 @@ export class PackageManager {
       const packagePath = path.join(this.localPackageDir, item);
       const stats = this.tryLstat(packagePath);
       if (!stats) continue;
-      if (
+      const itemAlreadyHandled =
         lock.packages[item] ||
-        dependencyNamesReferencedByLockEntries.has(item)
-      ) {
-        continue;
-      }
-      packagesChecked++;
+        dependencyNamesReferencedByLockEntries.has(item);
+
       if (stats.isSymbolicLink()) {
+        if (itemAlreadyHandled) continue;
+        packagesChecked++;
         issues.push({
           packageName: item,
           kind: "invalid-package-root",
@@ -1430,6 +1430,8 @@ export class PackageManager {
         continue;
       }
       if (!stats.isDirectory()) {
+        if (itemAlreadyHandled) continue;
+        packagesChecked++;
         issues.push({
           packageName: item,
           kind: "invalid-package-root",
@@ -1443,6 +1445,8 @@ export class PackageManager {
       try {
         manifest = this.loadManifest(packagePath);
       } catch (error) {
+        if (itemAlreadyHandled) continue;
+        packagesChecked++;
         const detail = error instanceof Error ? error.message : String(error);
         issues.push({
           packageName: item,
@@ -1453,6 +1457,14 @@ export class PackageManager {
         continue;
       }
 
+      const packagePaths = packagePathsByManifestName.get(manifest.name) ?? [];
+      packagePaths.push(packagePath);
+      packagePathsByManifestName.set(manifest.name, packagePaths);
+
+      if (itemAlreadyHandled) {
+        continue;
+      }
+      packagesChecked++;
       if (
         lock.packages[manifest.name] ||
         dependencyNamesReferencedByLockEntries.has(manifest.name)
@@ -1466,6 +1478,20 @@ export class PackageManager {
         message: `${manifest.name}: installed in bpl_modules but missing from bpl.lock`,
         packagePath,
         actualVersion: manifest.version,
+      });
+    }
+
+    for (const [packageName, packagePaths] of packagePathsByManifestName) {
+      if (!lock.packages[packageName] || packagePaths.length <= 1) continue;
+      const sortedPaths = packagePaths.sort((left, right) =>
+        left.localeCompare(right),
+      );
+      issues.push({
+        packageName,
+        kind: "duplicate-installed-package",
+        message: `Multiple installed directories declare package '${packageName}': ${sortedPaths.join(", ")}`,
+        packagePath: sortedPaths.join(", "),
+        paths: sortedPaths,
       });
     }
 

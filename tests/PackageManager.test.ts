@@ -2985,6 +2985,82 @@ describe("PackageManager", () => {
       ).toThrow(/untracked package root is not a directory/);
     });
 
+    test("should reject duplicate installed package names during locked verification", () => {
+      const appDir = path.join(tempDir, "duplicate-locked-name-app");
+      const lockedPackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "duplicate-locked-name",
+      );
+      const duplicatePackageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "duplicate-locked-name-copy",
+      );
+      const sourceArchive = path.join(
+        appDir,
+        "duplicate-locked-name-1.0.0.tgz",
+      );
+      fs.mkdirSync(lockedPackageDir, { recursive: true });
+      fs.mkdirSync(duplicatePackageDir, { recursive: true });
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "duplicate-locked-name-app", version: "1.0.0" }),
+      );
+
+      for (const packageDir of [lockedPackageDir, duplicatePackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "duplicate-locked-name",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const localPM = new PackageManager(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "duplicate-locked-name": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: localPM["calculatePackageHash"](lockedPackageDir),
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+
+      expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(2);
+      expect(verification.issues).toContainEqual(
+        expect.objectContaining({
+          packageName: "duplicate-locked-name",
+          kind: "duplicate-installed-package",
+          packagePath: [lockedPackageDir, duplicatePackageDir].join(", "),
+          paths: [lockedPackageDir, duplicatePackageDir],
+        }),
+      );
+      expect(() =>
+        localPM.installProject({ global: false, verbose: false, locked: true }),
+      ).toThrow(/Multiple installed directories declare package/);
+    });
+
     test("should verify installed package manifests against bpl.lock", () => {
       const manifest = {
         name: "manifest-lock-test",

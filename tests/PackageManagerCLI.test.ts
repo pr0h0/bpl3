@@ -1037,6 +1037,107 @@ describe("Package Manager CLI", () => {
       });
     });
 
+    test("should report duplicate installed package names in locked verification JSON", () => {
+      const projectDir = path.join(tempDir, "locked-duplicate-name-project");
+      const lockedPackageDir = path.join(
+        projectDir,
+        "bpl_modules",
+        "locked-duplicate-name",
+      );
+      const duplicatePackageDir = path.join(
+        projectDir,
+        "bpl_modules",
+        "locked-duplicate-name-copy",
+      );
+      const sourceArchive = path.join(
+        projectDir,
+        "locked-duplicate-name-1.0.0.tgz",
+      );
+      fs.mkdirSync(lockedPackageDir, { recursive: true });
+      fs.mkdirSync(duplicatePackageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectDir, "bpl.json"),
+        JSON.stringify({ name: "locked-duplicate-name-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+
+      for (const packageDir of [lockedPackageDir, duplicatePackageDir]) {
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: "locked-duplicate-name",
+              version: "1.0.0",
+              main: "index.bpl",
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      }
+
+      const localPM = new PackageManager(projectDir);
+      fs.writeFileSync(
+        path.join(projectDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "locked-duplicate-name": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: localPM["calculatePackageHash"](lockedPackageDir),
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          paths?: string[];
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+      expect(report).toMatchObject({
+        action: "verification-failed",
+        packagesChecked: 2,
+        issuesFound: 1,
+        issueKinds: ["duplicate-installed-package"],
+        issues: [
+          {
+            packageName: "locked-duplicate-name",
+            kind: "duplicate-installed-package",
+            path: [lockedPackageDir, duplicatePackageDir].join(", "),
+            paths: [lockedPackageDir, duplicatePackageDir],
+          },
+        ],
+      });
+    });
+
     test("should report invalid installed package exports during locked verification JSON", () => {
       const appDir = path.join(tempDir, "locked-export-cli-app");
       const packageDir = path.join(appDir, "bpl_modules", "locked-export-cli");
