@@ -80,6 +80,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   installed package issues now preserve the legacy joined `path` string and
   include a `paths` array with every conflicting installed directory, matching
   the package list JSON duplicate payload.
+- **Package Doctor Cache Provenance Paths** - `bpl doctor packages --json`
+  package-cache warning issues now include `provenancePath` when a missing,
+  malformed, or unsafe provenance sidecar is involved, matching the nested
+  package-cache verification issue payload.
 - **Package Lock Repair Duplicate Paths** - `bpl install --repair-lock --json`
   duplicate installed package verification failures now include a `paths` array
   with every conflicting installed directory.

@@ -1699,6 +1699,7 @@ describe("Package Manager CLI", () => {
           kind: string;
           message: string;
           path: string;
+          provenancePath?: string;
           paths?: string[];
           hint: string;
         }>;
@@ -1725,6 +1726,7 @@ describe("Package Manager CLI", () => {
           kind: "package-cache-missing-provenance",
           message: expect.stringContaining("missing package provenance sidecar"),
           path: cachePath,
+          provenancePath: `${cachePath}.bplmeta.json`,
           hint: expect.stringContaining("bpl package-cache verify doctor-cache-cli"),
         }),
       );
@@ -2453,7 +2455,12 @@ describe("Package Manager CLI", () => {
       );
       const doctor = expectJsonStdoutReport<{
         cacheVerification: { issues: Array<{ kind: string; path: string }> };
-        issues: Array<{ severity: string; kind: string; path: string }>;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          path: string;
+          provenancePath?: string;
+        }>;
       }>(doctorResult, {
         status: 0,
         check: "packages",
@@ -2467,6 +2474,7 @@ describe("Package Manager CLI", () => {
           severity: "warning",
           kind: "package-cache-invalid-provenance",
           path: malformedCachePath,
+          provenancePath: `${malformedCachePath}.bplmeta.json`,
         }),
       );
       expect(doctor.issues).toContainEqual(
@@ -2474,6 +2482,7 @@ describe("Package Manager CLI", () => {
           severity: "warning",
           kind: "package-cache-invalid-provenance",
           path: linkedCachePath,
+          provenancePath: linkedProvenancePath,
         }),
       );
     });

@@ -432,6 +432,7 @@ export interface PackageDoctorIssue {
   message: string;
   path?: string;
   paths?: string[];
+  provenancePath?: string;
   hint?: string;
   packageName?: string;
   source?: string;
@@ -4506,6 +4507,9 @@ export class PackageManager {
         kind: `package-cache-${issue.kind}`,
         message: issue.message,
         path: issue.path,
+        ...(issue.provenancePath
+          ? { provenancePath: issue.provenancePath }
+          : {}),
         hint: `Run 'bpl package-cache verify ${issue.packageName}' for details, or remove stale archives with 'bpl package-cache clean ${issue.packageName} --package-version ${issue.version}'.`,
       });
     }
