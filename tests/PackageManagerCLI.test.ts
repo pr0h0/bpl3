@@ -1068,6 +1068,118 @@ describe("Package Manager CLI", () => {
       );
     });
 
+    test("should report invalid installed package bin files during locked verification JSON", () => {
+      const appDir = path.join(tempDir, "locked-bin-cli-app");
+      const packageDir = path.join(appDir, "bpl_modules", "locked-bin-cli");
+      const sourceArchive = path.join(appDir, "locked-bin-cli-1.0.0.tgz");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "locked-bin-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "locked-bin-cli",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              broken: "bin/missing.bpl",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "locked-bin-cli": {
+                version: "1.0.0",
+                source: `file:${path.basename(sourceArchive)}`,
+                hash: new PackageManager(appDir)["calculatePackageHash"](
+                  packageDir,
+                ),
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const humanResult = spawnSync("bun", [bplPath, "install", "--locked"], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+
+      expect(humanResult.status).toBe(1);
+      expect(humanResult.stderr).toContain(
+        "Missing package bin entry: bin/missing.bpl",
+      );
+      expect(humanResult.stderr).toContain("Run 'bpl install'");
+
+      const jsonResult = spawnSync(
+        "bun",
+        [bplPath, "install", "--locked", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        mode: string;
+        target: string | null;
+        locked: boolean;
+        error: string;
+        errorCode?: string;
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          expectedVersion?: string;
+        }>;
+      }>(jsonResult, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+
+      expect(report).toMatchObject({
+        mode: "project",
+        target: null,
+        locked: true,
+        errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        action: "verification-failed",
+        packagesChecked: 1,
+        issuesFound: 1,
+        issueKinds: ["invalid-manifest"],
+        issues: [
+          {
+            packageName: "locked-bin-cli",
+            kind: "invalid-manifest",
+            path: packageDir,
+            expectedVersion: "1.0.0",
+          },
+        ],
+      });
+      expect(report.error).toContain(
+        "Missing package bin entry: bin/missing.bpl",
+      );
+    });
+
     test("should report lock verification name and version mismatch metadata as JSON", () => {
       const appDir = path.join(tempDir, "locked-metadata-cli-app");
       const packageDir = path.join(appDir, "bpl_modules", "locked-meta");
@@ -1742,6 +1854,103 @@ describe("Package Manager CLI", () => {
       });
       expect(report.error).toContain(
         "Missing package export entry: features/public.bpl",
+      );
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
+    });
+
+    test("should report invalid installed package bin files during lockfile repair JSON", () => {
+      const appDir = path.join(tempDir, "cli-repair-bin-app");
+      const packageDir = path.join(appDir, "bpl_modules", "cli-repair-bin");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "cli-repair-bin-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-repair-bin",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              broken: "bin/missing.bpl",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const humanResult = spawnSync(
+        "bun",
+        [bplPath, "install", "--repair-lock"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+        },
+      );
+
+      expect(humanResult.status).toBe(1);
+      expect(humanResult.stderr).toContain(
+        "Missing package bin entry: bin/missing.bpl",
+      );
+      expect(humanResult.stderr).toContain("bpl install --repair-lock");
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
+
+      const jsonResult = spawnSync(
+        "bun",
+        [bplPath, "install", "--repair-lock", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        mode: string;
+        target: string | null;
+        repairLock: boolean;
+        error: string;
+        errorCode?: string;
+        action?: string;
+        packagesChecked?: number;
+        issuesFound?: number;
+        issueKinds?: string[];
+        issues?: Array<{
+          packageName: string;
+          kind: string;
+          path?: string;
+          expectedVersion?: string;
+        }>;
+      }>(jsonResult, {
+        status: 1,
+        check: "package-install",
+        success: false,
+      });
+
+      expect(report).toMatchObject({
+        mode: "project",
+        target: null,
+        repairLock: true,
+        errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        action: "verification-failed",
+        packagesChecked: 1,
+        issuesFound: 1,
+        issueKinds: ["invalid-manifest"],
+        issues: [
+          {
+            packageName: "cli-repair-bin",
+            kind: "invalid-manifest",
+            path: packageDir,
+            expectedVersion: "1.0.0",
+          },
+        ],
+      });
+      expect(report.error).toContain(
+        "Missing package bin entry: bin/missing.bpl",
       );
       expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
     });

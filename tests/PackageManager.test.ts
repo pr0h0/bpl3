@@ -2889,6 +2889,66 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report invalid installed package bin files during locked verification", () => {
+      const appDir = path.join(tempDir, "bin-lock-app");
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const packageDir = path.join(appDir, "bpl_modules", "bin-lock-missing");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "bin-lock-app", version: "1.0.0" }, null, 2),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "bin-lock-missing",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              broken: "bin/missing.bpl",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const localPM = new PackageManager(appDir);
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify(
+          {
+            lockfileVersion: 1,
+            packages: {
+              "bin-lock-missing": {
+                version: "1.0.0",
+                source: "file:source.tgz",
+                hash: localPM["calculatePackageHash"](packageDir),
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const verification = localPM.verifyLockFile();
+
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toEqual([
+        expect.objectContaining({
+          packageName: "bin-lock-missing",
+          kind: "invalid-manifest",
+          message: expect.stringContaining(
+            "Missing package bin entry: bin/missing.bpl",
+          ),
+        }),
+      ]);
+    });
+
     test("should reject lock entries whose installed manifest name differs from the lock key", () => {
       const appDir = path.join(tempDir, "manifest-name-lock-app");
       const sourceArchive = path.join(appDir, "source.tgz");
@@ -3860,6 +3920,43 @@ describe("PackageManager", () => {
             version: "1.0.0",
             main: "index.bpl",
             exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const localPM = new PackageManager(appDir);
+
+      expect(() => localPM.repairLockFile()).toThrow(
+        PackageLockVerificationError,
+      );
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
+    });
+
+    test("should reject invalid installed package bin files when repairing lockfiles", () => {
+      const appDir = path.join(tempDir, "repair-bin-invalid-app");
+      const packageDir = path.join(appDir, "bpl_modules", "repair-bin-invalid");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "repair-bin-invalid-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "repair-bin-invalid",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              broken: "bin/missing.bpl",
+            },
           },
           null,
           2,

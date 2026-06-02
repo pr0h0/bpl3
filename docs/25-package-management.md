@@ -274,17 +274,21 @@ bpl install --repair-lock
 This updates recorded versions and hashes for installed packages and removes
 lock entries for packages that are no longer installed. `--repair-lock` refuses
 duplicate installed package names and installed packages with invalid `exports`
-entries before writing `bpl.lock`; export failures use the `invalid-manifest`
-issue kind, and duplicate failures use the `duplicate-installed-package` issue
-kind so CI can point users at ambiguous `bpl_modules/` directories instead of
-accepting a collapsed lockfile. Those duplicate repair-lock issues include a
-`paths` array with every conflicting installed directory.
+or `bin` entries before writing `bpl.lock`; export failures and invalid
+installed package bin targets use the `invalid-manifest` issue kind, and
+duplicate failures use the `duplicate-installed-package` issue kind so CI can
+point users at ambiguous `bpl_modules/` directories instead of accepting a
+collapsed lockfile. Those duplicate repair-lock issues include a `paths` array
+with every conflicting installed directory.
 Add `--json` to emit a `package-install` report for automation; JSON-mode
 validation failures stay parseable on stdout with `success: false` and an
 `error` field. Successful `bpl install --locked --json` reports include
 `action: "verified"` and `packagesChecked`, so automation can distinguish a
-lockfile verification run from a normal install. Failed locked verification
-reports use `BPL_PACKAGE_LOCK_VERIFY_FAILED` with
+lockfile verification run from a normal install. lockfile verification
+validates installed package `bin` entries before trusting a lock entry, so
+missing, directory, or symlinked binary targets fail the same way as invalid
+installed package exports. Failed locked verification reports use
+`BPL_PACKAGE_LOCK_VERIFY_FAILED` with
 `action: "verification-failed"`, `packagesChecked`, `issuesFound`,
 `issueKinds`, and compact `issues` entries containing the package name and
 issue kind, so CI can detect lock drift without scraping the formatted
@@ -294,6 +298,8 @@ versions, compact issue entries also include `path`, `source`,
 `expectedHash`, `actualHash`, `dependencyOf`, and `requestedSource` when those
 fields apply. Reproduce the locked success and failure JSON contract with
 `bun test tests/PackageManagerCLI.test.ts -t "should enforce --locked package verification"`.
+Reproduce lockfile bin validation with
+`bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "installed package bin files during locked verification|installed package bin files when repairing lockfiles|installed package bin files during lockfile repair"`.
 When the underlying package error has a stable compiler code, the report also
 includes `errorCode`, such as
 `BPL_LOCKFILE_UNSUPPORTED_VERSION` for

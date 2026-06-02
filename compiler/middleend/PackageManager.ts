@@ -1237,6 +1237,11 @@ export class PackageManager {
           installPath,
           path.join(installPath, "bpl.json"),
         );
+        this.validatePackageBinFiles(
+          manifest,
+          installPath,
+          path.join(installPath, "bpl.json"),
+        );
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         addIssue({
@@ -4435,8 +4440,8 @@ export class PackageManager {
     const duplicateIssues = this.findDuplicateLockRepairIssues(
       installedPackages,
     );
-    const invalidExportIssues =
-      this.findInvalidLockRepairExportIssues(installedPackages);
+    const invalidPackageIssues =
+      this.findInvalidLockRepairPackageIssues(installedPackages);
 
     if (duplicateIssues.length > 0) {
       const verification: PackageLockVerification = {
@@ -4452,11 +4457,11 @@ export class PackageManager {
       );
     }
 
-    if (invalidExportIssues.length > 0) {
+    if (invalidPackageIssues.length > 0) {
       const verification: PackageLockVerification = {
         ok: false,
-        errors: invalidExportIssues.map((issue) => issue.message),
-        issues: invalidExportIssues,
+        errors: invalidPackageIssues.map((issue) => issue.message),
+        issues: invalidPackageIssues,
         packagesChecked: installedPackages.length,
       };
       throw new PackageLockVerificationError(
@@ -4517,7 +4522,7 @@ export class PackageManager {
     );
   }
 
-  private findInvalidLockRepairExportIssues(
+  private findInvalidLockRepairPackageIssues(
     installedPackages: readonly PackageInfo[],
   ): PackageLockVerificationIssue[] {
     const issues: PackageLockVerificationIssue[] = [];
@@ -4525,6 +4530,11 @@ export class PackageManager {
     for (const pkg of installedPackages) {
       try {
         this.validatePackageExportFiles(
+          pkg.manifest,
+          pkg.path,
+          path.join(pkg.path, "bpl.json"),
+        );
+        this.validatePackageBinFiles(
           pkg.manifest,
           pkg.path,
           path.join(pkg.path, "bpl.json"),

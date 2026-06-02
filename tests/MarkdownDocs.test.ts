@@ -774,6 +774,23 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(docs, requiredSnippets);
   });
 
+  test("package docs document lockfile bin validation", () => {
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "lockfile verification validates installed package `bin` entries",
+      "invalid installed package bin",
+      "`bpl install --locked --json`",
+      "`bpl install --repair-lock --json`",
+      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"installed package bin files during locked verification|installed package bin files when repairing lockfiles|installed package bin files during lockfile repair\"",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("package docs document uninstall JSON error codes", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",
