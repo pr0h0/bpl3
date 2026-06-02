@@ -339,6 +339,19 @@ bun test tests/PackageManager.test.ts -t "missing from bpl.lock"
 bun index.ts doctor packages --json
 ```
 
+Duplicate installed package failures map to package manager CLI and API checks
+that cover duplicate locked package identities and duplicate untracked package
+identities. If CI mentions `duplicate-installed-package`,
+`BPL_PACKAGE_DUPLICATE_INSTALLED`, or multiple installed directories declaring
+the same package, reproduce with:
+
+```bash
+bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names|duplicate untracked package names"
+bun test tests/PackageManager.test.ts -t "duplicate installed package names|duplicate untracked package names"
+bun index.ts doctor packages --json
+bun index.ts list --tree --json
+```
+
 Package docs smoke failures map to the focused package/import docs examples and
 package documentation checks. Use the JSON smoke when the failure mentions
 `CLIJsonParseability.test` or `package/import docs examples`; use the

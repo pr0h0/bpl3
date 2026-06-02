@@ -1456,11 +1456,11 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [
     PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
-    'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names"',
+    'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names|duplicate untracked package names"',
   ],
   [
     PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
-    'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
+    'bun test tests/PackageManager.test.ts -t "duplicate installed package names|duplicate untracked package names"',
   ],
   [
     PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,

@@ -219,6 +219,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"`,
   `bun test tests/PackageManager.test.ts -t "missing from bpl.lock"`, and
   `bun index.ts doctor packages --json`.
+- **Duplicate Package CI Triage** - `bun run ci:triage` now maps
+  `duplicate-installed-package` and `BPL_PACKAGE_DUPLICATE_INSTALLED` failures
+  to duplicate locked-package and duplicate untracked-package repro patterns in
+  both package manager CLI and API tests.
 - **Package Doctor Duplicate Paths** - `bpl doctor packages --json` duplicate
   installed package issues now preserve the legacy joined `path` string and
   include a `paths` array with every conflicting installed directory, matching

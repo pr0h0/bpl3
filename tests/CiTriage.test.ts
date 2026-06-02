@@ -380,8 +380,8 @@ describe("CI triage helper", () => {
 
   test("maps duplicate package install diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
-      'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names"',
-      'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
+      'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names|duplicate untracked package names"',
+      'bun test tests/PackageManager.test.ts -t "duplicate installed package names|duplicate untracked package names"',
       "bun index.ts doctor packages --json",
       "bun index.ts list --tree --json",
     ];
@@ -3954,8 +3954,8 @@ describe("CI triage helper", () => {
       });
 
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
-        'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names"',
-        'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
+        'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names|duplicate untracked package names"',
+        'bun test tests/PackageManager.test.ts -t "duplicate installed package names|duplicate untracked package names"',
         "bun index.ts doctor packages --json",
         "bun index.ts list --tree --json",
       ]);
