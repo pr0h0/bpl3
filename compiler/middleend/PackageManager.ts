@@ -2327,8 +2327,9 @@ export class PackageManager {
       }
     }
 
-    if (Array.isArray(manifest?.exports)) {
-      for (const relativeExportPath of manifest.exports) {
+    const manifestExports = manifest?.exports;
+    if (Array.isArray(manifestExports)) {
+      for (const relativeExportPath of manifestExports) {
         if (typeof relativeExportPath !== "string") continue;
         if (!this.isSafePackageRelativePath(relativeExportPath)) continue;
 
