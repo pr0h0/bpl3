@@ -751,10 +751,16 @@ describe("Markdown documentation", () => {
       "`packagesChecked`",
       "`issuesFound`",
       "`issueKinds`",
+      "doctor lock verification drift",
+      "`packageName`",
+      "`expectedHash`",
+      "`actualHash`",
+      "`dependencyOf`",
       "project-mode option conflicts",
       "direct archive paths",
       "bpl install --locked --json",
       "bun test tests/PackageManagerCLI.test.ts -t \"should enforce --locked package verification\"",
+      "bun test tests/PackageManagerCLI.test.ts -t \"lock verification drift\"",
       "bun test tests/PackageJsonFailureContracts.test.ts -t \"package install option conflict|direct archive path\"",
     ];
 

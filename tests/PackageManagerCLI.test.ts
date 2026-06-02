@@ -1711,6 +1711,103 @@ describe("Package Manager CLI", () => {
         hint: expect.stringContaining("bpl install"),
       });
     });
+
+    test("should report lock verification drift as structured JSON issues", () => {
+      const packageDir = path.join(tempDir, "doctor-locked-drift-package");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-locked-drift",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export original;");
+
+      const packResult = spawnSync("bun", [bplPath, "pack"], {
+        cwd: packageDir,
+        encoding: "utf-8",
+      });
+      expect(packResult.status).toBe(0);
+
+      const appDir = path.join(tempDir, "doctor-locked-drift-app");
+      fs.mkdirSync(appDir);
+      const tarballPath = path.join(
+        packageDir,
+        "doctor-locked-drift-1.0.0.tgz",
+      );
+      const installResult = spawnSync("bun", [bplPath, "install", tarballPath], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
+      expect(installResult.status).toBe(0);
+
+      const installedSource = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-locked-drift",
+        "index.bpl",
+      );
+      fs.writeFileSync(installedSource, "export tampered;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-locked-drift-home"),
+            NO_COLOR: "1",
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        lockfile: { verified: boolean };
+        issues: Array<{
+          severity: string;
+          kind: string;
+          code?: string;
+          packageName?: string;
+          source?: string;
+          expectedVersion?: string;
+          expectedHash?: string;
+          actualHash?: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.lockfile.verified).toBe(false);
+      const driftIssue = report.issues.find(
+        (issue) => issue.kind === "hash-mismatch",
+      );
+      expect(driftIssue).toMatchObject({
+        severity: "error",
+        kind: "hash-mismatch",
+        code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        packageName: "doctor-locked-drift",
+        source: expect.stringContaining("doctor-locked-drift-1.0.0.tgz"),
+        expectedVersion: "1.0.0",
+        path: path.join(appDir, "bpl_modules", "doctor-locked-drift"),
+        hint: expect.stringContaining("bpl install"),
+      });
+      expect(driftIssue?.expectedHash).toEqual(expect.any(String));
+      expect(driftIssue?.actualHash).toEqual(expect.any(String));
+      expect(driftIssue?.actualHash).not.toBe(driftIssue?.expectedHash);
+    });
   });
 
   describe("package-cache command", () => {

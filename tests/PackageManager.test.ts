@@ -4741,6 +4741,55 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should preserve lock verification details in doctor issues", () => {
+      const packageDir = path.join(tempDir, "doctor-lock-detail-pkg");
+      fs.mkdirSync(packageDir);
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-lock-detail",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export original;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+
+      const appDir = path.join(tempDir, "doctor-lock-detail-app");
+      fs.mkdirSync(appDir);
+      const localPM = new PackageManager(appDir);
+      localPM.install(tarballPath, { global: false, verbose: false });
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl_modules", "doctor-lock-detail", "index.bpl"),
+        "export tampered;",
+      );
+
+      const report = localPM.doctorPackages();
+      const driftIssue = report.issues.find(
+        (issue) => issue.kind === "hash-mismatch",
+      );
+
+      expect(report.ok).toBe(false);
+      expect(report.lockfile.verified).toBe(false);
+      expect(driftIssue).toMatchObject({
+        severity: "error",
+        kind: "hash-mismatch",
+        code: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
+        packageName: "doctor-lock-detail",
+        source: tarballPath,
+        expectedVersion: "1.0.0",
+        path: path.join(appDir, "bpl_modules", "doctor-lock-detail"),
+      });
+      expect(driftIssue?.expectedHash).toEqual(expect.any(String));
+      expect(driftIssue?.actualHash).toEqual(expect.any(String));
+      expect(driftIssue?.actualHash).not.toBe(driftIssue?.expectedHash);
+    });
+
     test("should report invalid package lockfiles without throwing", () => {
       const appDir = path.join(tempDir, "doctor-invalid-lock-app");
       fs.mkdirSync(appDir);

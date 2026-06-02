@@ -383,6 +383,16 @@ export interface PackageDoctorIssue {
   message: string;
   path?: string;
   hint?: string;
+  packageName?: string;
+  source?: string;
+  expectedVersion?: string;
+  actualVersion?: string;
+  expectedName?: string;
+  actualName?: string;
+  expectedHash?: string;
+  actualHash?: string;
+  dependencyOf?: string;
+  requestedSource?: string;
 }
 
 export interface PackageDoctorReport {
@@ -4246,9 +4256,24 @@ export class PackageManager {
         issues.push({
           severity: "error",
           kind: issue.kind,
+          code: PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
           message: issue.message,
           path: issue.packagePath,
           hint: this.formatLockVerificationHelp(verification),
+          packageName: issue.packageName,
+          ...(issue.source ? { source: issue.source } : {}),
+          ...(issue.expectedVersion
+            ? { expectedVersion: issue.expectedVersion }
+            : {}),
+          ...(issue.actualVersion ? { actualVersion: issue.actualVersion } : {}),
+          ...(issue.expectedName ? { expectedName: issue.expectedName } : {}),
+          ...(issue.actualName ? { actualName: issue.actualName } : {}),
+          ...(issue.expectedHash ? { expectedHash: issue.expectedHash } : {}),
+          ...(issue.actualHash ? { actualHash: issue.actualHash } : {}),
+          ...(issue.dependencyOf ? { dependencyOf: issue.dependencyOf } : {}),
+          ...(issue.requestedSource
+            ? { requestedSource: issue.requestedSource }
+            : {}),
         });
       }
     } else if (!lockExists && dependencyCount > 0) {
