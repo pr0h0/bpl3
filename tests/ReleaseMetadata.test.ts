@@ -893,6 +893,15 @@ describe("Release metadata", () => {
     ]);
   });
 
+  test("release smoke validates packed locked package install JSON output", () => {
+    expectReleaseSmokeSourceContains([
+      "check packed npm CLI locked package install JSON",
+      '["install", "--locked", "--json"]',
+      'action: "verified"',
+      "packagesChecked",
+    ]);
+  });
+
   test("release smoke validates packed package pack JSON output", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI package pack JSON",

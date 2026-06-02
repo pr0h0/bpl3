@@ -89,6 +89,8 @@ interface PackageInstallReport {
   locked: boolean;
   update: boolean;
   repairLock: boolean;
+  action?: "verified";
+  packagesChecked?: number;
   error?: string;
   errorCode?: string;
 }
@@ -1432,6 +1434,38 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
     if (!existsSync(installedManifest)) {
       throw new Error(
         "Packed npm CLI package install JSON did not install package.",
+      );
+    }
+
+    const lockedInstall = runStep(
+      "check packed npm CLI locked package install JSON",
+      installedBpl,
+      ["install", "--locked", "--json"],
+      {
+        cwd: appDir,
+        bplHome: null,
+        env: { HOME: homeDir },
+      },
+    );
+    const lockedReport = parsePackageInstallReport(lockedInstall.stdout);
+    const expectedLockedMetadata = {
+      action: "verified",
+      packagesChecked: 1,
+    } as const;
+
+    if (
+      !lockedReport.success ||
+      lockedReport.mode !== "project" ||
+      lockedReport.target !== null ||
+      lockedReport.global ||
+      !lockedReport.locked ||
+      lockedReport.update ||
+      lockedReport.repairLock ||
+      lockedReport.action !== expectedLockedMetadata.action ||
+      lockedReport.packagesChecked !== expectedLockedMetadata.packagesChecked
+    ) {
+      throw new Error(
+        `Packed npm CLI locked package install JSON reported unexpected payload:\n${JSON.stringify(lockedReport, null, 2)}`,
       );
     }
   } finally {
