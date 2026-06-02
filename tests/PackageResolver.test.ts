@@ -1522,6 +1522,109 @@ describe("PackageResolver", () => {
     }
   });
 
+  test("rejects package manifest object maps with malformed values", () => {
+    const cases = [
+      {
+        name: "dependencies-null",
+        field: "dependencies",
+        manifestPatch: { dependencies: null },
+        expectedMessage:
+          "manifest dependencies must be an object mapping package names to source strings when present",
+      },
+      {
+        name: "dependencies-bad-name",
+        field: "dependencies",
+        manifestPatch: { dependencies: { Bad_Name: "1.0.0" } },
+        expectedMessage:
+          "manifest dependencies package name 'Bad_Name' must use lowercase letters, digits, and hyphens only",
+      },
+      {
+        name: "dependencies-blank-source",
+        field: "dependencies",
+        manifestPatch: { dependencies: { math: "   " } },
+        expectedMessage:
+          "manifest dependencies source for math must be a non-empty string",
+      },
+      {
+        name: "dev-dependencies-number-source",
+        field: "devDependencies",
+        manifestPatch: { devDependencies: { math: 1 } },
+        expectedMessage:
+          "manifest devDependencies source for math must be a non-empty string",
+      },
+      {
+        name: "scripts-null",
+        field: "scripts",
+        manifestPatch: { scripts: null },
+        expectedMessage:
+          "manifest scripts must be an object mapping script names to commands when present",
+      },
+      {
+        name: "scripts-empty-command",
+        field: "scripts",
+        manifestPatch: { scripts: { build: "   " } },
+        expectedMessage:
+          "manifest scripts entries must map non-empty script names to command strings",
+      },
+      {
+        name: "bin-null",
+        field: "bin",
+        manifestPatch: { bin: null },
+        expectedMessage:
+          "manifest bin must be an object mapping command names to executable paths when present",
+      },
+      {
+        name: "bin-unsafe-command",
+        field: "bin",
+        manifestPatch: { bin: { "../tool": "bin/tool.sh" } },
+        expectedMessage:
+          "manifest bin command '../tool' must be a plain command name without path separators",
+      },
+      {
+        name: "bin-unsafe-path",
+        field: "bin",
+        manifestPatch: { bin: { tool: "bin//tool.sh" } },
+        expectedMessage:
+          "manifest bin path for tool must be a package-relative path without empty, '.', or '..' segments",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const appDir = path.join(tempDir, `app-${testCase.name}`);
+      const packageDir = path.join(appDir, "bpl_modules", "math");
+      fs.mkdirSync(packageDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "math",
+            version: "1.0.0",
+            ...testCase.manifestPatch,
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+
+      const details = resolvePackageImport("math", appDir);
+
+      expect(details.result, testCase.name).toBeNull();
+      expect(details.trace.failureReason, testCase.name).toBe(
+        "manifest-invalid",
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.expectedMessage,
+      );
+      expect(details.trace.failureMessage, testCase.name).toContain(
+        testCase.field,
+      );
+      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
+        "BPL_PACKAGE_MANIFEST_INVALID",
+      );
+    }
+  });
+
   test("does not fall back after unsafe manifest main paths", () => {
     const cases = [
       { name: "parent", main: "../outside.bpl" },

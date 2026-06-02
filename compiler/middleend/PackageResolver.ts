@@ -746,6 +746,36 @@ function validatePackageManifestMatchesImport(
     return false;
   }
 
+  for (const field of ["dependencies", "devDependencies"] as const) {
+    const error = validatePackageManifestDependencyMap(
+      manifest[field],
+      field,
+    );
+    if (error) {
+      return failPackageManifestInvalid(packageName, manifestPath, trace, error);
+    }
+  }
+
+  const scriptsError = validatePackageManifestScriptsMap(manifest.scripts);
+  if (scriptsError) {
+    return failPackageManifestInvalid(
+      packageName,
+      manifestPath,
+      trace,
+      scriptsError,
+    );
+  }
+
+  const binError = validatePackageManifestBinMap(manifest.bin);
+  if (binError) {
+    return failPackageManifestInvalid(
+      packageName,
+      manifestPath,
+      trace,
+      binError,
+    );
+  }
+
   if (manifest.main !== undefined && typeof manifest.main !== "string") {
     trace.failureReason = "manifest-invalid";
     trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
@@ -761,6 +791,85 @@ function validatePackageManifestMatchesImport(
   }
 
   return true;
+}
+
+function failPackageManifestInvalid(
+  packageName: string,
+  manifestPath: string,
+  trace: PackageResolutionTrace,
+  detail: string,
+): false {
+  trace.failureReason = "manifest-invalid";
+  trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
+  trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: ${detail}.`;
+  return false;
+}
+
+function validatePackageManifestDependencyMap(
+  value: unknown,
+  field: "dependencies" | "devDependencies",
+): string | null {
+  if (value === undefined) return null;
+  if (!isPlainJsonObject(value)) {
+    return `manifest ${field} must be an object mapping package names to source strings when present`;
+  }
+
+  for (const [packageName, source] of Object.entries(value)) {
+    if (!isValidPackageName(packageName)) {
+      return `manifest ${field} package name '${packageName}' must use lowercase letters, digits, and hyphens only`;
+    }
+
+    if (typeof source !== "string" || source.trim().length === 0) {
+      return `manifest ${field} source for ${packageName} must be a non-empty string`;
+    }
+  }
+
+  return null;
+}
+
+function validatePackageManifestScriptsMap(value: unknown): string | null {
+  if (value === undefined) return null;
+  if (!isPlainJsonObject(value)) {
+    return "manifest scripts must be an object mapping script names to commands when present";
+  }
+
+  for (const [scriptName, command] of Object.entries(value)) {
+    if (
+      scriptName.length === 0 ||
+      typeof command !== "string" ||
+      command.trim().length === 0
+    ) {
+      return "manifest scripts entries must map non-empty script names to command strings";
+    }
+  }
+
+  return null;
+}
+
+function validatePackageManifestBinMap(value: unknown): string | null {
+  if (value === undefined) return null;
+  if (!isPlainJsonObject(value)) {
+    return "manifest bin must be an object mapping command names to executable paths when present";
+  }
+
+  for (const [commandName, executablePath] of Object.entries(value)) {
+    if (!isSafeBinCommandName(commandName)) {
+      return `manifest bin command '${commandName}' must be a plain command name without path separators`;
+    }
+
+    if (
+      typeof executablePath !== "string" ||
+      !isSafeManifestRelativePath(executablePath)
+    ) {
+      return `manifest bin path for ${commandName} must be a package-relative path without empty, '.', or '..' segments`;
+    }
+  }
+
+  return null;
+}
+
+function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function failOnSymlinkedPackageRoot(
@@ -1110,6 +1219,16 @@ function isSafeManifestRelativePath(relativePath: string): boolean {
   const parts = relativePath.split(/[\\/]/);
   return parts.every(
     (part) => part.length > 0 && part !== "." && part !== "..",
+  );
+}
+
+function isSafeBinCommandName(commandName: string): boolean {
+  return (
+    commandName.length > 0 &&
+    commandName !== "." &&
+    commandName !== ".." &&
+    !commandName.includes("/") &&
+    !commandName.includes("\\")
   );
 }
 

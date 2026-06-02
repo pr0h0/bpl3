@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Resolver Object Map Validation** - Package import resolution now
+  rejects installed package manifests whose `dependencies`, `devDependencies`,
+  `scripts`, or `bin` maps have malformed shapes, keys, or non-empty string
+  values, matching PackageManager manifest loading before the resolver uses the
+  package entrypoint.
 - **Package Resolver Collection Metadata Validation** - Package import
   resolution now rejects installed package manifests whose optional `keywords`
   or `repository` metadata has malformed shapes, matching PackageManager

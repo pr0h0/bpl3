@@ -533,7 +533,9 @@ field as package-relative paths before install or pack operations continue.
 The package import resolver also rejects malformed string metadata such as a
 non-string `$schema`, `description`, `author`, or `license` field before using
 the package entrypoint. It also validates `keywords` as an array of strings and
-`repository` as an object with string `type` and `url` fields.
+`repository` as an object with string `type` and `url` fields. Dependency,
+script, and `bin` maps are checked for the same object shape, key, and non-empty
+string rules during import resolution before the package entrypoint is used.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the
