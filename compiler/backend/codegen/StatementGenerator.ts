@@ -860,12 +860,20 @@ export abstract class StatementGenerator extends AsmGenerator {
             // Simple target
             this.locals.add(target.name);
 
-            const targetType = target.type
-              ? this.resolveType(target.type)
+            const sourceTypeNode = this.getTargetTypeNodeFromTuple(
+              decl.initializer!.resolvedType!,
+              [...indexPath, i],
+            );
+            const targetTypeNode = target.type || sourceTypeNode;
+            const targetType = targetTypeNode
+              ? this.resolveType(targetTypeNode)
               : this.getTargetTypeFromTuple(decl.initializer!.resolvedType!, [
                   ...indexPath,
                   i,
                 ]);
+            if (targetTypeNode) {
+              this.localTypes.set(target.name, targetTypeNode);
+            }
 
             const addr = this.allocateStack(target.name, targetType);
 
@@ -875,18 +883,28 @@ export abstract class StatementGenerator extends AsmGenerator {
               `  ${elemPtr} = extractvalue ${nestedTupleType} ${nestedTupleVal}, ${i}`,
             );
 
+            const storeVal =
+              sourceTypeNode && targetTypeNode
+                ? this.emitCast(
+                    elemPtr,
+                    this.resolveType(sourceTypeNode),
+                    targetType,
+                    sourceTypeNode,
+                    targetTypeNode,
+                  )
+                : elemPtr;
+
             // Store to the target variable
             this.emit(
-              `  store ${targetType} ${elemPtr}, ${targetType}* ${addr}`,
+              `  store ${targetType} ${storeVal}, ${targetType}* ${addr}`,
             );
 
             // DWARF: Variable declaration
             if (this.generateDwarf && this.currentSubprogramId !== -1) {
-              const typeNode = target.type ||
-                this.getTargetTypeNodeFromTuple(
-                  decl.initializer!.resolvedType!,
-                  [...indexPath, i],
-                ) || { kind: "BasicType", name: "unknown" };
+              const typeNode = targetTypeNode || {
+                kind: "BasicType",
+                name: "unknown",
+              };
 
               const typeId = this.getDwarfTypeId(typeNode as AST.TypeNode);
               const fileId = this.debugInfoGenerator.getFileNodeId(

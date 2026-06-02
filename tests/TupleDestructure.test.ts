@@ -44,6 +44,20 @@ describe("Tuple Destructuring", () => {
       const result = compileAndRun(code);
       expect(result.trim()).toBe("42 3.14 1");
     });
+
+    it("should cast compatible integer elements to narrower target types", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame main() ret int {
+          local pair: (int, int) = (1, 2);
+          local (left: i8, right: i8) = pair;
+          printf("%d %d\\n", cast<int>(left), cast<int>(right));
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("1 2");
+    });
   });
 
   describe("Nested tuple destructuring", () => {
