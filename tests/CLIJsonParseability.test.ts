@@ -2133,6 +2133,60 @@ describe("CLI JSON parseability", () => {
     expect(fs.existsSync(outputFile)).toBe(false);
   }, 10000);
 
+  test("accepts repeated namespace imports in JSON-mode check diagnostics", () => {
+    const sourceFile = path.join(tempDir, "repeated_namespace_import.bpl");
+    const helperFile = path.join(
+      tempDir,
+      "repeated_namespace_import_helper.bpl",
+    );
+    fs.writeFileSync(
+      helperFile,
+      [
+        "export [Thing];",
+        "export makeThing;",
+        "",
+        "struct Thing {",
+        "    value: int,",
+        "}",
+        "",
+        "frame makeThing() ret int {",
+        "    return 7;",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      sourceFile,
+      [
+        'import * as Things from "./repeated_namespace_import_helper.bpl";',
+        'import * as Things from "./repeated_namespace_import_helper.bpl";',
+        "",
+        "frame main() ret int {",
+        "    local thing: Things.Thing;",
+        "    thing.value = Things.makeThing();",
+        "    return thing.value;",
+        "}",
+      ].join("\n"),
+    );
+
+    const check = runCli(["check", "--json", sourceFile]);
+
+    expect(check.status).toBe(0);
+    expect(check.stderr).toBe("");
+    expect(parseJsonObjectStdout(check)).toMatchObject({
+      schemaVersion: 1,
+      check: "check",
+      success: true,
+      totalFiles: 1,
+      errorCount: 0,
+      files: [
+        {
+          file: sourceFile,
+          success: true,
+        },
+      ],
+    });
+  });
+
   test("reports duplicate top-level symbols in JSON-mode check and build diagnostics", () => {
     const sourceFile = path.join(tempDir, "duplicate_top_level_symbol.bpl");
     const outputFile = path.join(tempDir, "duplicate-top-level-symbol-app");
