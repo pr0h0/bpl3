@@ -25,6 +25,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `invalid-installed-package`, or `invalid bin` problems before pack/install
   paths are exercised. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "invalid .* bin files"`.
+- **Package Cache Bin Validation** - package-cache verify also validates
+  manifest `bin` entries from extracted cached archives, and reports each
+  invalid cached `bin` target as an `invalid-archive` issue in text and JSON
+  flows. `package-cache repair refuses to regenerate provenance` for archives
+  whose `bin` target files are missing, directories, or symlinks, matching
+  package publish/install safety checks. Reproduce with
+  `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|package cache repair.*bin files|cached package bin files in verify"`.
 - **Package Lock Verification JSON Metadata** - `bpl install --locked --json`
   and `bpl install --repair-lock --json` compact verification issues now
   include verifier metadata such as `path`, `source`, expected/actual names,

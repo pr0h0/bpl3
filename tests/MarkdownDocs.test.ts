@@ -758,6 +758,22 @@ describe("Markdown documentation", () => {
     expectDocsContainSnippets(docs, requiredSnippets);
   });
 
+  test("package docs document package-cache bin validation", () => {
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "package-cache verify also validates manifest `bin` entries",
+      "invalid cached `bin` target",
+      "package-cache repair refuses to regenerate provenance",
+      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"cached package.*bin files|package cache repair.*bin files|cached package bin files in verify\"",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("package docs document uninstall JSON error codes", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",

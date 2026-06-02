@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { PackageManager } from "../compiler/middleend/PackageManager";
 import {
   expectJsonStdoutReport,
   parseJsonObjectStdout,
@@ -3578,6 +3579,150 @@ describe("Package Manager CLI", () => {
           provenancePath: linkedProvenancePath,
         }),
       );
+    });
+
+    test("should report invalid cached package bin files in verify and repair JSON", () => {
+      const appDir = path.join(tempDir, "cache-bin-json-app");
+      const homeDir = path.join(tempDir, "cache-bin-json-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "cache-bin-json-app", version: "1.0.0" }),
+      );
+
+      const createInvalidBinArchive = (
+        packageName: string,
+        withProvenance: boolean,
+      ) => {
+        const sourceDir = path.join(tempDir, `${packageName}-source`);
+        const packageRoot = path.join(sourceDir, "package");
+        const cachePath = path.join(cacheDir, `${packageName}-1.0.0.tgz`);
+        fs.mkdirSync(path.join(packageRoot, "bin"), { recursive: true });
+        fs.writeFileSync(
+          path.join(packageRoot, "bpl.json"),
+          JSON.stringify(
+            {
+              name: packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              bin: {
+                broken: "bin/missing.bpl",
+              },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+        const packResult = spawnSync(
+          "tar",
+          ["-czf", cachePath, "-C", sourceDir, "package"],
+          { encoding: "utf-8" },
+        );
+        expect(packResult.status).toBe(0);
+
+        if (withProvenance) {
+          new PackageManager(tempDir)["writeArchiveProvenance"](
+            cachePath,
+            packageRoot,
+            JSON.parse(
+              fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8"),
+            ),
+          );
+        }
+
+        return cachePath;
+      };
+
+      const verifyCachePath = createInvalidBinArchive("cache-bin-json", true);
+      const repairCachePath = createInvalidBinArchive(
+        "cache-repair-bin-json",
+        false,
+      );
+      const env = {
+        ...process.env,
+        HOME: homeDir,
+      };
+
+      const verifyResult = spawnSync(
+        "bun",
+        [bplPath, "package-cache", "verify", "cache-bin-json", "--json"],
+        {
+          cwd: appDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      const verification = expectJsonStdoutReport<{
+        ok: boolean;
+        entriesChecked: number;
+        issues: Array<{
+          packageName: string;
+          kind: string;
+          message: string;
+          path: string;
+        }>;
+      }>(verifyResult, {
+        status: 1,
+        check: "package-cache-verify",
+        success: false,
+      });
+      expect(verification.ok).toBe(false);
+      expect(verification.entriesChecked).toBe(1);
+      expect(verification.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-bin-json",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Missing package bin entry: bin/missing.bpl",
+          ),
+          path: verifyCachePath,
+        }),
+      ]);
+
+      const repairResult = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "repair",
+          "cache-repair-bin-json",
+          "--json",
+        ],
+        {
+          cwd: appDir,
+          env,
+          encoding: "utf-8",
+        },
+      );
+      const repair = expectJsonStdoutReport<{
+        repaired: unknown[];
+        issues: Array<{
+          packageName: string;
+          kind: string;
+          message: string;
+          path: string;
+        }>;
+      }>(repairResult, {
+        status: 1,
+        check: "package-cache-repair",
+        success: false,
+      });
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-bin-json",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Missing package bin entry: bin/missing.bpl",
+          ),
+          path: repairCachePath,
+        }),
+      ]);
+      expect(fs.existsSync(`${repairCachePath}.bplmeta.json`)).toBe(false);
     });
 
     test("should repair missing cache provenance for valid archives", () => {

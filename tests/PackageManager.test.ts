@@ -5256,6 +5256,60 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report cached package archives with invalid bin files", () => {
+      const globalPackageDir = path.join(tempDir, "cache-bin-packages");
+      const sourceDir = path.join(tempDir, "cache-bin-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(globalPackageDir, "cache-bin-1.0.0.tgz");
+      fs.mkdirSync(path.join(packageRoot, "bin"), { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-bin",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              broken: "bin/missing.bpl",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM["writeArchiveProvenance"](
+        cachePath,
+        packageRoot,
+        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+      );
+
+      const report = localPM.verifyPackageCache("cache-bin");
+
+      expect(report.ok).toBe(false);
+      expect(report.entriesChecked).toBe(1);
+      expect(report.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-bin",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Missing package bin entry: bin/missing.bpl",
+          ),
+        }),
+      ]);
+    });
+
     test("should use the configured archive tool while verifying package cache entries", () => {
       const globalPackageDir = path.join(tempDir, "cache-tar-tool-packages");
       fs.mkdirSync(globalPackageDir);
@@ -5374,6 +5428,56 @@ describe("PackageManager", () => {
           kind: "invalid-archive",
           message: expect.stringContaining(
             "Missing package export entry: features/public.bpl",
+          ),
+        }),
+      ]);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+    });
+
+    test("should refuse package cache repair for archives with invalid bin files", () => {
+      const globalPackageDir = path.join(tempDir, "cache-repair-bin-packages");
+      const sourceDir = path.join(tempDir, "cache-repair-bin-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(globalPackageDir, "cache-repair-bin-1.0.0.tgz");
+      fs.mkdirSync(path.join(packageRoot, "bin"), { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-repair-bin",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: {
+              broken: "bin/missing.bpl",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const repair = localPM.repairPackageCache("cache-repair-bin");
+
+      expect(repair.success).toBe(false);
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-bin",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Missing package bin entry: bin/missing.bpl",
           ),
         }),
       ]);
