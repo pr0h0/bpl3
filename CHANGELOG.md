@@ -90,6 +90,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   reject unsafe manifest `main` or legacy `entry` values before resolving
   exported subpaths, so a package with an invalid entrypoint cannot partially
   resolve through a safe-looking subpath.
+- **Package Resolver Legacy Entry Safety Parity** - installed package manifests
+  now reject unsafe legacy `entry` metadata even when a safe `main` field is
+  present, matching package-manager manifest validation for every package
+  import shape.
 - **CI Triage Exported Package Candidate Repros** - `bun run ci:triage` now
   maps exported package subpath fallback regressions to
   `bun test tests/PackageResolver.test.ts -t "exported candidates"`.

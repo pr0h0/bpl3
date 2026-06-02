@@ -583,9 +583,11 @@ After a package root has been accepted, package source failures are terminal
 too: unsafe manifest entrypoint values such as `../outside.bpl`, symlinked
 entrypoint files, and subpath source parents such as `features/` are reported
 at the import site instead of falling back to alternate candidates or following
-the link. Unsafe `main` or legacy `entry` values also fail before any subpath
-import from that package is resolved, including exported subpaths that would
-otherwise point at safe files. The package manager validates both `main` and
+the link. Unsafe `main` or legacy `entry` values also fail before any package
+entrypoint or subpath import from that package is resolved, including exported
+subpaths that would otherwise point at safe files. The resolver validates both
+fields independently, so an unsafe legacy `entry` still invalidates the package
+when a safe `main` is present. The package manager validates both `main` and
 the legacy `entry` field as package-relative paths before install or pack
 operations continue.
 The package import resolver also rejects malformed string metadata such as a

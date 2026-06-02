@@ -800,14 +800,13 @@ function validatePackageManifestMatchesImport(
     return false;
   }
 
-  let entrypoint: string | undefined;
-  if (typeof manifest.main === "string") {
-    entrypoint = manifest.main;
-  } else if (typeof manifest.entry === "string") {
-    entrypoint = manifest.entry;
-  }
-  if (entrypoint !== undefined && !isSafeManifestRelativePath(entrypoint)) {
-    return failOnUnsafePackageEntrypoint(packageRoot, entrypoint, trace);
+  for (const entrypoint of [manifest.main, manifest.entry]) {
+    if (
+      typeof entrypoint === "string" &&
+      !isSafeManifestRelativePath(entrypoint)
+    ) {
+      return failOnUnsafePackageEntrypoint(packageRoot, entrypoint, trace);
+    }
   }
 
   return true;
