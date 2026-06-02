@@ -286,6 +286,35 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toBe("equal\n");
   });
 
+  it("should compare enum float payloads with float equality semantics", () => {
+    const source = `
+      extern printf(fmt: string, ...) ret int;
+
+      enum E {
+          V(float),
+      }
+
+      frame main() ret int {
+          local neg: float = -1.0 * 0.0;
+          local a: E = E.V(0.0);
+          local b: E = E.V(neg);
+
+          if (a == b) {
+              printf("equal\\n");
+          } else {
+              printf("not equal\\n");
+          }
+
+          return 0;
+      }
+    `;
+
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("EnumFloatEquality Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("equal\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);

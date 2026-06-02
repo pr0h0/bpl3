@@ -619,13 +619,18 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         `  ${rightDataI8Ptr} = bitcast [${dataSize} x i8]* ${rightDataPtr} to i8*`,
       );
 
-      const memcmpResult = this.newRegister();
-      this.emit(
-        `  ${memcmpResult} = call i32 @memcmp(i8* ${leftDataI8Ptr}, i8* ${rightDataI8Ptr}, i64 ${dataSize})`,
-      );
-
-      const dataEqual = this.newRegister();
-      this.emit(`  ${dataEqual} = icmp eq i32 ${memcmpResult}, 0`);
+      const dataEqual =
+        this.generateEnumDataFieldEquality(
+          enumName,
+          leftTag,
+          leftDataI8Ptr,
+          rightDataI8Ptr,
+        ) ??
+        this.generateEnumDataMemcmpEquality(
+          leftDataI8Ptr,
+          rightDataI8Ptr,
+          dataSize,
+        );
 
       const result = this.newRegister();
       this.emit(`  ${result} = and i1 ${tagsEqual}, ${dataEqual}`);
@@ -644,6 +649,142 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return notResult;
     }
     return tagsEqual;
+  }
+
+  private generateEnumDataMemcmpEquality(
+    leftDataI8Ptr: string,
+    rightDataI8Ptr: string,
+    dataSize: number,
+  ): string {
+    const memcmpResult = this.newRegister();
+    this.emit(
+      `  ${memcmpResult} = call i32 @memcmp(i8* ${leftDataI8Ptr}, i8* ${rightDataI8Ptr}, i64 ${dataSize})`,
+    );
+
+    const dataEqual = this.newRegister();
+    this.emit(`  ${dataEqual} = icmp eq i32 ${memcmpResult}, 0`);
+    return dataEqual;
+  }
+
+  private generateEnumDataFieldEquality(
+    enumName: string,
+    leftTag: string,
+    leftDataI8Ptr: string,
+    rightDataI8Ptr: string,
+  ): string | null {
+    const enumDecl = this.findEnumDeclForGeneratedName(enumName);
+    if (!enumDecl || enumDecl.genericParams.length > 0) {
+      return null;
+    }
+
+    let dataEqual = "true";
+
+    for (let variantIndex = 0; variantIndex < enumDecl.variants.length; variantIndex++) {
+      const variant = enumDecl.variants[variantIndex]!;
+      const fieldTypes = this.getEnumVariantPayloadFieldTypes(variant);
+      if (fieldTypes.length === 0) {
+        continue;
+      }
+
+      let variantFieldsEqual = "true";
+      for (let fieldIndex = 0; fieldIndex < fieldTypes.length; fieldIndex++) {
+        const fieldTypeNode = fieldTypes[fieldIndex]!;
+        const fieldType = this.resolveType(fieldTypeNode);
+        const byteOffset = this.getEnumDataFieldByteOffset(
+          fieldTypes,
+          fieldIndex,
+        );
+
+        const leftField = this.loadEnumPayloadField(
+          leftDataI8Ptr,
+          byteOffset,
+          fieldType,
+        );
+        const rightField = this.loadEnumPayloadField(
+          rightDataI8Ptr,
+          byteOffset,
+          fieldType,
+        );
+        const fieldEqual = this.generateValueEquality(
+          leftField,
+          rightField,
+          fieldTypeNode,
+        );
+        const nextFieldsEqual = this.newRegister();
+        this.emit(
+          `  ${nextFieldsEqual} = and i1 ${variantFieldsEqual}, ${fieldEqual}`,
+        );
+        variantFieldsEqual = nextFieldsEqual;
+      }
+
+      const isVariant = this.newRegister();
+      this.emit(
+        `  ${isVariant} = icmp eq i32 ${leftTag}, ${variantIndex}`,
+      );
+
+      const isInactiveVariant = this.newRegister();
+      this.emit(`  ${isInactiveVariant} = xor i1 ${isVariant}, true`);
+
+      const variantOk = this.newRegister();
+      this.emit(
+        `  ${variantOk} = or i1 ${isInactiveVariant}, ${variantFieldsEqual}`,
+      );
+
+      const nextDataEqual = this.newRegister();
+      this.emit(`  ${nextDataEqual} = and i1 ${dataEqual}, ${variantOk}`);
+      dataEqual = nextDataEqual;
+    }
+
+    return dataEqual;
+  }
+
+  private findEnumDeclForGeneratedName(enumName: string): AST.EnumDecl | null {
+    const exact = this.enumDeclMap.get(enumName);
+    if (exact) return exact;
+
+    let best: AST.EnumDecl | null = null;
+    for (const decl of this.enumDeclMap.values()) {
+      if (
+        enumName.startsWith(`${decl.name}_`) &&
+        (!best || decl.name.length > best.name.length)
+      ) {
+        best = decl;
+      }
+    }
+    return best;
+  }
+
+  private getEnumVariantPayloadFieldTypes(
+    variant: AST.EnumVariant,
+  ): AST.TypeNode[] {
+    if (!variant.dataType) return [];
+    if (variant.dataType.kind === "EnumVariantTuple") {
+      return variant.dataType.types;
+    }
+    if (variant.dataType.kind === "EnumVariantStruct") {
+      return variant.dataType.fields.map((field) => field.type);
+    }
+    return [];
+  }
+
+  private loadEnumPayloadField(
+    dataI8Ptr: string,
+    byteOffset: number,
+    fieldType: string,
+  ): string {
+    let fieldBytePtr = dataI8Ptr;
+    if (byteOffset > 0) {
+      fieldBytePtr = this.newRegister();
+      this.emit(
+        `  ${fieldBytePtr} = getelementptr i8, i8* ${dataI8Ptr}, i32 ${byteOffset}`,
+      );
+    }
+
+    const fieldPtr = this.newRegister();
+    this.emit(`  ${fieldPtr} = bitcast i8* ${fieldBytePtr} to ${fieldType}*`);
+    const fieldValue = this.newRegister();
+    this.emit(`  ${fieldValue} = load ${fieldType}, ${fieldType}* ${fieldPtr}`);
+    return fieldValue;
   }
 
   /**
