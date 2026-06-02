@@ -2178,12 +2178,14 @@ function runPackedPackageManifestValidationJsonSmoke(
   const missingManifestDir = join(workspaceDir, "missing-manifest");
   const invalidMainDir = join(workspaceDir, "invalid-main");
   const invalidEntryDir = join(workspaceDir, "invalid-entry");
+  const invalidRepositoryDir = join(workspaceDir, "invalid-repository-type");
   const homeDir = join(workspaceDir, "home");
 
   try {
     mkdirSync(missingManifestDir, { recursive: true });
     mkdirSync(invalidMainDir, { recursive: true });
     mkdirSync(invalidEntryDir, { recursive: true });
+    mkdirSync(invalidRepositoryDir, { recursive: true });
     mkdirSync(homeDir, { recursive: true });
     writeFileSync(
       join(invalidMainDir, "bpl.json"),
@@ -2204,6 +2206,18 @@ function runPackedPackageManifestValidationJsonSmoke(
           name: "invalid-entry",
           version: "1.0.0",
           entry: "src//index.bpl",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    writeFileSync(
+      join(invalidRepositoryDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "invalid-repository-type",
+          version: "1.0.0",
+          repository: { type: "hg", url: "https://example.com/repo.hg" },
         },
         null,
         2,
@@ -2237,14 +2251,26 @@ function runPackedPackageManifestValidationJsonSmoke(
       env,
       timeout: smokeTimeoutMs,
     });
+    const invalidRepositoryResult = spawnSync(
+      installedBpl,
+      ["install", "--json"],
+      {
+        cwd: invalidRepositoryDir,
+        encoding: "utf-8",
+        env,
+        timeout: smokeTimeoutMs,
+      },
+    );
 
     if (missingResult.error) throw missingResult.error;
     if (invalidMainResult.error) throw invalidMainResult.error;
     if (invalidEntryResult.error) throw invalidEntryResult.error;
+    if (invalidRepositoryResult.error) throw invalidRepositoryResult.error;
     if (
       missingResult.status !== 1 ||
       invalidMainResult.status !== 1 ||
-      invalidEntryResult.status !== 1
+      invalidEntryResult.status !== 1 ||
+      invalidRepositoryResult.status !== 1
     ) {
       throw new Error(
         [
@@ -2258,13 +2284,17 @@ function runPackedPackageManifestValidationJsonSmoke(
           `invalid entry exit: ${invalidEntryResult.status ?? "unknown"}`,
           `invalid entry stdout:\n${invalidEntryResult.stdout}`,
           `invalid entry stderr:\n${invalidEntryResult.stderr}`,
+          `invalid repository exit: ${invalidRepositoryResult.status ?? "unknown"}`,
+          `invalid repository stdout:\n${invalidRepositoryResult.stdout}`,
+          `invalid repository stderr:\n${invalidRepositoryResult.stderr}`,
         ].join("\n"),
       );
     }
     if (
       missingResult.stderr !== "" ||
       invalidMainResult.stderr !== "" ||
-      invalidEntryResult.stderr !== ""
+      invalidEntryResult.stderr !== "" ||
+      invalidRepositoryResult.stderr !== ""
     ) {
       throw new Error(
         [
@@ -2272,6 +2302,7 @@ function runPackedPackageManifestValidationJsonSmoke(
           `missing stderr:\n${missingResult.stderr}`,
           `invalid main stderr:\n${invalidMainResult.stderr}`,
           `invalid entry stderr:\n${invalidEntryResult.stderr}`,
+          `invalid repository stderr:\n${invalidRepositoryResult.stderr}`,
         ].join("\n"),
       );
     }
@@ -2282,6 +2313,9 @@ function runPackedPackageManifestValidationJsonSmoke(
     );
     const invalidEntryReport = parsePackageInstallReport(
       invalidEntryResult.stdout,
+    );
+    const invalidRepositoryReport = parsePackageInstallReport(
+      invalidRepositoryResult.stdout,
     );
     if (
       missingReport.success ||
@@ -2311,7 +2345,17 @@ function runPackedPackageManifestValidationJsonSmoke(
       invalidEntryReport.repairLock ||
       invalidEntryReport.errorCode !==
         "BPL_PACKAGE_MANIFEST_ENTRY_INVALID" ||
-      typeof invalidEntryReport.error !== "string"
+      typeof invalidEntryReport.error !== "string" ||
+      invalidRepositoryReport.success ||
+      invalidRepositoryReport.mode !== "project" ||
+      invalidRepositoryReport.target !== null ||
+      invalidRepositoryReport.global ||
+      invalidRepositoryReport.locked ||
+      invalidRepositoryReport.update ||
+      invalidRepositoryReport.repairLock ||
+      invalidRepositoryReport.errorCode !==
+        "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID" ||
+      typeof invalidRepositoryReport.error !== "string"
     ) {
       throw new Error(
         [
@@ -2319,6 +2363,7 @@ function runPackedPackageManifestValidationJsonSmoke(
           `missing:\n${JSON.stringify(missingReport, null, 2)}`,
           `invalid main:\n${JSON.stringify(invalidMainReport, null, 2)}`,
           `invalid entry:\n${JSON.stringify(invalidEntryReport, null, 2)}`,
+          `invalid repository:\n${JSON.stringify(invalidRepositoryReport, null, 2)}`,
         ].join("\n"),
       );
     }

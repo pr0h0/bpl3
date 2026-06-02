@@ -1035,7 +1035,10 @@ describe("Release metadata", () => {
       "BPL_PACKAGE_MANIFEST_MISSING",
       "BPL_PACKAGE_MANIFEST_MAIN_INVALID",
       "BPL_PACKAGE_MANIFEST_ENTRY_INVALID",
+      "BPL_PACKAGE_MANIFEST_REPOSITORY_INVALID",
       "invalid-entry",
+      "invalid-repository-type",
+      'repository: { type: "hg"',
       '["install", "--json"]',
       "parsePackageInstallReport",
     ]);
