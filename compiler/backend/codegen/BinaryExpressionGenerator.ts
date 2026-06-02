@@ -1884,7 +1884,8 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     let resultReg = "true";
 
     for (let i = 0; i < fields.length; i++) {
-      const fieldType = this.resolveType(fields[i]!.type);
+      const fieldTypeNode = fields[i]!.type;
+      const fieldType = this.resolveType(fieldTypeNode);
       const llvmIndex = i + offset;
 
       const leftField = this.newRegister();
@@ -1897,7 +1898,12 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         `  ${rightField} = extractvalue %struct.${structName} ${rightVal}, ${llvmIndex}`,
       );
 
-      const cmpReg = this.compareFields(fieldType, leftField, rightField);
+      const cmpReg = this.compareFields(
+        fieldType,
+        leftField,
+        rightField,
+        fieldTypeNode,
+      );
 
       const newResult = this.newRegister();
       this.emit(`  ${newResult} = and i1 ${resultReg}, ${cmpReg}`);
@@ -1919,7 +1925,12 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     fieldType: string,
     leftField: string,
     rightField: string,
+    fieldTypeNode?: AST.TypeNode,
   ): string {
+    if (fieldTypeNode) {
+      return this.generateValueEquality(leftField, rightField, fieldTypeNode);
+    }
+
     if (fieldType.startsWith("%struct.") && !fieldType.endsWith("*")) {
       const nestedStructName = fieldType.substring(8);
       return this.generateStructComparison(
