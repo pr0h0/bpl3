@@ -594,15 +594,20 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const destType = this.resolveType(expr.assignee.resolvedType!);
 
     if (expr.operator.type === TokenType.Equal) {
-      const val = this.generateExpression(expr.value);
-      const srcType = this.resolveType(expr.value.resolvedType!);
-      const castVal = this.emitCast(
-        val,
-        srcType,
-        destType,
-        expr.value.resolvedType!,
-        expr.assignee.resolvedType!,
-      );
+      const destTypeNode = expr.assignee.resolvedType!;
+      const castVal =
+        expr.value.kind === "TupleLiteral" && destTypeNode.kind === "TupleType"
+          ? this.generateTupleLiteralForTarget(
+              expr.value as AST.TupleLiteralExpr,
+              destTypeNode,
+            )
+          : this.emitCast(
+              this.generateExpression(expr.value),
+              this.resolveType(expr.value.resolvedType!),
+              destType,
+              expr.value.resolvedType!,
+              destTypeNode,
+            );
       this.emit(`  store ${destType} ${castVal}, ${destType}* ${addr}`);
 
       // Update null flag for struct locals
@@ -1235,6 +1240,57 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       const nextVal = this.newRegister();
       this.emit(
         `  ${nextVal} = insertvalue ${type} ${tupleVal}, ${elemType} ${elemVal}, ${i}`,
+      );
+      tupleVal = nextVal;
+    }
+
+    return tupleVal;
+  }
+
+  protected generateTupleLiteralForTarget(
+    expr: AST.TupleLiteralExpr,
+    targetTypeNode: AST.TupleTypeNode,
+  ): string {
+    if (expr.elements.length !== targetTypeNode.types.length) {
+      throw this.createError(
+        `Tuple literal has ${expr.elements.length} elements, but target tuple has ${targetTypeNode.types.length}`,
+        expr,
+        "This is an internal compiler error. Tuple literal arity should be checked before code generation.",
+      );
+    }
+
+    const tupleType = this.resolveType(targetTypeNode);
+    let tupleVal = "undef";
+
+    for (let i = 0; i < expr.elements.length; i++) {
+      const elemExpr = expr.elements[i]!;
+      const targetElemTypeNode = targetTypeNode.types[i]!;
+      const targetElemType = this.resolveType(targetElemTypeNode);
+      let elemVal: string;
+
+      if (
+        elemExpr.kind === "TupleLiteral" &&
+        targetElemTypeNode.kind === "TupleType"
+      ) {
+        elemVal = this.generateTupleLiteralForTarget(
+          elemExpr as AST.TupleLiteralExpr,
+          targetElemTypeNode,
+        );
+      } else {
+        const sourceElemTypeNode = elemExpr.resolvedType!;
+        elemVal = this.generateExpression(elemExpr);
+        elemVal = this.emitCast(
+          elemVal,
+          this.resolveType(sourceElemTypeNode),
+          targetElemType,
+          sourceElemTypeNode,
+          targetElemTypeNode,
+        );
+      }
+
+      const nextVal = this.newRegister();
+      this.emit(
+        `  ${nextVal} = insertvalue ${tupleType} ${tupleVal}, ${targetElemType} ${elemVal}, ${i}`,
       );
       tupleVal = nextVal;
     }

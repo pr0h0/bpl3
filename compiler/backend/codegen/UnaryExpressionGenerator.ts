@@ -472,7 +472,18 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     srcTypeNode: AST.TypeNode,
     destTypeNode: AST.TypeNode,
   ): string {
+    let effectiveSource = srcTypeNode;
     let effectiveDest = destTypeNode;
+
+    while (
+      effectiveSource.kind === "BasicType" &&
+      effectiveSource.resolvedDeclaration &&
+      effectiveSource.resolvedDeclaration.kind === "TypeAlias"
+    ) {
+      effectiveSource = (
+        effectiveSource.resolvedDeclaration as AST.TypeAliasDecl
+      ).type;
+    }
 
     // Resolve Type Alias for destination
     while (
@@ -552,6 +563,45 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     }
 
     if (srcType === destType) return val;
+
+    if (
+      effectiveSource.kind === "TupleType" &&
+      effectiveDest.kind === "TupleType"
+    ) {
+      if (effectiveSource.types.length !== effectiveDest.types.length) {
+        throw new CompilerError(
+          `Cannot cast tuple with ${effectiveSource.types.length} elements to tuple with ${effectiveDest.types.length} elements`,
+          "Tuple casts require the same number of elements.",
+          srcTypeNode.location,
+        );
+      }
+
+      let tupleVal = "undef";
+      for (let i = 0; i < effectiveSource.types.length; i++) {
+        const sourceElemTypeNode = effectiveSource.types[i]!;
+        const destElemTypeNode = effectiveDest.types[i]!;
+        const sourceElemType = this.resolveType(sourceElemTypeNode);
+        const destElemType = this.resolveType(destElemTypeNode);
+        const sourceElemVal = this.newRegister();
+        this.emit(
+          `  ${sourceElemVal} = extractvalue ${srcType} ${val}, ${i}`,
+        );
+        const castElemVal = this.emitCast(
+          sourceElemVal,
+          sourceElemType,
+          destElemType,
+          sourceElemTypeNode,
+          destElemTypeNode,
+        );
+        const nextTupleVal = this.newRegister();
+        this.emit(
+          `  ${nextTupleVal} = insertvalue ${destType} ${tupleVal}, ${destElemType} ${castElemVal}, ${i}`,
+        );
+        tupleVal = nextTupleVal;
+      }
+
+      return tupleVal;
+    }
 
     // Function (Raw Pointer) to Lambda (Fat Pointer)
     if (

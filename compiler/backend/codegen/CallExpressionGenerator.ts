@@ -63,6 +63,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     srcTypeNode: AST.TypeNode,
     destTypeNode: AST.TypeNode,
   ): string;
+  protected abstract generateTupleLiteralForTarget(
+    expr: AST.TupleLiteralExpr,
+    targetTypeNode: AST.TupleTypeNode,
+  ): string;
 
   /**
    * Generate virtual method call through vtable
@@ -1954,15 +1958,19 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           return `${destType} ${decayReg}`;
         }
 
-        const val = this.generateExpression(arg);
-
-        const castVal = this.emitCast(
-          val,
-          srcType,
-          destType,
-          resolvedArgType,
-          targetTypeNode,
-        );
+        const castVal =
+          arg.kind === "TupleLiteral" && targetTypeNode.kind === "TupleType"
+            ? this.generateTupleLiteralForTarget(
+                arg as AST.TupleLiteralExpr,
+                targetTypeNode,
+              )
+            : this.emitCast(
+                this.generateExpression(arg),
+                srcType,
+                destType,
+                resolvedArgType,
+                targetTypeNode,
+              );
         return `${destType} ${castVal}`;
       }
 

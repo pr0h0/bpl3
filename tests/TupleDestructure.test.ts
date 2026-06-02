@@ -58,6 +58,33 @@ describe("Tuple Destructuring", () => {
       const result = compileAndRun(code);
       expect(result.trim()).toBe("1 2");
     });
+
+    it("should cast compatible tuple literal elements to the annotated tuple type", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame main() ret int {
+          local pair: (i8, long) = (3, 4294967296);
+          printf("%d %ld\\n", cast<int>(pair.0), pair.1);
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("3 4294967296");
+    });
+
+    it("should cast compatible tuple value elements to the annotated tuple type", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame main() ret int {
+          local source: (int, long) = (3, 4294967296);
+          local pair: (i8, long) = source;
+          printf("%d %ld\\n", cast<int>(pair.0), pair.1);
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("3 4294967296");
+    });
   });
 
   describe("Nested tuple destructuring", () => {
@@ -107,6 +134,22 @@ describe("Tuple Destructuring", () => {
       const result = compileAndRun(code);
       expect(result.trim()).toBe("5 10");
     });
+
+    it("should cast compatible tuple return literal elements to the declared return type", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame getPair() ret (i8, long) {
+          return (3, 4294967296);
+        }
+        frame main() ret int {
+          local pair: (i8, long) = getPair();
+          printf("%d %ld\\n", cast<int>(pair.0), pair.1);
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("3 4294967296");
+    });
   });
 
   describe("Tuple swap pattern", () => {
@@ -140,9 +183,38 @@ describe("Tuple Destructuring", () => {
       const result = compileAndRun(code);
       expect(result.trim()).toBe("3 4");
     });
+
+    it("should cast compatible tuple assignment literal elements to the target tuple type", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame main() ret int {
+          local pair: (i8, long) = (0, 0);
+          pair = (3, 4294967296);
+          printf("%d %ld\\n", cast<int>(pair.0), pair.1);
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("3 4294967296");
+    });
   });
 
   describe("Tuple element access", () => {
+    it("should cast compatible tuple argument literal elements to the parameter type", () => {
+      const code = `
+        extern printf(fmt: string, ...) ret int;
+        frame printPair(pair: (i8, long)) ret void {
+          printf("%d %ld\\n", cast<int>(pair.0), pair.1);
+        }
+        frame main() ret int {
+          printPair((3, 4294967296));
+          return 0;
+        }
+      `;
+      const result = compileAndRun(code);
+      expect(result.trim()).toBe("3 4294967296");
+    });
+
     it("should access tuple elements with .0, .1, etc", () => {
       const code = `
         extern printf(fmt: string, ...) ret int;

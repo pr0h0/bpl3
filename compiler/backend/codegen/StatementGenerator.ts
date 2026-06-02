@@ -1159,6 +1159,14 @@ export abstract class StatementGenerator extends AsmGenerator {
           const val = this.generateExpression(decl.initializer);
           castVal = this.emitPointerFromArrayValue(val, sourceTypeNode);
         }
+      } else if (
+        decl.initializer.kind === "TupleLiteral" &&
+        destTypeNode.kind === "TupleType"
+      ) {
+        castVal = this.generateTupleLiteralForTarget(
+          decl.initializer as AST.TupleLiteralExpr,
+          destTypeNode,
+        );
       } else {
         const val = this.generateExpression(decl.initializer);
         castVal = this.emitCast(
@@ -1241,17 +1249,19 @@ export abstract class StatementGenerator extends AsmGenerator {
     let retVal: string | undefined;
 
     if (stmt.value) {
-      const rawVal = this.generateExpression(stmt.value);
-      const srcTypeNode = stmt.value.resolvedType!;
-      const srcType = this.resolveType(srcTypeNode);
-
-      retVal = this.emitCast(
-        rawVal,
-        srcType,
-        destType,
-        srcTypeNode,
-        destTypeNode,
-      );
+      retVal =
+        stmt.value.kind === "TupleLiteral" && destTypeNode.kind === "TupleType"
+          ? this.generateTupleLiteralForTarget(
+              stmt.value as AST.TupleLiteralExpr,
+              destTypeNode,
+            )
+          : this.emitCast(
+              this.generateExpression(stmt.value),
+              this.resolveType(stmt.value.resolvedType!),
+              destType,
+              stmt.value.resolvedType!,
+              destTypeNode,
+            );
     }
 
     // Only trigger function-level return hooks (like destructors) if not yielding from a match
