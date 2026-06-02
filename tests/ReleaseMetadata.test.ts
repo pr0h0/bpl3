@@ -1025,12 +1025,15 @@ describe("Release metadata", () => {
   test("release smoke validates packed package list duplicate JSON output", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI package list duplicate JSON",
+      "check packed npm CLI package list tree duplicate JSON",
       "runPackedPackageListDuplicateJsonSmoke",
       "assertDuplicatePackageListFailureReport",
+      "assertDuplicatePackageListTreeFailureReport",
       "BPL_PACKAGE_DUPLICATE_INSTALLED",
       "duplicate-installed-package",
       "issuesFound",
       "issueKinds",
+      "parsePackageListTreeReport",
     ]);
   });
 

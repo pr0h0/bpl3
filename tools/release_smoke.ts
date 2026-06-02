@@ -185,6 +185,16 @@ interface PackageListTreeReport {
   success: boolean;
   scope: string;
   tree: unknown[];
+  error?: string;
+  errorCode?: string;
+  issuesFound?: number;
+  issueKinds?: string[];
+  issues?: Array<{
+    packageName?: string;
+    kind?: string;
+    path?: string;
+    paths?: string[];
+  }>;
 }
 
 interface PackageCacheListReport {
@@ -2446,6 +2456,15 @@ function runPackedPackageListDuplicateJsonSmoke(
   );
   const duplicateListReport = parsePackageListReport(duplicateList.stdout);
   assertDuplicatePackageListFailureReport(duplicateListReport);
+
+  const duplicateTree = runJsonFailureStep(
+    "check packed npm CLI package list tree duplicate JSON",
+    installedBpl,
+    ["list", "--tree", "--json"],
+    { cwd: appDir, bplHome: null, expectedStatus: 1 },
+  );
+  const duplicateTreeReport = parsePackageListTreeReport(duplicateTree.stdout);
+  assertDuplicatePackageListTreeFailureReport(duplicateTreeReport);
 }
 
 function assertDuplicatePackageListFailureReport(
@@ -2478,6 +2497,40 @@ function assertDuplicatePackageListFailureReport(
   ) {
     throw new Error(
       `Packed npm CLI package list duplicate JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
+    );
+  }
+}
+
+function assertDuplicatePackageListTreeFailureReport(
+  report: PackageListTreeReport,
+): void {
+  const duplicateIssue = report.issues?.[0];
+
+  if (
+    report.success ||
+    report.scope !== "local" ||
+    report.tree.length !== 0 ||
+    report.errorCode !== "BPL_PACKAGE_DUPLICATE_INSTALLED" ||
+    report.issuesFound !== 1 ||
+    !Array.isArray(report.issueKinds) ||
+    report.issueKinds.length !== 1 ||
+    report.issueKinds[0] !== "duplicate-installed-package" ||
+    !duplicateIssue ||
+    duplicateIssue.packageName !== "release-smoke-list-duplicate" ||
+    duplicateIssue.kind !== "duplicate-installed-package" ||
+    typeof duplicateIssue.path !== "string" ||
+    !duplicateIssue.path.includes("release-smoke-list-duplicate-a") ||
+    !Array.isArray(duplicateIssue.paths) ||
+    duplicateIssue.paths.length !== 2 ||
+    !duplicateIssue.paths[0]?.includes("release-smoke-list-duplicate-a") ||
+    !duplicateIssue.paths[1]?.includes("release-smoke-list-duplicate-b") ||
+    typeof report.error !== "string" ||
+    !report.error.includes(
+      "Multiple installed directories declare package 'release-smoke-list-duplicate'",
+    )
+  ) {
+    throw new Error(
+      `Packed npm CLI package list tree duplicate JSON reported unexpected payload:\n${JSON.stringify(report, null, 2)}`,
     );
   }
 }
