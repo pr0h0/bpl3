@@ -768,6 +768,8 @@ describe("Markdown documentation", () => {
       "package-cache verify also validates manifest `bin` entries",
       "invalid cached `bin` target",
       "package-cache repair refuses to regenerate provenance",
+      "Directory `bin` targets are reported by package-cache `bin` validation",
+      "Symlinked binary archive members are rejected by the archive safety layer",
       "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"cached package.*bin files|package cache repair.*bin files|cached package bin files in verify\"",
     ];
 
@@ -783,6 +785,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "lockfile verification validates installed package `bin` entries",
       "invalid installed package bin",
+      "installed package `bin` targets that are directories or symlinks",
       "`bpl install --locked --json`",
       "`bpl install --repair-lock --json`",
       "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"installed package bin files during locked verification|installed package bin files when repairing lockfiles|installed package bin files during lockfile repair\"",

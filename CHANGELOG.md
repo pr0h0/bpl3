@@ -30,14 +30,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   invalid cached `bin` target as an `invalid-archive` issue in text and JSON
   flows. `package-cache repair refuses to regenerate provenance` for archives
   whose `bin` target files are missing, directories, or symlinks, matching
-  package publish/install safety checks. Reproduce with
+  package publish/install safety checks. Directory `bin` targets are covered
+  through package-cache bin validation; symlinked binary archive members are
+  covered through archive safety before provenance repair. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|package cache repair.*bin files|cached package bin files in verify"`.
 - **Package Lock Bin Validation** - lockfile verification validates installed
   package `bin` entries before trusting a lock entry, and `bpl install
   --repair-lock` now refuses to record an invalid installed package bin target.
   `bpl install --locked --json` and `bpl install --repair-lock --json` surface
   the invalid installed package bin as an `invalid-manifest` issue with stable
-  lock verification metadata. Reproduce with
+  lock verification metadata. Directory and symlinked installed package bin
+  targets are explicitly covered by API regression tests. Reproduce with
   `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "installed package bin files during locked verification|installed package bin files when repairing lockfiles|installed package bin files during lockfile repair"`.
 - **Package Lock Verification JSON Metadata** - `bpl install --locked --json`
   and `bpl install --repair-lock --json` compact verification issues now

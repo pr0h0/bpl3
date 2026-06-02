@@ -2949,6 +2949,96 @@ describe("PackageManager", () => {
       ]);
     });
 
+    test("should report directory and symlinked package bin files during locked verification", () => {
+      const appDir = path.join(tempDir, "bin-lock-shapes-app");
+      const sourceArchive = path.join(appDir, "source.tgz");
+      const cases = [
+        {
+          packageName: "bin-lock-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin", "tool.sh"), {
+              recursive: true,
+            });
+          },
+        },
+        {
+          packageName: "bin-lock-symlink",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+            fs.writeFileSync(
+              path.join(packageDir, "bin", "actual.sh"),
+              "#!/usr/bin/env sh\necho tool\n",
+            );
+            fs.symlinkSync("actual.sh", path.join(packageDir, "bin", "tool.sh"));
+          },
+        },
+      ] as const;
+      const packages: Record<
+        string,
+        { version: string; source: string; hash: string }
+      > = {};
+
+      fs.mkdirSync(appDir, { recursive: true });
+      fs.writeFileSync(sourceArchive, "archive placeholder");
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "bin-lock-shapes-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      for (const testCase of cases) {
+        const packageDir = path.join(appDir, "bpl_modules", testCase.packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              bin: { tool: "bin/tool.sh" },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+        packages[testCase.packageName] = {
+          version: "1.0.0",
+          source: "file:source.tgz",
+          hash: localPM["calculatePackageHash"](packageDir),
+        };
+      }
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.lock"),
+        JSON.stringify({ lockfileVersion: 1, packages }, null, 2),
+      );
+
+      const verification = localPM.verifyLockFile();
+
+      expect(verification.ok).toBe(false);
+      expect(verification.packagesChecked).toBe(2);
+      expect(verification.issues).toEqual(
+        expect.arrayContaining(
+          cases.map((testCase) =>
+            expect.objectContaining({
+              packageName: testCase.packageName,
+              kind: "invalid-manifest",
+              message: expect.stringContaining(
+                "Unsupported package bin entry: bin/tool.sh",
+              ),
+            }),
+          ),
+        ),
+      );
+    });
+
     test("should reject lock entries whose installed manifest name differs from the lock key", () => {
       const appDir = path.join(tempDir, "manifest-name-lock-app");
       const sourceArchive = path.join(appDir, "source.tgz");
@@ -3969,6 +4059,87 @@ describe("PackageManager", () => {
       expect(() => localPM.repairLockFile()).toThrow(
         PackageLockVerificationError,
       );
+      expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
+    });
+
+    test("should reject directory and symlinked package bin files when repairing lockfiles", () => {
+      const appDir = path.join(tempDir, "repair-bin-shapes-app");
+      const cases = [
+        {
+          packageName: "repair-bin-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin", "tool.sh"), {
+              recursive: true,
+            });
+          },
+        },
+        {
+          packageName: "repair-bin-symlink",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+            fs.writeFileSync(
+              path.join(packageDir, "bin", "actual.sh"),
+              "#!/usr/bin/env sh\necho tool\n",
+            );
+            fs.symlinkSync("actual.sh", path.join(packageDir, "bin", "tool.sh"));
+          },
+        },
+      ] as const;
+
+      fs.mkdirSync(appDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "repair-bin-shapes-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+
+      for (const testCase of cases) {
+        const packageDir = path.join(appDir, "bpl_modules", testCase.packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              bin: { tool: "bin/tool.sh" },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+      }
+
+      const localPM = new PackageManager(appDir);
+      let error: unknown;
+      try {
+        localPM.repairLockFile();
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(PackageLockVerificationError);
+      expect((error as PackageLockVerificationError).verification).toMatchObject({
+        ok: false,
+        packagesChecked: 2,
+        issues: expect.arrayContaining(
+          cases.map((testCase) =>
+            expect.objectContaining({
+              packageName: testCase.packageName,
+              kind: "invalid-manifest",
+              message: expect.stringContaining(
+                "Unsupported package bin entry: bin/tool.sh",
+              ),
+            }),
+          ),
+        ),
+      });
       expect(fs.existsSync(path.join(appDir, "bpl.lock"))).toBe(false);
     });
 
@@ -5407,6 +5578,63 @@ describe("PackageManager", () => {
       ]);
     });
 
+    test("should report cached package archives with directory package bin files", () => {
+      const globalPackageDir = path.join(tempDir, "cache-bin-directory-packages");
+      const sourceDir = path.join(tempDir, "cache-bin-directory-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(
+        globalPackageDir,
+        "cache-bin-directory-1.0.0.tgz",
+      );
+      fs.mkdirSync(path.join(packageRoot, "bin", "tool.sh"), {
+        recursive: true,
+      });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-bin-directory",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+      localPM["writeArchiveProvenance"](
+        cachePath,
+        packageRoot,
+        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+      );
+
+      const report = localPM.verifyPackageCache("cache-bin-directory");
+
+      expect(report.ok).toBe(false);
+      expect(report.entriesChecked).toBe(1);
+      expect(report.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-bin-directory",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Unsupported package bin entry: bin/tool.sh",
+          ),
+        }),
+      ]);
+    });
+
     test("should use the configured archive tool while verifying package cache entries", () => {
       const globalPackageDir = path.join(tempDir, "cache-tar-tool-packages");
       fs.mkdirSync(globalPackageDir);
@@ -5575,6 +5803,121 @@ describe("PackageManager", () => {
           kind: "invalid-archive",
           message: expect.stringContaining(
             "Missing package bin entry: bin/missing.bpl",
+          ),
+        }),
+      ]);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+    });
+
+    test("should refuse package cache repair for directory package bin files", () => {
+      const globalPackageDir = path.join(
+        tempDir,
+        "cache-repair-bin-directory-packages",
+      );
+      const sourceDir = path.join(tempDir, "cache-repair-bin-directory-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(
+        globalPackageDir,
+        "cache-repair-bin-directory-1.0.0.tgz",
+      );
+      fs.mkdirSync(path.join(packageRoot, "bin", "tool.sh"), {
+        recursive: true,
+      });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-repair-bin-directory",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const repair = localPM.repairPackageCache("cache-repair-bin-directory");
+
+      expect(repair.success).toBe(false);
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-bin-directory",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Unsupported package bin entry: bin/tool.sh",
+          ),
+        }),
+      ]);
+      expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+    });
+
+    test("should refuse package cache repair for symlinked package bin archive entries", () => {
+      const globalPackageDir = path.join(
+        tempDir,
+        "cache-repair-bin-symlink-packages",
+      );
+      const sourceDir = path.join(tempDir, "cache-repair-bin-symlink-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(
+        globalPackageDir,
+        "cache-repair-bin-symlink-1.0.0.tgz",
+      );
+      fs.mkdirSync(path.join(packageRoot, "bin"), { recursive: true });
+      fs.mkdirSync(globalPackageDir);
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-repair-bin-symlink",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageRoot, "bin", "actual.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+      fs.symlinkSync("actual.sh", path.join(packageRoot, "bin", "tool.sh"));
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const repair = localPM.repairPackageCache("cache-repair-bin-symlink");
+
+      expect(repair.success).toBe(false);
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-bin-symlink",
+          kind: "invalid-archive",
+          message: expect.stringContaining(
+            "Unsupported package archive entry: package/bin/tool.sh",
           ),
         }),
       ]);
