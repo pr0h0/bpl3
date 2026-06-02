@@ -1234,6 +1234,33 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps type-query diagnostics to focused reproduction commands", () => {
+    const expectedCommands = [
+      "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",
+      'bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"',
+      'bun test tests/MarkdownDocs.test.ts -t "type-query diagnostic"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "BPL_TYPE_QUERY_ENUM_NOT_FOUND",
+      "BPL_TYPE_QUERY_TYPE_NOT_FOUND",
+      "Cannot find enum 'Missing'",
+      "Unknown type 'MissingType'",
+      "Unknown type: MissingType",
+      "The type 'Missing' in match<Missing.Some> is not a defined enum.",
+      "The type 'MissingType' in match<MissingType> is not defined.",
+      "The type 'Missing' in 'is' expression is not a defined enum.",
+      "Type-query failures use `BPL_TYPE_QUERY_ENUM_NOT_FOUND`",
+      "reports type-query diagnostics failures in JSON-mode check and build diagnostics",
+      "docs document type-query diagnostic codes",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps build JSON validation failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "build validation failures"',
@@ -5791,6 +5818,72 @@ describe("CI triage helper", () => {
         "bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts",
         'bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"',
         'bun test tests/MarkdownDocs.test.ts -t "tuple match pattern diagnostic"',
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints type-query diagnostic repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-type-query-diagnostics-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 109,
+              name: "Compiler diagnostics regression",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/109",
+              steps: [
+                {
+                  name: "BPL_TYPE_QUERY_ENUM_NOT_FOUND Cannot find enum 'Missing'",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",
+        'bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"',
+        'bun test tests/MarkdownDocs.test.ts -t "type-query diagnostic"',
         "bun run check",
       ]);
     } finally {

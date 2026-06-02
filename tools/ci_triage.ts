@@ -667,6 +667,22 @@ const TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_TYPE_QUERY_ENUM_NOT_FOUND",
+    "BPL_TYPE_QUERY_TYPE_NOT_FOUND",
+    "type-query diagnostics",
+    "type-query diagnostic",
+    "Type-query failures",
+    "Cannot find enum",
+    "Unknown type ['\"].*['\"]",
+    "Unknown type: .*",
+    "The type ['\"].*['\"] in match<.*> is not a defined enum",
+    "The type ['\"].*['\"] in match<.*> is not defined",
+    "in ['\"]is['\"] expression is not a defined enum",
+  ].join("|"),
+  "i",
+);
 const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   [
     "CLIJsonParseability\\.test.*timed out after",
@@ -1631,6 +1647,19 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "tuple match pattern diagnostic"',
   ],
   [TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",
+  ],
+  [
+    TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"',
+  ],
+  [
+    TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN,
+    'bun test tests/MarkdownDocs.test.ts -t "type-query diagnostic"',
+  ],
+  [TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_SEARCH_DIR_NOT_DIRECTORY_STEP_PATTERN,
     'bun test tests/PackageResolver.test.ts -t "non-directory.*package search directories|rejects non-directory global"',
