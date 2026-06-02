@@ -1144,6 +1144,18 @@ describe("Markdown documentation", () => {
         ),
       ),
       getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "package search directory parent path is not a directory",
+        ),
+      ),
+      getPackageResolutionFailureCode(
+        packageTrace(
+          "manifest-invalid",
+          "package search directory parent path is a symbolic link",
+        ),
+      ),
+      getPackageResolutionFailureCode(
         packageTrace("manifest-invalid", "package root is not a directory"),
       ),
       getPackageResolutionFailureCode(

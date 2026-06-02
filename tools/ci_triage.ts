@@ -103,6 +103,7 @@ const MAPPED_JSON_CODE_GROUP_NAMES = [
   "build",
   "check",
   "clean",
+  "codegen",
   "completion",
   "docs",
   "doctor",
@@ -845,6 +846,7 @@ const MODULE_CACHE_MANIFEST_MODE_STEP_PATTERN = new RegExp(
 );
 const DEBUG_IR_PATH_STEP_PATTERN = new RegExp(
   [
+    "BPL_CODEGEN_DEBUG_IR_",
     "Debug IR path",
     "Debug IR parent path",
     "CodeGenerator.*debug IR",

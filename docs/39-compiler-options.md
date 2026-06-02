@@ -558,6 +558,8 @@ classify a package import failure, the diagnostic includes one of these stable
 - `BPL_PACKAGE_ROOT_CASE_MISMATCH`
 - `BPL_PACKAGE_SEARCH_DIR_SYMLINK`
 - `BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`
+- `BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY`
+- `BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK`
 - `BPL_PACKAGE_ROOT_SYMLINK`
 - `BPL_PACKAGE_ROOT_NOT_DIRECTORY`
 - `BPL_PACKAGE_MANIFEST_MISSING`
@@ -1108,7 +1110,15 @@ bpl build main.bpl --debug
 
 Diagnostic debug IR output uses the same symlink safety policy as other compiler
 outputs: the destination, immediate parent, and parent path components must be
-real filesystem entries before a `.ll` file is written.
+real filesystem entries before a `.ll` file is written. Debug IR path
+validation failures are exported through the public CLI JSON error-code
+registry under the `codegen` group:
+
+- `BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK`
+- `BPL_CODEGEN_DEBUG_IR_PATH_NOT_FILE`
+- `BPL_CODEGEN_DEBUG_IR_PARENT_NOT_FOUND`
+- `BPL_CODEGEN_DEBUG_IR_PARENT_SYMLINK`
+- `BPL_CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY`
 
 ## Cross-Compilation
 
