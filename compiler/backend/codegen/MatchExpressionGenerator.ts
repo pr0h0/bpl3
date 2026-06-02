@@ -104,17 +104,12 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     const values: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
       [];
-    let byteOffset = 0;
+    const fieldTypes = variant.dataType.types;
 
     for (let i = 0; i < pattern.bindings.length; i++) {
       const typeNode = variant.dataType.types[i]!;
       const llvmType = this.resolveType(typeNode);
-      const typeSize = this.getTypeSize(llvmType);
-      const alignment = this.getAlignmentForSize(typeSize);
-
-      if (byteOffset % alignment !== 0) {
-        byteOffset = Math.ceil(byteOffset / alignment) * alignment;
-      }
+      const byteOffset = this.getEnumDataFieldByteOffset(fieldTypes, i);
 
       let elementPtr: string;
       if (byteOffset === 0) {
@@ -132,8 +127,6 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       const value = this.newRegister();
       this.emit(`  ${value} = load ${llvmType}, ${llvmType}* ${elementPtr}`);
       values.push({ value, llvmType, typeNode });
-
-      byteOffset += typeSize;
     }
 
     return values;
@@ -2041,21 +2034,15 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     );
 
     // For each binding, extract the value from the data array with proper byte offsets
-    let byteOffset = 0;
+    const fieldTypes = variant.dataType.types;
     for (let i = 0; i < pattern.bindings.length; i++) {
       const binding = pattern.bindings[i]!;
       const bindingType = variant.dataType.types[i]!;
       const llvmType = this.resolveType(bindingType);
-      const typeSize = this.getTypeSize(llvmType);
-
-      const alignment = this.getAlignmentForSize(typeSize);
-      if (byteOffset % alignment !== 0) {
-        byteOffset = Math.ceil(byteOffset / alignment) * alignment;
-      }
+      const byteOffset = this.getEnumDataFieldByteOffset(fieldTypes, i);
 
       // Skip wildcard bindings (but still account for offset)
       if (binding.kind === "PatternWildcard") {
-        byteOffset += typeSize;
         continue;
       }
 
@@ -2087,8 +2074,6 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       // Register the binding so it can be used in the arm body
       this.locals.add(bindingName);
       this.localPointers.set(bindingName, ptr);
-
-      byteOffset += typeSize;
     }
   }
 

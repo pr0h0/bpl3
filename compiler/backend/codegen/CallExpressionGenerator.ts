@@ -20,7 +20,6 @@ import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { BinaryExpressionGenerator } from "./BinaryExpressionGenerator";
 import { RTTI } from "../../middleend/RTTI";
-import { getIntegerBitWidth } from "./utils";
 import {
   emitVirtualCall,
   type VirtualCallHost,
@@ -367,17 +366,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             `  ${bytePtr} = bitcast [${dataSize} x i8]* ${dataPtr} to i8*`,
           );
 
-          let byteOffset = 0;
-          for (let i = 0; i < expr.args.length; i++) {
-            let argValue = this.generateExpression(expr.args[i]!);
-            const argType = this.resolveType(expr.args[i]!.resolvedType!);
-            const _argSize = this.getTypeSize(argType);
+          const tupleVariant = variant.dataType as AST.EnumVariantTuple;
+          const fieldTypeNodes = tupleVariant.types.map((typeNode) => {
+            let fieldTypeNode = typeNode;
 
-            // Get expected field type from variant definition
-            const tupleVariant = variant.dataType as AST.EnumVariantTuple;
-            let fieldTypeNode = tupleVariant.types[i]!;
-
-            // Substitute generic type parameters if enum is generic
             if (expr.resolvedType && expr.resolvedType.kind === "BasicType") {
               const enumTypeNode = expr.resolvedType as AST.BasicTypeNode;
               if (
@@ -386,7 +378,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
                 _enumDecl.genericParams &&
                 _enumDecl.genericParams.length > 0
               ) {
-                // Build context map for generic substitution
                 const contextMap = new Map<string, AST.TypeNode>();
                 for (let j = 0; j < _enumDecl.genericParams.length; j++) {
                   contextMap.set(
@@ -398,29 +389,30 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
               }
             }
 
-            const expectedFieldType = this.resolveType(fieldTypeNode);
+            return fieldTypeNode;
+          });
 
-            // Truncate if necessary (e.g., i32 -> i8)
-            if (argType !== expectedFieldType) {
-              const argTypeSize = getIntegerBitWidth(argType);
-              const expectedSize = getIntegerBitWidth(expectedFieldType);
-              if (argTypeSize > expectedSize) {
-                const truncReg = this.newRegister();
-                this.emit(
-                  `  ${truncReg} = trunc ${argType} ${argValue} to ${expectedFieldType}`,
-                );
-                argValue = truncReg;
-              }
-            }
+          for (let i = 0; i < expr.args.length; i++) {
+            const arg = expr.args[i]!;
+            const argValue = this.generateExpression(arg);
+            const argTypeNode = arg.resolvedType!;
+            const argType = this.resolveType(argTypeNode);
+            const fieldTypeNode = fieldTypeNodes[i]!;
+            const expectedFieldType = this.resolveType(fieldTypeNode);
+            const storeValue = this.emitCast(
+              argValue,
+              argType,
+              expectedFieldType,
+              argTypeNode,
+              fieldTypeNode,
+            );
 
             // Use the expected field type for storage
             const storeType = expectedFieldType;
-            const storeSize = this.getTypeSize(storeType);
-
-            const alignment = this.getAlignmentForSize(storeSize);
-            if (byteOffset % alignment !== 0) {
-              byteOffset = Math.ceil(byteOffset / alignment) * alignment;
-            }
+            const byteOffset = this.getEnumDataFieldByteOffset(
+              fieldTypeNodes,
+              i,
+            );
 
             // Get pointer at the correct byte offset
             let storePtr: string;
@@ -442,10 +434,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
             // Store the value
             this.emit(
-              `  store ${storeType} ${argValue}, ${storeType}* ${storePtr}`,
+              `  store ${storeType} ${storeValue}, ${storeType}* ${storePtr}`,
             );
-
-            byteOffset += storeSize;
           }
         }
         // EnumVariantStruct is handled via StructLiteral path in ExpressionGenerator.ts

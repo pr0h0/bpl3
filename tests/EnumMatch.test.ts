@@ -125,6 +125,47 @@ describe("Enums and Pattern Matching", () => {
     expect(stdout).toBe("tag=3 value=4294967296 count=7\n");
   });
 
+  it("should preserve aggregate tuple variant payload fields", () => {
+    const source = `
+      extern printf(fmt: string, ...);
+
+      struct Pair {
+          first: long,
+          second: long,
+      }
+
+      enum Packet {
+          Data(Pair, int),
+          Empty,
+      }
+
+      frame main() {
+          local packet: Packet = Packet.Data(
+              Pair { first: 1, second: 4294967296 },
+              7,
+          );
+
+          match (packet) {
+              Packet.Data(pair, count) => {
+                  printf(
+                      "first=%ld second=%ld count=%d\\n",
+                      pair.first,
+                      pair.second,
+                      count,
+                  );
+              },
+              Packet.Empty => {
+                  printf("empty\\n");
+              },
+          };
+      }
+    `;
+    const { stdout, stderr, exitCode } = runBPL(source);
+    if (exitCode !== 0) console.error("TupleVariantAggregate Stderr:", stderr);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("first=1 second=4294967296 count=7\n");
+  });
+
   it("should handle generic enums (Option<T>)", () => {
     const source = `
       extern printf(fmt: string, ...);
