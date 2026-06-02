@@ -793,16 +793,19 @@ annotations.
 `package-cache repair` regenerates missing or malformed provenance sidecars for
 valid cached archives. Its JSON result uses `schemaVersion: 1`,
 `check: "package-cache-repair"`, `success`, `dryRun`, `repaired`, `unchanged`,
-and `issues`. It refuses to repair invalid extracted `exports`, archive hash
-mismatches, manifest mismatches, or invalid extracted `bin` target files because
-those states may indicate a stale or damaged archive; clean and repack those
-entries instead. package-cache repair refuses to regenerate provenance for an
-archive with a missing, directory, or symlinked package binary. `--package-version`
-filters expect one exact cached version in `X.Y.Z` form with no zero-padded
-segments; dependency ranges such as `^1.2.3` belong in `bpl.json`, not cache
-maintenance commands. Cached package versions and dependency range comparisons
-use exact integer segment ordering rather than JavaScript number precision. In
-JSON mode, clean and repair
+and `issues`. Entries with verified provenance are still extracted and validated
+before they are reported as `unchanged`, so current manifest, export, bin, and
+package hash rules are enforced even on older cache sidecars. It refuses to
+repair invalid extracted dependency sources, invalid extracted `exports`,
+archive hash mismatches, manifest mismatches, package hash mismatches, or
+invalid extracted `bin` target files because those states may indicate a stale
+or damaged archive; clean and repack those entries instead. package-cache repair
+refuses to regenerate provenance for an archive with a missing, directory, or
+symlinked package binary. `--package-version` filters expect one exact cached
+version in `X.Y.Z` form with no zero-padded segments; dependency ranges such as
+`^1.2.3` belong in `bpl.json`, not cache maintenance commands. Cached package
+versions and dependency range comparisons use exact integer segment ordering
+rather than JavaScript number precision. In JSON mode, clean and repair
 validation failures keep stdout parseable: clean reports `removed: []`, repair
 reports `repaired: []`, `unchanged: []`, and `issues: []`, and both include the
 requested `dryRun` value plus `error`. Package-cache validation failures that

@@ -4519,12 +4519,8 @@ export class PackageManager {
     };
 
     for (const entry of entries) {
-      if (entry.provenanceStatus === "verified") {
-        unchanged.push(entry);
-        continue;
-      }
-
       if (
+        entry.provenanceStatus !== "verified" &&
         entry.provenanceStatus !== "missing" &&
         entry.provenanceStatus !== "invalid"
       ) {
@@ -4570,6 +4566,46 @@ export class PackageManager {
           packageDir,
           path.join(packageDir, "bpl.json"),
         );
+
+        if (entry.provenanceStatus === "verified") {
+          const metadata = this.readArchiveProvenance(entry.path);
+          if (!metadata.ok) {
+            addIssue(
+              entry,
+              metadata.kind === "missing"
+                ? "missing-provenance"
+                : "invalid-provenance",
+              `${entry.file}: package provenance changed during repair (${metadata.message})`,
+            );
+            continue;
+          }
+
+          const provenance = metadata.provenance;
+          if (
+            manifest.name !== provenance.name ||
+            manifest.version !== provenance.version
+          ) {
+            addIssue(
+              entry,
+              "manifest-mismatch",
+              `${entry.file}: extracted manifest declares ${manifest.name}@${manifest.version}, provenance declares ${provenance.name}@${provenance.version}`,
+            );
+            continue;
+          }
+
+          const packageHash = this.calculatePackageHash(packageDir);
+          if (packageHash !== provenance.packageHash) {
+            addIssue(
+              entry,
+              "package-hash-mismatch",
+              `${entry.file}: extracted package hash is ${packageHash}, provenance has ${provenance.packageHash}`,
+            );
+            continue;
+          }
+
+          unchanged.push(entry);
+          continue;
+        }
 
         if (manifest.name !== entry.name || manifest.version !== entry.version) {
           addIssue(

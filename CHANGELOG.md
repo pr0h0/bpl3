@@ -45,6 +45,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `restored`, and `repaired` modes, instead of only reporting locked
   verification details. Reproduce with
   `bun test tests/CLIJsonParseability.test.ts tests/PackageManagerCLI.test.ts -t "package install JSON success stdout parseable|repair lockfiles from installed packages"`.
+- **Package Cache Repair Revalidation** - `bpl package-cache repair` now
+  extracts and validates archives with verified provenance before reporting
+  them as `unchanged`, so older cached archives with manifests that fail current
+  dependency source validation surface as `invalid-archive` issues instead of
+  being trusted. Reproduce with
+  `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "revalidate verified cached archives|valid verified cached archives|invalid verified cached manifest dependencies"`.
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
   `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every

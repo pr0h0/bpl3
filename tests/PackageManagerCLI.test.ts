@@ -4681,6 +4681,100 @@ describe("Package Manager CLI", () => {
       expect(fs.existsSync(`${repairCachePath}.bplmeta.json`)).toBe(false);
     });
 
+    test("should report invalid verified cached manifest dependencies in repair JSON", () => {
+      const appDir = path.join(tempDir, "cache-deps-json-app");
+      const homeDir = path.join(tempDir, "cache-deps-json-home");
+      const cacheDir = path.join(homeDir, ".bpl", "packages");
+      const sourceDir = path.join(tempDir, "cache-deps-json-source");
+      const packageRoot = path.join(sourceDir, "package");
+      const cachePath = path.join(cacheDir, "cache-deps-json-1.0.0.tgz");
+      fs.mkdirSync(appDir);
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "cache-deps-json-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(packageRoot, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cache-deps-json",
+            version: "1.0.0",
+            main: "index.bpl",
+            dependencies: {
+              "cache-dep": "^01.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+
+      const packResult = spawnSync(
+        "tar",
+        ["-czf", cachePath, "-C", sourceDir, "package"],
+        { encoding: "utf-8" },
+      );
+      expect(packResult.status).toBe(0);
+      new PackageManager(tempDir)["writeArchiveProvenance"](
+        cachePath,
+        packageRoot,
+        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          bplPath,
+          "package-cache",
+          "repair",
+          "cache-deps-json",
+          "--json",
+        ],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      const repair = expectJsonStdoutReport<{
+        dryRun: boolean;
+        repaired: unknown[];
+        unchanged: unknown[];
+        issues: Array<{
+          packageName: string;
+          kind: string;
+          message: string;
+          path: string;
+          provenancePath: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "package-cache-repair",
+        success: false,
+      });
+      expect(result.stderr).not.toContain("[Compiler]");
+      expect(repair.repaired).toEqual([]);
+      expect(repair.unchanged).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-deps-json",
+          kind: "invalid-archive",
+          path: cachePath,
+          provenancePath: `${cachePath}.bplmeta.json`,
+          message: expect.stringContaining(
+            "Invalid 'dependencies' source for cache-dep",
+          ),
+        }),
+      ]);
+    });
+
     test("should report symlinked cached package bin archive entries in verify JSON", () => {
       const appDir = path.join(tempDir, "cache-bin-symlink-json-app");
       const homeDir = path.join(tempDir, "cache-bin-symlink-json-home");

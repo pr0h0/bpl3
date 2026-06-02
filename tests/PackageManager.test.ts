@@ -72,6 +72,47 @@ describe("PackageManager", () => {
     return cachePath;
   }
 
+  function createCachedPackageArchiveWithManifest(
+    packageName: string,
+    version: string,
+    manifestPatch: Record<string, unknown>,
+    globalPackageDir: string,
+  ): string {
+    const sourceDir = path.join(tempDir, `${packageName}-${version}-source`);
+    const packageRoot = path.join(sourceDir, "package");
+    const cachePath = path.join(globalPackageDir, `${packageName}-${version}.tgz`);
+    fs.mkdirSync(packageRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageRoot, "bpl.json"),
+      JSON.stringify(
+        {
+          name: packageName,
+          version,
+          main: "index.bpl",
+          ...manifestPatch,
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export cached;");
+
+    const packResult = spawnSync(
+      "tar",
+      ["-czf", cachePath, "-C", sourceDir, "package"],
+      { encoding: "utf-8" },
+    );
+    expect(packResult.status).toBe(0);
+
+    new PackageManager(tempDir)["writeArchiveProvenance"](
+      cachePath,
+      packageRoot,
+      JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+    );
+
+    return cachePath;
+  }
+
   function createSymlinkedCacheRoot(label: string): {
     globalPackageDir: string;
     outsideCacheRoot: string;
@@ -6536,6 +6577,86 @@ describe("PackageManager", () => {
         }),
       ]);
       expect(fs.existsSync(`${cachePath}.bplmeta.json`)).toBe(false);
+    });
+
+    test("should revalidate verified cached archives during package cache repair", () => {
+      const globalPackageDir = path.join(
+        tempDir,
+        "cache-repair-invalid-source-packages",
+      );
+      fs.mkdirSync(globalPackageDir);
+      const cachePath = createCachedPackageArchiveWithManifest(
+        "cache-repair-invalid-source",
+        "1.0.0",
+        { dependencies: { "cache-dep": "^01.0.0" } },
+        globalPackageDir,
+      );
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const verification = localPM.verifyPackageCache(
+        "cache-repair-invalid-source",
+      );
+      expect(verification.ok).toBe(false);
+      expect(verification.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-invalid-source",
+          kind: "invalid-archive",
+          path: cachePath,
+          provenancePath: `${cachePath}.bplmeta.json`,
+          message: expect.stringContaining(
+            "Invalid 'dependencies' source for cache-dep",
+          ),
+        }),
+      ]);
+
+      const repair = localPM.repairPackageCache("cache-repair-invalid-source");
+
+      expect(repair.success).toBe(false);
+      expect(repair.repaired).toEqual([]);
+      expect(repair.unchanged).toEqual([]);
+      expect(repair.issues).toEqual([
+        expect.objectContaining({
+          packageName: "cache-repair-invalid-source",
+          kind: "invalid-archive",
+          path: cachePath,
+          provenancePath: `${cachePath}.bplmeta.json`,
+          message: expect.stringContaining(
+            "Invalid 'dependencies' source for cache-dep",
+          ),
+        }),
+      ]);
+    });
+
+    test("should keep valid verified cached archives unchanged during package cache repair", () => {
+      const globalPackageDir = path.join(
+        tempDir,
+        "cache-repair-unchanged-packages",
+      );
+      fs.mkdirSync(globalPackageDir);
+      const cachePath = createCachedPackage(
+        "cache-repair-unchanged",
+        "1.0.0",
+        "export value;",
+        globalPackageDir,
+        { "cache-dep": "^1.0.0" },
+      );
+      const localPM = new PackageManager(tempDir);
+      localPM["globalPackageDir"] = globalPackageDir;
+
+      const repair = localPM.repairPackageCache("cache-repair-unchanged");
+
+      expect(repair.success).toBe(true);
+      expect(repair.repaired).toEqual([]);
+      expect(repair.issues).toEqual([]);
+      expect(repair.unchanged).toEqual([
+        expect.objectContaining({
+          name: "cache-repair-unchanged",
+          version: "1.0.0",
+          path: cachePath,
+          provenanceStatus: "verified",
+        }),
+      ]);
     });
 
     test("should repair missing package cache provenance for valid archives", () => {
