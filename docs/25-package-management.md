@@ -757,7 +757,7 @@ come from an invalid `--package-version` value also include
 contract with
 `bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache version filter"`.
 Reproduce package-cache bin validation with
-`bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|package cache repair.*bin files|cached package bin files in verify"`.
+`bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|symlinked cached package bin|package cache repair.*bin files|cached package bin files in verify"`.
 Directory `bin` targets are reported by package-cache `bin` validation.
 Symlinked binary archive members are rejected by the archive safety layer during
 package-cache verify and before provenance repair can trust them.

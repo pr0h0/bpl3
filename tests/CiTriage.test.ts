@@ -1910,6 +1910,25 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps package-cache archive/bin validation failures to focused reproduction commands", () => {
+    const expectedCommands = [
+      'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
+      'bun test tests/PackageManager.test.ts -t "cached package archives with invalid bin files|cached package archives with directory package bin files|cached package archives with symlinked package bin members|package cache repair for symlinked package bin archive entries"',
+      "bun run check",
+    ];
+
+    for (const stepName of [
+      "package-cache verify invalid-archive regression",
+      "invalid-archive from symlinked cached package bin archive entries",
+      "Unsupported package archive entry: package/bin/tool.sh",
+      "Missing package bin entry: bin/missing.bpl",
+    ]) {
+      expect(localCommandsForStep(stepName), stepName).toEqual(
+        expectedCommands,
+      );
+    }
+  });
+
   test("maps package-cache name JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
@@ -6854,6 +6873,69 @@ describe("CI triage helper", () => {
       expect(report.summary.failedJobs[0]?.localCommands).toEqual([
         'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
         "bun test tests/PackageJsonFailureContracts.test.ts",
+        "bun run check",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package-cache archive/bin repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-cache-bin-"));
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 75,
+              name: "Package-cache bin archive JSON codes",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/75",
+              steps: [
+                {
+                  name: "package-cache verify invalid-archive symlinked cached package bin archive entries",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
+        'bun test tests/PackageManager.test.ts -t "cached package archives with invalid bin files|cached package archives with directory package bin files|cached package archives with symlinked package bin members|package cache repair for symlinked package bin archive entries"',
         "bun run check",
       ]);
     } finally {

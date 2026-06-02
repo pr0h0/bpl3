@@ -1078,6 +1078,18 @@ const PACKAGE_CACHE_VALIDATION_JSON_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_CACHE_ARCHIVE_VALIDATION_STEP_PATTERN = new RegExp(
+  [
+    "package-cache.*invalid-archive",
+    "invalid-archive.*package-cache",
+    "symlinked cached package bin",
+    "cached package bin archive entries",
+    "Unsupported package archive entry: package/bin",
+    "Unsupported package bin entry:",
+    "Missing package bin entry:",
+  ].join("|"),
+  "i",
+);
 const PACKAGE_CACHE_NAME_JSON_STEP_PATTERN = new RegExp(
   [
     "BPL_PACKAGE_CACHE_NAME_INVALID",
@@ -2237,6 +2249,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "bun test tests/PackageJsonFailureContracts.test.ts",
   ],
   [PACKAGE_CACHE_VALIDATION_JSON_STEP_PATTERN, "bun run check"],
+  [
+    PACKAGE_CACHE_ARCHIVE_VALIDATION_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
+  ],
+  [
+    PACKAGE_CACHE_ARCHIVE_VALIDATION_STEP_PATTERN,
+    'bun test tests/PackageManager.test.ts -t "cached package archives with invalid bin files|cached package archives with directory package bin files|cached package archives with symlinked package bin members|package cache repair for symlinked package bin archive entries"',
+  ],
+  [PACKAGE_CACHE_ARCHIVE_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     PACKAGE_CACHE_NAME_JSON_STEP_PATTERN,
     'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',

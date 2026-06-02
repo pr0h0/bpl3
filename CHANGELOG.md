@@ -34,7 +34,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   through package-cache bin validation; symlinked binary archive members are
   covered through archive safety during package-cache verify and before
   provenance repair. Reproduce with
-  `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|package cache repair.*bin files|cached package bin files in verify"`.
+  `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|symlinked cached package bin|package cache repair.*bin files|cached package bin files in verify"`.
+- **CI Triage Package Cache Bin Repros** - `bun run ci:triage` now maps
+  package-cache `invalid-archive` and cached `bin` archive failures to the
+  focused package-cache CLI/API regression tests, including symlinked cached
+  binary archive members.
 - **Package Lock Bin Validation** - lockfile verification validates installed
   package `bin` entries before trusting a lock entry, and `bpl install
   --repair-lock` now refuses to record an invalid installed package bin target.
