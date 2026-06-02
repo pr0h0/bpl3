@@ -33,31 +33,129 @@ function collectModuleTypeErrors(entryPath: string) {
   return typeChecker.getErrors();
 }
 
+function collectErrorsForSource(
+  source: string,
+  extraFiles: Record<string, string> = {},
+) {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-import-idempotency-"));
+  const entryPath = join(tempDir, "main.bpl");
+
+  try {
+    for (const [name, contents] of Object.entries(extraFiles)) {
+      writeFileSync(join(tempDir, name), contents);
+    }
+
+    writeFileSync(entryPath, source);
+    return collectModuleTypeErrors(entryPath);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+const thingModule = [
+  "export [Thing];",
+  "export makeThing;",
+  "",
+  "struct Thing {",
+  "  value: int,",
+  "}",
+  "",
+  "frame makeThing() ret int {",
+  "  return 7;",
+  "}",
+].join("\n");
+
 describe("Import idempotency", () => {
   it("allows explicit Error imports alongside the implicit Error import", () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "bpl-import-idempotency-"));
-    const entryPath = join(tempDir, "main.bpl");
+    const errors = collectErrorsForSource(
+      [
+        'import [Error] from "std/errors.bpl";',
+        "",
+        "frame main() ret int {",
+        "  return 0;",
+        "}",
+      ].join("\n"),
+    );
 
-    try {
-      writeFileSync(
-        entryPath,
-        [
-          'import [Error] from "std/errors.bpl";',
-          "",
-          "frame main() ret int {",
-          "  return 0;",
-          "}",
-        ].join("\n"),
-      );
+    expect(errors.map((error) => error.message)).not.toContain(
+      "Symbol 'Error' is already defined in this scope",
+    );
+    expect(errors).toHaveLength(0);
+  });
 
-      const errors = collectModuleTypeErrors(entryPath);
+  it("allows repeated named imports from the same module", () => {
+    const errors = collectErrorsForSource(
+      [
+        'import [Thing] from "./thing.bpl";',
+        'import [Thing] from "./thing.bpl";',
+        "",
+        "frame main() ret int {",
+        "  local thing: Thing;",
+        "  thing.value = 3;",
+        "  return thing.value;",
+        "}",
+      ].join("\n"),
+      { "thing.bpl": thingModule },
+    );
 
-      expect(errors.map((error) => error.message)).not.toContain(
-        "Symbol 'Error' is already defined in this scope",
-      );
-      expect(errors).toHaveLength(0);
-    } finally {
-      rmSync(tempDir, { recursive: true, force: true });
-    }
+    expect(errors).toHaveLength(0);
+  });
+
+  it("allows repeated import-all imports from the same module", () => {
+    const errors = collectErrorsForSource(
+      [
+        'import "./thing.bpl";',
+        'import "./thing.bpl";',
+        "",
+        "frame main() ret int {",
+        "  local thing: Thing;",
+        "  thing.value = makeThing();",
+        "  return thing.value;",
+        "}",
+      ].join("\n"),
+      { "thing.bpl": thingModule },
+    );
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it("allows repeated alias imports from the same module", () => {
+    const errors = collectErrorsForSource(
+      [
+        'import makeThing as createThing from "./thing.bpl";',
+        'import makeThing as createThing from "./thing.bpl";',
+        "",
+        "frame main() ret int {",
+        "  return createThing();",
+        "}",
+      ].join("\n"),
+      { "thing.bpl": thingModule },
+    );
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it("keeps real duplicate declarations diagnostic when declarations differ", () => {
+    const errors = collectErrorsForSource(
+      [
+        'import [Thing] from "./thing.bpl";',
+        "",
+        "struct Thing {",
+        "  value: int,",
+        "}",
+        "",
+        "frame main() ret int {",
+        "  return 0;",
+        "}",
+      ].join("\n"),
+      { "thing.bpl": thingModule },
+    );
+
+    expect(errors.map((error) => error.code)).toContain(
+      "BPL_SYMBOL_ALREADY_DEFINED",
+    );
+    expect(errors.map((error) => error.message)).toContain(
+      "Symbol 'Thing' is already defined in this scope",
+    );
   });
 });
