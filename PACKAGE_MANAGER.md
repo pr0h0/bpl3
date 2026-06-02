@@ -60,7 +60,8 @@ broken public subpaths. Package-cache verify and repair use the same extracted
 export checks before treating cached archives as healthy or repairable.
 Lockfile verification and `bpl install --repair-lock` also validate installed
 package exports, so a lockfile cannot silently trust or record a package with
-missing, directory, or symlinked public subpaths.
+missing, directory, or symlinked public subpaths. `bpl doctor packages` reports
+the same broken installed export surfaces as package-health errors.
 
 ## CLI Commands
 

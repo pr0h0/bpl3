@@ -387,6 +387,11 @@ Reproduce the exported inventory guard with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured
 issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
+Package doctor validates each installed package's declared `exports` entries
+even when no lockfile verification covers that package. Missing, directory, or
+symlinked installed export paths report `kind: "invalid-installed-package"`
+with `packageName`, `version`, the installed package `path`, and a reinstall
+hint.
 Duplicate installed package doctor issues preserve the compact joined `path`
 string and also include a `paths` array with every conflicting installed
 directory in deterministic order.

@@ -4768,6 +4768,25 @@ export class PackageManager {
 
       try {
         const manifest = this.loadManifest(packagePath);
+        try {
+          this.validatePackageExportFiles(
+            manifest,
+            packagePath,
+            path.join(packagePath, "bpl.json"),
+          );
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          issues.push({
+            severity: "error",
+            kind: "invalid-installed-package",
+            packageName: manifest.name,
+            version: manifest.version,
+            message: `${manifest.name}: invalid installed package (${detail})`,
+            path: packagePath,
+            hint: "Fix exported package files or reinstall the invalid package directory.",
+          });
+        }
+
         if (manifest.name !== item) {
           issues.push({
             severity: "error",

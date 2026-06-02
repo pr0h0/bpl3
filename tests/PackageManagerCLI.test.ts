@@ -1869,6 +1869,81 @@ describe("Package Manager CLI", () => {
       expect(duplicateIssue?.path).toContain(secondPackageDir);
     });
 
+    test("should report invalid installed package exports as stable JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-export-cli-app");
+      const homeDir = path.join(tempDir, "doctor-export-cli-home");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-export-cli",
+      );
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-export-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-export-cli",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          packageName?: string;
+          version?: string;
+          message: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.ok).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "invalid-installed-package",
+          packageName: "doctor-export-cli",
+          version: "1.0.0",
+          message: expect.stringContaining(
+            "Missing package export entry: features/public.bpl",
+          ),
+          path: packageDir,
+          hint: expect.stringContaining("reinstall"),
+        }),
+      );
+    });
+
     test("should keep packages JSON contract for unsafe package directories", () => {
       const scenarios = [
         {

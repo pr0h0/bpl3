@@ -5440,6 +5440,137 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should report invalid installed package exports during doctor checks", () => {
+      const appDir = path.join(tempDir, "doctor-export-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const cases = [
+        {
+          packageName: "doctor-export-missing",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features"));
+          },
+          expected: "Missing package export entry: features/public.bpl",
+        },
+        {
+          packageName: "doctor-export-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features", "public.bpl"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+        {
+          packageName: "doctor-export-symlink",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features"));
+            fs.writeFileSync(
+              path.join(packageDir, "features", "actual.bpl"),
+              "export actual;",
+            );
+            fs.symlinkSync(
+              "actual.bpl",
+              path.join(packageDir, "features", "public.bpl"),
+            );
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+      ] as const;
+
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-export-app", version: "1.0.0" }, null, 2),
+      );
+
+      for (const testCase of cases) {
+        const packageDir = path.join(packageRoot, testCase.packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              exports: ["features/public.bpl"],
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+      }
+
+      const report = new PackageManager(appDir).doctorPackages();
+
+      expect(report.ok).toBe(false);
+      expect(report.issues).toEqual(
+        expect.arrayContaining(
+          cases.map((testCase) =>
+            expect.objectContaining({
+              severity: "error",
+              kind: "invalid-installed-package",
+              packageName: testCase.packageName,
+              version: "1.0.0",
+              path: path.join(packageRoot, testCase.packageName),
+              message: expect.stringContaining(testCase.expected),
+              hint: expect.stringContaining("reinstall"),
+            }),
+          ),
+        ),
+      );
+    });
+
+    test("should keep valid installed package exports clean during doctor checks", () => {
+      const appDir = path.join(tempDir, "doctor-export-valid-app");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "doctor-export-valid",
+      );
+
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "doctor-export-valid-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-export-valid",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl", "features/native.x"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "features", "public.bpl"),
+        "export publicFeature;",
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "features", "native.x"),
+        "extern nativeFeature;",
+      );
+
+      const report = new PackageManager(appDir).doctorPackages();
+
+      expect(report.ok).toBe(true);
+      expect(report.issues).not.toContainEqual(
+        expect.objectContaining({ kind: "invalid-installed-package" }),
+      );
+    });
+
     test("should ignore symlinked installed package entries during doctor checks", () => {
       const appDir = path.join(tempDir, "doctor-symlink-app");
       const outsidePackageDir = path.join(tempDir, "doctor-outside-package");
