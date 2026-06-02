@@ -2188,6 +2188,18 @@ export class PackageManager {
     );
   }
 
+  private validatePackageBinFiles(
+    manifest: PackageManifest,
+    packageDir: string,
+    manifestPath: string,
+  ): string[] {
+    if (!manifest.bin) return [];
+
+    return Object.values(manifest.bin).map((binaryPath) =>
+      this.validatePackageBinFile(packageDir, binaryPath, manifestPath),
+    );
+  }
+
   private isSafeBinCommandName(commandName: string): boolean {
     return (
       commandName.length > 0 &&
@@ -3999,6 +4011,16 @@ export class PackageManager {
             const detail = error instanceof Error ? error.message : String(error);
             problems.push(`invalid exports: ${detail}`);
           }
+          try {
+            this.validatePackageBinFiles(
+              manifest,
+              packagePath,
+              path.join(packagePath, "bpl.json"),
+            );
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            problems.push(`invalid bin: ${detail}`);
+          }
 
           packages.push({
             manifest,
@@ -4566,6 +4588,20 @@ export class PackageManager {
           hint: "Fix exported project files or remove invalid exports before packing.",
         });
       }
+      try {
+        this.validatePackageBinFiles(manifest, this.projectRoot, manifestPath);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        issues.push({
+          severity: "error",
+          kind: "invalid-project-package",
+          packageName: manifest.name,
+          version: manifest.version,
+          message: `${manifest.name}: invalid project package (${detail})`,
+          path: manifestPath,
+          hint: "Fix package bin files or remove invalid bin entries before packing.",
+        });
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       issues.push({
@@ -4819,6 +4855,24 @@ export class PackageManager {
             hint: "Fix exported package files or reinstall the invalid package directory.",
           });
         }
+        try {
+          this.validatePackageBinFiles(
+            manifest,
+            packagePath,
+            path.join(packagePath, "bpl.json"),
+          );
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          issues.push({
+            severity: "error",
+            kind: "invalid-installed-package",
+            packageName: manifest.name,
+            version: manifest.version,
+            message: `${manifest.name}: invalid installed package (${detail})`,
+            path: packagePath,
+            hint: "Fix package bin files or reinstall the invalid package directory.",
+          });
+        }
 
         if (manifest.name !== item) {
           issues.push({
@@ -4989,6 +5043,16 @@ export class PackageManager {
         } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);
           problems.push(`invalid exports: ${detail}`);
+        }
+        try {
+          this.validatePackageBinFiles(
+            manifest,
+            packagePath,
+            path.join(packagePath, "bpl.json"),
+          );
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          problems.push(`invalid bin: ${detail}`);
         }
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);

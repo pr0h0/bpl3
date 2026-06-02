@@ -1893,6 +1893,78 @@ describe("Package Manager CLI", () => {
       expect(typeof report.packages[0]?.hash).toBe("string");
     });
 
+    test("should report invalid installed package bin files in list output", () => {
+      const appDir = path.join(tempDir, "cli-list-bin-app");
+      const packageDir = path.join(appDir, "bpl_modules", "cli-list-bin-broken");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cli-list-bin-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-list-bin-broken",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const textResult = spawnSync("bun", [bplPath, "list"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("cli-list-bin-broken@1.0.0");
+      expect(textResult.stdout).toContain(
+        "! invalid bin: Missing package bin entry: bin/tool.sh",
+      );
+
+      const jsonResult = spawnSync("bun", [bplPath, "list", "--json"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      const report = expectJsonStdoutReport<{
+        scope: string;
+        packages: Array<{
+          name: string;
+          version: string;
+          path?: string;
+          hash?: string;
+          problems: string[];
+        }>;
+      }>(jsonResult, {
+        status: 0,
+        check: "package-list",
+        success: true,
+      });
+      expect(report.scope).toBe("local");
+      expect(report.packages[0]).toMatchObject({
+        name: "cli-list-bin-broken",
+        version: "1.0.0",
+        path: packageDir,
+        problems: [
+          expect.stringContaining(
+            "invalid bin: Missing package bin entry: bin/tool.sh",
+          ),
+        ],
+      });
+      expect(typeof report.packages[0]?.hash).toBe("string");
+    });
+
     test("should report duplicate installed package names in list JSON", () => {
       const appDir = path.join(tempDir, "cli-list-duplicate-app");
       const firstPackageDir = path.join(
@@ -2168,6 +2240,111 @@ describe("Package Manager CLI", () => {
       });
     });
 
+    test("should report invalid installed package bin files in dependency tree output", () => {
+      const appDir = path.join(tempDir, "cli-tree-bin-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const parentDir = path.join(packageRoot, "cli-tree-bin-parent");
+      const childDir = path.join(packageRoot, "cli-tree-bin-child");
+      fs.mkdirSync(path.join(parentDir, "bin"), { recursive: true });
+      fs.mkdirSync(childDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-tree-bin-app",
+            version: "1.0.0",
+            dependencies: {
+              "cli-tree-bin-parent": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(parentDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-tree-bin-parent",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+            dependencies: {
+              "cli-tree-bin-child": "1.0.0",
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(parentDir, "index.bpl"), "export parent;");
+      fs.writeFileSync(
+        path.join(childDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-tree-bin-child",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(childDir, "index.bpl"), "export child;");
+
+      const textResult = spawnSync("bun", [bplPath, "list", "--tree"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("Dependency tree (local)");
+      expect(textResult.stdout).toContain("cli-tree-bin-parent@1.0.0");
+      expect(textResult.stdout).toContain("cli-tree-bin-child@1.0.0");
+      expect(textResult.stdout).toContain(
+        "! invalid bin: Missing package bin entry: bin/tool.sh",
+      );
+
+      const jsonResult = spawnSync(
+        "bun",
+        [bplPath, "list", "--tree", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        scope: string;
+        tree: Array<{
+          name: string;
+          problems: string[];
+          dependencies: Array<{ name: string; problems: string[] }>;
+        }>;
+      }>(jsonResult, {
+        status: 0,
+        check: "package-list-tree",
+        success: true,
+      });
+      expect(report.scope).toBe("local");
+      expect(report.tree[0]).toMatchObject({
+        name: "cli-tree-bin-parent",
+        problems: [
+          expect.stringContaining(
+            "invalid bin: Missing package bin entry: bin/tool.sh",
+          ),
+        ],
+        dependencies: [
+          {
+            name: "cli-tree-bin-child",
+            problems: [],
+          },
+        ],
+      });
+    });
+
     test("should show message when no packages installed", () => {
       const result = spawnSync("bun", [bplPath, "list"], {
         cwd: tempDir,
@@ -2346,6 +2523,71 @@ describe("Package Manager CLI", () => {
         ),
         path: path.join(appDir, "bpl.json"),
         hint: expect.stringContaining("Fix exported project files"),
+      });
+    });
+
+    test("should report invalid project package bin files as stable JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-project-bin-cli-app");
+      fs.mkdirSync(path.join(appDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-project-bin-cli-app",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(appDir, "index.bpl"), "export root;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            HOME: path.join(tempDir, "doctor-project-bin-cli-home"),
+            NO_COLOR: "1",
+          },
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          packageName?: string;
+          version?: string;
+          message: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+      const issue = report.issues.find(
+        (entry) => entry.kind === "invalid-project-package",
+      );
+      expect(report.ok).toBe(false);
+      expect(issue).toMatchObject({
+        severity: "error",
+        kind: "invalid-project-package",
+        packageName: "doctor-project-bin-cli-app",
+        version: "1.0.0",
+        message: expect.stringContaining(
+          "Missing package bin entry: bin/tool.sh",
+        ),
+        path: path.join(appDir, "bpl.json"),
+        hint: expect.stringContaining("Fix package bin files"),
       });
     });
 
@@ -2593,6 +2835,77 @@ describe("Package Manager CLI", () => {
           version: "1.0.0",
           message: expect.stringContaining(
             "Missing package export entry: features/public.bpl",
+          ),
+          path: packageDir,
+          hint: expect.stringContaining("reinstall"),
+        }),
+      );
+    });
+
+    test("should report invalid installed package bin files as stable JSON issues", () => {
+      const appDir = path.join(tempDir, "doctor-bin-cli-app");
+      const homeDir = path.join(tempDir, "doctor-bin-cli-home");
+      const packageDir = path.join(appDir, "bpl_modules", "doctor-bin-cli");
+      fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-bin-cli-app", version: "1.0.0" }),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "doctor-bin-cli",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const result = spawnSync(
+        "bun",
+        [bplPath, "doctor", "packages", "--json"],
+        {
+          cwd: appDir,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+          },
+          encoding: "utf-8",
+        },
+      );
+
+      expect(result.stderr).toBe("");
+      const report = expectJsonStdoutReport<{
+        ok: boolean;
+        issues: Array<{
+          severity: string;
+          kind: string;
+          packageName?: string;
+          version?: string;
+          message: string;
+          path?: string;
+          hint?: string;
+        }>;
+      }>(result, {
+        status: 1,
+        check: "packages",
+        success: false,
+      });
+
+      expect(report.ok).toBe(false);
+      expect(report.issues).toContainEqual(
+        expect.objectContaining({
+          severity: "error",
+          kind: "invalid-installed-package",
+          packageName: "doctor-bin-cli",
+          version: "1.0.0",
+          message: expect.stringContaining(
+            "Missing package bin entry: bin/tool.sh",
           ),
           path: packageDir,
           hint: expect.stringContaining("reinstall"),

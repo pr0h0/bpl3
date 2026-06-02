@@ -347,9 +347,11 @@ bpl doctor packages --json
 Use the JSON forms for CI and tooling. `bpl list --json` uses a stable
 top-level contract with `schemaVersion: 1`, `check: "package-list"`,
 `success`, and installed package names, versions, paths, content hashes, and
-node-style `problems`. Package list entries revalidate declared `exports`
-entries; missing, directory, or symlinked public subpaths are appended to the
-affected package's `problems` array and shown below that package in text output.
+node-style `problems`. Package list entries revalidate declared `exports` and
+`bin` entries; missing, directory, or symlinked public subpaths and package
+binary targets are appended to the affected package's `problems` array as
+`invalid exports` or `invalid bin` entries and shown below that package in text
+output.
 Package listing revalidates the local or global package directory with
 `lstat` before scanning, including parent path components, so a symlinked
 `bpl_modules`, global package cache directory, or parent directory is rejected
@@ -369,13 +371,14 @@ non-file lockfile paths are rejected instead of being treated as absent. Tree
 roots and nodes also classify `bpl_modules` and `bpl_modules/<package>` paths
 with `lstat`, so symlinked or non-directory package roots are reported as
 problems instead of being followed. Installed package nodes also revalidate
-declared `exports` entries; missing, directory, or symlinked public subpaths are
-appended to node `problems` in both text and JSON tree output while child
-dependency traversal is preserved. Duplicate installed package names return the
-same `errorCode`, `issuesFound`, `issueKinds`, and compact `issues` contract
-before tree roots are selected. List and tree duplicate failures also include
-`issuesFound`, `issueKinds`, and compact `issues` entries with
-`kind: "duplicate-installed-package"` so automation can point at the ambiguous
+declared `exports` and `bin` entries; missing, directory, or symlinked public
+subpaths and package binary targets are appended to node `problems` in both text
+and JSON `bpl list --tree` output while child dependency traversal is preserved.
+Duplicate installed package names return the same `errorCode`, `issuesFound`,
+`issueKinds`, and compact `issues` contract before tree roots are selected. List
+and tree duplicate failures also include `issuesFound`, `issueKinds`, and
+compact `issues` entries with `kind: "duplicate-installed-package"` so
+automation can point at the ambiguous
 installed directories. The duplicate issue payload includes both the compact
 `path` string and a `paths` array with every conflicting installed directory.
 Tree JSON validation failures return the requested `scope`, `tree: []`, and
@@ -397,14 +400,16 @@ Reproduce the exported inventory guard with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured
 issues with `severity`, `kind`, `message`, `path`, and `hint` fields.
-Package doctor validates the current project package's declared `exports`
-entries before pack/install, reporting missing, directory, or symlinked project
-export paths as `kind: "invalid-project-package"` with `packageName`, `version`,
-the project manifest `path`, and a fix-exported-files hint. It also validates
-each installed package's declared `exports` entries even when no lockfile
-verification covers that package. Missing, directory, or symlinked installed
-export paths report `kind: "invalid-installed-package"` with `packageName`,
-`version`, the installed package `path`, and a reinstall hint.
+Package doctor validates the current project package's declared `exports` and
+`bin` entries before pack/install, reporting missing, directory, or symlinked
+project export paths and package binary targets as
+`kind: "invalid-project-package"` with `packageName`, `version`, the project
+manifest `path`, and a fix-exported-files or `Fix package bin files` hint. It
+also validates each installed package's declared `exports` and `bin` entries
+even when no lockfile verification covers that package. Missing, directory, or
+symlinked installed export paths and package binary targets report
+`kind: "invalid-installed-package"` with `packageName`, `version`, the installed
+package `path`, and a reinstall hint.
 Duplicate installed package doctor issues preserve the compact joined `path`
 string and also include a `paths` array with every conflicting installed
 directory in deterministic order.

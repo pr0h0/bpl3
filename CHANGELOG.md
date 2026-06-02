@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   are rejected with package diagnostics where archives can carry them, while
   valid exported `.bpl` and `.x` files are included in the packed archive and
   package hash surface.
+- **Passive Package Bin Validation** - `bpl doctor packages`, `bpl list`, and
+  `bpl list --tree` now validate package manifest `bin` targets while
+  diagnosing or listing package health, so missing binary files, binary
+  directories, and symlinked binary targets surface as `invalid-project-package`,
+  `invalid-installed-package`, or `invalid bin` problems before pack/install
+  paths are exercised. Reproduce with
+  `bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "invalid .* bin files"`.
 - **Package Lock Verification JSON Metadata** - `bpl install --locked --json`
   and `bpl install --repair-lock --json` compact verification issues now
   include verifier metadata such as `path`, `source`, expected/actual names,

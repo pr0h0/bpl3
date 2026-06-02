@@ -5628,6 +5628,75 @@ describe("PackageManager", () => {
       }
     });
 
+    test("should report invalid project package bin files during doctor checks", () => {
+      const cases = [
+        {
+          packageName: "doctor-project-bin-missing",
+          setup(appDir: string) {
+            fs.mkdirSync(path.join(appDir, "bin"));
+          },
+          expected: "Missing package bin entry: bin/tool.sh",
+        },
+        {
+          packageName: "doctor-project-bin-directory",
+          setup(appDir: string) {
+            fs.mkdirSync(path.join(appDir, "bin", "tool.sh"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package bin entry: bin/tool.sh",
+        },
+        {
+          packageName: "doctor-project-bin-symlink",
+          setup(appDir: string) {
+            fs.mkdirSync(path.join(appDir, "bin"));
+            fs.writeFileSync(
+              path.join(appDir, "bin", "actual.sh"),
+              "#!/usr/bin/env sh\necho tool\n",
+            );
+            fs.symlinkSync("actual.sh", path.join(appDir, "bin", "tool.sh"));
+          },
+          expected: "Unsupported package bin entry: bin/tool.sh",
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        const appDir = path.join(tempDir, `${testCase.packageName}-app`);
+        fs.mkdirSync(appDir);
+        fs.writeFileSync(
+          path.join(appDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              bin: { tool: "bin/tool.sh" },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(appDir, "index.bpl"), "export root;");
+        testCase.setup(appDir);
+
+        const report = new PackageManager(appDir).doctorPackages();
+        const projectIssue = report.issues.find(
+          (issue) => issue.kind === "invalid-project-package",
+        );
+
+        expect(report.ok).toBe(false);
+        expect(projectIssue).toMatchObject({
+          severity: "error",
+          kind: "invalid-project-package",
+          packageName: testCase.packageName,
+          version: "1.0.0",
+          path: path.join(appDir, "bpl.json"),
+          message: expect.stringContaining(testCase.expected),
+          hint: expect.stringContaining("Fix package bin files"),
+        });
+      }
+    });
+
     test("should report invalid installed package exports during doctor checks", () => {
       const appDir = path.join(tempDir, "doctor-export-app");
       const packageRoot = path.join(appDir, "bpl_modules");
@@ -5682,6 +5751,89 @@ describe("PackageManager", () => {
               version: "1.0.0",
               main: "index.bpl",
               exports: ["features/public.bpl"],
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+      }
+
+      const report = new PackageManager(appDir).doctorPackages();
+
+      expect(report.ok).toBe(false);
+      expect(report.issues).toEqual(
+        expect.arrayContaining(
+          cases.map((testCase) =>
+            expect.objectContaining({
+              severity: "error",
+              kind: "invalid-installed-package",
+              packageName: testCase.packageName,
+              version: "1.0.0",
+              path: path.join(packageRoot, testCase.packageName),
+              message: expect.stringContaining(testCase.expected),
+              hint: expect.stringContaining("reinstall"),
+            }),
+          ),
+        ),
+      );
+    });
+
+    test("should report invalid installed package bin files during doctor checks", () => {
+      const appDir = path.join(tempDir, "doctor-bin-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const cases = [
+        {
+          packageName: "doctor-bin-missing",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin"));
+          },
+          expected: "Missing package bin entry: bin/tool.sh",
+        },
+        {
+          packageName: "doctor-bin-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin", "tool.sh"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package bin entry: bin/tool.sh",
+        },
+        {
+          packageName: "doctor-bin-symlink",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin"));
+            fs.writeFileSync(
+              path.join(packageDir, "bin", "actual.sh"),
+              "#!/usr/bin/env sh\necho tool\n",
+            );
+            fs.symlinkSync(
+              "actual.sh",
+              path.join(packageDir, "bin", "tool.sh"),
+            );
+          },
+          expected: "Unsupported package bin entry: bin/tool.sh",
+        },
+      ] as const;
+
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "doctor-bin-app", version: "1.0.0" }, null, 2),
+      );
+
+      for (const testCase of cases) {
+        const packageDir = path.join(packageRoot, testCase.packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              bin: { tool: "bin/tool.sh" },
             },
             null,
             2,
@@ -6308,6 +6460,100 @@ describe("PackageManager", () => {
         ]);
       }
       expect(packageByName.get("list-export-valid")?.problems).toEqual([]);
+    });
+
+    test("should report invalid installed package bin files when listing packages", () => {
+      const appDir = path.join(tempDir, "list-bin-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const cases = [
+        {
+          packageName: "list-bin-missing",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin"));
+          },
+          expected: "Missing package bin entry: bin/tool.sh",
+        },
+        {
+          packageName: "list-bin-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin", "tool.sh"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package bin entry: bin/tool.sh",
+        },
+        {
+          packageName: "list-bin-symlink",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "bin"));
+            fs.writeFileSync(
+              path.join(packageDir, "bin", "actual.sh"),
+              "#!/usr/bin/env sh\necho tool\n",
+            );
+            fs.symlinkSync("actual.sh", path.join(packageDir, "bin", "tool.sh"));
+          },
+          expected: "Unsupported package bin entry: bin/tool.sh",
+        },
+      ] as const;
+
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "list-bin-app", version: "1.0.0" }, null, 2),
+      );
+
+      for (const testCase of cases) {
+        const packageDir = path.join(packageRoot, testCase.packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              bin: { tool: "bin/tool.sh" },
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+      }
+
+      const validDir = path.join(packageRoot, "list-bin-valid");
+      fs.mkdirSync(path.join(validDir, "bin"), { recursive: true });
+      fs.writeFileSync(
+        path.join(validDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "list-bin-valid",
+            version: "1.0.0",
+            main: "index.bpl",
+            bin: { tool: "bin/tool.sh" },
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(validDir, "index.bpl"), "export root;");
+      fs.writeFileSync(
+        path.join(validDir, "bin", "tool.sh"),
+        "#!/usr/bin/env sh\necho tool\n",
+      );
+
+      const packages = new PackageManager(appDir).list({ global: false });
+      const packageByName = new Map(
+        packages.map((pkg) => [pkg.manifest.name, pkg]),
+      );
+
+      for (const testCase of cases) {
+        expect(packageByName.get(testCase.packageName)?.problems).toEqual([
+          expect.stringContaining(`invalid bin: ${testCase.expected}`),
+        ]);
+      }
+      expect(packageByName.get("list-bin-valid")?.problems).toEqual([]);
     });
 
     test("should list installed packages in deterministic manifest-name order", () => {

@@ -740,6 +740,24 @@ describe("Markdown documentation", () => {
     expectDocsContainCodes(docs, PACKAGE_LIST_JSON_ERROR_CODES);
   });
 
+  test("package docs document passive bin health checks", () => {
+    const docs = normalizedMarkdownText([
+      "docs/25-package-management.md",
+      "docs/39-compiler-options.md",
+      "CHANGELOG.md",
+    ]);
+    const requiredSnippets = [
+      "Package list entries revalidate declared `exports` and `bin` entries",
+      "invalid bin",
+      "`bpl list --tree`",
+      "Package doctor validates the current project package's declared `exports` and `bin` entries",
+      "Fix package bin files",
+      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"invalid .* bin files\"",
+    ];
+
+    expectDocsContainSnippets(docs, requiredSnippets);
+  });
+
   test("package docs document uninstall JSON error codes", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",
