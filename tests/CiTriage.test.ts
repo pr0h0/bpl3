@@ -361,7 +361,7 @@ describe("CI triage helper", () => {
 
   test("maps package list JSON failures to focused reproduction commands", () => {
     const expectedCommands = [
-      'bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists|empty failure shapes"',
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package-list error codes|error-code lists|empty failure shapes"',
       'bun test tests/CLIJsonParseability.test.ts -t "package list JSON stdout parseable"',
       'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
       "bun index.ts list --json",
@@ -3736,6 +3736,72 @@ describe("CI triage helper", () => {
         'bun test tests/PackageManager.test.ts -t "duplicate installed package names"',
         "bun index.ts doctor packages --json",
         "bun index.ts list --tree --json",
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prints package list JSON repro commands from an offline jobs fixture", () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-package-list-json-"),
+    );
+    const jobsPath = join(tempDir, "jobs.json");
+
+    try {
+      writeFileSync(
+        jobsPath,
+        JSON.stringify({
+          jobs: [
+            {
+              id: 66,
+              name: "Package list JSON diagnostics",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/66",
+              steps: [
+                {
+                  name: "package-list JSON failure with BPL_PACKAGE_DUPLICATE_INSTALLED paths",
+                  conclusion: "failure",
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "ci:triage",
+          "--",
+          "--json",
+          "--jobs-json",
+          jobsPath,
+          "26695335269",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      const report = expectJsonStdoutReport<{
+        summary: {
+          failedJobs: Array<{ name: string; localCommands: string[] }>;
+        };
+      }>(result, {
+        status: 0,
+        check: "ci-triage",
+        success: true,
+        stderr: "allow",
+      });
+
+      expect(report.summary.failedJobs[0]?.localCommands).toEqual([
+        'bun test tests/PackageJsonFailureContracts.test.ts -t "package-list error codes|error-code lists|empty failure shapes"',
+        'bun test tests/CLIJsonParseability.test.ts -t "package list JSON stdout parseable"',
+        'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
+        "bun index.ts list --json",
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

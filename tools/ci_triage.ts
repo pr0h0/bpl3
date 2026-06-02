@@ -1299,6 +1299,19 @@ const FUZZ_ARTIFACT_REPRO_STEP_PATTERN = new RegExp(
 
 const PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
+    PACKAGE_LIST_JSON_STEP_PATTERN,
+    'bun test tests/PackageJsonFailureContracts.test.ts -t "package-list error codes|error-code lists|empty failure shapes"',
+  ],
+  [
+    PACKAGE_LIST_JSON_STEP_PATTERN,
+    'bun test tests/CLIJsonParseability.test.ts -t "package list JSON stdout parseable"',
+  ],
+  [
+    PACKAGE_LIST_JSON_STEP_PATTERN,
+    'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
+  ],
+  [PACKAGE_LIST_JSON_STEP_PATTERN, "bun index.ts list --json"],
+  [
     IMPORT_IDEMPOTENCY_STEP_PATTERN,
     "bun test tests/ImportIdempotency.test.ts",
   ],
@@ -1369,19 +1382,6 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
     "bun index.ts list --tree --json",
   ],
-  [
-    PACKAGE_LIST_JSON_STEP_PATTERN,
-    'bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists|empty failure shapes"',
-  ],
-  [
-    PACKAGE_LIST_JSON_STEP_PATTERN,
-    'bun test tests/CLIJsonParseability.test.ts -t "package list JSON stdout parseable"',
-  ],
-  [
-    PACKAGE_LIST_JSON_STEP_PATTERN,
-    'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
-  ],
-  [PACKAGE_LIST_JSON_STEP_PATTERN, "bun index.ts list --json"],
   [
     CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
     "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
