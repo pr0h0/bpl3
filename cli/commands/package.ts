@@ -307,6 +307,7 @@ export function registerPackageCommands(program: Command): void {
                   description: pkg.manifest.description,
                   path: pkg.path,
                   hash: pkg.hash,
+                  problems: pkg.problems,
                 })),
               }),
               null,
@@ -329,6 +330,9 @@ export function registerPackageCommands(program: Command): void {
           }
           if (pkg.path) {
             log.info(`    Location: ${pkg.path}`);
+          }
+          for (const problem of pkg.problems) {
+            log.info(`    ! ${problem}`);
           }
         }
       } catch (e) {

@@ -6146,6 +6146,98 @@ describe("PackageManager", () => {
       expect(packages[0]?.manifest.version).toBe("2.0.0");
     });
 
+    test("should report invalid installed package exports when listing packages", () => {
+      const appDir = path.join(tempDir, "list-export-app");
+      const packageRoot = path.join(appDir, "bpl_modules");
+      const cases = [
+        {
+          packageName: "list-export-missing",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features"));
+          },
+          expected: "Missing package export entry: features/public.bpl",
+        },
+        {
+          packageName: "list-export-directory",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features", "public.bpl"), {
+              recursive: true,
+            });
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+        {
+          packageName: "list-export-symlink",
+          setup(packageDir: string) {
+            fs.mkdirSync(path.join(packageDir, "features"));
+            fs.writeFileSync(
+              path.join(packageDir, "features", "actual.bpl"),
+              "export actual;",
+            );
+            fs.symlinkSync(
+              "actual.bpl",
+              path.join(packageDir, "features", "public.bpl"),
+            );
+          },
+          expected: "Unsupported package export entry: features/public.bpl",
+        },
+      ] as const;
+
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify({ name: "list-export-app", version: "1.0.0" }, null, 2),
+      );
+
+      for (const testCase of cases) {
+        const packageDir = path.join(packageRoot, testCase.packageName);
+        fs.mkdirSync(packageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(packageDir, "bpl.json"),
+          JSON.stringify(
+            {
+              name: testCase.packageName,
+              version: "1.0.0",
+              main: "index.bpl",
+              exports: ["features/public.bpl"],
+            },
+            null,
+            2,
+          ),
+        );
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        testCase.setup(packageDir);
+      }
+
+      const validDir = path.join(packageRoot, "list-export-valid");
+      fs.mkdirSync(validDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(validDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "list-export-valid",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(validDir, "index.bpl"), "export root;");
+
+      const packages = new PackageManager(appDir).list({ global: false });
+      const packageByName = new Map(
+        packages.map((pkg) => [pkg.manifest.name, pkg]),
+      );
+
+      for (const testCase of cases) {
+        expect(packageByName.get(testCase.packageName)?.problems).toEqual([
+          expect.stringContaining(`invalid exports: ${testCase.expected}`),
+        ]);
+      }
+      expect(packageByName.get("list-export-valid")?.problems).toEqual([]);
+    });
+
     test("should list installed packages in deterministic manifest-name order", () => {
       const appDir = path.join(tempDir, "list-order-app");
       const packageRoot = path.join(appDir, "bpl_modules");

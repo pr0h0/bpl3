@@ -1817,6 +1817,82 @@ describe("Package Manager CLI", () => {
       expect(typeof listedPackage?.hash).toBe("string");
     });
 
+    test("should report invalid installed package exports in list output", () => {
+      const appDir = path.join(tempDir, "cli-list-export-app");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "cli-list-export-broken",
+      );
+      fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          { name: "cli-list-export-app", version: "1.0.0" },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "cli-list-export-broken",
+            version: "1.0.0",
+            main: "index.bpl",
+            exports: ["features/public.bpl"],
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+
+      const textResult = spawnSync("bun", [bplPath, "list"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+
+      expect(textResult.status).toBe(0);
+      expect(textResult.stdout).toContain("cli-list-export-broken@1.0.0");
+      expect(textResult.stdout).toContain(
+        "! invalid exports: Missing package export entry: features/public.bpl",
+      );
+
+      const jsonResult = spawnSync("bun", [bplPath, "list", "--json"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      const report = expectJsonStdoutReport<{
+        scope: string;
+        packages: Array<{
+          name: string;
+          version: string;
+          path?: string;
+          hash?: string;
+          problems: string[];
+        }>;
+      }>(jsonResult, {
+        status: 0,
+        check: "package-list",
+        success: true,
+      });
+      expect(report.scope).toBe("local");
+      expect(report.packages[0]).toMatchObject({
+        name: "cli-list-export-broken",
+        version: "1.0.0",
+        path: packageDir,
+        problems: [
+          expect.stringContaining(
+            "invalid exports: Missing package export entry: features/public.bpl",
+          ),
+        ],
+      });
+      expect(typeof report.packages[0]?.hash).toBe("string");
+    });
+
     test("should report duplicate installed package names in list JSON", () => {
       const appDir = path.join(tempDir, "cli-list-duplicate-app");
       const firstPackageDir = path.join(

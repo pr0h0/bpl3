@@ -205,6 +205,7 @@ export interface PackageInfo {
   manifest: PackageManifest;
   path: string;
   hash: string;
+  problems: string[];
 }
 
 export interface PackageUninstallResult {
@@ -3986,11 +3987,23 @@ export class PackageManager {
         try {
           const manifest = this.loadManifest(packagePath);
           const hash = this.calculatePackageHash(packagePath);
+          const problems: string[] = [];
+          try {
+            this.validatePackageExportFiles(
+              manifest,
+              packagePath,
+              path.join(packagePath, "bpl.json"),
+            );
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            problems.push(`invalid exports: ${detail}`);
+          }
 
           packages.push({
             manifest,
             path: packagePath,
             hash,
+            problems,
           });
         } catch {
           // Skip invalid packages - they may lack bpl.json or have invalid manifests

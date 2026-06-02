@@ -62,8 +62,8 @@ Lockfile verification and `bpl install --repair-lock` also validate installed
 package exports, so a lockfile cannot silently trust or record a package with
 missing, directory, or symlinked public subpaths. `bpl doctor packages` reports
 the same broken installed export surfaces as package-health errors, and
-`bpl list --tree` appends those export failures to dependency-tree node
-problems without hiding valid child dependencies.
+`bpl list`/`bpl list --tree` append those export failures to package or
+dependency-tree node problems without hiding valid child dependencies.
 
 ## CLI Commands
 

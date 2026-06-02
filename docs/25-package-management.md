@@ -346,7 +346,10 @@ bpl doctor packages --json
 
 Use the JSON forms for CI and tooling. `bpl list --json` uses a stable
 top-level contract with `schemaVersion: 1`, `check: "package-list"`,
-`success`, and installed package names, versions, paths, and content hashes.
+`success`, and installed package names, versions, paths, content hashes, and
+node-style `problems`. Package list entries revalidate declared `exports`
+entries; missing, directory, or symlinked public subpaths are appended to the
+affected package's `problems` array and shown below that package in text output.
 Package listing revalidates the local or global package directory with
 `lstat` before scanning, including parent path components, so a symlinked
 `bpl_modules`, global package cache directory, or parent directory is rejected

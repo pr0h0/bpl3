@@ -10,8 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Package Exports Validation** - `bpl pack`, archive install,
   package-cache verification/repair, lockfile verification/repair,
-  `bpl doctor packages`, and `bpl list --tree` now validate every package
-  manifest `exports` entry before publishing, replacing, recording,
+  `bpl doctor packages`, `bpl list`, and `bpl list --tree` now validate every
+  package manifest `exports` entry before publishing, replacing, recording,
   diagnosing, listing, or trusting a package.
   Missing exported files, exported directories, and symlinked exported paths
   are rejected with package diagnostics where archives can carry them, while
