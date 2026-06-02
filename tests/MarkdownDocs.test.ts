@@ -381,7 +381,7 @@ describe("Markdown documentation", () => {
       "package-list-tree",
       "unsafe package-root validation failures",
       "duplicate installed package names return `errorCode: \"BPL_PACKAGE_DUPLICATE_INSTALLED\"`",
-      "Tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: \"duplicate-installed-package\"`",
+      "List and tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: \"duplicate-installed-package\"`",
       "`packages: []`",
       "`tree: []`",
       "`schemaVersion`",

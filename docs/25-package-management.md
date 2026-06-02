@@ -325,7 +325,10 @@ Package listing revalidates the local or global package directory with
 `bpl_modules`, global package cache directory, or parent directory is rejected
 instead of followed. In JSON mode, unsafe package-root failures return
 `success: false`, the requested `scope`, an empty `packages: []` payload, and
-`error`.
+`error`. Duplicate installed package names return
+`errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"` with `issuesFound`,
+`issueKinds`, and compact `issues` entries whose `kind` is
+`"duplicate-installed-package"`.
 `bpl list --tree --json` uses `check: "package-list-tree"` with the same
 `schemaVersion` and `success` fields, plus the dependency tree data used by the
 human tree output. Tree generation validates an existing local `bpl.lock`
@@ -334,11 +337,12 @@ non-file lockfile paths are rejected instead of being treated as absent. Tree
 roots and nodes also classify `bpl_modules` and `bpl_modules/<package>` paths
 with `lstat`, so symlinked or non-directory package roots are reported as
 problems instead of being followed. Duplicate installed package names return
-`errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"` before tree roots are selected.
-Tree duplicate failures also include `issuesFound`, `issueKinds`, and compact
-`issues` entries with `kind: "duplicate-installed-package"` so automation can
-point at the ambiguous installed directories. Tree JSON validation failures
-return the requested `scope`, `tree: []`, and `error`.
+the same `errorCode`, `issuesFound`, `issueKinds`, and compact `issues`
+contract before tree roots are selected. List and tree duplicate failures also
+include `issuesFound`, `issueKinds`, and compact `issues` entries with
+`kind: "duplicate-installed-package"` so automation can point at the ambiguous
+installed directories. Tree JSON validation failures return the requested
+`scope`, `tree: []`, and `error`.
 `bpl doctor packages --json` uses a stable top-level contract with
 `schemaVersion: 1`, `check: "packages"`, `success`, the legacy `ok` boolean,
 lockfile details, cache verification, dependency tree data, and structured

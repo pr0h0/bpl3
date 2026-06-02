@@ -294,7 +294,7 @@ export function registerPackageCommands(program: Command): void {
           return;
         }
 
-        const packages = pm.list(options);
+        const packages = pm.listUniqueInstalledPackages(options);
 
         if (outputJson) {
           console.log(
@@ -350,6 +350,7 @@ export function registerPackageCommands(program: Command): void {
                     packages: [],
                     error,
                     ...errorCode,
+                    ...formatPackageInstalledNameJsonPayload(e),
                   }),
               null,
               2,

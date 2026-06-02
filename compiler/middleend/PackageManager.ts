@@ -3859,6 +3859,17 @@ export class PackageManager {
     );
   }
 
+  listUniqueInstalledPackages(
+    options: PackageOptionsGlobal = { global: false },
+  ): PackageInfo[] {
+    const packages = this.list(options);
+    const targetDir = options.global
+      ? this.globalPackageDir
+      : this.localPackageDir;
+    this.assertUniqueInstalledPackageNames(packages, targetDir);
+    return packages;
+  }
+
   private comparePackageInfoByNameAndPath(
     left: PackageInfo,
     right: PackageInfo,
@@ -3867,6 +3878,17 @@ export class PackageManager {
       left.manifest.name.localeCompare(right.manifest.name) ||
       left.path.localeCompare(right.path)
     );
+  }
+
+  private assertUniqueInstalledPackageNames(
+    installedPackages: readonly PackageInfo[],
+    packageDirectory: string,
+  ): void {
+    const duplicateIssues =
+      this.findDuplicateInstalledPackageNameIssues(installedPackages);
+    if (duplicateIssues.length > 0) {
+      throw new PackageInstalledNameError(duplicateIssues, packageDirectory);
+    }
   }
 
   listPackageCache(packageName?: string): PackageCacheEntry[] {
@@ -4606,12 +4628,7 @@ export class PackageManager {
     const rootDependencySpecs = options.global
       ? {}
       : this.loadProjectDependencySpecs();
-    const installedPackages = this.list(options);
-    const duplicateIssues =
-      this.findDuplicateInstalledPackageNameIssues(installedPackages);
-    if (duplicateIssues.length > 0) {
-      throw new PackageInstalledNameError(duplicateIssues, targetDir);
-    }
+    const installedPackages = this.listUniqueInstalledPackages(options);
     const rootNames = new Set<string>();
 
     for (const packageName of Object.keys(rootDependencySpecs)) {

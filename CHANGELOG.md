@@ -87,6 +87,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bpl list --tree --json` reports
   `errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"` with `issuesFound`,
   `issueKinds`, and compact `duplicate-installed-package` issue entries.
+- **Package List Duplicate Diagnostics** - `bpl list --json` now rejects
+  duplicate installed package names with the same
+  `BPL_PACKAGE_DUPLICATE_INSTALLED`, `issuesFound`, `issueKinds`, and compact
+  `duplicate-installed-package` issue payload used by tree listing.
 - **Call-Site Mismatch Diagnostic Codes** - Non-callable targets now report
   `BPL_CALL_TARGET_NOT_CALLABLE`, function and first-class callable argument
   count and type mismatches now report `BPL_CALL_ARGUMENT_COUNT_MISMATCH` and
