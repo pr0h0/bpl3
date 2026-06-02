@@ -1,4 +1,5 @@
 import { spawnSync } from "child_process";
+import { createHash } from "crypto";
 import {
   chmodSync,
   existsSync,
@@ -2856,88 +2857,187 @@ function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
   installedBpl: string,
   installDir: string,
 ): void {
-  const packageName = "release-smoke-cache-bin-invalid";
+  const repairPackageName = "release-smoke-cache-bin-invalid";
+  const verifyPackageName = "release-smoke-cache-bin-invalid-verify";
   const homeDir = join(installDir, "package-cache-bin-invalid-home");
   const cacheDir = join(homeDir, ".bpl", "packages");
-  const sourceDir = join(installDir, "package-cache-bin-invalid-source");
-  const packageRoot = join(sourceDir, "package");
-  const archivePath = join(cacheDir, `${packageName}-1.0.0.tgz`);
+  const env = buildStepEnv({ bplHome: null, env: { HOME: homeDir } });
 
-  mkdirSync(join(packageRoot, "bin"), { recursive: true });
-  mkdirSync(cacheDir, { recursive: true });
-  writeFileSync(
-    join(packageRoot, "bpl.json"),
-    JSON.stringify(
-      {
-        name: packageName,
-        version: "1.0.0",
-        main: "index.bpl",
-        bin: { broken: "bin/missing.bpl" },
-      },
-      null,
-      2,
-    ),
-  );
-  writeFileSync(join(packageRoot, "index.bpl"), "export root;\n");
+  const createInvalidBinArchive = (
+    packageName: string,
+    sourceName: string,
+  ): { archivePath: string; manifest: Record<string, unknown> } => {
+    const sourceDir = join(installDir, sourceName);
+    const packageRoot = join(sourceDir, "package");
+    const archivePath = join(cacheDir, `${packageName}-1.0.0.tgz`);
+    const manifest = {
+      name: packageName,
+      version: "1.0.0",
+      main: "index.bpl",
+      bin: { broken: "bin/missing.bpl" },
+    };
 
-  const tarResult = spawnSync(
-    "tar",
-    ["-czf", archivePath, "-C", sourceDir, "package"],
-    {
-      cwd: installDir,
-      encoding: "utf-8",
-      timeout: smokeTimeoutMs,
-    },
-  );
-
-  if (tarResult.error) throw tarResult.error;
-  if (tarResult.status !== 0) {
-    throw new Error(
-      [
-        "Packed npm CLI package-cache bin invalid archive fixture could not be created.",
-        `tar exit: ${tarResult.status ?? "unknown"}`,
-        `stdout:\n${tarResult.stdout}`,
-        `stderr:\n${tarResult.stderr}`,
-      ].join("\n"),
+    mkdirSync(join(packageRoot, "bin"), { recursive: true });
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      join(packageRoot, "bpl.json"),
+      JSON.stringify(manifest, null, 2),
     );
-  }
+    writeFileSync(join(packageRoot, "index.bpl"), "export root;\n");
+
+    const tarResult = spawnSync(
+      "tar",
+      ["-czf", archivePath, "-C", sourceDir, "package"],
+      {
+        cwd: installDir,
+        encoding: "utf-8",
+        timeout: smokeTimeoutMs,
+      },
+    );
+
+    if (tarResult.error) throw tarResult.error;
+    if (tarResult.status !== 0) {
+      throw new Error(
+        [
+          "Packed npm CLI package-cache bin invalid archive fixture could not be created.",
+          `tar exit: ${tarResult.status ?? "unknown"}`,
+          `stdout:\n${tarResult.stdout}`,
+          `stderr:\n${tarResult.stderr}`,
+        ].join("\n"),
+      );
+    }
+
+    return { archivePath, manifest };
+  };
+
+  const writeVerificationProvenance = (
+    archivePath: string,
+    packageName: string,
+    manifest: Record<string, unknown>,
+  ): string => {
+    const provenancePath = `${archivePath}.bplmeta.json`;
+    const archiveSha256 = createHash("sha256")
+      .update(readFileSync(archivePath))
+      .digest("hex");
+    const stat = statSync(archivePath);
+
+    writeFileSync(
+      provenancePath,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          name: packageName,
+          version: "1.0.0",
+          archiveFile: `${packageName}-1.0.0.tgz`,
+          archiveSha256,
+          packageHash: "not-checked-before-invalid-archive",
+          sizeBytes: stat.size,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          manifest,
+        },
+        null,
+        2,
+      ),
+    );
+
+    return provenancePath;
+  };
+
+  const verifyArchive = createInvalidBinArchive(
+    verifyPackageName,
+    "package-cache-bin-invalid-verify-source",
+  );
+  const verifyProvenancePath = writeVerificationProvenance(
+    verifyArchive.archivePath,
+    verifyPackageName,
+    verifyArchive.manifest,
+  );
+  const repairArchive = createInvalidBinArchive(
+    repairPackageName,
+    "package-cache-bin-invalid-repair-source",
+  );
 
   console.log(
     "release smoke: check packed npm CLI package-cache bin invalid archive JSON",
   );
-  const result = spawnSync(
+  const verifyArgs = ["package-cache", "verify", "release-smoke-cache-bin-invalid-verify", "--json"];
+  const verifyResult = spawnSync(
+    installedBpl,
+    verifyArgs,
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+  const repairResult = spawnSync(
     installedBpl,
     ["package-cache", "repair", "release-smoke-cache-bin-invalid", "--json"],
     {
       cwd: installDir,
       encoding: "utf-8",
-      env: buildStepEnv({ bplHome: null, env: { HOME: homeDir } }),
+      env,
       timeout: smokeTimeoutMs,
     },
   );
 
-  if (result.error) throw result.error;
-  if (result.status !== 1) {
+  if (verifyResult.error) throw verifyResult.error;
+  if (repairResult.error) throw repairResult.error;
+  if (verifyResult.status !== 1 || repairResult.status !== 1) {
     throw new Error(
       [
         "Packed npm CLI package-cache bin invalid archive smoke did not fail as expected.",
-        `exit: ${result.status ?? "unknown"}`,
-        `stdout:\n${result.stdout}`,
-        `stderr:\n${result.stderr}`,
+        `verify exit: ${verifyResult.status ?? "unknown"}`,
+        `verify stdout:\n${verifyResult.stdout}`,
+        `verify stderr:\n${verifyResult.stderr}`,
+        `repair exit: ${repairResult.status ?? "unknown"}`,
+        `repair stdout:\n${repairResult.stdout}`,
+        `repair stderr:\n${repairResult.stderr}`,
       ].join("\n"),
     );
   }
-  if (result.stderr !== "") {
+  if (verifyResult.stderr !== "" || repairResult.stderr !== "") {
     throw new Error(
       [
         "Packed npm CLI package-cache bin invalid archive JSON wrote stderr.",
-        `stderr:\n${result.stderr}`,
+        `verify stderr:\n${verifyResult.stderr}`,
+        `repair stderr:\n${repairResult.stderr}`,
       ].join("\n"),
     );
   }
 
-  const repairReport = parsePackageCacheRepairReport(result.stdout);
-  const issue = repairReport.issues[0];
+  const verifyReport = parsePackageCacheVerifyReport(verifyResult.stdout);
+  const verifyIssue = verifyReport.issues[0];
+  if (
+    verifyReport.success ||
+    verifyReport.ok ||
+    verifyReport.entriesChecked !== 1 ||
+    verifyReport.issues.length !== 1 ||
+    verifyReport.error !== undefined ||
+    verifyReport.errorCode !== undefined ||
+    !verifyIssue ||
+    verifyIssue.packageName !== verifyPackageName ||
+    verifyIssue.version !== "1.0.0" ||
+    verifyIssue.kind !== "invalid-archive" ||
+    verifyIssue.path !== verifyArchive.archivePath ||
+    verifyIssue.provenancePath !== verifyProvenancePath ||
+    typeof verifyIssue.message !== "string" ||
+    !verifyIssue.message.includes(
+      "Missing package bin entry: bin/missing.bpl",
+    ) ||
+    !existsSync(verifyProvenancePath)
+  ) {
+    throw new Error(
+      [
+        "Packed npm CLI package-cache bin invalid archive verify JSON reported unexpected payload.",
+        `verify:\n${JSON.stringify(verifyReport, null, 2)}`,
+      ].join("\n"),
+    );
+  }
+
+  const repairReport = parsePackageCacheRepairReport(repairResult.stdout);
+  const repairIssue = repairReport.issues[0];
   if (
     repairReport.success ||
     repairReport.dryRun ||
@@ -2946,19 +3046,21 @@ function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
     repairReport.issues.length !== 1 ||
     repairReport.error !== undefined ||
     repairReport.errorCode !== undefined ||
-    !issue ||
-    issue.packageName !== packageName ||
-    issue.version !== "1.0.0" ||
-    issue.kind !== "invalid-archive" ||
-    issue.path !== archivePath ||
-    issue.provenancePath !== `${archivePath}.bplmeta.json` ||
-    typeof issue.message !== "string" ||
-    !issue.message.includes("Missing package bin entry: bin/missing.bpl") ||
-    existsSync(`${archivePath}.bplmeta.json`)
+    !repairIssue ||
+    repairIssue.packageName !== repairPackageName ||
+    repairIssue.version !== "1.0.0" ||
+    repairIssue.kind !== "invalid-archive" ||
+    repairIssue.path !== repairArchive.archivePath ||
+    repairIssue.provenancePath !== `${repairArchive.archivePath}.bplmeta.json` ||
+    typeof repairIssue.message !== "string" ||
+    !repairIssue.message.includes(
+      "Missing package bin entry: bin/missing.bpl",
+    ) ||
+    existsSync(`${repairArchive.archivePath}.bplmeta.json`)
   ) {
     throw new Error(
       [
-        "Packed npm CLI package-cache bin invalid archive JSON reported unexpected payload.",
+        "Packed npm CLI package-cache bin invalid archive repair JSON reported unexpected payload.",
         `repair:\n${JSON.stringify(repairReport, null, 2)}`,
       ].join("\n"),
     );

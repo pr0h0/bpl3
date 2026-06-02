@@ -40,9 +40,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   focused package-cache CLI/API regression tests, including symlinked cached
   binary archive members.
 - **Release Smoke Package Cache Bin JSON** - packed npm release smoke now
-  builds a cached archive with an invalid `bin` target and verifies
-  `bpl package-cache repair --json` returns a parseable `invalid-archive`
-  issue without writing a provenance sidecar.
+  builds cached archives with invalid `bin` targets and verifies
+  `bpl package-cache verify --json` and `bpl package-cache repair --json`
+  return parseable `invalid-archive` issues. The verify smoke keeps its
+  provenance sidecar, while repair confirms it does not write one for a
+  rejected archive.
 - **CI Triage Packed Package Cache Bin Smoke** - `bun run ci:triage` now maps
   the packed package-cache bin invalid-archive release-smoke label to the
   focused ReleaseSmoke, release metadata, and package-cache bin regression
