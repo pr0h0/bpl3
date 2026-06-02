@@ -1454,14 +1454,12 @@ export class PackageManager {
     baseDir: string = this.projectRoot,
   ): ResolvedDependencySource {
     const fileSource = source.startsWith("file:") ? source.slice(5) : source;
-    const baseRelativePath = path.resolve(baseDir, fileSource);
+    const baseRelativePath = this.resolveDependencyFileSource(
+      baseDir,
+      fileSource,
+    );
 
-    if (
-      fileSource.endsWith(".tgz") ||
-      fileSource.startsWith(".") ||
-      path.isAbsolute(fileSource) ||
-      fileSource.includes(path.sep)
-    ) {
+    if (this.isPackageFileSource(fileSource)) {
       const baseRelativePathExists = Boolean(this.tryLstat(baseRelativePath));
       const packageSource = baseRelativePathExists
         ? baseRelativePath
@@ -1488,8 +1486,39 @@ export class PackageManager {
   }
 
   private formatFileLockSource(filePath: string): string {
-    const relativePath = path.relative(this.projectRoot, filePath);
+    const relativePath = path
+      .relative(this.projectRoot, filePath)
+      .split(path.sep)
+      .join("/");
     return `file:${relativePath || path.basename(filePath)}`;
+  }
+
+  private isPackageFileSource(fileSource: string): boolean {
+    return (
+      fileSource.endsWith(".tgz") ||
+      fileSource.startsWith(".") ||
+      path.isAbsolute(fileSource) ||
+      path.win32.isAbsolute(fileSource) ||
+      fileSource.includes("/") ||
+      fileSource.includes("\\")
+    );
+  }
+
+  private resolveDependencyFileSource(baseDir: string, fileSource: string): string {
+    if (path.isAbsolute(fileSource) || path.win32.isAbsolute(fileSource)) {
+      return fileSource;
+    }
+
+    return path.resolve(baseDir, ...fileSource.split(/[\\/]/));
+  }
+
+  private resolveRelativePackageSource(baseDir: string, fileSource: string): string {
+    return path.join(baseDir, ...fileSource.split(/[\\/]/));
+  }
+
+  private getPackageSourceBasename(fileSource: string): string {
+    const parts = fileSource.split(/[\\/]/);
+    return parts[parts.length - 1] || path.basename(fileSource);
   }
 
   private lockSourceExists(packageName: string, source: string): boolean {
@@ -1511,8 +1540,10 @@ export class PackageManager {
     if (path.isAbsolute(fileSource)) {
       candidates.add(fileSource);
     } else {
-      candidates.add(path.resolve(this.projectRoot, fileSource));
-      candidates.add(path.join(this.globalPackageDir, fileSource));
+      candidates.add(this.resolveDependencyFileSource(this.projectRoot, fileSource));
+      candidates.add(
+        this.resolveRelativePackageSource(this.globalPackageDir, fileSource),
+      );
     }
 
     if (/^\d+\.\d+\.\d+$/.test(fileSource)) {
@@ -1522,7 +1553,9 @@ export class PackageManager {
     }
 
     if (fileSource.endsWith(".tgz")) {
-      candidates.add(path.join(this.globalPackageDir, path.basename(fileSource)));
+      candidates.add(
+        path.join(this.globalPackageDir, this.getPackageSourceBasename(fileSource)),
+      );
     }
 
     return [...candidates];

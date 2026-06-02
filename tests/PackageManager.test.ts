@@ -3467,6 +3467,66 @@ describe("PackageManager", () => {
       );
     });
 
+    test("should resolve dependency file sources with Windows separators", () => {
+      const appDir = path.join(tempDir, "windows-source-app");
+      const depsDir = path.join(appDir, "deps");
+      const packageDir = path.join(tempDir, "windows-source-package");
+      fs.mkdirSync(depsDir, { recursive: true });
+      fs.mkdirSync(packageDir);
+
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "windows-source-package",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      const appRelativeTarballPath = path.join(
+        depsDir,
+        path.basename(tarballPath),
+      );
+      fs.copyFileSync(tarballPath, appRelativeTarballPath);
+
+      fs.writeFileSync(
+        path.join(appDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "windows-source-app",
+            version: "1.0.0",
+            dependencies: {
+              "windows-source-package": `file:deps\\${path.basename(
+                tarballPath,
+              )}`,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const localPM = new PackageManager(appDir);
+      localPM.installProject({ global: false, verbose: false });
+
+      expect(
+        fs.existsSync(
+          path.join(appDir, "bpl_modules", "windows-source-package", "bpl.json"),
+        ),
+      ).toBe(true);
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+      expect(lock.packages["windows-source-package"].source).toBe(
+        "file:deps/windows-source-package-1.0.0.tgz",
+      );
+    });
+
     test("should report missing transitive dependencies during locked verification", () => {
       const globalPackageDir = path.join(tempDir, "locked-graph-cache");
       const appDir = path.join(tempDir, "locked-graph-app");
