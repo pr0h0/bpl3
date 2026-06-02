@@ -2062,6 +2062,57 @@ describe("PackageManager", () => {
       expect(fs.existsSync(installedPath)).toBe(true);
     });
 
+    test("should install direct file-prefixed archive paths", () => {
+      const packageDir = path.join(tempDir, "direct-file-source-pkg");
+      const appDir = path.join(tempDir, "direct-file-source-app");
+      const depsDir = path.join(appDir, "deps");
+      fs.mkdirSync(packageDir);
+      fs.mkdirSync(depsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageDir, "bpl.json"),
+        JSON.stringify(
+          {
+            name: "direct-file-source-pkg",
+            version: "1.0.0",
+            main: "index.bpl",
+          },
+          null,
+          2,
+        ),
+      );
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export direct;");
+      const tarballPath = new PackageManager(packageDir).pack(packageDir);
+      fs.copyFileSync(tarballPath, path.join(depsDir, path.basename(tarballPath)));
+
+      process.chdir(appDir);
+      const localPM = new PackageManager();
+      localPM.install(`file:deps/${path.basename(tarballPath)}`, {
+        global: false,
+        verbose: false,
+      });
+
+      const installedPath = path.join(
+        appDir,
+        "bpl_modules",
+        "direct-file-source-pkg",
+        "index.bpl",
+      );
+      expect(fs.existsSync(installedPath)).toBe(true);
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(appDir, "bpl.lock"), "utf8"),
+      );
+      expect(lock.packages["direct-file-source-pkg"].source).toBe(
+        "file:deps/direct-file-source-pkg-1.0.0.tgz",
+      );
+
+      fs.rmSync(path.join(appDir, "bpl_modules"), {
+        recursive: true,
+        force: true,
+      });
+      localPM.installProject({ global: false, verbose: false });
+      expect(fs.existsSync(installedPath)).toBe(true);
+    });
+
     test("should preserve existing lockfile permissions when rewriting", () => {
       if (process.platform === "win32") {
         return;

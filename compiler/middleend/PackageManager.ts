@@ -1521,12 +1521,25 @@ export class PackageManager {
     return parts[parts.length - 1] || path.basename(fileSource);
   }
 
+  private stripPackageFileSourcePrefix(packageSource: string): string {
+    return packageSource.startsWith("file:")
+      ? packageSource.slice("file:".length)
+      : packageSource;
+  }
+
   private formatDirectPackageFileLockSource(packageSource: string): string {
-    if (path.isAbsolute(packageSource) || path.win32.isAbsolute(packageSource)) {
-      return packageSource;
+    const hasFilePrefix = packageSource.startsWith("file:");
+    const fileSource = this.stripPackageFileSourcePrefix(packageSource);
+    const normalizedSource =
+      path.isAbsolute(fileSource) || path.win32.isAbsolute(fileSource)
+        ? fileSource
+        : fileSource.split(/[\\/]/).join("/");
+
+    if (hasFilePrefix) {
+      return `file:${normalizedSource}`;
     }
 
-    return packageSource.split(/[\\/]/).join("/");
+    return normalizedSource;
   }
 
   private lockSourceExists(packageName: string, source: string): boolean {
@@ -2507,9 +2520,12 @@ export class PackageManager {
     let lockSource = sourceContext.lockSource ?? packageSource;
 
     // Check if source is a file path or package name
-    const directPackageSource = this.isPackageFileSource(packageSource)
-      ? this.resolveDependencyFileSource(this.projectRoot, packageSource)
-      : packageSource;
+    const directFileSource = this.stripPackageFileSourcePrefix(packageSource);
+    const directPackageSource =
+      packageSource.startsWith("file:") ||
+      this.isPackageFileSource(directFileSource)
+        ? this.resolveDependencyFileSource(this.projectRoot, directFileSource)
+        : packageSource;
     if (this.tryLstat(directPackageSource)) {
       tarballPath = directPackageSource;
       if (!sourceContext.lockSource && directPackageSource !== packageSource) {
@@ -2910,13 +2926,16 @@ export class PackageManager {
   }
 
   private inferExpectedPackageName(packageSource: string): string | undefined {
-    if (fs.existsSync(packageSource)) return undefined;
-    const installSpec = parsePackageInstallSpec(packageSource);
-    if (installSpec) return installSpec.name;
-    const fileName = this.getPackageSourceBasename(packageSource);
+    const fileSource = this.stripPackageFileSourcePrefix(packageSource);
+    if (fs.existsSync(fileSource)) return undefined;
+    if (!packageSource.startsWith("file:")) {
+      const installSpec = parsePackageInstallSpec(packageSource);
+      if (installSpec) return installSpec.name;
+    }
+    const fileName = this.getPackageSourceBasename(fileSource);
     const parsed = parsePackageTarballName(fileName);
     if (parsed) return parsed.name;
-    if (/^[a-z0-9-]+$/.test(packageSource)) return packageSource;
+    if (/^[a-z0-9-]+$/.test(fileSource)) return fileSource;
     return undefined;
   }
 
