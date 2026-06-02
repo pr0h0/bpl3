@@ -316,7 +316,9 @@ must declare `"name": "my-package"`, and global versioned package directories
 must match their manifest `version`. The resolver does not follow symlinked
 package search directories, package roots, manifests, source parent
 directories, entry files, or subpath entries; malformed packages are treated as
-package metadata instead of silently importing a different package. Symlinked
+package metadata instead of silently importing a different package. Manifest
+string metadata such as `$schema`, `description`, `author`, and `license` must
+be strings when present, matching package manager manifest loading. Symlinked
 or non-directory package search directories such as `bpl_modules/`, workspace
 `packages/`, and the global package directory are rejected before child package
 candidates are probed. Nested package source paths such as `src/index.bpl` and

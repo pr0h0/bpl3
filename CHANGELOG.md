@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Package Resolver Metadata Validation** - Package import resolution now
+  rejects installed package manifests whose optional string metadata fields
+  (`$schema`, `description`, `author`, or `license`) are present with non-string
+  values, matching PackageManager manifest loading before the resolver uses the
+  package entrypoint.
 - **Generated Package Manifest Schema URI** - `bpl init` and `bpl new` now
   write the canonical `bpl-package.schema.json` `$schema` URI into generated
   manifests, and PackageManager manifest loading validates `$schema` as a

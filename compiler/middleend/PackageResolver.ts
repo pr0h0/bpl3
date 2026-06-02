@@ -705,6 +705,20 @@ function validatePackageManifestMatchesImport(
     }
   }
 
+  for (const field of [
+    "$schema",
+    "description",
+    "author",
+    "license",
+  ] as const) {
+    if (manifest[field] !== undefined && typeof manifest[field] !== "string") {
+      trace.failureReason = "manifest-invalid";
+      trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
+      trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest ${field} must be a string when present.`;
+      return false;
+    }
+  }
+
   if (manifest.main !== undefined && typeof manifest.main !== "string") {
     trace.failureReason = "manifest-invalid";
     trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";

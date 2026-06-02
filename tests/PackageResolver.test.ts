@@ -1371,8 +1371,32 @@ describe("PackageResolver", () => {
     }
   });
 
-  test("rejects package manifest entry fields with non-string values", () => {
+  test("rejects package manifest metadata and entry fields with non-string values", () => {
     const cases = [
+      {
+        name: "schema-number",
+        field: "$schema",
+        manifestPatch: { $schema: 42 },
+        expectedMessage: "manifest $schema must be a string when present",
+      },
+      {
+        name: "description-number",
+        field: "description",
+        manifestPatch: { description: 42 },
+        expectedMessage: "manifest description must be a string when present",
+      },
+      {
+        name: "author-array",
+        field: "author",
+        manifestPatch: { author: ["BPL"] },
+        expectedMessage: "manifest author must be a string when present",
+      },
+      {
+        name: "license-object",
+        field: "license",
+        manifestPatch: { license: { name: "MIT" } },
+        expectedMessage: "manifest license must be a string when present",
+      },
       {
         name: "main-number",
         field: "main",

@@ -470,6 +470,8 @@ describe("Markdown documentation", () => {
       "`bpl_modules/my-package/bpl.json` must declare `\"name\": \"my-package\"`",
       "Global versioned package directories must match their manifest `version`",
       "package metadata instead of silently importing a different package",
+      "Manifest string metadata such as `$schema`, `description`, `author`, and `license` must be strings when present",
+      "The package import resolver also rejects malformed string metadata",
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);

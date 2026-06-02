@@ -530,6 +530,9 @@ entrypoint files, and subpath source parents such as `features/` are reported
 at the import site instead of falling back to alternate candidates or following
 the link. The package manager validates both `main` and the legacy `entry`
 field as package-relative paths before install or pack operations continue.
+The package import resolver also rejects malformed string metadata such as a
+non-string `$schema`, `description`, `author`, or `license` field before using
+the package entrypoint.
 
 In `bpl check --json` and `bpl build --json`, package import diagnostics use
 the normal diagnostic object shape and include a stable `code` when the
