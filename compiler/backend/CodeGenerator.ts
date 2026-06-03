@@ -38,6 +38,21 @@ export const CODEGEN_JSON_ERROR_CODES = [
   CODEGEN_DEBUG_IR_PARENT_NOT_DIRECTORY_CODE,
 ] as const;
 
+const PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS = new Set([
+  "__bpl_argc",
+  "__bpl_argv_get",
+  "__bpl_throw_stack_overflow",
+  "__bpl_throw_null_access",
+  "__bpl_throw_division_by_zero",
+  "__bpl_throw_integer_overflow",
+  "__bpl_throw_index_out_of_bounds",
+  "__bpl_enter_stack_frame",
+  "__bpl_exit_stack_frame",
+  "__bpl_check_null",
+  "__bpl_mem_is_zero",
+  "__bpl_strlen",
+]);
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -395,6 +410,8 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    this.pruneUnusedInternalRuntimeDeclarations();
+
     const result =
       header +
       "\n" +
@@ -408,6 +425,29 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     return result;
+  }
+
+  private pruneUnusedInternalRuntimeDeclarations(): void {
+    const generatedBody = this.output.join("\n");
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      const name = this.getDeclaredFunctionName(line);
+      if (
+        name === null ||
+        !PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS.has(name)
+      ) {
+        return true;
+      }
+      return this.referencesLlvmSymbol(generatedBody, name);
+    });
+  }
+
+  private getDeclaredFunctionName(line: string): string | null {
+    return line.match(/^declare\b.*@([A-Za-z0-9_]+)\(/)?.[1] ?? null;
+  }
+
+  private referencesLlvmSymbol(llvmBody: string, name: string): boolean {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`@${escapedName}(?![A-Za-z0-9_.$])`).test(llvmBody);
   }
 
   private writeDebugIr(result: string): void {

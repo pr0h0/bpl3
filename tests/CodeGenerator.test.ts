@@ -356,6 +356,37 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("prunes unused internal runtime helper declarations from simple IR", () => {
+    const ir = compile("frame main() ret int { return 0; }", {
+      optimizationLevel: 3,
+    });
+
+    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("declare void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("declare i32 @__bpl_argc()");
+    expect(ir).not.toContain("declare i8* @__bpl_argv_get(i32)");
+    expect(ir).not.toContain("declare void @__bpl_throw_division_by_zero");
+    expect(ir).not.toContain("declare void @__bpl_throw_integer_overflow");
+    expect(ir).not.toContain("declare void @__bpl_check_null");
+    expect(ir).not.toContain("declare i1 @__bpl_mem_is_zero");
+  });
+
+  it("keeps internal runtime helper declarations when generated IR uses them", () => {
+    const ir = compile(
+      `
+        frame main(a: i32, b: i32) ret i32 {
+          return a / b;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).toContain("declare void @__bpl_throw_division_by_zero");
+    expect(ir).toContain("call void @__bpl_throw_integer_overflow");
+    expect(ir).toContain("declare void @__bpl_throw_integer_overflow");
+  });
+
   it("mangles tuple parameter overloads by element types", () => {
     const ir = compile(`
       frame pick(p: (int, int)) ret int {
