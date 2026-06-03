@@ -125,7 +125,7 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
 
 function parsePositiveInteger(value: string, name: string): number {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new CliUsageError(
       `${name} must be a positive integer, got '${value}'.`,
     );
