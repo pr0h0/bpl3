@@ -330,6 +330,49 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Identifiers", () => {
+    it("reuses module-level token regexes for hot literal and identifier matching", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const matcherStart = source.indexOf("private matchStringLiteral");
+      const matcherEnd = source.indexOf("private matchPunctuator", matcherStart);
+
+      expect(matcherStart).toBeGreaterThanOrEqual(0);
+      expect(matcherEnd).toBeGreaterThan(matcherStart);
+
+      const matcherSource = source.slice(matcherStart, matcherEnd);
+      expect(source).toContain("STRING_LITERAL_PATTERN");
+      expect(source).toContain("CHAR_LITERAL_PATTERN");
+      expect(source).toContain("NUMBER_LITERAL_PATTERNS");
+      expect(source).toContain("IDENTIFIER_PATTERN");
+      expect(matcherSource).not.toContain("const regex = /");
+      expect(matcherSource).not.toContain("const patterns = [");
+      expect(matcherSource).not.toContain("this.execAt(/[A-Za-z_]");
+    });
+
+    it("guards hot token regexes by first character before execAt", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const matcherStart = source.indexOf("private matchStringLiteral");
+      const matcherEnd = source.indexOf("private matchPunctuator", matcherStart);
+
+      expect(matcherStart).toBeGreaterThanOrEqual(0);
+      expect(matcherEnd).toBeGreaterThan(matcherStart);
+
+      const matcherSource = source.slice(matcherStart, matcherEnd);
+      expect(source).toContain("isAsciiDigit");
+      expect(source).toContain("isIdentifierStart");
+      expect(matcherSource).toContain('if (firstChar === "\\"")');
+      expect(matcherSource).toContain("if (firstChar !== \"'\") return null");
+      expect(matcherSource).toContain("if (!isAsciiDigit(firstChar)) return null");
+      expect(matcherSource).toContain(
+        "if (!isIdentifierStart(firstChar)) return null",
+      );
+    });
+
     it("should tokenize simple identifier", () => {
       const tokens = tokenize("myVariable");
       expect(tokens[0]!.type).toBe(TokenType.Identifier);

@@ -93,6 +93,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ~715.70ms median to ~700.80ms warm average / ~669.87ms median, and
   `matchPunctuator` dropped out of the profile top 10. Reproduce with
   `bun test tests/Lexer.test.ts -t "first-character candidate|distinguish between similar operators"`.
+- **Lexer Token Regex Fast Path** - Generic lexer string, character, number,
+  and identifier matching now reuses module-level sticky regexes and guards
+  each hot regex with a cheap first-character check. This avoids regex work for
+  token kinds that cannot start at the current byte while keeping ASCII token
+  rules unchanged. The same-command 5k CLI LLVM emit stayed byte-for-byte
+  identical at 2,987,639 bytes / 90,032 lines. Focused lex-only samples on the
+  5k source improved from ~100.08ms warm average / ~95.32ms median to ~57.41ms
+  warm average / ~53.14ms median for the same 180,056-token stream, and the
+  Bun CPU profile no longer reports `execAt` or literal/identifier matchers as
+  relevant lexer rows. Reproduce with
+  `bun test tests/Lexer.test.ts -t "module-level token regexes|first character before execAt"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

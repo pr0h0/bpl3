@@ -84,6 +84,31 @@ function groupPunctuatorsByFirstChar(
 }
 
 const PUNCTUATORS_BY_FIRST_CHAR = groupPunctuatorsByFirstChar(PUNCTUATORS);
+const STRING_LITERAL_PATTERN = /"(?:(?:\\.)|[^"\n\r])*"/y;
+const CHAR_LITERAL_PATTERN = /'(?:\\.|[^'\n\r])'/y;
+const NUMBER_LITERAL_PATTERNS = [
+  /0[xX][0-9a-fA-F]+/y,
+  /0[bB][01]+/y,
+  /0[oO][0-7]+/y,
+  /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y,
+];
+const IDENTIFIER_PATTERN = /[A-Za-z_][A-Za-z0-9_]*/y;
+
+function isAsciiDigit(ch: string | undefined): ch is string {
+  if (ch === undefined) return false;
+  const code = ch.charCodeAt(0);
+  return code >= 48 && code <= 57;
+}
+
+function isIdentifierStart(ch: string | undefined): ch is string {
+  if (ch === undefined) return false;
+  const code = ch.charCodeAt(0);
+  return (
+    ch === "_" ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122)
+  );
+}
 
 /**
  * A lightweight, grammar-aware tokenizer that mirrors the rules defined in
@@ -211,16 +236,20 @@ export class GenericParser {
   }
 
   private matchStringLiteral(): TokenNode | null {
+    const firstChar = this.source[this.position];
+
     // Standard string literal
-    const regex = /"(?:(?:\\.)|[^"\n\r])*"/y;
-    const match = this.execAt(regex, this.position);
-    if (match) {
-      return this.createToken("StringLiteral", match[0]!);
+    if (firstChar === "\"") {
+      const match = this.execAt(STRING_LITERAL_PATTERN, this.position);
+      if (match) {
+        return this.createToken("StringLiteral", match[0]!);
+      }
+      return null;
     }
 
     // Interpolated string literal
     // Matches `...` with support for nested interpolation ${...}
-    if (this.source.startsWith("`", this.position)) {
+    if (firstChar === "`") {
       const end = this.scanInterpolatedString(this.position);
       if (end !== -1) {
         const value = this.source.slice(this.position, end);
@@ -286,21 +315,19 @@ export class GenericParser {
   }
 
   private matchCharLiteral(): TokenNode | null {
-    const regex = /'(?:\\.|[^'\n\r])'/y;
-    const match = this.execAt(regex, this.position);
+    const firstChar = this.source[this.position];
+    if (firstChar !== "'") return null;
+
+    const match = this.execAt(CHAR_LITERAL_PATTERN, this.position);
     if (!match) return null;
     return this.createToken("CharLiteral", match[0]!);
   }
 
   private matchNumberLiteral(): TokenNode | null {
-    const patterns = [
-      /0[xX][0-9a-fA-F]+/y,
-      /0[bB][01]+/y,
-      /0[oO][0-7]+/y,
-      /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y,
-    ];
+    const firstChar = this.source[this.position];
+    if (!isAsciiDigit(firstChar)) return null;
 
-    for (const pattern of patterns) {
+    for (const pattern of NUMBER_LITERAL_PATTERNS) {
       const match = this.execAt(pattern, this.position);
       if (match) {
         return this.createToken("NumberLiteral", match[0]!);
@@ -310,7 +337,10 @@ export class GenericParser {
   }
 
   private matchIdentifierOrKeyword(): TokenNode | null {
-    const match = this.execAt(/[A-Za-z_][A-Za-z0-9_]*/y, this.position);
+    const firstChar = this.source[this.position];
+    if (!isIdentifierStart(firstChar)) return null;
+
+    const match = this.execAt(IDENTIFIER_PATTERN, this.position);
     if (!match) return null;
 
     const value = match[0]!;
