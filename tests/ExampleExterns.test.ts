@@ -5,7 +5,7 @@ import path from "path";
 const examplesRoot = path.join(process.cwd(), "examples");
 
 const centralizedCExterns = [
-  /\bextern printf\((?:fmt|format|f): string, \.\.\.\)(?: ret int)?;/,
+  /\bextern printf\((?:fmt|format|f): (?:string|\*(?:i8|char)), \.\.\.\)(?: ret (?:int|i32))?;/,
   /\bextern scanf\(fmt: string, \.\.\.\)(?: ret int)?;/,
   /\bextern puts\((?:s|value): string\) ret int;/,
   /\bextern malloc\(size: (?:int|long)\) ret \*void;/,

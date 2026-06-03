@@ -1,4 +1,4 @@
-extern printf(fmt: *char, ...) ret int;
+import [printf] from "std/c.bpl";
 
 frame main() {
     local x: int = 0;

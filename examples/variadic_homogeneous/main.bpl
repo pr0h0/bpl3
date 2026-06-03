@@ -1,4 +1,4 @@
-extern printf(fmt: *char, ...);
+import [printf] from "std/c.bpl";
 
 frame sum(args: ...int, count: int) ret int {
     local total: int = 0;

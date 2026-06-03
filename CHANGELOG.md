@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Stdlib C Extern Alias Cleanup** - Non-FFI examples that used pointer-typed
+  `printf` aliases now import the canonical declaration from `std/c.bpl`.
+  `tests/ExampleExterns.test.ts` also rejects `printf(fmt: *i8|*char, ...)`
+  redeclarations outside FFI demos so new examples keep common C declarations
+  centralized. Reproduce with
+  `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "bug_106_escape_analysis|bug_107_codegen_missing_functions|variadic_homogeneous|collections/linked_list_example|collections/priority_queue_example|collections/queue_example"`.
 - **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
   `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
   without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay

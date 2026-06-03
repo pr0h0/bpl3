@@ -1,5 +1,5 @@
 import [PriorityQueue] from "std/priority_queue.bpl";
-extern printf(fmt: *i8, ...) ret i32;
+import [printf] from "std/c.bpl";
 
 frame main() {
     printf("--- PriorityQueue Example: Integers ---\n");

@@ -1,5 +1,5 @@
 import [LinkedList] from "std/linked_list.bpl";
-extern printf(fmt: *i8, ...) ret i32;
+import [printf] from "std/c.bpl";
 
 frame main() {
     printf("--- LinkedList Example: Integers ---\n");
