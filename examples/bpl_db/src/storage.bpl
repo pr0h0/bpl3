@@ -11,9 +11,8 @@ import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 
-import [printf], [sprintf] from "std/c.bpl";
+import [free], [printf], [sprintf] from "std/c.bpl";
 extern malloc(size: long) ret string;
-extern free(ptr: string) ret void;
 import [atoi] from "std/c.bpl";
 import [strlen] from "std/c.bpl";
 import [strcmp] from "std/c.bpl";
@@ -182,13 +181,13 @@ struct Database {
                             local s: string = serialize_value(&v);
                             f.write(" ");
                             f.write(s);
-                            free(s);
+                            free(cast<*void>(s));
                         }
                         f.write("\n");
                     }
 
                     f.write("END_TABLE\n");
-                    free(buf);
+                    free(cast<*void>(buf));
                 }
                 curr = curr.next;
             }
@@ -292,7 +291,7 @@ struct Database {
                 }
             }
         }
-        free(buf);
+        free(cast<*void>(buf));
         f.close();
     }
 }

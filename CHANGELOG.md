@@ -42,6 +42,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `malloc(size: uint) ret string`, with explicit casts at allocation sites.
   Reproduce with
   `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "constructor_destructor|null_handling"`.
+- **Stdlib C `free` Alias Imports** - bpl_db storage,
+  `constructor_destructor`, and `generics_array_struct` now import `free` from
+  `std/c.bpl` instead of redeclaring `free(ptr: string)`, with explicit
+  `*void` casts at free sites. Reproduce with
+  `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "bpl_db|constructor_destructor|generics_array_struct"`.
 - **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
   `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
   without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay

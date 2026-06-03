@@ -1,6 +1,5 @@
-import [printf] from "std/c.bpl";
+import [free], [printf] from "std/c.bpl";
 extern malloc(size: long) ret string;
-extern free(ptr: string);
 struct MyArray<T> {
     data: *T,
     length: int,
@@ -62,7 +61,7 @@ struct MyArray<T> {
         return result;
     }
     frame destroy(this: *MyArray<T>) {
-        free(cast<string>(this.data));
+        free(cast<*void>(this.data));
     }
 }
 # Callbacks

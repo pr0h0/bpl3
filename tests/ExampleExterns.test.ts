@@ -15,6 +15,7 @@ const centralizedCExterns = [
   /\bextern malloc\(size: ulong\) ret \*void;/,
   /\bextern malloc\(size: uint\) ret string;/,
   /\bextern free\(ptr: \*void\)(?: ret void)?;/,
+  /\bextern free\(ptr: string\)(?: ret void)?;/,
   /\bextern strlen\((?:s|value): string\) ret (?:int|long);/,
   /\bextern strcmp\((?:s1|left): string, (?:s2|right): string\) ret int;/,
   /\bextern strncmp\(left: string, right: string, count: long\) ret int;/,

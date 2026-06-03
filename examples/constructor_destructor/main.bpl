@@ -1,5 +1,4 @@
-import [malloc], [printf] from "std/c.bpl";
-extern free(ptr: string);
+import [free], [malloc], [printf] from "std/c.bpl";
 struct Resource {
     id: int,
     data: *int,
@@ -21,7 +20,7 @@ struct Resource {
     frame destroy(this: *Resource) {
         printf("Resource %d destructed (freeing memory)\n", this.id);
         if (this.data != nullptr) {
-            free(cast<string>(this.data));
+            free(cast<*void>(this.data));
             # this.data = nullptr;
         }
     }
