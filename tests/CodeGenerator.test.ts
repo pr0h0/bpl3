@@ -658,7 +658,10 @@ describe("CodeGenerator", () => {
     expect(source).toContain(
       "this.pruneUnusedBuiltinPrimitiveMetadata(generatedBody)",
     );
-    expect(outputJoinCount).toBe(2);
+    expect(source).toContain(
+      "this.appendResultSection(resultSections, generatedBody)",
+    );
+    expect(outputJoinCount).toBe(1);
   });
 
   it("keeps final IR section assembly off the map/filter allocation path", () => {

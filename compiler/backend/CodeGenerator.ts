@@ -467,16 +467,16 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     this.pruneUnusedRuntimeArgStores();
+    this.output = this.compactBlankLines(this.output);
     const generatedBody = this.output.join("\n");
     this.pruneUnusedInternalRuntimeDeclarations(generatedBody);
     this.pruneUnusedBuiltinPrimitiveMetadata(generatedBody);
     this.declarationsOutput = this.compactBlankLines(this.declarationsOutput);
-    this.output = this.compactBlankLines(this.output);
 
     const resultSections: string[] = [];
     this.appendResultSection(resultSections, header);
     this.appendResultSection(resultSections, this.declarationsOutput.join("\n"));
-    this.appendResultSection(resultSections, this.output.join("\n"));
+    this.appendResultSection(resultSections, generatedBody);
     this.appendResultSection(
       resultSections,
       this.getLlvmAttributeGroupOutput(),

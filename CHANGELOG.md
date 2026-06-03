@@ -57,6 +57,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   warm codegen average improved from ~208.54ms to ~194.50ms while preserving
   emitted IR size. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "generated body string|runtime arg helper|runtime helper declarations|builtin"`.
+- **Codegen Compacted Body Final Assembly Reuse** - Generated output blank-line
+  compaction now runs before constructing the shared `generatedBody` string, so
+  final IR assembly can reuse that compacted body instead of joining the full
+  output array again. The 5k synthetic fixture stayed byte-for-byte identical
+  at 2,987,498 bytes; local isolated codegen samples improved from the prior
+  ~157.45ms warm average to ~153.74ms warm average / ~150.10ms warm median,
+  and a full-compiler profile sample showed native `join` self time at ~94.3ms
+  versus the previous ~142.6ms sample. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "generated body string|final IR section assembly|runtime arg helper|runtime helper declarations|builtin"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic
