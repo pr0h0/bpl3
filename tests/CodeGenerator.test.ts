@@ -404,6 +404,13 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("%struct.Bool = type");
     expect(ir).not.toContain("%struct.Double = type");
     expect(ir).not.toContain("%struct.String = type");
+    expect(ir).not.toMatch(/\n{3,}/);
+    expect(ir).toContain(
+      'source_filename = "unknown"\n\ndeclare void @__bpl_enter_stack_frame()',
+    );
+    expect(ir).toContain(
+      "declare void @__bpl_exit_stack_frame()\n\ndefine dso_local i32 @main",
+    );
   });
 
   it("keeps builtin-named struct declarations when generated IR references them", () => {

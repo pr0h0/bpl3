@@ -460,14 +460,19 @@ export class CodeGenerator extends StatementGenerator {
     this.pruneUnusedRuntimeArgStores();
     this.pruneUnusedInternalRuntimeDeclarations();
     this.pruneUnusedBuiltinPrimitiveMetadata();
+    this.declarationsOutput = this.compactBlankLines(this.declarationsOutput);
+    this.output = this.compactBlankLines(this.output);
 
-    const result =
-      header +
-      "\n" +
-      this.declarationsOutput.join("\n") +
-      "\n" +
-      this.output.join("\n") +
-      `\n${this.getLlvmAttributeGroupOutput()}\n`;
+    const resultSections = [
+      header,
+      this.declarationsOutput.join("\n"),
+      this.output.join("\n"),
+      this.getLlvmAttributeGroupOutput(),
+    ]
+      .map((section) => section.trimEnd())
+      .filter((section) => section.length > 0);
+
+    const result = `${resultSections.join("\n\n")}\n`;
 
     if (this.debugIrPath !== false) {
       this.writeDebugIr(result);
@@ -746,6 +751,31 @@ export class CodeGenerator extends StatementGenerator {
     return (
       globalName !== null && PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS.has(globalName)
     );
+  }
+
+  private compactBlankLines(lines: string[]): string[] {
+    const compacted: string[] = [];
+    let previousWasBlank = true;
+
+    for (const line of lines) {
+      const isBlank = line.trim().length === 0;
+      if (isBlank && previousWasBlank) {
+        continue;
+      }
+
+      compacted.push(line);
+      previousWasBlank = isBlank;
+    }
+
+    while (compacted.length > 0) {
+      const lastLine = compacted[compacted.length - 1];
+      if (lastLine === undefined || lastLine.trim().length > 0) {
+        break;
+      }
+      compacted.pop();
+    }
+
+    return compacted;
   }
 
   private referencesLlvmSymbol(llvmBody: string, name: string): boolean {

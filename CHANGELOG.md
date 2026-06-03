@@ -26,11 +26,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   primitive metadata from final LLVM IR while keeping helpers/state/type
   metadata that generated bodies actually reference. A simple
   `frame main() ret int { return 0; }` sample dropped from 2,503 bytes and 11
-  internal `__bpl` helper declarations to 293 bytes with only used stack-frame
-  helper declarations retained. Main argc/argv runtime globals and stores are
-  now retained only when generated IR calls `__bpl_argc` or `__bpl_argv_get`,
-  and dead `stack_ok` branch labels are no longer emitted after stack overflow
-  branching moved into runtime hooks.
+  internal `__bpl` helper declarations to 282 bytes with only used stack-frame
+  helper declarations retained and pruned declaration blank runs compacted.
+  Main argc/argv runtime globals and stores are now retained only when
+  generated IR calls `__bpl_argc` or `__bpl_argv_get`, and dead `stack_ok`
+  branch labels are no longer emitted after stack overflow branching moved into
+  runtime hooks.
   Reproduce with `bun test tests/CodeGenerator.test.ts -t "runtime helper declarations"`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,
