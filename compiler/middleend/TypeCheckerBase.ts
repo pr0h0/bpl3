@@ -10,6 +10,7 @@ import { TokenType } from "../frontend/TokenType";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import {
+  BASE_TYPES,
   initializeBuiltinsInScope,
   PRIMITIVE_STRUCT_MAP,
 } from "./BuiltinTypes";
@@ -292,6 +293,15 @@ const STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
 );
 
+const CANONICAL_BUILTIN_BASIC_TYPES = new Set(BASE_TYPES);
+
+function isCanonicalBuiltinBasicType(type: AST.BasicTypeNode): boolean {
+  return (
+    type.genericArgs.length === 0 &&
+    CANONICAL_BUILTIN_BASIC_TYPES.has(type.name)
+  );
+}
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -415,6 +425,10 @@ export abstract class TypeCheckerBase {
             );
           }
         }
+      }
+
+      if (isCanonicalBuiltinBasicType(type)) {
+        return type;
       }
 
       const symbol = this.currentScope.resolve(type.name);

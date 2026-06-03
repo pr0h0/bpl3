@@ -29,6 +29,37 @@ function collectErrorMessages(source: string, filePath = "test.bpl") {
 }
 
 describe("TypeChecker", () => {
+  it("keeps canonical primitive type resolution on the no-op fast path", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+    };
+    const checker = new TypeChecker({ skipImportResolution: true });
+    const canonical = {
+      kind: "BasicType" as const,
+      name: "i32",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+    const alias = {
+      ...canonical,
+      name: "int",
+    };
+
+    const resolvedAlias = checker.resolveType(alias);
+
+    expect(checker.resolveType(canonical)).toBe(canonical);
+    expect(resolvedAlias.kind).toBe("BasicType");
+    if (resolvedAlias.kind === "BasicType") {
+      expect(resolvedAlias.name).toBe("i32");
+    }
+  });
+
   it("should clear failed import recovery state when reusing a checker", () => {
     const checker = new TypeChecker({ collectAllErrors: true });
     const failedImportSource = [

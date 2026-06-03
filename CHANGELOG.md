@@ -62,6 +62,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   LLVM emission wall time dropped from 4.27s to 3.91s. Reproduce with
   `bun test tests/CompilationRunner.test.ts` and `bpl --time` on the 5k
   synthetic benchmark.
+- **Canonical Primitive Type Resolution Fast Path** - The type checker now
+  returns already-canonical built-in basic types such as `i32` before symbol
+  lookup and alias handling, while aliases such as `int` still canonicalize
+  through the existing resolver. On the 5k synthetic type-check profile,
+  instrumented `resolveType` time dropped from ~182.49ms to ~160.83ms and total
+  checker time from ~333.22ms to ~318.92ms. Reproduce with
+  `bun test tests/TypeChecker.test.ts -t "canonical primitive"`.
 - **Native Binary Tree Shaking Defaults** - Linux native builds now compile
   generated/runtime objects with `-ffunction-sections -fdata-sections`, link
   with `-Wl,--gc-sections`, and avoid `-rdynamic` by default so unused BPL
