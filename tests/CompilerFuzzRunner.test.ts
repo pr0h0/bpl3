@@ -1179,12 +1179,37 @@ describe("Compiler fuzz runner", () => {
     const cases: Array<[string[], string]> = [
       [["--unknown", "value"], "Unknown option --unknown"],
       [["--metadata", "--name", "bug"], "--metadata requires a value"],
+      [["--source="], "--source requires a non-empty value"],
+      [["--metadata="], "--metadata requires a non-empty value"],
+      [["--name="], "--name requires a non-empty value"],
+      [["--corpus-dir="], "--corpus-dir requires a non-empty value"],
       [["--=value"], "Missing option name"],
       [["one.bpl", "two.bpl"], "Unexpected argument: two.bpl"],
     ];
 
     for (const [args, expectedError] of cases) {
       const result = spawnSync("bun", ["run", "fuzz:promote", "--", ...args], {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(expectedError);
+      expect(result.stderr).not.toContain("Either --source or --metadata");
+      expect(result.stderr).not.toContain("No source artifact found");
+    }
+  });
+
+  test("direct promote CLI rejects empty option values before corpus promotion", () => {
+    const cases: Array<[string[], string]> = [
+      [["--source="], "--source requires a non-empty value"],
+      [["--metadata="], "--metadata requires a non-empty value"],
+      [["--name="], "--name requires a non-empty value"],
+      [["--corpus-dir="], "--corpus-dir requires a non-empty value"],
+    ];
+
+    for (const [args, expectedError] of cases) {
+      const result = spawnSync("bun", ["fuzz/promote_regression.ts", ...args], {
         cwd: join(import.meta.dir, ".."),
         encoding: "utf8",
       });

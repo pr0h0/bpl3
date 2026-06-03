@@ -105,6 +105,11 @@ function parseCliOptions(argv: string[]): CliOptions {
         `--${rawKey} requires a value. Use --help for usage.`,
       );
     }
+    if (value.trim().length === 0) {
+      throw new CliUsageError(
+        `--${rawKey} requires a non-empty value. Use --help for usage.`,
+      );
+    }
 
     values.set(rawKey, value);
   }
