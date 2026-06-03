@@ -638,6 +638,23 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("this.output.join");
   });
 
+  it("reuses the generated body string across final runtime pruning passes", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const outputJoinCount =
+      source.match(/this\.output\.join\("\\n"\)/g)?.length ?? 0;
+
+    expect(source).toContain(
+      "this.pruneUnusedInternalRuntimeDeclarations(generatedBody)",
+    );
+    expect(source).toContain(
+      "this.pruneUnusedBuiltinPrimitiveMetadata(generatedBody)",
+    );
+    expect(outputJoinCount).toBe(2);
+  });
+
   it("keeps generated blank-line compaction on an exact-empty fast path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),

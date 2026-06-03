@@ -41,6 +41,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   sample to ~9-10.8ms, with the call-lowering hook adding under ~1.1ms across
   5,001 direct calls. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "runtime arg helper"`.
+- **Codegen Runtime Pruning Body Reuse** - Final runtime declaration pruning
+  now reuses one joined generated body string across internal runtime and
+  builtin primitive metadata pruning instead of joining the 5k-function output
+  twice before final IR assembly. In isolated 5k in-process compiler samples,
+  warm codegen average improved from ~208.54ms to ~194.50ms while preserving
+  emitted IR size. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "generated body string|runtime arg helper|runtime helper declarations|builtin"`.
 - **Codegen Struct Field-List Cache** - Code generation now reuses field-list
   lookups for simple non-generic POD structs instead of rebuilding the same
   arrays for repeated local default-value generation. On the 5k synthetic

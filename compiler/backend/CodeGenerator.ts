@@ -463,8 +463,9 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     this.pruneUnusedRuntimeArgStores();
-    this.pruneUnusedInternalRuntimeDeclarations();
-    this.pruneUnusedBuiltinPrimitiveMetadata();
+    const generatedBody = this.output.join("\n");
+    this.pruneUnusedInternalRuntimeDeclarations(generatedBody);
+    this.pruneUnusedBuiltinPrimitiveMetadata(generatedBody);
     this.declarationsOutput = this.compactBlankLines(this.declarationsOutput);
     this.output = this.compactBlankLines(this.output);
 
@@ -514,8 +515,7 @@ export class CodeGenerator extends StatementGenerator {
     });
   }
 
-  private pruneUnusedInternalRuntimeDeclarations(): void {
-    const generatedBody = this.output.join("\n");
+  private pruneUnusedInternalRuntimeDeclarations(generatedBody: string): void {
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       const name = this.getDeclaredFunctionName(line);
       if (
@@ -661,8 +661,7 @@ export class CodeGenerator extends StatementGenerator {
     });
   }
 
-  private pruneUnusedBuiltinPrimitiveMetadata(): void {
-    const generatedBody = this.output.join("\n");
+  private pruneUnusedBuiltinPrimitiveMetadata(generatedBody: string): void {
     const candidateDeclarations = this.declarationsOutput.filter((line) =>
       this.isPrunableBuiltinPrimitiveMetadata(line),
     );
