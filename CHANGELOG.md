@@ -37,6 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `std/c.bpl` with `long` allocation sizes, and unused declarations were
   removed. Reproduce with
   `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "enum_recursive$|enum_recursive_debug|enum_recursive_minimal|enum_guards_and_typematch|match_complex|operator_overloading_simple|operator_overloading_generic|language_showcase_systems"`.
+- **Stdlib C `uint` Malloc Imports** - `constructor_destructor` and
+  `null_handling` now import `malloc` from `std/c.bpl` instead of redeclaring
+  `malloc(size: uint) ret string`, with explicit casts at allocation sites.
+  Reproduce with
+  `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "constructor_destructor|null_handling"`.
 - **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
   `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
   without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay

@@ -1,5 +1,4 @@
-import [printf] from "std/c.bpl";
-extern malloc(size: uint) ret string;
+import [malloc], [printf] from "std/c.bpl";
 frame testNullptr() {
     printf("Testing nullptr:\n");
     local ptr: *int = nullptr;
@@ -51,7 +50,7 @@ frame testPointerComparison() {
 frame testNullInStruct() {
     printf("\nTesting nullptr in structs:\n");
     # Using malloc which can return nullptr
-    local mem: string = malloc(cast<uint>(100));
+    local mem: string = cast<string>(malloc(cast<long>(100)));
     if (mem != nullptr) {
         printf("Memory allocated successfully\n");
     } else {

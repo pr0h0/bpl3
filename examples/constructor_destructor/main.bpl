@@ -1,5 +1,4 @@
-import [printf] from "std/c.bpl";
-extern malloc(size: uint) ret string;
+import [malloc], [printf] from "std/c.bpl";
 extern free(ptr: string);
 struct Resource {
     id: int,
@@ -8,7 +7,7 @@ struct Resource {
     frame new(resourceId: int) ret Resource {
         local res: Resource;
         res.id = resourceId;
-        res.data = cast<*int>(malloc(cast<uint>(sizeof<int>() * 10)));
+        res.data = cast<*int>(malloc(cast<long>(sizeof<int>() * 10)));
         printf("Resource %d constructed (allocated memory)\n", res.id);
         # Initialize data
         local i: int = 0;
