@@ -369,6 +369,16 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("declare void @__bpl_throw_integer_overflow");
     expect(ir).not.toContain("declare void @__bpl_check_null");
     expect(ir).not.toContain("declare i1 @__bpl_mem_is_zero");
+    expect(ir).not.toContain("%struct.DivisionByZeroError = type");
+    expect(ir).not.toContain("%struct.NullAccessError = type");
+    expect(ir).not.toContain("%struct.IndexOutOfBoundsError = type");
+    expect(ir).not.toContain("%struct.DeferNode = type");
+    expect(ir).not.toContain("%struct.ExceptionFrame = type");
+    expect(ir).not.toContain("@defer_top = external global");
+    expect(ir).not.toContain("@exception_top = external global");
+    expect(ir).not.toContain("@exception_value = external global");
+    expect(ir).not.toContain("@exception_type = external global");
+    expect(ir).not.toContain("@__bpl_stack_depth = external global");
   });
 
   it("keeps internal runtime helper declarations when generated IR uses them", () => {
@@ -385,6 +395,44 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("declare void @__bpl_throw_division_by_zero");
     expect(ir).toContain("call void @__bpl_throw_integer_overflow");
     expect(ir).toContain("declare void @__bpl_throw_integer_overflow");
+  });
+
+  it("keeps internal runtime state declarations when generated IR uses them", () => {
+    const tryIr = compile(
+      `
+        frame main() ret int {
+          try {
+            throw 1;
+          } catch (e: int) {
+            return e;
+          }
+          return 0;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(tryIr).toContain("%struct.ExceptionFrame = type");
+    expect(tryIr).toContain("%struct.DeferNode = type");
+    expect(tryIr).toContain("@exception_top = external global");
+    expect(tryIr).toContain("@exception_value = external global");
+    expect(tryIr).toContain("@exception_type = external global");
+    expect(tryIr).toContain("@defer_top = external global");
+
+    const deferIr = compile(
+      `
+        frame cleanup() {
+        }
+
+        frame main() {
+          defer cleanup();
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(deferIr).toContain("%struct.DeferNode = type");
+    expect(deferIr).toContain("@defer_top = external global");
   });
 
   it("mangles tuple parameter overloads by element types", () => {

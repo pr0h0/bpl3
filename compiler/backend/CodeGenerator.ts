@@ -53,6 +53,22 @@ const PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS = new Set([
   "__bpl_strlen",
 ]);
 
+const PRUNABLE_INTERNAL_RUNTIME_GLOBALS = new Set([
+  "defer_top",
+  "exception_top",
+  "exception_value",
+  "exception_type",
+  "__bpl_stack_depth",
+]);
+
+const PRUNABLE_INTERNAL_RUNTIME_STRUCTS = new Set([
+  "DeferNode",
+  "ExceptionFrame",
+  "DivisionByZeroError",
+  "NullAccessError",
+  "IndexOutOfBoundsError",
+]);
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -439,15 +455,95 @@ export class CodeGenerator extends StatementGenerator {
       }
       return this.referencesLlvmSymbol(generatedBody, name);
     });
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      const name = this.getDeclaredGlobalName(line);
+      if (name === null || !PRUNABLE_INTERNAL_RUNTIME_GLOBALS.has(name)) {
+        return true;
+      }
+      return this.referencesLlvmSymbol(generatedBody, name);
+    });
+
+    this.pruneUnusedInternalRuntimeStructs(generatedBody);
   }
 
   private getDeclaredFunctionName(line: string): string | null {
     return line.match(/^declare\b.*@([A-Za-z0-9_]+)\(/)?.[1] ?? null;
   }
 
+  private getDeclaredGlobalName(line: string): string | null {
+    return line.match(/^@([A-Za-z0-9_]+) = external global\b/)?.[1] ?? null;
+  }
+
+  private getDeclaredStructName(line: string): string | null {
+    return line.match(/^%struct\.([A-Za-z0-9_]+) = type\b/)?.[1] ?? null;
+  }
+
+  private pruneUnusedInternalRuntimeStructs(generatedBody: string): void {
+    const structDeclarations = new Map<string, string>();
+    for (const line of this.declarationsOutput) {
+      const name = this.getDeclaredStructName(line);
+      if (name !== null && PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name)) {
+        structDeclarations.set(name, line);
+      }
+    }
+
+    if (structDeclarations.size === 0) {
+      return;
+    }
+
+    const nonStructDeclarations = this.declarationsOutput
+      .filter((line) => {
+        const name = this.getDeclaredStructName(line);
+        return name === null || !PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name);
+      })
+      .join("\n");
+    const roots = `${generatedBody}\n${nonStructDeclarations}`;
+    const retained = new Set<string>();
+
+    for (const name of structDeclarations.keys()) {
+      if (this.referencesLlvmStruct(roots, name)) {
+        retained.add(name);
+      }
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const name of [...retained]) {
+        const declaration = structDeclarations.get(name);
+        if (declaration === undefined) continue;
+        for (const dependency of structDeclarations.keys()) {
+          if (
+            !retained.has(dependency) &&
+            this.referencesLlvmStruct(declaration, dependency)
+          ) {
+            retained.add(dependency);
+            changed = true;
+          }
+        }
+      }
+    }
+
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      const name = this.getDeclaredStructName(line);
+      return (
+        name === null ||
+        !PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name) ||
+        retained.has(name)
+      );
+    });
+  }
+
   private referencesLlvmSymbol(llvmBody: string, name: string): boolean {
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`@${escapedName}(?![A-Za-z0-9_.$])`).test(llvmBody);
+  }
+
+  private referencesLlvmStruct(llvmBody: string, name: string): boolean {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`%struct\\.${escapedName}(?![A-Za-z0-9_.$])`).test(
+      llvmBody,
+    );
   }
 
   private writeDebugIr(result: string): void {

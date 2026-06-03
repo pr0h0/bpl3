@@ -21,10 +21,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGen_DivZero.test.ts -t "constant|numerator"` and
   `bun benchmark/run_benchmark.ts --language bpl,c --runs 5 --warmups 1 noinline_calls constant_numerator_division`.
 - **Generated IR Runtime Declaration Pruning** - Code generation now removes
-  unused namespaced BPL runtime helper declarations from final LLVM IR while
-  keeping helpers that generated bodies actually reference. A simple
+  unused namespaced BPL runtime helper declarations plus unreferenced internal
+  runtime state globals and helper struct declarations from final LLVM IR while
+  keeping helpers/state that generated bodies actually reference. A simple
   `frame main() ret int { return 0; }` sample dropped from 2,503 bytes and 11
-  internal `__bpl` declarations to 2,060 bytes and 2 used declarations.
+  internal `__bpl` helper declarations to 1,414 bytes with only the two used
+  stack-frame helper declarations and argc/argv globals retained.
   Reproduce with `bun test tests/CodeGenerator.test.ts -t "runtime helper declarations"`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,
