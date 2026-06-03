@@ -47,6 +47,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   objects directly while preserving structured Peggy locations for syntax
   errors. On the 5k synthetic compile fixture, local O3 parsing dropped from
   ~1.72s to ~1.51s and total compile/link wall time from ~6.69s to ~6.09s.
+  The generated helper path now also assumes those BPL-shaped locations during
+  normal AST construction, reuses one parser file path value, and drops legacy
+  Peggy-location compatibility branches from hot helper calls. On the current
+  5k synthetic fixture, default LLVM emission parsing dropped from 1,829.55ms
+  to 1,646.64ms and wall time from 4.60s to 4.27s; `build --time` wall time
+  dropped from 4.63s to 4.43s.
   Reproduce with `bun test tests/Parser.test.ts` and `bpl --time` on the 5k
   synthetic benchmark.
 - **Native Binary Tree Shaking Defaults** - Linux native builds now compile

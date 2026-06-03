@@ -99,6 +99,24 @@ describe("Parser", () => {
     );
   });
 
+  it("keeps generated parser location helper on the BPL SourceLocation fast path", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    expect(generatedSource).toContain("const parserFilePath =");
+    expect(generatedSource).toContain("function makeLoc(loc) {");
+    expect(generatedSource).toContain("return loc;");
+    expect(generatedSource).not.toContain("loc && loc.start && loc.end");
+  });
+
   it("keeps the checked-in generated Peggy parser in sync with grammar/bpl.peggy", () => {
     const grammarPath = join(process.cwd(), "grammar", "bpl.peggy");
     const generatedPath = join(

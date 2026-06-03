@@ -1,24 +1,14 @@
 {
   // Helper utilities shared across productions
+  const parserFilePath = (options && options.filePath) || "unknown";
+
   function makeLoc(loc) {
-    // Optimization: Avoid object creation if possible, or simplify
-    const filePath = (options && options.filePath) || "unknown";
     if (loc && loc.startLine !== undefined) {
       return loc;
     }
-    // Fast path for Peggy location object
-    if (loc && loc.start && loc.end) {
-       return {
-        file: filePath,
-        startLine: loc.start.line,
-        startColumn: loc.start.column,
-        endLine: loc.end.line,
-        endColumn: loc.end.column,
-      };
-    }
-    
+
     return {
-      file: filePath,
+      file: parserFilePath,
       startLine: 0,
       startColumn: 0,
       endLine: 0,
@@ -430,15 +420,11 @@
 
   function makeOperatorToken(op, loc) {
     const type = operatorTypeMap[op] || "Unknown";
-    const filePath = (options && options.filePath) || "unknown";
-    
+
     let line = 1, column = 1;
     if (loc && loc.startLine !== undefined) {
         line = loc.startLine;
         column = loc.startColumn;
-    } else if (loc && loc.start) {
-        line = loc.start.line;
-        column = loc.start.column;
     }
 
     return {
@@ -447,33 +433,25 @@
       literal: null,
       line,
       column,
-      file: filePath,
+      file: parserFilePath,
     };
   }
 
   function mergeLoc(startLoc, endLoc) {
-    const filePath = (options && options.filePath) || "unknown";
-    
     let startLine = 1, startColumn = 1;
     if (startLoc && startLoc.startLine !== undefined) {
         startLine = startLoc.startLine;
         startColumn = startLoc.startColumn;
-    } else if (startLoc && startLoc.start) {
-        startLine = startLoc.start.line;
-        startColumn = startLoc.start.column;
     }
 
     let endLine = 1, endColumn = 1;
     if (endLoc && endLoc.endLine !== undefined) {
         endLine = endLoc.endLine;
         endColumn = endLoc.endColumn;
-    } else if (endLoc && endLoc.end) {
-        endLine = endLoc.end.line;
-        endColumn = endLoc.end.column;
     }
 
     return {
-        file: filePath,
+        file: parserFilePath,
         startLine,
         startColumn,
         endLine,
