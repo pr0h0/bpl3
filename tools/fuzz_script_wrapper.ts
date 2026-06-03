@@ -26,6 +26,19 @@ const BOOLEAN_VALUES = new Set([
   "true",
   "yes",
 ]);
+const REPLAY_STAGES = new Set(["lexer", "parser", "typecheck", "codegen"]);
+const REPLAY_FAILURE_KINDS = new Set(["crash", "mismatch"]);
+const REPLAY_MODES = new Set([
+  "artifact",
+  "lexer",
+  "parser",
+  "typecheck",
+  "codegen",
+  "runtime",
+  "differential",
+  "sanitizer",
+  "all",
+]);
 
 const SCRIPT_CONFIGS: Record<FuzzScript, ScriptConfig> = {
   run: {
@@ -86,6 +99,11 @@ Options:
     ]),
     booleanOptions: new Set(),
     flagOptions: new Set(["minimize"]),
+    valueValidators: {
+      "failure-kind": assertReplayFailureKindValue,
+      mode: assertReplayModeListValue,
+      stage: assertReplayStageValue,
+    },
     allowSinglePositional: true,
   },
   promote: {
@@ -246,6 +264,39 @@ function assertPositiveIntegerValue(value: string, option: string): void {
     throw new CliUsageError(
       `${option} must be a positive integer, got '${value}'.`,
     );
+  }
+}
+
+function assertReplayStageValue(value: string): void {
+  if (!REPLAY_STAGES.has(value)) {
+    throw new CliUsageError(
+      `--stage must be one of ${Array.from(REPLAY_STAGES).join(", ")}, got '${value}'.`,
+    );
+  }
+}
+
+function assertReplayFailureKindValue(value: string): void {
+  if (!REPLAY_FAILURE_KINDS.has(value)) {
+    throw new CliUsageError(
+      `--failure-kind must be one of ${Array.from(REPLAY_FAILURE_KINDS).join(", ")}, got '${value}'.`,
+    );
+  }
+}
+
+function assertReplayModeListValue(value: string): void {
+  const modes = value.split(",").map((mode) => mode.trim());
+  if (modes.some((mode) => mode.length === 0)) {
+    throw new CliUsageError(
+      `--mode must not contain empty entries, got '${value}'.`,
+    );
+  }
+
+  for (const mode of modes) {
+    if (!REPLAY_MODES.has(mode)) {
+      throw new CliUsageError(
+        `--mode must include parser,typecheck,codegen,runtime,differential,sanitizer,artifact,all; got '${mode}'.`,
+      );
+    }
   }
 }
 
