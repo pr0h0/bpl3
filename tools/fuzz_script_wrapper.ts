@@ -10,7 +10,7 @@ interface ScriptConfig {
   optionsWithValues: Set<string>;
   booleanOptions: Set<string>;
   flagOptions: Set<string>;
-  valueValidators?: Record<string, (value: string) => void>;
+  valueValidators?: Record<string, (value: string, option: string) => void>;
   allowSinglePositional: boolean;
 }
 
@@ -51,6 +51,9 @@ Options:
     booleanOptions: new Set(["differential", "minimize"]),
     flagOptions: new Set(),
     valueValidators: {
+      iterations: assertPositiveIntegerValue,
+      "minimize-passes": assertPositiveIntegerValue,
+      progress: assertPositiveIntegerValue,
       seeds: assertSeedListValue,
     },
     allowSinglePositional: false,
@@ -176,7 +179,7 @@ function validateUsage(config: ScriptConfig, argv: string[]): boolean {
         `--${rawKey} requires a non-empty value. Use --help for usage.`,
       );
     }
-    config.valueValidators?.[rawKey]?.(value);
+    config.valueValidators?.[rawKey]?.(value, rawKey);
   }
 
   if (positionals.length > 1) {
@@ -234,6 +237,15 @@ function assertSeedListValue(value: string): void {
         `seeds must be unsigned 32-bit integers, got '${value}'.`,
       );
     }
+  }
+}
+
+function assertPositiveIntegerValue(value: string, option: string): void {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new CliUsageError(
+      `${option} must be a positive integer, got '${value}'.`,
+    );
   }
 }
 

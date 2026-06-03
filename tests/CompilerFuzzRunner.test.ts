@@ -1492,6 +1492,50 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("fuzz package wrapper rejects unsafe numeric values before requiring source checkout", () => {
+    const packedRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-wrapper-packed-"));
+    const packedToolsDir = join(packedRoot, "tools");
+    const wrapperPath = join(packedToolsDir, "fuzz_script_wrapper.ts");
+    const cases: Array<[string[], string]> = [
+      [
+        ["run", "--iterations", "9007199254740992"],
+        "iterations must be a positive integer",
+      ],
+      [
+        ["run", "--progress", "9007199254740992"],
+        "progress must be a positive integer",
+      ],
+      [
+        ["run", "--minimize-passes", "9007199254740992"],
+        "minimize-passes must be a positive integer",
+      ],
+    ];
+
+    try {
+      mkdirSync(packedToolsDir, { recursive: true });
+      writeFileSync(
+        wrapperPath,
+        readFileSync(
+          join(import.meta.dir, "..", "tools", "fuzz_script_wrapper.ts"),
+          "utf8",
+        ),
+      );
+
+      for (const [args, expectedError] of cases) {
+        const result = spawnSync("bun", [wrapperPath, ...args], {
+          cwd: packedRoot,
+          encoding: "utf8",
+        });
+
+        expect(result.status).toBe(2);
+        expect(result.stderr).toContain(expectedError);
+        expect(result.stderr).not.toContain("requires a source checkout");
+      }
+    } finally {
+      rmSync(packedRoot, { recursive: true, force: true });
+    }
+  });
+
   test("replays downloaded crash artifacts when metadata source paths are stale", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-downloaded-"));
     const sourcePath = join(crashDir, "crash_seed-4444_iter-0_tokens.bpl");
