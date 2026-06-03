@@ -41,6 +41,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   sample to ~9-10.8ms, with the call-lowering hook adding under ~1.1ms across
   5,001 direct calls. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "runtime arg helper"`.
+- **Generated IR Blank-Line Compaction Fast Path** - Final IR assembly now
+  compacts generated blank lines using exact empty-string checks instead of
+  trimming every emitted line. The 5k synthetic fixture emits exact empty blank
+  lines and no whitespace-only blank lines; local `compactBlankLines` samples
+  dropped from roughly ~13-16ms to ~2.5-6.3ms. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "blank-line compaction"`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,
   while explicit `--emit llvm`, cached module builds, DWARF/debug builds,

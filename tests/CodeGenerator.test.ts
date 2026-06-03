@@ -608,6 +608,22 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("this.output.join");
   });
 
+  it("keeps generated blank-line compaction on an exact-empty fast path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("private compactBlankLines");
+    const end = source.indexOf("private referencesLlvmSymbol", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(methodSource).toContain("line.length === 0");
+    expect(methodSource).not.toContain("line.trim()");
+  });
+
   it("keeps explicit main argc argv parameters without runtime helper globals", () => {
     const ir = compile(
       `

@@ -762,7 +762,7 @@ export class CodeGenerator extends StatementGenerator {
     let previousWasBlank = true;
 
     for (const line of lines) {
-      const isBlank = line.trim().length === 0;
+      const isBlank = line.length === 0;
       if (isBlank && previousWasBlank) {
         continue;
       }
@@ -773,7 +773,7 @@ export class CodeGenerator extends StatementGenerator {
 
     while (compacted.length > 0) {
       const lastLine = compacted[compacted.length - 1];
-      if (lastLine === undefined || lastLine.trim().length > 0) {
+      if (lastLine === undefined || lastLine.length > 0) {
         break;
       }
       compacted.pop();
