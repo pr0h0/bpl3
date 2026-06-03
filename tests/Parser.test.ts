@@ -462,6 +462,59 @@ describe("Parser", () => {
     expect(assignmentOperatorScanner).toContain("input.charCodeAt(startPos)");
   });
 
+  it("keeps generated expression-operator parsing on direct scanner fast paths", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const operatorNames = [
+      "LogicalOrOperator",
+      "LogicalAndOperator",
+      "BitwiseOrOperator",
+      "BitwiseXorOperator",
+      "BitwiseAndOperator",
+      "EqualityOperator",
+      "RelationalOperator",
+      "ShiftOperator",
+      "AdditiveOperator",
+      "MultiplicativeOperator",
+      "UnaryOperator",
+    ];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedExpressionOperatorScanning",
+    );
+    for (const operatorName of operatorNames) {
+      const helper = generatedSource.match(
+        new RegExp(`function peg\\$parse${operatorName}\\(\\)[\\s\\S]*?\\n  }`),
+      )?.[0];
+      const scanner = generatedSource.match(
+        new RegExp(`function peg\\$scanBpl${operatorName}\\(\\)[\\s\\S]*?\\n  }`),
+      )?.[0];
+
+      expect(generatedSource).toContain(
+        `function peg$scanBpl${operatorName}()`,
+      );
+      expect(generatedSource).toContain(
+        `function peg$failBpl${operatorName}Expectation()`,
+      );
+      expect(helper).toContain(`return peg$scanBpl${operatorName}();`);
+      expect(helper).not.toContain("let s0, s1");
+      expect(helper).not.toContain("input.startsWith");
+      expect(scanner).toContain("input.charCodeAt(startPos)");
+    }
+  });
+
   it("preserves keyword boundary behavior for identifiers", () => {
     for (const source of [
       "local framex: int = 1;",

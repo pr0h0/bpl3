@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Expression Operator Scanners** - The checked-in Peggy parser
+  postprocessor now rewrites fixed expression operator helpers (`||`, `&&`,
+  bitwise, equality, relational, shift, additive, multiplicative, and unary
+  operators) into direct char-code scanners that preserve the generated action
+  and expectation IDs. On the 5k benchmark-shaped synthetic source, parse-only
+  timing improved from ~249.22ms average / ~246.41ms median to ~216.61ms
+  average / ~214.55ms median, while emitted LLVM IR stayed byte-for-byte
+  identical (`7aae97112c1cc61ae8d7eba8a9b0ab58ec4fa6333a33ce1f9c51022fb7f73192`).
+  Reproduce with `bun test tests/Parser.test.ts -t "expression-operator parsing|checked-in generated Peggy parser"`.
 - **Builtin Alias Clone Fast Path** - Simple builtin aliases such as `int` and
   `uint` now avoid object-spread cloning in the common parsed type path during
   type resolution, while preserving the metadata-copy fallback for enriched

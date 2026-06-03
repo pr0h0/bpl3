@@ -61,10 +61,12 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
     optimizeGeneratedNumberScanning(
       optimizeGeneratedStatementStartKeywordScanning(
         optimizeGeneratedAssignmentOperatorScanning(
-          optimizeGeneratedIdentifierScanning(
-            optimizeGeneratedFailureTracking(
-              optimizeGeneratedLiteralMatches(
-                optimizeGeneratedMakeLoc(withBplLocation),
+          optimizeGeneratedExpressionOperatorScanning(
+            optimizeGeneratedIdentifierScanning(
+              optimizeGeneratedFailureTracking(
+                optimizeGeneratedLiteralMatches(
+                  optimizeGeneratedMakeLoc(withBplLocation),
+                ),
               ),
             ),
           ),
@@ -682,6 +684,204 @@ function optimizeGeneratedAssignmentOperatorScanning(
     assignmentOperatorPattern,
     assignmentOperatorReplacement,
   );
+}
+
+type GeneratedOperatorScanBranch = {
+  op: string;
+  nextCode?: number;
+  rejectNextCode?: number;
+};
+
+type GeneratedOperatorScanConfig = {
+  name: string;
+  nextParserName: string;
+  cases: {
+    code: number;
+    branches: GeneratedOperatorScanBranch[];
+  }[];
+};
+
+const EXPRESSION_OPERATOR_SCAN_CONFIGS: GeneratedOperatorScanConfig[] = [
+  {
+    name: "LogicalOrOperator",
+    nextParserName: "LogicalAnd",
+    cases: [{ code: 124, branches: [{ op: "||", nextCode: 124 }] }],
+  },
+  {
+    name: "LogicalAndOperator",
+    nextParserName: "BitwiseOr",
+    cases: [{ code: 38, branches: [{ op: "&&", nextCode: 38 }] }],
+  },
+  {
+    name: "BitwiseOrOperator",
+    nextParserName: "BitwiseXor",
+    cases: [{ code: 124, branches: [{ op: "|", rejectNextCode: 124 }] }],
+  },
+  {
+    name: "BitwiseXorOperator",
+    nextParserName: "BitwiseAnd",
+    cases: [{ code: 94, branches: [{ op: "^" }] }],
+  },
+  {
+    name: "BitwiseAndOperator",
+    nextParserName: "Equality",
+    cases: [{ code: 38, branches: [{ op: "&", rejectNextCode: 38 }] }],
+  },
+  {
+    name: "EqualityOperator",
+    nextParserName: "TypeCheck",
+    cases: [
+      { code: 61, branches: [{ op: "==", nextCode: 61 }] },
+      { code: 33, branches: [{ op: "!=", nextCode: 61 }] },
+    ],
+  },
+  {
+    name: "RelationalOperator",
+    nextParserName: "Shift",
+    cases: [
+      { code: 62, branches: [{ op: ">=", nextCode: 61 }, { op: ">" }] },
+      { code: 60, branches: [{ op: "<=", nextCode: 61 }, { op: "<" }] },
+    ],
+  },
+  {
+    name: "ShiftOperator",
+    nextParserName: "Additive",
+    cases: [
+      { code: 60, branches: [{ op: "<<", nextCode: 60 }] },
+      { code: 62, branches: [{ op: ">>", nextCode: 62 }] },
+    ],
+  },
+  {
+    name: "AdditiveOperator",
+    nextParserName: "Multiplicative",
+    cases: [
+      { code: 43, branches: [{ op: "+" }] },
+      { code: 45, branches: [{ op: "-" }] },
+    ],
+  },
+  {
+    name: "MultiplicativeOperator",
+    nextParserName: "Unary",
+    cases: [
+      { code: 42, branches: [{ op: "*" }] },
+      { code: 47, branches: [{ op: "/" }] },
+      { code: 37, branches: [{ op: "%" }] },
+    ],
+  },
+  {
+    name: "UnaryOperator",
+    nextParserName: "Postfix",
+    cases: [
+      { code: 43, branches: [{ op: "++", nextCode: 43 }, { op: "+" }] },
+      { code: 45, branches: [{ op: "--", nextCode: 45 }, { op: "-" }] },
+      { code: 33, branches: [{ op: "!" }] },
+      { code: 126, branches: [{ op: "~" }] },
+      { code: 42, branches: [{ op: "*" }] },
+      { code: 38, branches: [{ op: "&" }] },
+    ],
+  },
+];
+
+function optimizeGeneratedExpressionOperatorScanning(
+  parserSource: string,
+): string {
+  let optimized = parserSource;
+  for (const config of EXPRESSION_OPERATOR_SCAN_CONFIGS) {
+    optimized = optimizeGeneratedExpressionOperatorScanningForConfig(
+      optimized,
+      config,
+    );
+  }
+  return optimized;
+}
+
+function optimizeGeneratedExpressionOperatorScanningForConfig(
+  parserSource: string,
+  config: GeneratedOperatorScanConfig,
+): string {
+  const operatorPattern = new RegExp(
+    `  function peg\\$parse${config.name}\\(\\) \\{([\\s\\S]*?)\\n  \\}\\n\\n(?=  function peg\\$parse${config.nextParserName}\\()`,
+  );
+  const match = parserSource.match(operatorPattern);
+  if (!match) {
+    throw new Error(
+      `Generated Peggy parser ${config.name} helper shape changed; update the BPL parser expression-operator optimizer.`,
+    );
+  }
+
+  const helperBody = match[1]!;
+  const actionName = helperBody.match(
+    /peg\$savedPos = s0;\n\s+s\d+ = (peg\$f\d+)\(s\d+\);/,
+  )?.[1];
+  const expectedNames = Array.from(
+    new Set(
+      [...helperBody.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
+        ([, expectedName]) => expectedName,
+      ),
+    ),
+  );
+
+  if (!actionName || expectedNames.length === 0) {
+    throw new Error(
+      `Generated Peggy parser ${config.name} action or expectations changed; update the BPL parser expression-operator optimizer.`,
+    );
+  }
+
+  const failExpectationLines = expectedNames.map(
+    expectedName => `    peg$fail(${expectedName});`,
+  );
+  const scannerLines = config.cases.flatMap(({ code, branches }) => [
+    `      case ${code}:`,
+    ...branches.map(branch =>
+      buildGeneratedOperatorScannerBranchLine(branch, actionName),
+    ),
+    "        break;",
+  ]);
+
+  const replacement = [
+    `  function peg$failBpl${config.name}Expectation() {`,
+    "    if (peg$silentFails !== 0) {",
+    "      return;",
+    "    }",
+    ...failExpectationLines,
+    "  }",
+    "",
+    `  function peg$scanBpl${config.name}() {`,
+    "    const startPos = peg$currPos;",
+    "",
+    "    switch (input.charCodeAt(startPos)) {",
+    ...scannerLines,
+    "    }",
+    "",
+    `    peg$failBpl${config.name}Expectation();`,
+    "    return peg$FAILED;",
+    "  }",
+    "",
+    `  function peg$parse${config.name}() {`,
+    `    return peg$scanBpl${config.name}();`,
+    "  }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(operatorPattern, replacement);
+}
+
+function buildGeneratedOperatorScannerBranchLine(
+  branch: GeneratedOperatorScanBranch,
+  actionName: string,
+): string {
+  const endPos = `startPos + ${branch.op.length}`;
+  const success = `peg$currPos = ${endPos}; peg$savedPos = startPos; return ${actionName}(${JSON.stringify(branch.op)});`;
+
+  if (branch.nextCode !== undefined) {
+    return `        if (input.charCodeAt(startPos + 1) === ${branch.nextCode}) { ${success} }`;
+  }
+
+  if (branch.rejectNextCode !== undefined) {
+    return `        if (input.charCodeAt(startPos + 1) !== ${branch.rejectNextCode}) { ${success} }`;
+  }
+
+  return `        { ${success} }`;
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {
