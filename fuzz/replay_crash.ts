@@ -108,6 +108,11 @@ function parseCliOptions(argv: string[]): CliOptions {
         `--${rawKey} requires a value. Use --help for usage.`,
       );
     }
+    if (value.trim().length === 0) {
+      throw new CliUsageError(
+        `--${rawKey} requires a non-empty value. Use --help for usage.`,
+      );
+    }
 
     values.set(rawKey, value);
   }
@@ -135,7 +140,7 @@ function parseStage(value: string | undefined): FuzzStage | undefined {
   }
 
   if (!STAGES.has(value as FuzzStage)) {
-    throw new Error(
+    throw new CliUsageError(
       `--stage must be one of ${Array.from(STAGES).join(", ")}, got '${value}'.`,
     );
   }
@@ -148,10 +153,13 @@ function parseReplayModes(value: string | undefined): FuzzReplayMode[] {
     return [];
   }
 
-  const modes = value
-    .split(",")
-    .map((mode) => mode.trim())
-    .filter(Boolean);
+  const modes = value.split(",").map((mode) => mode.trim());
+
+  if (modes.some((mode) => mode.length === 0)) {
+    throw new CliUsageError(
+      `--mode must not contain empty entries, got '${value}'.`,
+    );
+  }
 
   if (modes.includes("all")) {
     return [
@@ -166,7 +174,7 @@ function parseReplayModes(value: string | undefined): FuzzReplayMode[] {
 
   for (const mode of modes) {
     if (!REPLAY_MODES.has(mode as FuzzReplayMode)) {
-      throw new Error(
+      throw new CliUsageError(
         `--mode must include parser,typecheck,codegen,runtime,differential,sanitizer,artifact,all; got '${mode}'.`,
       );
     }
@@ -183,7 +191,7 @@ function parseFailureKind(
   }
 
   if (!FAILURE_KINDS.has(value as FuzzFailureKind)) {
-    throw new Error(
+    throw new CliUsageError(
       `--failure-kind must be one of ${Array.from(FAILURE_KINDS).join(", ")}, got '${value}'.`,
     );
   }
