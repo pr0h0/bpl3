@@ -1124,6 +1124,18 @@ describe("Compiler fuzz runner", () => {
         ["--iterations", "--crash-dir", crashDir],
         "--iterations requires a value",
       ],
+      [["--iterations", "0"], "iterations must be a positive integer"],
+      [["--progress=0"], "progress must be a positive integer"],
+      [
+        ["--minimize-passes", "not-a-number"],
+        "minimize-passes must be a positive integer",
+      ],
+      [["--seeds="], "--seeds requires a non-empty value"],
+      [["--differential=maybe"], "differential must be a boolean value"],
+      [
+        ["--minimize="],
+        "--minimize requires a non-empty boolean value",
+      ],
       [["--=value"], "Missing option name"],
       [["input.bpl"], "Unexpected argument: input.bpl"],
     ];

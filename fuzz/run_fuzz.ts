@@ -56,6 +56,11 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
         (nextArg !== undefined && !nextArg.startsWith("--")
           ? argv[++index]!
           : "true");
+      if (value.trim().length === 0) {
+        throw new CliUsageError(
+          `--${key} requires a non-empty boolean value. Use --help for usage.`,
+        );
+      }
       values.set(key, value);
       continue;
     }
@@ -75,6 +80,11 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
     if (value === undefined) {
       throw new CliUsageError(
         `--${key} requires a value. Use --help for usage.`,
+      );
+    }
+    if (value.trim().length === 0) {
+      throw new CliUsageError(
+        `--${key} requires a non-empty value. Use --help for usage.`,
       );
     }
     values.set(key, value);
@@ -116,7 +126,9 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
 function parsePositiveInteger(value: string, name: string): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${name} must be a positive integer, got '${value}'.`);
+    throw new CliUsageError(
+      `${name} must be a positive integer, got '${value}'.`,
+    );
   }
   return parsed;
 }
@@ -129,7 +141,9 @@ function parseSeeds(value: string): number[] {
     .map((seed) => Number(seed));
 
   if (seeds.length === 0 || seeds.some((seed) => !Number.isInteger(seed))) {
-    throw new Error(`seeds must be comma-separated integers, got '${value}'.`);
+    throw new CliUsageError(
+      `seeds must be comma-separated integers, got '${value}'.`,
+    );
   }
 
   return seeds;
@@ -145,7 +159,7 @@ function parseBoolean(value: string, name: string): boolean {
     return false;
   }
 
-  throw new Error(`${name} must be a boolean value, got '${value}'.`);
+  throw new CliUsageError(`${name} must be a boolean value, got '${value}'.`);
 }
 
 function printHelp(): void {
