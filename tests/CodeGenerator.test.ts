@@ -363,6 +363,8 @@ describe("CodeGenerator", () => {
 
     expect(ir).toContain("call void @__bpl_enter_stack_frame()");
     expect(ir).toContain("declare void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("stack_ok");
+    expect(ir).not.toMatch(/br label %stack_ok/);
     expect(ir).not.toContain("declare i32 @__bpl_argc()");
     expect(ir).not.toContain("declare i8* @__bpl_argv_get(i32)");
     expect(ir).not.toContain("@__bpl_argc_value = external global i32");
@@ -469,6 +471,27 @@ describe("CodeGenerator", () => {
 
     expect(ir).toContain("call i8* @malloc");
     expect(ir).toContain("declare i8* @malloc(i64)");
+  });
+
+  it("omits dead stack_ok branch scaffolding from multi-function IR", () => {
+    const ir = compile(
+      `
+        frame helper(value: int) ret int {
+          return value + 1;
+        }
+
+        frame main() ret int {
+          return helper(41);
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("define dso_local i32 @helper_i32");
+    expect(ir).toContain("define dso_local i32 @main");
+    expect(ir).not.toContain("stack_ok");
+    expect(ir).not.toMatch(/br label %stack_ok/);
   });
 
   it("keeps argc/argv runtime setup when generated IR uses runtime arg helpers", () => {

@@ -25,10 +25,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   runtime state globals and helper struct declarations from final LLVM IR while
   keeping helpers/state that generated bodies actually reference. A simple
   `frame main() ret int { return 0; }` sample dropped from 2,503 bytes and 11
-  internal `__bpl` helper declarations to 904 bytes with only used stack-frame
+  internal `__bpl` helper declarations to 869 bytes with only used stack-frame
   helper declarations and built-in primitive type declarations retained. Main
   argc/argv runtime globals and stores are now retained only when generated IR
-  calls `__bpl_argc` or `__bpl_argv_get`.
+  calls `__bpl_argc` or `__bpl_argv_get`, and dead `stack_ok` branch labels are
+  no longer emitted after stack overflow branching moved into runtime hooks.
   Reproduce with `bun test tests/CodeGenerator.test.ts -t "runtime helper declarations"`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,

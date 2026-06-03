@@ -1867,16 +1867,6 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.emit(`  call void @__bpl_enter_stack_frame()`);
       }
 
-      /*
-      // Stack overflow check details moved to runtime.ll for performance/size
-      */
-      const stackOk = this.newLabel("stack_ok");
-      this.emit(`  br label %${stackOk}`);
-      this.emit(`${stackOk}:`);
-
-      // StackOverflowError construction and throw logic removed
-      // (Handled by runtime check)
-
       // Store argc/argv in global variables for main function
       if (name === "main") {
         this.emit(`  store i32 %argc, i32* @__bpl_argc_value`);
