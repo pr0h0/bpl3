@@ -21,6 +21,7 @@ import {
   runBplDifferentialPipeline,
   runBplLlvmVerifierPipeline,
   runFuzzCampaign,
+  type FuzzCampaignOptions,
   type PipelineOutcome,
 } from "../fuzz/compilerFuzz";
 import { runFuzzReplayCli } from "../fuzz/replay_crash";
@@ -104,6 +105,80 @@ describe("Compiler fuzz runner", () => {
     },
     60000,
   );
+
+  test("rejects invalid fuzz campaign options before running inputs", () => {
+    const baseOptions: FuzzCampaignOptions = {
+      seeds: [0x1234],
+      iterationsPerSeed: 1,
+      progressInterval: 1,
+      maxMinimizePasses: 1,
+      runner: () => ({ ok: true, stage: "codegen" }),
+      inputForIteration: ({ seed, iteration }) => ({
+        seed,
+        iteration,
+        kind: "tokens",
+        filePath: `synthetic_${seed}_${iteration}.bpl`,
+        source: "frame main() ret int { return 0; }",
+      }),
+    };
+    const cases: Array<{
+      options: Partial<FuzzCampaignOptions>;
+      expectedError: string;
+    }> = [
+      {
+        options: { seeds: [] },
+        expectedError: "seeds must contain at least one seed",
+      },
+      {
+        options: { seeds: [-1] },
+        expectedError: "seeds must be unsigned 32-bit integers",
+      },
+      {
+        options: { seeds: [0x100000000] },
+        expectedError: "seeds must be unsigned 32-bit integers",
+      },
+      {
+        options: { iterationsPerSeed: 0 },
+        expectedError: "iterationsPerSeed must be a positive integer",
+      },
+      {
+        options: { progressInterval: 0 },
+        expectedError: "progressInterval must be a positive integer",
+      },
+      {
+        options: { maxMinimizePasses: 0 },
+        expectedError: "maxMinimizePasses must be a positive integer",
+      },
+    ];
+
+    for (const { options, expectedError } of cases) {
+      let runnerCalls = 0;
+      let inputCalls = 0;
+
+      expect(() =>
+        runFuzzCampaign({
+          ...baseOptions,
+          ...options,
+          runner: () => {
+            runnerCalls++;
+            return { ok: true, stage: "codegen" };
+          },
+          inputForIteration: ({ seed, iteration }) => {
+            inputCalls++;
+            return {
+              seed,
+              iteration,
+              kind: "tokens",
+              filePath: `synthetic_${seed}_${iteration}.bpl`,
+              source: "frame main() ret int { return 0; }",
+            };
+          },
+        }),
+      ).toThrow(expectedError);
+      expect(inputCalls).toBe(0);
+      expect(runnerCalls).toBe(0);
+    }
+  });
 
   test("records crash repro source and metadata during a campaign", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-crashes-"));

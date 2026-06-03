@@ -1056,6 +1056,8 @@ export function generateFuzzInput(
 export function runFuzzCampaign(
   options: FuzzCampaignOptions,
 ): FuzzCampaignSummary {
+  validateFuzzCampaignOptions(options);
+
   const runner = options.runner ?? defaultFuzzRunner;
   const inputForIteration =
     options.inputForIteration ??
@@ -1156,6 +1158,46 @@ export function runFuzzCampaign(
     crashArtifacts,
     failureArtifacts,
   };
+}
+
+function validateFuzzCampaignOptions(options: FuzzCampaignOptions): void {
+  validateFuzzCampaignSeeds(options.seeds);
+  validatePositiveInteger(options.iterationsPerSeed, "iterationsPerSeed");
+
+  if (options.progressInterval !== undefined) {
+    validatePositiveInteger(options.progressInterval, "progressInterval");
+  }
+
+  if (options.maxMinimizePasses !== undefined) {
+    validatePositiveInteger(options.maxMinimizePasses, "maxMinimizePasses");
+  }
+}
+
+function validateFuzzCampaignSeeds(seeds: number[]): void {
+  if (!Array.isArray(seeds) || seeds.length === 0) {
+    throw new Error("seeds must contain at least one seed.");
+  }
+
+  if (
+    seeds.some(
+      (seed) =>
+        !Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff,
+    )
+  ) {
+    throw new Error(
+      `seeds must be unsigned 32-bit integers, got ${formatNumberList(seeds)}.`,
+    );
+  }
+}
+
+function validatePositiveInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer, got ${value}.`);
+  }
+}
+
+function formatNumberList(values: number[]): string {
+  return `[${values.map((value) => `${value}`).join(", ")}]`;
 }
 
 export function replayFuzzFailureArtifact(
