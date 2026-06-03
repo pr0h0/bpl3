@@ -125,6 +125,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   in-process profile removed `peg$parseNumberToken` from the sampled hot rows
   and showed the direct decimal scanner rows instead. Reproduce with
   `bun test tests/Parser.test.ts -t "number-token parsing|number-token trivia boundary|checked-in generated Peggy parser"`.
+- **Generated Parser Numeric Conversion Fast Path** - Numeric literal AST
+  construction now parses common decimal and prefixed integer values directly
+  instead of allocating a cleaned string and running regex prefix checks for
+  every `NumberLiteral`. Decimal floats, unsafe-size decimal integers, malformed
+  internal raw strings, and current trivia-boundary cases still fall back to the
+  old `Number(...)` / `Number.parseInt(...)` behavior. The Peggy grammar now
+  spells uppercase `0X` / `0B` / `0O` prefixes explicitly to match the lexer
+  and generated scanner behavior. The 5k in-process LLVM output stayed
+  byte-for-byte identical at 2,987,498 bytes / 90,031 lines. Matched parse
+  samples moved from ~302.65ms warm average / ~298.71ms median to ~283.74ms
+  warm average / ~282.44ms median, and the final profile reduced the sampled
+  `parseNumber` rows from about ~43.93ms / ~18.83ms to about ~18.66ms /
+  ~6.22ms. Reproduce with
+  `bun test tests/Parser.test.ts -t "number literal conversion|number-token trivia boundary|checked-in generated Peggy parser"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

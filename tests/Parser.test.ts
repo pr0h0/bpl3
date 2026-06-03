@@ -290,6 +290,21 @@ describe("Parser", () => {
     expect(hex.raw).toBe("0x2f");
     expect(hex.value).toBe(47);
 
+    const uppercaseHex = parseReturnedNumberLiteral("0X2f");
+    expect(uppercaseHex.raw).toBe("0X2f");
+    expect(uppercaseHex.value).toBe(47);
+
+    const binary = parseReturnedNumberLiteral("0b1010");
+    expect(binary.raw).toBe("0b1010");
+    expect(binary.value).toBe(10);
+
+    const octal = parseReturnedNumberLiteral("0o17");
+    expect(octal.raw).toBe("0o17");
+    expect(octal.value).toBe(15);
+
+    const largeDecimal = parseReturnedNumberLiteral("9007199254740993");
+    expect(largeDecimal.value).toBe(Number("9007199254740993"));
+
     expect(() =>
       new Parser("frame main() ret int { return 0x; }", "number-boundary.bpl")
         .parse(),
@@ -298,6 +313,29 @@ describe("Parser", () => {
       new Parser("frame main() ret int { return 0b1021; }", "number-boundary.bpl")
         .parse(),
     ).toThrow();
+  });
+
+  it("keeps generated number literal conversion on the direct parser fast path", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const parseNumberHelper = generatedSource.match(
+      /function parseNumber\(raw\) \{[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatedSource).toContain("function parseBplDecimalNumber(raw)");
+    expect(generatedSource).toContain("function parseBplPrefixedNumber");
+    expect(parseNumberHelper).not.toContain("raw.replace");
+    expect(parseNumberHelper).not.toContain("/^0x/i.test");
+    expect(parseNumberHelper).not.toContain("/^0b/i.test");
+    expect(parseNumberHelper).not.toContain("/^0o/i.test");
   });
 
   it("preserves keyword boundary behavior for identifiers", () => {

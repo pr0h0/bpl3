@@ -277,12 +277,54 @@
   const voidType = (loc) => basicType("void", [], 0, [], loc);
   const boolType = (loc) => basicType("bool", [], 0, [], loc);
 
+  function parseBplDigitValue(code) {
+    if (code >= 48 && code <= 57) return code - 48;
+    if (code >= 65 && code <= 70) return code - 55;
+    if (code >= 97 && code <= 102) return code - 87;
+    return -1;
+  }
+
+  function parseBplPrefixedNumber(raw, digitStart, radix) {
+    if (digitStart >= raw.length) return Number.parseInt(raw.slice(digitStart), radix);
+
+    let value = 0;
+    for (let i = digitStart; i < raw.length; i++) {
+      const digit = parseBplDigitValue(raw.charCodeAt(i));
+      if (digit < 0 || digit >= radix) {
+        return Number.parseInt(raw.slice(digitStart), radix);
+      }
+      if (value > (Number.MAX_SAFE_INTEGER - digit) / radix) {
+        return Number.parseInt(raw.slice(digitStart), radix);
+      }
+      value = value * radix + digit;
+    }
+    return value;
+  }
+
+  function parseBplDecimalNumber(raw) {
+    let value = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const code = raw.charCodeAt(i);
+      if (code < 48 || code > 57) {
+        return Number(raw);
+      }
+      const digit = code - 48;
+      if (value > (Number.MAX_SAFE_INTEGER - digit) / 10) {
+        return Number(raw);
+      }
+      value = value * 10 + digit;
+    }
+    return value;
+  }
+
   function parseNumber(raw) {
-    const cleaned = raw.replace(/_/g, "");
-    if (/^0x/i.test(cleaned)) return Number.parseInt(cleaned.slice(2), 16);
-    if (/^0b/i.test(cleaned)) return Number.parseInt(cleaned.slice(2), 2);
-    if (/^0o/i.test(cleaned)) return Number.parseInt(cleaned.slice(2), 8);
-    return Number(cleaned);
+    if (raw.length > 2 && raw.charCodeAt(0) === 48) {
+      const prefix = raw.charCodeAt(1) | 32;
+      if (prefix === 120) return parseBplPrefixedNumber(raw, 2, 16);
+      if (prefix === 98) return parseBplPrefixedNumber(raw, 2, 2);
+      if (prefix === 111) return parseBplPrefixedNumber(raw, 2, 8);
+    }
+    return parseBplDecimalNumber(raw);
   }
 
   function decodeString(raw) {
@@ -1404,9 +1446,9 @@ CharLiteral
     }
 
 NumberToken
-  = "0x" [0-9a-fA-F]+
-  / "0b" [01]+
-  / "0o" [0-7]+
+  = ("0x" / "0X") [0-9a-fA-F]+
+  / ("0b" / "0B") [01]+
+  / ("0o" / "0O") [0-7]+
   / [0-9] (_?[0-9])* ("." [0-9] (_?[0-9])*)?
 
 ParameterList
