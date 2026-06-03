@@ -2321,6 +2321,19 @@ describe("CI triage helper", () => {
 
   test("maps timeout failure text to focused repro commands", () => {
     expect(
+      localCommandsForStep(
+        [
+          "(fail) Standard Library > std umbrella exports CLI args, JSON, and logging utilities [5162.97ms]",
+          "    ^ this test timed out after 5000ms.",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      'bun test tests/TestCiRunner.test.ts -t "explicit timeout budgets"',
+      "bun test tests/Stdlib.test.ts tests/TutorialExamples.test.ts",
+      "bun run test:ci",
+    ]);
+
+    expect(
       localCommandsForStep("compiler driver timed out after 600000ms"),
     ).toEqual([
       "bun index.ts doctor --json",
@@ -8114,6 +8127,21 @@ describe("CI triage helper", () => {
                 },
               ],
             },
+            {
+              id: 65,
+              name: "Bun default test timeout",
+              conclusion: "failure",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/65",
+              steps: [
+                {
+                  name: [
+                    "(fail) Standard Library > std umbrella exports CLI args, JSON, and logging utilities [5162.97ms]",
+                    "    ^ this test timed out after 5000ms.",
+                  ].join("\n"),
+                  conclusion: "failure",
+                },
+              ],
+            },
           ],
         }),
       );
@@ -8168,6 +8196,15 @@ describe("CI triage helper", () => {
         "bun test tests/CLIJsonParseability.test.ts",
         "bun run check",
       ]);
+      expect(
+        report.summary.failedJobs.find(
+          (job) => job.name === "Bun default test timeout",
+        )?.localCommands,
+      ).toEqual([
+        'bun test tests/TestCiRunner.test.ts -t "explicit timeout budgets"',
+        "bun test tests/Stdlib.test.ts tests/TutorialExamples.test.ts",
+        "bun run test:ci",
+      ]);
 
       const textResult = spawnSync(
         "bun",
@@ -8182,6 +8219,7 @@ describe("CI triage helper", () => {
       expect(textResult.stdout).toContain("Runtime timeout");
       expect(textResult.stdout).toContain("Sanitizer timeout");
       expect(textResult.stdout).toContain("CLI JSON timeout");
+      expect(textResult.stdout).toContain("Bun default test timeout");
       expect(textResult.stdout).toContain(
         "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
       );
@@ -8196,6 +8234,9 @@ describe("CI triage helper", () => {
       );
       expect(textResult.stdout).toContain(
         "bun index.ts doctor sanitizer --json",
+      );
+      expect(textResult.stdout).toContain(
+        'bun test tests/TestCiRunner.test.ts -t "explicit timeout budgets"',
       );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

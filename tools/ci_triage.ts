@@ -741,6 +741,15 @@ const CLI_JSON_PARSEABILITY_TIMEOUT_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const BUN_DEFAULT_TEST_TIMEOUT_STEP_PATTERN = new RegExp(
+  [
+    "\\bthis test timed out after \\d+ms\\b",
+    "\\bBun default test timeout\\b",
+    "\\bdefault 5000ms Bun per-test timeout\\b",
+    "\\bexplicit timeout budgets\\b",
+  ].join("|"),
+  "i",
+);
 const IMPORT_RESOLVER_STEP_PATTERN = new RegExp(
   [
     "ModuleResolver\\.test",
@@ -2015,6 +2024,15 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [TEST_CI_RUNNER_STEP_PATTERN, "bun test tests/TestCiRunner.test.ts"],
   [TEST_CI_RUNNER_STEP_PATTERN, "bun tools/test_ci.ts --list"],
   [TEST_CI_RUNNER_STEP_PATTERN, "bun run test:ci"],
+  [
+    BUN_DEFAULT_TEST_TIMEOUT_STEP_PATTERN,
+    'bun test tests/TestCiRunner.test.ts -t "explicit timeout budgets"',
+  ],
+  [
+    BUN_DEFAULT_TEST_TIMEOUT_STEP_PATTERN,
+    "bun test tests/Stdlib.test.ts tests/TutorialExamples.test.ts",
+  ],
+  [BUN_DEFAULT_TEST_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [INTEGRATION_JOBS_STEP_PATTERN, "bun test tests/IntegrationRunner.test.ts"],
   [
     INTEGRATION_JOBS_STEP_PATTERN,
