@@ -12,7 +12,7 @@ extern memset(s: *void, c: int, n: ulong) ret *void;
 extern setsockopt(sockfd: int, level: int, optname: int, optval: *void, optlen: uint) ret int;
 import [atoi] from "std/c.bpl";
 extern lseek(fd: int, offset: long, whence: int) ret long;
-extern sprintf(str: string, format: string, ...) ret int;
+import [sprintf] from "std/c.bpl";
 extern strlen(s: string) ret ulong;
 
 struct sockaddr_in {

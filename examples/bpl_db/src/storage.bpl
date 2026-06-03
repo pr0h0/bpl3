@@ -11,8 +11,7 @@ import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 
-import [printf] from "std/c.bpl";
-extern sprintf(str: string, fmt: string, ...) ret int;
+import [printf], [sprintf] from "std/c.bpl";
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 import [atoi] from "std/c.bpl";

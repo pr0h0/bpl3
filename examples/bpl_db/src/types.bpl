@@ -6,8 +6,7 @@ export deserialize_value;
 
 import [String] from "std/string.bpl";
 
-extern sprintf(str: string, format: string, ...) ret int;
-import [malloc] from "std/c.bpl";
+import [malloc], [sprintf] from "std/c.bpl";
 
 enum DataType {
     Int,

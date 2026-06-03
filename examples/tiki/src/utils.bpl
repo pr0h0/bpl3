@@ -5,7 +5,7 @@ import [Array] from "std/array.bpl";
 import [strcmp] from "std/c.bpl";
 extern strstr(haystack: string, needle: string) ret string;
 import [strlen] from "std/c.bpl";
-extern sprintf(str: string, fmt: string, ...) ret int;
+import [sprintf] from "std/c.bpl";
 import [malloc] from "std/c.bpl";
 
 frame int_to_string(val: int) ret string {

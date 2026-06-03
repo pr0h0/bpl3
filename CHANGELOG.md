@@ -26,6 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   names or `int` sizes. The extern inventory now catches those redeclarations
   outside FFI demos. Reproduce with
   `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "implicit_ctor|null_mem_test|wasm_memory_intrinsics|wasm_memory_strings" tests/WasmRuntime.test.ts -t "wasm_memory_intrinsics|wasm_memory_strings"`.
+- **Stdlib C `sprintf` Imports** - bpl_db, tiki, and http_server example code
+  now import string-buffer `sprintf` from `std/c.bpl` instead of redeclaring
+  matching local externs. The example extern inventory rejects those aliases
+  outside FFI demos. Reproduce with
+  `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "bpl_db" && bun index.ts check examples/http_server/main.bpl examples/tiki/src/utils.bpl`.
 - **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
   `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
   without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay
