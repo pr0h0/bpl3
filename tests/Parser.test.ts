@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { createHash } from "crypto";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import * as peggy from "peggy";
 
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
+import { generateBplParserSource } from "../tools/generate_peggy_parser";
 
 function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
@@ -73,6 +73,32 @@ describe("Parser", () => {
     expect(generatorSource).not.toContain("cache: true");
   });
 
+  it("keeps generated parser action locations flat for large translation-unit throughput", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    expect(generatorSource).toContain("optimizeGeneratedParserSource");
+    expect(generatedSource).toContain("function peg$computeBplLocation");
+    expect(generatedSource).toContain(
+      "return peg$computeBplLocation(peg$savedPos, peg$currPos);",
+    );
+    expect(generatedSource).not.toContain(
+      "return peg$computeLocation(peg$savedPos, peg$currPos);",
+    );
+  });
+
   it("keeps the checked-in generated Peggy parser in sync with grammar/bpl.peggy", () => {
     const grammarPath = join(process.cwd(), "grammar", "bpl.peggy");
     const generatedPath = join(
@@ -88,11 +114,7 @@ describe("Parser", () => {
     }
 
     const grammarSource = readFileSync(grammarPath, "utf8");
-    const expectedSource = peggy.generate(grammarSource, {
-      output: "source",
-      format: "es",
-      cache: false,
-    }).replace(/[ \t]+$/gm, "");
+    const expectedSource = generateBplParserSource(grammarSource);
     const actualSource = readFileSync(generatedPath, "utf8");
 
     expect(sha256(actualSource)).toBe(sha256(expectedSource));

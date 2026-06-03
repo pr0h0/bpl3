@@ -942,7 +942,14 @@ function peg$parse(input, options) {
   }
   function peg$f160(key, value) {    return { name: key.name, value };  }
   function peg$f161(id) {    return identifier(id.name, location());  }
-  function peg$f162(name) {    return { name, start: location().start, end: location().end };  }
+  function peg$f162(name) {
+    const loc = location();
+    return {
+      name,
+      start: { line: loc.startLine, column: loc.startColumn },
+      end: { line: loc.endLine, column: loc.endColumn },
+    };
+  }
   function peg$f163() {    return literal(true, "true", "bool", location());  }
   function peg$f164() {    return literal(false, "false", "bool", location());  }
   function peg$f165() {    return literal(null, "nullptr", "nullptr", location());  }
@@ -1048,8 +1055,8 @@ function peg$parse(input, options) {
         type: "Comment",
         lexeme: text(),
         literal: null,
-        line: loc.start.line,
-        column: loc.start.column,
+        line: loc.startLine,
+        column: loc.startColumn,
         file: options.filePath || "unknown"
       });
     }
@@ -1120,7 +1127,20 @@ function peg$parse(input, options) {
   }
 
   function location() {
-    return peg$computeLocation(peg$savedPos, peg$currPos);
+    return peg$computeBplLocation(peg$savedPos, peg$currPos);
+  }
+
+  function peg$computeBplLocation(startPos, endPos) {
+    const startPosDetails = peg$computePosDetails(startPos);
+    const endPosDetails = peg$computePosDetails(endPos);
+
+    return {
+      file: options.filePath || "unknown",
+      startLine: startPosDetails.line,
+      startColumn: startPosDetails.column,
+      endLine: endPosDetails.line,
+      endColumn: endPosDetails.column,
+    };
   }
 
   function expected(description, location) {

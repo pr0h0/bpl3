@@ -1389,7 +1389,14 @@ IdentifierExpr
   = id:Identifier { return identifier(id.name, location()); }
 
 Identifier
-  = !(KeywordReserved) name:IdentToken { return { name, start: location().start, end: location().end }; }
+  = !(KeywordReserved) name:IdentToken {
+      const loc = location();
+      return {
+        name,
+        start: { line: loc.startLine, column: loc.startColumn },
+        end: { line: loc.endLine, column: loc.endColumn },
+      };
+    }
 
 IdentToken
   = $([a-zA-Z_][a-zA-Z0-9_]*)
@@ -1659,8 +1666,8 @@ Comment
         type: "Comment",
         lexeme: text(),
         literal: null,
-        line: loc.start.line,
-        column: loc.start.column,
+        line: loc.startLine,
+        column: loc.startColumn,
         file: options.filePath || "unknown"
       });
     }

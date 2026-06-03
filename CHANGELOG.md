@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Parser Flat Action Locations** - The checked-in Peggy parser now
+  post-processes action-side `location()` calls to return BPL `SourceLocation`
+  objects directly while preserving structured Peggy locations for syntax
+  errors. On the 5k synthetic compile fixture, local O3 parsing dropped from
+  ~1.72s to ~1.51s and total compile/link wall time from ~6.69s to ~6.09s.
+  Reproduce with `bun test tests/Parser.test.ts` and `bpl --time` on the 5k
+  synthetic benchmark.
 - **Native Binary Tree Shaking Defaults** - Linux native builds now compile
   generated/runtime objects with `-ffunction-sections -fdata-sections`, link
   with `-Wl,--gc-sections`, and avoid `-rdynamic` by default so unused BPL
