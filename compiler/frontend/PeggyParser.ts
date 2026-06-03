@@ -29,14 +29,16 @@ function toSourceLocation(
 }
 
 export function parseWithPeggy(source: string, filePath: string): AST.Program {
-  try {
-    const parser: peggy.Parser = loadParser();
+  const parser: peggy.Parser = loadParser();
+
+  const parseOnce = (bplCollectExpected: boolean): AST.Program => {
     const comments: AST.Token[] = [];
     const errors: Array<{ message: string; location: SourceLocation }> = [];
     const program = parser.parse(source, {
       filePath,
       comments,
       errors,
+      bplCollectExpected,
     }) as AST.Program;
     program.comments = comments;
     if (errors.length > 0) {
@@ -46,25 +48,41 @@ export function parseWithPeggy(source: string, filePath: string): AST.Program {
       );
     }
     return program;
+  };
+
+  try {
+    return parseOnce(false);
   } catch (error: unknown) {
-    const err = error as (Error & { location?: SourceLocation }) | unknown;
-    if (isPeggySyntaxError(err)) {
-      const loc = err.location as {
-        start: { line: number; column: number };
-        end: { line: number; column: number };
-      };
-      const baseMsg: string =
-        typeof err.message === "string" ? err.message : "Syntax error";
-      const parts = baseMsg.split("\n");
-      const msg: string = parts[0] ?? baseMsg;
-      throw new CompilerError(
-        msg,
-        "Syntax error",
-        toSourceLocation(filePath, loc),
-      );
+    if (isPeggySyntaxError(error)) {
+      try {
+        return parseOnce(true);
+      } catch (retryError: unknown) {
+        throw toCompilerError(filePath, retryError);
+      }
     }
     throw error;
   }
+}
+
+function toCompilerError(filePath: string, error: unknown): CompilerError {
+  const err = error as (Error & { location?: SourceLocation }) | unknown;
+  if (!isPeggySyntaxError(err)) {
+    throw error;
+  }
+
+  const loc = err.location as {
+    start: { line: number; column: number };
+    end: { line: number; column: number };
+  };
+  const baseMsg: string =
+    typeof err.message === "string" ? err.message : "Syntax error";
+  const parts = baseMsg.split("\n");
+  const msg: string = parts[0] ?? baseMsg;
+  return new CompilerError(
+    msg,
+    "Syntax error",
+    toSourceLocation(filePath, loc),
+  );
 }
 
 function isPeggySyntaxError(e: unknown): e is {

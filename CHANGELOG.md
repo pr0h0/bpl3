@@ -103,6 +103,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   sampled at ~644ms. Reproduce with
   `bun test tests/Parser.test.ts tests/CompilerFrontendFastPath.test.ts` and
   `bpl --time --emit llvm` on the 5k synthetic benchmark.
+- **Generated Parser Failure/Location Fast Paths** - Valid Peggy parses now
+  skip detailed expected-token collection and retry once with full collection
+  only when syntax parsing actually fails, preserving rich diagnostics without
+  charging successful compiles for error-message arrays. BPL AST source
+  locations now use a generated line-start table with a last-line cache instead
+  of Peggy's generic position-detail object cache, while structured Peggy
+  syntax-error locations stay on the original helper. On the 5k synthetic
+  fixture, parse-only samples improved from the post-trivia baseline average
+  of ~874ms to ~708ms, and normal `--time --emit llvm` parsing sampled at
+  ~788ms versus the same-run ~899ms baseline. Reproduce with
+  `bun test tests/Parser.test.ts` and `bpl --time --emit llvm` on the 5k
+  synthetic benchmark.
 - **No-Import Module Detection Fast Path** - Single-file compilation now skips
   the expensive grammar lexer pass used only to detect imports when the source
   has no standalone `import` keyword. On the current 5k no-import synthetic

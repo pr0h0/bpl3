@@ -53,11 +53,91 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
     );
   }
 
+  const withBplLocation = optimizeGeneratedBplLocationLines(
+    parserSource.replace(original, replacement),
+  );
+
   return optimizeGeneratedTriviaSkipping(
-    optimizeGeneratedLiteralMatches(
-      optimizeGeneratedMakeLoc(parserSource.replace(original, replacement)),
+    optimizeGeneratedFailureTracking(
+      optimizeGeneratedLiteralMatches(
+        optimizeGeneratedMakeLoc(withBplLocation),
+      ),
     ),
   );
+}
+
+function optimizeGeneratedBplLocationLines(parserSource: string): string {
+  const original = [
+    "  function peg$computeBplLocation(startPos, endPos) {",
+    "    const startPosDetails = peg$computePosDetails(startPos);",
+    "    const endPosDetails = peg$computePosDetails(endPos);",
+    "",
+    "    return {",
+    "      file: parserFilePath,",
+    "      startLine: startPosDetails.line,",
+    "      startColumn: startPosDetails.column,",
+    "      endLine: endPosDetails.line,",
+    "      endColumn: endPosDetails.column,",
+    "    };",
+    "  }",
+  ].join("\n");
+  const replacement = [
+    "  const peg$bplLineStarts = [0];",
+    "  for (let peg$bplLinePos = 0; peg$bplLinePos < input.length; peg$bplLinePos++) {",
+    "    if (input.charCodeAt(peg$bplLinePos) === 10) {",
+    "      peg$bplLineStarts.push(peg$bplLinePos + 1);",
+    "    }",
+    "  }",
+    "",
+    "  let peg$lastBplLineIndex = 0;",
+    "",
+    "  function peg$isBplPosInLine(pos, lineIndex) {",
+    "    return pos >= peg$bplLineStarts[lineIndex] &&",
+    "      (lineIndex + 1 === peg$bplLineStarts.length || pos < peg$bplLineStarts[lineIndex + 1]);",
+    "  }",
+    "",
+    "  function peg$findBplLineIndex(pos) {",
+    "    if (peg$isBplPosInLine(pos, peg$lastBplLineIndex)) {",
+    "      return peg$lastBplLineIndex;",
+    "    }",
+    "",
+    "    let low = 0;",
+    "    let high = peg$bplLineStarts.length - 1;",
+    "",
+    "    while (low <= high) {",
+    "      const mid = (low + high) >>> 1;",
+    "      if (peg$bplLineStarts[mid] <= pos) {",
+    "        low = mid + 1;",
+    "      } else {",
+    "        high = mid - 1;",
+    "      }",
+    "    }",
+    "",
+    "    peg$lastBplLineIndex = high;",
+    "    return high;",
+    "  }",
+    "",
+    "  function peg$computeBplLocation(startPos, endPos) {",
+    "    const startLineIndex = peg$findBplLineIndex(startPos);",
+    "    const endLineIndex = peg$isBplPosInLine(endPos, startLineIndex) ? startLineIndex : peg$findBplLineIndex(endPos);",
+    "",
+    "    return {",
+    "      file: parserFilePath,",
+    "      startLine: startLineIndex + 1,",
+    "      startColumn: startPos - peg$bplLineStarts[startLineIndex] + 1,",
+    "      endLine: endLineIndex + 1,",
+    "      endColumn: endPos - peg$bplLineStarts[endLineIndex] + 1,",
+    "    };",
+    "  }",
+  ].join("\n");
+
+  if (!parserSource.includes(original)) {
+    throw new Error(
+      "Generated Peggy parser BPL location helper shape changed; update the BPL parser line-start optimizer.",
+    );
+  }
+
+  return parserSource.replace(original, replacement);
 }
 
 function optimizeGeneratedMakeLoc(parserSource: string): string {
@@ -104,6 +184,59 @@ function optimizeGeneratedLiteralMatches(parserSource: string): string {
   }
 
   return optimized;
+}
+
+function optimizeGeneratedFailureTracking(parserSource: string): string {
+  const originalDeclarations = [
+    "  let peg$maxFailPos = peg$currPos;",
+    "  let peg$maxFailExpected = options.peg$maxFailExpected || [];",
+  ].join("\n");
+  const replacementDeclarations = [
+    "  let peg$maxFailPos = peg$currPos;",
+    "  let peg$maxFailExpected = options.peg$maxFailExpected || [];",
+    "  const peg$collectExpected = options.bplCollectExpected !== false;",
+  ].join("\n");
+  const originalFailHelper = [
+    "  function peg$fail(expected) {",
+    "    if (peg$currPos < peg$maxFailPos) { return; }",
+    "",
+    "    if (peg$currPos > peg$maxFailPos) {",
+    "      peg$maxFailPos = peg$currPos;",
+    "      peg$maxFailExpected = [];",
+    "    }",
+    "",
+    "    peg$maxFailExpected.push(expected);",
+    "  }",
+  ].join("\n");
+  const replacementFailHelper = [
+    "  function peg$fail(expected) {",
+    "    if (peg$currPos < peg$maxFailPos) { return; }",
+    "",
+    "    if (peg$currPos > peg$maxFailPos) {",
+    "      peg$maxFailPos = peg$currPos;",
+    "      if (peg$collectExpected) {",
+    "        peg$maxFailExpected = [];",
+    "      }",
+    "    }",
+    "",
+    "    if (!peg$collectExpected) { return; }",
+    "",
+    "    peg$maxFailExpected.push(expected);",
+    "  }",
+  ].join("\n");
+
+  if (
+    !parserSource.includes(originalDeclarations) ||
+    !parserSource.includes(originalFailHelper)
+  ) {
+    throw new Error(
+      "Generated Peggy parser failure helper shape changed; update the BPL parser failure optimizer.",
+    );
+  }
+
+  return parserSource
+    .replace(originalDeclarations, replacementDeclarations)
+    .replace(originalFailHelper, replacementFailHelper);
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {

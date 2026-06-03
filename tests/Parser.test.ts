@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
+import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { generateBplParserSource } from "../tools/generate_peggy_parser";
@@ -128,6 +129,35 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("loc && loc.start && loc.end");
   });
 
+  it("keeps BPL AST locations on the generated line-start fast path", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const locationHelper = generatedSource.match(
+      /function peg\$computeBplLocation[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedBplLocationLines");
+    expect(generatedSource).toContain("const peg$bplLineStarts = [0];");
+    expect(generatedSource).toContain("let peg$lastBplLineIndex = 0;");
+    expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
+    expect(generatedSource).toContain("function peg$isBplPosInLine(pos, lineIndex)");
+    expect(locationHelper).toContain("peg$findBplLineIndex(startPos)");
+    expect(locationHelper).toContain("peg$isBplPosInLine(endPos, startLineIndex)");
+    expect(locationHelper).not.toContain("peg$computePosDetails");
+  });
+
   it("keeps generated parser literal matches allocation-free", () => {
     const generatedSource = readFileSync(
       join(
@@ -163,6 +193,59 @@ describe("Parser", () => {
     expect(triviaHelper).toContain("pushCommentToken");
     expect(triviaHelper).not.toContain("peg$parseWhitespace()");
     expect(triviaHelper).not.toContain("peg$parseComment()");
+  });
+
+  it("keeps valid parses off the detailed Peggy failure collection path", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const wrapperSource = readFileSync(
+      join(process.cwd(), "compiler", "frontend", "PeggyParser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const failHelper = generatedSource.match(
+      /function peg\$fail\(expected\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedFailureTracking");
+    expect(wrapperSource).toContain("bplCollectExpected,");
+    expect(wrapperSource).toContain("return parseOnce(false);");
+    expect(wrapperSource).toContain("return parseOnce(true);");
+    expect(generatedSource).toContain(
+      "const peg$collectExpected = options.bplCollectExpected !== false;",
+    );
+    expect(failHelper).toContain("if (!peg$collectExpected) { return; }");
+    expect(failHelper).toContain("peg$maxFailExpected.push(expected);");
+  });
+
+  it("preserves syntax diagnostics through the fast parser retry", () => {
+    const parser = new Parser(
+      "frame main() { local value: int = ; }",
+      "syntax-retry.bpl",
+    );
+
+    try {
+      parser.parse();
+      throw new Error("Expected parser to reject invalid syntax");
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(CompilerError);
+      const compilerError = error as CompilerError;
+      expect(compilerError.message).toContain("Unexpected syntax");
+      expect(compilerError.location.file).toBe("syntax-retry.bpl");
+      expect(compilerError.location.startLine).toBe(1);
+      expect(compilerError.location.startColumn).toBeGreaterThan(0);
+    }
   });
 
   it("keeps the checked-in generated Peggy parser in sync with grammar/bpl.peggy", () => {

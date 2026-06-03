@@ -1098,6 +1098,7 @@ function peg$parse(input, options) {
   const peg$posDetailsCache = [{ line: 1, column: 1 }];
   let peg$maxFailPos = peg$currPos;
   let peg$maxFailExpected = options.peg$maxFailExpected || [];
+  const peg$collectExpected = options.bplCollectExpected !== false;
   let peg$silentFails = options.peg$silentFails | 0;
 
   let peg$result;
@@ -1130,16 +1131,51 @@ function peg$parse(input, options) {
     return peg$computeBplLocation(peg$savedPos, peg$currPos);
   }
 
+  const peg$bplLineStarts = [0];
+  for (let peg$bplLinePos = 0; peg$bplLinePos < input.length; peg$bplLinePos++) {
+    if (input.charCodeAt(peg$bplLinePos) === 10) {
+      peg$bplLineStarts.push(peg$bplLinePos + 1);
+    }
+  }
+
+  let peg$lastBplLineIndex = 0;
+
+  function peg$isBplPosInLine(pos, lineIndex) {
+    return pos >= peg$bplLineStarts[lineIndex] &&
+      (lineIndex + 1 === peg$bplLineStarts.length || pos < peg$bplLineStarts[lineIndex + 1]);
+  }
+
+  function peg$findBplLineIndex(pos) {
+    if (peg$isBplPosInLine(pos, peg$lastBplLineIndex)) {
+      return peg$lastBplLineIndex;
+    }
+
+    let low = 0;
+    let high = peg$bplLineStarts.length - 1;
+
+    while (low <= high) {
+      const mid = (low + high) >>> 1;
+      if (peg$bplLineStarts[mid] <= pos) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    peg$lastBplLineIndex = high;
+    return high;
+  }
+
   function peg$computeBplLocation(startPos, endPos) {
-    const startPosDetails = peg$computePosDetails(startPos);
-    const endPosDetails = peg$computePosDetails(endPos);
+    const startLineIndex = peg$findBplLineIndex(startPos);
+    const endLineIndex = peg$isBplPosInLine(endPos, startLineIndex) ? startLineIndex : peg$findBplLineIndex(endPos);
 
     return {
       file: parserFilePath,
-      startLine: startPosDetails.line,
-      startColumn: startPosDetails.column,
-      endLine: endPosDetails.line,
-      endColumn: endPosDetails.column,
+      startLine: startLineIndex + 1,
+      startColumn: startPos - peg$bplLineStarts[startLineIndex] + 1,
+      endLine: endLineIndex + 1,
+      endColumn: endPos - peg$bplLineStarts[endLineIndex] + 1,
     };
   }
 
@@ -1257,8 +1293,12 @@ function peg$parse(input, options) {
 
     if (peg$currPos > peg$maxFailPos) {
       peg$maxFailPos = peg$currPos;
-      peg$maxFailExpected = [];
+      if (peg$collectExpected) {
+        peg$maxFailExpected = [];
+      }
     }
+
+    if (!peg$collectExpected) { return; }
 
     peg$maxFailExpected.push(expected);
   }
