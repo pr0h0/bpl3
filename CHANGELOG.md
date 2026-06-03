@@ -47,6 +47,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   lines and no whitespace-only blank lines; local `compactBlankLines` samples
   dropped from roughly ~13-16ms to ~2.5-6.3ms. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "blank-line compaction"`.
+- **Default Function Attribute Group Fast Path** - Code generation now caches
+  the default LLVM function attribute group id and returns it directly for
+  unannotated functions instead of rebuilding and registering the same default
+  attribute array for every emitted function. On the 5k synthetic fixture,
+  selected-method profile samples for `getFunctionAttributeGroupId` dropped
+  from roughly ~7.5-14.4ms to ~0.6-1.0ms. Reproduce with
+  `bun test tests/FunctionAttributes.test.ts -t "cached default attribute"`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,
   while explicit `--emit llvm`, cached module builds, DWARF/debug builds,

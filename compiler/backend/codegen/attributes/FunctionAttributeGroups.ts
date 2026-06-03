@@ -23,21 +23,28 @@ export class FunctionAttributeGroups {
   private groupIds: Map<string, number> = new Map();
   private groups: Map<number, string[]> = new Map();
   private preserveFramePointer: boolean;
+  private defaultGroupId: number | undefined;
 
   constructor(options: FunctionAttributeGroupOptions = {}) {
     this.preserveFramePointer = options.preserveFramePointer ?? true;
+    this.reset();
   }
 
   reset(): void {
     this.groupIds.clear();
     this.groups.clear();
+    this.defaultGroupId = undefined;
     const defaults = this.getDefaultAttributes();
     if (defaults.length > 0) {
-      this.register(defaults);
+      this.defaultGroupId = this.register(defaults);
     }
   }
 
   getFunctionGroupId(decl: AST.FunctionDecl): number | undefined {
+    if (!decl.attributes || decl.attributes?.length === 0) {
+      return this.defaultGroupId;
+    }
+
     const attrs = this.getLlvmFunctionAttributes(decl);
     if (attrs.length === 0) return undefined;
     return this.register(attrs);

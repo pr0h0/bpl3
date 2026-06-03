@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 import type * as AST from "../compiler/common/AST";
 import { Formatter } from "../compiler/formatter/Formatter";
@@ -178,6 +180,26 @@ describe("Function Attributes", () => {
     expect(ir).toContain("alwaysinline");
     expect(ir).toContain("nounwind");
     expect(ir).toContain('"frame-pointer"="all"');
+  });
+
+  it("keeps unannotated functions on a cached default attribute group path", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/attributes/FunctionAttributeGroups.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("getFunctionGroupId");
+    const end = source.indexOf("render()", start);
+
+    expect(source).toContain("private defaultGroupId");
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(methodSource).toContain("decl.attributes?.length");
+    expect(methodSource).toContain("this.defaultGroupId");
   });
 
   it("omits frame pointers and marks local definitions for optimized non-debug builds", () => {
