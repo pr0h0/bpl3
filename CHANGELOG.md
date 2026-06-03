@@ -104,6 +104,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Bun CPU profile no longer reports `execAt` or literal/identifier matchers as
   relevant lexer rows. Reproduce with
   `bun test tests/Lexer.test.ts -t "module-level token regexes|first character before execAt"`.
+- **Lexer Number Prefix Dispatch** - Generic lexer number matching now selects
+  the hex, binary, octal, or decimal sticky regex from the current prefix
+  instead of trying every numeric pattern for every digit-start token. Malformed
+  prefixed literals still fall back to the previous decimal-token behavior, so
+  cases such as `0b1021` continue tokenizing as `0b10` followed by `21`. The
+  5k in-process LLVM output stayed byte-for-byte identical at 2,987,498 bytes /
+  90,030 lines. Focused lex-only samples improved from ~54.83ms warm average /
+  ~53.96ms median to ~52.32ms warm average / ~50.54ms median for the same
+  180,057-token stream. Reproduce with
+  `bun test tests/Lexer.test.ts -t "numeric regex matching|invalid number format"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

@@ -86,12 +86,11 @@ function groupPunctuatorsByFirstChar(
 const PUNCTUATORS_BY_FIRST_CHAR = groupPunctuatorsByFirstChar(PUNCTUATORS);
 const STRING_LITERAL_PATTERN = /"(?:(?:\\.)|[^"\n\r])*"/y;
 const CHAR_LITERAL_PATTERN = /'(?:\\.|[^'\n\r])'/y;
-const NUMBER_LITERAL_PATTERNS = [
-  /0[xX][0-9a-fA-F]+/y,
-  /0[bB][01]+/y,
-  /0[oO][0-7]+/y,
-  /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y,
-];
+const HEX_NUMBER_LITERAL_PATTERN = /0[xX][0-9a-fA-F]+/y;
+const BINARY_NUMBER_LITERAL_PATTERN = /0[bB][01]+/y;
+const OCTAL_NUMBER_LITERAL_PATTERN = /0[oO][0-7]+/y;
+const DECIMAL_NUMBER_LITERAL_PATTERN =
+  /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y;
 const IDENTIFIER_PATTERN = /[A-Za-z_][A-Za-z0-9_]*/y;
 
 function isAsciiDigit(ch: string | undefined): ch is string {
@@ -327,12 +326,32 @@ export class GenericParser {
     const firstChar = this.source[this.position];
     if (!isAsciiDigit(firstChar)) return null;
 
-    for (const pattern of NUMBER_LITERAL_PATTERNS) {
-      const match = this.execAt(pattern, this.position);
-      if (match) {
-        return this.createToken("NumberLiteral", match[0]!);
+    const secondChar = this.source[this.position + 1];
+    let pattern = DECIMAL_NUMBER_LITERAL_PATTERN;
+
+    if (firstChar === "0") {
+      if (secondChar === "x" || secondChar === "X") {
+        pattern = HEX_NUMBER_LITERAL_PATTERN;
+      } else if (secondChar === "b" || secondChar === "B") {
+        pattern = BINARY_NUMBER_LITERAL_PATTERN;
+      } else if (secondChar === "o" || secondChar === "O") {
+        pattern = OCTAL_NUMBER_LITERAL_PATTERN;
       }
     }
+
+    const match = this.execAt(pattern, this.position);
+    if (match) return this.createToken("NumberLiteral", match[0]!);
+
+    if (pattern !== DECIMAL_NUMBER_LITERAL_PATTERN) {
+      const decimalFallback = this.execAt(
+        DECIMAL_NUMBER_LITERAL_PATTERN,
+        this.position,
+      );
+      if (decimalFallback) {
+        return this.createToken("NumberLiteral", decimalFallback[0]!);
+      }
+    }
+
     return null;
   }
 

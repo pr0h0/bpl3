@@ -344,7 +344,10 @@ describe("Lexer - Extended Tests", () => {
       const matcherSource = source.slice(matcherStart, matcherEnd);
       expect(source).toContain("STRING_LITERAL_PATTERN");
       expect(source).toContain("CHAR_LITERAL_PATTERN");
-      expect(source).toContain("NUMBER_LITERAL_PATTERNS");
+      expect(source).toContain("HEX_NUMBER_LITERAL_PATTERN");
+      expect(source).toContain("BINARY_NUMBER_LITERAL_PATTERN");
+      expect(source).toContain("OCTAL_NUMBER_LITERAL_PATTERN");
+      expect(source).toContain("DECIMAL_NUMBER_LITERAL_PATTERN");
       expect(source).toContain("IDENTIFIER_PATTERN");
       expect(matcherSource).not.toContain("const regex = /");
       expect(matcherSource).not.toContain("const patterns = [");
@@ -405,6 +408,29 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Number Literals", () => {
+    it("dispatches numeric regex matching by literal prefix", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("private matchNumberLiteral");
+      const end = source.indexOf("private matchIdentifierOrKeyword", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const methodSource = source.slice(start, end);
+      expect(source).toContain("HEX_NUMBER_LITERAL_PATTERN");
+      expect(source).toContain("BINARY_NUMBER_LITERAL_PATTERN");
+      expect(source).toContain("OCTAL_NUMBER_LITERAL_PATTERN");
+      expect(source).toContain("DECIMAL_NUMBER_LITERAL_PATTERN");
+      expect(methodSource).toContain("const secondChar");
+      expect(methodSource).toContain("DECIMAL_NUMBER_LITERAL_PATTERN");
+      expect(methodSource).not.toContain(
+        "for (const pattern of NUMBER_LITERAL_PATTERNS)",
+      );
+    });
+
     it("should tokenize decimal integer", () => {
       const tokens = tokenize("123");
       expect(tokens[0]!.type).toBe(TokenType.NumberLiteral);
