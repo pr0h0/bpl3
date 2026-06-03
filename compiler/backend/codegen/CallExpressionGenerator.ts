@@ -68,6 +68,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     targetTypeNode: AST.TupleTypeNode,
   ): string;
 
+  protected noteDirectFunctionCall(_name: string): void {}
+
   /**
    * Generate virtual method call through vtable
    */
@@ -2072,6 +2074,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
 
     const retType = this.resolveType(expr.resolvedType!);
+
+    if (callTarget.startsWith("@")) {
+      this.noteDirectFunctionCall(callTarget.substring(1));
+    }
 
     if (callTarget.startsWith("@") && (isExtern || isModuleFunction)) {
       const targetName = callTarget.substring(1);

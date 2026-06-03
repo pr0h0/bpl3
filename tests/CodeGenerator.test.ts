@@ -587,6 +587,27 @@ describe("CodeGenerator", () => {
     expect(ir).toMatch(/call i8\* @__bpl_argv_get\(i32 (?:0|zeroinitializer)\)/);
   });
 
+  it("tracks runtime arg helper usage before final pruning scans output", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("private pruneUnusedRuntimeArgStores");
+    const end = source.indexOf(
+      "private pruneUnusedInternalRuntimeDeclarations",
+      start,
+    );
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(methodSource).toContain("this.generatedBodyUsesArgcRuntimeHelper");
+    expect(methodSource).toContain("this.generatedBodyUsesArgvRuntimeHelper");
+    expect(methodSource).not.toContain("outputReferencesLlvmFunction");
+    expect(methodSource).not.toContain("this.output.join");
+  });
+
   it("keeps explicit main argc argv parameters without runtime helper globals", () => {
     const ir = compile(
       `

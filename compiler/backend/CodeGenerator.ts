@@ -111,6 +111,8 @@ const PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS = new Set(["Type_vtable"]);
  */
 export class CodeGenerator extends StatementGenerator {
   private prunableImplicitCDeclarations: Set<string> = new Set();
+  private generatedBodyUsesArgcRuntimeHelper = false;
+  private generatedBodyUsesArgvRuntimeHelper = false;
 
   constructor(
     options: {
@@ -143,6 +145,8 @@ export class CodeGenerator extends StatementGenerator {
     this.output = [];
     this.declarationsOutput = [];
     this.prunableImplicitCDeclarations.clear();
+    this.generatedBodyUsesArgcRuntimeHelper = false;
+    this.generatedBodyUsesArgvRuntimeHelper = false;
     this.stringLiterals.clear();
     this.structLayouts.clear();
     this.structMap.clear();
@@ -481,26 +485,26 @@ export class CodeGenerator extends StatementGenerator {
     return result;
   }
 
-  private pruneUnusedRuntimeArgStores(): void {
-    const generatedBody = this.output.join("\n");
-    const usesArgcRuntimeHelper = this.referencesLlvmSymbol(
-      generatedBody,
-      "__bpl_argc",
-    );
-    const usesArgvRuntimeHelper = this.referencesLlvmSymbol(
-      generatedBody,
-      "__bpl_argv_get",
-    );
+  protected override noteDirectFunctionCall(name: string): void {
+    if (name === "__bpl_argc") {
+      this.generatedBodyUsesArgcRuntimeHelper = true;
+      return;
+    }
+    if (name === "__bpl_argv_get") {
+      this.generatedBodyUsesArgvRuntimeHelper = true;
+    }
+  }
 
+  private pruneUnusedRuntimeArgStores(): void {
     this.output = this.output.filter((line) => {
       if (
-        !usesArgcRuntimeHelper &&
+        !this.generatedBodyUsesArgcRuntimeHelper &&
         line === "  store i32 %argc, i32* @__bpl_argc_value"
       ) {
         return false;
       }
       if (
-        !usesArgvRuntimeHelper &&
+        !this.generatedBodyUsesArgvRuntimeHelper &&
         line === "  store i8** %argv, i8*** @__bpl_argv_value"
       ) {
         return false;

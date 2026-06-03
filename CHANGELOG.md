@@ -33,6 +33,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   branch labels are no longer emitted after stack overflow branching moved into
   runtime hooks.
   Reproduce with `bun test tests/CodeGenerator.test.ts -t "runtime helper declarations"`.
+- **Runtime Arg Store Pruning Fast Path** - Code generation now records direct
+  `__bpl_argc` and `__bpl_argv_get` calls during call lowering so final
+  argc/argv store pruning no longer joins or scans the full generated body. On
+  the 5k synthetic fixture, local `pruneUnusedRuntimeArgStores` samples dropped
+  from a previous ~21.5ms joined-body sample and a rejected ~29ms line-scan
+  sample to ~9-10.8ms, with the call-lowering hook adding under ~1.1ms across
+  5,001 direct calls. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "runtime arg helper"`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,
   while explicit `--emit llvm`, cached module builds, DWARF/debug builds,
