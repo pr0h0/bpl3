@@ -1270,6 +1270,26 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("fuzz runner help describes unsigned 32-bit seed values", () => {
+    const expectedLine =
+      "  --seeds <list>      Comma-separated unsigned 32-bit decimal or 0x-prefixed seeds";
+    const commands: string[][] = [
+      ["fuzz/run_fuzz.ts", "--help"],
+      ["tools/fuzz_script_wrapper.ts", "run", "--help"],
+    ];
+
+    for (const args of commands) {
+      const result = spawnSync("bun", args, {
+        cwd: join(import.meta.dir, ".."),
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(expectedLine);
+      expect(result.stderr).toBe("");
+    }
+  });
+
   test("fuzz runner CLI prints the effective progress interval at startup", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-cli-progress-"));
 

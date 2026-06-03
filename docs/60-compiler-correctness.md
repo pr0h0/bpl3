@@ -418,6 +418,10 @@ keeps the short default campaign chatty enough for CI logs without changing
 `fuzz:long`; use `FUZZ_DIFFERENTIAL_PROGRESS=<n> bun run fuzz:differential` to
 tune the interval.
 
+`FUZZ_SEEDS` and `--seeds` accept a comma-separated list of unsigned 32-bit
+seed values. Use decimal or `0x`-prefixed hex values with no empty entries;
+invalid or out-of-range seeds fail as usage errors before campaign startup.
+
 For each crash or O0/O3 mismatch, the fuzzer writes:
 
 - `<kind>_seed-..._iter-..._<lane>.bpl` - original repro source.

@@ -34,7 +34,7 @@ const SCRIPT_CONFIGS: Record<FuzzScript, ScriptConfig> = {
 
 Options:
   --iterations <n>    Iterations to run per seed
-  --seeds <list>      Comma-separated decimal or 0x-prefixed seeds
+  --seeds <list>      Comma-separated unsigned 32-bit decimal or 0x-prefixed seeds
   --crash-dir <dir>   Directory for .bpl repros and .json metadata
   --progress <n>      Progress log interval per seed
   --differential      Include deterministic O0/O3 runtime comparison inputs

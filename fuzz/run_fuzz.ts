@@ -191,7 +191,7 @@ function printHelp(): void {
 
 Options:
   --iterations <n>    Iterations to run per seed (default: ${DEFAULT_ITERATIONS_PER_SEED})
-  --seeds <list>      Comma-separated decimal or 0x-prefixed seeds
+  --seeds <list>      Comma-separated unsigned 32-bit decimal or 0x-prefixed seeds
   --crash-dir <dir>   Directory for .bpl repros and .json metadata
   --progress <n>      Progress log interval per seed (default: 1000)
   --differential      Include deterministic O0/O3 runtime comparison inputs
