@@ -469,14 +469,14 @@ export class CodeGenerator extends StatementGenerator {
     this.declarationsOutput = this.compactBlankLines(this.declarationsOutput);
     this.output = this.compactBlankLines(this.output);
 
-    const resultSections = [
-      header,
-      this.declarationsOutput.join("\n"),
-      this.output.join("\n"),
+    const resultSections: string[] = [];
+    this.appendResultSection(resultSections, header);
+    this.appendResultSection(resultSections, this.declarationsOutput.join("\n"));
+    this.appendResultSection(resultSections, this.output.join("\n"));
+    this.appendResultSection(
+      resultSections,
       this.getLlvmAttributeGroupOutput(),
-    ]
-      .map((section) => section.trimEnd())
-      .filter((section) => section.length > 0);
+    );
 
     const result = `${resultSections.join("\n\n")}\n`;
 
@@ -780,6 +780,13 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     return compacted;
+  }
+
+  private appendResultSection(sections: string[], section: string): void {
+    const trimmed = section.trimEnd();
+    if (trimmed.length > 0) {
+      sections.push(trimmed);
+    }
   }
 
   private referencesLlvmSymbol(llvmBody: string, name: string): boolean {

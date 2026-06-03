@@ -48,6 +48,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   warm codegen average improved from ~208.54ms to ~194.50ms while preserving
   emitted IR size. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "generated body string|runtime arg helper|runtime helper declarations|builtin"`.
+- **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
+  appends trimmed non-empty sections directly instead of allocating a mapped
+  and filtered section array before the final join. On the 5k synthetic
+  fixture, emitted IR stayed byte-for-byte identical at 2,987,498 bytes, while
+  isolated warm codegen average improved from the prior ~194.50ms baseline to
+  ~168.60ms. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "final IR section assembly|generated body string|runtime arg helper|runtime helper declarations|builtin"`.
 - **Codegen Struct Field-List Cache** - Code generation now reuses field-list
   lookups for simple non-generic POD structs instead of rebuilding the same
   arrays for repeated local default-value generation. On the 5k synthetic

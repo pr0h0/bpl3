@@ -655,6 +655,28 @@ describe("CodeGenerator", () => {
     expect(outputJoinCount).toBe(2);
   });
 
+  it("keeps final IR section assembly off the map/filter allocation path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("const resultSections");
+    const end = source.indexOf("const result =", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const assemblySource = source.slice(start, end);
+    expect(source).toContain("private appendResultSection");
+    expect(assemblySource).toContain(
+      "this.appendResultSection(resultSections, header)",
+    );
+    expect(assemblySource).not.toContain(".map((section) => section.trimEnd())");
+    expect(assemblySource).not.toContain(
+      ".filter((section) => section.length > 0)",
+    );
+  });
+
   it("keeps generated blank-line compaction on an exact-empty fast path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
