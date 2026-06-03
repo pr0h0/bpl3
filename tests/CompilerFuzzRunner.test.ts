@@ -1144,6 +1144,40 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
+  test("fuzz runner CLI prints the effective progress interval at startup", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-cli-progress-"));
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [
+          "fuzz/run_fuzz.ts",
+          "--iterations",
+          "1",
+          "--seeds",
+          "0xd1ff0",
+          "--progress",
+          "7",
+          "--crash-dir",
+          crashDir,
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Starting compiler fuzz campaign");
+      expect(result.stdout).toContain("Iterations per seed: 1");
+      expect(result.stdout).toContain("Progress interval: 7 iterations");
+      expect(result.stdout).toContain("Total iterations: 1");
+      expect(result.stderr).toBe("");
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
   test("fuzz package wrappers reject malformed option values before delegation", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-wrapper-usage-"));
     const cases: Array<{

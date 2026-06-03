@@ -209,6 +209,7 @@ async function main(): Promise<void> {
   console.log("Starting compiler fuzz campaign...");
   console.log(`Seeds: ${options.seeds.map(formatSeed).join(", ")}`);
   console.log(`Iterations per seed: ${options.iterationsPerSeed}`);
+  console.log(`Progress interval: ${options.progressInterval} iterations`);
   console.log(`Crash dir: ${options.crashDir}`);
   console.log(
     `Differential runtime inputs: ${options.enableDifferential ? "enabled" : "disabled"}`,
