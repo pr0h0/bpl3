@@ -59,6 +59,8 @@ const PRUNABLE_INTERNAL_RUNTIME_GLOBALS = new Set([
   "exception_value",
   "exception_type",
   "__bpl_stack_depth",
+  "__bpl_argc_value",
+  "__bpl_argv_value",
 ]);
 
 const PRUNABLE_INTERNAL_RUNTIME_STRUCTS = new Set([
@@ -439,6 +441,7 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    this.pruneUnusedRuntimeArgStores();
     this.pruneUnusedInternalRuntimeDeclarations();
 
     const result =
@@ -454,6 +457,34 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     return result;
+  }
+
+  private pruneUnusedRuntimeArgStores(): void {
+    const generatedBody = this.output.join("\n");
+    const usesArgcRuntimeHelper = this.referencesLlvmSymbol(
+      generatedBody,
+      "__bpl_argc",
+    );
+    const usesArgvRuntimeHelper = this.referencesLlvmSymbol(
+      generatedBody,
+      "__bpl_argv_get",
+    );
+
+    this.output = this.output.filter((line) => {
+      if (
+        !usesArgcRuntimeHelper &&
+        line === "  store i32 %argc, i32* @__bpl_argc_value"
+      ) {
+        return false;
+      }
+      if (
+        !usesArgvRuntimeHelper &&
+        line === "  store i8** %argv, i8*** @__bpl_argv_value"
+      ) {
+        return false;
+      }
+      return true;
+    });
   }
 
   private pruneUnusedInternalRuntimeDeclarations(): void {

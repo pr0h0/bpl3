@@ -365,6 +365,10 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("declare void @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("declare i32 @__bpl_argc()");
     expect(ir).not.toContain("declare i8* @__bpl_argv_get(i32)");
+    expect(ir).not.toContain("@__bpl_argc_value = external global i32");
+    expect(ir).not.toContain("@__bpl_argv_value = external global i8**");
+    expect(ir).not.toContain("store i32 %argc, i32* @__bpl_argc_value");
+    expect(ir).not.toContain("store i8** %argv, i8*** @__bpl_argv_value");
     expect(ir).not.toContain("declare void @__bpl_throw_division_by_zero");
     expect(ir).not.toContain("declare void @__bpl_throw_integer_overflow");
     expect(ir).not.toContain("declare void @__bpl_check_null");
@@ -465,6 +469,55 @@ describe("CodeGenerator", () => {
 
     expect(ir).toContain("call i8* @malloc");
     expect(ir).toContain("declare i8* @malloc(i64)");
+  });
+
+  it("keeps argc/argv runtime setup when generated IR uses runtime arg helpers", () => {
+    const ir = compile(
+      `
+        extern __bpl_argc() ret int;
+        extern __bpl_argv_get(index: int) ret string;
+
+        frame main() ret int {
+          local first: string = __bpl_argv_get(0);
+          if (first == nullptr) {
+            return 1;
+          }
+          return __bpl_argc();
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("@__bpl_argc_value = external global i32");
+    expect(ir).toContain("@__bpl_argv_value = external global i8**");
+    expect(ir).toContain("store i32 %argc, i32* @__bpl_argc_value");
+    expect(ir).toContain("store i8** %argv, i8*** @__bpl_argv_value");
+    expect(ir).toContain("call i32 @__bpl_argc()");
+    expect(ir).toMatch(/call i8\* @__bpl_argv_get\(i32 (?:0|zeroinitializer)\)/);
+  });
+
+  it("keeps explicit main argc argv parameters without runtime helper globals", () => {
+    const ir = compile(
+      `
+        frame main(argc: int, argv: **char) ret int {
+          if (argc > 1) {
+            return 0;
+          }
+          if (argv == nullptr) {
+            return 2;
+          }
+          return 1;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toMatch(/store i32 %argc, i32\* %argc_ptr\.\d+/);
+    expect(ir).toMatch(/store i8\*\* %argv, i8\*\*\* %argv_ptr\.\d+/);
+    expect(ir).not.toContain("@__bpl_argc_value = external global i32");
+    expect(ir).not.toContain("@__bpl_argv_value = external global i8**");
+    expect(ir).not.toContain("store i32 %argc, i32* @__bpl_argc_value");
+    expect(ir).not.toContain("store i8** %argv, i8*** @__bpl_argv_value");
   });
 
   it("mangles tuple parameter overloads by element types", () => {
