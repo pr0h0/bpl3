@@ -379,6 +379,16 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("@exception_value = external global");
     expect(ir).not.toContain("@exception_type = external global");
     expect(ir).not.toContain("@__bpl_stack_depth = external global");
+    expect(ir).not.toContain("declare i8* @malloc(i64)");
+    expect(ir).not.toContain("declare void @free(i8*)");
+    expect(ir).not.toContain("declare void @exit(i32)");
+    expect(ir).not.toContain("declare i32 @memcmp(i8*, i8*, i64)");
+    expect(ir).not.toContain("declare i32 @strcmp(i8*, i8*)");
+    expect(ir).not.toContain("%struct._IO_FILE = type opaque");
+    expect(ir).not.toContain("@stderr = external global");
+    expect(ir).not.toContain("declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)");
+    expect(ir).not.toContain("declare i32 @setjmp(i8*) returns_twice");
+    expect(ir).not.toContain("declare void @longjmp(i8*, i32) noreturn");
   });
 
   it("keeps internal runtime helper declarations when generated IR uses them", () => {
@@ -418,6 +428,8 @@ describe("CodeGenerator", () => {
     expect(tryIr).toContain("@exception_value = external global");
     expect(tryIr).toContain("@exception_type = external global");
     expect(tryIr).toContain("@defer_top = external global");
+    expect(tryIr).toContain("declare i32 @setjmp(i8*) returns_twice");
+    expect(tryIr).toContain("declare void @longjmp(i8*, i32) noreturn");
 
     const deferIr = compile(
       `
@@ -433,6 +445,26 @@ describe("CodeGenerator", () => {
 
     expect(deferIr).toContain("%struct.DeferNode = type");
     expect(deferIr).toContain("@defer_top = external global");
+  });
+
+  it("keeps implicit C prelude declarations when generated IR uses them", () => {
+    const ir = compile(
+      `
+        extern malloc(size: long) ret *void;
+
+        frame main() ret int {
+          local ptr: *void = malloc(8);
+          if (ptr == nullptr) {
+            return 1;
+          }
+          return 0;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("call i8* @malloc");
+    expect(ir).toContain("declare i8* @malloc(i64)");
   });
 
   it("mangles tuple parameter overloads by element types", () => {

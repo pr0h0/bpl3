@@ -69,6 +69,8 @@ const PRUNABLE_INTERNAL_RUNTIME_STRUCTS = new Set([
   "IndexOutOfBoundsError",
 ]);
 
+const PRUNABLE_IMPLICIT_C_STRUCTS = new Set(["_IO_FILE"]);
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -90,6 +92,8 @@ const PRUNABLE_INTERNAL_RUNTIME_STRUCTS = new Set([
  * - → ExceptionGenerator → AsmGenerator → StatementGenerator → **CodeGenerator**
  */
 export class CodeGenerator extends StatementGenerator {
+  private prunableImplicitCDeclarations: Set<string> = new Set();
+
   constructor(
     options: {
       stdLibPath?: string;
@@ -120,6 +124,7 @@ export class CodeGenerator extends StatementGenerator {
 
     this.output = [];
     this.declarationsOutput = [];
+    this.prunableImplicitCDeclarations.clear();
     this.stringLiterals.clear();
     this.structLayouts.clear();
     this.structMap.clear();
@@ -232,31 +237,35 @@ export class CodeGenerator extends StatementGenerator {
 
     // Standard library declarations - Emitted AFTER user code to avoid collisions
     if (!this.declaredFunctions.has("malloc")) {
-      this.emitDeclaration("declare i8* @malloc(i64)");
+      this.emitPrunableImplicitCDeclaration("declare i8* @malloc(i64)");
       this.declaredFunctions.add("malloc");
     }
     if (!this.declaredFunctions.has("free")) {
-      this.emitDeclaration("declare void @free(i8*)");
+      this.emitPrunableImplicitCDeclaration("declare void @free(i8*)");
       this.declaredFunctions.add("free");
     }
     if (!this.declaredFunctions.has("exit")) {
-      this.emitDeclaration("declare void @exit(i32)");
+      this.emitPrunableImplicitCDeclaration("declare void @exit(i32)");
       this.declaredFunctions.add("exit");
     }
     if (!this.declaredFunctions.has("memcmp")) {
-      this.emitDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
+      this.emitPrunableImplicitCDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
       this.declaredFunctions.add("memcmp");
     }
     if (!this.declaredFunctions.has("strcmp")) {
-      this.emitDeclaration("declare i32 @strcmp(i8*, i8*)");
+      this.emitPrunableImplicitCDeclaration("declare i32 @strcmp(i8*, i8*)");
       this.declaredFunctions.add("strcmp");
     }
 
     // fprintf and stderr for null trap error messages (kept for backward compatibility)
-    this.emitDeclaration("%struct._IO_FILE = type opaque");
-    this.emitDeclaration("@stderr = external global %struct._IO_FILE*");
+    this.emitPrunableImplicitCDeclaration("%struct._IO_FILE = type opaque");
+    this.emitPrunableImplicitCDeclaration(
+      "@stderr = external global %struct._IO_FILE*",
+    );
     if (!this.declaredFunctions.has("fprintf")) {
-      this.emitDeclaration("declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)");
+      this.emitPrunableImplicitCDeclaration(
+        "declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)",
+      );
       this.declaredFunctions.add("fprintf");
     }
 
@@ -284,11 +293,15 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(`@__bpl_argv_value = external global i8**`);
 
     if (!this.declaredFunctions.has("setjmp")) {
-      this.emitDeclaration(`declare i32 @setjmp(i8*) returns_twice`);
+      this.emitPrunableImplicitCDeclaration(
+        `declare i32 @setjmp(i8*) returns_twice`,
+      );
       this.declaredFunctions.add("setjmp");
     }
     if (!this.declaredFunctions.has("longjmp")) {
-      this.emitDeclaration(`declare void @longjmp(i8*, i32) noreturn`);
+      this.emitPrunableImplicitCDeclaration(
+        `declare void @longjmp(i8*, i32) noreturn`,
+      );
       this.declaredFunctions.add("longjmp");
     }
 
@@ -456,14 +469,40 @@ export class CodeGenerator extends StatementGenerator {
       return this.referencesLlvmSymbol(generatedBody, name);
     });
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      if (!this.prunableImplicitCDeclarations.has(line)) {
+        return true;
+      }
+      const name = this.getDeclaredFunctionName(line);
+      if (name === null) {
+        return true;
+      }
+      return this.referencesLlvmSymbol(generatedBody, name);
+    });
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
       const name = this.getDeclaredGlobalName(line);
       if (name === null || !PRUNABLE_INTERNAL_RUNTIME_GLOBALS.has(name)) {
         return true;
       }
       return this.referencesLlvmSymbol(generatedBody, name);
     });
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      if (!this.prunableImplicitCDeclarations.has(line)) {
+        return true;
+      }
+      const name = this.getDeclaredGlobalName(line);
+      if (name === null) {
+        return true;
+      }
+      return this.referencesLlvmSymbol(generatedBody, name);
+    });
 
     this.pruneUnusedInternalRuntimeStructs(generatedBody);
+    this.pruneUnusedImplicitCStructs(generatedBody);
+  }
+
+  private emitPrunableImplicitCDeclaration(line: string): void {
+    this.prunableImplicitCDeclarations.add(line);
+    this.emitDeclaration(line);
   }
 
   private getDeclaredFunctionName(line: string): string | null {
@@ -530,6 +569,32 @@ export class CodeGenerator extends StatementGenerator {
         name === null ||
         !PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name) ||
         retained.has(name)
+      );
+    });
+  }
+
+  private pruneUnusedImplicitCStructs(generatedBody: string): void {
+    const remainingDeclarations = this.declarationsOutput
+      .filter((line) => {
+        const name = this.getDeclaredStructName(line);
+        return (
+          name === null ||
+          !this.prunableImplicitCDeclarations.has(line) ||
+          !PRUNABLE_IMPLICIT_C_STRUCTS.has(name)
+        );
+      })
+      .join("\n");
+    const roots = `${generatedBody}\n${remainingDeclarations}`;
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      if (!this.prunableImplicitCDeclarations.has(line)) {
+        return true;
+      }
+
+      const name = this.getDeclaredStructName(line);
+      return (
+        name === null ||
+        !PRUNABLE_IMPLICIT_C_STRUCTS.has(name) ||
+        this.referencesLlvmStruct(roots, name)
       );
     });
   }
