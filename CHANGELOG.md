@@ -115,6 +115,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ~788ms versus the same-run ~899ms baseline. Reproduce with
   `bun test tests/Parser.test.ts` and `bpl --time --emit llvm` on the 5k
   synthetic benchmark.
+- **Generated Parser Identifier Scanner** - The generated parser now replaces
+  Peggy's identifier array-building loop and long `KeywordReserved`
+  alternative chain with a direct ASCII identifier scanner plus an exact
+  reserved-word set matching the grammar. Hot `Identifier` parses scan once,
+  reject reserved names from the scanned token, and leave `IdentToken`
+  available for qualified-name contexts. This preserves boundary behavior such
+  as allowing `framex`, `defer`, and `void` as identifiers while rejecting
+  reserved `Self` and `frame`. On the 5k synthetic fixture, parse-only samples
+  improved from the post-location baseline average of ~909ms to ~568ms, normal
+  `--time --emit llvm` parsing sampled as low as ~593ms versus the same-run
+  ~798ms baseline, and the checked-in generated parser shrank by roughly 1k
+  lines. Reproduce with `bun test tests/Parser.test.ts` and
+  `bpl --time --emit llvm` on the 5k synthetic benchmark.
 - **No-Import Module Detection Fast Path** - Single-file compilation now skips
   the expensive grammar lexer pass used only to detect imports when the source
   has no standalone `import` keyword. On the current 5k no-import synthetic

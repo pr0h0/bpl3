@@ -174,6 +174,67 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("input.substr(peg$currPos,");
   });
 
+  it("keeps generated identifier and reserved-keyword parsing on the direct scanner fast path", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identHelper = generatedSource.match(
+      /function peg\$parseIdentToken\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const identScanner = generatedSource.match(
+      /function peg\$scanBplIdentToken\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const identifierHelper = generatedSource.match(
+      /function peg\$parseIdentifier\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const keywordHelper = generatedSource.match(
+      /function peg\$parseKeywordReserved\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedIdentifierScanning");
+    expect(generatedSource).toContain("function peg$scanBplIdentToken()");
+    expect(generatedSource).toContain("function peg$isBplIdentStartCode(code)");
+    expect(generatedSource).toContain("function peg$isBplIdentPartCode(code)");
+    expect(generatedSource).toContain("const peg$bplReservedKeywords = new Set");
+    expect(identifierHelper).toContain("peg$scanBplIdentToken()");
+    expect(identifierHelper).not.toContain("peg$parseKeywordReserved()");
+    expect(identScanner).toContain("input.substring(startPos, peg$currPos)");
+    expect(identHelper).toContain("return peg$scanBplIdentToken();");
+    expect(identHelper).not.toContain("s3.push");
+    expect(keywordHelper).toContain("peg$bplReservedKeywords.has(word)");
+    expect(keywordHelper).not.toContain("input.startsWith(peg$c17");
+  });
+
+  it("preserves keyword boundary behavior for identifiers", () => {
+    for (const source of [
+      "local framex: int = 1;",
+      "local defer: int = 1;",
+      "local void: int = 1;",
+    ]) {
+      expect(() => new Parser(source, "keyword-boundary.bpl").parse()).not.toThrow();
+    }
+
+    for (const source of [
+      "local Self: int = 1;",
+      "local frame: int = 1;",
+    ]) {
+      expect(() => new Parser(source, "keyword-boundary.bpl").parse()).toThrow(
+        CompilerError,
+      );
+    }
+  });
+
   it("keeps generated parser trivia skipping on the manual fast path", () => {
     const generatedSource = readFileSync(
       join(

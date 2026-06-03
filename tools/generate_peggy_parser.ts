@@ -58,9 +58,11 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   );
 
   return optimizeGeneratedTriviaSkipping(
-    optimizeGeneratedFailureTracking(
-      optimizeGeneratedLiteralMatches(
-        optimizeGeneratedMakeLoc(withBplLocation),
+    optimizeGeneratedIdentifierScanning(
+      optimizeGeneratedFailureTracking(
+        optimizeGeneratedLiteralMatches(
+          optimizeGeneratedMakeLoc(withBplLocation),
+        ),
       ),
     ),
   );
@@ -237,6 +239,153 @@ function optimizeGeneratedFailureTracking(parserSource: string): string {
   return parserSource
     .replace(originalDeclarations, replacementDeclarations)
     .replace(originalFailHelper, replacementFailHelper);
+}
+
+function optimizeGeneratedIdentifierScanning(parserSource: string): string {
+  const identifierPattern =
+    /  function peg\$parseIdentifier\(\) \{[\s\S]*?\n  \}\n\n  function peg\$parseIdentToken\(\)/;
+  const identTokenPattern =
+    /  function peg\$parseIdentToken\(\) \{[\s\S]*?\n  \}\n\n  function peg\$parseBoolLiteral\(\)/;
+  const keywordReservedPattern =
+    /  function peg\$parseKeywordReserved\(\) \{[\s\S]*?\n  \}\n\n  function peg\$parse_\(\)/;
+  const identifierReplacement = [
+    "  function peg$parseIdentifier() {",
+    "    const startPos = peg$currPos;",
+    "    const name = peg$scanBplIdentToken();",
+    "",
+    "    if (name === peg$FAILED) {",
+    "      return peg$FAILED;",
+    "    }",
+    "    if (peg$bplReservedKeywords.has(name)) {",
+    "      peg$currPos = startPos;",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    peg$savedPos = startPos;",
+    "    return peg$f162(name);",
+    "  }",
+    "",
+    "  function peg$parseIdentToken()",
+  ].join("\n");
+  const identTokenReplacement = [
+    "  function peg$isBplIdentStartCode(code) {",
+    "    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+    "  }",
+    "",
+    "  function peg$isBplIdentPartCode(code) {",
+    "    return peg$isBplIdentStartCode(code) || (code >= 48 && code <= 57);",
+    "  }",
+    "",
+    "  function peg$scanBplIdentToken() {",
+    "    const startPos = peg$currPos;",
+    "    const firstCode = input.charCodeAt(peg$currPos);",
+    "",
+    "    if (!peg$isBplIdentStartCode(firstCode)) {",
+    "      if (peg$silentFails === 0) { peg$fail(peg$e78); }",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    peg$currPos++;",
+    "    while (peg$currPos < input.length && peg$isBplIdentPartCode(input.charCodeAt(peg$currPos))) {",
+    "      peg$currPos++;",
+    "    }",
+    "    if (peg$silentFails === 0) { peg$fail(peg$e79); }",
+    "",
+    "    return input.substring(startPos, peg$currPos);",
+    "  }",
+    "",
+    "  function peg$parseIdentToken() {",
+    "    return peg$scanBplIdentToken();",
+    "  }",
+    "",
+    "  function peg$parseBoolLiteral()",
+  ].join("\n");
+  const reservedKeywords = [
+    "global",
+    "local",
+    "const",
+    "type",
+    "frame",
+    "static",
+    "ret",
+    "struct",
+    "enum",
+    "spec",
+    "Self",
+    "import",
+    "from",
+    "as",
+    "export",
+    "extern",
+    "asm",
+    "loop",
+    "if",
+    "else",
+    "break",
+    "continue",
+    "try",
+    "catch",
+    "return",
+    "throw",
+    "switch",
+    "case",
+    "default",
+    "fallthrough",
+    "cast",
+    "sizeof",
+    "typeof",
+    "offsetof",
+    "match",
+    "is",
+    "Func",
+    "Lambda",
+    "null",
+    "nullptr",
+    "true",
+    "false",
+  ];
+  const keywordReservedReplacement = [
+    `  const peg$bplReservedKeywords = new Set(${JSON.stringify(reservedKeywords)});`,
+    "",
+    "  function peg$parseKeywordReserved() {",
+    "    const startPos = peg$currPos;",
+    "    const firstCode = input.charCodeAt(startPos);",
+    "",
+    "    if (!peg$isBplIdentStartCode(firstCode)) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    let endPos = startPos + 1;",
+    "    while (endPos < input.length && peg$isBplIdentPartCode(input.charCodeAt(endPos))) {",
+    "      endPos++;",
+    "    }",
+    "",
+    "    const word = input.substring(startPos, endPos);",
+    "    if (!peg$bplReservedKeywords.has(word)) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    peg$currPos = endPos;",
+    "    return [word, undefined];",
+    "  }",
+    "",
+    "  function peg$parse_()",
+  ].join("\n");
+
+  if (
+    !identifierPattern.test(parserSource) ||
+    !identTokenPattern.test(parserSource) ||
+    !keywordReservedPattern.test(parserSource)
+  ) {
+    throw new Error(
+      "Generated Peggy parser identifier helper shape changed; update the BPL parser identifier optimizer.",
+    );
+  }
+
+  return parserSource
+    .replace(identifierPattern, identifierReplacement)
+    .replace(identTokenPattern, identTokenReplacement)
+    .replace(keywordReservedPattern, keywordReservedReplacement);
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {
