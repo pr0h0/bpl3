@@ -41,6 +41,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   sample to ~9-10.8ms, with the call-lowering hook adding under ~1.1ms across
   5,001 direct calls. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "runtime arg helper"`.
+- **Codegen Struct Field-List Cache** - Code generation now reuses field-list
+  lookups for simple non-generic POD structs instead of rebuilding the same
+  arrays for repeated local default-value generation. On the 5k synthetic
+  fixture, targeted codegen profiling showed `generateDefaultValue` drop from
+  roughly ~46.24ms to ~29.96ms total while keeping emitted IR byte-for-byte
+  stable. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "reuses simple struct field lists"`.
 - **Generated IR Blank-Line Compaction Fast Path** - Final IR assembly now
   compacts generated blank lines using exact empty-string checks instead of
   trimming every emitted line. The 5k synthetic fixture emits exact empty blank

@@ -788,6 +788,14 @@ export abstract class TypeGenerator extends StructEnumGenerator {
   }
 
   protected getAllStructFields(decl: AST.StructDecl): AST.StructField[] {
+    const canUseCache = this.canCacheStructFieldList(decl);
+    if (canUseCache) {
+      const cached = this.structFieldListCache.get(decl);
+      if (cached) {
+        return cached;
+      }
+    }
+
     let fields: AST.StructField[] = [];
     if (decl.inheritanceList) {
       for (const typeNode of decl.inheritanceList) {
@@ -932,7 +940,27 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     const resultFields = [...fields];
     // VTable injection removed for POD structs
 
-    return resultFields.concat(currentFields);
+    const allFields = resultFields.concat(currentFields);
+    if (canUseCache) {
+      this.structFieldListCache.set(decl, allFields);
+    }
+
+    return allFields;
+  }
+
+  private canCacheStructFieldList(decl: AST.StructDecl): boolean {
+    if (decl.genericParams.length > 0) {
+      return false;
+    }
+
+    if (decl.members.some((member) => member.kind !== "StructField")) {
+      return false;
+    }
+
+    return !decl.inheritanceList.some(
+      (typeNode) =>
+        typeNode.kind === "BasicType" && typeNode.genericArgs.length > 0,
+    );
   }
 
   protected mangleType(type: AST.TypeNode): string {

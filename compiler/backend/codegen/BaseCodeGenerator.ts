@@ -244,6 +244,8 @@ export class BaseCodeGenerator {
   protected isMainWithVoidReturn: boolean = false;
   protected structLayouts: Map<string, Map<string, number>> = new Map();
   protected structMap: Map<string, AST.StructDecl> = new Map();
+  protected structFieldListCache: Map<AST.StructDecl, AST.StructField[]> =
+    new Map();
   protected specMap: Map<string, AST.SpecDecl> = new Map();
   protected thunks: Set<string> = new Set();
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];

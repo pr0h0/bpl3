@@ -65,7 +65,37 @@ function expectDebugIrError(
   return compilerError;
 }
 
+class InspectableCodeGenerator extends CodeGenerator {
+  public allStructFields(decl: AST.StructDecl): AST.StructField[] {
+    return this.getAllStructFields(decl);
+  }
+}
+
 describe("CodeGenerator", () => {
+  it("reuses simple struct field lists during repeated codegen lookups", () => {
+    const program = parseAndCheck([
+      "struct Point {",
+      "  x: int,",
+      "  y: int,",
+      "}",
+      "",
+      "frame main() ret int {",
+      "  return 0;",
+      "}",
+    ].join("\n"));
+    const point = program.statements.find(
+      (stmt): stmt is AST.StructDecl =>
+        stmt.kind === "StructDecl" && stmt.name === "Point",
+    );
+    expect(point).toBeDefined();
+
+    const generator = new InspectableCodeGenerator();
+
+    expect(generator.allStructFields(point!)).toBe(
+      generator.allStructFields(point!),
+    );
+  });
+
   it("does not write debug IR files by default", () => {
     const cwd = process.cwd();
     const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));
