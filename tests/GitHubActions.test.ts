@@ -89,6 +89,12 @@ describe("GitHub Actions workflows", () => {
     expect(packageJson.scripts["fuzz:differential"]).toContain(
       "FUZZ_DIFFERENTIAL_ITERATIONS:-48",
     );
+    expect(packageJson.scripts["fuzz:differential"]).toContain(
+      "FUZZ_PROGRESS=${FUZZ_DIFFERENTIAL_PROGRESS:-12}",
+    );
+    expect(packageJson.scripts["fuzz:long"]).not.toContain(
+      "FUZZ_DIFFERENTIAL_PROGRESS",
+    );
     expect(packageJson.scripts["fuzz:replay"]).toContain(
       "tools/fuzz_script_wrapper.ts replay",
     );

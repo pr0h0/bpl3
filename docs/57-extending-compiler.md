@@ -113,6 +113,12 @@ bun run fuzz:differential
 bun run fuzz:validate-artifacts
 ```
 
+`bun run fuzz:differential` reports progress every 12 iterations per seed by
+default, which keeps the default 48-iteration campaign visible in local and CI
+logs. Override that interval with `FUZZ_DIFFERENTIAL_PROGRESS=<n>` when you
+need quieter or more detailed progress output. The long scheduled fuzz script
+keeps the shared `FUZZ_PROGRESS` default for larger campaigns.
+
 For new language features, add a focused test in `tests/`, an integration example under `examples/` when runtime behavior matters, and a playground example when the feature is useful for users to learn interactively.
 
 When fuzzing finds a compiler crash or an O0/O3 runtime mismatch, replay and

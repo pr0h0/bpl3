@@ -412,6 +412,12 @@ Fuzz campaigns can save both the original failing source and a minimized repro:
 FUZZ_MINIMIZE=1 FUZZ_MINIMIZE_PASSES=8 bun run fuzz:differential
 ```
 
+The default differential script sets `FUZZ_PROGRESS` from
+`FUZZ_DIFFERENTIAL_PROGRESS`, falling back to 12 iterations per seed. That
+keeps the short default campaign chatty enough for CI logs without changing
+`fuzz:long`; use `FUZZ_DIFFERENTIAL_PROGRESS=<n> bun run fuzz:differential` to
+tune the interval.
+
 For each crash or O0/O3 mismatch, the fuzzer writes:
 
 - `<kind>_seed-..._iter-..._<lane>.bpl` - original repro source.

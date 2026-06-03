@@ -52,7 +52,7 @@
     "test:baseline": "bun test 2>&1 | tee test-baseline.txt",
     "fuzz": "bun tools/fuzz_script_wrapper.ts run",
     "fuzz:long": "FUZZ_ITERATIONS=${FUZZ_ITERATIONS:-100000} FUZZ_SEEDS=${FUZZ_SEEDS:-0x5eed1234,0xc0ffee,0xbad5eed} bun tools/fuzz_script_wrapper.ts run",
-    "fuzz:differential": "FUZZ_DIFFERENTIAL=1 FUZZ_ITERATIONS=${FUZZ_DIFFERENTIAL_ITERATIONS:-48} FUZZ_SEEDS=${FUZZ_DIFFERENTIAL_SEEDS:-0xd1ff0,0xd1ff1,0xd1ff2} bun tools/fuzz_script_wrapper.ts run",
+    "fuzz:differential": "FUZZ_DIFFERENTIAL=1 FUZZ_ITERATIONS=${FUZZ_DIFFERENTIAL_ITERATIONS:-48} FUZZ_SEEDS=${FUZZ_DIFFERENTIAL_SEEDS:-0xd1ff0,0xd1ff1,0xd1ff2} FUZZ_PROGRESS=${FUZZ_DIFFERENTIAL_PROGRESS:-12} bun tools/fuzz_script_wrapper.ts run",
     "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
     "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
     "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
