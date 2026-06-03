@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
+import { createHash } from "crypto";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import * as peggy from "peggy";
 
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
+
+function sha256(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
 
 describe("Parser", () => {
   it("should parse a simple function declaration", () => {
@@ -53,5 +61,40 @@ describe("Parser", () => {
     if (var2.kind === "VariableDecl") {
       expect(var2.isGlobal).toBe(true);
     }
+  });
+
+  it("keeps Peggy packrat caching disabled for large translation-unit throughput", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+
+    expect(generatorSource).toContain("cache: false");
+    expect(generatorSource).not.toContain("cache: true");
+  });
+
+  it("keeps the checked-in generated Peggy parser in sync with grammar/bpl.peggy", () => {
+    const grammarPath = join(process.cwd(), "grammar", "bpl.peggy");
+    const generatedPath = join(
+      process.cwd(),
+      "compiler",
+      "frontend",
+      "generated",
+      "BplParser.js",
+    );
+
+    if (!existsSync(generatedPath)) {
+      throw new Error(`Generated Peggy parser is missing: ${generatedPath}`);
+    }
+
+    const grammarSource = readFileSync(grammarPath, "utf8");
+    const expectedSource = peggy.generate(grammarSource, {
+      output: "source",
+      format: "es",
+      cache: false,
+    }).replace(/[ \t]+$/gm, "");
+    const actualSource = readFileSync(generatedPath, "utf8");
+
+    expect(sha256(actualSource)).toBe(sha256(expectedSource));
   });
 });

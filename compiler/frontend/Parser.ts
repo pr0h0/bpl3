@@ -43,10 +43,15 @@ export class Parser {
       ast.statements.unshift(errorImport);
     }
 
+    const tokenComments =
+      this.tokens.length > 0
+        ? this.tokens.filter((t) => t.type === TokenType.Comment)
+        : [];
+    const comments = tokenComments.length > 0 ? tokenComments : ast.comments;
+    this.attachComments(ast, comments || []);
+
     if (this.tokens.length > 0) {
-      const comments = this.tokens.filter((t) => t.type === TokenType.Comment);
-      this.attachComments(ast);
-      const result = { ...ast, comments };
+      const result = { ...ast, comments: tokenComments };
 
       // Check for syntax errors from error recovery
       if (throwOnError && ast.errors && ast.errors.length > 0) {
@@ -68,11 +73,9 @@ export class Parser {
     return ast;
   }
 
-  private attachComments(ast: AST.Program) {
-    if (this.tokens.length === 0) return;
-
+  private attachComments(ast: AST.Program, sourceComments: AST.Token[]) {
     // Only consider multi-line comments starting with /#
-    const comments = this.tokens
+    const comments = sourceComments
       .filter((t) => t.type === TokenType.Comment && t.lexeme.startsWith("/#"))
       .map((t) => ({
         token: t,

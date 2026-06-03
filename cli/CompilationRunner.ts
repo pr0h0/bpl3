@@ -16,8 +16,6 @@ import {
   SourceManager,
   TokenType,
 } from "../compiler";
-import { getBplHome } from "../compiler/common/PathResolver";
-import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
@@ -44,6 +42,7 @@ import {
 } from "../compiler/common/JsonContracts";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
+import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
 
 const log = new Logger("CompilationRunner");
 
@@ -461,28 +460,26 @@ function injectRuntimeObjects(options: CompileOptions): void {
     return;
   }
 
-  const bplHome = getBplHome();
   const objects = options.object
     ? Array.isArray(options.object)
       ? options.object
       : [options.object as string]
     : [];
 
-  const addObject = (objectPath: string, label: string) => {
-    assertReadableRuntimeObject(objectPath, label);
+  const hostDefaults = getHostDefaults();
+  const addObject = (objectPath: string) => {
     if (!objects.includes(objectPath)) {
       objects.push(objectPath);
     }
   };
 
-  // Add LLVM IR declarations (core exception handling)
-  addObject(path.join(bplHome, "lib", "runtime.ll"), "Runtime IR");
-
-  // Add C runtime support (signal handlers, stack traces)
-  addObject(
-    path.join(bplHome, "lib", "runtime_support.o"),
-    "Runtime support object",
-  );
+  for (const runtimeFile of resolveNativeRuntimeFiles({
+    target: options.target || hostDefaults.target,
+    compileOptions: options,
+    warn: (message) => log.warn(message),
+  })) {
+    addObject(runtimeFile);
+  }
 
   options.object = objects;
 }
@@ -505,34 +502,6 @@ function shouldResolveImportsForCompilation(options: CompileOptions): boolean {
     options.emit !== "tokens" &&
     options.emit !== "formatted"
   );
-}
-
-function assertReadableRuntimeObject(objectPath: string, label: string): void {
-  const linkStats = tryLstat(objectPath);
-  if (!linkStats) {
-    throw new Error(
-      `${label} not found: ${objectPath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
-    );
-  }
-
-  if (linkStats.isSymbolicLink() && !fs.existsSync(objectPath)) {
-    throw new Error(
-      `${label} is a broken symbolic link: ${objectPath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
-    );
-  }
-
-  const symlinkedParent = findSymlinkedParentPath(objectPath);
-  if (symlinkedParent) {
-    throw new Error(
-      `${label} parent path contains a symbolic link: ${symlinkedParent}. Run 'bun run build:runtime' or 'bpl doctor'.`,
-    );
-  }
-
-  if (!fs.statSync(objectPath).isFile()) {
-    throw new Error(
-      `${label} is not a file: ${objectPath}. Run 'bun run build:runtime' or 'bpl doctor'.`,
-    );
-  }
 }
 
 function tryLstat(filePath: string): fs.Stats | null {
@@ -757,10 +726,12 @@ function compileSingleFile(
   // 1. Lexing
   const endLexing = startPhaseTimer("Lexing", options);
   let tokens: any[] = [];
-  try {
-    tokens = lexWithGrammar(content, filePath);
-  } catch {
-    // Lexer might fail on new syntax not yet in grammar.bpl
+  if (options.emit === "tokens") {
+    try {
+      tokens = lexWithGrammar(content, filePath);
+    } catch {
+      // Lexer might fail on new syntax not yet in grammar.bpl
+    }
   }
   endLexing();
 

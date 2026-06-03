@@ -163,13 +163,13 @@ export class Compiler {
         return this.compileWithModuleResolution();
       }
 
-      // 1. Frontend: Lexing
-      if (this.options.verbose) {
-        compilerLog.info("Lexical Analysis...");
-      }
-      const tokens = lexWithGrammar(sourceCode, this.options.filePath);
-
       if (this.options.emitType === "tokens") {
+        // 1. Frontend: Lexing
+        if (this.options.verbose) {
+          compilerLog.info("Lexical Analysis...");
+        }
+        const tokens = lexWithGrammar(sourceCode, this.options.filePath);
+
         return {
           success: true,
           output: JSON.stringify(tokens, null, 2),
@@ -180,7 +180,7 @@ export class Compiler {
       if (this.options.verbose) {
         compilerLog.info("Syntax Analysis...");
       }
-      const parser = new Parser(sourceCode, this.options.filePath, tokens);
+      const parser = new Parser(sourceCode, this.options.filePath);
       const ast = parser.parse(true, !this.options.collectAllErrors);
 
       // Check for parser errors

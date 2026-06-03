@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Compiler Throughput Fast Path** - The CLI now imports a checked-in Peggy
+  parser instead of regenerating `grammar/bpl.peggy` per process, skips the
+  separate token grammar pass unless emitting tokens, and links native builds
+  through a cached `runtime.ll` object when clang can precompile it. Fresh local
+  samples reduced hello-world compile wall time to ~0.82s and the 5k synthetic
+  benchmark to ~4.37s. Reproduce with
+  `bun test tests/Parser.test.ts tests/CompilerFrontendFastPath.test.ts tests/BinaryRunner.test.ts` and
+  `bun benchmark/measure_compilation.ts`.
 - **Stdlib C Extern Alias Cleanup** - Non-FFI examples that used pointer-typed
   `printf` aliases now import the canonical declaration from `std/c.bpl`.
   `tests/ExampleExterns.test.ts` also rejects `printf(fmt: *i8|*char, ...)`

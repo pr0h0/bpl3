@@ -150,6 +150,50 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("links native builds with a cached runtime object instead of recompiling runtime.ll", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-runtime-cache-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const libDir = path.join(bplHome, "lib");
+    const irPath = path.join(tempDir, "main.ll");
+    const compilerLogPath = path.join(tempDir, "compiler.log");
+    const fakeCompiler = path.join(tempDir, "fake-cc.js");
+
+    try {
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(libDir, "runtime.ll"),
+        "define void @__bpl_runtime_stub() { ret void }\n",
+      );
+      fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      writeNodeCommandShim(fakeCompiler, [
+        "const fs = require('fs');",
+        "const args = process.argv.slice(2);",
+        `fs.appendFileSync(${JSON.stringify(compilerLogPath)}, args.join(' ') + '\\n');`,
+        "const outputIndex = args.indexOf('-o');",
+        "if (outputIndex >= 0) fs.writeFileSync(args[outputIndex + 1], 'out\\n');",
+      ]);
+      process.env.BPL_HOME = bplHome;
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, {});
+
+      expect(result.success).toBe(true);
+      const invocations = fs
+        .readFileSync(compilerLogPath, "utf8")
+        .trim()
+        .split("\n");
+      const finalLinkArgs = invocations.at(-1)!;
+      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
+      expect(finalLinkArgs).toContain(".o");
+      expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("rejects native runtime inputs reached through symlinked parent directories", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-binary-runtime-parent-link-"),
@@ -178,6 +222,37 @@ describe("BinaryRunner", () => {
       expect(result.error).toContain(
         `Runtime IR parent path contains a symbolic link: ${libLink}`,
       );
+      expect(result.error).not.toContain("missing-cc");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports broken native runtime symlinks before invoking clang", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-runtime-broken-link-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const libDir = path.join(bplHome, "lib");
+    const irPath = path.join(tempDir, "main.ll");
+
+    try {
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.symlinkSync(
+        path.join(libDir, "missing-runtime.ll"),
+        path.join(libDir, "runtime.ll"),
+        "file",
+      );
+      fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.BPL_HOME = bplHome;
+      process.env.BPL_CC = path.join(tempDir, "missing-cc");
+
+      const result = compileToBinary(irPath, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Runtime IR is a broken symbolic link");
+      expect(result.error).toContain(path.join(libDir, "runtime.ll"));
       expect(result.error).not.toContain("missing-cc");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

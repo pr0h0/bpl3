@@ -33,6 +33,7 @@ import {
   getWasmLinkerCandidates,
   getWasmLinkerProbeTimeoutMs,
 } from "./WasmToolchain";
+import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
 
 const log = new Logger("BinaryRunner");
 
@@ -402,34 +403,18 @@ function buildClangArgs(
 
   // Link runtime logic unless skipped
   if (!options.skipRuntime && !wasmTarget) {
-    const bplHome = getBplHome();
-
-    // Link LLVM IR declarations (core exception handling)
-    const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
-    if (tryLstat(runtimeLLPath)) {
-      assertReadableRuntimeInput(runtimeLLPath, "Runtime IR");
-      // Avoid duplicate linking if it was already added to 'object' in CompilationRunner
-      const alreadyLinked =
-        (options.object &&
-          normalizeArrayOption(options.object).includes(runtimeLLPath)) ||
-        args.includes(runtimeLLPath);
-
-      if (!alreadyLinked) {
-        args.push(runtimeLLPath);
-      }
-    }
-
-    // Link C runtime support (signal handlers, stack traces)
-    const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
-    if (tryLstat(runtimeSupportPath)) {
-      assertReadableRuntimeInput(runtimeSupportPath, "Runtime support object");
+    for (const runtimeFile of resolveNativeRuntimeFiles({
+      target,
+      compileOptions: options,
+      warn: (message) => log.warn(message),
+    })) {
       const alreadyLinkedSupport =
         (options.object &&
-          normalizeArrayOption(options.object).includes(runtimeSupportPath)) ||
-        args.includes(runtimeSupportPath);
+          normalizeArrayOption(options.object).includes(runtimeFile)) ||
+        args.includes(runtimeFile);
 
       if (!alreadyLinkedSupport) {
-        args.push(runtimeSupportPath);
+        args.push(runtimeFile);
       }
     }
   }

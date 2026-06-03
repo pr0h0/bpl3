@@ -1,42 +1,14 @@
-import { existsSync, readFileSync } from "fs";
-import * as peggy from "peggy";
+import type * as peggy from "peggy";
 
-import { resolveBplPath, getBplHome } from "../common/PathResolver";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import * as generatedParser from "./generated/BplParser.js";
 
 let cachedParser: peggy.Parser | null = null;
 
 function loadParser(): peggy.Parser {
   if (cachedParser) return cachedParser;
-
-  // Use BPL_HOME to locate grammar file
-  const grammarPath = resolveBplPath("grammar", "bpl.peggy");
-
-  if (!existsSync(grammarPath)) {
-    const bplHome = getBplHome();
-    throw new CompilerError(
-      `Could not find bpl.peggy grammar file.`,
-      `Please ensure BPL_HOME is set correctly or the grammar directory exists.\n` +
-        `BPL_HOME: ${bplHome}\n` +
-        `Looking for: ${grammarPath}\n` +
-        `You can set it with: export BPL_HOME=/path/to/bpl`,
-      {
-        file: grammarPath,
-        startLine: 0,
-        startColumn: 0,
-        endLine: 0,
-        endColumn: 0,
-      },
-    );
-  }
-
-  const source = readFileSync(grammarPath, "utf-8");
-  cachedParser = peggy.generate(source, {
-    output: "parser",
-    format: "commonjs",
-    cache: true,
-  });
+  cachedParser = generatedParser as unknown as peggy.Parser;
   return cachedParser;
 }
 
