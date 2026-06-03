@@ -46,15 +46,17 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
 
   const mapped = tokens.map(convertTokenNodeToToken);
 
-  // Extract comments from source
-  const comments = extractComments(source, filePath, tokens);
-  mapped.push(...comments);
-
-  // Sort by position
-  mapped.sort((a, b) => {
-    if (a.line !== b.line) return a.line - b.line;
-    return a.column - b.column;
-  });
+  const hasCommentMarker = source.includes("#");
+  if (hasCommentMarker) {
+    const comments = extractComments(source, filePath, tokens);
+    if (comments.length > 0) {
+      mapped.push(...comments);
+      mapped.sort((a, b) => {
+        if (a.line !== b.line) return a.line - b.line;
+        return a.column - b.column;
+      });
+    }
+  }
 
   const last = mapped[mapped.length - 1];
   const eofLine = last ? last.line : 1;

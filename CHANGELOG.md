@@ -75,6 +75,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Matched profile samples still show the unavoidable regex match work, but the
   hot reference methods now route through cached patterns. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "compiled LLVM reference regexes|generated body string|runtime helper declarations|builtin"`.
+- **Lexer Comment-Free Fast Path** - `lexWithGrammar` now skips the comment
+  extraction scan and comment-position resort when the source contains no `#`
+  marker. The comment path remains unchanged for real line/block comments and
+  strings containing `#` still take the conservative scan path. On the 5k
+  synthetic fixture, emitted LLVM stayed byte-for-byte identical at 2,987,498
+  bytes; matched full-pipeline samples improved from ~741.46ms warm average /
+  ~731.48ms median to ~726.28ms warm average / ~715.70ms median, and the
+  comment-free profile no longer reports `extractComments` as a hot row.
+  Reproduce with
+  `bun test tests/Lexer.test.ts -t "comment-free lexing|single-line comments|multi-line comments|nested comments"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { TokenType } from "../compiler/frontend/TokenType";
@@ -421,6 +423,29 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Comments", () => {
+    it("keeps comment-free lexing off the comment extraction path", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("export function lexWithGrammar");
+      const end = source.indexOf("function extractComments", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const methodSource = source.slice(start, end);
+      const markerCheckIndex = methodSource.indexOf('source.includes("#")');
+      const extractionIndex = methodSource.indexOf("extractComments(");
+
+      expect(markerCheckIndex).toBeGreaterThanOrEqual(0);
+      expect(extractionIndex).toBeGreaterThan(markerCheckIndex);
+      expect(methodSource).toContain("if (hasCommentMarker)");
+      expect(methodSource).not.toContain(
+        "const comments = extractComments(source, filePath, tokens);\n  mapped.push(...comments);\n\n  // Sort by position\n  mapped.sort",
+      );
+    });
+
     it("should skip single-line comments", () => {
       const tokens = tokenize("# This is a comment\nlocal");
       expect(tokens[0]!.type).toBe(TokenType.Comment);
