@@ -109,7 +109,7 @@ describe("TypeChecker", () => {
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
-    const aliasHelper = source.indexOf("createCanonicalBuiltinAliasType");
+    const aliasHelper = source.indexOf("resolveSimpleBuiltinBasicType");
     const resolveType = source.indexOf("public resolveType");
     const firstScopeLookup = source.indexOf(
       "this.currentScope.resolve(type.name)",
@@ -118,8 +118,12 @@ describe("TypeChecker", () => {
 
     expect(aliasHelper).toBeGreaterThanOrEqual(0);
     expect(resolveType).toBeGreaterThan(aliasHelper);
-    expect(source.indexOf("createCanonicalBuiltinAliasType(type)", resolveType))
+    expect(source.indexOf("resolveSimpleBuiltinBasicType(type)", resolveType))
       .toBeLessThan(firstScopeLookup);
+    expect(source.indexOf("isCanonicalBuiltinBasicType(type)", resolveType))
+      .toBe(-1);
+    expect(source.indexOf("createCanonicalBuiltinAliasType(type)", resolveType))
+      .toBe(-1);
   });
 
   it("should clear failed import recovery state when reusing a checker", () => {

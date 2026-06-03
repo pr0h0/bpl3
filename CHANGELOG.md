@@ -170,6 +170,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ~327.99ms warm average / ~323.10ms median. The same 5k LLVM output stayed
   byte-for-byte identical at 4,040,154 bytes / 160,015 lines. Reproduce with
   `bun test tests/Parser.test.ts -t "identifier token actions|checked-in generated Peggy parser"`.
+- **TypeChecker Simple Builtin Resolver Fast Path** - Basic type resolution now
+  handles canonical builtins and user-facing primitive aliases with one
+  pre-scope helper instead of separate canonical-set and alias-helper calls.
+  On the post-identifier 5k profile source, the typecheck segment moved from
+  ~115.85ms warm average / ~115.61ms median to ~110.98ms warm average /
+  ~111.18ms median while total parse+check time stayed effectively neutral.
+  The same 5k LLVM output stayed byte-for-byte identical at 4,040,154 bytes /
+  160,015 lines. Reproduce with
+  `bun test tests/TypeChecker.test.ts -t "canonical primitive|simple builtin aliases"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

@@ -293,28 +293,30 @@ const STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
 );
 
-const CANONICAL_BUILTIN_BASIC_TYPES = new Set(BASE_TYPES);
+const SIMPLE_BUILTIN_BASIC_TYPE_NAMES = Object.freeze(
+  BASE_TYPES.reduce<Record<string, true>>((names, name) => {
+    names[name] = true;
+    return names;
+  }, {}),
+);
 
-function isCanonicalBuiltinBasicType(type: AST.BasicTypeNode): boolean {
-  return (
-    type.genericArgs.length === 0 &&
-    CANONICAL_BUILTIN_BASIC_TYPES.has(type.name)
-  );
-}
-
-function createCanonicalBuiltinAliasType(
+function resolveSimpleBuiltinBasicType(
   type: AST.BasicTypeNode,
 ): AST.BasicTypeNode | undefined {
-  const canonicalName = TYPE_ALIASES[type.name];
-  if (!canonicalName || type.genericArgs.length !== 0) {
+  if (type.genericArgs.length !== 0) {
     return undefined;
   }
 
-  return {
-    ...type,
-    name: canonicalName,
-    genericArgs: [],
-  };
+  const canonicalName = TYPE_ALIASES[type.name];
+  if (canonicalName) {
+    return {
+      ...type,
+      name: canonicalName,
+      genericArgs: [],
+    };
+  }
+
+  return SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name] ? type : undefined;
 }
 
 /**
@@ -444,13 +446,9 @@ export abstract class TypeCheckerBase {
         }
       }
 
-      if (isCanonicalBuiltinBasicType(type)) {
-        return type;
-      }
-
-      const canonicalAlias = createCanonicalBuiltinAliasType(type);
-      if (canonicalAlias) {
-        return canonicalAlias;
+      const simpleBuiltin = resolveSimpleBuiltinBasicType(type);
+      if (simpleBuiltin) {
+        return simpleBuiltin;
       }
 
       this.ensureImplicitPrimitiveWrappersLoaded(type.name);
