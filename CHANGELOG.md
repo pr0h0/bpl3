@@ -83,6 +83,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   dropped from 4.63s to 4.43s.
   Reproduce with `bun test tests/Parser.test.ts` and `bpl --time` on the 5k
   synthetic benchmark.
+- **Generated Parser Literal-Match Fast Path** - Peggy parser post-processing
+  now rewrites fixed literal probes from allocating `substr` comparisons to
+  allocation-free `startsWith` checks at `peg$currPos`, and the generated
+  location helper now reuses the parser file-path constant while `makeLoc`
+  stays a direct BPL `SourceLocation` pass-through. On the 5k synthetic
+  fixture, parse-only samples moved from ~1.66-1.90s to ~1.04-1.29s, and
+  normal `--time --emit llvm` parsing sampled at ~1.22-1.38s versus the
+  earlier ~1.65s baseline. Reproduce with `bun test tests/Parser.test.ts -t
+  "generated parser"` and `bpl --time --emit llvm` on the 5k synthetic
+  benchmark.
 - **No-Import Module Detection Fast Path** - Single-file compilation now skips
   the expensive grammar lexer pass used only to detect imports when the source
   has no standalone `import` keyword. On the current 5k no-import synthetic

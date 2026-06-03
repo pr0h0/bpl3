@@ -112,9 +112,36 @@ describe("Parser", () => {
     );
 
     expect(generatedSource).toContain("const parserFilePath =");
-    expect(generatedSource).toContain("function makeLoc(loc) {");
-    expect(generatedSource).toContain("return loc;");
+    const locationHelper = generatedSource.match(
+      /function peg\$computeBplLocation[\s\S]*?\n  }/,
+    )?.[0];
+    expect(locationHelper).toContain("file: parserFilePath,");
+    expect(locationHelper).not.toContain("options.filePath");
+    expect(generatedSource).toContain(
+      [
+        "function makeLoc(loc) {",
+        "    return loc;",
+        "  }",
+      ].join("\n"),
+    );
+    expect(generatedSource).not.toContain("startLine: 0");
     expect(generatedSource).not.toContain("loc && loc.start && loc.end");
+  });
+
+  it("keeps generated parser literal matches allocation-free", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    expect(generatedSource).toContain("input.startsWith(peg$c");
+    expect(generatedSource).not.toContain("input.substr(peg$currPos,");
   });
 
   it("keeps the checked-in generated Peggy parser in sync with grammar/bpl.peggy", () => {
