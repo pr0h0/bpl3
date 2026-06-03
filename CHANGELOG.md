@@ -150,6 +150,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `peg$scanBplStatementStartKeyword` row around ~7.53ms instead of the prior
   generated `peg$parseStatementStartKeyword` row around ~53.66ms. Reproduce
   with `bun test tests/Parser.test.ts -t "statement-start keyword|keyword boundary|checked-in generated Peggy parser"`.
+- **Generated Parser Assignment Operator Scanner** - The Peggy parser
+  post-processor now replaces the generated `AssignmentOperator` alternative
+  chain with a direct char-code scanner while preserving generated action and
+  expectation ids for locations and syntax diagnostics. A 5k source dominated
+  by failed assignment-operator lookahead moved from ~129.33ms warm average /
+  ~129.97ms median to ~126.55ms warm average / ~125.04ms median; a 5k
+  assignment-heavy success-path source was effectively neutral at ~611.73ms /
+  ~607.90ms baseline versus ~614.66ms / ~607.32ms after the direct-return
+  scanner. The supported-assignment 5k LLVM output stayed byte-for-byte
+  identical at 4,344,252 bytes / 155,014 lines. Reproduce with
+  `bun test tests/Parser.test.ts -t "assignment-operator|checked-in generated Peggy parser"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

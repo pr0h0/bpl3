@@ -60,10 +60,12 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   return optimizeGeneratedTriviaSkipping(
     optimizeGeneratedNumberScanning(
       optimizeGeneratedStatementStartKeywordScanning(
-        optimizeGeneratedIdentifierScanning(
-          optimizeGeneratedFailureTracking(
-            optimizeGeneratedLiteralMatches(
-              optimizeGeneratedMakeLoc(withBplLocation),
+        optimizeGeneratedAssignmentOperatorScanning(
+          optimizeGeneratedIdentifierScanning(
+            optimizeGeneratedFailureTracking(
+              optimizeGeneratedLiteralMatches(
+                optimizeGeneratedMakeLoc(withBplLocation),
+              ),
             ),
           ),
         ),
@@ -591,6 +593,95 @@ function optimizeGeneratedStatementStartKeywordScanning(
   }
 
   return parserSource.replace(statementStartPattern, statementStartReplacement);
+}
+
+function optimizeGeneratedAssignmentOperatorScanning(
+  parserSource: string,
+): string {
+  const assignmentOperatorPattern =
+    /  function peg\$parseAssignmentOperator\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseTernary\(\)/;
+  const match = parserSource.match(assignmentOperatorPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser assignment-operator helper shape changed; update the BPL parser assignment-operator optimizer.",
+    );
+  }
+
+  const helperBody = match[1]!;
+  const actionName = helperBody.match(
+    /peg\$savedPos = s0;\n\s+s1 = (peg\$f\d+)\(s1\);/,
+  )?.[1];
+  const expectedNames = [...helperBody.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
+    ([, expectedName]) => expectedName,
+  );
+
+  if (!actionName || expectedNames.length !== 9) {
+    throw new Error(
+      "Generated Peggy parser assignment-operator action or expectations changed; update the BPL parser assignment-operator optimizer.",
+    );
+  }
+
+  const failExpectationLines = expectedNames.map(
+    expectedName => `    peg$fail(${expectedName});`,
+  );
+  const assignmentOperatorReplacement = [
+    "  function peg$failBplAssignmentOperatorExpectation() {",
+    "    if (peg$silentFails !== 0) {",
+    "      return;",
+    "    }",
+    ...failExpectationLines,
+    "  }",
+    "",
+    "  function peg$scanBplAssignmentOperator() {",
+    "    const startPos = peg$currPos;",
+    "",
+    "    switch (input.charCodeAt(startPos)) {",
+    "      case 43:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("+="); }`,
+    "        break;",
+    "      case 45:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("-="); }`,
+    "        break;",
+    "      case 42:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("*="); }`,
+    "        break;",
+    "      case 47:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("/="); }`,
+    "        break;",
+    "      case 37:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("%="); }`,
+    "        break;",
+    "      case 38:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("&="); }`,
+    "        break;",
+    "      case 124:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("|="); }`,
+    "        break;",
+    "      case 94:",
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("^="); }`,
+    "        break;",
+    "      case 61:",
+    "        peg$currPos = startPos + 1;",
+    "        peg$savedPos = startPos;",
+    `        return ${actionName}("=");`,
+    "    }",
+    "",
+    "    peg$failBplAssignmentOperatorExpectation();",
+    "    return peg$FAILED;",
+    "  }",
+    "",
+    "  function peg$parseAssignmentOperator() {",
+    "    return peg$scanBplAssignmentOperator();",
+    "  }",
+    "",
+    "  function peg$parseTernary()",
+  ].join("\n");
+
+  return parserSource.replace(
+    assignmentOperatorPattern,
+    assignmentOperatorReplacement,
+  );
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {

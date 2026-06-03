@@ -373,6 +373,45 @@ describe("Parser", () => {
     expect(statementStartHelper).not.toContain("input.startsWith(peg$c17");
   });
 
+  it("keeps generated assignment-operator parsing on the direct scanner fast path", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const assignmentOperatorHelper = generatedSource.match(
+      /function peg\$parseAssignmentOperator\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const assignmentOperatorScanner = generatedSource.match(
+      /function peg\$scanBplAssignmentOperator\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedAssignmentOperatorScanning",
+    );
+    expect(generatedSource).toContain(
+      "function peg$scanBplAssignmentOperator()",
+    );
+    expect(generatedSource).toContain(
+      "function peg$failBplAssignmentOperatorExpectation()",
+    );
+    expect(assignmentOperatorHelper).toContain(
+      "return peg$scanBplAssignmentOperator();",
+    );
+    expect(assignmentOperatorHelper).not.toContain("let s0, s1");
+    expect(assignmentOperatorHelper).not.toContain("input.startsWith(peg$c38");
+    expect(assignmentOperatorScanner).toContain("input.charCodeAt(startPos)");
+  });
+
   it("preserves keyword boundary behavior for identifiers", () => {
     for (const source of [
       "local framex: int = 1;",
