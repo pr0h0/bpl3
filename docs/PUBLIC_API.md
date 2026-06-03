@@ -69,6 +69,7 @@ interface CompilerOptions {
   debugIrPath?: string | false;
   collectAllErrors?: boolean;
   optimizationLevel?: number;
+  treeShakeTopLevelFunctions?: boolean;
   jobs?: number;
   requireEntryPoint?: boolean;
 }
@@ -91,7 +92,10 @@ Validation failures are returned as compiler diagnostics with stable
 `BPL_CODEGEN_DEBUG_IR_*` codes, including empty explicit paths.
 
 `optimizationLevel` accepts 0 through 3 and is forwarded to code generation,
-cached module compilation, and native linking where applicable. `jobs` controls
+cached module compilation, and native linking where applicable.
+`treeShakeTopLevelFunctions` omits unreachable ordinary top-level free
+functions during code generation; keep it disabled for full diagnostic IR,
+debug/DWARF output, or conservative library-style builds. `jobs` controls
 parallel module compilation when incremental compilation is enabled with
 `useCache`. `target` must be one of the supported code generation target
 families; unsupported target triples are rejected before LLVM IR is emitted.
@@ -230,6 +234,7 @@ interface CodeGeneratorOptions {
   target?: string;
   dwarf?: boolean;
   optimizationLevel?: number;
+  treeShakeTopLevelFunctions?: boolean;
   debugIrPath?: string | false;
 }
 
@@ -247,6 +252,9 @@ callers. The compiler refuses debug IR destinations that are a symbolic link,
 have a symbolic link in their parent path, are not regular files, or use a
 missing parent directory. Empty explicit debug IR paths are rejected; use
 `false` or `BPL_DEBUG_IR=0`/`BPL_DEBUG_IR=false` to disable diagnostic output.
+`treeShakeTopLevelFunctions` is an opt-in codegen fast path for executable
+builds; it roots reachability at `main` and exported value symbols, keeps
+function values referenced from reachable code, and disables itself for DWARF.
 
 `target` selects the LLVM target metadata and data layout. Supported target
 families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux,

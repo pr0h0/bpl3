@@ -7,6 +7,7 @@ import { Command } from "commander";
 import { processFileAsync } from "../CompilationRunner";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
+import { getExplicitParentCompileOptions } from "./compileOptions";
 
 const log = new Logger("Build");
 
@@ -67,7 +68,7 @@ export function registerBuildCommand(program: Command): void {
     .action(async (file: string, _options: CompileOptions, command: Command) => {
       try {
         // Merge parent options if any
-        const globalOpts = command.parent?.opts() || {};
+        const globalOpts = getExplicitParentCompileOptions(command);
         const localOpts = command.opts<CompileOptions>();
         const compileOptions: CompileOptions = {
           ...globalOpts,

@@ -411,6 +411,36 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("call i32 @apply_fn_i1_ret_i32_i1");
   });
 
+  it("tree-shakes unreachable top-level free functions while keeping function values", () => {
+    const ir = compile(
+      `
+        frame used() ret int {
+          return 2;
+        }
+
+        frame dead() ret int {
+          return 99;
+        }
+
+        frame keepValue() ret int {
+          return 7;
+        }
+
+        frame main() ret int {
+          local f: Func<int>() = keepValue;
+          return used() + f();
+        }
+      `,
+      { optimizationLevel: 3, treeShakeTopLevelFunctions: true },
+    );
+
+    expect(ir).toMatch(/define .* @main\(/);
+    expect(ir).toMatch(/define .* @used_/);
+    expect(ir).toMatch(/define .* @keepValue_/);
+    expect(ir).not.toMatch(/define .* @dead_/);
+    expect(ir).not.toContain("ret i32 99");
+  });
+
   it("rejects unsupported memory intrinsic return types", () => {
     expect(() =>
       compile(`

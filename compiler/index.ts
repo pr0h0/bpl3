@@ -82,6 +82,8 @@ export interface CompilerOptions {
   collectAllErrors?: boolean;
   /** Optimization level (0-3, where 0=none, 3=aggressive) */
   optimizationLevel?: number;
+  /** Omit unreachable ordinary top-level free functions during codegen */
+  treeShakeTopLevelFunctions?: boolean;
   /** Parallel module compilation jobs for cached builds */
   jobs?: number;
   /** Require the compiled program to provide an executable main entry point */
@@ -237,6 +239,7 @@ export class Compiler {
         dwarf: this.options.dwarf,
         debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
+        treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
       });
       const llvmIR = codeGenerator.generate(ast, this.options.filePath);
 
@@ -472,6 +475,7 @@ export class Compiler {
         dwarf: this.options.dwarf,
         debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
+        treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
       });
 
       const llvmIR = codeGenerator.generate(combinedAST, this.options.filePath);
@@ -568,6 +572,7 @@ export class Compiler {
         dwarf: this.options.dwarf,
         debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
+        treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
       });
       const llvmIR = codeGenerator.generate(combinedAST, entryModule.path);
 
@@ -669,6 +674,7 @@ export class Compiler {
             entryModulePath,
           ),
           optimizationLevel: this.options.optimizationLevel,
+          treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
         });
         const restoreExternalizedBodies =
           this.externalizeNonCurrentFunctionBodies(modules, module);

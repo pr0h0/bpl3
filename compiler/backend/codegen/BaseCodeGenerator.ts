@@ -145,6 +145,7 @@ export class BaseCodeGenerator {
   protected generateDwarf: boolean = false;
   protected skipRuntime: boolean = false;
   protected optimizationLevel: number = 0;
+  protected treeShakeTopLevelFunctions: boolean = false;
   protected debugIrPath: string | false = false;
   protected debugInfoGenerator: DebugInfoGenerator;
 
@@ -156,6 +157,7 @@ export class BaseCodeGenerator {
       dwarf?: boolean;
       skipRuntime?: boolean;
       optimizationLevel?: number;
+      treeShakeTopLevelFunctions?: boolean;
       debugIrPath?: string | false;
     } = {},
   ) {
@@ -174,6 +176,8 @@ export class BaseCodeGenerator {
       );
     }
     this.optimizationLevel = optimizationLevel;
+    this.treeShakeTopLevelFunctions =
+      options.treeShakeTopLevelFunctions ?? false;
     this.debugIrPath =
       options.debugIrPath !== undefined
         ? options.debugIrPath

@@ -11,6 +11,7 @@ import {
 import { StatementGenerator } from "./codegen/StatementGenerator";
 import { CompilerError } from "../common/CompilerError";
 import { codeGenLog } from "../common/Logger";
+import { walkAST } from "../common/ASTTraversal";
 import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 import { findSymlinkedPathComponent } from "../common/PathSafety";
@@ -65,6 +66,7 @@ export class CodeGenerator extends StatementGenerator {
       target?: string;
       dwarf?: boolean;
       optimizationLevel?: number;
+      treeShakeTopLevelFunctions?: boolean;
       debugIrPath?: string | false;
     } = {},
   ) {
@@ -184,7 +186,16 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    const reachableTopLevelFunctions =
+      this.collectReachableTopLevelFunctions(program);
     for (const stmt of program.statements) {
+      if (
+        reachableTopLevelFunctions &&
+        stmt.kind === "FunctionDecl" &&
+        !reachableTopLevelFunctions.has(stmt as AST.FunctionDecl)
+      ) {
+        continue;
+      }
       this.generateTopLevel(stmt);
     }
 
@@ -509,6 +520,132 @@ export class CodeGenerator extends StatementGenerator {
       },
       code,
     );
+  }
+
+  private collectReachableTopLevelFunctions(
+    program: AST.Program,
+  ): Set<AST.FunctionDecl> | undefined {
+    if (!this.treeShakeTopLevelFunctions || this.generateDwarf) {
+      return undefined;
+    }
+
+    // Inline assembly can reference generated symbols by textual name, so keep
+    // the full function set whenever top-level asm is present.
+    if (program.statements.some((stmt) => stmt.kind === "Asm")) {
+      return undefined;
+    }
+
+    const topLevelFunctions = new Set<AST.FunctionDecl>();
+    const functionsByName = new Map<string, AST.FunctionDecl[]>();
+
+    for (const stmt of program.statements) {
+      if (stmt.kind !== "FunctionDecl") continue;
+
+      const decl = stmt as AST.FunctionDecl;
+      topLevelFunctions.add(decl);
+      const overloads = functionsByName.get(decl.name) ?? [];
+      overloads.push(decl);
+      functionsByName.set(decl.name, overloads);
+    }
+
+    if (topLevelFunctions.size === 0) {
+      return undefined;
+    }
+
+    const reachable = new Set<AST.FunctionDecl>();
+    const queue: AST.FunctionDecl[] = [];
+
+    const mark = (decl: AST.FunctionDecl | undefined): void => {
+      if (!decl || !topLevelFunctions.has(decl) || reachable.has(decl)) {
+        return;
+      }
+      reachable.add(decl);
+      queue.push(decl);
+    };
+
+    const markByName = (name: string): void => {
+      for (const decl of functionsByName.get(name) ?? []) {
+        mark(decl);
+      }
+    };
+
+    markByName("main");
+    for (const stmt of program.statements) {
+      if (stmt.kind !== "Export") continue;
+
+      for (const item of (stmt as AST.ExportStmt).items) {
+        if (!item.isType) {
+          markByName(item.name);
+        }
+      }
+    }
+
+    if (queue.length === 0) {
+      return undefined;
+    }
+
+    const markResolvedFunction = (
+      decl:
+        | AST.IdentifierExpr["resolvedDeclaration"]
+        | AST.FunctionDecl
+        | AST.ExternDecl
+        | undefined,
+    ): void => {
+      if (decl?.kind === "FunctionDecl") {
+        mark(decl);
+      }
+    };
+
+    const markCalleeBySyntax = (callee: AST.Expression): void => {
+      if (callee.kind === "Identifier") {
+        markByName((callee as AST.IdentifierExpr).name);
+        return;
+      }
+
+      if (callee.kind === "GenericInstantiation") {
+        const base = (callee as AST.GenericInstantiationExpr).base;
+        if (base.kind === "Identifier") {
+          markByName((base as AST.IdentifierExpr).name);
+        }
+      }
+    };
+
+    while (queue.length > 0) {
+      const decl = queue.shift()!;
+      walkAST(decl.body, (node) => {
+        switch (node.kind) {
+          case "Identifier":
+            markResolvedFunction(
+              (node as AST.IdentifierExpr).resolvedDeclaration,
+            );
+            break;
+          case "Call": {
+            const call = node as AST.CallExpr;
+            markResolvedFunction(call.resolvedDeclaration);
+            markResolvedFunction(call.operatorOverload?.methodDeclaration);
+            markCalleeBySyntax(call.callee);
+            break;
+          }
+          case "Binary":
+            markResolvedFunction(
+              (node as AST.BinaryExpr).operatorOverload?.methodDeclaration,
+            );
+            break;
+          case "Unary":
+            markResolvedFunction(
+              (node as AST.UnaryExpr).operatorOverload?.methodDeclaration,
+            );
+            break;
+          case "Index":
+            markResolvedFunction(
+              (node as AST.IndexExpr).operatorOverload?.methodDeclaration,
+            );
+            break;
+        }
+      });
+    }
+
+    return reachable;
   }
 
   private generateTopLevel(node: AST.ASTNode) {

@@ -7,6 +7,7 @@ import { Command } from "commander";
 import { watchMode } from "../Watcher";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
+import { getExplicitParentCompileOptions } from "./compileOptions";
 
 const log = new Logger("Dev");
 
@@ -53,7 +54,7 @@ export function registerDevCommand(program: Command): void {
       ) => {
         try {
           // Merge parent options if any
-          const globalOpts = command.parent?.opts() || {};
+          const globalOpts = getExplicitParentCompileOptions(command);
           const localOpts = command.opts<CompileOptions>();
           const compileOptions: CompileOptions = {
             ...globalOpts,

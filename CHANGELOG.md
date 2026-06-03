@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
+  omit unreachable ordinary top-level free functions before writing LLVM IR,
+  while explicit `--emit llvm`, cached module builds, DWARF/debug builds,
+  exports, struct/enum methods, globals, and top-level inline assembly stay
+  conservative. On the 5k synthetic fixture, local O3 generated IR dropped from
+  3,244,884 bytes and 5,002 functions to 3,854 bytes and 3 functions, with
+  compile/link wall time dropping from ~6.25s to ~2.69s. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "tree-shakes"` and
+  `bun test tests/CLI.test.ts -t "tree-shake optimized executable IR"`.
 - **Generated Parser Flat Action Locations** - The checked-in Peggy parser now
   post-processes action-side `location()` calls to return BPL `SourceLocation`
   objects directly while preserving structured Peggy locations for syntax
