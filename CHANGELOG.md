@@ -139,6 +139,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `parseNumber` rows from about ~43.93ms / ~18.83ms to about ~18.66ms /
   ~6.22ms. Reproduce with
   `bun test tests/Parser.test.ts -t "number literal conversion|number-token trivia boundary|checked-in generated Peggy parser"`.
+- **Generated Parser Statement Lookahead Scanner** - Expression-statement
+  lookahead now checks statement-start keywords with a first-character direct
+  scanner and char-code `IdBoundary` test instead of walking the generated
+  Peggy alternative chain for `global`, `local`, `return`, and other statement
+  starters. The 5k in-process LLVM output stayed byte-for-byte identical at
+  2,987,498 bytes / 90,031 lines. Matched parse samples moved from ~291.60ms
+  warm average / ~278.23ms median to ~264.65ms warm average / ~266.04ms
+  median, and the final parser profile showed only the direct
+  `peg$scanBplStatementStartKeyword` row around ~7.53ms instead of the prior
+  generated `peg$parseStatementStartKeyword` row around ~53.66ms. Reproduce
+  with `bun test tests/Parser.test.ts -t "statement-start keyword|keyword boundary|checked-in generated Peggy parser"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

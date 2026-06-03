@@ -59,10 +59,12 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
 
   return optimizeGeneratedTriviaSkipping(
     optimizeGeneratedNumberScanning(
-      optimizeGeneratedIdentifierScanning(
-        optimizeGeneratedFailureTracking(
-          optimizeGeneratedLiteralMatches(
-            optimizeGeneratedMakeLoc(withBplLocation),
+      optimizeGeneratedStatementStartKeywordScanning(
+        optimizeGeneratedIdentifierScanning(
+          optimizeGeneratedFailureTracking(
+            optimizeGeneratedLiteralMatches(
+              optimizeGeneratedMakeLoc(withBplLocation),
+            ),
           ),
         ),
       ),
@@ -495,6 +497,100 @@ function optimizeGeneratedNumberScanning(parserSource: string): string {
   }
 
   return parserSource.replace(numberTokenPattern, numberTokenReplacement);
+}
+
+function optimizeGeneratedStatementStartKeywordScanning(
+  parserSource: string,
+): string {
+  const statementStartPattern =
+    /  function peg\$parseStatementStartKeyword\(\) \{[\s\S]*?\n  \}\n\n  function peg\$parseExpressionStatement\(\)/;
+  const statementStartReplacement = [
+    "  function peg$isBplIdentifierContinuationCode(code) {",
+    "    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95;",
+    "  }",
+    "",
+    "  function peg$matchBplStatementStartKeyword(keyword) {",
+    "    const startPos = peg$currPos;",
+    "    if (!input.startsWith(keyword, startPos)) {",
+    "      return peg$FAILED;",
+    "    }",
+    "    const endPos = startPos + keyword.length;",
+    "    if (peg$isBplIdentifierContinuationCode(input.charCodeAt(endPos))) {",
+    "      return peg$FAILED;",
+    "    }",
+    "    peg$currPos = endPos;",
+    "    return undefined;",
+    "  }",
+    "",
+    "  function peg$scanBplStatementStartKeyword() {",
+    "    switch (input.charCodeAt(peg$currPos)) {",
+    "      case 97:",
+    '        return peg$matchBplStatementStartKeyword("asm");',
+    "      case 98:",
+    '        return peg$matchBplStatementStartKeyword("break");',
+    "      case 99:",
+    '        return peg$matchBplStatementStartKeyword("continue");',
+    "      case 100:",
+    '        return peg$matchBplStatementStartKeyword("defer");',
+    "      case 101: {",
+    '        const enumKeyword = peg$matchBplStatementStartKeyword("enum");',
+    "        if (enumKeyword !== peg$FAILED) return enumKeyword;",
+    '        const exportKeyword = peg$matchBplStatementStartKeyword("export");',
+    "        if (exportKeyword !== peg$FAILED) return exportKeyword;",
+    '        return peg$matchBplStatementStartKeyword("extern");',
+    "      }",
+    "      case 102: {",
+    '        const frameKeyword = peg$matchBplStatementStartKeyword("frame");',
+    "        if (frameKeyword !== peg$FAILED) return frameKeyword;",
+    '        return peg$matchBplStatementStartKeyword("fallthrough");',
+    "      }",
+    "      case 103:",
+    '        return peg$matchBplStatementStartKeyword("global");',
+    "      case 105: {",
+    '        const ifKeyword = peg$matchBplStatementStartKeyword("if");',
+    "        if (ifKeyword !== peg$FAILED) return ifKeyword;",
+    '        return peg$matchBplStatementStartKeyword("import");',
+    "      }",
+    "      case 108: {",
+    '        const localKeyword = peg$matchBplStatementStartKeyword("local");',
+    "        if (localKeyword !== peg$FAILED) return localKeyword;",
+    '        return peg$matchBplStatementStartKeyword("loop");',
+    "      }",
+    "      case 114:",
+    '        return peg$matchBplStatementStartKeyword("return");',
+    "      case 115: {",
+    '        const structKeyword = peg$matchBplStatementStartKeyword("struct");',
+    "        if (structKeyword !== peg$FAILED) return structKeyword;",
+    '        const specKeyword = peg$matchBplStatementStartKeyword("spec");',
+    "        if (specKeyword !== peg$FAILED) return specKeyword;",
+    '        return peg$matchBplStatementStartKeyword("switch");',
+    "      }",
+    "      case 116: {",
+    '        const typeKeyword = peg$matchBplStatementStartKeyword("type");',
+    "        if (typeKeyword !== peg$FAILED) return typeKeyword;",
+    '        const tryKeyword = peg$matchBplStatementStartKeyword("try");',
+    "        if (tryKeyword !== peg$FAILED) return tryKeyword;",
+    '        return peg$matchBplStatementStartKeyword("throw");',
+    "      }",
+    "      default:",
+    "        return peg$FAILED;",
+    "    }",
+    "  }",
+    "",
+    "  function peg$parseStatementStartKeyword() {",
+    "    return peg$scanBplStatementStartKeyword();",
+    "  }",
+    "",
+    "  function peg$parseExpressionStatement()",
+  ].join("\n");
+
+  if (!statementStartPattern.test(parserSource)) {
+    throw new Error(
+      "Generated Peggy parser statement-start keyword helper shape changed; update the BPL parser statement-start optimizer.",
+    );
+  }
+
+  return parserSource.replace(statementStartPattern, statementStartReplacement);
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {

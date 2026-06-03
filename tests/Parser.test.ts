@@ -338,6 +338,41 @@ describe("Parser", () => {
     expect(parseNumberHelper).not.toContain("/^0o/i.test");
   });
 
+  it("keeps generated statement-start keyword lookahead on the direct scanner fast path", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const statementStartHelper = generatedSource.match(
+      /function peg\$parseStatementStartKeyword\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedStatementStartKeywordScanning",
+    );
+    expect(generatedSource).toContain(
+      "function peg$scanBplStatementStartKeyword()",
+    );
+    expect(generatedSource).toContain(
+      "function peg$isBplIdentifierContinuationCode(code)",
+    );
+    expect(statementStartHelper).toContain(
+      "return peg$scanBplStatementStartKeyword();",
+    );
+    expect(statementStartHelper).not.toContain("peg$parseIdBoundary");
+    expect(statementStartHelper).not.toContain("input.startsWith(peg$c17");
+  });
+
   it("preserves keyword boundary behavior for identifiers", () => {
     for (const source of [
       "local framex: int = 1;",
