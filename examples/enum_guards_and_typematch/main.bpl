@@ -1,7 +1,6 @@
 # Comprehensive example: Pattern guards + Type matching
 
 import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
 
 enum Result<T, E> {
     Ok(T),

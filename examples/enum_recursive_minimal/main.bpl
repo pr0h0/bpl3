@@ -1,7 +1,6 @@
 # Test enum recursive - minimal test
 
-import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
+import [malloc], [printf] from "std/c.bpl";
 
 enum List {
     Nil,

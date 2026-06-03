@@ -3,9 +3,7 @@
 
 import [IndexOutOfBoundsError] from "std/errors.bpl";
 
-import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
-import [free] from "std/c.bpl";
+import [free], [malloc], [printf] from "std/c.bpl";
 
 # Generic Array with operator overloading
 struct Array<T> {
@@ -16,7 +14,7 @@ struct Array<T> {
     frame new(capacity: int) ret Array<T> {
         local arr: Array<T>;
         local size: long = sizeof<T>() * cast<long>(capacity);
-        arr.data = cast<*T>(malloc(cast<ulong>(size)));
+        arr.data = cast<*T>(malloc(size));
         arr.length = 0;
         arr.capacity = capacity;
         return arr;

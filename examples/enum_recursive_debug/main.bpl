@@ -1,7 +1,6 @@
 # Test recursive enums with pointers - debug version
 
-import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
+import [malloc], [printf] from "std/c.bpl";
 
 enum MyList {
     Nil,

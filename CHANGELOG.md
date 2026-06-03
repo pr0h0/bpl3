@@ -31,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   matching local externs. The example extern inventory rejects those aliases
   outside FFI demos. Reproduce with
   `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "bpl_db" && bun index.ts check examples/http_server/main.bpl examples/tiki/src/utils.bpl`.
+- **Stdlib C `malloc` Alias Imports** - Integration-covered enum, match,
+  operator-overloading, and systems examples no longer redeclare
+  `malloc(size: ulong) ret *void`. Used declarations now import `malloc` from
+  `std/c.bpl` with `long` allocation sizes, and unused declarations were
+  removed. Reproduce with
+  `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "enum_recursive$|enum_recursive_debug|enum_recursive_minimal|enum_guards_and_typematch|match_complex|operator_overloading_simple|operator_overloading_generic|language_showcase_systems"`.
 - **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
   `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
   without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay

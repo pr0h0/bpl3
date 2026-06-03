@@ -1,7 +1,6 @@
 # Test recursive enums with pointers
 
-import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
+import [malloc], [printf] from "std/c.bpl";
 
 enum List {
     Nil,
@@ -20,16 +19,16 @@ frame listSum(list: *List) ret int {
 
 frame main() ret int {
     # Create list: 1 -> 2 -> 3 -> Nil
-    local node3: *List = malloc(cast<ulong>(sizeof<List>()));
+    local node3: *List = malloc(cast<long>(sizeof<List>()));
     *node3 = List.Nil;
 
-    local node2: *List = malloc(cast<ulong>(sizeof<List>()));
+    local node2: *List = malloc(cast<long>(sizeof<List>()));
     *node2 = List.Cons(3, node3);
 
-    local node1: *List = malloc(cast<ulong>(sizeof<List>()));
+    local node1: *List = malloc(cast<long>(sizeof<List>()));
     *node1 = List.Cons(2, node2);
 
-    local head: *List = malloc(cast<ulong>(sizeof<List>()));
+    local head: *List = malloc(cast<long>(sizeof<List>()));
     *head = List.Cons(1, node1);
 
     local sum: int = listSum(head);

@@ -3,8 +3,7 @@ enum Tree {
     Node(*Tree, *Tree),
 }
 
-import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
+import [malloc], [printf] from "std/c.bpl";
 
 frame createLeaf(val: int) ret *Tree {
     local t: *Tree = cast<*Tree>(malloc(sizeof<Tree>()));

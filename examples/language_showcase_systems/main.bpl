@@ -1,7 +1,4 @@
-import [printf] from "std/c.bpl";
-extern malloc(size: ulong) ret *void;
-import [free] from "std/c.bpl";
-import [strlen] from "std/c.bpl";
+import [free], [malloc], [printf], [strlen] from "std/c.bpl";
 
 global cleanupTotal: int = 0;
 
@@ -52,7 +49,7 @@ frame main() ret int {
     printf("point: (%d, %d)\n", point.x, point.y);
     printf("method sum: %d\n", point.sum());
 
-    local heapValue: *int = cast<*int>(malloc(cast<ulong>(sizeof<int>())));
+    local heapValue: *int = cast<*int>(malloc(cast<long>(sizeof<int>())));
     *heapValue = 12 * 12;
     printf("heap value: %d\n", *heapValue);
     free(cast<*void>(heapValue));
