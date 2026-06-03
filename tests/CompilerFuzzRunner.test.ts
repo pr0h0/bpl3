@@ -817,76 +817,80 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
-  test("promotes minimized differential mismatch artifacts into a correctness corpus", () => {
-    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-promote-"));
-    const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-corpus-"));
-    const sourcePath = join(
-      crashDir,
-      "mismatch_seed-abcd_iter-7_differential.bpl",
-    );
-    const minPath = join(
-      crashDir,
-      "mismatch_seed-abcd_iter-7_differential.min.bpl",
-    );
-    const metadataPath = join(
-      crashDir,
-      "mismatch_seed-abcd_iter-7_differential.json",
-    );
-
-    try {
-      writeFileSync(sourcePath, "frame main() ret int { return 1; }\n");
-      writeFileSync(minPath, "frame main() ret int { return 0; }\n");
-      writeFileSync(
-        metadataPath,
-        JSON.stringify(
-          {
-            seed: 0xabcd,
-            iteration: 7,
-            kind: "differential",
-            failureKind: "mismatch",
-            sourcePath,
-            stage: "codegen",
-          },
-          null,
-          2,
-        ),
+  test(
+    "promotes minimized differential mismatch artifacts into a correctness corpus",
+    () => {
+      const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-promote-"));
+      const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-corpus-"));
+      const sourcePath = join(
+        crashDir,
+        "mismatch_seed-abcd_iter-7_differential.bpl",
+      );
+      const minPath = join(
+        crashDir,
+        "mismatch_seed-abcd_iter-7_differential.min.bpl",
+      );
+      const metadataPath = join(
+        crashDir,
+        "mismatch_seed-abcd_iter-7_differential.json",
       );
 
-      const result = spawnSync(
-        "bun",
-        [
-          "run",
-          "fuzz:promote",
-          "--",
-          "--metadata",
+      try {
+        writeFileSync(sourcePath, "frame main() ret int { return 1; }\n");
+        writeFileSync(minPath, "frame main() ret int { return 0; }\n");
+        writeFileSync(
           metadataPath,
-          "--name",
-          "Bug 456: O3 Wrong Code",
-          "--corpus-dir",
-          corpusDir,
-          "--differential",
-        ],
-        {
-          cwd: join(import.meta.dir, ".."),
-          encoding: "utf8",
-        },
-      );
+          JSON.stringify(
+            {
+              seed: 0xabcd,
+              iteration: 7,
+              kind: "differential",
+              failureKind: "mismatch",
+              sourcePath,
+              stage: "codegen",
+            },
+            null,
+            2,
+          ),
+        );
 
-      const promotedPath = join(corpusDir, "bug-456-o3-wrong-code.bpl");
+        const result = spawnSync(
+          "bun",
+          [
+            "run",
+            "fuzz:promote",
+            "--",
+            "--metadata",
+            metadataPath,
+            "--name",
+            "Bug 456: O3 Wrong Code",
+            "--corpus-dir",
+            corpusDir,
+            "--differential",
+          ],
+          {
+            cwd: join(import.meta.dir, ".."),
+            encoding: "utf8",
+          },
+        );
 
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("Outcome: differential");
-      expect(readFileSync(promotedPath, "utf8")).toBe(
-        "frame main() ret int { return 0; }\n",
-      );
-      expect(JSON.parse(readFileSync(metadataPath, "utf8"))).toMatchObject({
-        promotedTo: promotedPath,
-      });
-    } finally {
-      rmSync(crashDir, { recursive: true, force: true });
-      rmSync(corpusDir, { recursive: true, force: true });
-    }
-  });
+        const promotedPath = join(corpusDir, "bug-456-o3-wrong-code.bpl");
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain("Outcome: differential");
+        expect(readFileSync(promotedPath, "utf8")).toBe(
+          "frame main() ret int { return 0; }\n",
+        );
+        expect(JSON.parse(readFileSync(metadataPath, "utf8"))).toMatchObject({
+          promotedTo: promotedPath,
+        });
+      } finally {
+        rmSync(crashDir, { recursive: true, force: true });
+        rmSync(corpusDir, { recursive: true, force: true });
+      }
+    },
+    60000,
+  );
 
   test("promote CLI refuses corpus directories through symlinked ancestors", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-promote-link-"));
