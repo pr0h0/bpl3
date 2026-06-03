@@ -916,6 +916,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         break;
       case TokenType.Slash:
         op = this.getDivisionOp(
+          expr,
           isFloat,
           isUnsigned,
           left,
@@ -1037,6 +1038,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         break;
       case TokenType.Percent:
         op = this.getModuloOp(
+          expr,
           isFloat,
           isUnsigned,
           left,
@@ -1441,6 +1443,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
    * Get division operation with zero check
    */
   private getDivisionOp(
+    expr: AST.BinaryExpr,
     isFloat: boolean,
     isUnsigned: boolean,
     left: string,
@@ -1451,8 +1454,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "fdiv";
     }
 
-    this.emitDivisionByZeroCheck(right, valueType);
-    if (!isUnsigned) {
+    const constantRight = this.getConstantIntegerValue(expr.right);
+    if (constantRight === undefined || constantRight === 0n) {
+      this.emitDivisionByZeroCheck(right, valueType);
+    }
+    if (!isUnsigned && (constantRight === undefined || constantRight === -1n)) {
       this.emitSignedDivisionOverflowCheck(left, right, valueType);
     }
     return isUnsigned ? "udiv" : "sdiv";
@@ -1462,6 +1468,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
    * Get modulo operation with zero check
    */
   private getModuloOp(
+    expr: AST.BinaryExpr,
     isFloat: boolean,
     isUnsigned: boolean,
     left: string,
@@ -1472,11 +1479,47 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "frem";
     }
 
-    this.emitDivisionByZeroCheck(right, valueType);
-    if (!isUnsigned) {
+    const constantRight = this.getConstantIntegerValue(expr.right);
+    if (constantRight === undefined || constantRight === 0n) {
+      this.emitDivisionByZeroCheck(right, valueType);
+    }
+    if (!isUnsigned && (constantRight === undefined || constantRight === -1n)) {
       this.emitSignedDivisionOverflowCheck(left, right, valueType);
     }
     return isUnsigned ? "urem" : "srem";
+  }
+
+  private getConstantIntegerValue(expr: AST.Expression): bigint | undefined {
+    if (expr.kind === "Group") {
+      return this.getConstantIntegerValue((expr as AST.GroupExpr).expression);
+    }
+
+    if (expr.kind === "Unary") {
+      const unary = expr as AST.UnaryExpr;
+      const value = this.getConstantIntegerValue(unary.operand);
+      if (value === undefined) return undefined;
+      if (unary.operator.type === TokenType.Minus) return -value;
+      if (unary.operator.type === TokenType.Plus) return value;
+      return undefined;
+    }
+
+    if (expr.kind !== "Literal") {
+      return undefined;
+    }
+
+    const literal = expr as AST.LiteralExpr;
+    if (literal.type !== "number") {
+      return undefined;
+    }
+
+    if (typeof literal.value === "bigint") {
+      return literal.value;
+    }
+    if (typeof literal.value === "number" && Number.isInteger(literal.value)) {
+      return BigInt(literal.value);
+    }
+
+    return undefined;
   }
 
   /**

@@ -63,6 +63,35 @@ describe("CodeGen - Division By Zero", () => {
     expect(ir).toContain("div_err");
   });
 
+  it("omits integer division checks for nonzero constant divisors", () => {
+    const source = `
+      frame main(a: i32) ret i32 {
+        return (a / 1009) + (a % 1000003);
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).toContain("sdiv i32");
+    expect(ir).toContain("srem i32");
+    expect(ir).not.toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).not.toContain("call void @__bpl_throw_integer_overflow");
+    expect(ir).not.toContain("div_err");
+    expect(ir).not.toContain("div_overflow_err");
+  });
+
+  it("preserves signed division overflow checks for constant negative one", () => {
+    const source = `
+      frame main(a: i32) ret i32 {
+        return a / -1;
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).not.toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).toContain("call void @__bpl_throw_integer_overflow");
+    expect(ir).toContain("div_overflow_err");
+  });
+
   it("should generate signed integer division overflow checks", () => {
     const source = `
       frame main() ret int {
