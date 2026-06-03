@@ -4,12 +4,36 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 import { CompilerError } from "../compiler/common/CompilerError";
+import type { BlockStmt, FunctionDecl, LiteralExpr } from "../compiler/common/AST";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { generateBplParserSource } from "../tools/generate_peggy_parser";
 
 function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
+}
+
+function parseReturnedNumberLiteral(source: string): LiteralExpr {
+  const program = new Parser(
+    `frame main() ret int { return ${source}; }`,
+    "number-boundary.bpl",
+  ).parse();
+  const func = program.statements[0] as FunctionDecl;
+  const body = func.body as BlockStmt;
+  const returnStatement = body.statements[0]!;
+
+  expect(func.kind).toBe("FunctionDecl");
+  expect(body.kind).toBe("Block");
+  expect(returnStatement.kind).toBe("Return");
+  if (returnStatement.kind !== "Return") {
+    throw new Error("Expected return statement");
+  }
+  const value = returnStatement.value;
+  expect(value?.kind).toBe("Literal");
+  if (value?.kind !== "Literal") {
+    throw new Error("Expected returned literal");
+  }
+  return value as LiteralExpr;
 }
 
 describe("Parser", () => {
@@ -214,6 +238,66 @@ describe("Parser", () => {
     expect(identHelper).not.toContain("s3.push");
     expect(keywordHelper).toContain("peg$bplReservedKeywords.has(word)");
     expect(keywordHelper).not.toContain("input.startsWith(peg$c17");
+  });
+
+  it("keeps generated number-token parsing on the direct scanner fast path", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const numberHelper = generatedSource.match(
+      /function peg\$parseNumberToken\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const numberScanner = generatedSource.match(
+      /function peg\$scanBplNumberToken\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedNumberScanning");
+    expect(generatedSource).toContain("function peg$scanBplNumberToken()");
+    expect(generatedSource).toContain("function peg$isBplDigitCode(code)");
+    expect(generatedSource).toContain("function peg$isBplHexDigitCode(code)");
+    expect(numberHelper).toContain("return peg$scanBplNumberToken();");
+    expect(numberHelper).not.toContain("let s0, s1");
+    expect(generatedSource).toContain("input.substring(startPos, peg$currPos)");
+    expect(numberScanner).toContain("input.charCodeAt(peg$currPos + 1)");
+  });
+
+  it("preserves generated number-token trivia boundary behavior", () => {
+    expect(() =>
+      new Parser("frame main() ret int { return 1_2; }", "number-boundary.bpl")
+        .parse(),
+    ).toThrow();
+
+    const spacedInteger = parseReturnedNumberLiteral("1 2");
+    expect(spacedInteger.raw).toBe("1 2");
+    expect(Number.isNaN(spacedInteger.value as number)).toBe(true);
+
+    const decimal = parseReturnedNumberLiteral("1.2");
+    expect(decimal.raw).toBe("1.2");
+    expect(decimal.value).toBe(1.2);
+
+    const hex = parseReturnedNumberLiteral("0x2f");
+    expect(hex.raw).toBe("0x2f");
+    expect(hex.value).toBe(47);
+
+    expect(() =>
+      new Parser("frame main() ret int { return 0x; }", "number-boundary.bpl")
+        .parse(),
+    ).toThrow();
+    expect(() =>
+      new Parser("frame main() ret int { return 0b1021; }", "number-boundary.bpl")
+        .parse(),
+    ).toThrow();
   });
 
   it("preserves keyword boundary behavior for identifiers", () => {

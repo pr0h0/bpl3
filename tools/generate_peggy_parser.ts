@@ -58,10 +58,12 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   );
 
   return optimizeGeneratedTriviaSkipping(
-    optimizeGeneratedIdentifierScanning(
-      optimizeGeneratedFailureTracking(
-        optimizeGeneratedLiteralMatches(
-          optimizeGeneratedMakeLoc(withBplLocation),
+    optimizeGeneratedNumberScanning(
+      optimizeGeneratedIdentifierScanning(
+        optimizeGeneratedFailureTracking(
+          optimizeGeneratedLiteralMatches(
+            optimizeGeneratedMakeLoc(withBplLocation),
+          ),
         ),
       ),
     ),
@@ -386,6 +388,113 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     .replace(identifierPattern, identifierReplacement)
     .replace(identTokenPattern, identTokenReplacement)
     .replace(keywordReservedPattern, keywordReservedReplacement);
+}
+
+function optimizeGeneratedNumberScanning(parserSource: string): string {
+  const numberTokenPattern =
+    /  function peg\$parseNumberToken\(\) \{[\s\S]*?\n  \}\n\n  function peg\$parseParameterList\(\)/;
+  const numberTokenReplacement = [
+    "  function peg$isBplDigitCode(code) {",
+    "    return code >= 48 && code <= 57;",
+    "  }",
+    "",
+    "  function peg$isBplHexDigitCode(code) {",
+    "    return peg$isBplDigitCode(code) || (code >= 65 && code <= 70) || (code >= 97 && code <= 102);",
+    "  }",
+    "",
+    "  function peg$isBplNumberTriviaStartCode(code) {",
+    "    return code === 32 || code === 9 || code === 10 || code === 13 || code === 35 || code === 47;",
+    "  }",
+    "",
+    "  function peg$scanBplDecimalDigitTail(pos) {",
+    "    while (pos < input.length) {",
+    "      const code = input.charCodeAt(pos);",
+    "      if (peg$isBplDigitCode(code)) {",
+    "        pos++;",
+    "        continue;",
+    "      }",
+    "      if (!peg$isBplNumberTriviaStartCode(code)) {",
+    "        break;",
+    "      }",
+    "      const digitStartPos = pos;",
+    "      peg$currPos = pos;",
+    "      peg$parse_();",
+    "      if (peg$isBplDigitCode(input.charCodeAt(peg$currPos))) {",
+    "        peg$currPos++;",
+    "        pos = peg$currPos;",
+    "        continue;",
+    "      }",
+    "      peg$currPos = digitStartPos;",
+    "      break;",
+    "    }",
+    "    peg$currPos = pos;",
+    "    return pos;",
+    "  }",
+    "",
+    "  function peg$scanBplDecimalNumber(startPos) {",
+    "    let pos = peg$scanBplDecimalDigitTail(startPos + 1);",
+    "    if (input.charCodeAt(pos) === 46 && peg$isBplDigitCode(input.charCodeAt(pos + 1))) {",
+    "      pos = peg$scanBplDecimalDigitTail(pos + 2);",
+    "    }",
+    "    peg$currPos = pos;",
+    "    return input.substring(startPos, peg$currPos);",
+    "  }",
+    "",
+    "  function peg$scanBplPrefixedNumber(startPos, digitStartPos, isDigit, expected) {",
+    "    let pos = digitStartPos;",
+    "    if (!isDigit(input.charCodeAt(pos))) {",
+    "      peg$currPos = digitStartPos;",
+    "      if (peg$silentFails === 0) { peg$fail(expected); }",
+    "      peg$currPos = startPos;",
+    "      return peg$FAILED;",
+    "    }",
+    "    pos++;",
+    "    while (pos < input.length && isDigit(input.charCodeAt(pos))) {",
+    "      pos++;",
+    "    }",
+    "    peg$currPos = pos;",
+    "    return input.substring(startPos, peg$currPos);",
+    "  }",
+    "",
+    "  function peg$scanBplNumberToken() {",
+    "    const startPos = peg$currPos;",
+    "    const firstCode = input.charCodeAt(peg$currPos);",
+    "    if (!peg$isBplDigitCode(firstCode)) {",
+    "      if (peg$silentFails === 0) { peg$fail(peg$e73); }",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    if (firstCode === 48) {",
+    "      const secondCode = input.charCodeAt(peg$currPos + 1);",
+    "      if (secondCode === 120 || secondCode === 88) {",
+    "        const hex = peg$scanBplPrefixedNumber(startPos, startPos + 2, peg$isBplHexDigitCode, peg$e81);",
+    "        if (hex !== peg$FAILED) return hex;",
+    "      } else if (secondCode === 98 || secondCode === 66) {",
+    "        const binary = peg$scanBplPrefixedNumber(startPos, startPos + 2, code => code === 48 || code === 49, peg$e83);",
+    "        if (binary !== peg$FAILED) return binary;",
+    "      } else if (secondCode === 111 || secondCode === 79) {",
+    "        const octal = peg$scanBplPrefixedNumber(startPos, startPos + 2, code => code >= 48 && code <= 55, peg$e85);",
+    "        if (octal !== peg$FAILED) return octal;",
+    "      }",
+    "    }",
+    "",
+    "    return peg$scanBplDecimalNumber(startPos);",
+    "  }",
+    "",
+    "  function peg$parseNumberToken() {",
+    "    return peg$scanBplNumberToken();",
+    "  }",
+    "",
+    "  function peg$parseParameterList()",
+  ].join("\n");
+
+  if (!numberTokenPattern.test(parserSource)) {
+    throw new Error(
+      "Generated Peggy parser number token helper shape changed; update the BPL parser number scanner optimizer.",
+    );
+  }
+
+  return parserSource.replace(numberTokenPattern, numberTokenReplacement);
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {

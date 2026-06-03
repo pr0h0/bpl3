@@ -114,6 +114,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ~53.96ms median to ~52.32ms warm average / ~50.54ms median for the same
   180,057-token stream. Reproduce with
   `bun test tests/Lexer.test.ts -t "numeric regex matching|invalid number format"`.
+- **Generated Parser Number Scanner** - The Peggy parser post-processor now
+  replaces the generated `NumberToken` state machine with a direct scanner for
+  decimal, hex, binary, and octal tokens. The checked-in parser remains
+  regenerated from `grammar/bpl.peggy`, malformed-prefix fallback behavior is
+  preserved, and the 5k in-process LLVM output stayed byte-for-byte identical
+  at 2,987,498 bytes / 90,030 lines. Focused parse samples were noisy but
+  the matched post-fix rerun moved from ~299.12ms warm average / ~295.29ms
+  median to ~288.49ms warm average / ~284.42ms median, while the final
+  in-process profile removed `peg$parseNumberToken` from the sampled hot rows
+  and showed the direct decimal scanner rows instead. Reproduce with
+  `bun test tests/Parser.test.ts -t "number-token parsing|number-token trivia boundary|checked-in generated Peggy parser"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic
