@@ -302,6 +302,21 @@ function isCanonicalBuiltinBasicType(type: AST.BasicTypeNode): boolean {
   );
 }
 
+function createCanonicalBuiltinAliasType(
+  type: AST.BasicTypeNode,
+): AST.BasicTypeNode | undefined {
+  const canonicalName = TYPE_ALIASES[type.name];
+  if (!canonicalName || type.genericArgs.length !== 0) {
+    return undefined;
+  }
+
+  return {
+    ...type,
+    name: canonicalName,
+    genericArgs: [],
+  };
+}
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -429,6 +444,11 @@ export abstract class TypeCheckerBase {
 
       if (isCanonicalBuiltinBasicType(type)) {
         return type;
+      }
+
+      const canonicalAlias = createCanonicalBuiltinAliasType(type);
+      if (canonicalAlias) {
+        return canonicalAlias;
       }
 
       const symbol = this.currentScope.resolve(type.name);

@@ -90,6 +90,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   instrumented `resolveType` time dropped from ~182.49ms to ~160.83ms and total
   checker time from ~333.22ms to ~318.92ms. Reproduce with
   `bun test tests/TypeChecker.test.ts -t "canonical primitive"`.
+- **Simple Builtin Alias Resolution Fast Path** - The type checker now
+  canonicalizes simple reserved builtin aliases such as `int`, `bool`, and
+  `char` before scope lookup while preserving array-size validation and generic
+  alias handling. On the 5k synthetic type-check profile, the hot `int` alias
+  bucket dropped from roughly ~102.78ms to ~27.35ms and total instrumented
+  checker time dropped from ~354.29ms to ~247.97ms. Reproduce with
+  `bun test tests/TypeChecker.test.ts -t "simple builtin aliases"`.
 - **Native Binary Tree Shaking Defaults** - Linux native builds now compile
   generated/runtime objects with `-ffunction-sections -fdata-sections`, link
   with `-Wl,--gc-sections`, and avoid `-rdynamic` by default so unused BPL

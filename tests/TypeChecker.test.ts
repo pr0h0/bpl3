@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
@@ -58,6 +60,24 @@ describe("TypeChecker", () => {
     if (resolvedAlias.kind === "BasicType") {
       expect(resolvedAlias.name).toBe("i32");
     }
+  });
+
+  it("keeps simple builtin aliases before the scope lookup path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const aliasHelper = source.indexOf("createCanonicalBuiltinAliasType");
+    const resolveType = source.indexOf("public resolveType");
+    const firstScopeLookup = source.indexOf(
+      "this.currentScope.resolve(type.name)",
+      resolveType,
+    );
+
+    expect(aliasHelper).toBeGreaterThanOrEqual(0);
+    expect(resolveType).toBeGreaterThan(aliasHelper);
+    expect(source.indexOf("createCanonicalBuiltinAliasType(type)", resolveType))
+      .toBeLessThan(firstScopeLookup);
   });
 
   it("should clear failed import recovery state when reusing a checker", () => {
