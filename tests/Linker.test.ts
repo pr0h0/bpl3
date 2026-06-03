@@ -21,7 +21,14 @@ import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("Linker", () => {
   it("uses platform-specific native linker flags", () => {
-    expect(getNativeLinkerFlags("linux")).toEqual(["-lm", "-ldl", "-rdynamic"]);
+    expect(getNativeLinkerFlags("linux")).toEqual([
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-Wl,--gc-sections",
+      "-Wl,--no-export-dynamic",
+      "-lm",
+      "-ldl",
+    ]);
     expect(getNativeLinkerFlags("darwin")).toEqual(["-lm"]);
     expect(getNativeLinkerFlags("win32")).toEqual([]);
   });
@@ -99,6 +106,56 @@ describe("Linker", () => {
       expect(ok).toBe(false);
       expect(existsSync(markerPath)).toBe(false);
       expect(existsSync(outputPath)).toBe(false);
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows custom -rdynamic to override the default Linux no-export flag", () => {
+    if (process.platform !== "linux") return;
+
+    const dir = mkdtempSync(join(tmpdir(), "bpl-linker-rdynamic-"));
+    const irPath = join(dir, "main.ll");
+    const outputPath = join(dir, "main");
+    const argsPath = join(dir, "args.json");
+    const previousBplCc = process.env.BPL_CC;
+
+    writeFileSync(
+      irPath,
+      `
+        define i32 @main() {
+        entry:
+          ret i32 0
+        }
+      `,
+    );
+
+    try {
+      process.env.BPL_CC = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.writeFileSync(${JSON.stringify(argsPath)}, JSON.stringify(args));`,
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        'if (args[outputIndex]) fs.writeFileSync(args[outputIndex], "linked\\n");',
+      ]);
+
+      const ok = new Linker().link({
+        irFiles: [irPath],
+        outputPath,
+        clangFlags: ["-rdynamic"],
+      });
+
+      const args = JSON.parse(readFileSync(argsPath, "utf-8")) as string[];
+      expect(ok).toBe(true);
+      expect(args.indexOf("-Wl,--no-export-dynamic")).toBeGreaterThanOrEqual(0);
+      expect(args.indexOf("-rdynamic")).toBeGreaterThan(
+        args.indexOf("-Wl,--no-export-dynamic"),
+      );
     } finally {
       if (previousBplCc === undefined) {
         delete process.env.BPL_CC;

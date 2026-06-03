@@ -157,6 +157,40 @@ describe("ModuleCache", () => {
     }
   });
 
+  it("compiles native module objects with section splitting for linker GC", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-sections-"));
+    const previousBplCc = process.env.BPL_CC;
+    const argsPath = join(dir, "args.json");
+
+    try {
+      process.env.BPL_CC = writeNodeCommandShim(join(dir, "fake-cc"), [
+        'const fs = require("fs");',
+        "const args = process.argv.slice(2);",
+        `fs.writeFileSync(${JSON.stringify(argsPath)}, JSON.stringify(args));`,
+        'const outputIndex = args.lastIndexOf("-o") + 1;',
+        'if (args[outputIndex]) fs.writeFileSync(args[outputIndex], "object\\n");',
+      ]);
+
+      const cache = new ModuleCache(dir);
+      cache.compileModule(
+        "main.bpl",
+        "frame main() ret int { return 0; }",
+        EMPTY_MAIN_IR,
+      );
+
+      const args = JSON.parse(readFileSync(argsPath, "utf-8")) as string[];
+      expect(args).toContain("-ffunction-sections");
+      expect(args).toContain("-fdata-sections");
+    } finally {
+      if (previousBplCc === undefined) {
+        delete process.env.BPL_CC;
+      } else {
+        process.env.BPL_CC = previousBplCc;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("ignores manifests from older module cache versions", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-version-"));
 
@@ -776,6 +810,8 @@ describe("ModuleCache", () => {
 
       const args = JSON.parse(readFileSync(argsPath, "utf-8")) as string[];
       expect(args).toContain("-O3");
+      expect(args).toContain("-Wl,--gc-sections");
+      expect(args).toContain("-Wl,--no-export-dynamic");
     } finally {
       if (previousBplCc === undefined) {
         delete process.env.BPL_CC;

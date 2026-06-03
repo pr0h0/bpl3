@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Native Binary Tree Shaking Defaults** - Linux native builds now compile
+  generated/runtime objects with `-ffunction-sections -fdata-sections`, link
+  with `-Wl,--gc-sections`, and avoid `-rdynamic` by default so unused BPL
+  functions are not kept as exported dynamic symbols. Pass
+  `--clang-flag -rdynamic` to opt back into full native executable symbol
+  visibility for stack-trace debugging. Reproduce with
+  `bun test tests/Linker.test.ts tests/ModuleCache.test.ts`.
 - **Compiler Throughput Fast Path** - The CLI now imports a checked-in Peggy
   parser instead of regenerating `grammar/bpl.peggy` per process, skips the
   separate token grammar pass unless emitting tokens, and links native builds

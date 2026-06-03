@@ -16,6 +16,7 @@ import {
   getCompilerDriverTimeoutMs,
 } from "../compiler/common/CompilerDriver";
 import { Logger } from "../compiler/common/Logger";
+import { getNativeCodegenFlags } from "../compiler/common/NativeLinkerFlags";
 import { getBplHome } from "../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 import { formatCommandSpawnFailure } from "../compiler/common/ProcessErrors";
@@ -110,6 +111,7 @@ function runtimeObjectCacheKey(
     options.cpu ?? "",
     options.march ?? "",
     options.O ?? "",
+    ...getNativeCodegenFlags(),
     ...normalizeArrayOption(options.clangFlag),
   ].join("\0");
   const hash = createHash("sha256")
@@ -210,6 +212,7 @@ function buildRuntimeObjectCompileArgs(
   if (options.march) {
     args.push(`-march=${options.march}`);
   }
+  args.push(...getNativeCodegenFlags());
   for (const flag of normalizeArrayOption(options.clangFlag)) {
     args.push(flag);
   }

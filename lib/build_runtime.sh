@@ -66,9 +66,11 @@ case "$BPL_RUNTIME_BUILD" in
     ;;
 esac
 
+SECTION_FLAGS=(-ffunction-sections -fdata-sections)
+
 # Compile runtime_support.c to object file
 echo "Compiling runtime_support.c -> runtime_support.o"
-"$CC" -c -fPIC "${OPT_FLAGS[@]}" \
+"$CC" -c -fPIC "${OPT_FLAGS[@]}" "${SECTION_FLAGS[@]}" \
 -Wall -Wextra \
 -Wno-unused-parameter \
 runtime_support.c -o "$TMP_OBJECT"

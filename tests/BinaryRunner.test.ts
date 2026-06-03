@@ -185,7 +185,10 @@ describe("BinaryRunner", () => {
         .readFileSync(compilerLogPath, "utf8")
         .trim()
         .split("\n");
+      const runtimeCompileArgs = invocations[0]!;
       const finalLinkArgs = invocations.at(-1)!;
+      expect(runtimeCompileArgs).toContain("-ffunction-sections");
+      expect(runtimeCompileArgs).toContain("-fdata-sections");
       expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
       expect(finalLinkArgs).toContain(".o");
       expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));

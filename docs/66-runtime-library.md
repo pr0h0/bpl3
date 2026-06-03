@@ -168,7 +168,9 @@ The runtime uses platform-specific APIs to generate native stack traces:
 
 - **Linux/macOS**: Uses `backtrace()` from `<execinfo.h>` and `dladdr()` from `<dlfcn.h>`
 - Symbol resolution provides function names and offsets
-- Requires `-rdynamic` linker flag for full symbol visibility
+- Linux native builds default to smaller binaries with linker garbage
+  collection. Pass `--clang-flag -rdynamic` when you want full executable
+  symbol visibility in native stack traces.
 
 ### BPL Call Stack
 
@@ -260,6 +262,8 @@ This produces:
 The C runtime is compiled with:
 
 - `-fPIC` - Position-independent code
+- `-ffunction-sections -fdata-sections` - Separate runtime support sections so
+  native linkers can discard unused code
 - `-O2 -g` for `BPL_RUNTIME_BUILD=release`
 - `-O0 -g3` for `BPL_RUNTIME_BUILD=debug`
 
@@ -275,12 +279,18 @@ CC=clang-18 BPL_RUNTIME_BUILD=debug ./build_runtime.sh
 The BPL compiler automatically links both runtime components:
 
 ```bash
-clang -o program program.ll lib/runtime.ll lib/runtime_support.o -rdynamic -lm
+clang -o program program.ll lib/runtime.ll lib/runtime_support.o \
+  -ffunction-sections -fdata-sections \
+  -Wl,--gc-sections -Wl,--no-export-dynamic -lm -ldl
 ```
 
-On Linux, the compiler adds `-lm -ldl -rdynamic` so `dladdr()` can resolve
-symbol names in stack traces. On macOS, `dladdr()` is provided by libSystem, so
-the compiler links only `-lm` for the native runtime support flags.
+On Linux, the compiler adds `-ffunction-sections -fdata-sections`,
+`-Wl,--gc-sections`, `-Wl,--no-export-dynamic`, `-lm`, and `-ldl` for native
+runtime support. This lets the linker drop unused generated code and avoids
+exporting every BPL symbol by default. Add `--clang-flag -rdynamic` when native
+stack traces need full executable symbol names. On macOS, `dladdr()` is
+provided by libSystem, so the compiler links only `-lm` for the native runtime
+support flags.
 
 ## Exception Handling Integration
 

@@ -18,7 +18,10 @@ import {
 } from "../common/CompilerDriver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
-import { getNativeLinkerFlags } from "../common/NativeLinkerFlags";
+import {
+  getNativeCodegenFlags,
+  getNativeLinkerFlags,
+} from "../common/NativeLinkerFlags";
 import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
 
@@ -516,6 +519,9 @@ export class ModuleCache {
       if (optimizationLevel !== undefined) {
         clangArgs.push(`-O${optimizationLevel}`);
       }
+      if (!isWasmTarget(target)) {
+        clangArgs.push(...getNativeCodegenFlags());
+      }
       clangArgs.push(...(options.clangFlags ?? []));
       clangArgs.push(llFilePath, "-o", tempObjectFilePath);
 
@@ -675,6 +681,9 @@ export class ModuleCache {
       }
       if (optimizationLevel !== undefined) {
         clangArgs.push(`-O${optimizationLevel}`);
+      }
+      if (!isWasmTarget(target)) {
+        clangArgs.push(...getNativeCodegenFlags());
       }
       clangArgs.push(...(clangFlags ?? []));
       clangArgs.push(llFilePath, "-o", tempObjectFilePath);
