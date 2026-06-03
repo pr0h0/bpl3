@@ -1,11 +1,8 @@
 import [String] from "std/string.bpl";
+import [dprintf], [printf], [putchar], [puts] from "std/c.bpl";
 
 extern __bpl_argc() ret int;
 extern __bpl_argv_get(index: int) ret string;
-extern dprintf(fd: int, fmt: string, ...) ret int;
-import [printf] from "std/c.bpl";
-extern putchar(value: int) ret int;
-import [puts] from "std/c.bpl";
 
 frame main() ret int {
     if (__bpl_argc() != 3) {

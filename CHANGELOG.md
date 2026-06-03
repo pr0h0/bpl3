@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   redeclarations outside FFI demos so new examples keep common C declarations
   centralized. Reproduce with
   `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "bug_106_escape_analysis|bug_107_codegen_missing_functions|variadic_homogeneous|collections/linked_list_example|collections/priority_queue_example|collections/queue_example"`.
+- **Hosted Wasm Stdlib C Imports** - Hosted wasm examples now import
+  `dprintf` and `putchar` from `std/c.bpl` instead of redeclaring those C
+  output symbols locally. The example extern inventory rejects those
+  redeclarations outside FFI demos, while hosted wasm argument hooks remain
+  explicit runtime externs. Reproduce with
+  `bun test tests/ExampleExterns.test.ts tests/Integration.test.ts -t "wasm_hosted_io|wasm_hosted_printf|wasm_hosted_transform" tests/WasmRuntime.test.ts -t "wasm_hosted_io|wasm_hosted_printf|wasm_hosted_transform"`.
 - **Debug IR CLI Output Path** - `bpl` and `bpl build` now accept
   `--debug-ir-path <file>` to write a diagnostic copy of generated LLVM IR
   without relying on `BPL_DEBUG_IR`. JSON-mode path-safety failures stay
