@@ -443,15 +443,33 @@ function normalizeSeedHex(metadata: CrashMetadata): string | undefined {
     typeof metadata.seedHex === "string" &&
     metadata.seedHex.trim().length > 0
   ) {
-    const trimmed = metadata.seedHex.trim().toLowerCase();
-    return trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
+    return normalizeSeedHexString(metadata.seedHex);
   }
 
-  if (typeof metadata.seed === "number" && Number.isFinite(metadata.seed)) {
-    return `0x${(Math.trunc(metadata.seed) >>> 0).toString(16)}`;
+  if (typeof metadata.seed === "number" && isValidFuzzSeed(metadata.seed)) {
+    return formatFuzzSeed(metadata.seed);
   }
 
   return undefined;
+}
+
+function normalizeSeedHexString(value: string): string | undefined {
+  const trimmed = value.trim().toLowerCase();
+  const digits = trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
+  if (!/^[0-9a-f]+$/.test(digits)) {
+    return undefined;
+  }
+
+  const seed = Number(`0x${digits}`);
+  return isValidFuzzSeed(seed) ? formatFuzzSeed(seed) : undefined;
+}
+
+function isValidFuzzSeed(seed: number): boolean {
+  return Number.isSafeInteger(seed) && seed >= 0 && seed <= 0xffffffff;
+}
+
+function formatFuzzSeed(seed: number): string {
+  return `0x${seed.toString(16)}`;
 }
 
 function normalizeIteration(metadata: CrashMetadata): number | undefined {

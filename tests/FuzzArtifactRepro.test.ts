@@ -122,6 +122,60 @@ describe("Fuzz artifact repro helper", () => {
     }
   });
 
+  test("omits deterministic rerun commands for invalid seed metadata", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-repro-seeds-"));
+    const cases = [
+      {
+        name: "crash_seed-badhex_iter-2_tokens.json",
+        metadata: { seedHex: "not-a-seed", iteration: 2 },
+      },
+      {
+        name: "crash_seed-negative_iter-2_tokens.json",
+        metadata: { seed: -1, iteration: 2 },
+      },
+      {
+        name: "crash_seed-overflow_iter-2_tokens.json",
+        metadata: { seedHex: "0x100000000", iteration: 2 },
+      },
+    ];
+
+    try {
+      for (const testCase of cases) {
+        writeFileSync(
+          join(crashDir, testCase.name),
+          JSON.stringify(
+            {
+              ...testCase.metadata,
+              kind: "tokens",
+              failureKind: "crash",
+              stage: "parser",
+              message: "synthetic invalid seed metadata",
+            },
+            null,
+            2,
+          ),
+        );
+      }
+
+      const plan = buildFuzzArtifactReproPlan(crashDir, {
+        repoRoot: crashDir,
+      });
+
+      expect(plan.entries).toHaveLength(cases.length);
+      for (const entry of plan.entries) {
+        expect(entry.seedHex).toBeUndefined();
+        expect(
+          entry.commands.some((command) => command.startsWith("bun run fuzz --")),
+        ).toBe(false);
+        expect(entry.commands).toContain(
+          `bun run fuzz:replay -- --metadata ${entry.metadataPath}`,
+        );
+      }
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+    }
+  });
+
   test("fails clearly for malformed metadata", () => {
     const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-repro-bad-"));
     const metadataPath = join(crashDir, "crash_seed-bad_iter-0_tokens.json");
