@@ -43,7 +43,12 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("keeps speed showcase benchmarks implemented across supported languages", () => {
-    const benchmarks = ["bit_twiddle", "prime_sieve", "vector_dot_product"];
+    const benchmarks = [
+      "bit_twiddle",
+      "constant_numerator_division",
+      "prime_sieve",
+      "vector_dot_product",
+    ];
     const extensions = [".bpl", ".c", ".go", ".js", ".py"];
 
     for (const benchmark of benchmarks) {

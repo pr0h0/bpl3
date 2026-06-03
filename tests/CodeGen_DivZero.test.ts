@@ -92,6 +92,36 @@ describe("CodeGen - Division By Zero", () => {
     expect(ir).toContain("div_overflow_err");
   });
 
+  it("omits signed division overflow checks when constant numerator cannot overflow", () => {
+    const source = `
+      frame main(b: i32) ret i32 {
+        return (42 / b) + (42 % b);
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).toContain("sdiv i32");
+    expect(ir).toContain("srem i32");
+    expect(ir).toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).toContain("div_err");
+    expect(ir).not.toContain("call void @__bpl_throw_integer_overflow");
+    expect(ir).not.toContain("div_overflow_err");
+  });
+
+  it("preserves signed division overflow checks when numerator can be INT_MIN", () => {
+    const source = `
+      frame main(b: i32) ret i32 {
+        local min: i32 = -2147483648;
+        return min / b;
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(ir).toContain("call void @__bpl_throw_division_by_zero");
+    expect(ir).toContain("call void @__bpl_throw_integer_overflow");
+    expect(ir).toContain("div_overflow_err");
+  });
+
   it("should generate signed integer division overflow checks", () => {
     const source = `
       frame main() ret int {

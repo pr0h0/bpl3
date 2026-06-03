@@ -20,6 +20,7 @@ The recommended runner is `run_benchmark.ts`. It compiles available languages, v
 
 - `bit_twiddle`: tight 32-bit xorshift/bitmask loop. Shows integer bitwise codegen and register-heavy loops.
 - `binary_tree`: pointer-heavy allocation, recursion, and tree traversal.
+- `constant_numerator_division`: dynamic divisors with a constant numerator. Tracks checked integer division/modulo overhead when the `INT_MIN / -1` overflow guard is provably unreachable.
 - `fibonacci_recursive`: recursive call overhead.
 - `loop_to_million`: integer arithmetic loop with modulo.
 - `mandelbrot`: floating-point nested loops.

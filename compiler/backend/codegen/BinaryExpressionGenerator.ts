@@ -1454,11 +1454,19 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "fdiv";
     }
 
+    const constantLeft = this.getConstantIntegerValue(expr.left);
     const constantRight = this.getConstantIntegerValue(expr.right);
     if (constantRight === undefined || constantRight === 0n) {
       this.emitDivisionByZeroCheck(right, valueType);
     }
-    if (!isUnsigned && (constantRight === undefined || constantRight === -1n)) {
+    if (
+      !isUnsigned &&
+      this.shouldEmitSignedDivisionOverflowCheck(
+        constantLeft,
+        constantRight,
+        valueType,
+      )
+    ) {
       this.emitSignedDivisionOverflowCheck(left, right, valueType);
     }
     return isUnsigned ? "udiv" : "sdiv";
@@ -1479,11 +1487,19 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "frem";
     }
 
+    const constantLeft = this.getConstantIntegerValue(expr.left);
     const constantRight = this.getConstantIntegerValue(expr.right);
     if (constantRight === undefined || constantRight === 0n) {
       this.emitDivisionByZeroCheck(right, valueType);
     }
-    if (!isUnsigned && (constantRight === undefined || constantRight === -1n)) {
+    if (
+      !isUnsigned &&
+      this.shouldEmitSignedDivisionOverflowCheck(
+        constantLeft,
+        constantRight,
+        valueType,
+      )
+    ) {
       this.emitSignedDivisionOverflowCheck(left, right, valueType);
     }
     return isUnsigned ? "urem" : "srem";
@@ -1520,6 +1536,21 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     }
 
     return undefined;
+  }
+
+  private shouldEmitSignedDivisionOverflowCheck(
+    left: bigint | undefined,
+    right: bigint | undefined,
+    valueType: string,
+  ): boolean {
+    const minValue = this.getSignedIntegerMinBigInt(valueType);
+    if (minValue === null) {
+      return false;
+    }
+
+    const leftCanBeMin = left === undefined || left === minValue;
+    const rightCanBeNegativeOne = right === undefined || right === -1n;
+    return leftCanBeMin && rightCanBeNegativeOne;
   }
 
   /**
@@ -1610,6 +1641,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       default:
         return null;
     }
+  }
+
+  private getSignedIntegerMinBigInt(valueType: string): bigint | null {
+    const minValue = this.getSignedIntegerMinValue(valueType);
+    return minValue === null ? null : BigInt(minValue);
   }
 
   /**

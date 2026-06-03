@@ -8,15 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Constant Divisor Arithmetic Fast Path** - Integer division and modulo now
+- **Checked Integer Division Fast Paths** - Integer division and modulo now
   skip unreachable runtime division-by-zero branches when the divisor is a
   known nonzero constant, and skip signed `INT_MIN / -1` overflow branches when
-  the constant divisor is not `-1`. This removes cold error blocks from hot
-  arithmetic loops without weakening dynamic divisor checks. On the
-  `noinline_calls` benchmark, local BPL O3 median improved from a noisy
-  ~309.8ms sample to ~194.5ms in a five-run sample, close to C O3 at ~188.0ms.
-  Reproduce with `bun test tests/CodeGen_DivZero.test.ts -t "constant"` and
-  `bun benchmark/run_benchmark.ts --language bpl,c --runs 5 --warmups 1 noinline_calls`.
+  either the constant divisor is not `-1` or a constant numerator cannot be the
+  signed minimum value. This removes cold error blocks from hot arithmetic
+  loops without weakening dynamic divisor checks. On the `noinline_calls`
+  benchmark, local BPL O3 median improved from a noisy ~309.8ms sample to
+  ~194.5ms in a five-run sample, close to C O3 at ~188.0ms. The new
+  `constant_numerator_division` benchmark tracks dynamic divisors whose
+  constant numerator cannot overflow. Reproduce with
+  `bun test tests/CodeGen_DivZero.test.ts -t "constant|numerator"` and
+  `bun benchmark/run_benchmark.ts --language bpl,c --runs 5 --warmups 1 noinline_calls constant_numerator_division`.
 - **Compiler-Side Top-Level IR Tree Shaking** - Optimized executable builds now
   omit unreachable ordinary top-level free functions before writing LLVM IR,
   while explicit `--emit llvm`, cached module builds, DWARF/debug builds,
