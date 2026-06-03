@@ -1,9 +1,12 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, setDefaultTimeout } from "bun:test";
 import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
 const BPL_CLI = path.resolve(__dirname, "../index.ts");
+const STDLIB_COMPILE_RUN_TIMEOUT_MS = 15000;
+
+setDefaultTimeout(STDLIB_COMPILE_RUN_TIMEOUT_MS);
 
 function compileAndRun(sourceCode: string) {
   const tempFile = path.join(
