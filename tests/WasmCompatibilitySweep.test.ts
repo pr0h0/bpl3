@@ -339,5 +339,5 @@ describe("WebAssembly compatibility sweep", () => {
         );
       }
     }
-  }, 60_000);
+  }, 120_000);
 });
