@@ -134,16 +134,40 @@ function parsePositiveInteger(value: string, name: string): number {
 }
 
 function parseSeeds(value: string): number[] {
-  const seeds = value
-    .split(",")
-    .map((seed) => seed.trim())
-    .filter(Boolean)
-    .map((seed) => Number(seed));
-
-  if (seeds.length === 0 || seeds.some((seed) => !Number.isInteger(seed))) {
+  const seedTexts = value.split(",").map((seed) => seed.trim());
+  if (seedTexts.length === 0 || seedTexts.every((seed) => seed.length === 0)) {
     throw new CliUsageError(
       `seeds must be comma-separated integers, got '${value}'.`,
     );
+  }
+
+  const seeds: number[] = [];
+  for (const seedText of seedTexts) {
+    if (seedText.length === 0) {
+      throw new CliUsageError(
+        `seeds must not contain empty entries, got '${value}'.`,
+      );
+    }
+
+    if (seedText.startsWith("-")) {
+      throw new CliUsageError(
+        `seeds must be unsigned 32-bit integers, got '${value}'.`,
+      );
+    }
+
+    if (!/^(?:0x[0-9a-fA-F]+|[0-9]+)$/.test(seedText)) {
+      throw new CliUsageError(
+        `seeds must be comma-separated integers, got '${value}'.`,
+      );
+    }
+
+    const seed = Number(seedText);
+    if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) {
+      throw new CliUsageError(
+        `seeds must be unsigned 32-bit integers, got '${value}'.`,
+      );
+    }
+    seeds.push(seed);
   }
 
   return seeds;
