@@ -552,10 +552,15 @@ describe("Parser", () => {
     expect(generatedSource).toContain("const peg$emptyTrivia = [];");
     expect(triviaHelper).toContain("while (peg$currPos < input.length)");
     expect(triviaHelper).toContain("pushCommentToken");
+    expect(triviaHelper).toContain(
+      "currentCode === 32 || currentCode === 9",
+    );
     expect(triviaHelper).toContain("return peg$emptyTrivia;");
     expect(triviaHelper).not.toContain("return [];");
     expect(triviaHelper).not.toContain("peg$parseWhitespace()");
     expect(triviaHelper).not.toContain("peg$parseComment()");
+    expect(triviaHelper).not.toContain("peg$isBplWhitespaceCode");
+    expect(generatedSource).not.toContain("function peg$isBplWhitespaceCode");
   });
 
   it("keeps valid parses off the detailed Peggy failure collection path", () => {

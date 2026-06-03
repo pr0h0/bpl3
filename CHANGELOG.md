@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
+  postprocessor now inlines whitespace char-code checks inside the manual trivia
+  skipper instead of calling a helper on every whitespace probe. On the same 5k
+  synthetic parse-only benchmark after expression-operator scanner work, timing
+  improved from ~230.43ms average / ~227.28ms median to ~224.35ms average /
+  ~223.28ms median, with emitted LLVM IR still byte-for-byte identical
+  (`2f422150139e7093ee35af1a509904b841e4c419882387b989d2fe39c3017f0f`).
 - **Generated Expression Operator Scanners** - The checked-in Peggy parser
   postprocessor now rewrites fixed expression operator helpers (`||`, `&&`,
   bitwise, equality, relational, shift, additive, multiplicative, and unary

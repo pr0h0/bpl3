@@ -12409,9 +12409,11 @@ function peg$parse(input, options) {
     while (peg$currPos < input.length) {
       const currentCode = input.charCodeAt(peg$currPos);
 
-      if (peg$isBplWhitespaceCode(currentCode)) {
+      if (currentCode === 32 || currentCode === 9 || currentCode === 10 || currentCode === 13) {
         peg$currPos++;
-        while (peg$currPos < input.length && peg$isBplWhitespaceCode(input.charCodeAt(peg$currPos))) {
+        while (peg$currPos < input.length) {
+          const code = input.charCodeAt(peg$currPos);
+          if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
           peg$currPos++;
         }
         continue;
@@ -12441,10 +12443,6 @@ function peg$parse(input, options) {
     }
 
     return peg$emptyTrivia;
-  }
-
-  function peg$isBplWhitespaceCode(code) {
-    return code === 32 || code === 9 || code === 10 || code === 13;
   }
 
   function peg$scanBplBlockCommentEnd(startPos) {
