@@ -161,6 +161,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   scanner. The supported-assignment 5k LLVM output stayed byte-for-byte
   identical at 4,344,252 bytes / 155,014 lines. Reproduce with
   `bun test tests/Parser.test.ts -t "assignment-operator|checked-in generated Peggy parser"`.
+- **Generated Parser Identifier Token Action Fast Path** - The `Identifier`
+  grammar action now returns only the intermediate `name` field instead of
+  computing a token location and allocating unused `start` / `end` wrappers for
+  every identifier. AST identifier expressions and declarations still compute
+  their own source locations. On the post-assignment 5k profile source,
+  parse-only samples moved from ~372.25ms warm average / ~367.04ms median to
+  ~327.99ms warm average / ~323.10ms median. The same 5k LLVM output stayed
+  byte-for-byte identical at 4,040,154 bytes / 160,015 lines. Reproduce with
+  `bun test tests/Parser.test.ts -t "identifier token actions|checked-in generated Peggy parser"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

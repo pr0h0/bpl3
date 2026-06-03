@@ -1410,12 +1410,7 @@ IdentifierExpr
 
 Identifier
   = !(KeywordReserved) name:IdentToken {
-      const loc = location();
-      return {
-        name,
-        start: { line: loc.startLine, column: loc.startColumn },
-        end: { line: loc.endLine, column: loc.endColumn },
-      };
+      return { name };
     }
 
 IdentToken

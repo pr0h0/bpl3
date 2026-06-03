@@ -240,6 +240,56 @@ describe("Parser", () => {
     expect(keywordHelper).not.toContain("input.startsWith(peg$c17");
   });
 
+  it("keeps generated identifier token actions off the location path", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identifierHelper = generatedSource.match(
+      /function peg\$parseIdentifier\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+    const identifierActionName = identifierHelper?.match(
+      /return (peg\$f\d+)\(name\);/,
+    )?.[1];
+    expect(identifierActionName).toBeDefined();
+    if (!identifierActionName) {
+      throw new Error("Expected generated Identifier action reference");
+    }
+    const escapedIdentifierActionName = identifierActionName.replace("$", "\\$");
+    const identifierTokenAction = generatedSource.match(
+      new RegExp(
+        `function ${escapedIdentifierActionName}\\(name\\) \\{[\\s\\S]*?\\n  \\}`,
+      ),
+    )?.[0];
+
+    expect(identifierTokenAction).toContain("return { name };");
+    expect(identifierTokenAction).not.toContain("location()");
+    expect(identifierTokenAction).not.toContain("start: {");
+    expect(identifierTokenAction).not.toContain("end: {");
+
+    const program = new Parser(
+      "frame main() ret int { local value: int = 1; return value; }",
+      "identifier-location.bpl",
+    ).parse();
+    const func = program.statements[0] as FunctionDecl;
+    const body = func.body as BlockStmt;
+    const returnStatement = body.statements[1]!;
+    expect(returnStatement.kind).toBe("Return");
+    if (returnStatement.kind !== "Return") {
+      throw new Error("Expected return statement");
+    }
+    expect(returnStatement.value?.kind).toBe("Identifier");
+    expect(returnStatement.value?.location.file).toBe("identifier-location.bpl");
+    expect(returnStatement.value?.location.startLine).toBe(1);
+    expect(returnStatement.value?.location.startColumn).toBeGreaterThan(0);
+  });
+
   it("keeps generated number-token parsing on the direct scanner fast path", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

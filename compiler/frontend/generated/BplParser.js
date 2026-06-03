@@ -949,12 +949,7 @@ function peg$parse(input, options) {
   function peg$f160(key, value) {    return { name: key.name, value };  }
   function peg$f161(id) {    return identifier(id.name, location());  }
   function peg$f162(name) {
-    const loc = location();
-    return {
-      name,
-      start: { line: loc.startLine, column: loc.startColumn },
-      end: { line: loc.endLine, column: loc.endColumn },
-    };
+    return { name };
   }
   function peg$f163() {    return literal(true, "true", "bool", location());  }
   function peg$f164() {    return literal(false, "false", "bool", location());  }
