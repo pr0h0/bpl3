@@ -66,6 +66,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and a full-compiler profile sample showed native `join` self time at ~94.3ms
   versus the previous ~142.6ms sample. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "generated body string|final IR section assembly|runtime arg helper|runtime helper declarations|builtin"`.
+- **Codegen LLVM Reference Regex Cache** - Runtime declaration pruning now
+  reuses per-generator compiled LLVM symbol and struct reference patterns
+  instead of constructing a fresh `RegExp` for every pruning lookup. A matched
+  5k synthetic fixture stayed byte-for-byte identical at 2,987,498 bytes; local
+  isolated codegen samples moved from ~146.55ms warm average / ~146.75ms median
+  before the cache to ~143.85ms warm average / ~138.86ms median after it.
+  Matched profile samples still show the unavoidable regex match work, but the
+  hot reference methods now route through cached patterns. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "compiled LLVM reference regexes|generated body string|runtime helper declarations|builtin"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

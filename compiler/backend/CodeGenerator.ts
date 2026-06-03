@@ -115,6 +115,8 @@ export class CodeGenerator extends StatementGenerator {
   private generatedBodyUsesArgvRuntimeHelper = false;
   private generatedArgcStoreOutputIndex: number | undefined;
   private generatedArgvStoreOutputIndex: number | undefined;
+  private llvmSymbolReferencePatterns: Map<string, RegExp> = new Map();
+  private llvmStructReferencePatterns: Map<string, RegExp> = new Map();
 
   constructor(
     options: {
@@ -798,16 +800,32 @@ export class CodeGenerator extends StatementGenerator {
     }
   }
 
+  private getLlvmSymbolReferencePattern(name: string): RegExp {
+    let pattern = this.llvmSymbolReferencePatterns.get(name);
+    if (pattern === undefined) {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      pattern = new RegExp(`@${escapedName}(?![A-Za-z0-9_.$])`);
+      this.llvmSymbolReferencePatterns.set(name, pattern);
+    }
+    return pattern;
+  }
+
+  private getLlvmStructReferencePattern(name: string): RegExp {
+    let pattern = this.llvmStructReferencePatterns.get(name);
+    if (pattern === undefined) {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      pattern = new RegExp(`%struct\\.${escapedName}(?![A-Za-z0-9_.$])`);
+      this.llvmStructReferencePatterns.set(name, pattern);
+    }
+    return pattern;
+  }
+
   private referencesLlvmSymbol(llvmBody: string, name: string): boolean {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`@${escapedName}(?![A-Za-z0-9_.$])`).test(llvmBody);
+    return this.getLlvmSymbolReferencePattern(name).test(llvmBody);
   }
 
   private referencesLlvmStruct(llvmBody: string, name: string): boolean {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`%struct\\.${escapedName}(?![A-Za-z0-9_.$])`).test(
-      llvmBody,
-    );
+    return this.getLlvmStructReferencePattern(name).test(llvmBody);
   }
 
   private writeDebugIr(result: string): void {

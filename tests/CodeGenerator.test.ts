@@ -702,6 +702,27 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("line.trim()");
   });
 
+  it("reuses compiled LLVM reference regexes during final pruning", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const symbolStart = source.indexOf("private referencesLlvmSymbol");
+    const structStart = source.indexOf("private referencesLlvmStruct");
+    const structEnd = source.indexOf("private writeDebugIr", structStart);
+
+    expect(symbolStart).toBeGreaterThanOrEqual(0);
+    expect(structStart).toBeGreaterThan(symbolStart);
+    expect(structEnd).toBeGreaterThan(structStart);
+
+    const referenceSource = source.slice(symbolStart, structEnd);
+    expect(source).toContain("private llvmSymbolReferencePatterns");
+    expect(source).toContain("private llvmStructReferencePatterns");
+    expect(referenceSource).toContain("this.getLlvmSymbolReferencePattern");
+    expect(referenceSource).toContain("this.getLlvmStructReferencePattern");
+    expect(referenceSource).not.toContain("new RegExp");
+  });
+
   it("keeps explicit main argc argv parameters without runtime helper globals", () => {
     const ir = compile(
       `
