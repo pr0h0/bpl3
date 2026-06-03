@@ -184,7 +184,8 @@ playground files, not npm package payload:
 modules used by the local web server are also source-only:
 `playground/backend/processRunner.ts`,
 `playground/backend/nativeExecution.ts`, and
-`playground/backend/wasmToolchain.ts`. The narrow exception is
+`playground/backend/wasmToolchain.ts`, and
+`playground/backend/runtimeFiles.ts`. The narrow exception is
 `compiler/common/PathSafety.ts`, which is shipped because packed helper scripts
 share its symlink-safe path validation.
 Release metadata checks derive the helper inventory from `package.json` scripts

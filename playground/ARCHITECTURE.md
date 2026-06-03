@@ -151,6 +151,9 @@ Native execution responses are shaped before `/compile` returns JSON. The
 backend runs binaries through argv-vector process execution, pipes stdin
 directly, and converts stdout, stderr, nonzero exits, output-limit failures, and
 timeouts into the stable payload documented in `playground/README.md`. The
+default Run Code request omits IR, AST, and token payloads; Debug tabs load
+artifacts lazily with `includeArtifacts: true` and `execute: false`, so
+inspection does not link or rerun the native binary. The
 contract is guarded by `tests/PlaygroundNativeExecution.test.ts` and
 `tests/PlaygroundProcessRunner.test.ts`.
 

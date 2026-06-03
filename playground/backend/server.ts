@@ -1,9 +1,9 @@
 import { execFile } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { promisify } from "util";
 
-import { CodeGenerator } from "../../compiler/backend/CodeGenerator";
 import * as AST from "../../compiler/common/AST";
 import { CompilerError } from "../../compiler/common/CompilerError";
 import { DiagnosticFormatter } from "../../compiler/common/DiagnosticFormatter";
@@ -12,13 +12,13 @@ import { Formatter } from "../../compiler/formatter/Formatter";
 import { lexWithGrammar } from "../../compiler/frontend/GrammarLexer";
 import { Parser } from "../../compiler/frontend/Parser";
 import { Compiler } from "../../compiler/index";
-import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 import {
   createPlaygroundWasmBuildEnv,
   resolvePlaygroundWasmLinker,
 } from "./wasmToolchain";
 import { runPlaygroundNativeBinary } from "./nativeExecution";
 import { formatProcessCommand } from "./processRunner";
+import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
 
 const execFileAsync = promisify(execFile);
 
@@ -160,6 +160,10 @@ function safeStringify(obj: any): string {
   return JSON.stringify(
     obj,
     (key, value) => {
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+
       if (typeof value === "object" && value !== null) {
         if (seen.has(value)) {
           return "[Circular]";
@@ -176,6 +180,8 @@ interface CompileRequest {
   code: string;
   input?: string;
   args?: string[];
+  includeArtifacts?: boolean;
+  execute?: boolean;
 }
 
 interface CompileResponse {
@@ -196,6 +202,101 @@ interface WasmCompileResponse {
   ir?: string;
   imports?: Array<{ module: string; name: string; kind: string }>;
   warnings?: string[];
+}
+
+function maybeCompileArtifacts(
+  includeArtifacts: boolean,
+  ir: string,
+  ast: AST.Program | undefined,
+  tokens: any[],
+): Pick<CompileResponse, "ir" | "ast" | "tokens"> {
+  if (!includeArtifacts) {
+    return {};
+  }
+
+  return {
+    ir,
+    ast: safeStringify(ast),
+    tokens: JSON.stringify(tokens, null, 2),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validateCompileRequestPayload(
+  payload: unknown,
+): { success: true; request: CompileRequest } | { success: false; error: string } {
+  if (!isRecord(payload)) {
+    return {
+      success: false,
+      error: "Invalid request: body must be a JSON object.",
+    };
+  }
+
+  if (typeof payload.code !== "string") {
+    return {
+      success: false,
+      error: "Invalid request: code must be a string.",
+    };
+  }
+
+  if (payload.input !== undefined && typeof payload.input !== "string") {
+    return {
+      success: false,
+      error: "Invalid request: input must be a string.",
+    };
+  }
+
+  if (
+    payload.args !== undefined &&
+    (!Array.isArray(payload.args) ||
+      payload.args.some((arg) => typeof arg !== "string"))
+  ) {
+    return {
+      success: false,
+      error: "Invalid request: args must be an array of strings.",
+    };
+  }
+
+  if (
+    payload.includeArtifacts !== undefined &&
+    typeof payload.includeArtifacts !== "boolean"
+  ) {
+    return {
+      success: false,
+      error: "Invalid request: includeArtifacts must be a boolean.",
+    };
+  }
+
+  if (payload.execute !== undefined && typeof payload.execute !== "boolean") {
+    return {
+      success: false,
+      error: "Invalid request: execute must be a boolean.",
+    };
+  }
+
+  return {
+    success: true,
+    request: {
+      code: payload.code,
+      input: payload.input,
+      args: payload.args,
+      includeArtifacts: payload.includeArtifacts,
+      execute: payload.execute,
+    },
+  };
+}
+
+function invalidRequestResponse(
+  error: string,
+  headers: Record<string, string>,
+): Response {
+  return new Response(JSON.stringify({ success: false, error }), {
+    status: 400,
+    headers,
+  });
 }
 
 // Get examples
@@ -250,15 +351,18 @@ function getTutorials() {
 async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const includeArtifacts = req.includeArtifacts === true;
+  const execute = req.execute !== false;
 
   logger.info(`[${requestId}] Starting compilation`, {
     codeLength: req.code.length,
     hasInput: !!req.input,
     argsCount: req.args?.length || 0,
+    includeArtifacts,
+    execute,
   });
 
-  const tempDir = path.join("/tmp", `bpl-playground-${Date.now()}`);
-  fs.mkdirSync(tempDir, { recursive: true });
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-playground-"));
 
   const sourceFile = path.join(tempDir, "main.bpl");
   const irFile = path.join(tempDir, "main.ll");
@@ -274,20 +378,21 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
     let tokens: any[] = [];
     let ir = "";
 
-    // Get tokens (always do this for visualization)
-    try {
-      const tokenStart = Date.now();
-      tokens = lexWithGrammar(req.code, sourceFile);
-      logger.debug(
-        `[${requestId}] Lexical analysis completed in ${Date.now() - tokenStart}ms`,
-        {
-          tokenCount: tokens.length,
-        },
-      );
-    } catch (e) {
-      logger.warn(`[${requestId}] Lexical analysis failed, continuing...`, {
-        error: String(e),
-      });
+    if (includeArtifacts) {
+      try {
+        const tokenStart = Date.now();
+        tokens = lexWithGrammar(req.code, sourceFile);
+        logger.debug(
+          `[${requestId}] Artifact lexical analysis completed in ${Date.now() - tokenStart}ms`,
+          {
+            tokenCount: tokens.length,
+          },
+        );
+      } catch (e) {
+        logger.warn(`[${requestId}] Lexical analysis failed, continuing...`, {
+          error: String(e),
+        });
+      }
     }
 
     // Compile using Compiler class
@@ -321,7 +426,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         return {
           success: false,
           error: errorMsg,
-          tokens: JSON.stringify(tokens, null, 2),
+          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
         };
       }
 
@@ -341,29 +446,36 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       return {
         success: false,
         error: e instanceof CompilerError ? e.message : String(e),
-        tokens: JSON.stringify(tokens, null, 2),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
+      };
+    }
+
+    if (!execute) {
+      const totalDuration = Date.now() - startTime;
+      logger.info(
+        `[${requestId}] Compilation artifacts produced in ${totalDuration}ms`,
+        {
+          irLength: ir.length,
+          hasAst: Boolean(ast),
+          tokenCount: tokens.length,
+        },
+      );
+      updateStats(true, totalDuration);
+
+      return {
+        success: true,
+        warnings,
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
       };
     }
 
     // Compile IR to binary using clang with runtime library
     try {
       const clangStart = Date.now();
-      const bplHome = getBplHome();
-
-      // Build list of runtime files to link
-      const runtimeFiles: string[] = [];
-
-      // Add runtime.ll (core runtime functions)
-      const runtimeLLPath = path.join(bplHome, "lib", "runtime.ll");
-      if (fs.existsSync(runtimeLLPath)) {
-        runtimeFiles.push(runtimeLLPath);
-      }
-
-      // Add runtime_support.o (C runtime support for stack traces, signals)
-      const runtimeSupportPath = path.join(bplHome, "lib", "runtime_support.o");
-      if (fs.existsSync(runtimeSupportPath)) {
-        runtimeFiles.push(runtimeSupportPath);
-      }
+      const runtimeFiles = await resolvePlaygroundNativeRuntimeFiles({
+        bplHome: getBplHome(),
+        warn: (message) => logger.warn(`[${requestId}] ${message}`),
+      });
 
       const clangArgs = [
         "-o",
@@ -390,9 +502,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       return {
         success: false,
         error: `LLVM compilation failed: ${e.stderr || e.message}`,
-        ir,
-        ast: safeStringify(ast),
-        tokens: JSON.stringify(tokens, null, 2),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
       };
     }
 
@@ -432,9 +542,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
           success: false,
           error: execution.error,
           output: execution.output,
-          ir,
-          ast: safeStringify(ast),
-          tokens: JSON.stringify(tokens, null, 2),
+          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
         };
       }
 
@@ -452,9 +560,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         success: true,
         output: execution.output,
         warnings,
-        ir,
-        ast: safeStringify(ast),
-        tokens: JSON.stringify(tokens, null, 2),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
       };
     } catch (e: any) {
       const totalDuration = Date.now() - startTime;
@@ -468,9 +574,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         return {
           success: false,
           error: "Execution timeout (5 seconds)",
-          ir,
-          ast: safeStringify(ast),
-          tokens: JSON.stringify(tokens, null, 2),
+          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
         };
       }
 
@@ -484,9 +588,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         success: false,
         error: `Runtime error: ${e.stderr || e.message}`,
         output: e.stdout || "",
-        ir,
-        ast: safeStringify(ast),
-        tokens: JSON.stringify(tokens, null, 2),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
       };
     }
   } finally {
@@ -514,8 +616,9 @@ async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> 
   }
   const linker = linkerResult.linker;
 
-  const tempDir = path.join("/tmp", `bpl-playground-wasm-${Date.now()}`);
-  fs.mkdirSync(tempDir, { recursive: true });
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "bpl-playground-wasm-"),
+  );
 
   const repoRoot = path.resolve(__dirname, "../..");
   const sourceFile = path.join(tempDir, "main.bpl");
@@ -719,8 +822,22 @@ const server = Bun.serve({
     // POST /compile
     if (url.pathname === "/compile" && req.method === "POST") {
       try {
-        const body = (await req.json()) as CompileRequest;
-        const result = await compileAndRun(body);
+        let body: unknown;
+        try {
+          body = await req.json();
+        } catch {
+          return invalidRequestResponse(
+            "Invalid request: body must be valid JSON.",
+            headers,
+          );
+        }
+
+        const validation = validateCompileRequestPayload(body);
+        if (!validation.success) {
+          return invalidRequestResponse(validation.error, headers);
+        }
+
+        const result = await compileAndRun(validation.request);
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
         logger.error("Compile endpoint error", { error: e.message });
@@ -737,8 +854,22 @@ const server = Bun.serve({
     // POST /wasm
     if (url.pathname === "/wasm" && req.method === "POST") {
       try {
-        const body = (await req.json()) as CompileRequest;
-        const result = await compileToWasm(body);
+        let body: unknown;
+        try {
+          body = await req.json();
+        } catch {
+          return invalidRequestResponse(
+            "Invalid request: body must be valid JSON.",
+            headers,
+          );
+        }
+
+        const validation = validateCompileRequestPayload(body);
+        if (!validation.success) {
+          return invalidRequestResponse(validation.error, headers);
+        }
+
+        const result = await compileToWasm(validation.request);
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
         logger.error("Wasm endpoint error", { error: e.message });

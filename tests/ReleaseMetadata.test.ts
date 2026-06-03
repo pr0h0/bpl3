@@ -341,6 +341,7 @@ describe("Release metadata", () => {
       "playground/backend/processRunner.ts",
       "playground/backend/nativeExecution.ts",
       "playground/backend/wasmToolchain.ts",
+      "playground/backend/runtimeFiles.ts",
     ];
 
     for (const helperFile of sourceOnlyHelperFiles) {
@@ -356,6 +357,7 @@ describe("Release metadata", () => {
       "playground/backend/processRunner.ts",
       "playground/backend/nativeExecution.ts",
       "playground/backend/wasmToolchain.ts",
+      "playground/backend/runtimeFiles.ts",
       "npm tarball includes source-only files",
     ]);
   });

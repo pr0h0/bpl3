@@ -23,6 +23,8 @@
 - **Output Metrics**: Monitor output size and performance
 - **Phase Breakdown**: Separate timing for lexing, parsing, compilation, and execution
 - **Success Rate Tracking**: Real-time compilation success/failure statistics
+- **Fast Run Responses**: Run Code returns execution output without IR/AST/token payloads; debug tabs request those artifacts lazily
+- **Runtime Object Cache**: Native playground links reuse a cached object form of `runtime.ll` when the host compiler can produce it
 
 ### 🔌 Extended API Endpoints
 

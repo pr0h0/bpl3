@@ -106,6 +106,7 @@ PORT=3011 bun run start
 playground/
 ├── backend/
 │   ├── server.ts         # Bun server with API endpoints
+│   ├── runtimeFiles.ts   # Native runtime object cache for faster playground links
 │   └── package.json
 ├── frontend/
 │   ├── index.html        # Main playground UI
@@ -191,16 +192,32 @@ Compiles and runs BPL code.
 {
   "code": "frame main() ret int { return 0; }",
   "input": "optional stdin input",
-  "args": ["arg1", "arg2"]
+  "args": ["arg1", "arg2"],
+  "includeArtifacts": false,
+  "execute": true
 }
 ```
 
-**Response:**
+The default Run Code request omits IR, AST, and token payloads so small programs
+return quickly. Debug tabs load artifacts lazily by sending
+`includeArtifacts: true` with `execute: false`; that compiles and returns
+compiler internals without linking or rerunning the native binary.
+
+**Default response:**
 
 ```json
 {
   "success": true,
   "output": "program output",
+  "warnings": []
+}
+```
+
+**Artifact response:**
+
+```json
+{
+  "success": true,
   "ir": "LLVM IR code",
   "ast": "Abstract Syntax Tree JSON",
   "tokens": "Lexer tokens JSON",
@@ -238,7 +255,7 @@ bun test tests/TutorialExamples.test.ts -t "argv-vector execution"
 1. **Browse Examples**: Click examples in the sidebar to load them
 2. **Edit Code**: Modify code in the Monaco editor
 3. **Run Programs**: Click "Run Code" to compile and execute
-4. **View Internals**: Switch tabs to see IR, AST, or tokens
+4. **View Internals**: Switch tabs to lazily load IR, AST, or tokens
 5. **Add Input**: Expand "Input & Arguments" to provide stdin/args
 6. **Start Tutorial**: Click "Start Tutorial: Zero to Hero" for structured learning
 7. **Track Progress**: Tutorial progress is saved in your browser

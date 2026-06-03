@@ -577,6 +577,7 @@ function runPackedPackageSmoke(): void {
       "playground/backend/processRunner.ts",
       "playground/backend/nativeExecution.ts",
       "playground/backend/wasmToolchain.ts",
+      "playground/backend/runtimeFiles.ts",
     ]);
     assertPackedFileAllowlist(
       packEntry,

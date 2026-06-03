@@ -2,8 +2,12 @@
 let editor;
 let currentExample = null;
 let allExamples = []; // Store all examples for searching
+let latestCompileRequest = null;
+let compileArtifactsLoaded = false;
+let compileArtifactsPromise = null;
 const API_BASE =
   window.location.protocol === "file:" ? "http://localhost:3001" : "";
+const COMPILE_ARTIFACT_TABS = new Set(["ir", "ast", "tokens"]);
 const wasmHostAdapter = window.BplWasmHostAdapter;
 if (!wasmHostAdapter) {
   throw new Error("BPL wasm host adapter script must load before app.js");
@@ -191,6 +195,12 @@ require(["vs/editor/editor.main"], function () {
   // Update editor info on content change
   editor.onDidChangeModelContent(() => {
     updateEditorInfo();
+    latestCompileRequest = null;
+    compileArtifactsLoaded = false;
+    compileArtifactsPromise = null;
+    setCompileArtifactPlaceholders(
+      "Run Code to load compiler debug output for the current source.",
+    );
   });
 
   // Add keyboard shortcuts
@@ -314,19 +324,7 @@ function setupOutputToggle() {
 // Tab switching
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const tab = btn.dataset.tab;
-
-    // Update buttons
-    document
-      .querySelectorAll(".tab-btn")
-      .forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    // Update panes
-    document
-      .querySelectorAll(".tab-pane")
-      .forEach((p) => p.classList.remove("active"));
-    document.getElementById(`tab-${tab}`).classList.add("active");
+    activateTab(btn.dataset.tab);
   });
 });
 
@@ -357,9 +355,12 @@ document.getElementById("run-btn").addEventListener("click", async () => {
 
   // Clear previous results
   document.getElementById("output-content").textContent = "Compiling...";
-  document.getElementById("ir-content").textContent = "";
-  document.getElementById("ast-content").textContent = "";
-  document.getElementById("tokens-content").textContent = "";
+  latestCompileRequest = null;
+  compileArtifactsLoaded = false;
+  compileArtifactsPromise = null;
+  setCompileArtifactPlaceholders(
+    "Debug view will load when this tab is selected after Run Code finishes.",
+  );
 
   // Reset execution info
   document.getElementById("exec-time").textContent = "...";
@@ -386,11 +387,24 @@ document.getElementById("run-btn").addEventListener("click", async () => {
     const response = await fetch(`${API_BASE}/compile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, input: stdin, args }),
+      body: JSON.stringify({
+        code,
+        input: stdin,
+        args,
+        includeArtifacts: false,
+      }),
     });
 
     const result = await response.json();
     const duration = Date.now() - startTime;
+    latestCompileRequest = { code, input: stdin, args };
+    compileArtifactsLoaded = false;
+    compileArtifactsPromise = null;
+    setCompileArtifactPlaceholders(
+      result.success
+        ? "Select this tab to load compiler debug output for the last run."
+        : "Select this tab to retry compilation and load available debug output.",
+    );
 
     // Update output
     const outputEl = document.getElementById("output-content");
@@ -420,21 +434,6 @@ document.getElementById("run-btn").addEventListener("click", async () => {
       document.getElementById("exec-status").style.color = "var(--error)";
 
       showToast("Compilation failed", "error");
-    }
-
-    // Update IR
-    if (result.ir) {
-      document.getElementById("ir-content").textContent = result.ir;
-    }
-
-    // Update AST
-    if (result.ast) {
-      document.getElementById("ast-content").textContent = result.ast;
-    }
-
-    // Update Tokens
-    if (result.tokens) {
-      document.getElementById("tokens-content").textContent = result.tokens;
     }
 
     // Show warnings
@@ -591,6 +590,74 @@ function activateTab(tab) {
     .querySelectorAll(".tab-pane")
     .forEach((pane) => pane.classList.remove("active"));
   document.getElementById(`tab-${tab}`)?.classList.add("active");
+
+  if (COMPILE_ARTIFACT_TABS.has(tab)) {
+    void loadCompileArtifacts();
+  }
+}
+
+function setCompileArtifactPlaceholders(message) {
+  document.getElementById("ir-content").textContent = message;
+  document.getElementById("ast-content").textContent = message;
+  document.getElementById("tokens-content").textContent = message;
+}
+
+async function loadCompileArtifacts() {
+  if (!latestCompileRequest) {
+    setCompileArtifactPlaceholders("Run Code before loading compiler output.");
+    return;
+  }
+
+  if (compileArtifactsLoaded) {
+    return;
+  }
+
+  if (compileArtifactsPromise) {
+    await compileArtifactsPromise;
+    return;
+  }
+
+  setCompileArtifactPlaceholders("Loading compiler debug output...");
+  compileArtifactsPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/compile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...latestCompileRequest,
+          includeArtifacts: true,
+          execute: false,
+        }),
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        const error = result.error || "Unable to load compiler debug output.";
+        document.getElementById("ir-content").textContent = error;
+        document.getElementById("ast-content").textContent = error;
+        document.getElementById("tokens-content").textContent =
+          result.tokens || error;
+        return;
+      }
+
+      document.getElementById("ir-content").textContent =
+        result.ir || "(no LLVM IR)";
+      document.getElementById("ast-content").textContent =
+        result.ast || "(no AST)";
+      document.getElementById("tokens-content").textContent =
+        result.tokens || "(no tokens)";
+      compileArtifactsLoaded = true;
+    } catch (error) {
+      const message = `Failed to load compiler debug output: ${error.message}`;
+      document.getElementById("ir-content").textContent = message;
+      document.getElementById("ast-content").textContent = message;
+      document.getElementById("tokens-content").textContent = message;
+    } finally {
+      compileArtifactsPromise = null;
+    }
+  })();
+
+  await compileArtifactsPromise;
 }
 
 // Format code
@@ -691,6 +758,9 @@ function loadExample(example, itemEl) {
   // Clear output tabs
   document.getElementById("output-content").textContent =
     "Run the code to see output...";
+  latestCompileRequest = null;
+  compileArtifactsLoaded = false;
+  compileArtifactsPromise = null;
   document.getElementById("ir-content").textContent =
     "LLVM IR will appear here after compilation...";
   document.getElementById("ast-content").textContent =
