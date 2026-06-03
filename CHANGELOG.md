@@ -55,6 +55,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   dropped from 4.63s to 4.43s.
   Reproduce with `bun test tests/Parser.test.ts` and `bpl --time` on the 5k
   synthetic benchmark.
+- **No-Import Module Detection Fast Path** - Single-file compilation now skips
+  the expensive grammar lexer pass used only to detect imports when the source
+  has no standalone `import` keyword. On the current 5k no-import synthetic
+  fixture, the hidden import-detection lex pass measured ~195.50ms, and default
+  LLVM emission wall time dropped from 4.27s to 3.91s. Reproduce with
+  `bun test tests/CompilationRunner.test.ts` and `bpl --time` on the 5k
+  synthetic benchmark.
 - **Native Binary Tree Shaking Defaults** - Linux native builds now compile
   generated/runtime objects with `-ffunction-sections -fdata-sections`, link
   with `-Wl,--gc-sections`, and avoid `-rdynamic` by default so unused BPL

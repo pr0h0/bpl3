@@ -521,10 +521,20 @@ function tryLstat(filePath: string): fs.Stats | null {
   }
 }
 
-function sourceContainsImportDeclaration(
+const IMPORT_DECLARATION_CANDIDATE = /\bimport\b/;
+
+export function sourceMightContainImportDeclaration(content: string): boolean {
+  return IMPORT_DECLARATION_CANDIDATE.test(content);
+}
+
+export function sourceContainsImportDeclaration(
   content: string,
   filePath: string,
 ): boolean {
+  if (!sourceMightContainImportDeclaration(content)) {
+    return false;
+  }
+
   try {
     return lexWithGrammar(content, filePath).some(
       (token) => token.type === TokenType.Import,
