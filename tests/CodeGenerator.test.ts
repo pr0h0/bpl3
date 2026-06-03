@@ -632,8 +632,14 @@ describe("CodeGenerator", () => {
     expect(end).toBeGreaterThan(start);
 
     const methodSource = source.slice(start, end);
+    expect(source).toContain("private generatedArgcStoreOutputIndex");
+    expect(source).toContain("protected override noteGeneratedMainArgcStore");
+    expect(source).toContain("protected override noteGeneratedMainArgvStore");
+    expect(source).not.toContain("protected override emit");
+    expect(methodSource).toContain("this.removeGeneratedRuntimeArgStore");
     expect(methodSource).toContain("this.generatedBodyUsesArgcRuntimeHelper");
     expect(methodSource).toContain("this.generatedBodyUsesArgvRuntimeHelper");
+    expect(methodSource).not.toContain("this.output.filter");
     expect(methodSource).not.toContain("outputReferencesLlvmFunction");
     expect(methodSource).not.toContain("this.output.join");
   });

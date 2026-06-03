@@ -41,6 +41,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   sample to ~9-10.8ms, with the call-lowering hook adding under ~1.1ms across
   5,001 direct calls. Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "runtime arg helper"`.
+- **Runtime Arg Store Index Pruning** - Main argc/argv setup stores now record
+  their output indices at the emission site, so final pruning removes the two
+  optional stores directly instead of filtering the full generated output. In a
+  post-`dfbf754` 5k full-compiler profile, `pruneUnusedRuntimeArgStores`
+  accounted for ~57.4ms total with the hot line compare at ~50.7ms; after the
+  index-splice path, the same profile query no longer reported that method in
+  the hot sections. Emitted 5k IR stayed byte-for-byte identical at 2,987,498
+  bytes, and isolated warm codegen averaged ~157.45ms. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "runtime arg helper"`.
 - **Codegen Runtime Pruning Body Reuse** - Final runtime declaration pruning
   now reuses one joined generated body string across internal runtime and
   builtin primitive metadata pruning instead of joining the 5k-function output

@@ -113,6 +113,8 @@ export class CodeGenerator extends StatementGenerator {
   private prunableImplicitCDeclarations: Set<string> = new Set();
   private generatedBodyUsesArgcRuntimeHelper = false;
   private generatedBodyUsesArgvRuntimeHelper = false;
+  private generatedArgcStoreOutputIndex: number | undefined;
+  private generatedArgvStoreOutputIndex: number | undefined;
 
   constructor(
     options: {
@@ -147,6 +149,8 @@ export class CodeGenerator extends StatementGenerator {
     this.prunableImplicitCDeclarations.clear();
     this.generatedBodyUsesArgcRuntimeHelper = false;
     this.generatedBodyUsesArgvRuntimeHelper = false;
+    this.generatedArgcStoreOutputIndex = undefined;
+    this.generatedArgvStoreOutputIndex = undefined;
     this.stringLiterals.clear();
     this.structLayouts.clear();
     this.structMap.clear();
@@ -497,22 +501,27 @@ export class CodeGenerator extends StatementGenerator {
     }
   }
 
+  protected override noteGeneratedMainArgcStore(): void {
+    this.generatedArgcStoreOutputIndex = this.output.length - 1;
+  }
+
+  protected override noteGeneratedMainArgvStore(): void {
+    this.generatedArgvStoreOutputIndex = this.output.length - 1;
+  }
+
   private pruneUnusedRuntimeArgStores(): void {
-    this.output = this.output.filter((line) => {
-      if (
-        !this.generatedBodyUsesArgcRuntimeHelper &&
-        line === "  store i32 %argc, i32* @__bpl_argc_value"
-      ) {
-        return false;
-      }
-      if (
-        !this.generatedBodyUsesArgvRuntimeHelper &&
-        line === "  store i8** %argv, i8*** @__bpl_argv_value"
-      ) {
-        return false;
-      }
-      return true;
-    });
+    if (!this.generatedBodyUsesArgvRuntimeHelper) {
+      this.removeGeneratedRuntimeArgStore(this.generatedArgvStoreOutputIndex);
+    }
+    if (!this.generatedBodyUsesArgcRuntimeHelper) {
+      this.removeGeneratedRuntimeArgStore(this.generatedArgcStoreOutputIndex);
+    }
+  }
+
+  private removeGeneratedRuntimeArgStore(index: number | undefined): void {
+    if (index !== undefined) {
+      this.output.splice(index, 1);
+    }
   }
 
   private pruneUnusedInternalRuntimeDeclarations(generatedBody: string): void {

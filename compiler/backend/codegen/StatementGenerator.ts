@@ -25,6 +25,10 @@ export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
 
+  protected noteGeneratedMainArgcStore(): void {}
+
+  protected noteGeneratedMainArgvStore(): void {}
+
   private getStructDeclForAutoDestroy(
     typeNode: AST.TypeNode | undefined,
   ): AST.StructDecl | undefined {
@@ -1870,7 +1874,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       // Store argc/argv in global variables for main function
       if (name === "main") {
         this.emit(`  store i32 %argc, i32* @__bpl_argc_value`);
+        this.noteGeneratedMainArgcStore();
         this.emit(`  store i8** %argv, i8*** @__bpl_argv_value`);
+        this.noteGeneratedMainArgvStore();
       }
 
       // Allocate stack space for parameters to make them mutable
