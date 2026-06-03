@@ -27,6 +27,7 @@ import {
 import { KNOWN_TYPES } from "./TypeUtils";
 import { OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
+import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
 import { validateFunctionAttributes } from "./validators/FunctionAttributeValidator";
 
@@ -39,6 +40,10 @@ type NonEnumCoverageProjection =
   | "*"
   | boolean
   | NonEnumCoverageProjection[];
+
+const PRIMITIVE_WRAPPER_TYPE_NAMES = new Set(
+  Object.values(PRIMITIVE_STRUCT_MAP),
+);
 
 function inferEnumGenericArgsFromType(
   paramType: AST.TypeNode,
@@ -112,6 +117,8 @@ function inferEnumGenericArgsFromType(
 export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private importHandler: ImportHandler;
   private overloadResolver: OverloadResolver;
+  private implicitPrimitiveWrappersLoaded = false;
+  private implicitPrimitiveWrappersLoading = false;
   public matchContext: {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
@@ -126,10 +133,24 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     super(options);
     this.importHandler = new ImportHandler(this);
     this.overloadResolver = new OverloadResolver(this);
+  }
 
-    // Load implicit imports (primitives)
-    if (!options.skipImportResolution) {
+  public ensureImplicitPrimitiveWrappersLoaded(typeName: string): void {
+    if (
+      this.skipImportResolution ||
+      this.implicitPrimitiveWrappersLoaded ||
+      this.implicitPrimitiveWrappersLoading ||
+      !PRIMITIVE_WRAPPER_TYPE_NAMES.has(typeName)
+    ) {
+      return;
+    }
+
+    this.implicitPrimitiveWrappersLoading = true;
+    try {
       this.importHandler.loadImplicitImports();
+      this.implicitPrimitiveWrappersLoaded = true;
+    } finally {
+      this.implicitPrimitiveWrappersLoading = false;
     }
   }
 

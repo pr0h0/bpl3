@@ -369,6 +369,8 @@ export abstract class TypeCheckerBase {
     }
 
     const typeName = type.name;
+    this.ensureImplicitPrimitiveWrappersLoaded(typeName);
+
     const looksLikeGenericParam =
       typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
 
@@ -450,6 +452,8 @@ export abstract class TypeCheckerBase {
       if (canonicalAlias) {
         return canonicalAlias;
       }
+
+      this.ensureImplicitPrimitiveWrappersLoaded(type.name);
 
       const symbol = this.currentScope.resolve(type.name);
       let resolvedSymbol = symbol;
@@ -827,6 +831,8 @@ export abstract class TypeCheckerBase {
   protected initializeBuiltins(): void {
     initializeBuiltinsInScope(this.globalScope);
   }
+
+  protected ensureImplicitPrimitiveWrappersLoaded(_typeName: string): void {}
 
   // ========== Linker Symbol Registration ==========
 

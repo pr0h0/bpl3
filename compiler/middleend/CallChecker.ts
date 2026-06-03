@@ -684,6 +684,10 @@ export function checkMember(
     if (structName) {
       let symbol = this.currentScope.resolve(structName);
       if (!symbol) {
+        this.ensureImplicitPrimitiveWrappersLoaded(structName);
+        symbol = this.currentScope.resolve(structName);
+      }
+      if (!symbol) {
         const stdSymbol = this.currentScope.resolve("std");
         if (stdSymbol && stdSymbol.kind === "Module" && stdSymbol.moduleScope) {
           symbol = stdSymbol.moduleScope.resolve(structName);

@@ -31,6 +31,48 @@ function collectErrorMessages(source: string, filePath = "test.bpl") {
 }
 
 describe("TypeChecker", () => {
+  it("defers implicit primitive wrapper imports for programs that only use builtin aliases", () => {
+    const checker = new TypeChecker();
+    checker.checkProgram(
+      parseProgram(
+        [
+          "frame main() ret int {",
+          "  local value: int = 42;",
+          "  return value;",
+          "}",
+        ].join("\n"),
+      ),
+    );
+
+    expect(
+      Array.from(checker.modules.keys()).some((modulePath) =>
+        modulePath.endsWith("primitives.bpl"),
+      ),
+    ).toBe(false);
+  });
+
+  it("loads implicit primitive wrappers on demand when wrapper types are used", () => {
+    const checker = new TypeChecker();
+    checker.checkProgram(
+      parseProgram(
+        [
+          "frame main() ret int {",
+          "  local boxed: Int;",
+          "  boxed.value = 42;",
+          "  return boxed.value;",
+          "}",
+        ].join("\n"),
+      ),
+    );
+
+    expect(checker.getErrors()).toEqual([]);
+    expect(
+      Array.from(checker.modules.keys()).some((modulePath) =>
+        modulePath.endsWith("primitives.bpl"),
+      ),
+    ).toBe(true);
+  });
+
   it("keeps canonical primitive type resolution on the no-op fast path", () => {
     const location = {
       file: "test.bpl",

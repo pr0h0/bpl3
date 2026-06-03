@@ -97,6 +97,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   bucket dropped from roughly ~102.78ms to ~27.35ms and total instrumented
   checker time dropped from ~354.29ms to ~247.97ms. Reproduce with
   `bun test tests/TypeChecker.test.ts -t "simple builtin aliases"`.
+- **Lazy Primitive Wrapper Prelude Loading** - The type checker now defers the
+  implicit `std/primitives.bpl` wrapper import until a program actually names a
+  wrapper type such as `Int` or calls a primitive wrapper method such as
+  `42.toString()`. Programs that only use builtin aliases like `int` still get
+  canonical primitive types without paying to parse and check wrapper methods,
+  while wrapper use continues to load the prelude on demand. On the 5k
+  synthetic type-check profile, the eager primitive import path previously
+  accounted for roughly ~164.54ms of `checkImport` self time; after the lazy
+  path, local samples type-checked in 244.34ms and 212.47ms with only
+  `errors.bpl` and `intrinsics.bpl` loaded. Reproduce with
+  `bun test tests/TypeChecker.test.ts -t "primitive wrapper"`.
 - **Native Binary Tree Shaking Defaults** - Linux native builds now compile
   generated/runtime objects with `-ffunction-sections -fdata-sections`, link
   with `-Wl,--gc-sections`, and avoid `-rdynamic` by default so unused BPL
