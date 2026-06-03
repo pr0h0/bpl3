@@ -85,6 +85,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   comment-free profile no longer reports `extractComments` as a hot row.
   Reproduce with
   `bun test tests/Lexer.test.ts -t "comment-free lexing|single-line comments|multi-line comments|nested comments"`.
+- **Lexer Punctuator First-Character Dispatch** - The generic lexer now groups
+  punctuator candidates by first character while preserving the existing
+  overlapping-token order. This avoids scanning every punctuator for each
+  punctuation token. The 5k fixture stayed byte-for-byte identical at 2,987,498
+  bytes; matched full-pipeline samples improved from ~726.28ms warm average /
+  ~715.70ms median to ~700.80ms warm average / ~669.87ms median, and
+  `matchPunctuator` dropped out of the profile top 10. Reproduce with
+  `bun test tests/Lexer.test.ts -t "first-character candidate|distinguish between similar operators"`.
 - **Codegen Final IR Assembly Fast Path** - Final LLVM IR result assembly now
   appends trimmed non-empty sections directly instead of allocating a mapped
   and filtered section array before the final join. On the 5k synthetic

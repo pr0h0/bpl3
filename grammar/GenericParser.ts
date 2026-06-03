@@ -16,6 +16,75 @@ export interface ParseResult {
   startRule: string;
 }
 
+// Ordered to preserve existing tokenization behavior for overlapping prefixes.
+const PUNCTUATORS = [
+  "...",
+  "==",
+  "!=",
+  ">=",
+  "<=",
+  "<<",
+  ">>",
+  "&&",
+  "||",
+  "++",
+  "--",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
+  "&=",
+  "|=",
+  "^=",
+  "?",
+  ":",
+  "::",
+  "=>",
+  ",",
+  ";",
+  "{",
+  "}",
+  "(",
+  ")",
+  "[",
+  "]",
+  ".",
+  "=",
+  "+",
+  "-",
+  "*",
+  "/",
+  "%",
+  "&",
+  "|",
+  "^",
+  "!",
+  "~",
+  "<",
+  ">",
+  "@",
+  "$",
+];
+
+function groupPunctuatorsByFirstChar(
+  punctuators: string[],
+): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const punctuator of punctuators) {
+    const firstChar = punctuator[0]!;
+    const group = groups.get(firstChar);
+    if (group === undefined) {
+      groups.set(firstChar, [punctuator]);
+    } else {
+      group.push(punctuator);
+    }
+  }
+  return groups;
+}
+
+const PUNCTUATORS_BY_FIRST_CHAR = groupPunctuatorsByFirstChar(PUNCTUATORS);
+
 /**
  * A lightweight, grammar-aware tokenizer that mirrors the rules defined in
  * `grammar/grammar.bpl`. It does not build a full CST/AST, but it provides a
@@ -63,57 +132,6 @@ export class GenericParser {
     "match",
     "Func",
   ]);
-
-  // Ordered longest-first to avoid greedy mis-matches (e.g., '>>' before '>').
-  private readonly punctuators = [
-    "...",
-    "==",
-    "!=",
-    ">=",
-    "<=",
-    "<<",
-    ">>",
-    "&&",
-    "||",
-    "++",
-    "--",
-    "+=",
-    "-=",
-    "*=",
-    "/=",
-    "%=",
-    "&=",
-    "|=",
-    "^=",
-    "?",
-    ":",
-    "::",
-    "=>",
-    ",",
-    ";",
-    "{",
-    "}",
-    "(",
-    ")",
-    "[",
-    "]",
-    ".",
-    "=",
-    "+",
-    "-",
-    "*",
-    "/",
-    "%",
-    "&",
-    "|",
-    "^",
-    "!",
-    "~",
-    "<",
-    ">",
-    "@",
-    "$",
-  ];
 
   parse(): ParseResult {
     const tokens: TokenNode[] = [];
@@ -306,7 +324,13 @@ export class GenericParser {
   }
 
   private matchPunctuator(): TokenNode | null {
-    for (const punct of this.punctuators) {
+    const firstChar = this.source[this.position];
+    if (firstChar === undefined) return null;
+
+    const candidates = PUNCTUATORS_BY_FIRST_CHAR.get(firstChar);
+    if (candidates === undefined) return null;
+
+    for (const punct of candidates) {
       if (this.source.startsWith(punct, this.position)) {
         return this.createToken("Punctuator", punct);
       }

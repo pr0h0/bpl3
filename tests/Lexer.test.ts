@@ -139,6 +139,23 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Operators", () => {
+    it("keeps punctuator lexing on a first-character candidate path", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("private matchPunctuator");
+      const end = source.indexOf("private execAt", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const methodSource = source.slice(start, end);
+      expect(source).toContain("PUNCTUATORS_BY_FIRST_CHAR");
+      expect(methodSource).toContain("PUNCTUATORS_BY_FIRST_CHAR.get");
+      expect(methodSource).not.toContain("for (const punct of this.punctuators)");
+    });
+
     it("should tokenize '+' operator", () => {
       const tokens = tokenize("+");
       expect(tokens[0]!.type).toBe(TokenType.Plus);
