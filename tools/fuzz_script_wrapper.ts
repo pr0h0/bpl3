@@ -10,6 +10,7 @@ interface ScriptConfig {
   optionsWithValues: Set<string>;
   booleanOptions: Set<string>;
   flagOptions: Set<string>;
+  valueValidators?: Record<string, (value: string) => void>;
   allowSinglePositional: boolean;
 }
 
@@ -49,6 +50,9 @@ Options:
     ]),
     booleanOptions: new Set(["differential", "minimize"]),
     flagOptions: new Set(),
+    valueValidators: {
+      seeds: assertSeedListValue,
+    },
     allowSinglePositional: false,
   },
   replay: {
@@ -172,6 +176,7 @@ function validateUsage(config: ScriptConfig, argv: string[]): boolean {
         `--${rawKey} requires a non-empty value. Use --help for usage.`,
       );
     }
+    config.valueValidators?.[rawKey]?.(value);
   }
 
   if (positionals.length > 1) {
@@ -193,6 +198,42 @@ function assertBooleanOptionValue(option: string, value: string): void {
     throw new CliUsageError(
       `${option} must be a boolean value, got '${value}'.`,
     );
+  }
+}
+
+function assertSeedListValue(value: string): void {
+  const seedTexts = value.split(",").map((seed) => seed.trim());
+  if (seedTexts.length === 0 || seedTexts.every((seed) => seed.length === 0)) {
+    throw new CliUsageError(
+      `seeds must be comma-separated integers, got '${value}'.`,
+    );
+  }
+
+  for (const seedText of seedTexts) {
+    if (seedText.length === 0) {
+      throw new CliUsageError(
+        `seeds must not contain empty entries, got '${value}'.`,
+      );
+    }
+
+    if (seedText.startsWith("-")) {
+      throw new CliUsageError(
+        `seeds must be unsigned 32-bit integers, got '${value}'.`,
+      );
+    }
+
+    if (!/^(?:0x[0-9a-fA-F]+|[0-9]+)$/.test(seedText)) {
+      throw new CliUsageError(
+        `seeds must be comma-separated integers, got '${value}'.`,
+      );
+    }
+
+    const seed = Number(seedText);
+    if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) {
+      throw new CliUsageError(
+        `seeds must be unsigned 32-bit integers, got '${value}'.`,
+      );
+    }
   }
 }
 
