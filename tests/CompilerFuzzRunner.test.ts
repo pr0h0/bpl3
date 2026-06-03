@@ -649,6 +649,7 @@ describe("Compiler fuzz runner", () => {
       [["--failure-kind", "oops"], "--failure-kind must be one of"],
       [["--mode", "parser,oops"], "--mode must include"],
       [["--mode", "parser,,codegen"], "--mode must not contain empty entries"],
+      [["--mode", "all,parser"], "--mode all must be used alone"],
       [["--=value"], "Missing option name"],
       [["one.bpl", "two.bpl"], "Unexpected argument: two.bpl"],
     ];
@@ -1574,6 +1575,7 @@ describe("Compiler fuzz runner", () => {
       [["replay", "--stage", "middle"], "--stage must be one of"],
       [["replay", "--failure-kind", "oops"], "--failure-kind must be one of"],
       [["replay", "--mode", "parser,oops"], "--mode must include"],
+      [["replay", "--mode", "all,parser"], "--mode all must be used alone"],
       [
         ["replay", "--mode", "parser,,codegen"],
         "--mode must not contain empty entries",

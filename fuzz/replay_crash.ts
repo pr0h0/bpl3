@@ -162,6 +162,10 @@ function parseReplayModes(value: string | undefined): FuzzReplayMode[] {
   }
 
   if (modes.includes("all")) {
+    if (modes.length !== 1) {
+      throw new CliUsageError(`--mode all must be used alone, got '${value}'.`);
+    }
+
     return [
       "parser",
       "typecheck",

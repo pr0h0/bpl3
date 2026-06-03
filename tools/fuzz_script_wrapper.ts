@@ -290,6 +290,9 @@ function assertReplayModeListValue(value: string): void {
       `--mode must not contain empty entries, got '${value}'.`,
     );
   }
+  if (modes.includes("all") && modes.length !== 1) {
+    throw new CliUsageError(`--mode all must be used alone, got '${value}'.`);
+  }
 
   for (const mode of modes) {
     if (!REPLAY_MODES.has(mode)) {
