@@ -12,14 +12,18 @@ const centralizedCExterns = [
   /\bextern puts\((?:s|value): string\) ret int;/,
   /\bextern malloc\(size: (?:int|long)\) ret \*void;/,
   /\bextern free\(ptr: \*void\)(?: ret void)?;/,
-  /\bextern strlen\(s: string\) ret int;/,
+  /\bextern strlen\((?:s|value): string\) ret (?:int|long);/,
   /\bextern strcmp\((?:s1|left): string, (?:s2|right): string\) ret int;/,
+  /\bextern strncmp\(left: string, right: string, count: long\) ret int;/,
   /\bextern strcpy\((?:dst|dest): string, src: string\) ret string;/,
   /\bextern strcat\((?:dst|dest): string, src: string\) ret string;/,
-  /\bextern atoi\(s: string\) ret int;/,
+  /\bextern atoi\((?:s|value): string\) ret int;/,
   /\bextern memcpy\(dest: \*void, src: \*void, n: long\) ret \*void;/,
+  /\bextern memcpy\(dest: \*void, src: \*void, (?:n|size): int\) ret \*void;/,
   /\bextern memmove\(dest: \*void, src: \*void, n: long\) ret \*void;/,
+  /\bextern memmove\(dest: \*void, src: \*void, size: int\) ret \*void;/,
   /\bextern memset\(dest: \*void, (?:value|c): int, n: long\) ret \*void;/,
+  /\bextern memset\((?:dest|ptr): \*void, value: int, size: int\) ret \*void;/,
 ];
 
 function collectBplFiles(dir: string): string[] {

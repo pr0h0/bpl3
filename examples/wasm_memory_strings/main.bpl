@@ -1,11 +1,5 @@
-import [malloc] from "std/c.bpl";
-import [free] from "std/c.bpl";
-extern strlen(value: string) ret long;
-import [strcmp] from "std/c.bpl";
-import [strcpy] from "std/c.bpl";
-import [strcat] from "std/c.bpl";
-extern strncmp(left: string, right: string, count: long) ret int;
-extern atoi(value: string) ret int;
+import [atoi], [free], [malloc], [strlen], [strncmp] from "std/c.bpl";
+import [strcat], [strcmp], [strcpy] from "std/c.bpl";
 
 frame main() ret int {
     local buffer: string = cast<string>(malloc(64));

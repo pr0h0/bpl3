@@ -1,5 +1,4 @@
-import [printf] from "std/c.bpl";
-extern memcpy(dest: *void, src: *void, n: int) ret *void;
+import [memcpy], [printf] from "std/c.bpl";
 
 struct Point<T> {
     x: T,

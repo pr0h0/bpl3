@@ -1,8 +1,4 @@
-import [malloc] from "std/c.bpl";
-import [free] from "std/c.bpl";
-extern memset(dest: *void, value: int, size: int) ret *void;
-extern memcpy(dest: *void, src: *void, size: int) ret *void;
-extern memmove(dest: *void, src: *void, size: int) ret *void;
+import [free], [malloc], [memcpy], [memmove], [memset] from "std/c.bpl";
 
 frame main() ret int {
     local buffer: *i8 = cast<*i8>(malloc(16));
