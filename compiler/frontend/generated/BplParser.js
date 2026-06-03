@@ -13977,22 +13977,82 @@ function peg$parse(input, options) {
   }
 
   function peg$parse_() {
-    let s0, s1;
+    while (peg$currPos < input.length) {
+      const currentCode = input.charCodeAt(peg$currPos);
 
-    s0 = [];
-    s1 = peg$parseWhitespace();
-    if (s1 === peg$FAILED) {
-      s1 = peg$parseComment();
-    }
-    while (s1 !== peg$FAILED) {
-      s0.push(s1);
-      s1 = peg$parseWhitespace();
-      if (s1 === peg$FAILED) {
-        s1 = peg$parseComment();
+      if (peg$isBplWhitespaceCode(currentCode)) {
+        peg$currPos++;
+        while (peg$currPos < input.length && peg$isBplWhitespaceCode(input.charCodeAt(peg$currPos))) {
+          peg$currPos++;
+        }
+        continue;
       }
+
+      if (currentCode === 35) {
+        const commentStart = peg$currPos++;
+        while (peg$currPos < input.length) {
+          const code = input.charCodeAt(peg$currPos);
+          if (code === 10 || code === 13) break;
+          peg$currPos++;
+        }
+        peg$pushCommentToken(commentStart, peg$currPos);
+        continue;
+      }
+
+      if (currentCode === 47 && input.charCodeAt(peg$currPos + 1) === 35) {
+        const commentStart = peg$currPos;
+        const commentEnd = peg$scanBplBlockCommentEnd(peg$currPos);
+        if (commentEnd === peg$FAILED) break;
+        peg$currPos = commentEnd;
+        peg$pushCommentToken(commentStart, peg$currPos);
+        continue;
+      }
+
+      break;
     }
 
-    return s0;
+    return [];
+  }
+
+  function peg$isBplWhitespaceCode(code) {
+    return code === 32 || code === 9 || code === 10 || code === 13;
+  }
+
+  function peg$scanBplBlockCommentEnd(startPos) {
+    let pos = startPos + 2;
+    let depth = 1;
+
+    while (pos < input.length) {
+      const code = input.charCodeAt(pos);
+      if (code === 47 && input.charCodeAt(pos + 1) === 35) {
+        depth++;
+        pos += 2;
+        continue;
+      }
+      if (code === 35 && input.charCodeAt(pos + 1) === 47) {
+        depth--;
+        pos += 2;
+        if (depth === 0) return pos;
+        continue;
+      }
+      pos++;
+    }
+
+    return peg$FAILED;
+  }
+
+  function peg$pushCommentToken(startPos, endPos) {
+    if (!(options && options.comments)) return;
+
+    const loc = peg$computeBplLocation(startPos, endPos);
+    options.comments.push({
+      type: "Comment",
+      lexeme: input.substring(startPos, endPos),
+      literal: null,
+      line: loc.startLine,
+      column: loc.startColumn,
+      file: parserFilePath,
+    });
   }
 
   function peg$parseWhitespace() {

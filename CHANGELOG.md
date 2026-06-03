@@ -93,6 +93,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   earlier ~1.65s baseline. Reproduce with `bun test tests/Parser.test.ts -t
   "generated parser"` and `bpl --time --emit llvm` on the 5k synthetic
   benchmark.
+- **Generated Parser Trivia Scanner** - The generated `_` rule now uses a
+  manual whitespace/comment scanner instead of building arrays through Peggy's
+  `Whitespace / Comment` productions. It preserves line comments, nested
+  `/# #/` block comments, and documentation comment capture while avoiding
+  repeated failed comment parses at every whitespace boundary. On the 5k
+  synthetic fixture, parse-only samples improved from the post-literal
+  ~1.04-1.29s range to ~0.72-1.08s, and normal `--time --emit llvm` parsing
+  sampled at ~644ms. Reproduce with
+  `bun test tests/Parser.test.ts tests/CompilerFrontendFastPath.test.ts` and
+  `bpl --time --emit llvm` on the 5k synthetic benchmark.
 - **No-Import Module Detection Fast Path** - Single-file compilation now skips
   the expensive grammar lexer pass used only to detect imports when the source
   has no standalone `import` keyword. On the current 5k no-import synthetic

@@ -144,6 +144,27 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("input.substr(peg$currPos,");
   });
 
+  it("keeps generated parser trivia skipping on the manual fast path", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const triviaHelper = generatedSource.match(
+      /function peg\$parse_\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(triviaHelper).toContain("while (peg$currPos < input.length)");
+    expect(triviaHelper).toContain("pushCommentToken");
+    expect(triviaHelper).not.toContain("peg$parseWhitespace()");
+    expect(triviaHelper).not.toContain("peg$parseComment()");
+  });
+
   it("keeps the checked-in generated Peggy parser in sync with grammar/bpl.peggy", () => {
     const grammarPath = join(process.cwd(), "grammar", "bpl.peggy");
     const generatedPath = join(
