@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  setDefaultTimeout,
+} from "bun:test";
 import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -8,6 +15,9 @@ import { Compiler } from "../compiler/index";
 import { runProcessFile } from "../playground/backend/processRunner";
 
 const execFileAsync = promisify(execFile);
+const TUTORIAL_COMPILE_RUN_TIMEOUT_MS = 15000;
+
+setDefaultTimeout(TUTORIAL_COMPILE_RUN_TIMEOUT_MS);
 
 interface CodeSection {
   type: "code";

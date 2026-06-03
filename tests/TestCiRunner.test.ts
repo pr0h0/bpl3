@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import * as ts from "typescript";
 import {
   CI_SAFE_EXCLUDED_TEST_FILES,
   CI_SAFE_FIXED_TEST_FILES,
@@ -26,6 +27,82 @@ function withTempTests<T>(files: string[], run: (testsDir: string) => T): T {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function hasFileLevelBunTimeoutPolicy(source: string): boolean {
+  return /\bsetDefaultTimeout\s*\(/.test(source);
+}
+
+function hasTestLevelBunTimeoutPolicy(
+  sourceFile: ts.SourceFile,
+  call: ts.CallExpression,
+): boolean {
+  const timeoutArg = call.arguments[2];
+  if (!timeoutArg) {
+    return false;
+  }
+
+  const timeoutText = timeoutArg.getText(sourceFile);
+  return /^\d+$/.test(timeoutText) || /\btimeout\s*:/.test(timeoutText);
+}
+
+function callsRealCompilerProcessWork(body: string): boolean {
+  return [
+    /\bcompileAndRun(?:Code|Full)?\s*\(/,
+    /\bcompilesSuccessfully\s*\(/,
+    /\bspawnSync\s*\(\s*["']bun["']/,
+    /\bBPL_CLI\b/,
+    /\bexecFileAsync\s*\(\s*["']clang["']/,
+  ].some((pattern) => pattern.test(body));
+}
+
+function findAsyncCompilerProcessTestsWithoutTimeoutPolicy(): string[] {
+  const findings: string[] = [];
+
+  for (const file of discoverCiSafeUnitTestFiles()) {
+    const source = readFileSync(join(import.meta.dir, "..", file), "utf8");
+    if (hasFileLevelBunTimeoutPolicy(source)) {
+      continue;
+    }
+
+    const sourceFile = ts.createSourceFile(
+      file,
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+
+    function visit(node: ts.Node): void {
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression;
+        const calleeName = ts.isIdentifier(callee) ? callee.text : undefined;
+        const testFunction = node.arguments[1];
+
+        if (
+          (calleeName === "test" || calleeName === "it") &&
+          testFunction &&
+          (ts.isArrowFunction(testFunction) ||
+            ts.isFunctionExpression(testFunction)) &&
+          testFunction.modifiers?.some(
+            (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword,
+          ) &&
+          callsRealCompilerProcessWork(testFunction.body.getText(sourceFile)) &&
+          !hasTestLevelBunTimeoutPolicy(sourceFile, node)
+        ) {
+          findings.push(
+            `${file}: ${node.arguments[0]?.getText(sourceFile) ?? "<unnamed>"}`,
+          );
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    }
+
+    visit(sourceFile);
+  }
+
+  return findings;
 }
 
 describe("CI-safe test runner", () => {
@@ -76,6 +153,10 @@ describe("CI-safe test runner", () => {
     expect(ciTriageTests).toContain(
       'test("rejects unreadable and malformed jobs-json files before GitHub API calls"',
     );
+  });
+
+  test("keeps async compiler process tests on explicit timeout budgets", () => {
+    expect(findAsyncCompilerProcessTestsWithoutTimeoutPolicy()).toEqual([]);
   });
 
   test("plans runtime build, integration, registry sync, and CI-safe unit steps in order", () => {
