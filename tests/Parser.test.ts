@@ -250,8 +250,11 @@ describe("Parser", () => {
       /function peg\$parse_\(\)[\s\S]*?\n  }/,
     )?.[0];
 
+    expect(generatedSource).toContain("const peg$emptyTrivia = [];");
     expect(triviaHelper).toContain("while (peg$currPos < input.length)");
     expect(triviaHelper).toContain("pushCommentToken");
+    expect(triviaHelper).toContain("return peg$emptyTrivia;");
+    expect(triviaHelper).not.toContain("return [];");
     expect(triviaHelper).not.toContain("peg$parseWhitespace()");
     expect(triviaHelper).not.toContain("peg$parseComment()");
   });

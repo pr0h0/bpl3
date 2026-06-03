@@ -128,6 +128,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ~798ms baseline, and the checked-in generated parser shrank by roughly 1k
   lines. Reproduce with `bun test tests/Parser.test.ts` and
   `bpl --time --emit llvm` on the 5k synthetic benchmark.
+- **Generated Parser Empty Trivia Reuse** - The generated `_` trivia scanner
+  now returns one shared empty result instead of allocating a fresh empty array
+  for every whitespace/comment skip. Comment token capture and documentation
+  extraction remain unchanged. On the 5k synthetic fixture, parse-only samples
+  improved from the post-identifier baseline average of ~566ms to ~505ms,
+  while normal `--time --emit llvm` parsing stayed in the same band at
+  627.15ms versus 631.30ms baseline. Reproduce with
+  `bun test tests/Parser.test.ts tests/CompilerFrontendFastPath.test.ts` and
+  `bpl --time --emit llvm` on the 5k synthetic benchmark.
 - **No-Import Module Detection Fast Path** - Single-file compilation now skips
   the expensive grammar lexer pass used only to detect imports when the source
   has no standalone `import` keyword. On the current 5k no-import synthetic

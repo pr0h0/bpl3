@@ -13038,6 +13038,8 @@ function peg$parse(input, options) {
     return [word, undefined];
   }
 
+  const peg$emptyTrivia = [];
+
   function peg$parse_() {
     while (peg$currPos < input.length) {
       const currentCode = input.charCodeAt(peg$currPos);
@@ -13073,7 +13075,7 @@ function peg$parse(input, options) {
       break;
     }
 
-    return [];
+    return peg$emptyTrivia;
   }
 
   function peg$isBplWhitespaceCode(code) {

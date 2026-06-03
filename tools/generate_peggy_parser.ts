@@ -410,6 +410,8 @@ function optimizeGeneratedTriviaSkipping(parserSource: string): string {
     "  }",
   ].join("\n");
   const replacement = [
+    "  const peg$emptyTrivia = [];",
+    "",
     "  function peg$parse_() {",
     "    while (peg$currPos < input.length) {",
     "      const currentCode = input.charCodeAt(peg$currPos);",
@@ -445,7 +447,7 @@ function optimizeGeneratedTriviaSkipping(parserSource: string): string {
     "      break;",
     "    }",
     "",
-    "    return [];",
+    "    return peg$emptyTrivia;",
     "  }",
     "",
     "  function peg$isBplWhitespaceCode(code) {",
