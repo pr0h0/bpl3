@@ -395,6 +395,67 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)");
     expect(ir).not.toContain("declare i32 @setjmp(i8*) returns_twice");
     expect(ir).not.toContain("declare void @longjmp(i8*, i32) noreturn");
+    expect(ir).not.toContain("%struct.Type = type");
+    expect(ir).not.toContain("@Type_vtable =");
+    expect(ir).not.toContain("declare i8* @Type_getTypeName_Type_ptr");
+    expect(ir).not.toContain("declare i8* @Type_toString_Type_ptr");
+    expect(ir).not.toContain("declare void @Type_destroy_Type_ptr");
+    expect(ir).not.toContain("%struct.Int = type");
+    expect(ir).not.toContain("%struct.Bool = type");
+    expect(ir).not.toContain("%struct.Double = type");
+    expect(ir).not.toContain("%struct.String = type");
+  });
+
+  it("keeps builtin-named struct declarations when generated IR references them", () => {
+    const ir = compile(
+      `
+        struct String {
+          data: string,
+          length: int,
+        }
+
+        frame main() ret int {
+          local value: String;
+          value.length = 3;
+          return value.length;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("%struct.String = type");
+    expect(ir).toContain("alloca %struct.String");
+    expect(ir).toContain("getelementptr inbounds %struct.String");
+  });
+
+  it("keeps Type vtable metadata when generated IR references it", () => {
+    const ir = compile(
+      `
+        struct Type {
+          frame getTypeName(this: *Type) ret string {
+            return "Type";
+          }
+
+          frame toString(this: *Type) ret string {
+            return this.getTypeName();
+          }
+
+          frame destroy(this: *Type) {
+          }
+        }
+
+        frame main() ret int {
+          local value: Type = Type {};
+          return 0;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("%struct.Type = type");
+    expect(ir).toContain("@Type_vtable =");
+    expect(ir).toContain("bitcast ([3 x i8*]* @Type_vtable to i8*)");
+    expect(ir).toContain("define linkonce_odr dso_local i8* @Type_getTypeName_Type_ptr");
   });
 
   it("keeps internal runtime helper declarations when generated IR uses them", () => {

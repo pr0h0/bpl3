@@ -73,6 +73,22 @@ const PRUNABLE_INTERNAL_RUNTIME_STRUCTS = new Set([
 
 const PRUNABLE_IMPLICIT_C_STRUCTS = new Set(["_IO_FILE"]);
 
+const PRUNABLE_BUILTIN_PRIMITIVE_STRUCTS = new Set([
+  "Type",
+  "Int",
+  "Bool",
+  "Double",
+  "String",
+]);
+
+const PRUNABLE_BUILTIN_PRIMITIVE_DECLARATIONS = new Set([
+  "Type_getTypeName_Type_ptr",
+  "Type_toString_Type_ptr",
+  "Type_destroy_Type_ptr",
+]);
+
+const PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS = new Set(["Type_vtable"]);
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -443,6 +459,7 @@ export class CodeGenerator extends StatementGenerator {
 
     this.pruneUnusedRuntimeArgStores();
     this.pruneUnusedInternalRuntimeDeclarations();
+    this.pruneUnusedBuiltinPrimitiveMetadata();
 
     const result =
       header +
@@ -544,6 +561,10 @@ export class CodeGenerator extends StatementGenerator {
     return line.match(/^@([A-Za-z0-9_]+) = external global\b/)?.[1] ?? null;
   }
 
+  private getDefinedGlobalName(line: string): string | null {
+    return line.match(/^@([A-Za-z0-9_]+)\s*=/)?.[1] ?? null;
+  }
+
   private getDeclaredStructName(line: string): string | null {
     return line.match(/^%struct\.([A-Za-z0-9_]+) = type\b/)?.[1] ?? null;
   }
@@ -628,6 +649,103 @@ export class CodeGenerator extends StatementGenerator {
         this.referencesLlvmStruct(roots, name)
       );
     });
+  }
+
+  private pruneUnusedBuiltinPrimitiveMetadata(): void {
+    const generatedBody = this.output.join("\n");
+    const candidateDeclarations = this.declarationsOutput.filter((line) =>
+      this.isPrunableBuiltinPrimitiveMetadata(line),
+    );
+
+    if (candidateDeclarations.length === 0) {
+      return;
+    }
+
+    const nonCandidateDeclarations = this.declarationsOutput
+      .filter((line) => !this.isPrunableBuiltinPrimitiveMetadata(line))
+      .join("\n");
+    const roots = `${generatedBody}\n${nonCandidateDeclarations}`;
+    const retained = new Set<string>();
+
+    const retainCandidateIfReferencedBy = (line: string, haystack: string) => {
+      const structName = this.getDeclaredStructName(line);
+      if (
+        structName !== null &&
+        PRUNABLE_BUILTIN_PRIMITIVE_STRUCTS.has(structName) &&
+        this.referencesLlvmStruct(haystack, structName)
+      ) {
+        retained.add(line);
+        return;
+      }
+
+      const declarationName = this.getDeclaredFunctionName(line);
+      if (
+        declarationName !== null &&
+        PRUNABLE_BUILTIN_PRIMITIVE_DECLARATIONS.has(declarationName) &&
+        this.referencesLlvmSymbol(haystack, declarationName)
+      ) {
+        retained.add(line);
+        return;
+      }
+
+      const globalName = this.getDefinedGlobalName(line);
+      if (
+        globalName !== null &&
+        PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS.has(globalName) &&
+        this.referencesLlvmSymbol(haystack, globalName)
+      ) {
+        retained.add(line);
+      }
+    };
+
+    for (const line of candidateDeclarations) {
+      retainCandidateIfReferencedBy(line, roots);
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const retainedDeclarations = candidateDeclarations
+        .filter((line) => retained.has(line))
+        .join("\n");
+      const retainedBefore = retained.size;
+
+      for (const line of candidateDeclarations) {
+        if (!retained.has(line)) {
+          retainCandidateIfReferencedBy(line, retainedDeclarations);
+        }
+      }
+
+      changed = retained.size !== retainedBefore;
+    }
+
+    this.declarationsOutput = this.declarationsOutput.filter(
+      (line) =>
+        !this.isPrunableBuiltinPrimitiveMetadata(line) || retained.has(line),
+    );
+  }
+
+  private isPrunableBuiltinPrimitiveMetadata(line: string): boolean {
+    const structName = this.getDeclaredStructName(line);
+    if (
+      structName !== null &&
+      PRUNABLE_BUILTIN_PRIMITIVE_STRUCTS.has(structName)
+    ) {
+      return true;
+    }
+
+    const declarationName = this.getDeclaredFunctionName(line);
+    if (
+      declarationName !== null &&
+      PRUNABLE_BUILTIN_PRIMITIVE_DECLARATIONS.has(declarationName)
+    ) {
+      return true;
+    }
+
+    const globalName = this.getDefinedGlobalName(line);
+    return (
+      globalName !== null && PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS.has(globalName)
+    );
   }
 
   private referencesLlvmSymbol(llvmBody: string, name: string): boolean {
