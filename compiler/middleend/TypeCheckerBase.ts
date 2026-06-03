@@ -300,6 +300,40 @@ const SIMPLE_BUILTIN_BASIC_TYPE_NAMES = Object.freeze(
   }, {}),
 );
 
+function hasExtendedBasicTypeMetadata(type: AST.BasicTypeNode): boolean {
+  return (
+    type.resolvedType !== undefined ||
+    type.documentation !== undefined ||
+    type.resolvedDeclaration !== undefined ||
+    type.aliasDeclaration !== undefined ||
+    type.variableDeclaration !== undefined ||
+    type.isConst !== undefined ||
+    type.isPointerToArray !== undefined
+  );
+}
+
+function cloneSimpleBuiltinAliasType(
+  type: AST.BasicTypeNode,
+  canonicalName: string,
+): AST.BasicTypeNode {
+  if (hasExtendedBasicTypeMetadata(type)) {
+    return {
+      ...type,
+      name: canonicalName,
+      genericArgs: [],
+    };
+  }
+
+  return {
+    kind: "BasicType",
+    name: canonicalName,
+    genericArgs: [],
+    pointerDepth: type.pointerDepth,
+    arrayDimensions: type.arrayDimensions,
+    location: type.location,
+  };
+}
+
 function resolveSimpleBuiltinBasicType(
   type: AST.BasicTypeNode,
 ): AST.BasicTypeNode | undefined {
@@ -309,11 +343,7 @@ function resolveSimpleBuiltinBasicType(
 
   const canonicalName = TYPE_ALIASES[type.name];
   if (canonicalName) {
-    return {
-      ...type,
-      name: canonicalName,
-      genericArgs: [],
-    };
+    return cloneSimpleBuiltinAliasType(type, canonicalName);
   }
 
   return SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name] ? type : undefined;

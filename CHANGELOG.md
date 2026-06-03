@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Builtin Alias Clone Fast Path** - Simple builtin aliases such as `int` and
+  `uint` now avoid object-spread cloning in the common parsed type path during
+  type resolution, while preserving the metadata-copy fallback for enriched
+  type nodes. In an alias-heavy 5k-function local probe, the typecheck segment
+  improved from ~52.00ms average / ~53.74ms median to ~48.37ms average /
+  ~47.84ms median, with byte-for-byte identical emitted LLVM IR
+  (`9f6e0a741f27421d075bd576d5ea660b32366e8d354c95cff94773c848e6c100`).
+  Reproduce with `bun test tests/TypeChecker.test.ts -t "simple builtin alias"`.
 - **Checked Integer Division Fast Paths** - Integer division and modulo now
   skip unreachable runtime division-by-zero branches when the divisor is a
   known nonzero constant, and skip signed `INT_MIN / -1` overflow branches when

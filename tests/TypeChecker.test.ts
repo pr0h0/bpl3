@@ -126,6 +126,24 @@ describe("TypeChecker", () => {
       .toBe(-1);
   });
 
+  it("keeps simple builtin alias cloning off the spread fast path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const cloneHelper = source.indexOf("function cloneSimpleBuiltinAliasType");
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const resolverEnd = source.indexOf("\n/**", resolver);
+    const resolverSource = source.slice(resolver, resolverEnd);
+
+    expect(cloneHelper).toBeGreaterThanOrEqual(0);
+    expect(cloneHelper).toBeLessThan(resolver);
+    expect(resolverSource).toContain(
+      "cloneSimpleBuiltinAliasType(type, canonicalName)",
+    );
+    expect(resolverSource).not.toContain("...type");
+  });
+
   it("should clear failed import recovery state when reusing a checker", () => {
     const checker = new TypeChecker({ collectAllErrors: true });
     const failedImportSource = [
