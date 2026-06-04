@@ -907,6 +907,7 @@ function optimizeGeneratedTriviaSkipping(parserSource: string): string {
   ].join("\n");
   const replacement = [
     "  const peg$emptyTrivia = [];",
+    '  const peg$hasBplCommentMarker = input.indexOf("#") !== -1;',
     "",
     "  function peg$parse_() {",
     "    while (peg$currPos < input.length) {",
@@ -921,6 +922,8 @@ function optimizeGeneratedTriviaSkipping(parserSource: string): string {
     "        }",
     "        continue;",
     "      }",
+    "",
+    "      if (!peg$hasBplCommentMarker) break;",
     "",
     "      if (currentCode === 35) {",
     "        const commentStart = peg$currPos++;",

@@ -28,6 +28,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`0b8c49ae14d139a930c47165d8605d20a7d986e4ea3a267ffb6e31329848a6b7`).
   Reproduce with
   `bun test tests/Lexer.test.ts tests/Parser.test.ts tests/ParserExtended.test.ts`.
+- **Generated No-Comment Trivia Fast Path** - The checked-in Peggy parser now
+  records whether the input contains `#` once and skips comment-branch checks in
+  `peg$parse_` for comment-free files. On the direct 5k compile probe, parse
+  median improved from ~230.19ms to ~218.01ms and total median from ~506.91ms
+  to ~488.22ms while preserving the same 120,043-line LLVM IR
+  (`3494f8c270b2562b7a0365cf7b148a58f2e583600bf37a2683dbd189a560e486`).
+  Reproduce with `bun test tests/Parser.test.ts -t "trivia skipping"`.
 - **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
   postprocessor now inlines whitespace char-code checks inside the manual trivia
   skipper instead of calling a helper on every whitespace probe. On the same 5k

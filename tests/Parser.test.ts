@@ -550,11 +550,15 @@ describe("Parser", () => {
     )?.[0];
 
     expect(generatedSource).toContain("const peg$emptyTrivia = [];");
+    expect(generatedSource).toContain(
+      'const peg$hasBplCommentMarker = input.indexOf("#") !== -1;',
+    );
     expect(triviaHelper).toContain("while (peg$currPos < input.length)");
     expect(triviaHelper).toContain("pushCommentToken");
     expect(triviaHelper).toContain(
       "currentCode === 32 || currentCode === 9",
     );
+    expect(triviaHelper).toContain("if (!peg$hasBplCommentMarker) break;");
     expect(triviaHelper).toContain("return peg$emptyTrivia;");
     expect(triviaHelper).not.toContain("return [];");
     expect(triviaHelper).not.toContain("peg$parseWhitespace()");

@@ -12404,6 +12404,7 @@ function peg$parse(input, options) {
   }
 
   const peg$emptyTrivia = [];
+  const peg$hasBplCommentMarker = input.indexOf("#") !== -1;
 
   function peg$parse_() {
     while (peg$currPos < input.length) {
@@ -12418,6 +12419,8 @@ function peg$parse(input, options) {
         }
         continue;
       }
+
+      if (!peg$hasBplCommentMarker) break;
 
       if (currentCode === 35) {
         const commentStart = peg$currPos++;
