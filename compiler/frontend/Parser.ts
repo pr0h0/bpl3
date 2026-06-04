@@ -56,7 +56,9 @@ export class Parser {
     } else if (hasCommentMarker) {
       comments = ast.comments || [];
     }
-    this.attachComments(ast, comments);
+    if (hasCommentMarker) {
+      this.attachComments(ast, comments);
+    }
 
     if (this.tokens.length > 0) {
       const result = { ...ast, comments: tokenComments };

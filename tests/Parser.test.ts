@@ -1020,6 +1020,9 @@ describe("Parser", () => {
     expect(parseSource).toContain("? this.tokens.filter");
     expect(parseSource).toContain("else if (hasCommentMarker)");
     expect(parseSource).toContain("comments = ast.comments || []");
+    expect(parseSource).toContain(
+      "if (hasCommentMarker) {\n      this.attachComments(ast, comments);\n    }",
+    );
   });
 
   it("threads precomputed comment-marker state into the generated parser", () => {

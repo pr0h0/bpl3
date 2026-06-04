@@ -24,6 +24,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the result. Playground artifact requests still keep the conservative full IR
   path for inspection. Reproduce the guard with
   `bun test tests/PlaygroundCompileContract.test.ts -t "caches artifact-free native binaries"`.
+- **Comment-Free Parser Attachment Fast Path** -
+  `Parser.parse` now skips `attachComments` entirely when the source has no BPL
+  comment marker, while retaining the existing documentation-comment path for
+  sources with `#`. Against `e530278`, a 31-round 5k phase compare preserved
+  token count, token signature, and LLVM IR hash while improving median parse
+  time from ~253.96ms to ~242.62ms and full median from ~537.33ms to
+  ~533.25ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "comment-free parser passes|precomputed comment-marker|syntax diagnostics"`
+  and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-e530278-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
 - **Generated Parser Statement Keyword Char Checks** -
   `optimizeGeneratedStatementStartKeywordScanning` now emits direct char-code
   checks for statement-start keyword lookahead instead of routing each
