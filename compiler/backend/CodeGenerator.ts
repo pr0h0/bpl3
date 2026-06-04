@@ -607,7 +607,7 @@ export class CodeGenerator extends StatementGenerator {
     for (const line of this.declarationsOutput) {
       const name = this.getDeclaredStructName(line);
       if (name === null || !PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name)) {
-        this.addLlvmReferencesFromText(rootReferences, line);
+        this.scanLlvmReferencesFromText(rootReferences, line);
       } else {
         declarationReferences.set(name, this.collectLlvmReferences(line));
       }
@@ -658,7 +658,7 @@ export class CodeGenerator extends StatementGenerator {
         !this.prunableImplicitCDeclarations.has(line) ||
         !PRUNABLE_IMPLICIT_C_STRUCTS.has(name)
       ) {
-        this.addLlvmReferencesFromText(rootReferences, line);
+        this.scanLlvmReferencesFromText(rootReferences, line);
       }
     }
 
@@ -697,7 +697,7 @@ export class CodeGenerator extends StatementGenerator {
       if (this.isPrunableBuiltinPrimitiveMetadata(line)) {
         candidateReferences.set(line, this.collectLlvmReferences(line));
       } else {
-        this.addLlvmReferencesFromText(rootReferences, line);
+        this.scanLlvmReferencesFromText(rootReferences, line);
       }
     }
 
@@ -852,54 +852,39 @@ export class CodeGenerator extends StatementGenerator {
 
   private collectLlvmReferences(llvmBody: string): LlvmReferences {
     const references = this.createLlvmReferences();
-    this.addLlvmReferencesFromText(references, llvmBody);
+    this.scanLlvmReferencesFromText(references, llvmBody);
     return references;
   }
 
-  private addLlvmReferencesFromText(
+  private scanLlvmReferencesFromText(
     references: LlvmReferences,
     llvmBody: string,
   ): void {
-    this.addLlvmSymbolReferencesFromText(references, llvmBody);
-    this.addLlvmStructReferencesFromText(references, llvmBody);
-  }
+    let symbolIndex = llvmBody.indexOf("@");
+    let structIndex = llvmBody.indexOf("%struct.");
 
-  private addLlvmSymbolReferencesFromText(
-    references: LlvmReferences,
-    llvmBody: string,
-  ): void {
-    let index = 0;
-    while (true) {
-      const symbolIndex = llvmBody.indexOf("@", index);
-      if (symbolIndex === -1) break;
-
-      const start = symbolIndex + 1;
-      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
-      if (end > start) {
-        references.symbols.add(llvmBody.slice(start, end));
-        index = end;
+    while (symbolIndex !== -1 || structIndex !== -1) {
+      if (
+        symbolIndex !== -1 &&
+        (structIndex === -1 || symbolIndex < structIndex)
+      ) {
+        const start = symbolIndex + 1;
+        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+        if (end > start) {
+          references.symbols.add(llvmBody.slice(start, end));
+          symbolIndex = llvmBody.indexOf("@", end);
+        } else {
+          symbolIndex = llvmBody.indexOf("@", start);
+        }
       } else {
-        index = start;
-      }
-    }
-  }
-
-  private addLlvmStructReferencesFromText(
-    references: LlvmReferences,
-    llvmBody: string,
-  ): void {
-    let index = 0;
-    while (true) {
-      const structIndex = llvmBody.indexOf("%struct.", index);
-      if (structIndex === -1) break;
-
-      const start = structIndex + "%struct.".length;
-      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
-      if (end > start) {
-        references.structs.add(llvmBody.slice(start, end));
-        index = end;
-      } else {
-        index = start + 1;
+        const start = structIndex + "%struct.".length;
+        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+        if (end > start) {
+          references.structs.add(llvmBody.slice(start, end));
+          structIndex = llvmBody.indexOf("%struct.", end);
+        } else {
+          structIndex = llvmBody.indexOf("%struct.", start + 1);
+        }
       }
     }
   }

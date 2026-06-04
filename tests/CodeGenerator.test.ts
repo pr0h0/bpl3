@@ -1123,7 +1123,7 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("lines.length =");
   });
 
-  it("uses direct LLVM reference collection during final pruning", () => {
+  it("uses a combined direct LLVM reference scanner during final pruning", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
@@ -1137,14 +1137,18 @@ describe("CodeGenerator", () => {
     const referenceSource = source.slice(collectStart, collectEnd);
     expect(source).not.toContain("llvmSymbolReferencePatterns");
     expect(source).not.toContain("llvmStructReferencePatterns");
-    expect(referenceSource).toContain("addLlvmSymbolReferencesFromText");
-    expect(referenceSource).toContain("addLlvmStructReferencesFromText");
+    expect(referenceSource).toContain("scanLlvmReferencesFromText");
+    expect(referenceSource).toContain("let symbolIndex = llvmBody.indexOf");
+    expect(referenceSource).toContain("let structIndex = llvmBody.indexOf");
     expect(referenceSource).toContain("references.symbols.add");
     expect(referenceSource).toContain("references.structs.add");
-    expect(referenceSource).toContain('llvmBody.indexOf("@", index)');
-    expect(referenceSource).toContain('llvmBody.indexOf("%struct.", index)');
     expect(referenceSource).toContain("llvmBody.charCodeAt(end)");
-    expect(referenceSource).not.toContain("symbolIndex < structIndex");
+    expect(referenceSource).not.toContain(
+      "addLlvmSymbolReferencesFromText(references, llvmBody)",
+    );
+    expect(referenceSource).not.toContain(
+      "addLlvmStructReferencesFromText(references, llvmBody)",
+    );
     expect(referenceSource).not.toContain(
       "for (let index = 0; index < llvmBody.length; index++)",
     );
