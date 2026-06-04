@@ -17,6 +17,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `codegen`, and `full`, and exits non-zero on signature drift or configured
   regression-threshold failures. Reproduce the guard with
   `bun test tests/BenchmarkRunner.test.ts`.
+- **Generated Parser Statement Keyword Char Checks** -
+  `optimizeGeneratedStatementStartKeywordScanning` now emits direct char-code
+  checks for statement-start keyword lookahead instead of routing each
+  first-character bucket through a generic `input.startsWith(keyword)` helper.
+  Two same-baseline 31-round 5k phase compares against `c676672` preserved
+  token count, token signature, and LLVM IR hash; parse median improved from
+  ~255.01ms to ~251.35ms in the first sample and ~254.06ms in the confirmation
+  sample, with full median moving from ~552.61ms to ~554.19ms and then
+  ~549.12ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "statement-start keyword|keyword boundary|checked-in generated Peggy parser"`
+  and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-c676672-phases.json --json`.
 - **Generated Parser Location Line-Membership Fast Path** -
   `optimizeGeneratedBplLocationLines` now emits direct line-membership checks
   in `peg$findBplLineIndex` and `peg$computeBplLocation` instead of a generated

@@ -720,6 +720,9 @@ describe("Parser", () => {
     const statementStartHelper = generatedSource.match(
       /function peg\$parseStatementStartKeyword\(\)[\s\S]*?\n  }/,
     )?.[0];
+    const statementStartScanner = generatedSource.match(
+      /function peg\$scanBplStatementStartKeyword\(\)[\s\S]*?\n  }/,
+    )?.[0];
 
     expect(generatorSource).toContain(
       "optimizeGeneratedStatementStartKeywordScanning",
@@ -730,6 +733,23 @@ describe("Parser", () => {
     expect(generatedSource).toContain(
       "function peg$isBplIdentifierContinuationCode(code)",
     );
+    expect(
+      generatedSource.includes(
+        "function peg$matchBplStatementStartKeyword(keyword)",
+      ),
+    ).toBe(false);
+    expect(statementStartScanner).toContain(
+      "const startPos = peg$currPos;",
+    );
+    expect(statementStartScanner).toContain(
+      "input.charCodeAt(startPos + 1)",
+    );
+    expect(
+      statementStartScanner?.includes(
+        "peg$matchBplStatementStartKeyword(",
+      ),
+    ).toBe(false);
+    expect(statementStartScanner?.includes("input.startsWith")).toBe(false);
     expect(statementStartHelper).toContain(
       "return peg$scanBplStatementStartKeyword();",
     );
