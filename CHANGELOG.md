@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Comment-Free Lexer Direct Token Emission** - `lexWithGrammar` now routes
+  comment-free sources through `GenericParser.parseWithTokenEmitter`, emitting
+  frontend `Token` objects directly instead of allocating generic `TokenNode`
+  objects and immediately converting them. Comment-bearing sources keep the
+  range-preserving token-node path for comment extraction. On a matched 5k
+  synthetic compile comparison against `3245525`, lex median improved from
+  ~70.62ms to ~57.22ms and full phase median improved from ~707.25ms to
+  ~687.59ms with unchanged token signature
+  (`0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`) and
+  LLVM IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with `bun test tests/Lexer.test.ts` and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 21 --warmups 5 --json`.
 - **Codegen LLVM Reference Boundary Lookup** - Final codegen pruning now checks
   LLVM symbol and struct references with direct `indexOf` boundary scans instead
   of cached regular-expression tests. This keeps the same generated IR while

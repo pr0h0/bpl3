@@ -10,11 +10,23 @@ export interface TokenNode {
   file: string;
 }
 
-export interface ParseResult {
+export type TokenEmitter<T> = (
+  type: string,
+  value: string,
+  start: number,
+  end: number,
+  line: number,
+  column: number,
+  file: string,
+) => T;
+
+export interface GenericParseResult<T> {
   type: "Program";
-  tokens: TokenNode[];
+  tokens: T[];
   startRule: string;
 }
+
+export interface ParseResult extends GenericParseResult<TokenNode> {}
 
 // Ordered to preserve existing tokenization behavior for overlapping prefixes.
 const PUNCTUATORS = [
@@ -176,18 +188,22 @@ export class GenericParser {
   }
 
   parse(): ParseResult {
-    const tokens: TokenNode[] = [];
+    return this.parseWithTokenEmitter(createTokenNode);
+  }
+
+  parseWithTokenEmitter<T>(emitToken: TokenEmitter<T>): GenericParseResult<T> {
+    const tokens: T[] = [];
 
     while (this.position < this.source.length) {
       this.skipWhitespaceAndComments();
       if (this.position >= this.source.length) break;
 
       const token =
-        this.matchStringLiteral() ||
-        this.matchCharLiteral() ||
-        this.matchNumberLiteral() ||
-        this.matchIdentifierOrKeyword() ||
-        this.matchPunctuator();
+        this.matchStringLiteral(emitToken) ||
+        this.matchCharLiteral(emitToken) ||
+        this.matchNumberLiteral(emitToken) ||
+        this.matchIdentifierOrKeyword(emitToken) ||
+        this.matchPunctuator(emitToken);
 
       if (!token) {
         const snippet = this.source.slice(this.position, this.position + 25);
@@ -265,14 +281,14 @@ export class GenericParser {
     return this.position !== start;
   }
 
-  private matchStringLiteral(): TokenNode | null {
+  private matchStringLiteral<T>(emitToken: TokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
 
     // Standard string literal
     if (firstChar === "\"") {
       const match = this.execAt(STRING_LITERAL_PATTERN, this.position);
       if (match) {
-        return this.createToken("StringLiteral", match[0]!);
+        return this.createToken("StringLiteral", match[0]!, emitToken);
       }
       return null;
     }
@@ -283,7 +299,11 @@ export class GenericParser {
       const end = this.scanInterpolatedString(this.position);
       if (end !== -1) {
         const value = this.source.slice(this.position, end);
-        return this.createToken("InterpolatedStringLiteral", value);
+        return this.createToken(
+          "InterpolatedStringLiteral",
+          value,
+          emitToken,
+        );
       }
     }
 
@@ -344,16 +364,16 @@ export class GenericParser {
     return -1;
   }
 
-  private matchCharLiteral(): TokenNode | null {
+  private matchCharLiteral<T>(emitToken: TokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
     if (firstChar !== "'") return null;
 
     const match = this.execAt(CHAR_LITERAL_PATTERN, this.position);
     if (!match) return null;
-    return this.createToken("CharLiteral", match[0]!);
+    return this.createToken("CharLiteral", match[0]!, emitToken);
   }
 
-  private matchNumberLiteral(): TokenNode | null {
+  private matchNumberLiteral<T>(emitToken: TokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
     if (!isAsciiDigit(firstChar)) return null;
 
@@ -371,7 +391,7 @@ export class GenericParser {
     }
 
     const match = this.execAt(pattern, this.position);
-    if (match) return this.createToken("NumberLiteral", match[0]!);
+    if (match) return this.createToken("NumberLiteral", match[0]!, emitToken);
 
     if (pattern !== DECIMAL_NUMBER_LITERAL_PATTERN) {
       const decimalFallback = this.execAt(
@@ -379,14 +399,18 @@ export class GenericParser {
         this.position,
       );
       if (decimalFallback) {
-        return this.createToken("NumberLiteral", decimalFallback[0]!);
+        return this.createToken(
+          "NumberLiteral",
+          decimalFallback[0]!,
+          emitToken,
+        );
       }
     }
 
     return null;
   }
 
-  private matchIdentifierOrKeyword(): TokenNode | null {
+  private matchIdentifierOrKeyword<T>(emitToken: TokenEmitter<T>): T | null {
     const start = this.position;
     const firstCode = this.source.charCodeAt(start);
     if (!isIdentifierStartCode(firstCode)) return null;
@@ -397,19 +421,43 @@ export class GenericParser {
       (firstCode === 116 && value === "true") ||
       (firstCode === 102 && value === "false")
     ) {
-      return this.createTokenFromRange("BoolLiteral", value, start, end);
+      return this.createTokenFromRange(
+        "BoolLiteral",
+        value,
+        start,
+        end,
+        emitToken,
+      );
     }
     if (
       firstCode === 110 &&
       (value === "null" || value === "nullptr")
     ) {
-      return this.createTokenFromRange("NullptrLiteral", value, start, end);
+      return this.createTokenFromRange(
+        "NullptrLiteral",
+        value,
+        start,
+        end,
+        emitToken,
+      );
     }
 
     if (KEYWORD_START_CODES[firstCode] === true && KEYWORDS.has(value)) {
-      return this.createTokenFromRange("Keyword", value, start, end);
+      return this.createTokenFromRange(
+        "Keyword",
+        value,
+        start,
+        end,
+        emitToken,
+      );
     }
-    return this.createTokenFromRange("Identifier", value, start, end);
+    return this.createTokenFromRange(
+      "Identifier",
+      value,
+      start,
+      end,
+      emitToken,
+    );
   }
 
   private scanIdentifierEnd(index: number): number {
@@ -422,7 +470,7 @@ export class GenericParser {
     return index;
   }
 
-  private matchPunctuator(): TokenNode | null {
+  private matchPunctuator<T>(emitToken: TokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
     if (firstChar === undefined) return null;
 
@@ -431,7 +479,7 @@ export class GenericParser {
 
     for (const punct of candidates) {
       if (this.source.startsWith(punct, this.position)) {
-        return this.createToken("Punctuator", punct);
+        return this.createToken("Punctuator", punct, emitToken);
       }
     }
     return null;
@@ -443,26 +491,31 @@ export class GenericParser {
     return match && match.index === index ? match : null;
   }
 
-  private createToken(type: string, value: string): TokenNode {
+  private createToken<T>(
+    type: string,
+    value: string,
+    emitToken: TokenEmitter<T>,
+  ): T {
     const start = this.position;
     const line = this.line;
     const column = this.column;
     this.advance(value);
     const end = this.position;
-    return { type, value, start, end, line, column, file: this.filePath };
+    return emitToken(type, value, start, end, line, column, this.filePath);
   }
 
-  private createTokenFromRange(
+  private createTokenFromRange<T>(
     type: string,
     value: string,
     start: number,
     end: number,
-  ): TokenNode {
+    emitToken: TokenEmitter<T>,
+  ): T {
     const line = this.line;
     const column = this.column;
     this.position = end;
     this.column += end - start;
-    return { type, value, start, end, line, column, file: this.filePath };
+    return emitToken(type, value, start, end, line, column, this.filePath);
   }
 
   private advance(text: string): void {
@@ -477,5 +530,15 @@ export class GenericParser {
     this.position += text.length;
   }
 }
+
+const createTokenNode: TokenEmitter<TokenNode> = (
+  type,
+  value,
+  start,
+  end,
+  line,
+  column,
+  file,
+) => ({ type, value, start, end, line, column, file });
 
 export default GenericParser;

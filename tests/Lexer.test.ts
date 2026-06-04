@@ -657,7 +657,37 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
-    it("keeps grammar token conversion on a preallocated loop", () => {
+    it("keeps comment-free lexing on direct frontend token emission", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("export function lexWithGrammar");
+      const end = source.indexOf("function extractComments", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const methodSource = source.slice(start, end);
+      const commentFreeStart = methodSource.indexOf("if (!hasCommentMarker)");
+      const commentFreeEnd = methodSource.indexOf(
+        "const { tokens } = genericParser.parse()",
+      );
+
+      expect(source).toContain("parseWithTokenEmitter");
+      expect(methodSource).toContain("createFrontendTokenFromParts");
+      expect(commentFreeStart).toBeGreaterThanOrEqual(0);
+      expect(commentFreeEnd).toBeGreaterThan(commentFreeStart);
+
+      const commentFreeBranch = methodSource.slice(
+        commentFreeStart,
+        commentFreeEnd,
+      );
+      expect(commentFreeBranch).toContain("parseWithTokenEmitter");
+      expect(commentFreeBranch).not.toContain("convertTokenNodeToToken");
+    });
+
+    it("keeps comment-bearing grammar token conversion on a preallocated loop", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",

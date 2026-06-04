@@ -42,6 +42,16 @@ function loadGrammar(): Grammar {
 export function lexWithGrammar(source: string, filePath: string): Token[] {
   const grammar = loadGrammar();
   const genericParser = new GenericParser(grammar, source, filePath);
+  const hasCommentMarker = source.includes("#");
+
+  if (!hasCommentMarker) {
+    const { tokens } = genericParser.parseWithTokenEmitter(
+      createFrontendTokenFromParts,
+    );
+    appendEofToken(tokens, filePath);
+    return tokens;
+  }
+
   const { tokens } = genericParser.parse();
 
   const mapped = new Array<Token>(tokens.length);
@@ -49,7 +59,6 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
     mapped[i] = convertTokenNodeToToken(tokens[i]!);
   }
 
-  const hasCommentMarker = source.includes("#");
   if (hasCommentMarker) {
     const comments = extractComments(source, filePath, tokens);
     if (comments.length > 0) {
@@ -61,12 +70,16 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
     }
   }
 
-  const last = mapped[mapped.length - 1];
+  appendEofToken(mapped, filePath);
+  return mapped;
+}
+
+function appendEofToken(tokens: Token[], filePath: string): void {
+  const last = tokens[tokens.length - 1];
   const eofLine = last ? last.line : 1;
   const eofColumn = last ? last.column + last.lexeme.length : 1;
 
-  mapped.push(new Token(TokenType.EOF, "", null, eofLine, eofColumn, filePath));
-  return mapped;
+  tokens.push(new Token(TokenType.EOF, "", null, eofLine, eofColumn, filePath));
 }
 
 function extractComments(
@@ -197,8 +210,28 @@ function extractComments(
 }
 
 function convertTokenNodeToToken(node: TokenNode): Token {
-  const { type, value, line, column, file } = node;
+  const { type, value, start, end, line, column, file } = node;
+  return createFrontendTokenFromParts(
+    type,
+    value,
+    start,
+    end,
+    line,
+    column,
+    file,
+  );
+}
 
+// eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid per-token part objects.
+function createFrontendTokenFromParts(
+  type: string,
+  value: string,
+  _start: number,
+  _end: number,
+  line: number,
+  column: number,
+  file: string,
+): Token {
   if (type === "Identifier") {
     return new Token(TokenType.Identifier, value, null, line, column, file);
   }
