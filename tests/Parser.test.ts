@@ -184,6 +184,29 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("loc && loc.start && loc.end");
   });
 
+  it("keeps normalized parser locations off the identity makeLoc path", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    expect(grammarSource).toContain("function makeLoc");
+    expect(grammarSource).not.toContain("location: makeLoc(loc)");
+    expect(grammarSource).not.toContain("makeLoc(mergeLoc(");
+    expect(generatedSource).not.toContain("location: makeLoc(loc)");
+    expect(generatedSource).not.toContain("makeLoc(mergeLoc(");
+  });
+
   it("keeps BPL AST locations on the generated line-start fast path", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

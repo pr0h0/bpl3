@@ -407,7 +407,7 @@ function peg$parse(input, options) {
   function peg$f0(stmts) {
     const statements = stmts.map(([stmt]) => stmt).filter(Boolean);
     const loc = location();
-    return { kind: "Program", statements, location: makeLoc(loc) };
+    return { kind: "Program", statements, location: loc };
   }
   function peg$f1(error) {
     addError("Unexpected token: " + error, location());
@@ -455,7 +455,7 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f16(name) {
-    return { kind: "FunctionAttribute", name: name.name, location: makeLoc(location()) };
+    return { kind: "FunctionAttribute", name: name.name, location: location() };
   }
   function peg$f17(attrs, name, gen, params, ret, body) {
     const genericParams = gen ? gen : [];
@@ -494,10 +494,10 @@ function peg$parse(input, options) {
     return enumVariant(name.name, data, location());
   }
   function peg$f25(types) {
-         return { kind: "EnumVariantTuple", types, location: makeLoc(location()) };
+         return { kind: "EnumVariantTuple", types, location: location() };
   }
   function peg$f26(fields) {
-         return { kind: "EnumVariantStruct", fields, location: makeLoc(location()) };
+         return { kind: "EnumVariantStruct", fields, location: location() };
   }
   function peg$f27(head, tail) {
     return [head, ...tail.map(t => t[3])];
@@ -524,8 +524,8 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[1])];
   }
   function peg$f33(fd) {    return fd;  }
-  function peg$f34(name, type) {    return { kind: "StructField", name: name.name, type, location: makeLoc(location()) };  }
-  function peg$f35(name, type) {    return { kind: "StructField", name: name.name, type, location: makeLoc(location()) };  }
+  function peg$f34(name, type) {    return { kind: "StructField", name: name.name, type, location: location() };  }
+  function peg$f35(name, type) {    return { kind: "StructField", name: name.name, type, location: location() };  }
   function peg$f36(name, gen, type) {
     const genericParams = gen ? gen : [];
     return typeAlias(name.name, genericParams, type, location());
@@ -603,7 +603,7 @@ function peg$parse(input, options) {
   function peg$f70(expr) {    return returnStmt(expr || undefined, location());  }
   function peg$f71() {    return breakStmt(location());  }
   function peg$f72() {    return continueStmt(location());  }
-  function peg$f73(stmt) {    return { kind: "Defer", statement: stmt, location: makeLoc(location()) };  }
+  function peg$f73(stmt) {    return { kind: "Defer", statement: stmt, location: location() };  }
   function peg$f74(tryBlock, catches) {
     const catchList = catches.map(c => c[0]);
     return tryStmt(tryBlock, catchList, location());
@@ -616,7 +616,7 @@ function peg$parse(input, options) {
     return catchClause(null, null, body, location());
   }
   function peg$f77(expr) {    return throwStmt(expr, location());  }
-  function peg$f78() {    return { kind: "Fallthrough", location: makeLoc(location()) };  }
+  function peg$f78() {    return { kind: "Fallthrough", location: location() };  }
   function peg$f79(expr, cases, defaultCase) {
     const caseList = cases.map(c => c[0]);
     return switchStmt(expr, caseList, defaultCase || undefined, location());
@@ -635,7 +635,7 @@ function peg$parse(input, options) {
     if (filtered.length === 1 && filtered[0].kind === "Block") {
         body = filtered[0];
     } else {
-        body = { kind: "Block", statements: filtered, synthesized: true, location: makeLoc(location()) };
+        body = { kind: "Block", statements: filtered, synthesized: true, location: location() };
     }
     return caseClause(value, body, location());
   }
@@ -650,7 +650,7 @@ function peg$parse(input, options) {
     if (filtered.length === 1 && filtered[0].kind === "Block") {
         body = filtered[0];
     } else {
-        body = { kind: "Block", statements: filtered, synthesized: true, location: makeLoc(location()) };
+        body = { kind: "Block", statements: filtered, synthesized: true, location: location() };
     }
     return body;
   }
@@ -661,13 +661,13 @@ function peg$parse(input, options) {
     let result = head;
     for (const [, op, , right] of tail) {
       const opToken = makeOperatorToken(op.op, op.loc);
-      result = assignment(result, opToken, right, makeLoc(mergeLoc(result.location, right.location)));
+      result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
     }
     return result;
   }
   function peg$f90(op) {    return { op, loc: location() };  }
   function peg$f91(cond, trueExpr, falseExpr) {
-    return ternary(cond, trueExpr, falseExpr, makeLoc(mergeLoc(cond.location, falseExpr.location)));
+    return ternary(cond, trueExpr, falseExpr, mergeLoc(cond.location, falseExpr.location));
   }
   function peg$f92(left, tail) {
     return foldBinaryTail(left, tail);
@@ -721,24 +721,24 @@ function peg$parse(input, options) {
     let expr = primary;
     for (const post of postfixes) {
       if (post.type === "call") {
-        expr = call(expr, post.args, makeLoc(mergeLoc(expr.location, post.loc)));
+        expr = call(expr, post.args, mergeLoc(expr.location, post.loc));
       } else if (post.type === "index") {
-        expr = index(expr, post.index, makeLoc(mergeLoc(expr.location, post.loc)));
+        expr = index(expr, post.index, mergeLoc(expr.location, post.loc));
       } else if (post.type === "member") {
-        expr = member(expr, post.property, makeLoc(mergeLoc(expr.location, post.loc)));
+        expr = member(expr, post.property, mergeLoc(expr.location, post.loc));
       } else if (post.type === "enumStructVariant") {
         // For enum struct variant like Shape.Circle { radius: 5.0 }
         // expr should be an Identifier (enum name)
         if (expr.kind === "Identifier") {
-          expr = enumStructVariant(expr.name, post.property, post.fields, makeLoc(mergeLoc(expr.location, post.loc)));
+          expr = enumStructVariant(expr.name, post.property, post.fields, mergeLoc(expr.location, post.loc));
         } else {
           error("Enum struct variant construction requires an identifier before '.'");
         }
       } else if (post.type === "generic") {
-        expr = genericInstantiation(expr, post.genericArgs, makeLoc(mergeLoc(expr.location, post.loc)));
+        expr = genericInstantiation(expr, post.genericArgs, mergeLoc(expr.location, post.loc));
       } else if (post.type === "postfixUnary") {
         const opToken = makeOperatorToken(post.operator, post.loc);
-        expr = unary(opToken, expr, false, makeLoc(mergeLoc(expr.location, post.loc)));
+        expr = unary(opToken, expr, false, mergeLoc(expr.location, post.loc));
       }
     }
     return expr;
@@ -826,11 +826,11 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f145(name, type) {
-    return { name: name.name, type: type ? type[2] : null, location: makeLoc(location()) };
+    return { name: name.name, type: type ? type[2] : null, location: location() };
   }
   function peg$f146(expr) {
     // Wrap expression in a block with return statement
-    return { kind: "Block", statements: [{ kind: "Return", value: expr, location: makeLoc(location()) }], location: makeLoc(location()) };
+    return { kind: "Block", statements: [{ kind: "Return", value: expr, location: location() }], location: location() };
   }
   function peg$f147(lit) {
          return patternLiteral(lit, location());
@@ -966,10 +966,10 @@ function peg$parse(input, options) {
        return {
           kind: "Parameter",
           name: name.name,
-          type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: makeLoc(location()) },
+          type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: location() },
           isConst: !!isConstPrefix || !!isConstType,
           isVariadic: true,
-          location: makeLoc(location()),
+          location: location(),
        };
     }
 
@@ -983,7 +983,7 @@ function peg$parse(input, options) {
       type,
       isConst: !!isConstPrefix || !!isConstType,
       isVariadic: isVariadic,
-      location: makeLoc(location()),
+      location: location(),
     };
   }
   function peg$f172(head, tail) {
@@ -1056,7 +1056,7 @@ function peg$parse(input, options) {
     return {
       kind: "InterpolatedString",
       parts: parts,
-      location: makeLoc(location())
+      location: location()
     };
   }
   function peg$f189(expr) {    return expr;  }
@@ -12914,7 +12914,7 @@ function peg$parse(input, options) {
     if (options && options.errors) {
       options.errors.push({
         message,
-        location: makeLoc(loc),
+        location: loc,
         severity: "error"
       });
     }
@@ -12930,242 +12930,242 @@ function peg$parse(input, options) {
       genericArgs: genericArgs || [],
       pointerDepth: pointerDepth || 0,
       arrayDimensions: arrayDimensions || [],
-      location: makeLoc(loc),
+      location: loc,
     };
   }
 
   function tupleType(types, loc) {
-    return { kind: "TupleType", types, location: makeLoc(loc) };
+    return { kind: "TupleType", types, location: loc };
   }
 
   function functionType(ret, params, loc) {
-    return { kind: "FunctionType", returnType: ret, paramTypes: params || [], location: makeLoc(loc) };
+    return { kind: "FunctionType", returnType: ret, paramTypes: params || [], location: loc };
   }
 
   function lambdaType(ret, params, loc) {
-    return { kind: "LambdaType", returnType: ret, paramTypes: params || [], location: makeLoc(loc) };
+    return { kind: "LambdaType", returnType: ret, paramTypes: params || [], location: loc };
   }
 
   function literal(value, raw, type, loc) {
-    return { kind: "Literal", value, raw, type, location: makeLoc(loc) };
+    return { kind: "Literal", value, raw, type, location: loc };
   }
 
   function identifier(name, loc) {
-    return { kind: "Identifier", name, location: makeLoc(loc) };
+    return { kind: "Identifier", name, location: loc };
   }
 
   function unary(operator, operand, isPrefix, loc) {
-    return { kind: "Unary", operator, operand, isPrefix, location: makeLoc(loc) };
+    return { kind: "Unary", operator, operand, isPrefix, location: loc };
   }
 
   function binary(left, operator, right, loc) {
-    return { kind: "Binary", left, operator, right, location: makeLoc(loc) };
+    return { kind: "Binary", left, operator, right, location: loc };
   }
 
   function ternary(condition, trueExpr, falseExpr, loc) {
-    return { kind: "Ternary", condition, trueExpr, falseExpr, location: makeLoc(loc) };
+    return { kind: "Ternary", condition, trueExpr, falseExpr, location: loc };
   }
 
   function assignment(lhs, operator, rhs, loc) {
-    return { kind: "Assignment", assignee: lhs, operator, value: rhs, location: makeLoc(loc) };
+    return { kind: "Assignment", assignee: lhs, operator, value: rhs, location: loc };
   }
 
   function call(callee, args, loc) {
-    return { kind: "Call", callee, args: args || [], genericArgs: [], location: makeLoc(loc) };
+    return { kind: "Call", callee, args: args || [], genericArgs: [], location: loc };
   }
 
   function member(object, property, loc) {
-    return { kind: "Member", object, property, location: makeLoc(loc) };
+    return { kind: "Member", object, property, location: loc };
   }
 
   function index(object, indexExpr, loc) {
-    return { kind: "Index", object, index: indexExpr, location: makeLoc(loc) };
+    return { kind: "Index", object, index: indexExpr, location: loc };
   }
 
   function arrayLiteral(elements, loc) {
-    return { kind: "ArrayLiteral", elements: elements || [], location: makeLoc(loc) };
+    return { kind: "ArrayLiteral", elements: elements || [], location: loc };
   }
 
   function structLiteral(structName, fields, loc, genericArgs) {
-    return { kind: "StructLiteral", structName, fields: fields || [], genericArgs: genericArgs || [], location: makeLoc(loc) };
+    return { kind: "StructLiteral", structName, fields: fields || [], genericArgs: genericArgs || [], location: loc };
   }
 
   function tupleLiteral(elements, loc) {
-    return { kind: "TupleLiteral", elements, location: makeLoc(loc) };
+    return { kind: "TupleLiteral", elements, location: loc };
   }
 
   function group(expression, loc) {
-    return { kind: "Group", expression, location: makeLoc(loc) };
+    return { kind: "Group", expression, location: loc };
   }
 
   function enumStructVariant(enumName, variantName, fields, loc) {
-    return { kind: "EnumStructVariant", enumName, variantName, fields: fields || [], location: makeLoc(loc) };
+    return { kind: "EnumStructVariant", enumName, variantName, fields: fields || [], location: loc };
   }
 
   function castNode(targetType, expression, loc) {
-    return { kind: "Cast", targetType, expression, location: makeLoc(loc) };
+    return { kind: "Cast", targetType, expression, location: loc };
   }
 
   function sizeofNode(target, loc) {
-    return { kind: "Sizeof", target, location: makeLoc(loc) };
+    return { kind: "Sizeof", target, location: loc };
   }
 
   function typeOfNode(target, loc) {
-    return { kind: "TypeOf", target, location: makeLoc(loc) };
+    return { kind: "TypeOf", target, location: loc };
   }
 
   function offsetofNode(type, member, loc) {
-    return { kind: "OffsetOf", targetType: type, member: member, location: makeLoc(loc) };
+    return { kind: "OffsetOf", targetType: type, member: member, location: loc };
   }
 
   function lambdaExpression(params, returnType, body, loc) {
-    return { kind: "LambdaExpression", params, returnType, body, location: makeLoc(loc) };
+    return { kind: "LambdaExpression", params, returnType, body, location: loc };
   }
 
   function matchNode(targetType, value, loc) {
-    return { kind: "TypeMatch", targetType, value, location: makeLoc(loc) };
+    return { kind: "TypeMatch", targetType, value, location: loc };
   }
 
   function isNode(expression, type, loc) {
-    return { kind: "Is", expression, type, location: makeLoc(loc) };
+    return { kind: "Is", expression, type, location: loc };
   }
 
   function asNode(expression, type, loc) {
-    return { kind: "As", expression, type, location: makeLoc(loc) };
+    return { kind: "As", expression, type, location: loc };
   }
 
   function genericInstantiation(base, genericArgs, loc) {
-    return { kind: "GenericInstantiation", base, genericArgs, location: makeLoc(loc) };
+    return { kind: "GenericInstantiation", base, genericArgs, location: loc };
   }
 
   function enumDecl(name, genericParams, variants, methods, loc, implementsList) {
-    return { kind: "EnumDecl", name, genericParams, variants, methods: methods || [], implements: implementsList || [], location: makeLoc(loc) };
+    return { kind: "EnumDecl", name, genericParams, variants, methods: methods || [], implements: implementsList || [], location: loc };
   }
 
   function enumVariant(name, dataType, loc) {
-    return { kind: "EnumVariant", name, dataType, location: makeLoc(loc) };
+    return { kind: "EnumVariant", name, dataType, location: loc };
   }
 
   function matchExpr(value, arms, loc) {
-    return { kind: "Match", value, arms, location: makeLoc(loc) };
+    return { kind: "Match", value, arms, location: loc };
   }
 
   function matchArm(pattern, guard, body, loc) {
-    return { kind: "MatchArm", pattern, guard, body, location: makeLoc(loc) };
+    return { kind: "MatchArm", pattern, guard, body, location: loc };
   }
 
   function patternWildcard(loc) {
-    return { kind: "PatternWildcard", location: makeLoc(loc) };
+    return { kind: "PatternWildcard", location: loc };
   }
 
   function patternLiteral(value, loc) {
-    return { kind: "PatternLiteral", value, location: makeLoc(loc) };
+    return { kind: "PatternLiteral", value, location: loc };
   }
 
   function patternIdentifier(name, loc) {
-    return { kind: "PatternIdentifier", name, location: makeLoc(loc) };
+    return { kind: "PatternIdentifier", name, location: loc };
   }
 
   function patternEnum(enumName, genericArgs, variantName, loc) {
-    return { kind: "PatternEnum", enumName, variantName, genericArgs, location: makeLoc(loc) };
+    return { kind: "PatternEnum", enumName, variantName, genericArgs, location: loc };
   }
 
   function patternEnumTuple(enumName, genericArgs, variantName, bindings, loc) {
-    return { kind: "PatternEnumTuple", enumName, variantName, bindings, genericArgs, location: makeLoc(loc) };
+    return { kind: "PatternEnumTuple", enumName, variantName, bindings, genericArgs, location: loc };
   }
 
   function patternEnumStruct(enumName, genericArgs, variantName, fields, loc) {
-    return { kind: "PatternEnumStruct", enumName, variantName, fields, genericArgs, location: makeLoc(loc) };
+    return { kind: "PatternEnumStruct", enumName, variantName, fields, genericArgs, location: loc };
   }
 
   function patternTuple(patterns, loc) {
-    return { kind: "PatternTuple", patterns, location: makeLoc(loc) };
+    return { kind: "PatternTuple", patterns, location: loc };
   }
 
   function block(statements, loc) {
-    return { kind: "Block", statements: statements || [], location: makeLoc(loc) };
+    return { kind: "Block", statements: statements || [], location: loc };
   }
 
   function variableDecl(isGlobal, isConst, name, typeAnnotation, initializer, loc) {
-    return { kind: "VariableDecl", isGlobal, isConst, name, typeAnnotation, initializer, location: makeLoc(loc) };
+    return { kind: "VariableDecl", isGlobal, isConst, name, typeAnnotation, initializer, location: loc };
   }
 
   function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes) {
-    const node = { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: makeLoc(loc) };
+    const node = { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: loc };
     return node;
   }
 
   function structDecl(name, genericParams, inheritanceList, members, loc) {
-    return { kind: "StructDecl", name, genericParams, inheritanceList, members, location: makeLoc(loc) };
+    return { kind: "StructDecl", name, genericParams, inheritanceList, members, location: loc };
   }
 
   function specDecl(name, genericParams, extendsList, methods, loc) {
-    return { kind: "SpecDecl", name, genericParams, extends: extendsList, methods, location: makeLoc(loc) };
+    return { kind: "SpecDecl", name, genericParams, extends: extendsList, methods, location: loc };
   }
 
   function typeAlias(name, genericParams, typeNode, loc) {
-    return { kind: "TypeAlias", name, genericParams, type: typeNode, location: makeLoc(loc) };
+    return { kind: "TypeAlias", name, genericParams, type: typeNode, location: loc };
   }
 
   function importStmt(items, source, importAll, namespace, loc) {
-    return { kind: "Import", items, source, importAll: !!importAll, namespace: namespace || undefined, location: makeLoc(loc) };
+    return { kind: "Import", items, source, importAll: !!importAll, namespace: namespace || undefined, location: loc };
   }
 
   function exportStmt(items, loc) {
-    return { kind: "Export", items, location: makeLoc(loc) };
+    return { kind: "Export", items, location: loc };
   }
 
   function externDecl(name, params, isVariadic, returnType, loc) {
-    return { kind: "Extern", name, params, isVariadic, returnType, location: makeLoc(loc) };
+    return { kind: "Extern", name, params, isVariadic, returnType, location: loc };
   }
 
   function asmBlock(content, loc, flavor, clobbers) {
-    return { kind: "Asm", content, flavor, clobbers, location: makeLoc(loc) };
+    return { kind: "Asm", content, flavor, clobbers, location: loc };
   }
 
   function tryStmt(tryBlock, catchClauses, loc) {
-    return { kind: "Try", tryBlock, catchClauses, location: makeLoc(loc) };
+    return { kind: "Try", tryBlock, catchClauses, location: loc };
   }
 
   function catchClause(variable, type, body, loc) {
     // variable and type can be null for catch-all (catch { })
-    return { kind: "CatchClause", variable, type, body, location: makeLoc(loc) };
+    return { kind: "CatchClause", variable, type, body, location: loc };
   }
 
   function throwStmt(expression, loc) {
-    return { kind: "Throw", expression, location: makeLoc(loc) };
+    return { kind: "Throw", expression, location: loc };
   }
 
   function switchStmt(expression, cases, defaultCase, loc) {
-    return { kind: "Switch", expression, cases, defaultCase, location: makeLoc(loc) };
+    return { kind: "Switch", expression, cases, defaultCase, location: loc };
   }
 
   function caseClause(value, body, loc) {
-    return { kind: "Case", value, body, location: makeLoc(loc) };
+    return { kind: "Case", value, body, location: loc };
   }
 
   function returnStmt(value, loc) {
-    return { kind: "Return", value, location: makeLoc(loc) };
+    return { kind: "Return", value, location: loc };
   }
 
   function breakStmt(loc) {
-    return { kind: "Break", location: makeLoc(loc) };
+    return { kind: "Break", location: loc };
   }
 
   function continueStmt(loc) {
-    return { kind: "Continue", location: makeLoc(loc) };
+    return { kind: "Continue", location: loc };
   }
 
   function expressionStmt(expr, loc) {
-    return { kind: "ExpressionStmt", expression: expr, location: makeLoc(loc) };
+    return { kind: "ExpressionStmt", expression: expr, location: loc };
   }
 
   function loopStmt(init, condition, step, body, loc, isCStyle) {
-    return { kind: "Loop", init, condition, step, body, location: makeLoc(loc), isCStyle };
+    return { kind: "Loop", init, condition, step, body, location: loc, isCStyle };
   }
 
   function ifStmt(condition, thenBranch, elseBranch, loc) {
-    return { kind: "If", condition, thenBranch, elseBranch, location: makeLoc(loc) };
+    return { kind: "If", condition, thenBranch, elseBranch, location: loc };
   }
 
   const voidType = (loc) => basicType("void", [], 0, [], loc);
@@ -13405,7 +13405,7 @@ function peg$parse(input, options) {
         result,
         makeOperatorToken(op.op, op.loc),
         right,
-        makeLoc(mergeLoc(result.location, right.location))
+        mergeLoc(result.location, right.location)
       );
     }
     return result;
@@ -13417,7 +13417,7 @@ function peg$parse(input, options) {
       const entry = tail[i];
       const opStr = entry[1][0];
       const type = entry[3];
-      const loc = makeLoc(mergeLoc(expr.location, type.location));
+      const loc = mergeLoc(expr.location, type.location);
       expr = opStr === "is" ? isNode(expr, type, loc) : asNode(expr, type, loc);
     }
     return expr;

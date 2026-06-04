@@ -79,6 +79,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   experiments can verify behavior preservation without relying on temporary
   probes. Reproduce with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
+- **Direct Parser Location Fast Path** - The BPL grammar now passes normalized
+  `SourceLocation` objects directly through hot AST constructors instead of
+  calling the identity `makeLoc` helper around already-normalized locations.
+  On a matched 5k synthetic compile probe against the parent commit, parse
+  median improved from ~350.40ms to ~327.17ms and full in-process compile
+  median improved from ~757.65ms to ~748.47ms while preserving the same
+  265,230 tokens, token signature
+  (`0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`), and
+  LLVM IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with
+  `bun test tests/Parser.test.ts -t "normalized parser locations"`.
 - **Generated No-Comment Trivia Fast Path** - The checked-in Peggy parser now
   records whether the input contains `#` once and skips comment-branch checks in
   `peg$parse_` for comment-free files. On the direct 5k compile probe, parse
