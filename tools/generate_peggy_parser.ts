@@ -11,6 +11,25 @@ const outputPath = join(
   "generated",
   "BplParser.js",
 );
+const declarationOutputPath = join(
+  repoRoot,
+  "compiler",
+  "frontend",
+  "generated",
+  "BplParser.d.ts",
+);
+
+const generatedParserDeclaration = [
+  "export const StartRules: string[];",
+  "export class SyntaxError extends globalThis.SyntaxError {",
+  "  expected: unknown[];",
+  "  found: unknown;",
+  "  location: unknown;",
+  "  format(sources: unknown[]): string;",
+  "}",
+  "export function parse(input: string, options?: Record<string, unknown>): unknown;",
+  "",
+].join("\n");
 
 export function generateBplParserSource(grammarSource: string): string {
   return optimizeGeneratedParserSource(
@@ -1008,7 +1027,9 @@ function main(): void {
 
   mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, parserSource);
+  writeFileSync(declarationOutputPath, generatedParserDeclaration);
   console.log(`Generated ${outputPath}`);
+  console.log(`Generated ${declarationOutputPath}`);
 }
 
 if (import.meta.main) {

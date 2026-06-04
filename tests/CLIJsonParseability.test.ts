@@ -196,7 +196,9 @@ describe("CLI JSON parseability", () => {
       check: "build",
       success: true,
       file: buildSource,
-      emit: "llvm",
+      emit: "binary",
+      cache: false,
+      target: expect.any(String),
       output: {
         llvm: `${buildOutput}.ll`,
         executable: buildOutput,
