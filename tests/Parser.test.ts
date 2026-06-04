@@ -557,15 +557,27 @@ describe("Parser", () => {
     const identScanner = generatedSource.match(
       /function peg\$scanBplIdentToken\(\)[\s\S]*?\n  \}/,
     )?.[0];
-    const identEndScanner = generatedSource.match(
-      /function peg\$scanBplIdentTokenEnd\(\)[\s\S]*?\n  \}/,
-    )?.[0];
+    const identEndStart = generatedSource.indexOf(
+      "function peg$scanBplIdentTokenEnd()",
+    );
+    const identEndEnd = generatedSource.indexOf(
+      "function peg$scanBplIdentToken()",
+      identEndStart,
+    );
+    const identEndScanner =
+      identEndStart >= 0 && identEndEnd > identEndStart
+        ? generatedSource.slice(identEndStart, identEndEnd)
+        : undefined;
     const reservedRangeHelper = generatedSource.match(
       /function peg\$isBplReservedKeywordRange\(startPos, endPos\)[\s\S]*?\n  \}/,
     )?.[0];
 
     expect(identEndScanner).toBeDefined();
     expect(reservedRangeHelper).toBeDefined();
+    expect(identEndScanner).toContain("const firstCode =");
+    expect(identEndScanner).toContain("const code = input.charCodeAt(peg$currPos)");
+    expect(identEndScanner).not.toContain("peg$isBplIdentStartCode(firstCode)");
+    expect(identEndScanner).not.toContain("peg$isBplIdentPartCode(");
     expect(identifierHelper).toContain(
       "const endPos = peg$scanBplIdentTokenEnd()",
     );
