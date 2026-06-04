@@ -17,6 +17,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `codegen`, and `full`, and exits non-zero on signature drift or configured
   regression-threshold failures. Reproduce the guard with
   `bun test tests/BenchmarkRunner.test.ts`.
+- **Playground Execute-Only Native Tree Shaking** -
+  artifact-free playground native runs now pass
+  `treeShakeTopLevelFunctions` through the compiler so browser Run Code avoids
+  lowering and linking dead top-level functions when it only needs to execute
+  the result. Playground artifact requests still keep the conservative full IR
+  path for inspection. Reproduce the guard with
+  `bun test tests/PlaygroundCompileContract.test.ts -t "caches artifact-free native binaries"`.
 - **Generated Parser Statement Keyword Char Checks** -
   `optimizeGeneratedStatementStartKeywordScanning` now emits direct char-code
   checks for statement-start keyword lookahead instead of routing each

@@ -206,5 +206,9 @@ describe("Playground compile API contract", () => {
     );
     expect(compileSource).toContain("if (cachedNativeBinary)");
     expect(compileSource).toContain("!includeArtifacts");
+    expect(compileSource).toContain(
+      "const treeShakeTopLevelFunctions = execute && !includeArtifacts;",
+    );
+    expect(compileSource).toContain("treeShakeTopLevelFunctions,");
   });
 });

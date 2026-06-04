@@ -533,6 +533,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const includeArtifacts = req.includeArtifacts === true;
   const execute = req.execute !== false;
+  const treeShakeTopLevelFunctions = execute && !includeArtifacts;
 
   logger.info(`[${requestId}] Starting compilation`, {
     codeLength: req.code.length,
@@ -609,6 +610,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         emitType: "llvm",
         resolveImports: true,
         verbose: false,
+        treeShakeTopLevelFunctions,
       });
 
       const result = compiler.compile(req.code);
