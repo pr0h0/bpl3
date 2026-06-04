@@ -405,204 +405,102 @@ export abstract class StatementGenerator extends AsmGenerator {
   private expressionBlocksStackHookElision(
     expr: AST.Expression | AST.TypeNode | undefined,
   ): boolean {
-    return (
-      this.expressionMayEmitCall(expr) ||
-      this.expressionMayEmitCheckedRuntimeFailure(expr)
-    );
-  }
-
-  private expressionMayEmitCall(
-    expr: AST.Expression | AST.TypeNode | undefined,
-  ): boolean {
     if (!expr) return false;
 
     switch (expr.kind) {
       case "Call":
       case "LambdaExpression":
       case "InterpolatedString":
+      case "Match":
+      case "As":
         return true;
       case "Binary": {
         const binary = expr as AST.BinaryExpr;
         return (
           !!binary.operatorOverload ||
-          this.expressionMayEmitCall(binary.left) ||
-          this.expressionMayEmitCall(binary.right)
+          binary.operator.type === TokenType.Slash ||
+          binary.operator.type === TokenType.Percent ||
+          this.expressionBlocksStackHookElision(binary.left) ||
+          this.expressionBlocksStackHookElision(binary.right)
         );
       }
       case "Unary": {
         const unary = expr as AST.UnaryExpr;
         return (
           !!unary.operatorOverload ||
-          this.expressionMayEmitCall(unary.operand)
-        );
-      }
-      case "Member":
-        return this.expressionMayEmitCall((expr as AST.MemberExpr).object);
-      case "Index": {
-        const index = expr as AST.IndexExpr;
-        return (
-          !!index.operatorOverload ||
-          this.expressionMayEmitCall(index.object) ||
-          this.expressionMayEmitCall(index.index)
-        );
-      }
-      case "ArrayLiteral":
-        return (expr as AST.ArrayLiteralExpr).elements.some((element) =>
-          this.expressionMayEmitCall(element),
-        );
-      case "StructLiteral":
-        return (expr as AST.StructLiteralExpr).fields.some((field) =>
-          this.expressionMayEmitCall(field.value),
-        );
-      case "TupleLiteral":
-        return (expr as AST.TupleLiteralExpr).elements.some((element) =>
-          this.expressionMayEmitCall(element),
-        );
-      case "EnumStructVariant":
-        return (expr as AST.EnumStructVariantExpr).fields.some((field) =>
-          this.expressionMayEmitCall(field.value),
-        );
-      case "Cast":
-        return this.expressionMayEmitCall((expr as AST.CastExpr).expression);
-      case "Sizeof":
-        return this.expressionMayEmitCall((expr as AST.SizeofExpr).target);
-      case "TypeOf":
-        return this.expressionMayEmitCall((expr as AST.TypeOfExpr).target);
-      case "TypeMatch":
-        return this.expressionMayEmitCall(
-          (expr as AST.TypeMatchExpr).value,
-        );
-      case "Match": {
-        const match = expr as AST.MatchExpr;
-        return (
-          this.expressionMayEmitCall(match.value) ||
-          match.arms.some(
-            (arm) =>
-              this.expressionMayEmitCall(arm.guard) ||
-              (arm.body.kind === "Block"
-                ? !this.isBoundedCallFreeBlock(arm.body)
-                : this.expressionMayEmitCall(arm.body)),
-          )
-        );
-      }
-      case "Assignment": {
-        const assignment = expr as AST.AssignmentExpr;
-        return (
-          this.expressionMayEmitCall(assignment.assignee) ||
-          this.expressionMayEmitCall(assignment.value)
-        );
-      }
-      case "Ternary": {
-        const ternary = expr as AST.TernaryExpr;
-        return (
-          this.expressionMayEmitCall(ternary.condition) ||
-          this.expressionMayEmitCall(ternary.trueExpr) ||
-          this.expressionMayEmitCall(ternary.falseExpr)
-        );
-      }
-      case "GenericInstantiation":
-        return this.expressionMayEmitCall(
-          (expr as AST.GenericInstantiationExpr).base,
-        );
-      case "Is":
-        return this.expressionMayEmitCall((expr as AST.IsExpr).expression);
-      case "As":
-        return this.expressionMayEmitCall((expr as AST.AsExpr).expression);
-      case "Group":
-        return this.expressionMayEmitCall((expr as AST.GroupExpr).expression);
-      default:
-        return false;
-    }
-  }
-
-  private expressionMayEmitCheckedRuntimeFailure(
-    expr: AST.Expression | AST.TypeNode | undefined,
-  ): boolean {
-    if (!expr) return false;
-
-    switch (expr.kind) {
-      case "Binary": {
-        const binary = expr as AST.BinaryExpr;
-        return (
-          binary.operator.type === TokenType.Slash ||
-          binary.operator.type === TokenType.Percent ||
-          this.expressionMayEmitCheckedRuntimeFailure(binary.left) ||
-          this.expressionMayEmitCheckedRuntimeFailure(binary.right)
-        );
-      }
-      case "Unary": {
-        const unary = expr as AST.UnaryExpr;
-        return (
           unary.operator.type === TokenType.Star ||
-          this.expressionMayEmitCheckedRuntimeFailure(unary.operand)
+          this.expressionBlocksStackHookElision(unary.operand)
         );
       }
       case "Member": {
         const member = expr as AST.MemberExpr;
-        if (this.expressionMayEmitCheckedRuntimeFailure(member.object)) {
-          return true;
-        }
+        if (this.expressionBlocksStackHookElision(member.object)) return true;
         const objectType = member.object.resolvedType;
         return (
           objectType?.kind === "BasicType" &&
           (objectType as AST.BasicTypeNode).pointerDepth > 0
         );
       }
-      case "Index":
+      case "Index": {
         return true;
+      }
       case "ArrayLiteral":
         return (expr as AST.ArrayLiteralExpr).elements.some((element) =>
-          this.expressionMayEmitCheckedRuntimeFailure(element),
+          this.expressionBlocksStackHookElision(element),
         );
       case "StructLiteral":
         return (expr as AST.StructLiteralExpr).fields.some((field) =>
-          this.expressionMayEmitCheckedRuntimeFailure(field.value),
+          this.expressionBlocksStackHookElision(field.value),
         );
       case "TupleLiteral":
         return (expr as AST.TupleLiteralExpr).elements.some((element) =>
-          this.expressionMayEmitCheckedRuntimeFailure(element),
+          this.expressionBlocksStackHookElision(element),
         );
       case "EnumStructVariant":
         return (expr as AST.EnumStructVariantExpr).fields.some((field) =>
-          this.expressionMayEmitCheckedRuntimeFailure(field.value),
+          this.expressionBlocksStackHookElision(field.value),
         );
       case "Cast":
-        return this.expressionMayEmitCheckedRuntimeFailure(
+        return this.expressionBlocksStackHookElision(
           (expr as AST.CastExpr).expression,
         );
+      case "Sizeof":
+        return this.expressionBlocksStackHookElision(
+          (expr as AST.SizeofExpr).target,
+        );
+      case "TypeOf":
+        return this.expressionBlocksStackHookElision(
+          (expr as AST.TypeOfExpr).target,
+        );
       case "TypeMatch":
-        return this.expressionMayEmitCheckedRuntimeFailure(
+        return this.expressionBlocksStackHookElision(
           (expr as AST.TypeMatchExpr).value,
         );
-      case "Match":
-        return true;
       case "Assignment": {
         const assignment = expr as AST.AssignmentExpr;
         return (
-          this.expressionMayEmitCheckedRuntimeFailure(assignment.assignee) ||
-          this.expressionMayEmitCheckedRuntimeFailure(assignment.value)
+          this.expressionBlocksStackHookElision(assignment.assignee) ||
+          this.expressionBlocksStackHookElision(assignment.value)
         );
       }
       case "Ternary": {
         const ternary = expr as AST.TernaryExpr;
         return (
-          this.expressionMayEmitCheckedRuntimeFailure(ternary.condition) ||
-          this.expressionMayEmitCheckedRuntimeFailure(ternary.trueExpr) ||
-          this.expressionMayEmitCheckedRuntimeFailure(ternary.falseExpr)
+          this.expressionBlocksStackHookElision(ternary.condition) ||
+          this.expressionBlocksStackHookElision(ternary.trueExpr) ||
+          this.expressionBlocksStackHookElision(ternary.falseExpr)
         );
       }
       case "GenericInstantiation":
-        return this.expressionMayEmitCheckedRuntimeFailure(
+        return this.expressionBlocksStackHookElision(
           (expr as AST.GenericInstantiationExpr).base,
         );
       case "Is":
-        return this.expressionMayEmitCheckedRuntimeFailure(
+        return this.expressionBlocksStackHookElision(
           (expr as AST.IsExpr).expression,
         );
-      case "As":
-        return true;
       case "Group":
-        return this.expressionMayEmitCheckedRuntimeFailure(
+        return this.expressionBlocksStackHookElision(
           (expr as AST.GroupExpr).expression,
         );
       default:

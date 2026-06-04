@@ -1428,6 +1428,24 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("keeps bounded stack-hook elision expression analysis single-pass", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf(
+      "private isBoundedCallFreeStackHookElisionCandidate",
+    );
+    const end = source.indexOf("\n  private hasDirectTailRecursiveReturn", start);
+    const elisionSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(elisionSource).toContain("expressionBlocksStackHookElision");
+    expect(elisionSource).not.toContain("expressionMayEmitCall");
+    expect(elisionSource).not.toContain("expressionMayEmitCheckedRuntimeFailure");
+  });
+
   it("omits dead stack_ok branch scaffolding from multi-function IR", () => {
     const ir = compile(
       `
