@@ -1516,7 +1516,7 @@ describe("CodeGenerator", () => {
       /const generatedBody\s*=\s*this\.joinCompactedLines\(this\.output\)/,
     );
     expect(source).toMatch(
-      /const generatedBodyReferences\s*=\s*this\.collectLlvmReferences\(generatedBody\)/,
+      /const generatedBodyReferences\s*=\s*this\.collectFinalPruningLlvmReferences\(generatedBody\)/,
     );
     expect(source).toContain(
       "this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences)",
@@ -1528,6 +1528,51 @@ describe("CodeGenerator", () => {
       "this.appendResultSection(resultSections, generatedBody)",
     );
     expect(outputJoinCount).toBe(0);
+  });
+
+  it("uses targeted LLVM reference collection for final pruning roots", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const finalPruningStart = source.indexOf("const generatedBody =");
+    const finalPruningEnd = source.indexOf(
+      "const resultSections",
+      finalPruningStart,
+    );
+    const collectorStart = source.indexOf(
+      "private collectFinalPruningLlvmReferences",
+    );
+    const collectorEnd = source.indexOf(
+      "private collectLlvmReferences",
+      collectorStart,
+    );
+
+    expect(finalPruningStart).toBeGreaterThanOrEqual(0);
+    expect(finalPruningEnd).toBeGreaterThan(finalPruningStart);
+    expect(collectorStart).toBeGreaterThanOrEqual(0);
+    expect(collectorEnd).toBeGreaterThan(collectorStart);
+
+    const finalPruningSource = source.slice(
+      finalPruningStart,
+      finalPruningEnd,
+    );
+    const collectorSource = source.slice(collectorStart, collectorEnd);
+    expect(finalPruningSource).toContain(
+      "this.collectFinalPruningLlvmReferences(generatedBody)",
+    );
+    expect(finalPruningSource).not.toContain(
+      "this.collectLlvmReferences(generatedBody)",
+    );
+    expect(collectorSource).toContain(
+      "this.createFinalPruningLlvmReferenceTargets()",
+    );
+    expect(collectorSource).toContain(
+      "this.scanTargetedLlvmReferencesFromText",
+    );
+    expect(source).toContain("private createLlvmReferenceNameTargets");
+    expect(source).toContain("private scanTargetedLlvmReferencesFromText");
+    expect(source).toContain("private addTargetedLlvmReference");
   });
 
   it("keeps final IR section assembly off the map/filter allocation path", () => {

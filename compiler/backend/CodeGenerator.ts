@@ -95,6 +95,13 @@ type LlvmReferences = {
   structs: Set<string>;
 };
 
+type LlvmReferenceNameTargets = Map<number, string[]>;
+
+type LlvmReferenceTargets = {
+  symbols: LlvmReferenceNameTargets;
+  structs: LlvmReferenceNameTargets;
+};
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -462,7 +469,7 @@ export class CodeGenerator extends StatementGenerator {
     this.pruneUnusedRuntimeArgStores();
     const generatedBody = this.joinCompactedLines(this.output);
     const generatedBodyReferences =
-      this.collectLlvmReferences(generatedBody);
+      this.collectFinalPruningLlvmReferences(generatedBody);
     this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences);
     this.pruneUnusedBuiltinPrimitiveMetadata(generatedBodyReferences);
 
@@ -849,6 +856,147 @@ export class CodeGenerator extends StatementGenerator {
     }
     for (const struct of source.structs) {
       target.structs.add(struct);
+    }
+  }
+
+  private collectFinalPruningLlvmReferences(
+    llvmBody: string,
+  ): LlvmReferences {
+    const references = this.createLlvmReferences();
+    const targets = this.createFinalPruningLlvmReferenceTargets();
+    this.scanTargetedLlvmReferencesFromText(references, llvmBody, targets);
+    return references;
+  }
+
+  private createFinalPruningLlvmReferenceTargets(): LlvmReferenceTargets {
+    const symbols = new Set<string>([
+      ...PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS,
+      ...PRUNABLE_INTERNAL_RUNTIME_GLOBALS,
+      ...PRUNABLE_BUILTIN_PRIMITIVE_DECLARATIONS,
+      ...PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS,
+    ]);
+
+    for (const line of this.prunableImplicitCDeclarations) {
+      const functionName = this.getDeclaredFunctionName(line);
+      if (functionName !== null) {
+        symbols.add(functionName);
+      }
+
+      const declaredGlobalName = this.getDeclaredGlobalName(line);
+      if (declaredGlobalName !== null) {
+        symbols.add(declaredGlobalName);
+      }
+
+      const definedGlobalName = this.getDefinedGlobalName(line);
+      if (definedGlobalName !== null) {
+        symbols.add(definedGlobalName);
+      }
+    }
+
+    return {
+      symbols: this.createLlvmReferenceNameTargets(symbols),
+      structs: this.createLlvmReferenceNameTargets([
+        ...PRUNABLE_INTERNAL_RUNTIME_STRUCTS,
+        ...PRUNABLE_IMPLICIT_C_STRUCTS,
+        ...PRUNABLE_BUILTIN_PRIMITIVE_STRUCTS,
+      ]),
+    };
+  }
+
+  private createLlvmReferenceNameTargets(
+    names: Iterable<string>,
+  ): LlvmReferenceNameTargets {
+    const targets: LlvmReferenceNameTargets = new Map();
+
+    for (const name of names) {
+      if (name.length === 0) continue;
+      const code = name.charCodeAt(0);
+      let candidates = targets.get(code);
+      if (candidates === undefined) {
+        candidates = [];
+        targets.set(code, candidates);
+      }
+      candidates.push(name);
+    }
+
+    return targets;
+  }
+
+  private scanTargetedLlvmReferencesFromText(
+    references: LlvmReferences,
+    llvmBody: string,
+    targets: LlvmReferenceTargets,
+  ): void {
+    let symbolIndex = 0;
+    while ((symbolIndex = llvmBody.indexOf("@", symbolIndex)) !== -1) {
+      const start = symbolIndex + 1;
+      if (!targets.symbols.has(llvmBody.charCodeAt(start))) {
+        symbolIndex = start;
+        continue;
+      }
+
+      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+      if (end > start) {
+        this.addTargetedLlvmReference(
+          references.symbols,
+          llvmBody,
+          start,
+          end,
+          targets.symbols,
+        );
+        symbolIndex = end;
+      } else {
+        symbolIndex = start;
+      }
+    }
+
+    let structIndex = 0;
+    while (
+      (structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1
+    ) {
+      const start = structIndex + "%struct.".length;
+      if (!targets.structs.has(llvmBody.charCodeAt(start))) {
+        structIndex = start;
+        continue;
+      }
+
+      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+      if (end > start) {
+        this.addTargetedLlvmReference(
+          references.structs,
+          llvmBody,
+          start,
+          end,
+          targets.structs,
+        );
+        structIndex = end;
+      } else {
+        structIndex = start + 1;
+      }
+    }
+  }
+
+  private addTargetedLlvmReference(
+    references: Set<string>,
+    llvmBody: string,
+    start: number,
+    end: number,
+    targets: LlvmReferenceNameTargets,
+  ): void {
+    const candidates = targets.get(llvmBody.charCodeAt(start));
+    if (candidates === undefined) {
+      return;
+    }
+
+    const referenceLength = end - start;
+    for (const candidate of candidates) {
+      if (
+        candidate.length === referenceLength &&
+        llvmBody.startsWith(candidate, start)
+      ) {
+        references.add(candidate);
+        return;
+      }
     }
   }
 
