@@ -118,6 +118,30 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     return `%${name}_ptr`;
   }
 
+  private getDirectStructMemberAddressName(
+    type: AST.BasicTypeNode,
+  ): string | undefined {
+    if (
+      type.pointerDepth !== 0 ||
+      type.arrayDimensions.length !== 0 ||
+      type.genericArgs.length !== 0 ||
+      type.aliasDeclaration ||
+      type.variableDeclaration ||
+      type.isPointerToArray ||
+      this.typeAliasMap.has(type.name)
+    ) {
+      return undefined;
+    }
+
+    if (type.resolvedDeclaration) {
+      return type.resolvedDeclaration.kind === "StructDecl"
+        ? type.resolvedDeclaration.name
+        : undefined;
+    }
+
+    return this.structLayouts.has(type.name) ? type.name : undefined;
+  }
+
   private generateMemberAddress(
     memberExpr: AST.MemberExpr,
     skipNullObjectCheck: boolean,
@@ -145,7 +169,11 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
-    const llvmType = this.resolveType(objType);
+    const directStructName = this.getDirectStructMemberAddressName(objType);
+    const llvmType =
+      directStructName !== undefined
+        ? `%struct.${directStructName}`
+        : this.resolveType(objType);
 
     // Force generation of struct layout if it's a pointer
     if (objType.pointerDepth > 0) {
@@ -153,7 +181,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       this.resolveType(underlying);
     }
 
-    let structName = objType.name;
+    let structName = directStructName ?? objType.name;
     if (llvmType.startsWith("%struct.")) {
       structName = llvmType.substring(8);
       while (structName.endsWith("*")) structName = structName.slice(0, -1);

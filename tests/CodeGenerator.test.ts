@@ -124,6 +124,58 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain(".trim()");
   });
 
+  it("keeps simple struct member address generation on a direct layout path", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/AddressExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const helperStart = source.indexOf(
+      "private getDirectStructMemberAddressName",
+    );
+    const helperEnd = source.indexOf(
+      "private generateMemberAddress",
+      helperStart,
+    );
+    const methodStart = source.indexOf("private generateMemberAddress");
+    const methodEnd = source.indexOf(
+      "private generateIndexAddress",
+      methodStart,
+    );
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(helperEnd).toBeGreaterThan(helperStart);
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+
+    const helperSource = source.slice(helperStart, helperEnd);
+    const methodSource = source.slice(methodStart, methodEnd);
+    expect(helperSource).toContain("type.pointerDepth !== 0");
+    expect(helperSource).toContain("this.typeAliasMap.has(type.name)");
+    expect(methodSource).toContain(
+      "const directStructName = this.getDirectStructMemberAddressName(objType)",
+    );
+    expect(methodSource).toContain("directStructName !== undefined");
+
+    const ir = compile(`
+      struct Point {
+        x: int,
+        y: int,
+      }
+
+      frame main() ret int {
+        local p: Point;
+        p.x = 4;
+        return p.x;
+      }
+    `);
+    expect(ir).toMatch(
+      /getelementptr inbounds %struct\.Point, %struct\.Point\* %p_ptr(?:\.\d+)?, i32 0, i32 0/,
+    );
+  });
+
   it("keeps primitive-only struct defaults on a cached undef fast path", () => {
     const statementGeneratorSource = readFileSync(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),

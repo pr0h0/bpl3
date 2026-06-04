@@ -53,6 +53,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`418485e59754bb5bd879f85d43d448216b3bf486ba2a419a92c30cb9c9f08ad0`).
   Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "terminators without trimming"`.
+- **Direct Struct Member Address Fast Path** - Codegen now bypasses full type
+  string resolution for common non-pointer, non-generic, non-alias struct
+  member accesses when the struct layout is already known. On the post
+  terminator-scan 5k typed-AST codegen probe, median improved from ~127.62ms to
+  ~124.07ms and average from ~128.74ms to ~124.35ms while preserving identical
+  135,029-line LLVM IR
+  (`418485e59754bb5bd879f85d43d448216b3bf486ba2a419a92c30cb9c9f08ad0`).
+  Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "simple struct member address"`.
 - **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
   postprocessor now inlines whitespace char-code checks inside the manual trivia
   skipper instead of calling a helper on every whitespace probe. On the same 5k
