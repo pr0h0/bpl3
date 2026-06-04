@@ -222,6 +222,18 @@ function convertTokenNodeToToken(node: TokenNode): Token {
   );
 }
 
+// eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid Token constructor dispatch.
+function createPlainFrontendToken(
+  type: TokenType,
+  lexeme: string,
+  literal: Token["literal"],
+  line: number,
+  column: number,
+  file: string,
+): Token {
+  return { type, lexeme, literal, line, column, file } as Token;
+}
+
 // eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid per-token part objects.
 function createFrontendTokenFromParts(
   type: string,
@@ -233,11 +245,18 @@ function createFrontendTokenFromParts(
   file: string,
 ): Token {
   if (type === "Identifier") {
-    return new Token(TokenType.Identifier, value, null, line, column, file);
+    return createPlainFrontendToken(
+      TokenType.Identifier,
+      value,
+      null,
+      line,
+      column,
+      file,
+    );
   }
 
   if (type === "StringLiteral") {
-    return new Token(
+    return createPlainFrontendToken(
       TokenType.StringLiteral,
       value,
       decodeString(value),
@@ -248,7 +267,7 @@ function createFrontendTokenFromParts(
   }
 
   if (type === "InterpolatedStringLiteral") {
-    return new Token(
+    return createPlainFrontendToken(
       TokenType.InterpolatedStringLiteral,
       value,
       value, // Keep raw value
@@ -259,7 +278,7 @@ function createFrontendTokenFromParts(
   }
 
   if (type === "CharLiteral") {
-    return new Token(
+    return createPlainFrontendToken(
       TokenType.CharLiteral,
       value,
       decodeChar(value),
@@ -270,7 +289,7 @@ function createFrontendTokenFromParts(
   }
 
   if (type === "NumberLiteral") {
-    return new Token(
+    return createPlainFrontendToken(
       TokenType.NumberLiteral,
       value,
       parseNumber(value),
@@ -282,7 +301,7 @@ function createFrontendTokenFromParts(
 
   if (type === "BoolLiteral") {
     const literal = value === "true";
-    return new Token(
+    return createPlainFrontendToken(
       literal ? TokenType.True : TokenType.False,
       value,
       literal,
@@ -293,20 +312,34 @@ function createFrontendTokenFromParts(
   }
 
   if (type === "NullLiteral" || type === "NullptrLiteral") {
-    return new Token(TokenType.Nullptr, value, null, line, column, file);
+    return createPlainFrontendToken(
+      TokenType.Nullptr,
+      value,
+      null,
+      line,
+      column,
+      file,
+    );
   }
 
   if (type === "Keyword") {
     const tokenType = keywordMap[value] ?? TokenType.Identifier;
-    return new Token(tokenType, value, null, line, column, file);
+    return createPlainFrontendToken(tokenType, value, null, line, column, file);
   }
 
   if (type === "Punctuator") {
     const tokenType = punctuatorMap[value] ?? TokenType.Unknown;
-    return new Token(tokenType, value, null, line, column, file);
+    return createPlainFrontendToken(tokenType, value, null, line, column, file);
   }
 
-  return new Token(TokenType.Unknown, value, null, line, column, file);
+  return createPlainFrontendToken(
+    TokenType.Unknown,
+    value,
+    null,
+    line,
+    column,
+    file,
+  );
 }
 
 const keywordMap: Record<string, TokenType> = {

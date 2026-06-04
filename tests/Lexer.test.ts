@@ -475,6 +475,23 @@ describe("Lexer - Extended Tests", () => {
       expect(converterSource).not.toContain("punctuatorToTokenType(value)");
     });
 
+    it("keeps comment-free frontend token construction off Token constructor dispatch", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function createFrontendTokenFromParts");
+      const end = source.indexOf("const keywordMap", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const converterSource = source.slice(start, end);
+      expect(source).toContain("function createPlainFrontendToken");
+      expect(converterSource).toContain("createPlainFrontendToken(");
+      expect(converterSource).not.toContain("new Token(");
+    });
+
     it("should tokenize simple identifier", () => {
       const tokens = tokenize("myVariable");
       expect(tokens[0]!.type).toBe(TokenType.Identifier);
