@@ -43,12 +43,18 @@ export class Parser {
       ast.statements.unshift(errorImport);
     }
 
+    const hasCommentMarker = this.source.includes("#");
     const tokenComments =
-      this.tokens.length > 0
+      this.tokens.length > 0 && hasCommentMarker
         ? this.tokens.filter((t) => t.type === TokenType.Comment)
         : [];
-    const comments = tokenComments.length > 0 ? tokenComments : ast.comments;
-    this.attachComments(ast, comments || []);
+    let comments: AST.Token[] = [];
+    if (tokenComments.length > 0) {
+      comments = tokenComments;
+    } else if (hasCommentMarker) {
+      comments = ast.comments || [];
+    }
+    this.attachComments(ast, comments);
 
     if (this.tokens.length > 0) {
       const result = { ...ast, comments: tokenComments };

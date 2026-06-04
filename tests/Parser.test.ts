@@ -623,6 +623,30 @@ describe("Parser", () => {
     expect(failHelper).toContain("peg$maxFailExpected.push(expected);");
   });
 
+  it("keeps comment-free parser passes off token comment filtering", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "frontend", "Parser.ts"),
+      "utf8",
+    );
+    const parseStart = source.indexOf("public parse(");
+    const attachStart = source.indexOf("private attachComments", parseStart);
+
+    expect(parseStart).toBeGreaterThanOrEqual(0);
+    expect(attachStart).toBeGreaterThan(parseStart);
+
+    const parseSource = source.slice(parseStart, attachStart);
+    const markerIndex = parseSource.indexOf('this.source.includes("#")');
+    const filterIndex = parseSource.indexOf("this.tokens.filter");
+
+    expect(markerIndex).toBeGreaterThanOrEqual(0);
+    expect(filterIndex).toBeGreaterThan(markerIndex);
+    expect(parseSource).toContain("const hasCommentMarker");
+    expect(parseSource).toContain("hasCommentMarker");
+    expect(parseSource).toContain("? this.tokens.filter");
+    expect(parseSource).toContain("else if (hasCommentMarker)");
+    expect(parseSource).toContain("comments = ast.comments || []");
+  });
+
   it("preserves syntax diagnostics through the fast parser retry", () => {
     const parser = new Parser(
       "frame main() { local value: int = ; }",
