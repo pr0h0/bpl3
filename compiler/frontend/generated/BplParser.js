@@ -939,7 +939,7 @@ function peg$parse(input, options) {
     return structLiteral(name.name, fields || [], location(), gen || []);
   }
   function peg$f160(head, tail) {
-    return [head, ...tail.map(t => t[3])];
+    return collectTailIndex(head, tail, 3);
   }
   function peg$f161(key, value) {    return { name: key.name, value };  }
   function peg$f162(id) {    return identifier(id.name, location());  }
@@ -961,7 +961,7 @@ function peg$parse(input, options) {
          return literal(parsed, raw, "char", location());
   }
   function peg$f170(head, tail) {
-    return [head, ...tail.map(t => t[3])];
+    return collectTailIndex(head, tail, 3);
   }
   function peg$f171(isConstPrefix, isVariadicPrefix, name, isConstType, isVariadicSuffix, type) {
     const isVariadic = !!isVariadicPrefix || !!isVariadicSuffix;
@@ -13008,6 +13008,14 @@ function peg$parse(input, options) {
 
   function block(statements, loc) {
     return { kind: "Block", statements: statements || [], location: loc };
+  }
+
+  function collectTailIndex(head, tail, index) {
+    const result = [head];
+    for (let i = 0; i < tail.length; i++) {
+      result.push(tail[i][index]);
+    }
+    return result;
   }
 
   function variableDecl(isGlobal, isConst, name, typeAnnotation, initializer, loc) {

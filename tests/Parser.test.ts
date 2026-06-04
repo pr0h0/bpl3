@@ -36,6 +36,16 @@ function parseReturnedNumberLiteral(source: string): LiteralExpr {
   return value as LiteralExpr;
 }
 
+function getGrammarRuleSource(grammarSource: string, ruleName: string): string {
+  const match = new RegExp(`(^|\\n)${ruleName}\\n`).exec(grammarSource);
+  const start =
+    match === null ? -1 : match.index + (match[1]?.length ?? 0);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = grammarSource.indexOf("\n\n", start);
+  expect(end).toBeGreaterThan(start);
+  return grammarSource.slice(start, end);
+}
+
 describe("Parser", () => {
   it("should parse a simple function declaration", () => {
     const source = "frame main() { return; }";
@@ -349,6 +359,34 @@ describe("Parser", () => {
     expect(generatedSource).toContain("statements.push(statement)");
     expect(generatedSource).not.toContain(
       "stmts.map(s => s[0]).filter(s => s !== null)",
+    );
+  });
+
+  it("keeps hot generated parser list actions off tail map/spread allocation", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    for (const ruleName of ["StructLiteralFields", "ParameterList"]) {
+      const ruleSource = getGrammarRuleSource(grammarSource, ruleName);
+      expect(ruleSource).toContain("collectTailIndex(head, tail, 3)");
+      expect(ruleSource).not.toContain("tail.map");
+    }
+
+    expect(generatedSource).toContain("function collectTailIndex");
+    expect(generatedSource).toContain(
+      "return collectTailIndex(head, tail, 3);",
     );
   });
 

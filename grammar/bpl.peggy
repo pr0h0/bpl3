@@ -192,6 +192,14 @@
     return { kind: "Block", statements: statements || [], location: loc };
   }
 
+  function collectTailIndex(head, tail, index) {
+    const result = [head];
+    for (let i = 0; i < tail.length; i++) {
+      result.push(tail[i][index]);
+    }
+    return result;
+  }
+
   function variableDecl(isGlobal, isConst, name, typeAnnotation, initializer, loc) {
     return { kind: "VariableDecl", isGlobal, isConst, name, typeAnnotation, initializer, location: loc };
   }
@@ -1419,7 +1427,7 @@ StructLiteral
 
 StructLiteralFields
   = head:StructLiteralField tail:(_ "," _ StructLiteralField)* _ ","? {
-      return [head, ...tail.map(t => t[3])];
+      return collectTailIndex(head, tail, 3);
     }
 
 StructLiteralField
@@ -1468,7 +1476,7 @@ NumberToken
 
 ParameterList
   = head:Parameter tail:(_ "," _ Parameter)* {
-      return [head, ...tail.map(t => t[3])];
+      return collectTailIndex(head, tail, 3);
     }
 
 Parameter
