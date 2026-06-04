@@ -19,6 +19,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   overflow routes through the BPL `STACK OVERFLOW` error. Reproduce with
   `bun test tests/CodeGen_StackOverflow.test.ts tests/CodeGenerator.test.ts tests/CompilerRuntimeFailureSemantics.test.ts`
   and `bun benchmark/run_benchmark.ts --language bpl,c --runs 5 --warmups 2 fibonacci_recursive binary_tree`.
+- **Generic Lexer Identifier Scanner** - The grammar-backed lexer now scans
+  identifiers with a manual ASCII fast path instead of routing every identifier
+  through a sticky regex match and per-character token advance. On a matched
+  5k synthetic `lexWithGrammar` probe against the parent commit, tokenization
+  median improved from ~53.75ms to ~44.20ms while preserving the same 180,056
+  tokens and token signature
+  (`0b8c49ae14d139a930c47165d8605d20a7d986e4ea3a267ffb6e31329848a6b7`).
+  Reproduce with
+  `bun test tests/Lexer.test.ts tests/Parser.test.ts tests/ParserExtended.test.ts`.
 - **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
   postprocessor now inlines whitespace char-code checks inside the manual trivia
   skipper instead of calling a helper on every whitespace probe. On the same 5k

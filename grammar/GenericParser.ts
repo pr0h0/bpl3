@@ -91,7 +91,6 @@ const BINARY_NUMBER_LITERAL_PATTERN = /0[bB][01]+/y;
 const OCTAL_NUMBER_LITERAL_PATTERN = /0[oO][0-7]+/y;
 const DECIMAL_NUMBER_LITERAL_PATTERN =
   /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y;
-const IDENTIFIER_PATTERN = /[A-Za-z_][A-Za-z0-9_]*/y;
 
 function isAsciiDigit(ch: string | undefined): ch is string {
   if (ch === undefined) return false;
@@ -101,12 +100,24 @@ function isAsciiDigit(ch: string | undefined): ch is string {
 
 function isIdentifierStart(ch: string | undefined): ch is string {
   if (ch === undefined) return false;
-  const code = ch.charCodeAt(0);
+  return isIdentifierStartCode(ch.charCodeAt(0));
+}
+
+function isIdentifierPart(ch: string | undefined): ch is string {
+  if (ch === undefined) return false;
+  return isIdentifierPartCode(ch.charCodeAt(0));
+}
+
+function isIdentifierStartCode(code: number): boolean {
   return (
-    ch === "_" ||
+    code === 95 ||
     (code >= 65 && code <= 90) ||
     (code >= 97 && code <= 122)
   );
+}
+
+function isIdentifierPartCode(code: number): boolean {
+  return isIdentifierStartCode(code) || (code >= 48 && code <= 57);
 }
 
 /**
@@ -359,17 +370,24 @@ export class GenericParser {
     const firstChar = this.source[this.position];
     if (!isIdentifierStart(firstChar)) return null;
 
-    const match = this.execAt(IDENTIFIER_PATTERN, this.position);
-    if (!match) return null;
-
-    const value = match[0]!;
+    const start = this.position;
+    const end = this.scanIdentifierEnd(start + 1);
+    const value = this.source.slice(start, end);
     if (value === "true" || value === "false")
-      return this.createToken("BoolLiteral", value);
+      return this.createTokenFromRange("BoolLiteral", value, start, end);
     if (value === "null" || value === "nullptr")
-      return this.createToken("NullptrLiteral", value);
+      return this.createTokenFromRange("NullptrLiteral", value, start, end);
 
-    if (this.keywords.has(value)) return this.createToken("Keyword", value);
-    return this.createToken("Identifier", value);
+    if (this.keywords.has(value))
+      return this.createTokenFromRange("Keyword", value, start, end);
+    return this.createTokenFromRange("Identifier", value, start, end);
+  }
+
+  private scanIdentifierEnd(index: number): number {
+    while (index < this.source.length && isIdentifierPart(this.source[index])) {
+      index += 1;
+    }
+    return index;
   }
 
   private matchPunctuator(): TokenNode | null {
@@ -399,6 +417,19 @@ export class GenericParser {
     const column = this.column;
     this.advance(value);
     const end = this.position;
+    return { type, value, start, end, line, column, file: this.filePath };
+  }
+
+  private createTokenFromRange(
+    type: string,
+    value: string,
+    start: number,
+    end: number,
+  ): TokenNode {
+    const line = this.line;
+    const column = this.column;
+    this.position = end;
+    this.column += end - start;
     return { type, value, start, end, line, column, file: this.filePath };
   }
 

@@ -330,7 +330,7 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Identifiers", () => {
-    it("reuses module-level token regexes for hot literal and identifier matching", () => {
+    it("reuses module-level literal regexes and scans identifiers manually", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
         "utf8",
@@ -348,10 +348,12 @@ describe("Lexer - Extended Tests", () => {
       expect(source).toContain("BINARY_NUMBER_LITERAL_PATTERN");
       expect(source).toContain("OCTAL_NUMBER_LITERAL_PATTERN");
       expect(source).toContain("DECIMAL_NUMBER_LITERAL_PATTERN");
-      expect(source).toContain("IDENTIFIER_PATTERN");
+      expect(source).toContain("function isIdentifierPart");
+      expect(source).toContain("private scanIdentifierEnd");
       expect(matcherSource).not.toContain("const regex = /");
       expect(matcherSource).not.toContain("const patterns = [");
       expect(matcherSource).not.toContain("this.execAt(/[A-Za-z_]");
+      expect(matcherSource).not.toContain("IDENTIFIER_PATTERN");
     });
 
     it("guards hot token regexes by first character before execAt", () => {
