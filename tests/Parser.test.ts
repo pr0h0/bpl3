@@ -393,6 +393,56 @@ describe("Parser", () => {
       .not.toThrow();
   });
 
+  it("keeps generated postfix-tail parsing gated by starter characters", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const postfixTailHelper = generatedSource.match(
+      /function peg\$parsePostfixTail\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedPostfixTailScanning");
+    expect(postfixTailHelper).toContain(
+      "const nextCode = input.charCodeAt(peg$currPos)",
+    );
+    expect(postfixTailHelper).toContain("case 60:");
+    expect(postfixTailHelper).toContain("case 40:");
+    expect(postfixTailHelper).toContain("case 91:");
+    expect(postfixTailHelper).toContain("case 46:");
+    expect(postfixTailHelper).toContain("case 43:");
+    expect(postfixTailHelper).toContain("case 45:");
+    expect(postfixTailHelper).toContain("s2 = peg$parsePostfixTailAfterTrivia()");
+    expect(postfixTailHelper).toContain("peg$currPos = s0");
+
+    expect(() =>
+      new Parser(
+        [
+          "struct Box { value: int }",
+          "frame inc(value: int) ret int { return value + 1; }",
+          "frame main() ret int {",
+          "  local box: Box = Box { value: 1 };",
+          "  local nums: int[2] = [1, 2];",
+          "  local total: int = inc (box . value) + nums [1];",
+          "  total++;",
+          "  return total;",
+          "}",
+        ].join("\n"),
+        "postfix-gate.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated number-token parsing on the direct scanner fast path", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

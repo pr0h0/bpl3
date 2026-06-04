@@ -7143,10 +7143,29 @@ function peg$parse(input, options) {
   }
 
   function peg$parsePostfixTail() {
-    let s0, s1, s2;
+    let s0, s2;
 
     s0 = peg$currPos;
-    s1 = peg$parse_();
+    peg$parse_();
+    const nextCode = input.charCodeAt(peg$currPos);
+    switch (nextCode) {
+      case 60:
+      case 40:
+      case 91:
+      case 46:
+        break;
+      case 43:
+        if (input.charCodeAt(peg$currPos + 1) === 43) break;
+        peg$currPos = s0;
+        return peg$FAILED;
+      case 45:
+        if (input.charCodeAt(peg$currPos + 1) === 45) break;
+        peg$currPos = s0;
+        return peg$FAILED;
+      default:
+        peg$currPos = s0;
+        return peg$FAILED;
+    }
     s2 = peg$parsePostfixTailAfterTrivia();
     if (s2 !== peg$FAILED) {
       peg$savedPos = s0;

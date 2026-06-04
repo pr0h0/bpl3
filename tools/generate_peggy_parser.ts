@@ -81,10 +81,12 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
       optimizeGeneratedStatementStartKeywordScanning(
         optimizeGeneratedAssignmentOperatorScanning(
           optimizeGeneratedExpressionOperatorScanning(
-            optimizeGeneratedIdentifierScanning(
-              optimizeGeneratedFailureTracking(
-                optimizeGeneratedLiteralMatches(
-                  optimizeGeneratedMakeLoc(withBplLocation),
+            optimizeGeneratedPostfixTailScanning(
+              optimizeGeneratedIdentifierScanning(
+                optimizeGeneratedFailureTracking(
+                  optimizeGeneratedLiteralMatches(
+                    optimizeGeneratedMakeLoc(withBplLocation),
+                  ),
                 ),
               ),
             ),
@@ -479,6 +481,61 @@ function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
   lines.push("    }");
   lines.push("  }");
   return lines;
+}
+
+function optimizeGeneratedPostfixTailScanning(parserSource: string): string {
+  const postfixTailPattern =
+    /  function peg\$parsePostfixTail\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parsePostfixTailAfterTrivia\(\)/;
+  const match = parserSource.match(postfixTailPattern);
+  const actionName = match?.[1]?.match(/s0 = (peg\$f\d+)\(s2\);/)?.[1];
+
+  if (!match || !actionName) {
+    throw new Error(
+      "Generated Peggy parser postfix-tail helper shape changed; update the BPL parser postfix-tail optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parsePostfixTail() {",
+    "    let s0, s2;",
+    "",
+    "    s0 = peg$currPos;",
+    "    peg$parse_();",
+    "    const nextCode = input.charCodeAt(peg$currPos);",
+    "    switch (nextCode) {",
+    "      case 60:",
+    "      case 40:",
+    "      case 91:",
+    "      case 46:",
+    "        break;",
+    "      case 43:",
+    "        if (input.charCodeAt(peg$currPos + 1) === 43) break;",
+    "        peg$currPos = s0;",
+    "        return peg$FAILED;",
+    "      case 45:",
+    "        if (input.charCodeAt(peg$currPos + 1) === 45) break;",
+    "        peg$currPos = s0;",
+    "        return peg$FAILED;",
+    "      default:",
+    "        peg$currPos = s0;",
+    "        return peg$FAILED;",
+    "    }",
+    "    s2 = peg$parsePostfixTailAfterTrivia();",
+    "    if (s2 !== peg$FAILED) {",
+    "      peg$savedPos = s0;",
+    `      s0 = ${actionName}(s2);`,
+    "    } else {",
+    "      peg$currPos = s0;",
+    "      s0 = peg$FAILED;",
+    "    }",
+    "",
+    "    return s0;",
+    "  }",
+    "",
+    "  function peg$parsePostfixTailAfterTrivia()",
+  ].join("\n");
+
+  return parserSource.replace(postfixTailPattern, replacement);
 }
 
 function optimizeGeneratedNumberScanning(parserSource: string): string {
