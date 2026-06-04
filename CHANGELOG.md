@@ -73,6 +73,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/RAIIAutoDestroy.test.ts tests/FunctionAttributes.test.ts tests/CodeGenerator.test.ts tests/ZeroCostLLVM.test.ts tests/GoldenLLVMShapes.test.ts`
   and the phase compare with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-207d37e-phases.json --gate-phases codegen,full --max-phase-regression 3 --max-full-regression 2 --json`.
+- **Cached Direct Struct Member Lookups** -
+  `TypeCheckerBase` now caches direct struct field and method lookups per
+  `StructDecl`, avoiding repeated linear `members` scans for struct literals
+  and member access while preserving inherited lookup and generic substitution
+  behavior. Against `51475fa`, a 31-round 5k phase compare gated on
+  `typecheck,full` preserved token count, token signature, and LLVM IR hash
+  while improving median typecheck time from ~105.10ms to ~101.07ms and full
+  median from ~546.83ms to ~527.81ms. Reproduce the behavior guards with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerStructLiteralDiagnostics.test.ts tests/TypeCheckerMemberAccessMisuse.test.ts tests/StructEquality.test.ts tests/BugFix_StructLiteral.test.ts tests/Struct.runtime.test.ts`
+  and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-51475fa-phases.json --gate-phases typecheck,full --max-phase-regression 3 --max-full-regression 2 --json`.
 - **Playground No-Import Native Compile Fast Path** -
   artifact-free playground native requests now skip full module resolution when
   the submitted source does not contain an `import` keyword, while import-using

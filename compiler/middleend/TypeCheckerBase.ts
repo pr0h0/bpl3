@@ -371,6 +371,8 @@ function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
   return type.name === decl.name && decl.genericParams.length === 0;
 }
 
+const EMPTY_DIRECT_STRUCT_MEMBERS: (AST.StructField | AST.FunctionDecl)[] = [];
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -391,6 +393,14 @@ export abstract class TypeCheckerBase {
   public switchDepth: number = 0;
   public inDefer: boolean = false;
   private failedImportSymbolsByFile: Map<string, Set<string>> = new Map();
+  private structFieldLookupCache: Map<
+    AST.StructDecl,
+    Map<string, AST.StructField>
+  > = new Map();
+  private structMemberLookupCache: Map<
+    AST.StructDecl,
+    Map<string, (AST.StructField | AST.FunctionDecl)[]>
+  > = new Map();
 
   // Track type alias resolution to detect cycles
   private typeAliasResolutionStack: Set<string> = new Set();
@@ -407,6 +417,52 @@ export abstract class TypeCheckerBase {
     this.linkerSymbolTable = new LinkerSymbolTable();
     this.collectAllErrors = options.collectAllErrors ?? true;
     this.initializeBuiltins();
+  }
+
+  private getDirectStructField(
+    decl: AST.StructDecl,
+    fieldName: string,
+  ): AST.StructField | undefined {
+    let fields = this.structFieldLookupCache.get(decl);
+    if (!fields) {
+      fields = new Map<string, AST.StructField>();
+      for (const member of decl.members) {
+        if (member.kind === "StructField" && !fields.has(member.name)) {
+          fields.set(member.name, member);
+        }
+      }
+      this.structFieldLookupCache.set(decl, fields);
+    }
+
+    return fields.get(fieldName);
+  }
+
+  private getDirectStructMembers(
+    decl: AST.StructDecl,
+    memberName: string,
+  ): (AST.StructField | AST.FunctionDecl)[] {
+    let membersByName = this.structMemberLookupCache.get(decl);
+    if (!membersByName) {
+      membersByName = new Map<
+        string,
+        (AST.StructField | AST.FunctionDecl)[]
+      >();
+      for (const member of decl.members) {
+        if (member.kind !== "StructField" && member.kind !== "FunctionDecl") {
+          continue;
+        }
+
+        const existing = membersByName.get(member.name);
+        if (existing) {
+          existing.push(member);
+        } else {
+          membersByName.set(member.name, [member]);
+        }
+      }
+      this.structMemberLookupCache.set(decl, membersByName);
+    }
+
+    return membersByName.get(memberName) ?? EMPTY_DIRECT_STRUCT_MEMBERS;
   }
 
   public getCurrentScope(): SymbolTable {
@@ -1407,13 +1463,12 @@ export abstract class TypeCheckerBase {
     fieldName: string,
     substitutionMap: Map<string, AST.TypeNode> = new Map(),
   ): { field: AST.StructField; type: AST.TypeNode } | undefined {
-    for (const member of decl.members) {
-      if (member.kind === "StructField" && member.name === fieldName) {
-        return {
-          field: member,
-          type: this.substituteType(member.type, substitutionMap),
-        };
-      }
+    const member = this.getDirectStructField(decl, fieldName);
+    if (member) {
+      return {
+        field: member,
+        type: this.substituteType(member.type, substitutionMap),
+      };
     }
 
     if (decl.inheritanceList && decl.inheritanceList.length > 0) {
@@ -1522,10 +1577,9 @@ export abstract class TypeCheckerBase {
     let members: (AST.StructField | AST.FunctionDecl | AST.SpecMethod)[] = [];
 
     if (decl.kind === "StructDecl") {
-      members = (decl as AST.StructDecl).members.filter(
-        (m) =>
-          (m.kind === "StructField" && m.name === memberName) ||
-          (m.kind === "FunctionDecl" && m.name === memberName),
+      members = this.getDirectStructMembers(
+        decl as AST.StructDecl,
+        memberName,
       );
     } else if (decl.kind === "EnumDecl") {
       members = (decl as AST.EnumDecl).methods.filter(

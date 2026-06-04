@@ -218,6 +218,50 @@ describe("TypeChecker", () => {
     expect(helperSource).toContain("decl.genericParams.length === 0");
   });
 
+  it("keeps direct struct member lookups on cached maps", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const fieldCache = source.indexOf("private structFieldLookupCache");
+    const memberCache = source.indexOf("private structMemberLookupCache");
+    const directFieldHelper = source.indexOf("private getDirectStructField");
+    const directMemberHelper = source.indexOf("private getDirectStructMembers");
+    const resolveFieldStart = source.indexOf("public resolveStructField");
+    const resolveMemberStart = source.indexOf("public resolveMemberWithContext");
+    const resolveFieldSource = source.slice(
+      resolveFieldStart,
+      resolveMemberStart,
+    );
+    const resolveMemberEnd = source.indexOf(
+      "  public typeToString",
+      resolveMemberStart,
+    );
+    const resolveMemberSource = source.slice(
+      resolveMemberStart,
+      resolveMemberEnd,
+    );
+    const directStructBranchSource = resolveMemberSource.slice(
+      resolveMemberSource.indexOf('if (decl.kind === "StructDecl")'),
+      resolveMemberSource.indexOf('} else if (decl.kind === "EnumDecl")'),
+    );
+
+    expect(fieldCache).toBeGreaterThanOrEqual(0);
+    expect(memberCache).toBeGreaterThanOrEqual(0);
+    expect(directFieldHelper).toBeGreaterThan(fieldCache);
+    expect(directMemberHelper).toBeGreaterThan(memberCache);
+    expect(resolveFieldSource).toContain(
+      "this.getDirectStructField(decl, fieldName)",
+    );
+    expect(resolveMemberSource).toContain("this.getDirectStructMembers(");
+    expect(resolveMemberSource).toContain("decl as AST.StructDecl");
+    expect(resolveMemberSource).toContain("memberName");
+    expect(resolveFieldSource).not.toContain(
+      "for (const member of decl.members)",
+    );
+    expect(directStructBranchSource).not.toContain(".members.filter(");
+  });
+
   it("skips operator overload member resolution for methodless structs", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/OverloadResolver.ts"),
