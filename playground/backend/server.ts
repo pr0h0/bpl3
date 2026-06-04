@@ -18,6 +18,7 @@ import {
   resolvePlaygroundWasmLinker,
 } from "./wasmToolchain";
 import { stringifyPlaygroundAstArtifact } from "./artifactStringify";
+import { JsonDirectoryCache } from "./jsonDirectoryCache";
 import { runPlaygroundNativeBinary } from "./nativeExecution";
 import { formatProcessCommand } from "./processRunner";
 import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
@@ -201,6 +202,7 @@ const HOSTED_WASM_CACHE_MAX_ENTRIES = 16;
 const HOSTED_WASM_CACHE_TTL_MS = 10 * 60 * 1000;
 const nativeBinaryCache = new Map<string, NativeBinaryCacheEntry>();
 const staticTextFileCache = new StaticTextFileCache();
+const jsonDirectoryCache = new JsonDirectoryCache();
 const compileOnlyResponseCache = new CompileOnlyResponseCache({
   maxEntries: COMPILE_ONLY_RESPONSE_CACHE_MAX_ENTRIES,
   ttlMs: COMPILE_ONLY_RESPONSE_CACHE_TTL_MS,
@@ -244,6 +246,17 @@ function sourceMayUseBplImport(source: string): boolean {
 
 function readStaticTextFile(filePath: string): string {
   return staticTextFileCache.read(filePath);
+}
+
+function readPlaygroundJsonDirectory<T>(
+  directoryPath: string,
+  label: string,
+): T[] {
+  return jsonDirectoryCache.read<T>(directoryPath, {
+    onFileError: (filePath, error) => {
+      console.error(`Failed to load ${label} ${path.basename(filePath)}:`, error);
+    },
+  });
 }
 
 function getCachedNativeBinary(
@@ -485,49 +498,13 @@ async function runCompiledNativeBinary(options: {
 // Get examples
 function getExamples() {
   const examplesDir = path.join(__dirname, "../examples");
-  const examples: any[] = [];
-
-  if (fs.existsSync(examplesDir)) {
-    const files = fs
-      .readdirSync(examplesDir)
-      .filter((f) => f.endsWith(".json"));
-    for (const file of files) {
-      try {
-        const content = fs.readFileSync(path.join(examplesDir, file), "utf-8");
-        examples.push(JSON.parse(content));
-      } catch (e) {
-        console.error(`Failed to load example ${file}:`, e);
-      }
-    }
-  }
-
-  // Sort by order
-  examples.sort((a, b) => (a.order || 0) - (b.order || 0));
-  return examples;
+  return readPlaygroundJsonDirectory(examplesDir, "example");
 }
 
 // Get tutorials
 function getTutorials() {
   const tutorialsDir = path.join(__dirname, "../tutorials");
-  const tutorials: any[] = [];
-
-  if (fs.existsSync(tutorialsDir)) {
-    const files = fs
-      .readdirSync(tutorialsDir)
-      .filter((f) => f.endsWith(".json"));
-    for (const file of files) {
-      try {
-        const content = fs.readFileSync(path.join(tutorialsDir, file), "utf-8");
-        tutorials.push(JSON.parse(content));
-      } catch (e) {
-        console.error(`Failed to load tutorial ${file}:`, e);
-      }
-    }
-  }
-
-  // Sort by order
-  tutorials.sort((a, b) => (a.order || 0) - (b.order || 0));
-  return tutorials;
+  return readPlaygroundJsonDirectory(tutorialsDir, "tutorial");
 }
 
 // Compile and run BPL code
