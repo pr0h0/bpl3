@@ -194,6 +194,18 @@ describe("BPL Playground Examples", () => {
     );
   });
 
+  it("keeps the default hello world example on the lightweight std/c path", () => {
+    const helloWorld = examples.find((example) => example.order === 1);
+
+    expect(helloWorld).toBeDefined();
+    const code = Array.isArray(helloWorld!.code)
+      ? helloWorld!.code.join("\n")
+      : helloWorld!.code;
+    expect(code).toContain('import [printf] from "std/c.bpl";');
+    expect(code).not.toContain("std/io.bpl");
+    expect(code).not.toContain("IO.print");
+  });
+
   it("passes shell metacharacter args literally and preserves stdin", async () => {
     const result = await compileAndRunExample(
       [
