@@ -129,6 +129,69 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("tail.reduce((expr");
   });
 
+  it("keeps generated binary expression tail parsing off Peggy tuple arrays", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const binaryLevels = [
+      ["LogicalOr", "LogicalOrOperator", "LogicalAnd"],
+      ["LogicalAnd", "LogicalAndOperator", "BitwiseOr"],
+      ["BitwiseOr", "BitwiseOrOperator", "BitwiseXor"],
+      ["BitwiseXor", "BitwiseXorOperator", "BitwiseAnd"],
+      ["BitwiseAnd", "BitwiseAndOperator", "Equality"],
+      ["Equality", "EqualityOperator", "TypeCheck"],
+      ["Relational", "RelationalOperator", "Shift"],
+      ["Shift", "ShiftOperator", "Additive"],
+      ["Additive", "AdditiveOperator", "Multiplicative"],
+      ["Multiplicative", "MultiplicativeOperator", "Unary"],
+    ];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedBinaryExpressionTailParsing",
+    );
+
+    for (const [levelName, operatorName, nextLevelName] of binaryLevels) {
+      const helper = generatedSource.match(
+        new RegExp(`function peg\\$parse${levelName}\\(\\)[\\s\\S]*?\\n  }`),
+      )?.[0];
+
+      expect(helper).toContain(`let result = peg$parse${nextLevelName}();`);
+      expect(helper).toContain(`peg$scanBpl${operatorName}()`);
+      expect(helper).toContain(
+        "makeOperatorToken(operator.op, operator.loc)",
+      );
+      expect(helper).not.toContain("s2 = []");
+      expect(helper).not.toContain("s2.push");
+      expect(helper).not.toContain("[s4, s5, s6, s7]");
+    }
+
+    expect(() =>
+      new Parser(
+        [
+          "frame main() ret int {",
+          "  local a: int = 8 + 4 * 2 - 1;",
+          "  if ((a << 1) >= 10 && (a & 3) != 0 || (a ^ 1) > 0) {",
+          "    return a;",
+          "  }",
+          "  return 0;",
+          "}",
+        ].join("\n"),
+        "binary-tail-fast-path.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated parser action locations flat for large translation-unit throughput", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

@@ -6209,59 +6209,35 @@ function peg$parse(input, options) {
   }
 
   function peg$parseLogicalOr() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseLogicalAnd();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseLogicalOrOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseLogicalAnd();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseLogicalOrOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseLogicalAnd();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f92(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseLogicalAnd();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplLogicalOrOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseLogicalAnd();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplLogicalOrOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6286,59 +6262,35 @@ function peg$parse(input, options) {
     return peg$scanBplLogicalOrOperator();
   }
   function peg$parseLogicalAnd() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseBitwiseOr();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseLogicalAndOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseBitwiseOr();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseLogicalAndOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseBitwiseOr();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f94(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseBitwiseOr();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplLogicalAndOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseBitwiseOr();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplLogicalAndOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6363,59 +6315,35 @@ function peg$parse(input, options) {
     return peg$scanBplLogicalAndOperator();
   }
   function peg$parseBitwiseOr() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseBitwiseXor();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseBitwiseOrOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseBitwiseXor();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseBitwiseOrOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseBitwiseXor();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f96(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseBitwiseXor();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplBitwiseOrOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseBitwiseXor();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplBitwiseOrOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6440,59 +6368,35 @@ function peg$parse(input, options) {
     return peg$scanBplBitwiseOrOperator();
   }
   function peg$parseBitwiseXor() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseBitwiseAnd();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseBitwiseXorOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseBitwiseAnd();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseBitwiseXorOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseBitwiseAnd();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f98(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseBitwiseAnd();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplBitwiseXorOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseBitwiseAnd();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplBitwiseXorOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6517,59 +6421,35 @@ function peg$parse(input, options) {
     return peg$scanBplBitwiseXorOperator();
   }
   function peg$parseBitwiseAnd() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseEquality();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseBitwiseAndOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseEquality();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseBitwiseAndOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseEquality();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f100(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseEquality();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplBitwiseAndOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseEquality();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplBitwiseAndOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6594,59 +6474,35 @@ function peg$parse(input, options) {
     return peg$scanBplBitwiseAndOperator();
   }
   function peg$parseEquality() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseTypeCheck();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseEqualityOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseTypeCheck();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseEqualityOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseTypeCheck();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f102(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseTypeCheck();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplEqualityOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseTypeCheck();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplEqualityOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6735,59 +6591,35 @@ function peg$parse(input, options) {
   }
 
   function peg$parseRelational() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseShift();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseRelationalOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseShift();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseRelationalOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseShift();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f105(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseShift();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplRelationalOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseShift();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplRelationalOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6819,59 +6651,35 @@ function peg$parse(input, options) {
     return peg$scanBplRelationalOperator();
   }
   function peg$parseShift() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseAdditive();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseShiftOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseAdditive();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseShiftOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseAdditive();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f107(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseAdditive();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplShiftOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseAdditive();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplShiftOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6900,59 +6708,35 @@ function peg$parse(input, options) {
     return peg$scanBplShiftOperator();
   }
   function peg$parseAdditive() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseMultiplicative();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseAdditiveOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseMultiplicative();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseAdditiveOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseMultiplicative();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f109(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseMultiplicative();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplAdditiveOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseMultiplicative();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplAdditiveOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;
@@ -6980,59 +6764,35 @@ function peg$parse(input, options) {
     return peg$scanBplAdditiveOperator();
   }
   function peg$parseMultiplicative() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseUnary();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseMultiplicativeOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseUnary();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseMultiplicativeOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseUnary();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f111(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseUnary();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
-  }
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplMultiplicativeOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
 
+      peg$parse_();
+      const right = peg$parseUnary();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = binary(
+        result,
+        makeOperatorToken(operator.op, operator.loc),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
+  }
   function peg$failBplMultiplicativeOperatorExpectation() {
     if (peg$silentFails !== 0) {
       return;

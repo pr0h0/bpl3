@@ -80,13 +80,15 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
     optimizeGeneratedNumberScanning(
       optimizeGeneratedStatementStartKeywordScanning(
         optimizeGeneratedAssignmentOperatorScanning(
-          optimizeGeneratedExpressionOperatorScanning(
-            optimizeGeneratedPostfixTailScanning(
-              optimizeGeneratedQualifiedIdentifierScanning(
-                optimizeGeneratedIdentifierScanning(
-                  optimizeGeneratedFailureTracking(
-                    optimizeGeneratedLiteralMatches(
-                      optimizeGeneratedMakeLoc(withBplLocation),
+          optimizeGeneratedBinaryExpressionTailParsing(
+            optimizeGeneratedExpressionOperatorScanning(
+              optimizeGeneratedPostfixTailScanning(
+                optimizeGeneratedQualifiedIdentifierScanning(
+                  optimizeGeneratedIdentifierScanning(
+                    optimizeGeneratedFailureTracking(
+                      optimizeGeneratedLiteralMatches(
+                        optimizeGeneratedMakeLoc(withBplLocation),
+                      ),
                     ),
                   ),
                 ),
@@ -909,6 +911,12 @@ type GeneratedOperatorScanConfig = {
   }[];
 };
 
+type GeneratedBinaryExpressionTailConfig = {
+  name: string;
+  operatorName: string;
+  nextParserName: string;
+};
+
 const EXPRESSION_OPERATOR_SCAN_CONFIGS: GeneratedOperatorScanConfig[] = [
   {
     name: "LogicalOrOperator",
@@ -987,6 +995,59 @@ const EXPRESSION_OPERATOR_SCAN_CONFIGS: GeneratedOperatorScanConfig[] = [
       { code: 42, branches: [{ op: "*" }] },
       { code: 38, branches: [{ op: "&" }] },
     ],
+  },
+];
+
+const BINARY_EXPRESSION_TAIL_CONFIGS: GeneratedBinaryExpressionTailConfig[] = [
+  {
+    name: "LogicalOr",
+    operatorName: "LogicalOrOperator",
+    nextParserName: "LogicalAnd",
+  },
+  {
+    name: "LogicalAnd",
+    operatorName: "LogicalAndOperator",
+    nextParserName: "BitwiseOr",
+  },
+  {
+    name: "BitwiseOr",
+    operatorName: "BitwiseOrOperator",
+    nextParserName: "BitwiseXor",
+  },
+  {
+    name: "BitwiseXor",
+    operatorName: "BitwiseXorOperator",
+    nextParserName: "BitwiseAnd",
+  },
+  {
+    name: "BitwiseAnd",
+    operatorName: "BitwiseAndOperator",
+    nextParserName: "Equality",
+  },
+  {
+    name: "Equality",
+    operatorName: "EqualityOperator",
+    nextParserName: "TypeCheck",
+  },
+  {
+    name: "Relational",
+    operatorName: "RelationalOperator",
+    nextParserName: "Shift",
+  },
+  {
+    name: "Shift",
+    operatorName: "ShiftOperator",
+    nextParserName: "Additive",
+  },
+  {
+    name: "Additive",
+    operatorName: "AdditiveOperator",
+    nextParserName: "Multiplicative",
+  },
+  {
+    name: "Multiplicative",
+    operatorName: "MultiplicativeOperator",
+    nextParserName: "Unary",
   },
 ];
 
@@ -1090,6 +1151,85 @@ function buildGeneratedOperatorScannerBranchLine(
   }
 
   return `        { ${success} }`;
+}
+
+function optimizeGeneratedBinaryExpressionTailParsing(
+  parserSource: string,
+): string {
+  let optimized = parserSource;
+  for (const config of BINARY_EXPRESSION_TAIL_CONFIGS) {
+    optimized = optimizeGeneratedBinaryExpressionTailParsingForConfig(
+      optimized,
+      config,
+    );
+  }
+  return optimized;
+}
+
+function optimizeGeneratedBinaryExpressionTailParsingForConfig(
+  parserSource: string,
+  config: GeneratedBinaryExpressionTailConfig,
+): string {
+  const parserPattern = new RegExp(
+    `  function peg\\$parse${config.name}\\(\\) \\{([\\s\\S]*?)\\n  \\}\\n\\n(?=  function peg\\$failBpl${config.operatorName}Expectation\\()`,
+  );
+  const match = parserSource.match(parserPattern);
+
+  if (!match) {
+    throw new Error(
+      `Generated Peggy parser ${config.name} helper shape changed; update the BPL parser binary-tail optimizer.`,
+    );
+  }
+
+  const helperBody = match[1]!;
+  const expectedFragments = [
+    `s1 = peg$parse${config.nextParserName}();`,
+    `s5 = peg$parse${config.operatorName}();`,
+    `s7 = peg$parse${config.nextParserName}();`,
+    "s2.push(s3);",
+    "s4 = [s4, s5, s6, s7];",
+  ];
+  if (!expectedFragments.every((fragment) => helperBody.includes(fragment))) {
+    throw new Error(
+      `Generated Peggy parser ${config.name} tail shape changed; update the BPL parser binary-tail optimizer.`,
+    );
+  }
+
+  const replacement = [
+    `  function peg$parse${config.name}() {`,
+    `    let result = peg$parse${config.nextParserName}();`,
+    "    if (result === peg$FAILED) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    while (true) {",
+    "      const tailStartPos = peg$currPos;",
+    "      peg$parse_();",
+    `      const operator = peg$scanBpl${config.operatorName}();`,
+    "      if (operator === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "",
+    "      peg$parse_();",
+    `      const right = peg$parse${config.nextParserName}();`,
+    "      if (right === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "",
+    "      result = binary(",
+    "        result,",
+    "        makeOperatorToken(operator.op, operator.loc),",
+    "        right,",
+    "        mergeLoc(result.location, right.location),",
+    "      );",
+    "    }",
+    "  }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(parserPattern, replacement);
 }
 
 function optimizeGeneratedTriviaSkipping(parserSource: string): string {
