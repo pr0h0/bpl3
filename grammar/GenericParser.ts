@@ -140,8 +140,9 @@ export class GenericParser {
     private readonly grammar: Grammar,
     private readonly source: string,
     private readonly filePath: string = "<memory>",
+    hasCommentMarker: boolean = source.includes("#"),
   ) {
-    this.hasCommentMarker = source.includes("#");
+    this.hasCommentMarker = hasCommentMarker;
   }
 
   parse(): ParseResult {

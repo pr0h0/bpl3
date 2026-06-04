@@ -41,8 +41,13 @@ function loadGrammar(): Grammar {
 
 export function lexWithGrammar(source: string, filePath: string): Token[] {
   const grammar = loadGrammar();
-  const genericParser = new GenericParser(grammar, source, filePath);
   const hasCommentMarker = source.includes("#");
+  const genericParser = new GenericParser(
+    grammar,
+    source,
+    filePath,
+    hasCommentMarker,
+  );
 
   if (!hasCommentMarker) {
     const { tokens } = genericParser.parseWithTokenEmitter(

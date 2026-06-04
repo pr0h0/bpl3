@@ -638,7 +638,10 @@ describe("Lexer - Extended Tests", () => {
 
       const methodSource = source.slice(methodStart, methodEnd);
       expect(source).toContain("private readonly hasCommentMarker: boolean");
-      expect(source).toContain('this.hasCommentMarker = source.includes("#")');
+      expect(source).toContain(
+        'hasCommentMarker: boolean = source.includes("#")',
+      );
+      expect(source).toContain("this.hasCommentMarker = hasCommentMarker;");
       expect(source).toContain("private skipWhitespaceOnly");
       expect(methodSource).toContain("if (!this.hasCommentMarker)");
       expect(methodSource).toContain("this.skipWhitespaceOnly()");
@@ -660,10 +663,15 @@ describe("Lexer - Extended Tests", () => {
 
       const methodSource = source.slice(start, end);
       const markerCheckIndex = methodSource.indexOf('source.includes("#")');
+      const parserStartIndex = methodSource.indexOf("new GenericParser");
       const extractionIndex = methodSource.indexOf("extractComments(");
 
       expect(markerCheckIndex).toBeGreaterThanOrEqual(0);
+      expect(parserStartIndex).toBeGreaterThan(markerCheckIndex);
       expect(extractionIndex).toBeGreaterThan(markerCheckIndex);
+      expect(methodSource).toMatch(
+        /new GenericParser\(\s*grammar,\s*source,\s*filePath,\s*hasCommentMarker,\s*\)/,
+      );
       expect(methodSource).toContain("if (hasCommentMarker)");
       expect(methodSource).not.toContain(
         "const comments = extractComments(source, filePath, tokens);\n  mapped.push(...comments);\n\n  // Sort by position\n  mapped.sort",
