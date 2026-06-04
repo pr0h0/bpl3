@@ -44,7 +44,10 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
   const genericParser = new GenericParser(grammar, source, filePath);
   const { tokens } = genericParser.parse();
 
-  const mapped = tokens.map(convertTokenNodeToToken);
+  const mapped = new Array<Token>(tokens.length);
+  for (let i = 0; i < tokens.length; i++) {
+    mapped[i] = convertTokenNodeToToken(tokens[i]!);
+  }
 
   const hasCommentMarker = source.includes("#");
   if (hasCommentMarker) {

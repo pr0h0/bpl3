@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Preallocated Grammar Token Conversion** - `lexWithGrammar` now converts
+  grammar token nodes through a preallocated indexed loop instead of
+  `tokens.map(...)`, avoiding callback overhead on large token streams. On the
+  matched 5k synthetic compile probe after the parser location fast path, lex
+  median improved from ~91.32ms to ~86.86ms and full in-process compile median
+  improved from ~739.95ms to ~727.31ms while preserving the same 265,230 tokens,
+  token signature
+  (`0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`), and
+  LLVM IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with
+  `bun test tests/Lexer.test.ts -t "preallocated loop|comment-free lexing|should tokenize 'frame' keyword|should skip single-line comments"`.
 - **Optimized Native Stack Overflow Probes** - O3 native codegen now
   initializes a stack-limit pointer in `main` and emits a cheap stack probe in
   checked functions instead of calling the runtime enter/exit helpers or

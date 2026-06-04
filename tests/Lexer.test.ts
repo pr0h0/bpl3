@@ -556,6 +556,23 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
+    it("keeps grammar token conversion on a preallocated loop", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("export function lexWithGrammar");
+      const end = source.indexOf("function extractComments", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const methodSource = source.slice(start, end);
+      expect(methodSource).toContain("new Array<Token>(tokens.length)");
+      expect(methodSource).toContain("mapped[i] = convertTokenNodeToToken");
+      expect(methodSource).not.toContain("tokens.map(convertTokenNodeToToken)");
+    });
+
     it("should skip single-line comments", () => {
       const tokens = tokenize("# This is a comment\nlocal");
       expect(tokens[0]!.type).toBe(TokenType.Comment);
