@@ -15,6 +15,7 @@
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
+import { walkAST } from "../../common/ASTTraversal";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
@@ -22,6 +23,7 @@ import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConver
 import { AsmGenerator } from "./AsmGenerator";
 
 const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
+const LLVM_FRAME_ADDRESS_INTRINSIC = "llvm.frameaddress.p0i8";
 const EMPTY_POINTER_EXPRESSION_PROOFS: readonly string[] = [];
 
 type NullGuardProof = {
@@ -32,6 +34,7 @@ type NullGuardProof = {
 export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
+  protected currentFunctionUsesAllocaStackLimitProbe = false;
   private structDefaultInitializationRequiredCache: Map<string, boolean> =
     new Map();
 
@@ -258,7 +261,19 @@ export abstract class StatementGenerator extends AsmGenerator {
     const overflowLabel = this.newLabel("stack.limit.overflow");
     const continueLabel = this.newLabel("stack.limit.cont");
 
-    this.emit(`  ${probe} = alloca i8`);
+    if (this.currentFunctionUsesAllocaStackLimitProbe) {
+      this.emit(`  ${probe} = alloca i8`);
+    } else {
+      if (!this.declaredFunctions.has(LLVM_FRAME_ADDRESS_INTRINSIC)) {
+        this.emitDeclaration(
+          `declare i8* @${LLVM_FRAME_ADDRESS_INTRINSIC}(i32)`,
+        );
+        this.declaredFunctions.add(LLVM_FRAME_ADDRESS_INTRINSIC);
+      }
+      this.emit(
+        `  ${probe} = call i8* @${LLVM_FRAME_ADDRESS_INTRINSIC}(i32 0)`,
+      );
+    }
     this.emit(`  ${limit} = load i8*, i8** @__bpl_stack_limit`);
 
     let effectiveLimit = limit;
@@ -321,6 +336,94 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     const value = (stmt as AST.ReturnStmt).value;
     return !value || this.isLeafExpression(value);
+  }
+
+  private hasDirectTailRecursiveReturn(decl: AST.FunctionDecl): boolean {
+    const scanStatement = (stmt: AST.Statement): boolean => {
+      switch (stmt.kind) {
+        case "Return":
+          return this.isDirectSelfCallExpression(
+            (stmt as AST.ReturnStmt).value,
+            decl,
+          );
+        case "Block":
+          return (stmt as AST.BlockStmt).statements.some(scanStatement);
+        case "If": {
+          const ifStmt = stmt as AST.IfStmt;
+          return (
+            scanStatement(ifStmt.thenBranch) ||
+            (ifStmt.elseBranch ? scanStatement(ifStmt.elseBranch) : false)
+          );
+        }
+        case "Loop": {
+          const loop = stmt as AST.LoopStmt;
+          return (
+            (loop.init ? scanStatement(loop.init) : false) ||
+            scanStatement(loop.body)
+          );
+        }
+        case "Defer":
+          return scanStatement((stmt as AST.DeferStmt).statement);
+        case "Try": {
+          const tryStmt = stmt as AST.TryStmt;
+          return (
+            scanStatement(tryStmt.tryBlock) ||
+            tryStmt.catchClauses.some((clause) => scanStatement(clause.body))
+          );
+        }
+        case "Switch": {
+          const switchStmt = stmt as AST.SwitchStmt;
+          return (
+            switchStmt.cases.some((switchCase) =>
+              scanStatement(switchCase.body),
+            ) ||
+            (switchStmt.defaultCase
+              ? scanStatement(switchStmt.defaultCase)
+              : false)
+          );
+        }
+        default:
+          return false;
+      }
+    };
+
+    return decl.body.statements.some(scanStatement);
+  }
+
+  private hasDirectRecursiveCall(decl: AST.FunctionDecl): boolean {
+    let found = false;
+    walkAST(decl.body, (node) => {
+      if (
+        node.kind === "Call" &&
+        this.isDirectSelfCallExpression(node as AST.CallExpr, decl)
+      ) {
+        found = true;
+        return false;
+      }
+    });
+    return found;
+  }
+
+  private isDirectSelfCallExpression(
+    expr: AST.Expression | undefined,
+    decl: AST.FunctionDecl,
+  ): boolean {
+    if (!expr) return false;
+    if (expr.kind === "Group") {
+      return this.isDirectSelfCallExpression(
+        (expr as AST.GroupExpr).expression,
+        decl,
+      );
+    }
+    if (expr.kind !== "Call") return false;
+
+    const call = expr as AST.CallExpr;
+    if (call.operatorOverload) return false;
+    if (call.resolvedDeclaration === decl) return true;
+    return (
+      call.callee.kind === "Identifier" &&
+      (call.callee as AST.IdentifierExpr).name === decl.name
+    );
   }
 
   private isLeafExpression(expr: AST.Expression): boolean {
@@ -2037,6 +2140,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevSubprogramId = this.currentSubprogramId;
     const prevCurrentFunctionEmitsStackFrameHooks =
       this.currentFunctionEmitsStackFrameHooks;
+    const prevCurrentFunctionUsesAllocaStackLimitProbe =
+      this.currentFunctionUsesAllocaStackLimitProbe;
 
     try {
     this.registerCount = 0;
@@ -2156,6 +2261,10 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
       this.currentFunctionEmitsStackFrameHooks =
         this.shouldEmitStackFrameHooksForFunction(decl, name);
+      const hasDirectRecursiveCall = this.hasDirectRecursiveCall(decl);
+      this.currentFunctionUsesAllocaStackLimitProbe =
+        this.shouldUseStackLimitProbe() &&
+        (!hasDirectRecursiveCall || this.hasDirectTailRecursiveReturn(decl));
 
       // Special handling for main function to accept argc/argv
       let params: string;
@@ -2466,6 +2575,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.generatingFunctionBody = prevGeneratingFunctionBody;
       this.currentFunctionEmitsStackFrameHooks =
         prevCurrentFunctionEmitsStackFrameHooks;
+      this.currentFunctionUsesAllocaStackLimitProbe =
+        prevCurrentFunctionUsesAllocaStackLimitProbe;
     }
   }
 
